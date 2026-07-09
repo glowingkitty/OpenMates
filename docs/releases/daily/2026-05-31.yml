@@ -1,0 +1,1451 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-31'
+generated_at: '2026-07-09T15:31:56+00:00'
+range:
+  since: '2026-05-31T00:00:00+00:00'
+  until: '2026-05-31T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 30
+  section_counts:
+    features: 3
+    bug_fixes: 21
+    improvements: 1
+    docs: 1
+    tests: 3
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 17
+  user_facing_items: 19
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add projects workspace'
+    section: features
+    commits:
+    - 9869355c1
+    authored_at: '2026-05-31T22:44:26+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/embed_keys.yml
+    - backend/core/directus/schemas/project_folders.yml
+    - backend/core/directus/schemas/project_items.yml
+    - backend/core/directus/schemas/project_shares.yml
+    - backend/core/directus/schemas/projects.yml
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_embed_methods.py
+    - backend/tests/test_projects.py
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'feat: style last used label as solid recommended pill'
+    section: features
+    commits:
+    - f2a1314fe
+    authored_at: '2026-05-31T08:56:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: implement actual sub-chats record creation and dispatch in backend'
+    section: features
+    commits:
+    - 579bfaf2f
+    authored_at: '2026-05-31T07:28:59+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: allow projects API on dev proxy'
+    section: bug_fixes
+    commits:
+    - d981d891e
+    authored_at: '2026-05-31T23:58:44+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: allow projects API through Caddy'
+    section: bug_fixes
+    commits:
+    - 1941a7c59
+    authored_at: '2026-05-31T23:55:59+00:00'
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: render project notifications from store'
+    section: bug_fixes
+    commits:
+    - cd496f183
+    authored_at: '2026-05-31T23:45:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prerender projects app shell'
+    section: bug_fixes
+    commits:
+    - bee59b8dc
+    authored_at: '2026-05-31T23:29:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: disable SSR for projects route'
+    section: bug_fixes
+    commits:
+    - 4719f01c8
+    authored_at: '2026-05-31T23:09:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: sync sub-chats for parent reloads'
+    section: bug_fixes
+    commits:
+    - f72dcfa67
+    authored_at: '2026-05-31T16:56:49+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include sub-chats in shared chat reloads'
+    section: bug_fixes
+    commits:
+    - 23b1d8786
+    authored_at: '2026-05-31T16:49:16+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve sub-chat previews and metadata'
+    section: bug_fixes
+    commits:
+    - 9b7e2b93b
+    authored_at: '2026-05-31T16:02:20+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: complete sub-chat orchestration'
+    section: bug_fixes
+    commits:
+    - 84824b1f0
+    authored_at: '2026-05-31T15:08:32+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/websockets.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: treat missing sub-chat initial messages as nonfatal'
+    section: bug_fixes
+    commits:
+    - b0175533d
+    authored_at: '2026-05-31T13:44:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: create sub-chat shells without user message ids'
+    section: bug_fixes
+    commits:
+    - 4de9cea2d
+    authored_at: '2026-05-31T13:33:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: harden sub-chat spawn payload handling'
+    section: bug_fixes
+    commits:
+    - b4ef29764
+    authored_at: '2026-05-31T13:18:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: sync sub-chat parent metadata for key recovery'
+    section: bug_fixes
+    commits:
+    - 371ed21ec
+    authored_at: '2026-05-31T13:03:17+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_phased_sync_handler.py
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve sub-chat encrypted keys from parent'
+    section: bug_fixes
+    commits:
+    - 3c135663b
+    authored_at: '2026-05-31T12:26:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: sync parent_id and is_sub_chat properties during chat sync'
+    section: bug_fixes
+    commits:
+    - 7a60b3411
+    authored_at: '2026-05-31T11:28:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: sub-chats spawning zero-knowledge flow'
+    section: bug_fixes
+    commits:
+    - 15f053f19
+    authored_at: '2026-05-31T10:23:31+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: deduplicate credit purchase websocket notifications'
+    section: bug_fixes
+    commits:
+    - d27e3fdb4
+    authored_at: '2026-05-31T09:05:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: cascade parent chat deletion to sub-chats and grandchild chats'
+    section: bug_fixes
+    commits:
+    - eafe61a19
+    authored_at: '2026-05-31T08:35:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow websocket stream listener to forward sub-chat orchestration events'
+    section: bug_fixes
+    commits:
+    - b10f99c47
+    authored_at: '2026-05-31T07:03:31+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/websockets.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent stream_consumer empty content error when awaiting sub-chats or user input'
+    section: bug_fixes
+    commits:
+    - 4c0a64c23
+    authored_at: '2026-05-31T06:37:28+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: define enable_subchats_results before referencing in main_processor.py'
+    section: bug_fixes
+    commits:
+    - 42cef7a6c
+    authored_at: '2026-05-31T06:19:47+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'perf: render fullscreen sheet table with UIKit on iOS'
+    section: improvements
+    commits:
+    - d9b40ac15
+    authored_at: '2026-05-31T13:26:53+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  docs:
+  - title: 'docs: clarify SwiftUI and UIKit Apple guidance'
+    section: docs
+    commits:
+    - cffa3c646
+    authored_at: '2026-05-31T12:24:18+00:00'
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: wait for projects route hydration'
+    section: tests
+    commits:
+    - 58e39ff6c
+    authored_at: '2026-05-31T23:19:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize projects flow navigation'
+    section: tests
+    commits:
+    - 4f71e8ecc
+    authored_at: '2026-05-31T22:54:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align sub-chat flow status assertion'
+    section: tests
+    commits:
+    - c6f76e010
+    authored_at: '2026-05-31T15:20:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'debug: add sub-chat spawning variables log in main_processor.py'
+    section: other
+    commits:
+    - a188fbdf7
+    authored_at: '2026-05-31T07:56:14+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: render project notifications from store'
+    commits:
+    - cd496f183
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prerender projects app shell'
+    commits:
+    - bee59b8dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: disable SSR for projects route'
+    commits:
+    - 4719f01c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: sync sub-chats for parent reloads'
+    commits:
+    - f72dcfa67
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include sub-chats in shared chat reloads'
+    commits:
+    - 23b1d8786
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve sub-chat previews and metadata'
+    commits:
+    - 9b7e2b93b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: complete sub-chat orchestration'
+    commits:
+    - 84824b1f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: sync sub-chat parent metadata for key recovery'
+    commits:
+    - 371ed21ec
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: sub-chats spawning zero-knowledge flow'
+    commits:
+    - 15f053f19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: deduplicate credit purchase websocket notifications'
+    commits:
+    - d27e3fdb4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: style last used label as solid recommended pill'
+    commits:
+    - f2a1314fe
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: cascade parent chat deletion to sub-chats and grandchild chats'
+    commits:
+    - eafe61a19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'debug: add sub-chat spawning variables log in main_processor.py'
+    commits:
+    - a188fbdf7
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: implement actual sub-chats record creation and dispatch in backend'
+    commits:
+    - 579bfaf2f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow websocket stream listener to forward sub-chat orchestration events'
+    commits:
+    - b10f99c47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent stream_consumer empty content error when awaiting sub-chats or user input'
+    commits:
+    - 4c0a64c23
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: define enable_subchats_results before referencing in main_processor.py'
+    commits:
+    - 42cef7a6c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: render project notifications from store'
+    commits:
+    - cd496f183
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prerender projects app shell'
+    commits:
+    - bee59b8dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: disable SSR for projects route'
+    commits:
+    - 4719f01c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add projects workspace'
+    commits:
+    - 9869355c1
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: sync sub-chats for parent reloads'
+    commits:
+    - f72dcfa67
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include sub-chats in shared chat reloads'
+    commits:
+    - 23b1d8786
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve sub-chat previews and metadata'
+    commits:
+    - 9b7e2b93b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: complete sub-chat orchestration'
+    commits:
+    - 84824b1f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'perf: render fullscreen sheet table with UIKit on iOS'
+    commits:
+    - d9b40ac15
+    section: improvements
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: sync sub-chat parent metadata for key recovery'
+    commits:
+    - 371ed21ec
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: sub-chats spawning zero-knowledge flow'
+    commits:
+    - 15f053f19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: deduplicate credit purchase websocket notifications'
+    commits:
+    - d27e3fdb4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: style last used label as solid recommended pill'
+    commits:
+    - f2a1314fe
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: cascade parent chat deletion to sub-chats and grandchild chats'
+    commits:
+    - eafe61a19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'debug: add sub-chat spawning variables log in main_processor.py'
+    commits:
+    - a188fbdf7
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: implement actual sub-chats record creation and dispatch in backend'
+    commits:
+    - 579bfaf2f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow websocket stream listener to forward sub-chat orchestration events'
+    commits:
+    - b10f99c47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent stream_consumer empty content error when awaiting sub-chats or user input'
+    commits:
+    - 4c0a64c23
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: define enable_subchats_results before referencing in main_processor.py'
+    commits:
+    - 42cef7a6c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: d981d891e8965ca696569a366a3c3f21ca5c429d
+    short_sha: d981d891e
+    authored_at: '2026-05-31T23:58:44+00:00'
+    subject: 'fix: allow projects API on dev proxy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    related_feature_ids: []
+  - sha: 1941a7c591af493999d46ce3845713f0fed31756
+    short_sha: 1941a7c59
+    authored_at: '2026-05-31T23:55:59+00:00'
+    subject: 'fix: allow projects API through Caddy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/Caddyfile.example
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: cd496f183e2e44f1d6b0f29918dcccec3f208231
+    short_sha: cd496f183
+    authored_at: '2026-05-31T23:45:34+00:00'
+    subject: 'fix: render project notifications from store'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    related_feature_ids: []
+  - sha: bee59b8dc80dafdfdbe7b337a71118953cfd87c5
+    short_sha: bee59b8dc
+    authored_at: '2026-05-31T23:29:51+00:00'
+    subject: 'fix: prerender projects app shell'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.ts
+    related_feature_ids: []
+  - sha: 58e39ff6c4e4eac8bcf19e9a5c1135510e1fe114
+    short_sha: 58e39ff6c
+    authored_at: '2026-05-31T23:19:19+00:00'
+    subject: 'test: wait for projects route hydration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    related_feature_ids: []
+  - sha: 4719f01c83fe7195ca0e85be07e5c5991bbcb682
+    short_sha: 4719f01c8
+    authored_at: '2026-05-31T23:09:25+00:00'
+    subject: 'fix: disable SSR for projects route'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/projects/+page.ts
+    related_feature_ids: []
+  - sha: 4f71e8ecc1ce3484a1ecdaa2609822447dd2ba63
+    short_sha: 4f71e8ecc
+    authored_at: '2026-05-31T22:54:18+00:00'
+    subject: 'test: stabilize projects flow navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    related_feature_ids: []
+  - sha: 9869355c1c13829a49c1b2d3b21e906e08ebd065
+    short_sha: 9869355c1
+    authored_at: '2026-05-31T22:44:26+00:00'
+    subject: 'feat: add projects workspace'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/embed_keys.yml
+    - backend/core/directus/schemas/project_folders.yml
+    - backend/core/directus/schemas/project_items.yml
+    - backend/core/directus/schemas/project_shares.yml
+    - backend/core/directus/schemas/projects.yml
+    - backend/tests/test_delete_chat_handler.py
+    - backend/tests/test_embed_methods.py
+    - backend/tests/test_projects.py
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    related_feature_ids:
+    - platform:projects
+  - sha: f72dcfa6779cd61f0ce4b88f73c86c4a62864ed8
+    short_sha: f72dcfa67
+    authored_at: '2026-05-31T16:56:49+00:00'
+    subject: 'fix: sync sub-chats for parent reloads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    related_feature_ids: []
+  - sha: 23b1d878660d5505747bee40220db443a44b5f41
+    short_sha: 23b1d8786
+    authored_at: '2026-05-31T16:49:16+00:00'
+    subject: 'fix: include sub-chats in shared chat reloads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    related_feature_ids: []
+  - sha: 9b7e2b93b9bf51f8652a42bcc7b20be2fc190c41
+    short_sha: 9b7e2b93b
+    authored_at: '2026-05-31T16:02:20+00:00'
+    subject: 'fix: improve sub-chat previews and metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: c6f76e0109dc07e86ac4e910445545e39f94b0d2
+    short_sha: c6f76e010
+    authored_at: '2026-05-31T15:20:33+00:00'
+    subject: 'test: align sub-chat flow status assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    related_feature_ids: []
+  - sha: 84824b1f04a93cf1b3a5d807665971f7cf45e227
+    short_sha: 84824b1f0
+    authored_at: '2026-05-31T15:08:32+00:00'
+    subject: 'fix: complete sub-chat orchestration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/websockets.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: b0175533deed93adb71c02a9c12593e4667d6316
+    short_sha: b0175533d
+    authored_at: '2026-05-31T13:44:12+00:00'
+    subject: 'fix: treat missing sub-chat initial messages as nonfatal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 4de9cea2d4c27a1c57216f6e1345bde07dad3aa5
+    short_sha: 4de9cea2d
+    authored_at: '2026-05-31T13:33:32+00:00'
+    subject: 'fix: create sub-chat shells without user message ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: d9b40ac152741e27f2475f24d0d4b1342b319c04
+    short_sha: d9b40ac15
+    authored_at: '2026-05-31T13:26:53+00:00'
+    subject: 'perf: render fullscreen sheet table with UIKit on iOS'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b4ef29764f4017e6cb40d484ee676fdc41cf3d23
+    short_sha: b4ef29764
+    authored_at: '2026-05-31T13:18:43+00:00'
+    subject: 'fix: harden sub-chat spawn payload handling'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 371ed21ec167fe8875fd49bba0a8b30db5990037
+    short_sha: 371ed21ec
+    authored_at: '2026-05-31T13:03:17+00:00'
+    subject: 'fix: sync sub-chat parent metadata for key recovery'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_phased_sync_handler.py
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    related_feature_ids: []
+  - sha: 3c135663b2e958b5b0dd2dea13600847f6534844
+    short_sha: 3c135663b
+    authored_at: '2026-05-31T12:26:49+00:00'
+    subject: 'fix: resolve sub-chat encrypted keys from parent'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    related_feature_ids: []
+  - sha: cffa3c6469982abc7b0073006a6b2b482838375a
+    short_sha: cffa3c646
+    authored_at: '2026-05-31T12:24:18+00:00'
+    subject: 'docs: clarify SwiftUI and UIKit Apple guidance'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    related_feature_ids: []
+  - sha: 7a60b341150f0cf00e0509b36f90fa817d6a6723
+    short_sha: 7a60b3411
+    authored_at: '2026-05-31T11:28:35+00:00'
+    subject: 'fix: sync parent_id and is_sub_chat properties during chat sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    related_feature_ids: []
+  - sha: 15f053f19584ca0ad4c91dfa5e00788cd1903b6c
+    short_sha: 15f053f19
+    authored_at: '2026-05-31T10:23:31+00:00'
+    subject: 'fix: sub-chats spawning zero-knowledge flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: d27e3fdb457c1bb01798482f6ad5753940adc7d4
+    short_sha: d27e3fdb4
+    authored_at: '2026-05-31T09:05:16+00:00'
+    subject: 'fix: deduplicate credit purchase websocket notifications'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    related_feature_ids: []
+  - sha: f2a1314feeff26f1d63e287f8b196b5b823ccb09
+    short_sha: f2a1314fe
+    authored_at: '2026-05-31T08:56:39+00:00'
+    subject: 'feat: style last used label as solid recommended pill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    related_feature_ids: []
+  - sha: eafe61a197bf9cb834f2e85b5e7b7ee21e47b428
+    short_sha: eafe61a19
+    authored_at: '2026-05-31T08:35:46+00:00'
+    subject: 'fix: cascade parent chat deletion to sub-chats and grandchild chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: a188fbdf752ec23923bdbacab01e354a242a18f1
+    short_sha: a188fbdf7
+    authored_at: '2026-05-31T07:56:14+00:00'
+    subject: 'debug: add sub-chat spawning variables log in main_processor.py'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+  - sha: 579bfaf2f99ec429dbec1fbd48ae84e51afd8d1c
+    short_sha: 579bfaf2f
+    authored_at: '2026-05-31T07:28:59+00:00'
+    subject: 'feat: implement actual sub-chats record creation and dispatch in backend'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+  - sha: b10f99c47a88c1bf30e52787e871011d77df933d
+    short_sha: b10f99c47
+    authored_at: '2026-05-31T07:03:31+00:00'
+    subject: 'fix: allow websocket stream listener to forward sub-chat orchestration events'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/websockets.py
+    related_feature_ids: []
+  - sha: 4c0a64c23b6c37e42cce6907359d1a9680a85a1f
+    short_sha: 4c0a64c23
+    authored_at: '2026-05-31T06:37:28+00:00'
+    subject: 'fix: prevent stream_consumer empty content error when awaiting sub-chats or user input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids: []
+  - sha: 42cef7a6c78d8776747d9615ede818ab478f9660
+    short_sha: 42cef7a6c
+    authored_at: '2026-05-31T06:19:47+00:00'
+    subject: 'fix: define enable_subchats_results before referencing in main_processor.py'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on AI orchestration with the implementation of sub-chat creation and synchronization. The update
+    also introduced UI refinements for email lookups and deduplicated payment notifications, while continuing groundwork for
+    the projects workspace and iOS platforms.
+  released_changes:
+  - text: Implemented backend record creation and dispatch for sub-chats within the AI processing pipeline.
+    evidence:
+      commits:
+      - 579bfaf2f
+    release_status: released_main
+  - text: Updated the email lookup interface to style the 'last used' label as a solid recommended pill.
+    evidence:
+      commits:
+      - f2a1314fe
+    release_status: released_main
+  bug_fixes:
+  - text: Hardened sub-chat orchestration and synchronization, ensuring sub-chats are correctly included in parent reloads,
+      shared chat views, and zero-knowledge key recovery flows.
+    evidence:
+      commits:
+      - f72dcfa67
+      - 23b1d8786
+      - 371ed21ec
+      - 15f053f19
+      - 9b7e2b93b
+      - 84824b1f0
+    release_status: released_main
+  - text: Implemented cascading deletion for chats, ensuring that deleting a parent chat also removes all associated sub-chats
+      and grandchild chats.
+    evidence:
+      commits:
+      - eafe61a19
+    release_status: released_main
+  - text: Resolved backend issues in the AI stream consumer and main processor to prevent errors when awaiting sub-chat results
+      or user input.
+    evidence:
+      commits:
+      - 4c0a64c23
+      - b10f99c47
+      - 42cef7a6c
+    release_status: released_main
+  - text: Deduplicated websocket notifications for credit purchases to prevent redundant alerts in the UI.
+    evidence:
+      commits:
+      - d27e3fdb4
+    release_status: released_main
+  unreleased_progress:
+  - text: Developed the projects workspace, including API handlers, frontend routes, and optimizations for SSR and prerendering.
+    evidence:
+      commits:
+      - 9869355c1
+      - cd496f183
+      - bee59b8dc
+      - 4719f01c8
+    release_status: released_main
+  - text: Added UIKit-based fullscreen sheet table rendering for the iOS platform.
+    evidence:
+      commits:
+      - d9b40ac15
+    release_status: released_main
+  internal_progress:
+  - text: Stabilized automated tests for projects workspace navigation and sub-chat status assertions.
+    evidence:
+      commits:
+      - 58e39ff6c
+      - 4f71e8ecc
+      - c6f76e010
+    release_status: released_main
+  - text: Updated Caddy and dev proxy configurations to allow projects API traffic.
+    evidence:
+      commits:
+      - d981d891e
+      - 1941a7c59
+    release_status: released_main
+  - text: Refined internal documentation regarding SwiftUI and UIKit guidance for Apple platforms.
+    evidence:
+      commits:
+      - cffa3c646
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: AI sub-chat orchestration and record dispatch.
+      evidence:
+        commits:
+        - 579bfaf2f
+        - 84824b1f0
+      reason: Sub-chat orchestration is a major functional addition to the AI processing pipeline.
+    - text: New 'recommended' pill styling for last-used labels.
+      evidence:
+        commits:
+        - f2a1314fe
+      reason: User-facing UI polish for the email lookup component.
+    - text: Cascading deletion for nested chat threads.
+      evidence:
+        commits:
+        - eafe61a19
+      reason: Improves data management and consistency for users utilizing sub-chats.
+    exclude:
+    - text: Projects workspace feature.
+      evidence:
+        commits:
+        - 9869355c1
+      reason: The projects workspace feature is currently disabled via platform gates.
+    - text: Project UI and routing fixes.
+      evidence:
+        commits:
+        - cd496f183
+        - bee59b8dc
+        - 4719f01c8
+      reason: These fixes relate to the disabled projects workspace feature.
+    - text: UIKit rendering improvements for iOS.
+      evidence:
+        commits:
+        - d9b40ac15
+      reason: iOS and macOS platforms are currently disabled.
+    rationale: The update highlights significant progress in AI orchestration through sub-chats and general UI refinements.
+      Features related to projects and Apple platforms are excluded as they remain disabled in the current configuration.
+  social_video_recommendations:
+  - idea: Demonstrate the AI spawning specialized sub-chats to handle complex, multi-part user requests.
+    priority: high
+    reason: Sub-chats represent a significant advancement in how the AI handles complex workflows and is visually distinct
+      in the chat interface.
+    evidence:
+      commits:
+      - 579bfaf2f
+      - 84824b1f0
+  quality_notes:
+  - Sub-chat orchestration now handles zero-knowledge encryption keys and cascading deletions correctly.
+  - Projects workspace infrastructure is largely in place but remains gated.
+  validation_warnings: []

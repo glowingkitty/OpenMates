@@ -1,0 +1,1397 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-05'
+generated_at: '2026-07-09T15:16:57+00:00'
+range:
+  since: '2026-05-05T00:00:00+00:00'
+  until: '2026-05-05T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 27
+  section_counts:
+    features: 1
+    bug_fixes: 13
+    improvements: 0
+    docs: 0
+    tests: 8
+    infrastructure: 2
+    internal: 0
+    other: 3
+  newsletter_ready_items: 8
+  user_facing_items: 10
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: refine Apple app chat and settings'
+    section: features
+    commits:
+    - 8db8ac23a
+    authored_at: '2026-05-05T20:03:44+02:00'
+    changed_paths:
+    - apple/.gitignore
+    - apple/AppIcon/macos/icon_128x128.png
+    - apple/AppIcon/macos/icon_128x128@2x.png
+    - apple/AppIcon/macos/icon_16x16.png
+    - apple/AppIcon/macos/icon_16x16@2x.png
+    - apple/AppIcon/macos/icon_256x256.png
+    - apple/AppIcon/macos/icon_256x256@2x.png
+    - apple/AppIcon/macos/icon_32x32.png
+    - apple/AppIcon/macos/icon_32x32@2x.png
+    - apple/AppIcon/macos/icon_512x512.png
+    - apple/AppIcon/macos/icon_512x512@2x.png
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/Mates/activism.jpeg
+    - apple/OpenMates/Resources/Mates/general_knowledge.jpeg
+    - apple/OpenMates/Resources/Mates/history.jpeg
+    - apple/OpenMates/Resources/Mates/legal_law.jpeg
+    - apple/OpenMates/Resources/Mates/science.jpeg
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/Icon.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Extensions/FontRegistration.swift
+    - apple/OpenMates/Tests/UI/AccessibilityUITests.swift
+    - apple/OpenMates/Tests/UI/AccountSettingsUITests.swift
+    - apple/OpenMates/Tests/UI/AuthFlowUITests.swift
+    - apple/OpenMates/Tests/UI/CLIPairingUITests.swift
+    - apple/OpenMates/Tests/UI/ChatManagementUITests.swift
+    - apple/OpenMates/Tests/UI/ChatMessageUITests.swift
+    - apple/OpenMates/Tests/UI/DeveloperSettingsUITests.swift
+    - apple/OpenMates/Tests/UI/EncryptionUITests.swift
+    - apple/OpenMates/Tests/UI/FileAttachmentUITests.swift
+    - apple/OpenMates/Tests/UI/FocusModeUITests.swift
+    - apple/OpenMates/Tests/UI/LanguageUITests.swift
+    - apple/OpenMates/Tests/UI/NotificationUITests.swift
+    - apple/OpenMates/Tests/UI/OfflineAndSyncUITests.swift
+    - apple/OpenMates/Tests/UI/PaymentUITests.swift
+    - apple/OpenMates/Tests/UI/ReminderUITests.swift
+    - apple/OpenMates/Tests/UI/SettingsUITests.swift
+    - apple/OpenMates/Tests/UI/ShareAndEmbedUITests.swift
+    - apple/OpenMates/Tests/UI/SupportUITests.swift
+    - apple/OpenMates/Tests/Unit/APIClientTests.swift
+    - apple/OpenMates/Tests/Unit/AuthModelsTests.swift
+    - apple/OpenMates/Tests/Unit/ChatModelsTests.swift
+    - apple/OpenMates/Tests/Unit/CopyMessageFormatterTests.swift
+    - apple/OpenMates/Tests/Unit/CryptoManagerTests.swift
+    - apple/OpenMates/Tests/Unit/DraftServiceTests.swift
+    - apple/OpenMates/Tests/Unit/EditMessageStoreTests.swift
+    - apple/OpenMates/Tests/Unit/SupportedLanguageTests.swift
+    - apple/OpenMates/Tests/Unit/UnreadMessagesStoreTests.swift
+    - apple/mates-macos.png
+    - apple/project.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix: count invoice records for signup cleanup'
+    section: bug_fixes
+    commits:
+    - 7d210a865
+    authored_at: '2026-05-05T19:53:08+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/tests/test_security_regressions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: require credits to complete signup cleanup'
+    section: bug_fixes
+    commits:
+    - 2d392d75a
+    authored_at: '2026-05-05T19:41:58+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/scripts/process_incomplete_signup_deletions.py
+    - backend/tests/test_security_regressions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: repair user_db schema on reload'
+    section: bug_fixes
+    commits:
+    - acc8a236b
+    authored_at: '2026-05-05T18:28:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/userDB.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep embed fullscreen recoverable after chunk load failure'
+    section: bug_fixes
+    commits:
+    - 413418f13
+    authored_at: '2026-05-05T18:12:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/embedFullscreenResolver.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: tint iOS Safari browser chrome'
+    section: bug_fixes
+    commits:
+    - 88642c5a6
+    authored_at: '2026-05-05T18:07:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent signup back navigation crash'
+    section: bug_fixes
+    commits:
+    - 319890f0f
+    authored_at: '2026-05-05T15:28:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/components/signup/SignupNav.svelte
+    - frontend/packages/ui/src/components/signup/SignupStatusbar.svelte
+    - frontend/packages/ui/src/components/signup/signupFlow.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: sync Safari chrome with app theme'
+    section: bug_fixes
+    commits:
+    - 209eccfc1
+    authored_at: '2026-05-05T13:25:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: guard chat encryption writes against mixed keys'
+    section: bug_fixes
+    commits:
+    - 1d6fcf2fd
+    authored_at: '2026-05-05T12:13:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stabilize macOS intro video playback'
+    section: bug_fixes
+    commits:
+    - d7a59e735
+    authored_at: '2026-05-05T14:06:50+02:00'
+    changed_paths:
+    - apple/AppIcon/appicon.svg
+    - apple/AppIcon/appicon@2x.png
+    - apple/AppIcon/macos/icon_128x128.png
+    - apple/AppIcon/macos/icon_128x128@2x.png
+    - apple/AppIcon/macos/icon_16x16.png
+    - apple/AppIcon/macos/icon_16x16@2x.png
+    - apple/AppIcon/macos/icon_256x256.png
+    - apple/AppIcon/macos/icon_256x256@2x.png
+    - apple/AppIcon/macos/icon_32x32.png
+    - apple/AppIcon/macos/icon_32x32@2x.png
+    - apple/AppIcon/macos/icon_512x512.png
+    - apple/AppIcon/macos/icon_512x512@2x.png
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/mates-macos.png
+    - apple/mates.png
+    - frontend/packages/ui/scripts/build-tokens.js
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: always dispatch auto top-up completion'
+    section: bug_fixes
+    commits:
+    - d671271b0
+    authored_at: '2026-05-05T11:55:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/AutoTopUp.svelte
+    - frontend/packages/ui/src/components/signup/steps/payment/PaymentTopContent.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: propagate auto top-up completion events'
+    section: bug_fixes
+    commits:
+    - 487b632cc
+    authored_at: '2026-05-05T11:42:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/AutoTopUp.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/components/signup/steps/payment/PaymentTopContent.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: complete signup from payment success'
+    section: bug_fixes
+    commits:
+    - a52081d32
+    authored_at: '2026-05-05T11:27:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refresh Directus tokens for regular collection reads'
+    section: bug_fixes
+    commits:
+    - dbf4ed4f9
+    authored_at: '2026-05-05T10:57:05+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/directus.py
+    - backend/tests/test_directus_token_refresh.py
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: fix signup recovery assertion'
+    section: tests
+    commits:
+    - 08da1b604
+    authored_at: '2026-05-05T15:55:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: target multi-session encryption chats by id'
+    section: tests
+    commits:
+    - f66e81c97
+    authored_at: '2026-05-05T14:21:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: target multi-tab encryption chat by id'
+    section: tests
+    commits:
+    - a2ce9853d
+    authored_at: '2026-05-05T14:05:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: relax multi-tab encryption readiness'
+    section: tests
+    commits:
+    - d85639271
+    authored_at: '2026-05-05T13:52:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize multi-tab encryption navigation'
+    section: tests
+    commits:
+    - bc7b711dd
+    authored_at: '2026-05-05T13:40:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use visible signup logout path'
+    section: tests
+    commits:
+    - d3332abfe
+    authored_at: '2026-05-05T12:19:06+00:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use visible signup logout path'
+    section: tests
+    commits:
+    - 3c926487f
+    authored_at: '2026-05-05T12:14:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize chat and signup e2e waits'
+    section: tests
+    commits:
+    - 029390243
+    authored_at: '2026-05-05T11:14:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: refresh generated macOS icon outputs'
+    section: infrastructure
+    commits:
+    - d0b8b7c39
+    authored_at: '2026-05-05T14:09:50+02:00'
+    changed_paths:
+    - apple/AppIcon/macos/icon_128x128.png
+    - apple/AppIcon/macos/icon_128x128@2x.png
+    - apple/AppIcon/macos/icon_16x16.png
+    - apple/AppIcon/macos/icon_16x16@2x.png
+    - apple/AppIcon/macos/icon_256x256.png
+    - apple/AppIcon/macos/icon_256x256@2x.png
+    - apple/AppIcon/macos/icon_32x32.png
+    - apple/AppIcon/macos/icon_32x32@2x.png
+    - apple/AppIcon/macos/icon_512x512.png
+    - apple/AppIcon/macos/icon_512x512@2x.png
+    - apple/mates-macos.png
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'chore: refresh macOS app icon assets'
+    section: infrastructure
+    commits:
+    - 1357a7d1b
+    authored_at: '2026-05-05T14:07:36+02:00'
+    changed_paths:
+    - apple/AppIcon/macos/icon_128x128.png
+    - apple/AppIcon/macos/icon_128x128@2x.png
+    - apple/AppIcon/macos/icon_16x16.png
+    - apple/AppIcon/macos/icon_16x16@2x.png
+    - apple/AppIcon/macos/icon_256x256.png
+    - apple/AppIcon/macos/icon_256x256@2x.png
+    - apple/AppIcon/macos/icon_32x32.png
+    - apple/AppIcon/macos/icon_32x32@2x.png
+    - apple/AppIcon/macos/icon_512x512.png
+    - apple/AppIcon/macos/icon_512x512@2x.png
+    - apple/mates-macos.png
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #388 from glowingkitty/dev'
+    section: other
+    commits:
+    - 01c848fd3
+    authored_at: '2026-05-05T21:55:33+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #387 from glowingkitty/dev'
+    section: other
+    commits:
+    - 66ee7013c
+    authored_at: '2026-05-05T21:44:41+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #386 from glowingkitty/dev'
+    section: other
+    commits:
+    - e1cf380be
+    authored_at: '2026-05-05T20:37:11+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: keep embed fullscreen recoverable after chunk load failure'
+    commits:
+    - 413418f13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: tint iOS Safari browser chrome'
+    commits:
+    - 88642c5a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent signup back navigation crash'
+    commits:
+    - 319890f0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: sync Safari chrome with app theme'
+    commits:
+    - 209eccfc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: always dispatch auto top-up completion'
+    commits:
+    - d671271b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: propagate auto top-up completion events'
+    commits:
+    - 487b632cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: complete signup from payment success'
+    commits:
+    - a52081d32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refresh Directus tokens for regular collection reads'
+    commits:
+    - dbf4ed4f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: keep embed fullscreen recoverable after chunk load failure'
+    commits:
+    - 413418f13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: tint iOS Safari browser chrome'
+    commits:
+    - 88642c5a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: refine Apple app chat and settings'
+    commits:
+    - 8db8ac23a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: prevent signup back navigation crash'
+    commits:
+    - 319890f0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: sync Safari chrome with app theme'
+    commits:
+    - 209eccfc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize macOS intro video playback'
+    commits:
+    - d7a59e735
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: always dispatch auto top-up completion'
+    commits:
+    - d671271b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: propagate auto top-up completion events'
+    commits:
+    - 487b632cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: complete signup from payment success'
+    commits:
+    - a52081d32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refresh Directus tokens for regular collection reads'
+    commits:
+    - dbf4ed4f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 01c848fd33a59bc0ea70fe6a843caa995887cfa4
+    short_sha: 01c848fd3
+    authored_at: '2026-05-05T21:55:33+02:00'
+    subject: 'Merge pull request #388 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 7d210a865d46811197bf197896aed52824dd32a0
+    short_sha: 7d210a865
+    authored_at: '2026-05-05T19:53:08+00:00'
+    subject: 'fix: count invoice records for signup cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/tests/test_security_regressions.py
+    related_feature_ids: []
+  - sha: 66ee7013c96b393e171b4bc759a675d464352ead
+    short_sha: 66ee7013c
+    authored_at: '2026-05-05T21:44:41+02:00'
+    subject: 'Merge pull request #387 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 2d392d75aa9dfdbd6463e2a3dc4776f9c3673f9f
+    short_sha: 2d392d75a
+    authored_at: '2026-05-05T19:41:58+00:00'
+    subject: 'fix: require credits to complete signup cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/scripts/process_incomplete_signup_deletions.py
+    - backend/tests/test_security_regressions.py
+    related_feature_ids: []
+  - sha: e1cf380bee25a74d7cc092710d040e20dbf4bb7d
+    short_sha: e1cf380be
+    authored_at: '2026-05-05T20:37:11+02:00'
+    subject: 'Merge pull request #386 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: acc8a236bc8feede47d17d5b467fc6ee095120f7
+    short_sha: acc8a236b
+    authored_at: '2026-05-05T18:28:36+00:00'
+    subject: 'fix: repair user_db schema on reload'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/userDB.ts
+    related_feature_ids: []
+  - sha: 413418f13cd2a741dab4f827b55e0493d6a0e9fd
+    short_sha: 413418f13
+    authored_at: '2026-05-05T18:12:57+00:00'
+    subject: 'fix: keep embed fullscreen recoverable after chunk load failure'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/embedFullscreenResolver.ts
+    related_feature_ids: []
+  - sha: 88642c5a6d510573355c039a507ce3b6ba93805a
+    short_sha: 88642c5a6
+    authored_at: '2026-05-05T18:07:48+00:00'
+    subject: 'fix: tint iOS Safari browser chrome'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    related_feature_ids: []
+  - sha: 8db8ac23ada29e56c021563f62bf91555f38ae8a
+    short_sha: 8db8ac23a
+    authored_at: '2026-05-05T20:03:44+02:00'
+    subject: 'feat: refine Apple app chat and settings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/.gitignore
+    - apple/AppIcon/macos/icon_128x128.png
+    - apple/AppIcon/macos/icon_128x128@2x.png
+    - apple/AppIcon/macos/icon_16x16.png
+    - apple/AppIcon/macos/icon_16x16@2x.png
+    - apple/AppIcon/macos/icon_256x256.png
+    - apple/AppIcon/macos/icon_256x256@2x.png
+    - apple/AppIcon/macos/icon_32x32.png
+    - apple/AppIcon/macos/icon_32x32@2x.png
+    - apple/AppIcon/macos/icon_512x512.png
+    - apple/AppIcon/macos/icon_512x512@2x.png
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/Mates/activism.jpeg
+    - apple/OpenMates/Resources/Mates/general_knowledge.jpeg
+    - apple/OpenMates/Resources/Mates/history.jpeg
+    - apple/OpenMates/Resources/Mates/legal_law.jpeg
+    - apple/OpenMates/Resources/Mates/science.jpeg
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/I18n/LocalizationManager.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/AppIconView.swift
+    - apple/OpenMates/Sources/Shared/Components/Icon.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Shared/Extensions/FontRegistration.swift
+    - apple/OpenMates/Tests/UI/AccessibilityUITests.swift
+    - apple/OpenMates/Tests/UI/AccountSettingsUITests.swift
+    - apple/OpenMates/Tests/UI/AuthFlowUITests.swift
+    - apple/OpenMates/Tests/UI/CLIPairingUITests.swift
+    - apple/OpenMates/Tests/UI/ChatManagementUITests.swift
+    - apple/OpenMates/Tests/UI/ChatMessageUITests.swift
+    - apple/OpenMates/Tests/UI/DeveloperSettingsUITests.swift
+    - apple/OpenMates/Tests/UI/EncryptionUITests.swift
+    - apple/OpenMates/Tests/UI/FileAttachmentUITests.swift
+    - apple/OpenMates/Tests/UI/FocusModeUITests.swift
+    - apple/OpenMates/Tests/UI/LanguageUITests.swift
+    - apple/OpenMates/Tests/UI/NotificationUITests.swift
+    - apple/OpenMates/Tests/UI/OfflineAndSyncUITests.swift
+    - apple/OpenMates/Tests/UI/PaymentUITests.swift
+    - apple/OpenMates/Tests/UI/ReminderUITests.swift
+    - apple/OpenMates/Tests/UI/SettingsUITests.swift
+    - apple/OpenMates/Tests/UI/ShareAndEmbedUITests.swift
+    - apple/OpenMates/Tests/UI/SupportUITests.swift
+    - apple/OpenMates/Tests/Unit/APIClientTests.swift
+    - apple/OpenMates/Tests/Unit/AuthModelsTests.swift
+    - apple/OpenMates/Tests/Unit/ChatModelsTests.swift
+    - apple/OpenMates/Tests/Unit/CopyMessageFormatterTests.swift
+    - apple/OpenMates/Tests/Unit/CryptoManagerTests.swift
+    - apple/OpenMates/Tests/Unit/DraftServiceTests.swift
+    - apple/OpenMates/Tests/Unit/EditMessageStoreTests.swift
+    - apple/OpenMates/Tests/Unit/SupportedLanguageTests.swift
+    - apple/OpenMates/Tests/Unit/UnreadMessagesStoreTests.swift
+    - apple/mates-macos.png
+    - apple/project.yml
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 08da1b60434a62f40e04b876f8a28f4a207e8413
+    short_sha: 08da1b604
+    authored_at: '2026-05-05T15:55:32+00:00'
+    subject: 'test: fix signup recovery assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: 319890f0f23cefc9705c24f7199eecdf8b22eaa5
+    short_sha: 319890f0f
+    authored_at: '2026-05-05T15:28:01+00:00'
+    subject: 'fix: prevent signup back navigation crash'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/components/signup/SignupNav.svelte
+    - frontend/packages/ui/src/components/signup/SignupStatusbar.svelte
+    - frontend/packages/ui/src/components/signup/signupFlow.ts
+    related_feature_ids: []
+  - sha: f66e81c97a572be1c0c6b52e9d1fa5f3acd55b1e
+    short_sha: f66e81c97
+    authored_at: '2026-05-05T14:21:50+00:00'
+    subject: 'test: target multi-session encryption chats by id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    related_feature_ids: []
+  - sha: a2ce9853d8611f64af9f68cd93fc486590898cce
+    short_sha: a2ce9853d
+    authored_at: '2026-05-05T14:05:16+00:00'
+    subject: 'test: target multi-tab encryption chat by id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: d856392714aac47208cb5edb9716cb832e88bbce
+    short_sha: d85639271
+    authored_at: '2026-05-05T13:52:08+00:00'
+    subject: 'test: relax multi-tab encryption readiness'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: bc7b711dd4911e312c57fea7a31d9e93ef0dd825
+    short_sha: bc7b711dd
+    authored_at: '2026-05-05T13:40:49+00:00'
+    subject: 'test: stabilize multi-tab encryption navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: 209eccfc190b89b91d5c2c588448d76930c35739
+    short_sha: 209eccfc1
+    authored_at: '2026-05-05T13:25:40+00:00'
+    subject: 'fix: sync Safari chrome with app theme'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    related_feature_ids: []
+  - sha: d3332abfe08543e2f44dda45b85e89eb217186c9
+    short_sha: d3332abfe
+    authored_at: '2026-05-05T12:19:06+00:00'
+    subject: 'test: use visible signup logout path'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 3c926487f3cc553881b6230aba46f065316ffd07
+    short_sha: 3c926487f
+    authored_at: '2026-05-05T12:14:59+00:00'
+    subject: 'test: use visible signup logout path'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: 1d6fcf2fd1384d20761e23e7ab7bf59946091f64
+    short_sha: 1d6fcf2fd
+    authored_at: '2026-05-05T12:13:59+00:00'
+    subject: 'fix: guard chat encryption writes against mixed keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/sendersChatManagement.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: d0b8b7c394671fca334de1cd9b09dfe86000eebb
+    short_sha: d0b8b7c39
+    authored_at: '2026-05-05T14:09:50+02:00'
+    subject: 'chore: refresh generated macOS icon outputs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/AppIcon/macos/icon_128x128.png
+    - apple/AppIcon/macos/icon_128x128@2x.png
+    - apple/AppIcon/macos/icon_16x16.png
+    - apple/AppIcon/macos/icon_16x16@2x.png
+    - apple/AppIcon/macos/icon_256x256.png
+    - apple/AppIcon/macos/icon_256x256@2x.png
+    - apple/AppIcon/macos/icon_32x32.png
+    - apple/AppIcon/macos/icon_32x32@2x.png
+    - apple/AppIcon/macos/icon_512x512.png
+    - apple/AppIcon/macos/icon_512x512@2x.png
+    - apple/mates-macos.png
+    related_feature_ids: []
+  - sha: 1357a7d1b7c8a35259d64595f904feadc576532b
+    short_sha: 1357a7d1b
+    authored_at: '2026-05-05T14:07:36+02:00'
+    subject: 'chore: refresh macOS app icon assets'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/AppIcon/macos/icon_128x128.png
+    - apple/AppIcon/macos/icon_128x128@2x.png
+    - apple/AppIcon/macos/icon_16x16.png
+    - apple/AppIcon/macos/icon_16x16@2x.png
+    - apple/AppIcon/macos/icon_256x256.png
+    - apple/AppIcon/macos/icon_256x256@2x.png
+    - apple/AppIcon/macos/icon_32x32.png
+    - apple/AppIcon/macos/icon_32x32@2x.png
+    - apple/AppIcon/macos/icon_512x512.png
+    - apple/AppIcon/macos/icon_512x512@2x.png
+    - apple/mates-macos.png
+    related_feature_ids: []
+  - sha: d7a59e735c8d3e6fc5c181bae547537e78513b71
+    short_sha: d7a59e735
+    authored_at: '2026-05-05T14:06:50+02:00'
+    subject: 'fix: stabilize macOS intro video playback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/AppIcon/appicon.svg
+    - apple/AppIcon/appicon@2x.png
+    - apple/AppIcon/macos/icon_128x128.png
+    - apple/AppIcon/macos/icon_128x128@2x.png
+    - apple/AppIcon/macos/icon_16x16.png
+    - apple/AppIcon/macos/icon_16x16@2x.png
+    - apple/AppIcon/macos/icon_256x256.png
+    - apple/AppIcon/macos/icon_256x256@2x.png
+    - apple/AppIcon/macos/icon_32x32.png
+    - apple/AppIcon/macos/icon_32x32@2x.png
+    - apple/AppIcon/macos/icon_512x512.png
+    - apple/AppIcon/macos/icon_512x512@2x.png
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/mates-macos.png
+    - apple/mates.png
+    - frontend/packages/ui/scripts/build-tokens.js
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d671271b0409d34a33b4994e511b8435dd2c6091
+    short_sha: d671271b0
+    authored_at: '2026-05-05T11:55:22+00:00'
+    subject: 'fix: always dispatch auto top-up completion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/AutoTopUp.svelte
+    - frontend/packages/ui/src/components/signup/steps/payment/PaymentTopContent.svelte
+    related_feature_ids: []
+  - sha: 487b632ccb0fdd6f780dc3af258c5f26524643f1
+    short_sha: 487b632cc
+    authored_at: '2026-05-05T11:42:31+00:00'
+    subject: 'fix: propagate auto top-up completion events'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/payment/AutoTopUp.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/components/signup/steps/payment/PaymentTopContent.svelte
+    related_feature_ids: []
+  - sha: a52081d32b4b9e54c37bed030a19ad13feab0537
+    short_sha: a52081d32
+    authored_at: '2026-05-05T11:27:47+00:00'
+    subject: 'fix: complete signup from payment success'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    related_feature_ids: []
+  - sha: 029390243c625ba55635675e18aa29b903b77b46
+    short_sha: 029390243
+    authored_at: '2026-05-05T11:14:15+00:00'
+    subject: 'test: stabilize chat and signup e2e waits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: dbf4ed4f9ec122b0e41d9998afec8f8091876797
+    short_sha: dbf4ed4f9
+    authored_at: '2026-05-05T10:57:05+00:00'
+    subject: 'fix: refresh Directus tokens for regular collection reads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/directus.py
+    - backend/tests/test_directus_token_refresh.py
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the web application's user interface and stabilizing the signup and payment flows.
+    Significant work also continued on the unreleased Apple platform applications, including chat and settings refinements.
+  released_changes:
+  - text: The web application now synchronizes the Safari browser chrome tint with the active app theme for a more integrated
+      experience on iOS.
+    evidence:
+      commits:
+      - 88642c5a6
+      - 209eccfc1
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved a crash that occurred when using back navigation during the signup process.
+    evidence:
+      commits:
+      - 319890f0f
+    release_status: released_main
+  - text: Improved the reliability of the signup flow by ensuring payment success and auto top-up completion events are correctly
+      propagated.
+    evidence:
+      commits:
+      - d671271b0
+      - 487b632cc
+      - a52081d32
+    release_status: released_main
+  - text: Fixed an issue where fullscreen embeds could become unrecoverable following a chunk load failure.
+    evidence:
+      commits:
+      - 413418f13
+    release_status: released_main
+  - text: Ensured Directus tokens are refreshed for regular collection reads to maintain session stability.
+    evidence:
+      commits:
+      - dbf4ed4f9
+    release_status: released_main
+  unreleased_progress:
+  - text: Refinements were made to the chat interface and settings views for the upcoming iOS and macOS applications.
+    evidence:
+      commits:
+      - 8db8ac23a
+    release_status: released_main
+  - text: Intro video playback was stabilized for the macOS application.
+    evidence:
+      commits:
+      - d7a59e735
+    release_status: released_main
+  - text: Internal cleanup tasks were added to manage incomplete signups based on invoice records and credit requirements.
+    evidence:
+      commits:
+      - 7d210a865
+      - 2d392d75a
+    release_status: released_main
+  internal_progress:
+  - text: The user database schema is now repaired automatically upon reload.
+    evidence:
+      commits:
+      - acc8a236b
+    release_status: released_main
+  - text: Added guards to chat encryption writes to prevent issues with mixed keys.
+    evidence:
+      commits:
+      - 1d6fcf2fd
+    release_status: released_main
+  - text: Extensive stabilization of end-to-end tests for signup, chat, and encryption flows.
+    evidence:
+      commits:
+      - 08da1b604
+      - f66e81c97
+      - a2ce9853d
+      - d85639271
+      - bc7b711dd
+      - d3332abfe
+      - 3c926487f
+      - 029390243
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Synchronization of Safari browser chrome tinting with the active application theme.
+      evidence:
+        commits:
+        - 88642c5a6
+        - 209eccfc1
+      reason: Visual polish that improves the integrated feel of the web app on mobile.
+    - text: Stability improvements to the signup and payment completion flows.
+      evidence:
+        commits:
+        - 319890f0f
+        - d671271b0
+        - 487b632cc
+        - a52081d32
+      reason: Critical fixes for the onboarding and payment experience.
+    - text: Recovery fix for fullscreen embeds after network failures.
+      evidence:
+        commits:
+        - 413418f13
+      reason: Improves the reliability of interactive content.
+    exclude:
+    - text: Apple platform application refinements and video playback stabilization.
+      evidence:
+        commits:
+        - 8db8ac23a
+        - d7a59e735
+      reason: iOS and macOS platforms are currently listed as disabled features.
+    rationale: The focus for public communication is on the immediate stability and UI improvements for the web application,
+      particularly the signup and payment experience.
+  social_video_recommendations:
+  - idea: A short clip showing the Safari address bar color changing dynamically as the user switches between light and dark
+      themes in the OpenMates web app.
+    priority: high
+    reason: This is a high-polish visual feature that demonstrates attention to detail in the mobile web experience.
+    evidence:
+      commits:
+      - 88642c5a6
+      - 209eccfc1
+  quality_notes:
+  - Significant effort was directed toward resolving edge-case failures in the signup and payment pipelines.
+  - UI polish for Safari users provides a more native-like experience for the web app.
+  validation_warnings: []

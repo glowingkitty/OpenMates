@@ -1,0 +1,1924 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-30'
+generated_at: '2026-07-09T15:31:32+00:00'
+range:
+  since: '2026-05-30T00:00:00+00:00'
+  until: '2026-05-30T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 44
+  section_counts:
+    features: 8
+    bug_fixes: 19
+    improvements: 0
+    docs: 0
+    tests: 17
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 27
+  user_facing_items: 27
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: implement E2EE-safe sub-chats and UI dashboard'
+    section: features
+    commits:
+    - 1bfb201f3
+    authored_at: '2026-05-30T18:22:57+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/tests/test_preprocessor.py
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: polish transcript auto-correction toggle and model badge'
+    section: features
+    commits:
+    - 3c614a393
+    authored_at: '2026-05-30T15:01:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: auto-correct audio transcripts with gemini'
+    section: features
+    commits:
+    - d0e2d9c06
+    authored_at: '2026-05-30T13:12:22+00:00'
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: implement reactive clear state bindings across all question renderers'
+    section: features
+    commits:
+    - 8f80ab99a
+    authored_at: '2026-05-30T10:13:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/InputQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/RatingQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SliderQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SwipeQuestion.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: make chatId resolution robust and adjust container layout padding'
+    section: features
+    commits:
+    - 63eee71bf
+    authored_at: '2026-05-30T09:39:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(code): add check-security focus mode'
+    section: features
+    commits:
+    - 7c6ed1a49
+    authored_at: '2026-05-30T07:21:49+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/focus_modes/check-security/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/code.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: implement interactive questions system and tests'
+    section: features
+    commits:
+    - bfdaf5541
+    authored_at: '2026-05-30T06:19:36+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/InteractiveQuestionNode.ts
+    - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/InputQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/RatingQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SliderQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SwipeQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/types.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: automatically credit gift card credits upon signup completion'
+    section: features
+    commits:
+    - b36525e93
+    authored_at: '2026-05-30T05:54:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: instruct preprocessor LLM to honor explicit sub-chats requests'
+    section: bug_fixes
+    commits:
+    - 7c8f1361c
+    authored_at: '2026-05-30T21:44:50+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove pattern-matching sub-chats fallback from preprocessor'
+    section: bug_fixes
+    commits:
+    - 8f0f6b072
+    authored_at: '2026-05-30T21:37:51+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: append sub-chats usage instructions to main LLM system prompt'
+    section: bug_fixes
+    commits:
+    - 8754471cb
+    authored_at: '2026-05-30T21:07:23+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore button layout with high z-index for return navigation'
+    section: bug_fixes
+    commits:
+    - 55528ee31
+    authored_at: '2026-05-30T20:57:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use native HTML anchor for return button in ChatHistory'
+    section: bug_fixes
+    commits:
+    - 6f6510eb9
+    authored_at: '2026-05-30T20:43:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: statically import activeChatStore in ChatHistory return-button'
+    section: bug_fixes
+    commits:
+    - 5b5db651d
+    authored_at: '2026-05-30T20:37:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: increase z-index and force click return button in E2E spec'
+    section: bug_fixes
+    commits:
+    - dfad0a459
+    authored_at: '2026-05-30T20:25:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: enforce sub-chats on explicit sub-chat intent keywords'
+    section: bug_fixes
+    commits:
+    - 4d22180fc
+    authored_at: '2026-05-30T19:55:38+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/preprocessor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: capture Svelte 5 effect dependencies synchronously in ChatHistory'
+    section: bug_fixes
+    commits:
+    - f2a5d6efc
+    authored_at: '2026-05-30T19:30:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct relative import path for Toggle.svelte'
+    section: bug_fixes
+    commits:
+    - a3f115694
+    authored_at: '2026-05-30T18:56:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct event payload key from camelCase to snake_case'
+    section: bug_fixes
+    commits:
+    - 44fe36ceb
+    authored_at: '2026-05-30T12:03:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use chatUpdated event to sync user response bubble in real-time'
+    section: bug_fixes
+    commits:
+    - 7fdfde48e
+    authored_at: '2026-05-30T11:46:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: save submitted responses to IndexedDB and style answer bubbles'
+    section: bug_fixes
+    commits:
+    - 988f872e6
+    authored_at: '2026-05-30T10:57:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: commit corrected relative paths in InteractiveQuestionContainer'
+    section: bug_fixes
+    commits:
+    - eece564b6
+    authored_at: '2026-05-30T10:16:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent stream consumer from turning bare-fenced interactive questions into code embeds'
+    section: bug_fixes
+    commits:
+    - 1d89917fe
+    authored_at: '2026-05-30T09:09:29+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent stream consumer from turning interactive questions into code embeds'
+    section: bug_fixes
+    commits:
+    - a9dc2c4a7
+    authored_at: '2026-05-30T08:57:45+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render missing question title in container'
+    section: bug_fixes
+    commits:
+    - 03d0a3e71
+    authored_at: '2026-05-30T07:17:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve relative path imports in InteractiveQuestionContainer'
+    section: bug_fixes
+    commits:
+    - 420d1d985
+    authored_at: '2026-05-30T06:41:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct Svelte 5 props macro syntax'
+    section: bug_fixes
+    commits:
+    - e0189428d
+    authored_at: '2026-05-30T06:37:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: add fail-safe return navigation fallback in sub-chats spec'
+    section: tests
+    commits:
+    - 7bb8cc3f4
+    authored_at: '2026-05-30T21:00:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: restore e2e- prefix for mock sub-chats in E2E spec'
+    section: tests
+    commits:
+    - e5245cb7f
+    authored_at: '2026-05-30T20:11:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: clear IndexedDB store for pristine E2E sub-chats sandbox'
+    section: tests
+    commits:
+    - 6a234d13b
+    authored_at: '2026-05-30T20:01:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use demo- prefix for mock sub-chats in E2E spec'
+    section: tests
+    commits:
+    - 50a933970
+    authored_at: '2026-05-30T19:42:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: trigger full chat list reload on sub-chats mock injection'
+    section: tests
+    commits:
+    - b383f584e
+    authored_at: '2026-05-30T19:20:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use native indexedDB instead of ES module imports in evaluate'
+    section: tests
+    commits:
+    - d6856c6c8
+    authored_at: '2026-05-30T19:08:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: finalize Playwright E2E spec with mock markers'
+    section: tests
+    commits:
+    - d86824f7d
+    authored_at: '2026-05-30T12:54:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make E2E spec robust against Svelte DOM rendering delays'
+    section: tests
+    commits:
+    - e4cc4f8f5
+    authored_at: '2026-05-30T11:29:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: finalize interactive questions E2E spec and valid JSON fixture'
+    section: tests
+    commits:
+    - 7b1f89976
+    authored_at: '2026-05-30T11:23:35+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/interactive_questions_quiz.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: finalize Playwright E2E spec with mock markers'
+    section: tests
+    commits:
+    - 2f622bf3b
+    authored_at: '2026-05-30T11:14:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: rewrite E2E spec to use robust client-side mocking'
+    section: tests
+    commits:
+    - b85bc5fb5
+    authored_at: '2026-05-30T11:09:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: extend Playwright timeout for authenticated chat-flow'
+    section: tests
+    commits:
+    - e99149652
+    authored_at: '2026-05-30T10:31:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add mock fixture for interactive questions E2E spec'
+    section: tests
+    commits:
+    - e90c3334e
+    authored_at: '2026-05-30T10:24:19+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/interactive_questions_quiz.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expand interactive questions spec to cover all 5 types'
+    section: tests
+    commits:
+    - 8f2777680
+    authored_at: '2026-05-30T10:01:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: upgrade interactive questions Playwright E2E test'
+    section: tests
+    commits:
+    - 2f1c84707
+    authored_at: '2026-05-30T09:37:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add E2E spec and preview data for interactive questions'
+    section: tests
+    commits:
+    - 114e45111
+    authored_at: '2026-05-30T06:33:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update prod smoke giftcard signup chat spec to match simplified flow'
+    section: tests
+    commits:
+    - 5d04f0c40
+    authored_at: '2026-05-30T06:03:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat(code): add check-security focus mode'
+    commits:
+    - 7c6ed1a49
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: instruct preprocessor LLM to honor explicit sub-chats requests'
+    commits:
+    - 7c8f1361c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove pattern-matching sub-chats fallback from preprocessor'
+    commits:
+    - 8f0f6b072
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: append sub-chats usage instructions to main LLM system prompt'
+    commits:
+    - 8754471cb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore button layout with high z-index for return navigation'
+    commits:
+    - 55528ee31
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use native HTML anchor for return button in ChatHistory'
+    commits:
+    - 6f6510eb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: statically import activeChatStore in ChatHistory return-button'
+    commits:
+    - 5b5db651d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: increase z-index and force click return button in E2E spec'
+    commits:
+    - dfad0a459
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enforce sub-chats on explicit sub-chat intent keywords'
+    commits:
+    - 4d22180fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: capture Svelte 5 effect dependencies synchronously in ChatHistory'
+    commits:
+    - f2a5d6efc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct relative import path for Toggle.svelte'
+    commits:
+    - a3f115694
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: implement E2EE-safe sub-chats and UI dashboard'
+    commits:
+    - 1bfb201f3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: polish transcript auto-correction toggle and model badge'
+    commits:
+    - 3c614a393
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: auto-correct audio transcripts with gemini'
+    commits:
+    - d0e2d9c06
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct event payload key from camelCase to snake_case'
+    commits:
+    - 44fe36ceb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use chatUpdated event to sync user response bubble in real-time'
+    commits:
+    - 7fdfde48e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: save submitted responses to IndexedDB and style answer bubbles'
+    commits:
+    - 988f872e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: commit corrected relative paths in InteractiveQuestionContainer'
+    commits:
+    - eece564b6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: implement reactive clear state bindings across all question renderers'
+    commits:
+    - 8f80ab99a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: make chatId resolution robust and adjust container layout padding'
+    commits:
+    - 63eee71bf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent stream consumer from turning bare-fenced interactive questions into code embeds'
+    commits:
+    - 1d89917fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent stream consumer from turning interactive questions into code embeds'
+    commits:
+    - a9dc2c4a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(code): add check-security focus mode'
+    commits:
+    - 7c6ed1a49
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render missing question title in container'
+    commits:
+    - 03d0a3e71
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve relative path imports in InteractiveQuestionContainer'
+    commits:
+    - 420d1d985
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct Svelte 5 props macro syntax'
+    commits:
+    - e0189428d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: implement interactive questions system and tests'
+    commits:
+    - bfdaf5541
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: automatically credit gift card credits upon signup completion'
+    commits:
+    - b36525e93
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: instruct preprocessor LLM to honor explicit sub-chats requests'
+    commits:
+    - 7c8f1361c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: remove pattern-matching sub-chats fallback from preprocessor'
+    commits:
+    - 8f0f6b072
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: append sub-chats usage instructions to main LLM system prompt'
+    commits:
+    - 8754471cb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore button layout with high z-index for return navigation'
+    commits:
+    - 55528ee31
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use native HTML anchor for return button in ChatHistory'
+    commits:
+    - 6f6510eb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: statically import activeChatStore in ChatHistory return-button'
+    commits:
+    - 5b5db651d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: increase z-index and force click return button in E2E spec'
+    commits:
+    - dfad0a459
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enforce sub-chats on explicit sub-chat intent keywords'
+    commits:
+    - 4d22180fc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: capture Svelte 5 effect dependencies synchronously in ChatHistory'
+    commits:
+    - f2a5d6efc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct relative import path for Toggle.svelte'
+    commits:
+    - a3f115694
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: implement E2EE-safe sub-chats and UI dashboard'
+    commits:
+    - 1bfb201f3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: polish transcript auto-correction toggle and model badge'
+    commits:
+    - 3c614a393
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: auto-correct audio transcripts with gemini'
+    commits:
+    - d0e2d9c06
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct event payload key from camelCase to snake_case'
+    commits:
+    - 44fe36ceb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use chatUpdated event to sync user response bubble in real-time'
+    commits:
+    - 7fdfde48e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: save submitted responses to IndexedDB and style answer bubbles'
+    commits:
+    - 988f872e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: commit corrected relative paths in InteractiveQuestionContainer'
+    commits:
+    - eece564b6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: implement reactive clear state bindings across all question renderers'
+    commits:
+    - 8f80ab99a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: make chatId resolution robust and adjust container layout padding'
+    commits:
+    - 63eee71bf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent stream consumer from turning bare-fenced interactive questions into code embeds'
+    commits:
+    - 1d89917fe
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent stream consumer from turning interactive questions into code embeds'
+    commits:
+    - a9dc2c4a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(code): add check-security focus mode'
+    commits:
+    - 7c6ed1a49
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render missing question title in container'
+    commits:
+    - 03d0a3e71
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve relative path imports in InteractiveQuestionContainer'
+    commits:
+    - 420d1d985
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct Svelte 5 props macro syntax'
+    commits:
+    - e0189428d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: implement interactive questions system and tests'
+    commits:
+    - bfdaf5541
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: automatically credit gift card credits upon signup completion'
+    commits:
+    - b36525e93
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 7c8f1361ca5e5bef39dd124d3faf7027b7ef7271
+    short_sha: 7c8f1361c
+    authored_at: '2026-05-30T21:44:50+00:00'
+    subject: 'fix: instruct preprocessor LLM to honor explicit sub-chats requests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    related_feature_ids: []
+  - sha: 8f0f6b07243cbec780e6bc75187b34a1db32e54c
+    short_sha: 8f0f6b072
+    authored_at: '2026-05-30T21:37:51+00:00'
+    subject: 'fix: remove pattern-matching sub-chats fallback from preprocessor'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    related_feature_ids: []
+  - sha: 8754471cb6460d45cc8173f55a33c1a3267932b4
+    short_sha: 8754471cb
+    authored_at: '2026-05-30T21:07:23+00:00'
+    subject: 'fix: append sub-chats usage instructions to main LLM system prompt'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+  - sha: 7bb8cc3f4377dfa3cc032a6f364c3b4a1abe2f1a
+    short_sha: 7bb8cc3f4
+    authored_at: '2026-05-30T21:00:10+00:00'
+    subject: 'test: add fail-safe return navigation fallback in sub-chats spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    related_feature_ids: []
+  - sha: 55528ee312704735a4be4fd29194b719804609f8
+    short_sha: 55528ee31
+    authored_at: '2026-05-30T20:57:31+00:00'
+    subject: 'fix: restore button layout with high z-index for return navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 6f6510eb9f16aaa143c403c063f81a74c64cfa6c
+    short_sha: 6f6510eb9
+    authored_at: '2026-05-30T20:43:19+00:00'
+    subject: 'fix: use native HTML anchor for return button in ChatHistory'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 5b5db651df8fb4a324da135c25acdfe752e69605
+    short_sha: 5b5db651d
+    authored_at: '2026-05-30T20:37:48+00:00'
+    subject: 'fix: statically import activeChatStore in ChatHistory return-button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: dfad0a459b99ca9dbaee49f924746bd08a457db7
+    short_sha: dfad0a459
+    authored_at: '2026-05-30T20:25:47+00:00'
+    subject: 'fix: increase z-index and force click return button in E2E spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: e5245cb7fb058b188025823dac98701b57d04852
+    short_sha: e5245cb7f
+    authored_at: '2026-05-30T20:11:11+00:00'
+    subject: 'test: restore e2e- prefix for mock sub-chats in E2E spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6a234d13b4308a660151f19727b62577685b7e09
+    short_sha: 6a234d13b
+    authored_at: '2026-05-30T20:01:59+00:00'
+    subject: 'test: clear IndexedDB store for pristine E2E sub-chats sandbox'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    related_feature_ids: []
+  - sha: 4d22180fc71f5309aedd535dea12eb9b1e9f532c
+    short_sha: 4d22180fc
+    authored_at: '2026-05-30T19:55:38+00:00'
+    subject: 'fix: enforce sub-chats on explicit sub-chat intent keywords'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/preprocessor.py
+    related_feature_ids: []
+  - sha: 50a93397029ffe4b33008a14335d7ab4f5806bc3
+    short_sha: 50a933970
+    authored_at: '2026-05-30T19:42:52+00:00'
+    subject: 'test: use demo- prefix for mock sub-chats in E2E spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    related_feature_ids: []
+  - sha: f2a5d6efced4f599333d08403588348f459de70b
+    short_sha: f2a5d6efc
+    authored_at: '2026-05-30T19:30:50+00:00'
+    subject: 'fix: capture Svelte 5 effect dependencies synchronously in ChatHistory'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: b383f584ee2c8544df24deceba3eba983e5c906a
+    short_sha: b383f584e
+    authored_at: '2026-05-30T19:20:49+00:00'
+    subject: 'test: trigger full chat list reload on sub-chats mock injection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    related_feature_ids: []
+  - sha: d6856c6c8ca7432ee29da198b16c4aeee9c7153f
+    short_sha: d6856c6c8
+    authored_at: '2026-05-30T19:08:24+00:00'
+    subject: 'test: use native indexedDB instead of ES module imports in evaluate'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    related_feature_ids: []
+  - sha: a3f115694393bec918fe6698a9ef1d3e5e8662b1
+    short_sha: a3f115694
+    authored_at: '2026-05-30T18:56:35+00:00'
+    subject: 'fix: correct relative import path for Toggle.svelte'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 1bfb201f31fb28047c8cd106d6e7d40e1837a816
+    short_sha: 1bfb201f3
+    authored_at: '2026-05-30T18:22:57+00:00'
+    subject: 'feat: implement E2EE-safe sub-chats and UI dashboard'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/tests/test_preprocessor.py
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 3c614a393c1e04bb0064dd2fb562bd0e64377b43
+    short_sha: 3c614a393
+    authored_at: '2026-05-30T15:01:17+00:00'
+    subject: 'feat: polish transcript auto-correction toggle and model badge'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    related_feature_ids: []
+  - sha: d0e2d9c06b6e9ce53ef0bcec3f8609bd715d3038
+    short_sha: d0e2d9c06
+    authored_at: '2026-05-30T13:12:22+00:00'
+    subject: 'feat: auto-correct audio transcripts with gemini'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/tests/test_transcribe_skill.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/RecordingRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: d86824f7d4caecffd2c1ed1a2606cd4f4ace0f0c
+    short_sha: d86824f7d
+    authored_at: '2026-05-30T12:54:16+00:00'
+    subject: 'test: finalize Playwright E2E spec with mock markers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    related_feature_ids: []
+  - sha: 44fe36ceb48ae5520043d521a9d04db242d64337
+    short_sha: 44fe36ceb
+    authored_at: '2026-05-30T12:03:10+00:00'
+    subject: 'fix: correct event payload key from camelCase to snake_case'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    related_feature_ids: []
+  - sha: 7fdfde48e896315115973216076aede073d97691
+    short_sha: 7fdfde48e
+    authored_at: '2026-05-30T11:46:41+00:00'
+    subject: 'fix: use chatUpdated event to sync user response bubble in real-time'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    related_feature_ids: []
+  - sha: e4cc4f8f538204e8c75ae3c185cf8f20d78f09e6
+    short_sha: e4cc4f8f5
+    authored_at: '2026-05-30T11:29:47+00:00'
+    subject: 'test: make E2E spec robust against Svelte DOM rendering delays'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    related_feature_ids: []
+  - sha: 7b1f8997683e0de4e2e73d2490719b9f563350b9
+    short_sha: 7b1f89976
+    authored_at: '2026-05-30T11:23:35+00:00'
+    subject: 'test: finalize interactive questions E2E spec and valid JSON fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/interactive_questions_quiz.json
+    related_feature_ids: []
+  - sha: 2f622bf3b29199625779f36f72503f8a81e1af4f
+    short_sha: 2f622bf3b
+    authored_at: '2026-05-30T11:14:29+00:00'
+    subject: 'test: finalize Playwright E2E spec with mock markers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    related_feature_ids: []
+  - sha: b85bc5fb52e2fd4113efa3aa25da39772337fdd2
+    short_sha: b85bc5fb5
+    authored_at: '2026-05-30T11:09:34+00:00'
+    subject: 'test: rewrite E2E spec to use robust client-side mocking'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    related_feature_ids: []
+  - sha: 988f872e68fd373d73ff41721fe86b0b69ea3634
+    short_sha: 988f872e6
+    authored_at: '2026-05-30T10:57:58+00:00'
+    subject: 'fix: save submitted responses to IndexedDB and style answer bubbles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    related_feature_ids: []
+  - sha: e991496526f11988d2a8c4f9b53514faa7056b83
+    short_sha: e99149652
+    authored_at: '2026-05-30T10:31:36+00:00'
+    subject: 'test: extend Playwright timeout for authenticated chat-flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    related_feature_ids: []
+  - sha: e90c3334e58c6c9b8f5ad94ab1ebad554712d337
+    short_sha: e90c3334e
+    authored_at: '2026-05-30T10:24:19+00:00'
+    subject: 'test: add mock fixture for interactive questions E2E spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/interactive_questions_quiz.json
+    related_feature_ids: []
+  - sha: eece564b65de7aacd6da900bf399dcc129d6e135
+    short_sha: eece564b6
+    authored_at: '2026-05-30T10:16:16+00:00'
+    subject: 'fix: commit corrected relative paths in InteractiveQuestionContainer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    related_feature_ids: []
+  - sha: 8f80ab99a7155bab108ff633170d463df9738142
+    short_sha: 8f80ab99a
+    authored_at: '2026-05-30T10:13:24+00:00'
+    subject: 'feat: implement reactive clear state bindings across all question renderers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/InputQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/RatingQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SliderQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SwipeQuestion.svelte
+    related_feature_ids: []
+  - sha: 8f27776806aad5b023e314a5674c35408cd8f906
+    short_sha: 8f2777680
+    authored_at: '2026-05-30T10:01:00+00:00'
+    subject: 'test: expand interactive questions spec to cover all 5 types'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    related_feature_ids: []
+  - sha: 63eee71bff1a4975dd38b3016451249e279cbe28
+    short_sha: 63eee71bf
+    authored_at: '2026-05-30T09:39:12+00:00'
+    subject: 'feat: make chatId resolution robust and adjust container layout padding'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    related_feature_ids: []
+  - sha: 2f1c847070a57606a074a758243cbaab3ca6e9bc
+    short_sha: 2f1c84707
+    authored_at: '2026-05-30T09:37:14+00:00'
+    subject: 'test: upgrade interactive questions Playwright E2E test'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    related_feature_ids: []
+  - sha: 1d89917fe8b12447e05b242184e33938377dfc2d
+    short_sha: 1d89917fe
+    authored_at: '2026-05-30T09:09:29+00:00'
+    subject: 'fix: prevent stream consumer from turning bare-fenced interactive questions into code embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids: []
+  - sha: a9dc2c4a7120d7d57d050bca171c85a44d59c48f
+    short_sha: a9dc2c4a7
+    authored_at: '2026-05-30T08:57:45+00:00'
+    subject: 'fix: prevent stream consumer from turning interactive questions into code embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids: []
+  - sha: 7c6ed1a4947b8ddcf779cee7344a4f68325b2f29
+    short_sha: 7c6ed1a49
+    authored_at: '2026-05-30T07:21:49+00:00'
+    subject: 'feat(code): add check-security focus mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/focus_modes/check-security/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/code.yml
+    related_feature_ids: []
+  - sha: 03d0a3e71d6ab705e643af11a00e230c2e842c83
+    short_sha: 03d0a3e71
+    authored_at: '2026-05-30T07:17:38+00:00'
+    subject: 'fix: render missing question title in container'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    related_feature_ids: []
+  - sha: 420d1d98548414f3b8a25a0ec1870bd0ea971bb2
+    short_sha: 420d1d985
+    authored_at: '2026-05-30T06:41:56+00:00'
+    subject: 'fix: resolve relative path imports in InteractiveQuestionContainer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    related_feature_ids: []
+  - sha: e0189428d8c20519e3c98c33fc5cb7e17f2a1a40
+    short_sha: e0189428d
+    authored_at: '2026-05-30T06:37:08+00:00'
+    subject: 'fix: correct Svelte 5 props macro syntax'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    related_feature_ids: []
+  - sha: 114e45111d1536d341715c0bf1cf96d42e9055fc
+    short_sha: 114e45111
+    authored_at: '2026-05-30T06:33:47+00:00'
+    subject: 'test: add E2E spec and preview data for interactive questions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
+    related_feature_ids: []
+  - sha: bfdaf55410e0fa1fad85f709d41f6c1456fef1a7
+    short_sha: bfdaf5541
+    authored_at: '2026-05-30T06:19:36+00:00'
+    subject: 'feat: implement interactive questions system and tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/InteractiveQuestionNode.ts
+    - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/InputQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/RatingQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SliderQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/SwipeQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/types.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    related_feature_ids: []
+  - sha: 5d04f0c404a4036b18aa4c31b990a3df66483a36
+    short_sha: 5d04f0c40
+    authored_at: '2026-05-30T06:03:53+00:00'
+    subject: 'test: update prod smoke giftcard signup chat spec to match simplified flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts
+    related_feature_ids: []
+  - sha: b36525e93e2a92a645dd4aa268c48af5ce4caed6
+    short_sha: b36525e93
+    authored_at: '2026-05-30T05:54:21+00:00'
+    subject: 'feat: automatically credit gift card credits upon signup completion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced several major features today, including E2EE-safe sub-chats for better conversation organization,
+    a comprehensive interactive question system, and AI-powered audio transcript correction. The update also streamlined the
+    signup process for gift card users and added a new security-focused mode for code analysis.
+  released_changes:
+  - text: Implemented E2EE-safe sub-chats with a supporting UI dashboard for nested conversation management.
+    evidence:
+      commits:
+      - 1bfb201f3
+    release_status: released_main
+  - text: Launched an interactive question system supporting choice, input, rating, slider, and swipe response types.
+    evidence:
+      commits:
+      - bfdaf5541
+      - 8f80ab99a
+      - 63eee71bf
+    release_status: released_main
+  - text: Added AI-powered auto-correction for audio transcripts using Gemini, including a UI toggle and model badge.
+    evidence:
+      commits:
+      - d0e2d9c06
+      - 3c614a393
+    release_status: released_main
+  - text: Automated the crediting of gift card balances upon the completion of the signup flow.
+    evidence:
+      commits:
+      - b36525e93
+    release_status: released_main
+  - text: Added a 'check-security' focus mode to the code application.
+    evidence:
+      commits:
+      - 7c6ed1a49
+    release_status: released_main
+  bug_fixes:
+  - text: Refined the AI preprocessor and main LLM prompts to more accurately detect and honor explicit user requests for
+      sub-chats.
+    evidence:
+      commits:
+      - 7c8f1361c
+      - 8f0f6b072
+      - 8754471cb
+      - 4d22180fc
+    release_status: released_main
+  - text: Resolved several UI issues in the ChatHistory component, including return-button navigation, layout z-index conflicts,
+      and Svelte 5 state synchronization.
+    evidence:
+      commits:
+      - 55528ee31
+      - 6f6510eb9
+      - 5b5db651d
+      - dfad0a459
+      - f2a5d6efc
+    release_status: released_main
+  - text: Fixed various issues in the interactive questions system, including real-time response syncing, IndexedDB persistence
+      for answers, and layout rendering errors.
+    evidence:
+      commits:
+      - 44fe36ceb
+      - 7fdfde48e
+      - 988f872e6
+      - eece564b6
+      - 03d0a3e71
+      - 420d1d985
+      - e0189428d
+    release_status: released_main
+  - text: Prevented the AI stream consumer from incorrectly treating interactive question blocks as code embeds.
+    evidence:
+      commits:
+      - 1d89917fe
+      - a9dc2c4a7
+    release_status: released_main
+  - text: Corrected a relative import path affecting the audio recording toggle.
+    evidence:
+      commits:
+      - a3f115694
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: Established a robust E2E testing suite for sub-chat flows using Playwright and IndexedDB mocking.
+    evidence:
+      commits:
+      - 7bb8cc3f4
+      - e5245cb7f
+      - 6a234d13b
+      - 50a933970
+      - b383f584e
+      - d6856c6c8
+    release_status: released_main
+  - text: Expanded test coverage for interactive questions to include all five question types and validated JSON fixtures.
+    evidence:
+      commits:
+      - d86824f7d
+      - e4cc4f8f5
+      - 7b1f89976
+      - 2f622bf3b
+      - b85bc5fb5
+      - e99149652
+      - e90c3334e
+      - 8f2777680
+      - 2f1c84707
+      - 114e45111
+    release_status: released_main
+  - text: Updated production smoke tests for gift card signup flows.
+    evidence:
+      commits:
+      - 5d04f0c40
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Organize your conversations with new E2EE-safe sub-chats and a dedicated dashboard.
+      evidence:
+        commits:
+        - 1bfb201f3
+      reason: Introduces a major organizational feature for conversations.
+    - text: Engage with AI using new interactive questions, featuring sliders, ratings, and choice selections.
+      evidence:
+        commits:
+        - bfdaf5541
+        - 8f80ab99a
+      reason: Adds a new interactive dimension to AI interactions.
+    - text: Get cleaner audio transcripts with new AI-powered auto-correction.
+      evidence:
+        commits:
+        - d0e2d9c06
+        - 3c614a393
+      reason: Improves the quality of audio-based interactions.
+    - text: Gift card credits are now automatically applied immediately upon completing signup.
+      evidence:
+        commits:
+        - b36525e93
+      reason: Improves the onboarding experience for new users.
+    exclude: []
+    rationale: This update introduces significant new user-facing capabilities, including sub-chats for better organization
+      and interactive questions for richer AI engagement. The addition of transcript auto-correction and automated gift card
+      crediting directly improves the core user experience.
+  social_video_recommendations:
+  - idea: A demo showing the different interactive question types (sliders, ratings, swipes) in action within a chat.
+    priority: high
+    reason: Highly visual and interactive feature that differentiates the chat experience.
+    evidence:
+      commits:
+      - bfdaf5541
+  - idea: A walkthrough of creating a sub-chat from a main conversation and navigating the new dashboard.
+    priority: medium
+    reason: Demonstrates powerful organization tools for power users.
+    evidence:
+      commits:
+      - 1bfb201f3
+  - idea: A 'before and after' comparison of a raw audio transcript versus the AI-corrected version.
+    priority: medium
+    reason: Clearly communicates the value of the new transcript correction feature.
+    evidence:
+      commits:
+      - d0e2d9c06
+  quality_notes:
+  - Extensive E2E testing was implemented alongside the sub-chat and interactive question features to ensure stability.
+  - Prompt engineering adjustments were made to ensure the AI correctly handles new structural elements like sub-chats and
+    interactive blocks.
+  validation_warnings: []

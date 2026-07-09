@@ -1,0 +1,1003 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-07'
+generated_at: '2026-07-09T15:17:41+00:00'
+range:
+  since: '2026-05-07T00:00:00+00:00'
+  until: '2026-05-07T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 17
+  section_counts:
+    features: 1
+    bug_fixes: 12
+    improvements: 0
+    docs: 0
+    tests: 4
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 11
+  user_facing_items: 12
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: save embed results to memories'
+    section: features
+    commits:
+    - 7c464aa37
+    authored_at: '2026-05-07T16:11:31+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/reminder/app.yml
+    - backend/apps/travel/app.yml
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-health-appointments.spec.ts
+    - frontend/apps/web_app/tests/skill-home-search.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeaderCtaButton.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoryEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/events.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/home.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/reminder.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/travel.yml
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: derive saved embed ids from content refs'
+    section: bug_fixes
+    commits:
+    - c318715a3
+    authored_at: '2026-05-07T18:37:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve saved child embed previews'
+    section: bug_fixes
+    commits:
+    - 7811bb567
+    authored_at: '2026-05-07T18:05:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoryEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: save child embed ids in memories'
+    section: bug_fixes
+    commits:
+    - 9c1c0ecde
+    authored_at: '2026-05-07T17:46:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose memory entry test ids'
+    section: bug_fixes
+    commits:
+    - 1f954d913
+    authored_at: '2026-05-07T17:25:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: save selected fullscreen memory title'
+    section: bug_fixes
+    commits:
+    - f4dc649dd
+    authored_at: '2026-05-07T16:58:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize saved memory test signal'
+    section: bug_fixes
+    commits:
+    - 51bf7288a
+    authored_at: '2026-05-07T16:41:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: skip Sightengine health on quota exhaustion'
+    section: bug_fixes
+    commits:
+    - d33b94471
+    authored_at: '2026-05-07T15:51:08+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_sightengine_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: load native chat embeds with children'
+    section: bug_fixes
+    commits:
+    - 5b3dfffb7
+    authored_at: '2026-05-07T17:43:38+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: validate Vault token before API startup'
+    section: bug_fixes
+    commits:
+    - 6c3b6b0e5
+    authored_at: '2026-05-07T15:39:16+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/utils/directus_cookies.py
+    - backend/core/api/app/utils/encryption.py
+    - backend/core/api/app/utils/vault_token_check.py
+    - backend/core/api/wait-for-vault.sh
+    - backend/core/docker-compose.yml
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_vault_token_handoff.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize code fullscreen text sizing'
+    section: bug_fixes
+    commits:
+    - 0543c5d86
+    authored_at: '2026-05-07T14:41:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore 2fa reconnect verification'
+    section: bug_fixes
+    commits:
+    - b5aaf7f73
+    authored_at: '2026-05-07T10:43:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesTopContent.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reject made-for-kids inspiration videos'
+    section: bug_fixes
+    commits:
+    - 2aae3ed90
+    authored_at: '2026-05-07T10:42:46+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/video_processor.py
+    - backend/tests/test_daily_inspiration_video_processor.py
+    - docs/architecture/frontend/daily-inspiration.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: allow memories without embed previews'
+    section: tests
+    commits:
+    - 7529ae2e9
+    authored_at: '2026-05-07T18:53:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: relax saved memory title matching'
+    section: tests
+    commits:
+    - 6c7b2b4ea
+    authored_at: '2026-05-07T17:17:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: handle resolved travel booking urls'
+    section: tests
+    commits:
+    - d5e8302c3
+    authored_at: '2026-05-07T17:11:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover 2fa reconnect preview'
+    section: tests
+    commits:
+    - 0339e7508
+    authored_at: '2026-05-07T11:18:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-2fa-reconnect-preview.spec.ts
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesReconnectPreview.svelte
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesTopContent.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: save embed results to memories'
+    commits:
+    - 7c464aa37
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: derive saved embed ids from content refs'
+    commits:
+    - c318715a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve saved child embed previews'
+    commits:
+    - 7811bb567
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: save child embed ids in memories'
+    commits:
+    - 9c1c0ecde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: expose memory entry test ids'
+    commits:
+    - 1f954d913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: save selected fullscreen memory title'
+    commits:
+    - f4dc649dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize saved memory test signal'
+    commits:
+    - 51bf7288a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: save embed results to memories'
+    commits:
+    - 7c464aa37
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: validate Vault token before API startup'
+    commits:
+    - 6c3b6b0e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize code fullscreen text sizing'
+    commits:
+    - 0543c5d86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore 2fa reconnect verification'
+    commits:
+    - b5aaf7f73
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reject made-for-kids inspiration videos'
+    commits:
+    - 2aae3ed90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: derive saved embed ids from content refs'
+    commits:
+    - c318715a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve saved child embed previews'
+    commits:
+    - 7811bb567
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: save child embed ids in memories'
+    commits:
+    - 9c1c0ecde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expose memory entry test ids'
+    commits:
+    - 1f954d913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: save selected fullscreen memory title'
+    commits:
+    - f4dc649dd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize saved memory test signal'
+    commits:
+    - 51bf7288a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: save embed results to memories'
+    commits:
+    - 7c464aa37
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: load native chat embeds with children'
+    commits:
+    - 5b3dfffb7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: validate Vault token before API startup'
+    commits:
+    - 6c3b6b0e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize code fullscreen text sizing'
+    commits:
+    - 0543c5d86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore 2fa reconnect verification'
+    commits:
+    - b5aaf7f73
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reject made-for-kids inspiration videos'
+    commits:
+    - 2aae3ed90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 7529ae2e93f743c0e99ddea49b37bf4c8456a498
+    short_sha: 7529ae2e9
+    authored_at: '2026-05-07T18:53:59+00:00'
+    subject: 'test: allow memories without embed previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    related_feature_ids: []
+  - sha: c318715a376c250181379a4acf51a17b4c0aae4e
+    short_sha: c318715a3
+    authored_at: '2026-05-07T18:37:24+00:00'
+    subject: 'fix: derive saved embed ids from content refs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    related_feature_ids: []
+  - sha: 7811bb567cfb09a4c33cfc9064aeaa5632779a93
+    short_sha: 7811bb567
+    authored_at: '2026-05-07T18:05:40+00:00'
+    subject: 'fix: resolve saved child embed previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoryEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 9c1c0ecdea3c026bed0466aac38880ce8a45b257
+    short_sha: 9c1c0ecde
+    authored_at: '2026-05-07T17:46:38+00:00'
+    subject: 'fix: save child embed ids in memories'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 1f954d9136ca87c9e4f73b917b4a9ea79ab2073b
+    short_sha: 1f954d913
+    authored_at: '2026-05-07T17:25:32+00:00'
+    subject: 'fix: expose memory entry test ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    related_feature_ids: []
+  - sha: 6c7b2b4ea165f5bb4060272f88ed14c9eaf78d4f
+    short_sha: 6c7b2b4ea
+    authored_at: '2026-05-07T17:17:57+00:00'
+    subject: 'test: relax saved memory title matching'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    related_feature_ids: []
+  - sha: d5e8302c3583d6f086dbc66660ca02fb5feb3bec
+    short_sha: d5e8302c3
+    authored_at: '2026-05-07T17:11:09+00:00'
+    subject: 'test: handle resolved travel booking urls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    related_feature_ids: []
+  - sha: f4dc649dddeff6e92f5a9f44be4ab99f055dc847
+    short_sha: f4dc649dd
+    authored_at: '2026-05-07T16:58:44+00:00'
+    subject: 'fix: save selected fullscreen memory title'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    related_feature_ids: []
+  - sha: 51bf7288aac26b74edd1647d5bc395945c2ebec9
+    short_sha: 51bf7288a
+    authored_at: '2026-05-07T16:41:24+00:00'
+    subject: 'fix: stabilize saved memory test signal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    related_feature_ids: []
+  - sha: 7c464aa370d5a9de021b0759c02d697e78dfb2f7
+    short_sha: 7c464aa37
+    authored_at: '2026-05-07T16:11:31+00:00'
+    subject: 'feat: save embed results to memories'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/reminder/app.yml
+    - backend/apps/travel/app.yml
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-health-appointments.spec.ts
+    - frontend/apps/web_app/tests/skill-home-search.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeaderCtaButton.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoryEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/events.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/home.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/reminder.yml
+    - frontend/packages/ui/src/i18n/sources/app_settings_memories/travel.yml
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    related_feature_ids: []
+  - sha: d33b94471d299865e3d0d0217c22db36eb0e5d79
+    short_sha: d33b94471
+    authored_at: '2026-05-07T15:51:08+00:00'
+    subject: 'fix: skip Sightengine health on quota exhaustion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_sightengine_service.py
+    related_feature_ids: []
+  - sha: 5b3dfffb78f76f0d3dd2c24b3d52e65e96195542
+    short_sha: 5b3dfffb7
+    authored_at: '2026-05-07T17:43:38+02:00'
+    subject: 'fix: load native chat embeds with children'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6c3b6b0e566f4aabd49fc67c20bb2cdad884e3a5
+    short_sha: 6c3b6b0e5
+    authored_at: '2026-05-07T15:39:16+00:00'
+    subject: 'fix: validate Vault token before API startup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/utils/directus_cookies.py
+    - backend/core/api/app/utils/encryption.py
+    - backend/core/api/app/utils/vault_token_check.py
+    - backend/core/api/wait-for-vault.sh
+    - backend/core/docker-compose.yml
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_vault_token_handoff.py
+    related_feature_ids: []
+  - sha: 0543c5d8637bf0c1ee883e85b0c187b7b025eece
+    short_sha: 0543c5d86
+    authored_at: '2026-05-07T14:41:40+00:00'
+    subject: 'fix: stabilize code fullscreen text sizing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 0339e75083abce35cf778e1f7dcf4097869aa280
+    short_sha: 0339e7508
+    authored_at: '2026-05-07T11:18:07+00:00'
+    subject: 'test: cover 2fa reconnect preview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-2fa-reconnect-preview.spec.ts
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesReconnectPreview.svelte
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesTopContent.svelte
+    related_feature_ids: []
+  - sha: b5aaf7f732e66905e785859efea2d22173df335d
+    short_sha: b5aaf7f73
+    authored_at: '2026-05-07T10:43:43+00:00'
+    subject: 'fix: restore 2fa reconnect verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesTopContent.svelte
+    related_feature_ids: []
+  - sha: 2aae3ed906093c2264a303d16d0f7b1c475ad66e
+    short_sha: 2aae3ed90
+    authored_at: '2026-05-07T10:42:46+00:00'
+    subject: 'fix: reject made-for-kids inspiration videos'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/video_processor.py
+    - backend/tests/test_daily_inspiration_video_processor.py
+    - docs/architecture/frontend/daily-inspiration.md
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a significant update to its memory system, allowing users to save results from events, health,
+    home, and travel embeds directly to their personal memories. The update also includes critical fixes for 2FA reconnection,
+    API startup security, and content filtering for daily inspiration videos.
+  released_changes:
+  - text: Users can now save interactive embed results from the Events, Health, Home, Reminder, and Travel apps into their
+      memories for later reference.
+    evidence:
+      commits:
+      - 7c464aa37
+    release_status: released_main
+  bug_fixes:
+  - text: A series of fixes for the new memories feature improved ID derivation from content refs, resolved child embed previews,
+      and stabilized title saving during fullscreen interactions.
+    evidence:
+      commits:
+      - c318715a3
+      - 7811bb567
+      - 9c1c0ecde
+      - 1f954d913
+      - f4dc649dd
+      - 51bf7288a
+    release_status: released_main
+  - text: API startup reliability was improved by adding a validation step for Vault tokens before the service begins.
+    evidence:
+      commits:
+      - 6c3b6b0e5
+    release_status: released_main
+  - text: The 2FA reconnection flow now correctly restores verification steps.
+    evidence:
+      commits:
+      - b5aaf7f73
+    release_status: released_main
+  - text: Text sizing in the code embed fullscreen view has been stabilized.
+    evidence:
+      commits:
+      - 0543c5d86
+    release_status: released_main
+  - text: The daily inspiration video processor now filters out content flagged as "made-for-kids" to ensure appropriate recommendations.
+    evidence:
+      commits:
+      - 2aae3ed90
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on native chat embeds for iOS and macOS, focusing on correctly loading child components within
+      the chat view.
+    evidence:
+      commits:
+      - 5b3dfffb7
+    release_status: released_main
+  internal_progress:
+  - text: The system now skips Sightengine health checks when API quotas are exhausted to prevent unnecessary task failures.
+    evidence:
+      commits:
+      - d33b94471
+    release_status: released_main
+  - text: Test coverage was expanded for 2FA reconnection previews, travel booking URL resolution, and memory title matching.
+    evidence:
+      commits:
+      - 7529ae2e9
+      - 6c7b2b4ea
+      - d5e8302c3
+      - 0339e7508
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: OpenMates added the ability to save embed results—including events, health appointments, home listings, and travel
+        connections—directly to user memories.
+      evidence:
+        commits:
+        - 7c464aa37
+      reason: Major new user-facing capability for saving search and activity results.
+    - text: Restored 2FA verification for reconnection flows.
+      evidence:
+        commits:
+        - b5aaf7f73
+      reason: Fixes a critical user flow for account security.
+    - text: Refined daily inspiration video selection to exclude made-for-kids content.
+      evidence:
+        commits:
+        - 2aae3ed90
+      reason: Improves the quality and relevance of daily AI content.
+    exclude:
+    - text: Native chat embed loading for iOS and macOS.
+      evidence:
+        commits:
+        - 5b3dfffb7
+      reason: Relates to iOS and macOS platforms which are currently disabled features.
+    - text: Sightengine quota handling.
+      evidence:
+        commits:
+        - d33b94471
+      reason: Internal infrastructure and health check logic.
+    rationale: The primary update is the introduction of 'Save to Memories' for various embed types, which significantly enhances
+      the utility of search results across the platform. Supporting fixes for 2FA and content filtering provide additional
+      stability and quality improvements suitable for public communication.
+  social_video_recommendations:
+  - idea: A screen recording showing a user finding a travel connection or home listing and clicking the new 'Save to Memory'
+      button, then viewing it in their settings.
+    priority: high
+    reason: This is a highly visual feature that demonstrates cross-app integration and the value of the OpenMates memory
+      system.
+    evidence:
+      commits:
+      - 7c464aa37
+  quality_notes:
+  - The 'Save to Memories' feature received immediate follow-up fixes to ensure data integrity for child embeds and title
+    consistency.
+  - Startup security was hardened with mandatory Vault token validation.
+  validation_warnings: []

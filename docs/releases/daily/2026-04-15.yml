@@ -1,0 +1,1058 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-15'
+generated_at: '2026-07-09T15:07:50+00:00'
+range:
+  since: '2026-04-15T00:00:00+00:00'
+  until: '2026-04-15T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 21
+  section_counts:
+    features: 5
+    bug_fixes: 9
+    improvements: 1
+    docs: 0
+    tests: 3
+    infrastructure: 1
+    internal: 0
+    other: 2
+  newsletter_ready_items: 9
+  user_facing_items: 9
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: dramatic Ken-Burns pan — reveal top/bottom of slideshow frames'
+    section: features
+    commits:
+    - 48005eaeb
+    authored_at: '2026-04-15T17:55:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: fix slideshow crossfade gap, center title under play button, German video'
+    section: features
+    commits:
+    - c7fb20f05
+    authored_at: '2026-04-15T15:46:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: intro-chat slideshow — higher-quality frames (12 frames)'
+    section: features
+    commits:
+    - 4f8500c6b
+    authored_at: '2026-04-15T15:13:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-01.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-02.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-03.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-04.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-05.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-06.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-07.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-08.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-09.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-10.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-11.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-12.jpg
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: intro-chat header — crossfading Ken-Burns slideshow instead of autoplay video'
+    section: features
+    commits:
+    - e0986cdf8
+    authored_at: '2026-04-15T14:43:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-01.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-02.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-03.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-04.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-05.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-06.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-07.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-08.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-09.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-10.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-11.jpg
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: disable onboarding auto-create + hide welcome focus mode behind flag'
+    section: features
+    commits:
+    - 48b915361
+    authored_at: '2026-04-15T14:26:56+00:00'
+    changed_paths:
+    - backend/apps/openmates/focus_modes/welcome/SKILL.md
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/services/onboardingChatService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix(wikipedia): strip disambiguation pages from validated wiki links'
+    section: bug_fixes
+    commits:
+    - 86049054f
+    authored_at: '2026-04-15T23:13:54+00:00'
+    changed_paths:
+    - backend/shared/providers/wikipedia/wikipedia_api.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(ai): add disambiguation guidance to Wikipedia linking instruction'
+    section: bug_fixes
+    commits:
+    - 199d6a69b
+    authored_at: '2026-04-15T23:12:09+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_wikipedia_linking_instruction.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: handle Wikipedia normalized array in batch_validate_topics'
+    section: bug_fixes
+    commits:
+    - c2b6eb503
+    authored_at: '2026-04-15T22:43:46+00:00'
+    changed_paths:
+    - backend/shared/providers/wikipedia/wikipedia_api.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: issues.title to TEXT so long HTML-escaped titles don''t overflow varchar(255)'
+    section: bug_fixes
+    commits:
+    - 18031dc01
+    authored_at: '2026-04-15T22:42:11+00:00'
+    changed_paths:
+    - backend/core/directus/schemas/issues.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: upgrade python-multipart to 0.0.26 (GHSA-mj87-hwqh-73pj)'
+    section: bug_fixes
+    commits:
+    - 8713bab99
+    authored_at: '2026-04-15T21:31:09+00:00'
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/upload/requirements.txt
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: upgrade python-multipart to 0.0.26 (GHSA-mj87-hwqh-73pj)'
+    section: bug_fixes
+    commits:
+    - 0ed724ff7
+    authored_at: '2026-04-15T21:31:01+00:00'
+    changed_paths:
+    - scripts/dependabot-processed.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: gate bank transfer availability on IBAN/BIC presence'
+    section: bug_fixes
+    commits:
+    - 6a73e835e
+    authored_at: '2026-04-15T19:01:04+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/payment_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: make webhook secret optional for bank transfer, hide UI without IBAN/BIC'
+    section: bug_fixes
+    commits:
+    - 2a00e7064
+    authored_at: '2026-04-15T19:00:35+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - scripts/apply_bank_transfer.py
+    - scripts/revolut_business_setup.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: hide Completed status on video embeds with no metadata'
+    section: bug_fixes
+    commits:
+    - 991019bf7
+    authored_at: '2026-04-15T18:03:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'perf: convert intro-chat slideshow frames from JPG to WebP'
+    section: improvements
+    commits:
+    - 616db8623
+    authored_at: '2026-04-15T15:20:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-01.webp
+    - frontend/apps/web_app/static/intro-frames/frame-02.webp
+    - frontend/apps/web_app/static/intro-frames/frame-03.webp
+    - frontend/apps/web_app/static/intro-frames/frame-04.webp
+    - frontend/apps/web_app/static/intro-frames/frame-05.webp
+    - frontend/apps/web_app/static/intro-frames/frame-06.webp
+    - frontend/apps/web_app/static/intro-frames/frame-07.webp
+    - frontend/apps/web_app/static/intro-frames/frame-08.webp
+    - frontend/apps/web_app/static/intro-frames/frame-09.webp
+    - frontend/apps/web_app/static/intro-frames/frame-10.webp
+    - frontend/apps/web_app/static/intro-frames/frame-11.webp
+    - frontend/apps/web_app/static/intro-frames/frame-12.webp
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs: []
+  tests:
+  - title: 'test: split default-model fixture into mistral and auto variants'
+    section: tests
+    commits:
+    - 8a05e43c0
+    authored_at: '2026-04-15T21:12:46+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/default_model_auto.json
+    - backend/apps/ai/testing/fixtures/default_model_mistral.json
+    - backend/apps/ai/testing/fixtures/default_model_settings.json
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: record missing E2E fixtures for nightly stability'
+    section: tests
+    commits:
+    - f2d83159e
+    authored_at: '2026-04-15T20:39:37+00:00'
+    changed_paths:
+    - .claude/agents/e2e-test-investigator.md
+    - backend/apps/ai/testing/fixtures/default_model_settings.json
+    - backend/apps/ai/testing/fixtures/focus_career_5.json
+    - backend/apps/ai/testing/fixtures/focus_career_6.json
+    - backend/apps/ai/testing/fixtures/fork_conversation_turn1.json
+    - backend/apps/ai/testing/fixtures/fork_conversation_turn2.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_1.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_2.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_3.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_4.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_5.json
+    - backend/apps/ai/testing/fixtures/share_embed_flow.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add waitForAssistantMessage helper to stabilize 9 nightly specs'
+    section: tests
+    commits:
+    - 552fdfa74
+    authored_at: '2026-04-15T17:53:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/apps/web_app/tests/copy-message-flow.spec.ts
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/hidden-chats-flow.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: remove orphan JPG frames (superseded by WebP)'
+    section: infrastructure
+    commits:
+    - 116d4b9ab
+    authored_at: '2026-04-15T15:20:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-01.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-02.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-03.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-04.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-05.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-06.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-07.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-08.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-09.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-10.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-11.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-12.jpg
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #369 from glowingkitty/dev'
+    section: other
+    commits:
+    - 24ba5ba5f
+    authored_at: '2026-04-15T17:48:21+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'tweak: intro-chat slideshow — slower hold (8s/frame), larger Ken-Burns drift, alternating direction'
+    section: other
+    commits:
+    - 183a7afe3
+    authored_at: '2026-04-15T15:09:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix(ai): add disambiguation guidance to Wikipedia linking instruction'
+    commits:
+    - 199d6a69b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide Completed status on video embeds with no metadata'
+    commits:
+    - 991019bf7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: dramatic Ken-Burns pan — reveal top/bottom of slideshow frames'
+    commits:
+    - 48005eaeb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: fix slideshow crossfade gap, center title under play button, German video'
+    commits:
+    - c7fb20f05
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'perf: convert intro-chat slideshow frames from JPG to WebP'
+    commits:
+    - 616db8623
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: intro-chat slideshow — higher-quality frames (12 frames)'
+    commits:
+    - 4f8500c6b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'tweak: intro-chat slideshow — slower hold (8s/frame), larger Ken-Burns drift, alternating direction'
+    commits:
+    - 183a7afe3
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: intro-chat header — crossfading Ken-Burns slideshow instead of autoplay video'
+    commits:
+    - e0986cdf8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: disable onboarding auto-create + hide welcome focus mode behind flag'
+    commits:
+    - 48b915361
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix(ai): add disambiguation guidance to Wikipedia linking instruction'
+    commits:
+    - 199d6a69b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide Completed status on video embeds with no metadata'
+    commits:
+    - 991019bf7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: dramatic Ken-Burns pan — reveal top/bottom of slideshow frames'
+    commits:
+    - 48005eaeb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: fix slideshow crossfade gap, center title under play button, German video'
+    commits:
+    - c7fb20f05
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'perf: convert intro-chat slideshow frames from JPG to WebP'
+    commits:
+    - 616db8623
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: intro-chat slideshow — higher-quality frames (12 frames)'
+    commits:
+    - 4f8500c6b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'tweak: intro-chat slideshow — slower hold (8s/frame), larger Ken-Burns drift, alternating direction'
+    commits:
+    - 183a7afe3
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: intro-chat header — crossfading Ken-Burns slideshow instead of autoplay video'
+    commits:
+    - e0986cdf8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: disable onboarding auto-create + hide welcome focus mode behind flag'
+    commits:
+    - 48b915361
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 86049054fa3f4cbdbebcd61591d401181c173c78
+    short_sha: 86049054f
+    authored_at: '2026-04-15T23:13:54+00:00'
+    subject: 'fix(wikipedia): strip disambiguation pages from validated wiki links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/wikipedia/wikipedia_api.py
+    related_feature_ids: []
+  - sha: 199d6a69b3dc4a73ab0e35096693f8173eba26f5
+    short_sha: 199d6a69b
+    authored_at: '2026-04-15T23:12:09+00:00'
+    subject: 'fix(ai): add disambiguation guidance to Wikipedia linking instruction'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_wikipedia_linking_instruction.md
+    related_feature_ids: []
+  - sha: c2b6eb503d68f6ae37b4167138b1a1f1a94511e7
+    short_sha: c2b6eb503
+    authored_at: '2026-04-15T22:43:46+00:00'
+    subject: 'fix: handle Wikipedia normalized array in batch_validate_topics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/wikipedia/wikipedia_api.py
+    related_feature_ids: []
+  - sha: 18031dc019b448dcf449f05b3f492874d4fd327c
+    short_sha: 18031dc01
+    authored_at: '2026-04-15T22:42:11+00:00'
+    subject: 'fix: issues.title to TEXT so long HTML-escaped titles don''t overflow varchar(255)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/schemas/issues.yml
+    related_feature_ids: []
+  - sha: 8713bab99be968eabd036e6ad0e429ed19957a95
+    short_sha: 8713bab99
+    authored_at: '2026-04-15T21:31:09+00:00'
+    subject: 'fix: upgrade python-multipart to 0.0.26 (GHSA-mj87-hwqh-73pj)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/upload/requirements.txt
+    related_feature_ids: []
+  - sha: 0ed724ff7cf760359a7845b365a4d4e4a64f2187
+    short_sha: 0ed724ff7
+    authored_at: '2026-04-15T21:31:01+00:00'
+    subject: 'fix: upgrade python-multipart to 0.0.26 (GHSA-mj87-hwqh-73pj)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/dependabot-processed.json
+    related_feature_ids: []
+  - sha: 8a05e43c017eb6d443137f8f77ad702a64d49792
+    short_sha: 8a05e43c0
+    authored_at: '2026-04-15T21:12:46+00:00'
+    subject: 'test: split default-model fixture into mistral and auto variants'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/default_model_auto.json
+    - backend/apps/ai/testing/fixtures/default_model_mistral.json
+    - backend/apps/ai/testing/fixtures/default_model_settings.json
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    related_feature_ids: []
+  - sha: f2d83159e7b640ac2e5d3a73ecc23b5c94b92ceb
+    short_sha: f2d83159e
+    authored_at: '2026-04-15T20:39:37+00:00'
+    subject: 'test: record missing E2E fixtures for nightly stability'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/agents/e2e-test-investigator.md
+    - backend/apps/ai/testing/fixtures/default_model_settings.json
+    - backend/apps/ai/testing/fixtures/focus_career_5.json
+    - backend/apps/ai/testing/fixtures/focus_career_6.json
+    - backend/apps/ai/testing/fixtures/fork_conversation_turn1.json
+    - backend/apps/ai/testing/fixtures/fork_conversation_turn2.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_1.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_2.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_3.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_4.json
+    - backend/apps/ai/testing/fixtures/hidden_chats_5.json
+    - backend/apps/ai/testing/fixtures/share_embed_flow.json
+    related_feature_ids: []
+  - sha: 6a73e835e8f2ee507d8164a3f1574b2e77168527
+    short_sha: 6a73e835e
+    authored_at: '2026-04-15T19:01:04+00:00'
+    subject: 'fix: gate bank transfer availability on IBAN/BIC presence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/payment_service.py
+    related_feature_ids: []
+  - sha: 2a00e7064013ecfea940b6a2f3d887a19cd95c60
+    short_sha: 2a00e7064
+    authored_at: '2026-04-15T19:00:35+00:00'
+    subject: 'fix: make webhook secret optional for bank transfer, hide UI without IBAN/BIC'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - scripts/apply_bank_transfer.py
+    - scripts/revolut_business_setup.py
+    related_feature_ids: []
+  - sha: 991019bf7e8844cb75fe451fd39adc4594ef6a31
+    short_sha: 991019bf7
+    authored_at: '2026-04-15T18:03:26+00:00'
+    subject: 'fix: hide Completed status on video embeds with no metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 48005eaeb508594f214ce84e75a6c879212a33b6
+    short_sha: 48005eaeb
+    authored_at: '2026-04-15T17:55:00+00:00'
+    subject: 'feat: dramatic Ken-Burns pan — reveal top/bottom of slideshow frames'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 552fdfa74930d057670107122e5f50d05c511771
+    short_sha: 552fdfa74
+    authored_at: '2026-04-15T17:53:48+00:00'
+    subject: 'test: add waitForAssistantMessage helper to stabilize 9 nightly specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/apps/web_app/tests/copy-message-flow.spec.ts
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/hidden-chats-flow.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    related_feature_ids: []
+  - sha: 24ba5ba5f475c3b9515275950b70335db3c04f8a
+    short_sha: 24ba5ba5f
+    authored_at: '2026-04-15T17:48:21+02:00'
+    subject: 'Merge pull request #369 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: c7fb20f055bfffec78a83969a051eaf2ffd4e6c3
+    short_sha: c7fb20f05
+    authored_at: '2026-04-15T15:46:16+00:00'
+    subject: 'feat: fix slideshow crossfade gap, center title under play button, German video'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 116d4b9ab987861ec81d9b4a5eba5c781286fe70
+    short_sha: 116d4b9ab
+    authored_at: '2026-04-15T15:20:42+00:00'
+    subject: 'chore: remove orphan JPG frames (superseded by WebP)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-01.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-02.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-03.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-04.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-05.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-06.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-07.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-08.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-09.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-10.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-11.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-12.jpg
+    related_feature_ids: []
+  - sha: 616db8623d60cd25d572a49455d2c419664d3ee0
+    short_sha: 616db8623
+    authored_at: '2026-04-15T15:20:17+00:00'
+    subject: 'perf: convert intro-chat slideshow frames from JPG to WebP'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-01.webp
+    - frontend/apps/web_app/static/intro-frames/frame-02.webp
+    - frontend/apps/web_app/static/intro-frames/frame-03.webp
+    - frontend/apps/web_app/static/intro-frames/frame-04.webp
+    - frontend/apps/web_app/static/intro-frames/frame-05.webp
+    - frontend/apps/web_app/static/intro-frames/frame-06.webp
+    - frontend/apps/web_app/static/intro-frames/frame-07.webp
+    - frontend/apps/web_app/static/intro-frames/frame-08.webp
+    - frontend/apps/web_app/static/intro-frames/frame-09.webp
+    - frontend/apps/web_app/static/intro-frames/frame-10.webp
+    - frontend/apps/web_app/static/intro-frames/frame-11.webp
+    - frontend/apps/web_app/static/intro-frames/frame-12.webp
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    related_feature_ids: []
+  - sha: 4f8500c6bdaedcfb6e1aef18791c36149df2b8d2
+    short_sha: 4f8500c6b
+    authored_at: '2026-04-15T15:13:25+00:00'
+    subject: 'feat: intro-chat slideshow — higher-quality frames (12 frames)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-01.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-02.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-03.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-04.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-05.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-06.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-07.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-08.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-09.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-10.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-11.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-12.jpg
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    related_feature_ids: []
+  - sha: 183a7afe3dbfa56d7e7c6d4d689e865e69f37b74
+    short_sha: 183a7afe3
+    authored_at: '2026-04-15T15:09:03+00:00'
+    subject: 'tweak: intro-chat slideshow — slower hold (8s/frame), larger Ken-Burns drift, alternating direction'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: e0986cdf84381c7610b2392a85a97adde878500e
+    short_sha: e0986cdf8
+    authored_at: '2026-04-15T14:43:44+00:00'
+    subject: 'feat: intro-chat header — crossfading Ken-Burns slideshow instead of autoplay video'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/intro-frames/frame-01.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-02.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-03.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-04.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-05.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-06.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-07.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-08.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-09.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-10.jpg
+    - frontend/apps/web_app/static/intro-frames/frame-11.jpg
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    related_feature_ids: []
+  - sha: 48b9153613663b4c404ff5b88983b88c5f7bfcc6
+    short_sha: 48b915361
+    authored_at: '2026-04-15T14:26:56+00:00'
+    subject: 'feat: disable onboarding auto-create + hide welcome focus mode behind flag'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/openmates/focus_modes/welcome/SKILL.md
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/services/onboardingChatService.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a cinematic visual refresh for the intro chat experience and refined Wikipedia integration
+    to ensure higher link accuracy. The update also includes significant stability improvements for automated testing and
+    security patches for backend dependencies.
+  released_changes:
+  - text: The intro-chat header now features a crossfading Ken-Burns slideshow with 12 high-quality WebP frames, replacing
+      the previous autoplay video. This includes dramatic panning effects and optimized timing for a better first-impression
+      experience.
+    evidence:
+      commits:
+      - e0986cdf8
+      - 48005eaeb
+      - 183a7afe3
+      - 4f8500c6b
+      - 616db8623
+      - c7fb20f05
+    release_status: released_main
+  - text: Onboarding auto-creation has been disabled to streamline the signup process.
+    evidence:
+      commits:
+      - 48b915361
+    release_status: released_main
+  bug_fixes:
+  - text: Wikipedia linking logic now filters out disambiguation pages and includes specific AI instructions to improve link
+      accuracy.
+    evidence:
+      commits:
+      - 199d6a69b
+      - 86049054f
+      - c2b6eb503
+    release_status: released_main
+  - text: The user interface now hides the 'Completed' status on video embeds that lack metadata.
+    evidence:
+      commits:
+      - 991019bf7
+    release_status: released_main
+  - text: Bank transfer availability is now gated on the presence of IBAN and BIC details, and the associated UI is hidden
+      when these are missing.
+    evidence:
+      commits:
+      - 6a73e835e
+      - 2a00e7064
+    release_status: released_main
+  - text: Issue titles in the database were migrated to a text type to prevent overflow from long, HTML-escaped strings.
+    evidence:
+      commits:
+      - 18031dc01
+    release_status: released_main
+  unreleased_progress:
+  - text: The 'welcome' focus mode has been implemented but is currently hidden behind a feature flag for further testing.
+    evidence:
+      commits:
+      - 48b915361
+    release_status: released_main
+  internal_progress:
+  - text: Nightly E2E test stability was improved by adding assistant message helpers and recording missing fixtures for various
+      chat flows.
+    evidence:
+      commits:
+      - 552fdfa74
+      - f2d83159e
+      - 8a05e43c0
+    release_status: released_main
+  - text: The python-multipart dependency was upgraded to version 0.0.26 to address a security advisory.
+    evidence:
+      commits:
+      - 8713bab99
+      - 0ed724ff7
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: A new cinematic Ken-Burns slideshow replaces autoplay video in the intro chat, featuring high-quality WebP frames
+        and smooth crossfading.
+      evidence:
+        commits:
+        - e0986cdf8
+        - 48005eaeb
+        - 183a7afe3
+        - 4f8500c6b
+        - 616db8623
+        - c7fb20f05
+      reason: This is a significant visual upgrade to the first-time user experience.
+    - text: Refined Wikipedia linking instructions for the AI to ensure more accurate topic references.
+      evidence:
+        commits:
+        - 199d6a69b
+      reason: Improves the quality of AI-generated Wikipedia links for users.
+    exclude:
+    - text: Welcome focus mode flag.
+      evidence:
+        commits:
+        - 48b915361
+      reason: The welcome focus mode is currently hidden behind a flag and not yet intended for general use.
+    rationale: The visual overhaul of the intro chat is the most prominent user-facing change, while the Wikipedia improvements
+      provide immediate value to chat quality.
+  social_video_recommendations:
+  - idea: A side-by-side comparison of the old autoplay video versus the new cinematic Ken-Burns slideshow.
+    priority: high
+    reason: The Ken-Burns effect is highly visual and demonstrates a polish in the user experience that translates well to
+      short-form video.
+    evidence:
+      commits:
+      - e0986cdf8
+      - 48005eaeb
+      - 183a7afe3
+  quality_notes:
+  - The transition from JPG to WebP for intro frames reduces initial load weight while increasing image quality.
+  - E2E test reliability was a focus in this cycle, addressing flakiness in nightly builds.
+  validation_warnings: []

@@ -1,0 +1,1100 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-11'
+generated_at: '2026-07-09T15:18:45+00:00'
+range:
+  since: '2026-05-11T00:00:00+00:00'
+  until: '2026-05-11T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 18
+  section_counts:
+    features: 4
+    bug_fixes: 10
+    improvements: 0
+    docs: 0
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 2
+  newsletter_ready_items: 8
+  user_facing_items: 12
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Flix travel provider'
+    section: features
+    commits:
+    - 64a236d8a
+    authored_at: '2026-05-11T20:54:12+00:00'
+    changed_paths:
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/flix.py
+    - backend/tests/test_flix_provider.py
+    - docs/architecture/apps/travel-flix-api-research.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: expand travel connection results'
+    section: features
+    commits:
+    - 5657c5e32
+    authored_at: '2026-05-11T20:13:28+00:00'
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add encrypted Apple share task flow'
+    section: features
+    commits:
+    - 2abf23f00
+    authored_at: '2026-05-11T14:16:07+02:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMatesShareExtension/Info.plist
+    - apple/OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/Info.plist
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShared/OpenMatesSharedEnvironment.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.entitlements
+    - apple/project.yml
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/main.py
+    - backend/core/api/requirements.txt
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:apple-watch, platform:ios, platform:macos'
+  - title: 'feat: add manual bank transfer approval'
+    section: features
+    commits:
+    - a12d05518
+    authored_at: '2026-05-11T11:59:51+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/scripts/approve_bank_transfer.py
+    - scripts/apply_bank_transfer.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: resolve repo embed refs on cold load'
+    section: bug_fixes
+    commits:
+    - 9be68c3d8
+    authored_at: '2026-05-11T19:08:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: support personal Apple local builds'
+    section: bug_fixes
+    commits:
+    - 8cce766ca
+    authored_at: '2026-05-11T17:45:55+02:00'
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - apple/OpenMates/Resources/OpenMatesMacOSPersonalTeam.entitlements
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOSPersonalTeam.entitlements
+    - scripts/apple_local_ipad.sh
+    - scripts/apple_local_macos.sh
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: show repo search result counts'
+    section: bug_fixes
+    commits:
+    - 1cc1082c8
+    authored_at: '2026-05-11T14:33:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve app skill embeds in final messages'
+    section: bug_fixes
+    commits:
+    - 31f7929a7
+    authored_at: '2026-05-11T13:59:14+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render repo search embeds in groups'
+    section: bug_fixes
+    commits:
+    - 71bc45129
+    authored_at: '2026-05-11T13:24:01+00:00'
+    changed_paths:
+    - AGENTS.md
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align Safari chrome tint with chats panel'
+    section: bug_fixes
+    commits:
+    - 6a66f515f
+    authored_at: '2026-05-11T12:59:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: base chat header layout on container width'
+    section: bug_fixes
+    commits:
+    - b95e9354d
+    authored_at: '2026-05-11T12:52:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add native notification replies'
+    section: bug_fixes
+    commits:
+    - a86533159
+    authored_at: '2026-05-09T17:05:16+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: sync native assistant responses'
+    section: bug_fixes
+    commits:
+    - d3cf66dfc
+    authored_at: '2026-05-09T14:08:26+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: create repo children for code searches'
+    section: bug_fixes
+    commits:
+    - 26b007a57
+    authored_at: '2026-05-11T12:15:11+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_composite.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: assert repo search embeds survive completion'
+    section: tests
+    commits:
+    - 03846b874
+    authored_at: '2026-05-11T14:22:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: handle repo search memory prompt'
+    section: tests
+    commits:
+    - 40668c71a
+    authored_at: '2026-05-11T12:28:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'Merge pull request #391 from glowingkitty/dev'
+    section: other
+    commits:
+    - 0c0f034b5
+    authored_at: '2026-05-11T16:48:08+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'revert: restore Safari chrome tint behavior'
+    section: other
+    commits:
+    - ffb04d8db
+    authored_at: '2026-05-11T13:16:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add Flix travel provider'
+    commits:
+    - 64a236d8a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: expand travel connection results'
+    commits:
+    - 5657c5e32
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show repo search result counts'
+    commits:
+    - 1cc1082c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve app skill embeds in final messages'
+    commits:
+    - 31f7929a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render repo search embeds in groups'
+    commits:
+    - 71bc45129
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'revert: restore Safari chrome tint behavior'
+    commits:
+    - ffb04d8db
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align Safari chrome tint with chats panel'
+    commits:
+    - 6a66f515f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: base chat header layout on container width'
+    commits:
+    - b95e9354d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add Flix travel provider'
+    commits:
+    - 64a236d8a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: expand travel connection results'
+    commits:
+    - 5657c5e32
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: support personal Apple local builds'
+    commits:
+    - 8cce766ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show repo search result counts'
+    commits:
+    - 1cc1082c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve app skill embeds in final messages'
+    commits:
+    - 31f7929a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render repo search embeds in groups'
+    commits:
+    - 71bc45129
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'revert: restore Safari chrome tint behavior'
+    commits:
+    - ffb04d8db
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align Safari chrome tint with chats panel'
+    commits:
+    - 6a66f515f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: base chat header layout on container width'
+    commits:
+    - b95e9354d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add encrypted Apple share task flow'
+    commits:
+    - 2abf23f00
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: add native notification replies'
+    commits:
+    - a86533159
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: sync native assistant responses'
+    commits:
+    - d3cf66dfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 64a236d8a43f2dc147e0b0438d23504972d4637f
+    short_sha: 64a236d8a
+    authored_at: '2026-05-11T20:54:12+00:00'
+    subject: 'feat: add Flix travel provider'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/shared/providers/flix.py
+    - backend/tests/test_flix_provider.py
+    - docs/architecture/apps/travel-flix-api-research.md
+    related_feature_ids: []
+  - sha: 5657c5e3218988fb3be1329385b70b7155b4ac0b
+    short_sha: 5657c5e32
+    authored_at: '2026-05-11T20:13:28+00:00'
+    subject: 'feat: expand travel connection results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    related_feature_ids: []
+  - sha: 9be68c3d812a1b69c927b49b62876a05ab60752b
+    short_sha: 9be68c3d8
+    authored_at: '2026-05-11T19:08:53+00:00'
+    subject: 'fix: resolve repo embed refs on cold load'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 8cce766cac5dd8397d059d451a371cd096410a1b
+    short_sha: 8cce766ca
+    authored_at: '2026-05-11T17:45:55+02:00'
+    subject: 'fix: support personal Apple local builds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - apple/OpenMates/Resources/OpenMatesMacOSPersonalTeam.entitlements
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOSPersonalTeam.entitlements
+    - scripts/apple_local_ipad.sh
+    - scripts/apple_local_macos.sh
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0c0f034b5b6f071880b83057ab5a3f0d3bca7d4d
+    short_sha: 0c0f034b5
+    authored_at: '2026-05-11T16:48:08+02:00'
+    subject: 'Merge pull request #391 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 1cc1082c8af2516b4909e9b17709fef2ef7669a6
+    short_sha: 1cc1082c8
+    authored_at: '2026-05-11T14:33:02+00:00'
+    subject: 'fix: show repo search result counts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: 03846b8749672a03a474343cc62421c93cbf7334
+    short_sha: 03846b874
+    authored_at: '2026-05-11T14:22:26+00:00'
+    subject: 'test: assert repo search embeds survive completion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    related_feature_ids: []
+  - sha: 31f7929a7e72472c7adc802f404e43155aa6410f
+    short_sha: 31f7929a7
+    authored_at: '2026-05-11T13:59:14+00:00'
+    subject: 'fix: preserve app skill embeds in final messages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: 71bc4512913cde41ed133673cbbf325d2a13575c
+    short_sha: 71bc45129
+    authored_at: '2026-05-11T13:24:01+00:00'
+    subject: 'fix: render repo search embeds in groups'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: ffb04d8dba951bfdfff6263a1126ac34d8ea83b4
+    short_sha: ffb04d8db
+    authored_at: '2026-05-11T13:16:51+00:00'
+    subject: 'revert: restore Safari chrome tint behavior'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: 6a66f515f8a806c6a3d343e973a736246fcc13f3
+    short_sha: 6a66f515f
+    authored_at: '2026-05-11T12:59:22+00:00'
+    subject: 'fix: align Safari chrome tint with chats panel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: b95e9354d1292851ab5696b879fde71521a403c5
+    short_sha: b95e9354d
+    authored_at: '2026-05-11T12:52:38+00:00'
+    subject: 'fix: base chat header layout on container width'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 40668c71a0af55f69a9363c0cec04e63b80f5e0b
+    short_sha: 40668c71a
+    authored_at: '2026-05-11T12:28:54+00:00'
+    subject: 'test: handle repo search memory prompt'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
+    related_feature_ids: []
+  - sha: 2abf23f005185050173b6e251f57ee3bb872a92e
+    short_sha: 2abf23f00
+    authored_at: '2026-05-11T14:16:07+02:00'
+    subject: 'feat: add encrypted Apple share task flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMatesShareExtension/Info.plist
+    - apple/OpenMatesShareExtension/OpenMatesShareExtension.entitlements
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/Info.plist
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShared/OpenMatesSharedEnvironment.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.entitlements
+    - apple/project.yml
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/main.py
+    - backend/core/api/requirements.txt
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: a86533159bd3cd9ceb77efd2fe2939c6c1c04338
+    short_sha: a86533159
+    authored_at: '2026-05-09T17:05:16+02:00'
+    subject: 'fix: add native notification replies'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d3cf66dfc5201e3c3d21844b88d47c3eda945c43
+    short_sha: d3cf66dfc
+    authored_at: '2026-05-09T14:08:26+02:00'
+    subject: 'fix: sync native assistant responses'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 26b007a5715c87bba3598f4108872ddb02c62663
+    short_sha: 26b007a57
+    authored_at: '2026-05-11T12:15:11+00:00'
+    subject: 'fix: create repo children for code searches'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_composite.py
+    related_feature_ids: []
+  - sha: a12d055185f7dc8db4fad7564717e06ef61741f3
+    short_sha: a12d05518
+    authored_at: '2026-05-11T11:59:51+00:00'
+    subject: 'feat: add manual bank transfer approval'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/scripts/approve_bank_transfer.py
+    - scripts/apply_bank_transfer.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates expanded its travel search capabilities by integrating a new provider and improved the reliability of
+    code repository search embeds. The update also refined the web interface's responsive layout and Safari-specific styling.
+  released_changes:
+  - text: OpenMates added Flix as a travel provider and expanded the volume of results returned during connection searches.
+    evidence:
+      commits:
+      - 64a236d8a
+      - 5657c5e32
+    release_status: released_main
+  bug_fixes:
+  - text: The code repository search interface now displays result counts and correctly renders embeds within grouped messages.
+    evidence:
+      commits:
+      - 1cc1082c8
+      - 71bc45129
+      - 31f7929a7
+    release_status: released_main
+  - text: Safari browser styling was adjusted to ensure the chrome tinting aligns with the chat panel.
+    evidence:
+      commits:
+      - 6a66f515f
+      - ffb04d8db
+    release_status: released_main
+  - text: The chat header layout now dynamically adjusts based on the container width for better responsiveness.
+    evidence:
+      commits:
+      - b95e9354d
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on an encrypted share task flow for Apple platforms.
+    evidence:
+      commits:
+      - 2abf23f00
+    release_status: released_main
+  - text: Work progressed on native notification replies and assistant response synchronization for the iOS and macOS applications.
+    evidence:
+      commits:
+      - a86533159
+      - d3cf66dfc
+    release_status: released_main
+  - text: Support for personal local builds on Apple hardware was added to the development environment.
+    evidence:
+      commits:
+      - 8cce766ca
+    release_status: released_main
+  internal_progress:
+  - text: Administrative scripts were added to facilitate manual approval of bank transfers via Revolut Business.
+    evidence:
+      commits:
+      - a12d05518
+    release_status: released_main
+  - text: Internal improvements to repository search include better handling of cold-load references and additional test coverage
+      for embed persistence.
+    evidence:
+      commits:
+      - 03846b874
+      - 40668c71a
+      - 26b007a57
+      - 9be68c3d8
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Integration with Flix for expanded travel connection searches.
+      evidence:
+        commits:
+        - 64a236d8a
+      reason: New travel provider integration is ready for public use.
+    - text: Expanded travel connection results for more comprehensive trip planning.
+      evidence:
+        commits:
+        - 5657c5e32
+      reason: Directly improves the utility of the travel search feature.
+    - text: Visible result counts for repository searches.
+      evidence:
+        commits:
+        - 1cc1082c8
+      reason: Improves the clarity of the code search tool.
+    - text: Improved responsive layout for chat headers.
+      evidence:
+        commits:
+        - b95e9354d
+      reason: Enhances the core chat UI experience.
+    exclude:
+    - text: Native Apple platform updates including share extensions and notification replies.
+      evidence:
+        commits:
+        - 2abf23f00
+        - 8cce766ca
+        - a86533159
+        - d3cf66dfc
+      reason: iOS, macOS, and Apple Watch platforms are currently listed as disabled features.
+    - text: Manual bank transfer approval scripts.
+      evidence:
+        commits:
+        - a12d05518
+      reason: This is an internal administrative tool not intended for end users.
+    rationale: The newsletter highlights new travel capabilities and UI refinements that are immediately available to users,
+      while excluding internal tools and features tied to unreleased platforms.
+  social_video_recommendations:
+  - idea: A short demonstration of planning a trip using the new Flix integration and expanded search results.
+    priority: medium
+    reason: Travel search is a concrete, visual feature that demonstrates the assistant's utility in real-world tasks.
+    evidence:
+      commits:
+      - 64a236d8a
+      - 5657c5e32
+  quality_notes:
+  - UI consistency was addressed for Safari users regarding browser chrome tinting.
+  - Search reliability was improved by ensuring embeds survive message completion and load correctly from cache.
+  validation_warnings: []

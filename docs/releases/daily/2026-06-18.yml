@@ -1,0 +1,4494 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-18'
+generated_at: '2026-07-09T15:46:18+00:00'
+range:
+  since: '2026-06-18T00:00:00+00:00'
+  until: '2026-06-18T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 99
+  section_counts:
+    features: 8
+    bug_fixes: 60
+    improvements: 0
+    docs: 3
+    tests: 26
+    infrastructure: 1
+    internal: 0
+    other: 1
+  newsletter_ready_items: 50
+  user_facing_items: 53
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add canonical Mermaid example chat'
+    section: features
+    commits:
+    - 0880984f2
+    authored_at: '2026-06-18T11:06:29+00:00'
+    changed_paths:
+    - docs/specs/diagrams-mermaid-embeds/spec.yml
+    - frontend/packages/ui/src/demo_chats/data/example_chats/email-verification-sequence-diagram.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/email_verification_sequence_diagram.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: show example chat response costs'
+    section: features
+    commits:
+    - bfc949478
+    authored_at: '2026-06-18T09:35:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/generated_by_cost.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/usb_c_3v3_ldo_pcb_schematic.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add assistant response feedback rating'
+    section: features
+    commits:
+    - 391142aa4
+    authored_at: '2026-06-18T09:18:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/feedback.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: finalize PCB schematic examples'
+    section: features
+    commits:
+    - 2c5ec3506
+    authored_at: '2026-06-18T09:16:47+00:00'
+    changed_paths:
+    - .agents/skills/add-example-chat/SKILL.md
+    - .claude/skills/add-example-chat/SKILL.md
+    - backend/apps/ai/utils/pcb_schematic_fences.py
+    - backend/apps/electronics/app.yml
+    - backend/shared/providers/e2b_pcb_schematic_compiler.py
+    - backend/tests/test_pcb_schematic_embed_contract.py
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-morning-bike-forecast.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/usb-c-3v3-ldo-pcb-schematic.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_morning_bike_forecast.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/usb_c_3v3_ldo_pcb_schematic.yml
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add anonymous free usage admin settings'
+    section: features
+    commits:
+    - 48c84d9c3
+    authored_at: '2026-06-18T09:11:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsServer.svelte
+    - frontend/packages/ui/src/components/settings/server/SettingsAnonymousFreeUsageBudget.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Mermaid diagram embeds'
+    section: features
+    commits:
+    - 764e38d99
+    authored_at: '2026-06-18T08:51:44+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/mermaid_fences.py
+    - backend/apps/diagrams/app.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - docs/specs/diagrams-mermaid-embeds/spec.yml
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/__tests__/mermaidDiagramContent.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramsEmbedText.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/mermaidDiagramContent.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Apple anonymous free usage'
+    section: features
+    commits:
+    - 34525c68a
+    authored_at: '2026-06-18T08:41:57+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add PCB schematic embeds'
+    section: features
+    commits:
+    - 1a13d001c
+    authored_at: '2026-06-18T07:58:41+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/pcb_schematic_fences.py
+    - backend/apps/electronics/app.yml
+    - backend/core/api/app/routes/electronics_pcb_schematic.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/main.py
+    - backend/shared/providers/e2b_pcb_schematic_compiler.py
+    - backend/shared/python_utils/pcb_schematic_artifacts.py
+    - backend/tests/test_pcb_schematic_embed_contract.py
+    - docs/specs/pcb-schematic-embed/spec.yml
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/electronicsEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/services/pcbSchematicCompileService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: preserve memory continuation model context'
+    section: bug_fixes
+    commits:
+    - 85f8aabfa
+    authored_at: '2026-06-18T22:52:53+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/app_settings_memories_confirmed_handler.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/tests/test_app_settings_memories_continuation.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore anonymous chat lifecycle indicators'
+    section: bug_fixes
+    commits:
+    - 955c51300
+    authored_at: '2026-06-18T22:43:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route anonymous chat through streaming reducer'
+    section: bug_fixes
+    commits:
+    - 9acc88fdd
+    authored_at: '2026-06-18T22:18:52+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - docs/specs/anonymous-streaming-ui/spec.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/server/SettingsAnonymousFreeUsageBudget.svelte
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refresh signup welcome email'
+    section: bug_fixes
+    commits:
+    - abd98b3de
+    authored_at: '2026-06-18T21:16:05+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/account_created_email_task.py
+    - backend/core/api/templates/email/account-created.mjml
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: use translated anonymous chat category'
+    section: bug_fixes
+    commits:
+    - 42412117b
+    authored_at: '2026-06-18T20:36:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep application previews faithful'
+    section: bug_fixes
+    commits:
+    - cb39acd81
+    authored_at: '2026-06-18T19:42:08+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_e2b_application_preview.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: make anonymous chat sends optimistic'
+    section: bug_fixes
+    commits:
+    - d0a125e51
+    authored_at: '2026-06-18T19:31:37+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show latest billing usage entries'
+    section: bug_fixes
+    commits:
+    - 5b1eb60cc
+    authored_at: '2026-06-18T19:02:53+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/usage.py
+    - backend/tests/test_usage_entries.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: block anonymous free usage after login'
+    section: bug_fixes
+    commits:
+    - 5d4a6e51d
+    authored_at: '2026-06-18T18:45:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for preview readiness'
+    section: bug_fixes
+    commits:
+    - ea9b6e721
+    authored_at: '2026-06-18T18:06:54+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore anonymous send button'
+    section: bug_fixes
+    commits:
+    - 5ad6088b3
+    authored_at: '2026-06-18T18:05:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: gate anonymous sends by free budget'
+    section: bug_fixes
+    commits:
+    - 6f483cc42
+    authored_at: '2026-06-18T17:41:13+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_server_status_response.py
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    - frontend/apps/web_app/tests/server-free-testing-budget.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/server/SettingsAnonymousFreeUsageBudget.svelte
+    - frontend/packages/ui/src/components/settings/server/SettingsFreeTestingCreditsBudget.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: block vault ciphertext in persisted chat content'
+    section: bug_fixes
+    commits:
+    - af1bc0f72
+    authored_at: '2026-06-18T17:38:31+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/tests/test_chat_directus_encryption_guards.py
+    - backend/tests/test_code_quality_embed_encryption_guard.py
+    - backend/tests/test_embed_methods.py
+    - backend/tests/test_run_application_preview_task.py
+    - scripts/code_quality_guard.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve generated Vite configs'
+    section: bug_fixes
+    commits:
+    - 29f6e3365
+    authored_at: '2026-06-18T17:34:49+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: harden Caddy DNS and Tailwind previews'
+    section: bug_fixes
+    commits:
+    - 56c52b2c1
+    authored_at: '2026-06-18T17:14:41+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    - deployment/apply-caddy-config.sh
+    - scripts/tests/test_apply_caddy_config.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore current embed version selection'
+    section: bug_fixes
+    commits:
+    - cab352f1f
+    authored_at: '2026-06-18T16:39:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow PCB schematic API through proxy'
+    section: bug_fixes
+    commits:
+    - 419bf7bd3
+    authored_at: '2026-06-18T16:02:40+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - scripts/tests/test_verify_caddyfile.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: route PCB schematic compile requests to API'
+    section: bug_fixes
+    commits:
+    - 2343e02b4
+    authored_at: '2026-06-18T15:51:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/__tests__/codeHighlighting.test.ts
+    - frontend/packages/ui/src/components/embeds/code/codeHighlighting.ts
+    - frontend/packages/ui/src/services/__tests__/pcbSchematicCompileService.test.ts
+    - frontend/packages/ui/src/services/pcbSchematicCompileService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: deactivate Mermaid diagram embeds'
+    section: bug_fixes
+    commits:
+    - 7c34039d3
+    authored_at: '2026-06-18T15:34:44+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_mermaid_code_block_instruction.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/utils/mermaid_fences.py
+    - backend/apps/diagrams/app.disabled.yml
+    - backend/apps/diagrams/app.yml
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_embed_diff_version_contract.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/ui/src/data/__tests__/appsMetadata.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/mates/software_development.yml
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: cache diff-updated embeds correctly'
+    section: bug_fixes
+    commits:
+    - 7e018692f
+    authored_at: '2026-06-18T15:12:44+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: create budget rows with UUID IDs'
+    section: bug_fixes
+    commits:
+    - 24c20d67f
+    authored_at: '2026-06-18T13:32:01+00:00'
+    changed_paths:
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/app/services/free_testing_credits_service.py
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/core/directus/schemas/free_testing_credits_budget.yml
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_free_testing_credits_budget.py
+    - backend/tests/test_setup_schemas.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: let Directus generate budget IDs'
+    section: bug_fixes
+    commits:
+    - 93d920d41
+    authored_at: '2026-06-18T13:24:26+00:00'
+    changed_paths:
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/app/services/free_testing_credits_service.py
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/core/directus/schemas/free_testing_credits_budget.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_free_testing_credits_budget.py
+    - backend/tests/test_setup_schemas.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve Directus string primary keys'
+    section: bug_fixes
+    commits:
+    - e2ca886ba
+    authored_at: '2026-06-18T13:11:05+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route embed version CORS through app'
+    section: bug_fixes
+    commits:
+    - 82e26c373
+    authored_at: '2026-06-18T13:06:26+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: apply fuzzy embed diff edits'
+    section: bug_fixes
+    commits:
+    - e7577e7c9
+    authored_at: '2026-06-18T12:57:15+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/tests/test_embed_diff_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: polish Mermaid embed fullscreen'
+    section: bug_fixes
+    commits:
+    - 9603a1d0e
+    authored_at: '2026-06-18T12:49:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedZoomControls.svelte
+    - scripts/audit_embed_structure.py
+    - scripts/tests/test_audit_embed_structure.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: apply streamed embed diff fences'
+    section: bug_fixes
+    commits:
+    - 23399f078
+    authored_at: '2026-06-18T12:48:53+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: apply bare embed diff fences'
+    section: bug_fixes
+    commits:
+    - f028da569
+    authored_at: '2026-06-18T12:32:23+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover loose generated application bundles'
+    section: bug_fixes
+    commits:
+    - 7eac0041c
+    authored_at: '2026-06-18T12:27:41+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_code_block_detection.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: process versioned embed updates'
+    section: bug_fixes
+    commits:
+    - 6974975b5
+    authored_at: '2026-06-18T12:20:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: strip raw application preview source text'
+    section: bug_fixes
+    commits:
+    - f24f5c116
+    authored_at: '2026-06-18T12:15:30+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_code_block_detection.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve legacy Calendar connected account prompts'
+    section: bug_fixes
+    commits:
+    - f8f66ca3f
+    authored_at: '2026-06-18T12:06:46+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/core/api/app/services/token_broker.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_connected_account_permission_request.py
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve weather previews and assistant controls'
+    section: bug_fixes
+    commits:
+    - 908a72987
+    authored_at: '2026-06-18T12:00:51+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherConditionIcon.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-morning-bike-forecast.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep content-only apps visible'
+    section: bug_fixes
+    commits:
+    - cf922b8ee
+    authored_at: '2026-06-18T11:56:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/data/__tests__/appsMetadata.test.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: suppress streamed application preview protocol text'
+    section: bug_fixes
+    commits:
+    - 9af93d8e2
+    authored_at: '2026-06-18T11:54:03+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: link PCB schematic content example'
+    section: bug_fixes
+    commits:
+    - 934d0e256
+    authored_at: '2026-06-18T11:35:35+00:00'
+    changed_paths:
+    - backend/apps/electronics/app.yml
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/__tests__/usb-c-3v3-ldo-pcb-schematic.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/usb-c-3v3-ldo-pcb-schematic.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair requested symbol rename on code edit'
+    section: bug_fixes
+    commits:
+    - a9b7db59f
+    authored_at: '2026-06-18T11:26:34+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep example snippets out of code embeds'
+    section: bug_fixes
+    commits:
+    - 3b2cc06ca
+    authored_at: '2026-06-18T11:18:30+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recognize code rename edit turns'
+    section: bug_fixes
+    commits:
+    - 51a8bdb34
+    authored_at: '2026-06-18T11:07:09+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route streamed Mermaid blocks to Diagrams embeds'
+    section: bug_fixes
+    commits:
+    - b5be43c4e
+    authored_at: '2026-06-18T10:56:19+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - docs/specs/diagrams-mermaid-embeds/spec.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use cached embeds for diff prompt gate'
+    section: bug_fixes
+    commits:
+    - a7b51cd77
+    authored_at: '2026-06-18T10:55:49+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: teach AI to emit Mermaid diagram fences'
+    section: bug_fixes
+    commits:
+    - 451ad2062
+    authored_at: '2026-06-18T10:48:41+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_mermaid_code_block_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_ai_instruction_contracts.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: avoid Mermaid fullscreen content snippet collision'
+    section: bug_fixes
+    commits:
+    - 26a06fffa
+    authored_at: '2026-06-18T10:33:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: harden Atopile PCB generation'
+    section: bug_fixes
+    commits:
+    - 476f3b538
+    authored_at: '2026-06-18T10:33:08+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/apps/electronics/app.yml
+    - backend/tests/test_pcb_schematic_embed_contract.py
+    - scripts/test_pcb_schematic_cli_build.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent duplicate code embeds on edit turns'
+    section: bug_fixes
+    commits:
+    - b106b8d89
+    authored_at: '2026-06-18T10:30:49+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: label Calendar get-events as Search'
+    section: bug_fixes
+    commits:
+    - 8c7e650ee
+    authored_at: '2026-06-18T10:29:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/calendar.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: dispatch CLI integration through registered workflow'
+    section: bug_fixes
+    commits:
+    - f491e8e76
+    authored_at: '2026-06-18T10:29:11+00:00'
+    changed_paths:
+    - .github/workflows/cli-integration.yml
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: create application embeds for runnable web app prompts'
+    section: bug_fixes
+    commits:
+    - b83d7b472
+    authored_at: '2026-06-18T10:14:03+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/tests/test_ai_instruction_contracts.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: deactivate welcome focus mode'
+    section: bug_fixes
+    commits:
+    - 0724f4d0c
+    authored_at: '2026-06-18T10:05:39+00:00'
+    changed_paths:
+    - backend/apps/openmates/app.yml
+    - backend/apps/openmates/focus_modes/welcome/SKILL.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize Calendar connected account capabilities'
+    section: bug_fixes
+    commits:
+    - ea33da881
+    authored_at: '2026-06-18T09:58:48+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/tests/test_connected_account_permission_request.py
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: tolerate missing Mermaid fullscreen preview data'
+    section: bug_fixes
+    commits:
+    - 2bde0f547
+    authored_at: '2026-06-18T09:57:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route atopile code embeds to PCB schematic'
+    section: bug_fixes
+    commits:
+    - b0e680128
+    authored_at: '2026-06-18T09:51:35+00:00'
+    changed_paths:
+    - backend/apps/electronics/app.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_pcb_schematic_embed_contract.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refine assistant feedback state'
+    section: bug_fixes
+    commits:
+    - 5ce86496c
+    authored_at: '2026-06-18T09:50:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent missing legal privacy translations'
+    section: bug_fixes
+    commits:
+    - 923f2d525
+    authored_at: '2026-06-18T09:41:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/scripts/validate-locales.js
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - scripts/sessions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore embed diff editing prompt'
+    section: bug_fixes
+    commits:
+    - 326c2a3e4
+    authored_at: '2026-06-18T09:32:41+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: register anonymous free usage settings route'
+    section: bug_fixes
+    commits:
+    - c9a0016ef
+    authored_at: '2026-06-18T09:29:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: pass report issue prefill into settings destination'
+    section: bug_fixes
+    commits:
+    - 4f340adc8
+    authored_at: '2026-06-18T08:46:59+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: use supported Apple color token'
+    section: bug_fixes
+    commits:
+    - 3089da3d5
+    authored_at: '2026-06-18T08:44:13+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: route e2e logs to e2e endpoint only'
+    section: bug_fixes
+    commits:
+    - e6cf75cd4
+    authored_at: '2026-06-18T08:36:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/clientLogForwarder.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: unblock nightly spec reporting'
+    section: bug_fixes
+    commits:
+    - 075d3ef17
+    authored_at: '2026-06-18T08:06:25+00:00'
+    changed_paths:
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: specify anonymous streaming parity'
+    section: docs
+    commits:
+    - 7028c02e2
+    authored_at: '2026-06-18T21:45:37+00:00'
+    changed_paths:
+    - docs/specs/anonymous-streaming-ui/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record anonymous free usage verification'
+    section: docs
+    commits:
+    - e550c6d7d
+    authored_at: '2026-06-18T09:50:52+00:00'
+    changed_paths:
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: clarify e2e client log forwarding'
+    section: docs
+    commits:
+    - 0fbb0c387
+    authored_at: '2026-06-18T09:05:43+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/admin-console-log-forwarding.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: focus anonymous delayed send regression'
+    section: tests
+    commits:
+    - c8d3ee28f
+    authored_at: '2026-06-18T19:54:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize anonymous upload draft entry'
+    section: tests
+    commits:
+    - 7583652fc
+    authored_at: '2026-06-18T19:08:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: match anonymous status query URLs'
+    section: tests
+    commits:
+    - 9457f4fef
+    authored_at: '2026-06-18T18:24:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update chat flow assistant controls order'
+    section: tests
+    commits:
+    - 77a2911cc
+    authored_at: '2026-06-18T12:23:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make embed diff e2e deterministic'
+    section: tests
+    commits:
+    - bfa44bbfb
+    authored_at: '2026-06-18T12:02:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: narrow CLI code docs integration'
+    section: tests
+    commits:
+    - e81c0bfa0
+    authored_at: '2026-06-18T11:03:47+00:00'
+    changed_paths:
+    - docs/contributing/standards/cli.md
+    - frontend/packages/openmates-cli/tests/code-docs.integration.mjs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use async anonymous status probe'
+    section: tests
+    commits:
+    - eb3b17141
+    authored_at: '2026-06-18T10:46:53+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: skip Apple anonymous smoke when inactive'
+    section: tests
+    commits:
+    - 10a52582d
+    authored_at: '2026-06-18T10:45:30+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: start Apple anonymous smoke at new chat'
+    section: tests
+    commits:
+    - 44968920f
+    authored_at: '2026-06-18T10:41:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: find native new chat CTA by identifier'
+    section: tests
+    commits:
+    - d6cd64b8d
+    authored_at: '2026-06-18T10:38:28+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize explicit new chat typing'
+    section: tests
+    commits:
+    - 012435f05
+    authored_at: '2026-06-18T10:36:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover Apple anonymous free chat'
+    section: tests
+    commits:
+    - aede9321c
+    authored_at: '2026-06-18T10:34:56+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: fix iPad settings parity smoke ordering'
+    section: tests
+    commits:
+    - 0eb1505f2
+    authored_at: '2026-06-18T10:17:42+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize Apple UI parity smoke tests'
+    section: tests
+    commits:
+    - 01cdfc96d
+    authored_at: '2026-06-18T10:11:10+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    - apple/OpenMatesUITests/RemindersPublicContentParityUITests.swift
+    - apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: target new chat input wrapper'
+    section: tests
+    commits:
+    - 01af0a57f
+    authored_at: '2026-06-18T10:09:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: split code docs CLI integration'
+    section: tests
+    commits:
+    - d56637f60
+    authored_at: '2026-06-18T09:58:55+00:00'
+    changed_paths:
+    - .github/workflows/cli-integration.yml
+    - docs/contributing/standards/cli.md
+    - frontend/apps/web_app/tests/skill-code-docs.spec.ts
+    - frontend/packages/openmates-cli/tests/code-docs.integration.mjs
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert code diff editing result'
+    section: tests
+    commits:
+    - 4cf43e337
+    authored_at: '2026-06-18T09:47:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/fullscreen_previews/CodeFullscreen.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize anonymous budget settings assertion'
+    section: tests
+    commits:
+    - db5e77a33
+    authored_at: '2026-06-18T09:39:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize chat-flow new chat phase'
+    section: tests
+    commits:
+    - 595b020bc
+    authored_at: '2026-06-18T09:37:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept rendered Mermaid preview text'
+    section: tests
+    commits:
+    - 605bac1ad
+    authored_at: '2026-06-18T09:34:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use component preview for Mermaid embed spec'
+    section: tests
+    commits:
+    - 1fa4e6c3e
+    authored_at: '2026-06-18T09:24:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/+page.svelte
+    - frontend/apps/web_app/src/routes/dev/preview/diagrams-mermaid/+page.svelte
+    - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add Mermaid embed web preview coverage'
+    section: tests
+    commits:
+    - 736365af6
+    authored_at: '2026-06-18T09:10:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/+page.svelte
+    - frontend/apps/web_app/src/routes/dev/preview/diagrams-mermaid/+page.svelte
+    - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: extend embed diff real inference timeout'
+    section: tests
+    commits:
+    - ed746b6a7
+    authored_at: '2026-06-18T08:52:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize embed diff wait'
+    section: tests
+    commits:
+    - 78d131d55
+    authored_at: '2026-06-18T08:25:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize CLI auth-dependent tests'
+    section: tests
+    commits:
+    - 7878828e2
+    authored_at: '2026-06-18T07:52:15+00:00'
+    changed_paths:
+    - .opencode/plugins/cli-auto-login.js
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify streaming sync recovery across clients'
+    section: tests
+    commits:
+    - 27fcb844a
+    authored_at: '2026-06-18T07:25:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: deploy non-EKS changes'
+    section: infrastructure
+    commits:
+    - 80d0cb0b6
+    authored_at: '2026-06-18T17:42:45+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/rate_limiting.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/code/app.yml
+    - backend/apps/docs/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/mail/app.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/providers/brave.yml
+    - backend/shared/providers/brave/brave_search.py
+    - backend/tests/test_brave_search_provider.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_rate_limiting.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/legal/terms.yml
+    - shared/config/embed_types.yml
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #470 from glowingkitty/dev'
+    section: other
+    commits:
+    - 6fda762a1
+    authored_at: '2026-06-18T21:15:59+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'chore: deploy non-EKS changes'
+    commits:
+    - 80d0cb0b6
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: deactivate Mermaid diagram embeds'
+    commits:
+    - 7c34039d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve weather previews and assistant controls'
+    commits:
+    - 908a72987
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep content-only apps visible'
+    commits:
+    - cf922b8ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: link PCB schematic content example'
+    commits:
+    - 934d0e256
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden Atopile PCB generation'
+    commits:
+    - 476f3b538
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: deactivate welcome focus mode'
+    commits:
+    - 0724f4d0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route atopile code embeds to PCB schematic'
+    commits:
+    - b0e680128
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: finalize PCB schematic examples'
+    commits:
+    - 2c5ec3506
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Mermaid diagram embeds'
+    commits:
+    - 764e38d99
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add PCB schematic embeds'
+    commits:
+    - 1a13d001c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: preserve memory continuation model context'
+    commits:
+    - 85f8aabfa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore anonymous chat lifecycle indicators'
+    commits:
+    - 955c51300
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route anonymous chat through streaming reducer'
+    commits:
+    - 9acc88fdd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use translated anonymous chat category'
+    commits:
+    - 42412117b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep application previews faithful'
+    commits:
+    - cb39acd81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: make anonymous chat sends optimistic'
+    commits:
+    - d0a125e51
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: block anonymous free usage after login'
+    commits:
+    - 5d4a6e51d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore anonymous send button'
+    commits:
+    - 5ad6088b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: gate anonymous sends by free budget'
+    commits:
+    - 6f483cc42
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: block vault ciphertext in persisted chat content'
+    commits:
+    - af1bc0f72
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore current embed version selection'
+    commits:
+    - cab352f1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route PCB schematic compile requests to API'
+    commits:
+    - 2343e02b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: deactivate Mermaid diagram embeds'
+    commits:
+    - 7c34039d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: cache diff-updated embeds correctly'
+    commits:
+    - 7e018692f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve Directus string primary keys'
+    commits:
+    - e2ca886ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: polish Mermaid embed fullscreen'
+    commits:
+    - 9603a1d0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: apply streamed embed diff fences'
+    commits:
+    - 23399f078
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: apply bare embed diff fences'
+    commits:
+    - f028da569
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recover loose generated application bundles'
+    commits:
+    - 7eac0041c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: strip raw application preview source text'
+    commits:
+    - f24f5c116
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve legacy Calendar connected account prompts'
+    commits:
+    - f8f66ca3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve weather previews and assistant controls'
+    commits:
+    - 908a72987
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep content-only apps visible'
+    commits:
+    - cf922b8ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: suppress streamed application preview protocol text'
+    commits:
+    - 9af93d8e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: link PCB schematic content example'
+    commits:
+    - 934d0e256
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair requested symbol rename on code edit'
+    commits:
+    - a9b7db59f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep example snippets out of code embeds'
+    commits:
+    - 3b2cc06ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recognize code rename edit turns'
+    commits:
+    - 51a8bdb34
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route streamed Mermaid blocks to Diagrams embeds'
+    commits:
+    - b5be43c4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use cached embeds for diff prompt gate'
+    commits:
+    - a7b51cd77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: teach AI to emit Mermaid diagram fences'
+    commits:
+    - 451ad2062
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: avoid Mermaid fullscreen content snippet collision'
+    commits:
+    - 26a06fffa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden Atopile PCB generation'
+    commits:
+    - 476f3b538
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent duplicate code embeds on edit turns'
+    commits:
+    - b106b8d89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: label Calendar get-events as Search'
+    commits:
+    - 8c7e650ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: create application embeds for runnable web app prompts'
+    commits:
+    - b83d7b472
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: deactivate welcome focus mode'
+    commits:
+    - 0724f4d0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize Calendar connected account capabilities'
+    commits:
+    - ea33da881
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: tolerate missing Mermaid fullscreen preview data'
+    commits:
+    - 2bde0f547
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route atopile code embeds to PCB schematic'
+    commits:
+    - b0e680128
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refine assistant feedback state'
+    commits:
+    - 5ce86496c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show example chat response costs'
+    commits:
+    - bfc949478
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore embed diff editing prompt'
+    commits:
+    - 326c2a3e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: register anonymous free usage settings route'
+    commits:
+    - c9a0016ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add assistant response feedback rating'
+    commits:
+    - 391142aa4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: finalize PCB schematic examples'
+    commits:
+    - 2c5ec3506
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add anonymous free usage admin settings'
+    commits:
+    - 48c84d9c3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Mermaid diagram embeds'
+    commits:
+    - 764e38d99
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: unblock nightly spec reporting'
+    commits:
+    - 075d3ef17
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add PCB schematic embeds'
+    commits:
+    - 1a13d001c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: preserve memory continuation model context'
+    commits:
+    - 85f8aabfa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore anonymous chat lifecycle indicators'
+    commits:
+    - 955c51300
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route anonymous chat through streaming reducer'
+    commits:
+    - 9acc88fdd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use translated anonymous chat category'
+    commits:
+    - 42412117b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep application previews faithful'
+    commits:
+    - cb39acd81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make anonymous chat sends optimistic'
+    commits:
+    - d0a125e51
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: block anonymous free usage after login'
+    commits:
+    - 5d4a6e51d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore anonymous send button'
+    commits:
+    - 5ad6088b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: gate anonymous sends by free budget'
+    commits:
+    - 6f483cc42
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: block vault ciphertext in persisted chat content'
+    commits:
+    - af1bc0f72
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore current embed version selection'
+    commits:
+    - cab352f1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route PCB schematic compile requests to API'
+    commits:
+    - 2343e02b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: deactivate Mermaid diagram embeds'
+    commits:
+    - 7c34039d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: cache diff-updated embeds correctly'
+    commits:
+    - 7e018692f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve Directus string primary keys'
+    commits:
+    - e2ca886ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: polish Mermaid embed fullscreen'
+    commits:
+    - 9603a1d0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: apply streamed embed diff fences'
+    commits:
+    - 23399f078
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: apply bare embed diff fences'
+    commits:
+    - f028da569
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recover loose generated application bundles'
+    commits:
+    - 7eac0041c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: strip raw application preview source text'
+    commits:
+    - f24f5c116
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve legacy Calendar connected account prompts'
+    commits:
+    - f8f66ca3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve weather previews and assistant controls'
+    commits:
+    - 908a72987
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep content-only apps visible'
+    commits:
+    - cf922b8ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: suppress streamed application preview protocol text'
+    commits:
+    - 9af93d8e2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: link PCB schematic content example'
+    commits:
+    - 934d0e256
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair requested symbol rename on code edit'
+    commits:
+    - a9b7db59f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep example snippets out of code embeds'
+    commits:
+    - 3b2cc06ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recognize code rename edit turns'
+    commits:
+    - 51a8bdb34
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route streamed Mermaid blocks to Diagrams embeds'
+    commits:
+    - b5be43c4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use cached embeds for diff prompt gate'
+    commits:
+    - a7b51cd77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: teach AI to emit Mermaid diagram fences'
+    commits:
+    - 451ad2062
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: avoid Mermaid fullscreen content snippet collision'
+    commits:
+    - 26a06fffa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden Atopile PCB generation'
+    commits:
+    - 476f3b538
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent duplicate code embeds on edit turns'
+    commits:
+    - b106b8d89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: label Calendar get-events as Search'
+    commits:
+    - 8c7e650ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: create application embeds for runnable web app prompts'
+    commits:
+    - b83d7b472
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: deactivate welcome focus mode'
+    commits:
+    - 0724f4d0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize Calendar connected account capabilities'
+    commits:
+    - ea33da881
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: tolerate missing Mermaid fullscreen preview data'
+    commits:
+    - 2bde0f547
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route atopile code embeds to PCB schematic'
+    commits:
+    - b0e680128
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refine assistant feedback state'
+    commits:
+    - 5ce86496c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show example chat response costs'
+    commits:
+    - bfc949478
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore embed diff editing prompt'
+    commits:
+    - 326c2a3e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: register anonymous free usage settings route'
+    commits:
+    - c9a0016ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add assistant response feedback rating'
+    commits:
+    - 391142aa4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: finalize PCB schematic examples'
+    commits:
+    - 2c5ec3506
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add anonymous free usage admin settings'
+    commits:
+    - 48c84d9c3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Mermaid diagram embeds'
+    commits:
+    - 764e38d99
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: pass report issue prefill into settings destination'
+    commits:
+    - 4f340adc8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: use supported Apple color token'
+    commits:
+    - 3089da3d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Apple anonymous free usage'
+    commits:
+    - 34525c68a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: unblock nightly spec reporting'
+    commits:
+    - 075d3ef17
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add PCB schematic embeds'
+    commits:
+    - 1a13d001c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 85f8aabfaa33e3f2fe6e5187f5cae7b11bb3124e
+    short_sha: 85f8aabfa
+    authored_at: '2026-06-18T22:52:53+00:00'
+    subject: 'fix: preserve memory continuation model context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/app_settings_memories_confirmed_handler.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/tests/test_app_settings_memories_continuation.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    related_feature_ids: []
+  - sha: 955c51300ce4b4d3be6e1b18c082a93382e9131c
+    short_sha: 955c51300
+    authored_at: '2026-06-18T22:43:02+00:00'
+    subject: 'fix: restore anonymous chat lifecycle indicators'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 9acc88fddc8e007c7f179b2100c83185d913903b
+    short_sha: 9acc88fdd
+    authored_at: '2026-06-18T22:18:52+00:00'
+    subject: 'fix: route anonymous chat through streaming reducer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - docs/specs/anonymous-streaming-ui/spec.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/server/SettingsAnonymousFreeUsageBudget.svelte
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 7028c02e2fa647f72ea6926ec7f91944f68e6e32
+    short_sha: 7028c02e2
+    authored_at: '2026-06-18T21:45:37+00:00'
+    subject: 'docs: specify anonymous streaming parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/anonymous-streaming-ui/spec.yml
+    related_feature_ids: []
+  - sha: abd98b3de32ab2bbc9588b1c3ab7ca9e4bf43019
+    short_sha: abd98b3de
+    authored_at: '2026-06-18T21:16:05+00:00'
+    subject: 'fix: refresh signup welcome email'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/account_created_email_task.py
+    - backend/core/api/templates/email/account-created.mjml
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    related_feature_ids: []
+  - sha: 42412117b256181fc4664157a224eed94e0bfb2a
+    short_sha: 42412117b
+    authored_at: '2026-06-18T20:36:23+00:00'
+    subject: 'fix: use translated anonymous chat category'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: c8d3ee28f1d68a540c0cae6ca977224ae32966b7
+    short_sha: c8d3ee28f
+    authored_at: '2026-06-18T19:54:26+00:00'
+    subject: 'test: focus anonymous delayed send regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: cb39acd8139f60f7b9f27bbc5fdb3cddfc5f60ef
+    short_sha: cb39acd81
+    authored_at: '2026-06-18T19:42:08+00:00'
+    subject: 'fix: keep application previews faithful'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_e2b_application_preview.py
+    related_feature_ids: []
+  - sha: d0a125e513473456cf571f40a2b8547e36ab6a81
+    short_sha: d0a125e51
+    authored_at: '2026-06-18T19:31:37+00:00'
+    subject: 'fix: make anonymous chat sends optimistic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 6fda762a1d66385105c788e0d7570304bb693e6e
+    short_sha: 6fda762a1
+    authored_at: '2026-06-18T21:15:59+02:00'
+    subject: 'Merge pull request #470 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 7583652fcfc76bdbfec31342fec12d85037bbf2f
+    short_sha: 7583652fc
+    authored_at: '2026-06-18T19:08:42+00:00'
+    subject: 'test: stabilize anonymous upload draft entry'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 5b1eb60cca80558a9795fececee876b556b34321
+    short_sha: 5b1eb60cc
+    authored_at: '2026-06-18T19:02:53+00:00'
+    subject: 'fix: show latest billing usage entries'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/usage.py
+    - backend/tests/test_usage_entries.py
+    related_feature_ids: []
+  - sha: 5d4a6e51dc8679789633376396f47977b999db04
+    short_sha: 5d4a6e51d
+    authored_at: '2026-06-18T18:45:54+00:00'
+    subject: 'fix: block anonymous free usage after login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/main.yml
+    related_feature_ids: []
+  - sha: 9457f4fef6880a1cadc466ed49c0f93e804447d8
+    short_sha: 9457f4fef
+    authored_at: '2026-06-18T18:24:48+00:00'
+    subject: 'test: match anonymous status query URLs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: ea9b6e7218a86d647e5d5b2703ada49479eebee4
+    short_sha: ea9b6e721
+    authored_at: '2026-06-18T18:06:54+00:00'
+    subject: 'fix: wait for preview readiness'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    related_feature_ids: []
+  - sha: 5ad6088b3dd67232a8b924847f3ae07c0043bc4e
+    short_sha: 5ad6088b3
+    authored_at: '2026-06-18T18:05:40+00:00'
+    subject: 'fix: restore anonymous send button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    related_feature_ids: []
+  - sha: 80d0cb0b61c4fb8299efd78a3c86faf54b4742b1
+    short_sha: 80d0cb0b6
+    authored_at: '2026-06-18T17:42:45+00:00'
+    subject: 'chore: deploy non-EKS changes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/rate_limiting.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/code/app.yml
+    - backend/apps/docs/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/mail/app.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/providers/brave.yml
+    - backend/shared/providers/brave/brave_search.py
+    - backend/tests/test_brave_search_provider.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_rate_limiting.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/legal/terms.yml
+    - shared/config/embed_types.yml
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 6f483cc42c2e5d3996f960e4b6c5572fe0d163ca
+    short_sha: 6f483cc42
+    authored_at: '2026-06-18T17:41:13+00:00'
+    subject: 'fix: gate anonymous sends by free budget'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_server_status_response.py
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    - frontend/apps/web_app/tests/server-free-testing-budget.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/server/SettingsAnonymousFreeUsageBudget.svelte
+    - frontend/packages/ui/src/components/settings/server/SettingsFreeTestingCreditsBudget.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    related_feature_ids: []
+  - sha: af1bc0f72324a49316bec548981a84d48e3272e8
+    short_sha: af1bc0f72
+    authored_at: '2026-06-18T17:38:31+00:00'
+    subject: 'fix: block vault ciphertext in persisted chat content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/tests/test_chat_directus_encryption_guards.py
+    - backend/tests/test_code_quality_embed_encryption_guard.py
+    - backend/tests/test_embed_methods.py
+    - backend/tests/test_run_application_preview_task.py
+    - scripts/code_quality_guard.py
+    related_feature_ids: []
+  - sha: 29f6e33657164a2d6a12f4ac87446ce333f5d895
+    short_sha: 29f6e3365
+    authored_at: '2026-06-18T17:34:49+00:00'
+    subject: 'fix: preserve generated Vite configs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    related_feature_ids: []
+  - sha: 56c52b2c16a3f7c81572fdf5ca2791a05b25bc80
+    short_sha: 56c52b2c1
+    authored_at: '2026-06-18T17:14:41+00:00'
+    subject: 'fix: harden Caddy DNS and Tailwind previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    - deployment/apply-caddy-config.sh
+    - scripts/tests/test_apply_caddy_config.py
+    related_feature_ids: []
+  - sha: cab352f1f5351b6a735a38a2b2673ba7b50a745d
+    short_sha: cab352f1f
+    authored_at: '2026-06-18T16:39:23+00:00'
+    subject: 'fix: restore current embed version selection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 419bf7bd3e79e719b87199eaa510d48d9ded39d7
+    short_sha: 419bf7bd3
+    authored_at: '2026-06-18T16:02:40+00:00'
+    subject: 'fix: allow PCB schematic API through proxy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - scripts/tests/test_verify_caddyfile.py
+    related_feature_ids: []
+  - sha: 2343e02b4e2b52a5e8dc2a784246e81dc4ce7b64
+    short_sha: 2343e02b4
+    authored_at: '2026-06-18T15:51:07+00:00'
+    subject: 'fix: route PCB schematic compile requests to API'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/__tests__/codeHighlighting.test.ts
+    - frontend/packages/ui/src/components/embeds/code/codeHighlighting.ts
+    - frontend/packages/ui/src/services/__tests__/pcbSchematicCompileService.test.ts
+    - frontend/packages/ui/src/services/pcbSchematicCompileService.ts
+    related_feature_ids: []
+  - sha: 7c34039d32356d89c3413559f10722ef018698ad
+    short_sha: 7c34039d3
+    authored_at: '2026-06-18T15:34:44+00:00'
+    subject: 'fix: deactivate Mermaid diagram embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_mermaid_code_block_instruction.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/utils/mermaid_fences.py
+    - backend/apps/diagrams/app.disabled.yml
+    - backend/apps/diagrams/app.yml
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_embed_diff_version_contract.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/ui/src/data/__tests__/appsMetadata.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/mates/software_development.yml
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    related_feature_ids: []
+  - sha: 7e018692f45f195b27d7bd7c545d470a8f71cb23
+    short_sha: 7e018692f
+    authored_at: '2026-06-18T15:12:44+00:00'
+    subject: 'fix: cache diff-updated embeds correctly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: 24c20d67f1a950d8e9957c30b8c07cb5c539adb9
+    short_sha: 24c20d67f
+    authored_at: '2026-06-18T13:32:01+00:00'
+    subject: 'fix: create budget rows with UUID IDs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/app/services/free_testing_credits_service.py
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/core/directus/schemas/free_testing_credits_budget.yml
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_free_testing_credits_budget.py
+    - backend/tests/test_setup_schemas.py
+    related_feature_ids: []
+  - sha: 93d920d415db12b34283d4913825c1da2666fc90
+    short_sha: 93d920d41
+    authored_at: '2026-06-18T13:24:26+00:00'
+    subject: 'fix: let Directus generate budget IDs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/app/services/free_testing_credits_service.py
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/core/directus/schemas/free_testing_credits_budget.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_free_testing_credits_budget.py
+    - backend/tests/test_setup_schemas.py
+    related_feature_ids: []
+  - sha: e2ca886ba934d10be583505d2c606d9ba55d9da9
+    short_sha: e2ca886ba
+    authored_at: '2026-06-18T13:11:05+00:00'
+    subject: 'fix: preserve Directus string primary keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    related_feature_ids: []
+  - sha: 82e26c373d0cb30d8d82e29fb3446e0a7a40e03e
+    short_sha: 82e26c373
+    authored_at: '2026-06-18T13:06:26+00:00'
+    subject: 'fix: route embed version CORS through app'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: e7577e7c927231e871a967627511a29d28fca737
+    short_sha: e7577e7c9
+    authored_at: '2026-06-18T12:57:15+00:00'
+    subject: 'fix: apply fuzzy embed diff edits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/tests/test_embed_diff_service.py
+    related_feature_ids: []
+  - sha: 9603a1d0e47a4b2f965e1292762093f9617aa15e
+    short_sha: 9603a1d0e
+    authored_at: '2026-06-18T12:49:32+00:00'
+    subject: 'fix: polish Mermaid embed fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedZoomControls.svelte
+    - scripts/audit_embed_structure.py
+    - scripts/tests/test_audit_embed_structure.py
+    related_feature_ids: []
+  - sha: 23399f078ee56287a8f8019de5ddf0ce5c27e370
+    short_sha: 23399f078
+    authored_at: '2026-06-18T12:48:53+00:00'
+    subject: 'fix: apply streamed embed diff fences'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: f028da569ee15043e6fd66b9c045f537a8710da8
+    short_sha: f028da569
+    authored_at: '2026-06-18T12:32:23+00:00'
+    subject: 'fix: apply bare embed diff fences'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids: []
+  - sha: 7eac0041c299191a2c0c933fe9d566ed570f3eab
+    short_sha: 7eac0041c
+    authored_at: '2026-06-18T12:27:41+00:00'
+    subject: 'fix: recover loose generated application bundles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_code_block_detection.py
+    related_feature_ids: []
+  - sha: 77a2911cc8401bbb6d046699c28872bbe249c04c
+    short_sha: 77a2911cc
+    authored_at: '2026-06-18T12:23:27+00:00'
+    subject: 'test: update chat flow assistant controls order'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6974975b5203632ef9ed2876321d28ec44f238c1
+    short_sha: 6974975b5
+    authored_at: '2026-06-18T12:20:17+00:00'
+    subject: 'fix: process versioned embed updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: f24f5c1164befa03630749620d420f1abd84688f
+    short_sha: f24f5c116
+    authored_at: '2026-06-18T12:15:30+00:00'
+    subject: 'fix: strip raw application preview source text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_code_block_detection.py
+    related_feature_ids: []
+  - sha: f8f66ca3f04c7c9824cfaba2fb661bdac79f840c
+    short_sha: f8f66ca3f
+    authored_at: '2026-06-18T12:06:46+00:00'
+    subject: 'fix: preserve legacy Calendar connected account prompts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/core/api/app/services/token_broker.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_connected_account_permission_request.py
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    related_feature_ids: []
+  - sha: bfa44bbfb8dd4ad0e9e977d58ec9ec714ab99584
+    short_sha: bfa44bbfb
+    authored_at: '2026-06-18T12:02:59+00:00'
+    subject: 'test: make embed diff e2e deterministic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: 908a7298758bf2c5353cb03fb53263e3088cb3b7
+    short_sha: 908a72987
+    authored_at: '2026-06-18T12:00:51+00:00'
+    subject: 'fix: improve weather previews and assistant controls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_skill_preview_metadata.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherConditionIcon.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-morning-bike-forecast.ts
+    related_feature_ids: []
+  - sha: cf922b8eef513583dec265d21afbb5fc8eb0169c
+    short_sha: cf922b8ee
+    authored_at: '2026-06-18T11:56:19+00:00'
+    subject: 'fix: keep content-only apps visible'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/data/__tests__/appsMetadata.test.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    related_feature_ids: []
+  - sha: 9af93d8e21fe4e2378b4be4214f7a3c837dc73dc
+    short_sha: 9af93d8e2
+    authored_at: '2026-06-18T11:54:03+00:00'
+    subject: 'fix: suppress streamed application preview protocol text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    related_feature_ids: []
+  - sha: 934d0e256bc12272f3b36e899e8f92b783148c4c
+    short_sha: 934d0e256
+    authored_at: '2026-06-18T11:35:35+00:00'
+    subject: 'fix: link PCB schematic content example'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/electronics/app.yml
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/__tests__/usb-c-3v3-ldo-pcb-schematic.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/usb-c-3v3-ldo-pcb-schematic.ts
+    related_feature_ids: []
+  - sha: a9b7db59f3cad06b45a66d5d20431c20994dd1ed
+    short_sha: a9b7db59f
+    authored_at: '2026-06-18T11:26:34+00:00'
+    subject: 'fix: repair requested symbol rename on code edit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: 3b2cc06cac0774a81ade90b1fa2695ff4d23702b
+    short_sha: 3b2cc06ca
+    authored_at: '2026-06-18T11:18:30+00:00'
+    subject: 'fix: keep example snippets out of code embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: 51a8bdb347693b7842d9fff75bba7b809cc01de9
+    short_sha: 51a8bdb34
+    authored_at: '2026-06-18T11:07:09+00:00'
+    subject: 'fix: recognize code rename edit turns'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: 0880984f236f4ba939516d60b78f4a9fab2963a6
+    short_sha: 0880984f2
+    authored_at: '2026-06-18T11:06:29+00:00'
+    subject: 'feat: add canonical Mermaid example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/diagrams-mermaid-embeds/spec.yml
+    - frontend/packages/ui/src/demo_chats/data/example_chats/email-verification-sequence-diagram.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/email_verification_sequence_diagram.yml
+    related_feature_ids: []
+  - sha: e81c0bfa0dc9587bb9c3f4612444de11bf2b7eeb
+    short_sha: e81c0bfa0
+    authored_at: '2026-06-18T11:03:47+00:00'
+    subject: 'test: narrow CLI code docs integration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/contributing/standards/cli.md
+    - frontend/packages/openmates-cli/tests/code-docs.integration.mjs
+    related_feature_ids: []
+  - sha: b5be43c4e81477cf0373ea9c453f6a88e8df05ea
+    short_sha: b5be43c4e
+    authored_at: '2026-06-18T10:56:19+00:00'
+    subject: 'fix: route streamed Mermaid blocks to Diagrams embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - docs/specs/diagrams-mermaid-embeds/spec.yml
+    related_feature_ids: []
+  - sha: a7b51cd778fafe083e91acaffefd5adfc51c95f7
+    short_sha: a7b51cd77
+    authored_at: '2026-06-18T10:55:49+00:00'
+    subject: 'fix: use cached embeds for diff prompt gate'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    related_feature_ids: []
+  - sha: 451ad2062aa19a148df1463355baf3af25136fc9
+    short_sha: 451ad2062
+    authored_at: '2026-06-18T10:48:41+00:00'
+    subject: 'fix: teach AI to emit Mermaid diagram fences'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_mermaid_code_block_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_ai_instruction_contracts.py
+    related_feature_ids: []
+  - sha: eb3b17141916e7100964baf2b88f7c56244f9a74
+    short_sha: eb3b17141
+    authored_at: '2026-06-18T10:46:53+00:00'
+    subject: 'test: use async anonymous status probe'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 10a52582d00045439d73232d8c5deef489a0e505
+    short_sha: 10a52582d
+    authored_at: '2026-06-18T10:45:30+00:00'
+    subject: 'test: skip Apple anonymous smoke when inactive'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 44968920f6735ce973922f4bd94f0a12ae7eba1f
+    short_sha: 44968920f
+    authored_at: '2026-06-18T10:41:22+00:00'
+    subject: 'test: start Apple anonymous smoke at new chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d6cd64b8d70a318f7ca48c60648e9a292f7ff24b
+    short_sha: d6cd64b8d
+    authored_at: '2026-06-18T10:38:28+00:00'
+    subject: 'test: find native new chat CTA by identifier'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 012435f0564258bc700e3e994bfde1913a697f29
+    short_sha: 012435f05
+    authored_at: '2026-06-18T10:36:33+00:00'
+    subject: 'test: stabilize explicit new chat typing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: aede9321c1cbe3deab84339130b6855f9dcb8b43
+    short_sha: aede9321c
+    authored_at: '2026-06-18T10:34:56+00:00'
+    subject: 'test: cover Apple anonymous free chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 26a06fffabfc3dd1eeaaa55a3fb1ded890932b87
+    short_sha: 26a06fffa
+    authored_at: '2026-06-18T10:33:46+00:00'
+    subject: 'fix: avoid Mermaid fullscreen content snippet collision'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 476f3b53814aefb4f22369363384c3bd62dadd25
+    short_sha: 476f3b538
+    authored_at: '2026-06-18T10:33:08+00:00'
+    subject: 'fix: harden Atopile PCB generation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/apps/electronics/app.yml
+    - backend/tests/test_pcb_schematic_embed_contract.py
+    - scripts/test_pcb_schematic_cli_build.mjs
+    related_feature_ids: []
+  - sha: b106b8d89d1007b510fa8cb53598ca8d3856b9b7
+    short_sha: b106b8d89
+    authored_at: '2026-06-18T10:30:49+00:00'
+    subject: 'fix: prevent duplicate code embeds on edit turns'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 8c7e650ee89c7097355e29cff1d9ed5883efbc37
+    short_sha: 8c7e650ee
+    authored_at: '2026-06-18T10:29:34+00:00'
+    subject: 'fix: label Calendar get-events as Search'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/calendar.yml
+    related_feature_ids: []
+  - sha: f491e8e76e697ea702cb765425011d26b8f8ca21
+    short_sha: f491e8e76
+    authored_at: '2026-06-18T10:29:11+00:00'
+    subject: 'fix: dispatch CLI integration through registered workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/cli-integration.yml
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 0eb1505f2858cf6538998eedaa889b1b02366670
+    short_sha: 0eb1505f2
+    authored_at: '2026-06-18T10:17:42+00:00'
+    subject: 'test: fix iPad settings parity smoke ordering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b83d7b4727c54617cd6bc250181591d1fd273bc5
+    short_sha: b83d7b472
+    authored_at: '2026-06-18T10:14:03+00:00'
+    subject: 'fix: create application embeds for runnable web app prompts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/tests/test_ai_instruction_contracts.py
+    related_feature_ids: []
+  - sha: 01cdfc96d6cdd0d9ffdc3d58b0a5a3aeb2c8db25
+    short_sha: 01cdfc96d
+    authored_at: '2026-06-18T10:11:10+00:00'
+    subject: 'test: stabilize Apple UI parity smoke tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    - apple/OpenMatesUITests/RemindersPublicContentParityUITests.swift
+    - apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 01af0a57fd183f7abb0cc50dee56a49541af1598
+    short_sha: 01af0a57f
+    authored_at: '2026-06-18T10:09:57+00:00'
+    subject: 'test: target new chat input wrapper'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 0724f4d0c52bbe3ff319149e6c5221b0d3c5e982
+    short_sha: 0724f4d0c
+    authored_at: '2026-06-18T10:05:39+00:00'
+    subject: 'fix: deactivate welcome focus mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/openmates/app.yml
+    - backend/apps/openmates/focus_modes/welcome/SKILL.md
+    related_feature_ids: []
+  - sha: d56637f60075009f36c2e215b116923fde69ccd5
+    short_sha: d56637f60
+    authored_at: '2026-06-18T09:58:55+00:00'
+    subject: 'test: split code docs CLI integration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/cli-integration.yml
+    - docs/contributing/standards/cli.md
+    - frontend/apps/web_app/tests/skill-code-docs.spec.ts
+    - frontend/packages/openmates-cli/tests/code-docs.integration.mjs
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: ea33da881b7c9831a3f3ab88360a223a6213c562
+    short_sha: ea33da881
+    authored_at: '2026-06-18T09:58:48+00:00'
+    subject: 'fix: normalize Calendar connected account capabilities'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/tests/test_connected_account_permission_request.py
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    related_feature_ids: []
+  - sha: 2bde0f547c16621be7d82a54b766ade927e3412b
+    short_sha: 2bde0f547
+    authored_at: '2026-06-18T09:57:43+00:00'
+    subject: 'fix: tolerate missing Mermaid fullscreen preview data'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: b0e680128a77d95f52d8f1f608fda71714753670
+    short_sha: b0e680128
+    authored_at: '2026-06-18T09:51:35+00:00'
+    subject: 'fix: route atopile code embeds to PCB schematic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/electronics/app.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_pcb_schematic_embed_contract.py
+    related_feature_ids: []
+  - sha: e550c6d7ddd8998cfb4a0dd27ad30ee1606f317d
+    short_sha: e550c6d7d
+    authored_at: '2026-06-18T09:50:52+00:00'
+    subject: 'docs: record anonymous free usage verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    related_feature_ids: []
+  - sha: 5ce86496c1afb21402e777f94cefc6e496304928
+    short_sha: 5ce86496c
+    authored_at: '2026-06-18T09:50:05+00:00'
+    subject: 'fix: refine assistant feedback state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 4cf43e3375c241ab9382ab3b3b832fa76b2b881f
+    short_sha: 4cf43e337
+    authored_at: '2026-06-18T09:47:55+00:00'
+    subject: 'test: assert code diff editing result'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/packages/ui/src/components/fullscreen_previews/CodeFullscreen.svelte
+    related_feature_ids: []
+  - sha: 923f2d5257ba7982f316060636191251a20d829d
+    short_sha: 923f2d525
+    authored_at: '2026-06-18T09:41:26+00:00'
+    subject: 'fix: prevent missing legal privacy translations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/scripts/validate-locales.js
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: db5e77a339e157f07831c422a9897202533359dc
+    short_sha: db5e77a33
+    authored_at: '2026-06-18T09:39:14+00:00'
+    subject: 'test: stabilize anonymous budget settings assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    related_feature_ids: []
+  - sha: 595b020bc552ab3d235d86e438e2043a1ac328b5
+    short_sha: 595b020bc
+    authored_at: '2026-06-18T09:37:59+00:00'
+    subject: 'test: stabilize chat-flow new chat phase'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: bfc9494789b5d586e5499979a4498bbc68ddd75c
+    short_sha: bfc949478
+    authored_at: '2026-06-18T09:35:46+00:00'
+    subject: 'feat: show example chat response costs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/generated_by_cost.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/usb_c_3v3_ldo_pcb_schematic.yml
+    related_feature_ids: []
+  - sha: 605bac1adb368a875a1087a708b9fd2984c87226
+    short_sha: 605bac1ad
+    authored_at: '2026-06-18T09:34:23+00:00'
+    subject: 'test: accept rendered Mermaid preview text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    related_feature_ids: []
+  - sha: 326c2a3e4ffccd764fd6e23199d109c96cfaa1c8
+    short_sha: 326c2a3e4
+    authored_at: '2026-06-18T09:32:41+00:00'
+    subject: 'fix: restore embed diff editing prompt'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: c9a0016ef11599c5d29eb9997c37a639e5465d2a
+    short_sha: c9a0016ef
+    authored_at: '2026-06-18T09:29:55+00:00'
+    subject: 'fix: register anonymous free usage settings route'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    related_feature_ids: []
+  - sha: 1fa4e6c3e49f99930a77c47090d13f47f298eb2f
+    short_sha: 1fa4e6c3e
+    authored_at: '2026-06-18T09:24:24+00:00'
+    subject: 'test: use component preview for Mermaid embed spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/+page.svelte
+    - frontend/apps/web_app/src/routes/dev/preview/diagrams-mermaid/+page.svelte
+    - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    related_feature_ids: []
+  - sha: 391142aa4afd1426238f6a5db153b9aaf30aa479
+    short_sha: 391142aa4
+    authored_at: '2026-06-18T09:18:01+00:00'
+    subject: 'feat: add assistant response feedback rating'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/feedback.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids: []
+  - sha: 2c5ec3506ef4f33775ff8823e9a8b56ba39af0d3
+    short_sha: 2c5ec3506
+    authored_at: '2026-06-18T09:16:47+00:00'
+    subject: 'feat: finalize PCB schematic examples'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-example-chat/SKILL.md
+    - .claude/skills/add-example-chat/SKILL.md
+    - backend/apps/ai/utils/pcb_schematic_fences.py
+    - backend/apps/electronics/app.yml
+    - backend/shared/providers/e2b_pcb_schematic_compiler.py
+    - backend/tests/test_pcb_schematic_embed_contract.py
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-morning-bike-forecast.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/usb-c-3v3-ldo-pcb-schematic.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_morning_bike_forecast.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/usb_c_3v3_ldo_pcb_schematic.yml
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    related_feature_ids: []
+  - sha: 48c84d9c3fac358f3cc1b547338752c8301e3cdf
+    short_sha: 48c84d9c3
+    authored_at: '2026-06-18T09:11:42+00:00'
+    subject: 'feat: add anonymous free usage admin settings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsServer.svelte
+    - frontend/packages/ui/src/components/settings/server/SettingsAnonymousFreeUsageBudget.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: 736365af67592fee4d052c3ae711ddaf14a9f6c8
+    short_sha: 736365af6
+    authored_at: '2026-06-18T09:10:11+00:00'
+    subject: 'test: add Mermaid embed web preview coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/+page.svelte
+    - frontend/apps/web_app/src/routes/dev/preview/diagrams-mermaid/+page.svelte
+    - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 0fbb0c387b60317031b47473a0787af450498a39
+    short_sha: 0fbb0c387
+    authored_at: '2026-06-18T09:05:43+00:00'
+    subject: 'docs: clarify e2e client log forwarding'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/admin-console-log-forwarding.md
+    related_feature_ids: []
+  - sha: ed746b6a72bf6cdeed0d68213742091e451a8d44
+    short_sha: ed746b6a7
+    authored_at: '2026-06-18T08:52:57+00:00'
+    subject: 'test: extend embed diff real inference timeout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: 764e38d9987a9a8a4523a54dd53eee4ee8bf672a
+    short_sha: 764e38d99
+    authored_at: '2026-06-18T08:51:44+00:00'
+    subject: 'feat: add Mermaid diagram embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/mermaid_fences.py
+    - backend/apps/diagrams/app.yml
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_mermaid_embed_streaming.py
+    - docs/specs/diagrams-mermaid-embeds/spec.yml
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/__tests__/mermaidDiagramContent.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramsEmbedText.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/mermaidDiagramContent.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 4f340adc838ffab56e2f95597d07f6b23d9332c2
+    short_sha: 4f340adc8
+    authored_at: '2026-06-18T08:46:59+00:00'
+    subject: 'fix: pass report issue prefill into settings destination'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3089da3d5ed56bc7eb8315e432836b007b9ac691
+    short_sha: 3089da3d5
+    authored_at: '2026-06-18T08:44:13+00:00'
+    subject: 'fix: use supported Apple color token'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 34525c68a95942512e6923e8e64487ce7090f62d
+    short_sha: 34525c68a
+    authored_at: '2026-06-18T08:41:57+00:00'
+    subject: 'feat: add Apple anonymous free usage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: e6cf75cd45cb6ccd6b5cdcb9f8d0a3b3f7d34362
+    short_sha: e6cf75cd4
+    authored_at: '2026-06-18T08:36:26+00:00'
+    subject: 'fix: route e2e logs to e2e endpoint only'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/clientLogForwarder.ts
+    related_feature_ids: []
+  - sha: 78d131d55aa585d25d3c5e4285cc00e570bf679f
+    short_sha: 78d131d55
+    authored_at: '2026-06-18T08:25:35+00:00'
+    subject: 'test: stabilize embed diff wait'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: 075d3ef17135f72288126121b419551c7fbb1899
+    short_sha: 075d3ef17
+    authored_at: '2026-06-18T08:06:25+00:00'
+    subject: 'fix: unblock nightly spec reporting'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 1a13d001c3e887e0693eeab667816860cbd5b8f3
+    short_sha: 1a13d001c
+    authored_at: '2026-06-18T07:58:41+00:00'
+    subject: 'feat: add PCB schematic embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/pcb_schematic_fences.py
+    - backend/apps/electronics/app.yml
+    - backend/core/api/app/routes/electronics_pcb_schematic.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/main.py
+    - backend/shared/providers/e2b_pcb_schematic_compiler.py
+    - backend/shared/python_utils/pcb_schematic_artifacts.py
+    - backend/tests/test_pcb_schematic_embed_contract.py
+    - docs/specs/pcb-schematic-embed/spec.yml
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/electronicsEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/services/pcbSchematicCompileService.ts
+    related_feature_ids: []
+  - sha: 7878828e231c4a6abb17a0974e165d4d5bd80990
+    short_sha: 7878828e2
+    authored_at: '2026-06-18T07:52:15+00:00'
+    subject: 'test: stabilize CLI auth-dependent tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/cli-auto-login.js
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 27fcb844a4b7208e58d090710246439f6ba2b6a1
+    short_sha: 27fcb844a
+    authored_at: '2026-06-18T07:25:07+00:00'
+    subject: 'test: verify streaming sync recovery across clients'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates expanded its technical visualization capabilities with the introduction of PCB schematic embeds and
+    Atopile generation. The project also launched an anonymous free usage tier with configurable budgets and added a feedback
+    rating system for assistant responses. Significant work was done to stabilize embed diffing and secure persisted chat
+    data.
+  released_changes:
+  - text: OpenMates added PCB schematic embeds, allowing the assistant to generate and display interactive electronics designs
+      using Atopile.
+    evidence:
+      commits:
+      - 1a13d001c
+      - 2c5ec3506
+      - 934d0e256
+      - 476f3b538
+      - b0e680128
+    release_status: released_main
+  - text: A feedback rating system was introduced for assistant responses, enabling users to provide direct quality signals.
+    evidence:
+      commits:
+      - 391142aa4
+      - 5ce86496c
+    release_status: released_main
+  - text: The project now supports anonymous free usage, managed through new admin settings for session budgets.
+    evidence:
+      commits:
+      - 48c84d9c3
+      - 6f483cc42
+      - c9a0016ef
+    release_status: released_main
+  - text: Example chats now display the estimated cost of assistant responses to improve usage transparency.
+    evidence:
+      commits:
+      - bfc949478
+    release_status: released_main
+  - text: Support for Mermaid diagram embeds was added, including AI instructions for generating sequence and flow diagrams.
+    evidence:
+      commits:
+      - 764e38d99
+      - 451ad2062
+      - b5be43c4e
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates now preserves model context during memory continuation to ensure assistant consistency.
+    evidence:
+      commits:
+      - 85f8aabfa
+    release_status: released_main
+  - text: Anonymous chat sessions were improved with restored lifecycle indicators, optimistic message sends, and a dedicated
+      streaming reducer.
+    evidence:
+      commits:
+      - 955c51300
+      - 9acc88fdd
+      - d0a125e51
+      - 5ad6088b3
+    release_status: released_main
+  - text: Application previews were hardened to suppress protocol text and ensure faithful rendering of generated web app
+      bundles.
+    evidence:
+      commits:
+      - cb39acd81
+      - 9af93d8e2
+      - b83d7b472
+    release_status: released_main
+  - text: A security guard was added to block vault ciphertext from being persisted in chat content.
+    evidence:
+      commits:
+      - af1bc0f72
+    release_status: released_main
+  - text: Embed versioning and diff editing were stabilized, ensuring correct version selection and the application of streamed
+      fences during edits.
+    evidence:
+      commits:
+      - cab352f1f
+      - 326c2a3e4
+      - 7e018692f
+      - 23399f078
+      - f028da569
+    release_status: released_main
+  - text: Weather previews and assistant controls were refined for better visual consistency and usability.
+    evidence:
+      commits:
+      - 908a72987
+    release_status: released_main
+  - text: Calendar integration was updated to normalize connected account capabilities and clarify event search labeling.
+    evidence:
+      commits:
+      - f8f66ca3f
+      - ea33da881
+      - 8c7e650ee
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on the iOS and macOS platforms, including anonymous usage support and UI parity stabilization.
+    evidence:
+      commits:
+      - 34525c68a
+      - 4f340adc8
+      - 3089da3d5
+      - eb3b17141
+      - 10a52582d
+      - 44968920f
+      - d6cd64b8d
+      - aede9321c
+      - 0eb1505f2
+      - 01cdfc96d
+    release_status: released_main
+  - text: Mermaid diagram embeds were deactivated following their initial introduction.
+    evidence:
+      commits:
+      - 7c34039d3
+    release_status: released_main
+  internal_progress:
+  - text: Infrastructure updates were deployed for non-EKS components, including rate limiting and search provider configurations.
+    evidence:
+      commits:
+      - 80d0cb0b6
+    release_status: released_main
+  - text: Client log forwarding for end-to-end testing was clarified and restricted to specific endpoints.
+    evidence:
+      commits:
+      - e6cf75cd4
+      - 0fbb0c387
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New PCB schematic embeds with Atopile generation and interactive examples.
+      evidence:
+        commits:
+        - 1a13d001c
+        - 2c5ec3506
+        - 934d0e256
+        - 476f3b538
+        - b0e680128
+      reason: This is a significant new visual capability for technical users.
+    - text: Assistant response feedback rating system.
+      evidence:
+        commits:
+        - 391142aa4
+        - 5ce86496c
+      reason: Improves the feedback loop between users and the assistant.
+    - text: Cost transparency for example chat responses.
+      evidence:
+        commits:
+        - bfc949478
+      reason: Provides transparency regarding AI usage costs.
+    - text: Anonymous free usage tier with admin-configurable budgets.
+      evidence:
+        commits:
+        - 48c84d9c3
+        - 6f483cc42
+        - c9a0016ef
+      reason: Introduces a new way for users to trial the service without an account.
+    exclude:
+    - text: Apple platform anonymous usage and UI refinements.
+      evidence:
+        commits:
+        - 34525c68a
+        - 4f340adc8
+        - 3089da3d5
+      reason: Apple platform support (iOS/macOS) is currently disabled and unreleased.
+    - text: Mermaid diagram support.
+      evidence:
+        commits:
+        - 7c34039d3
+      reason: Mermaid diagram embeds were deactivated shortly after introduction.
+    rationale: The update focuses on technical visualization (PCB schematics) and lowering the barrier to entry via anonymous
+      usage, while improving transparency through cost tracking and feedback.
+  social_video_recommendations:
+  - idea: A walkthrough of generating a PCB schematic from a natural language prompt.
+    priority: high
+    reason: Visual and technically impressive feature that differentiates the product.
+    evidence:
+      commits:
+      - 1a13d001c
+      - 2c5ec3506
+  - idea: Short clip showing the new feedback rating and cost transparency features.
+    priority: medium
+    reason: Demonstrates product maturity and user-centric design.
+    evidence:
+      commits:
+      - 391142aa4
+  quality_notes:
+  - Extensive stabilization of anonymous session handling and streaming.
+  - Security hardening for persisted chat data to prevent sensitive data leakage.
+  - Refinement of AI instructions to better handle technical code blocks and diagrams.
+  validation_warnings: []

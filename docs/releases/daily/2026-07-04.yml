@@ -1,0 +1,5167 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-04'
+generated_at: '2026-07-09T15:52:08+00:00'
+range:
+  since: '2026-07-04T00:00:00+00:00'
+  until: '2026-07-04T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 107
+  section_counts:
+    features: 4
+    bug_fixes: 55
+    improvements: 0
+    docs: 12
+    tests: 30
+    infrastructure: 5
+    internal: 1
+    other: 0
+  newsletter_ready_items: 7
+  user_facing_items: 41
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add iOS home screen quick actions'
+    section: features
+    commits:
+    - 72b57734e
+    authored_at: '2026-07-04T23:38:06+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add Apple native diagnostics context'
+    section: features
+    commits:
+    - 95af9f09e
+    authored_at: '2026-07-04T22:26:08+00:00'
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - apple/AGENTS.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - docs/specs/apple-native-diagnostics-parity/spec.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: align Apple workspace reporting parity'
+    section: features
+    commits:
+    - 23b4d6bb6
+    authored_at: '2026-07-04T15:23:50+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - docs/specs/apple-workspace-reporting-parity/spec.yml
+    - frontend/packages/ui/src/i18n/sources/navigation.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: redesign workspace header switcher'
+    section: features
+    commits:
+    - 2fc78d695
+    authored_at: '2026-07-04T10:22:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
+  bug_fixes:
+  - title: 'fix: repair share extension background pipeline'
+    section: bug_fixes
+    commits:
+    - 9b4cb3624
+    authored_at: '2026-07-04T23:49:08+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/active_chat_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/tests/test_chat_directus_encryption_guards.py
+    - backend/tests/test_signup_existing_account_email.py
+    - backend/tests/test_task_smoke.py
+    - backend/tests/test_websocket_set_active_chat.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove Apple diagnostics await warnings'
+    section: bug_fixes
+    commits:
+    - 0577d0309
+    authored_at: '2026-07-04T23:02:09+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: enable Apple diagnostics forwarding'
+    section: bug_fixes
+    commits:
+    - 5c00be225
+    authored_at: '2026-07-04T22:59:50+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: satisfy Swift diagnostics concurrency'
+    section: bug_fixes
+    commits:
+    - 14d1b421b
+    authored_at: '2026-07-04T22:27:03+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: repair Apple share extension auth'
+    section: bug_fixes
+    commits:
+    - 59ac021ef
+    authored_at: '2026-07-04T21:41:33+00:00'
+    changed_paths:
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: use Apple streaming event names in anonymous tests'
+    section: bug_fixes
+    commits:
+    - b8f7d1c20
+    authored_at: '2026-07-04T21:28:30+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: reconcile Apple streaming after sync'
+    section: bug_fixes
+    commits:
+    - 98a81ad10
+    authored_at: '2026-07-04T21:12:49+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: align Apple cold sync metadata loading'
+    section: bug_fixes
+    commits:
+    - 6844a7998
+    authored_at: '2026-07-04T21:07:47+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: show Apple queued message state'
+    section: bug_fixes
+    commits:
+    - 103703dd9
+    authored_at: '2026-07-04T19:31:55+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: preserve VS Code bundled asset paths'
+    section: bug_fixes
+    commits:
+    - 51a4aac0f
+    authored_at: '2026-07-04T19:29:54+00:00'
+    changed_paths:
+    - frontend/apps/vscode_extension/src/assetPaths.ts
+    - frontend/apps/vscode_extension/src/extension.ts
+    - frontend/apps/vscode_extension/tests/assetPaths.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: show Apple streaming processing state'
+    section: bug_fixes
+    commits:
+    - df98619f0
+    authored_at: '2026-07-04T19:23:54+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: handle Apple streaming lifecycle events'
+    section: bug_fixes
+    commits:
+    - afa0e64b1
+    authored_at: '2026-07-04T19:16:06+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: restore Apple runtime bootstrap call'
+    section: bug_fixes
+    commits:
+    - 9f558f70f
+    authored_at: '2026-07-04T19:03:31+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: isolate Apple pending response queue'
+    section: bug_fixes
+    commits:
+    - 10c119e15
+    authored_at: '2026-07-04T18:57:46+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: include Apple parity files in Xcode project'
+    section: bug_fixes
+    commits:
+    - 4053cbbcf
+    authored_at: '2026-07-04T18:56:39+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: complete Apple send pipeline helpers'
+    section: bug_fixes
+    commits:
+    - 3c02555ef
+    authored_at: '2026-07-04T18:50:18+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: add Apple assistant completion retry'
+    section: bug_fixes
+    commits:
+    - 62454f0c0
+    authored_at: '2026-07-04T18:49:40+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: render Apple logo asset'
+    section: bug_fixes
+    commits:
+    - ee624ee3d
+    authored_at: '2026-07-04T17:54:34+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: expose Apple chat floating actions'
+    section: bug_fixes
+    commits:
+    - 90a7c59c9
+    authored_at: '2026-07-04T17:24:37+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: load Apple Apps settings metadata'
+    section: bug_fixes
+    commits:
+    - ced9d1f43
+    authored_at: '2026-07-04T17:09:04+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/SettingsAppsParityUITests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: open Apple report form from chat'
+    section: bug_fixes
+    commits:
+    - 517e97d3f
+    authored_at: '2026-07-04T17:08:16+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: guard Apple report UI test seeding'
+    section: bug_fixes
+    commits:
+    - 8743e9bd3
+    authored_at: '2026-07-04T16:32:09+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: show Apple issue success before log upload'
+    section: bug_fixes
+    commits:
+    - 90a827361
+    authored_at: '2026-07-04T16:16:02+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: serialize Apple issue report payloads'
+    section: bug_fixes
+    commits:
+    - d830471c5
+    authored_at: '2026-07-04T16:05:53+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: resolve Apple workspace compile errors'
+    section: bug_fixes
+    commits:
+    - 2979c9f8c
+    authored_at: '2026-07-04T15:40:07+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: make Apple issue report compile'
+    section: bug_fixes
+    commits:
+    - 103c3a00c
+    authored_at: '2026-07-04T15:38:08+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: mark native log collector sendable'
+    section: bug_fixes
+    commits:
+    - 24b03b9d3
+    authored_at: '2026-07-04T15:33:56+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: show mobile login CTA'
+    section: bug_fixes
+    commits:
+    - 7359263b0
+    authored_at: '2026-07-04T13:02:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve iOS passkey entitlements in TestFlight'
+    section: bug_fixes
+    commits:
+    - 698c2d0a4
+    authored_at: '2026-07-04T13:00:24+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: require API auth for deterministic TestFlight deploy'
+    section: bug_fixes
+    commits:
+    - e1be2de00
+    authored_at: '2026-07-04T12:36:47+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore Apple profile backups broadly'
+    section: bug_fixes
+    commits:
+    - cae91f463
+    authored_at: '2026-07-04T12:32:52+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: fallback to installed Apple profiles'
+    section: bug_fixes
+    commits:
+    - f7af80cec
+    authored_at: '2026-07-04T12:31:00+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: pass App Store Connect config to Apple deploy'
+    section: bug_fixes
+    commits:
+    - 3a86e3da3
+    authored_at: '2026-07-04T12:27:09+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: make Apple TestFlight deploy deterministic'
+    section: bug_fixes
+    commits:
+    - 362a71682
+    authored_at: '2026-07-04T12:24:03+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: align apple workspace switcher'
+    section: bug_fixes
+    commits:
+    - ac9db1a07
+    authored_at: '2026-07-04T12:13:02+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: hide compact header gift CTA'
+    section: bug_fixes
+    commits:
+    - eea2f8662
+    authored_at: '2026-07-04T11:32:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reload anonymous messages from hash'
+    section: bug_fixes
+    commits:
+    - 8d3c08913
+    authored_at: '2026-07-04T11:30:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore anonymous chat after reload'
+    section: bug_fixes
+    commits:
+    - c765d5882
+    authored_at: '2026-07-04T11:12:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: tighten mobile workspace switcher'
+    section: bug_fixes
+    commits:
+    - d3e293528
+    authored_at: '2026-07-04T11:07:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: mark Apple encryption export exempt'
+    section: bug_fixes
+    commits:
+    - 2ea78cb87
+    authored_at: '2026-07-04T11:02:33+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/project.yml
+    - scripts/tests/test_app_version_parity.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: validate Apple App Group profiles'
+    section: bug_fixes
+    commits:
+    - e193bb953
+    authored_at: '2026-07-04T10:29:11+00:00'
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stamp macOS archive entitlements'
+    section: bug_fixes
+    commits:
+    - f15fd63c0
+    authored_at: '2026-07-04T09:28:12+00:00'
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: hide empty chat task preview'
+    section: bug_fixes
+    commits:
+    - 3ff25a007
+    authored_at: '2026-07-04T09:22:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/__tests__/activeChatTaskPreview.test.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
+  - title: 'fix: remove invalid sandbox capability sync'
+    section: bug_fixes
+    commits:
+    - 7b006f27e
+    authored_at: '2026-07-04T09:21:57+00:00'
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: enable macOS App Store sandbox'
+    section: bug_fixes
+    commits:
+    - 3f313a4b1
+    authored_at: '2026-07-04T09:17:56+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: select macOS signing certificates'
+    section: bug_fixes
+    commits:
+    - 8ec3b9b5a
+    authored_at: '2026-07-04T09:10:13+00:00'
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: close project remote overlay during capture'
+    section: bug_fixes
+    commits:
+    - c1918b92e
+    authored_at: '2026-07-04T09:05:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'fix: automate Mac installer certificate'
+    section: bug_fixes
+    commits:
+    - 6f29ec9f2
+    authored_at: '2026-07-04T09:04:51+00:00'
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: clear chat state on auto logout'
+    section: bug_fixes
+    commits:
+    - '503284299'
+    authored_at: '2026-07-04T09:00:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: rename macOS share extension bundle'
+    section: bug_fixes
+    commits:
+    - 33a5f4ab5
+    authored_at: '2026-07-04T08:58:15+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: create Apple extension bundle IDs'
+    section: bug_fixes
+    commits:
+    - 657cceb19
+    authored_at: '2026-07-04T08:53:36+00:00'
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: automate Apple export compliance'
+    section: bug_fixes
+    commits:
+    - d146f1c87
+    authored_at: '2026-07-04T08:47:56+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    - scripts/tests/test_app_version_parity.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: close project remote fullscreen'
+    section: bug_fixes
+    commits:
+    - 20f6ce97d
+    authored_at: '2026-07-04T08:42:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/navigation.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
+  - title: 'fix: add iOS microphone purpose string'
+    section: bug_fixes
+    commits:
+    - d4ebe2c36
+    authored_at: '2026-07-04T08:13:11+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Info.plist
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    - scripts/tests/test_app_version_parity.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: automate Apple TestFlight profile export'
+    section: bug_fixes
+    commits:
+    - a3cefe2ff
+    authored_at: '2026-07-04T00:00:26+00:00'
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record Apple diagnostics verification'
+    section: docs
+    commits:
+    - d069a6ac4
+    authored_at: '2026-07-04T22:32:12+00:00'
+    changed_paths:
+    - docs/specs/apple-native-diagnostics-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple parity evidence blockers'
+    section: docs
+    commits:
+    - 89652ad97
+    authored_at: '2026-07-04T22:04:11+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple CLI cross-client evidence'
+    section: docs
+    commits:
+    - bb185db71
+    authored_at: '2026-07-04T21:33:03+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple anonymous streaming evidence'
+    section: docs
+    commits:
+    - c615c1b27
+    authored_at: '2026-07-04T21:30:31+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple background sender evidence'
+    section: docs
+    commits:
+    - 668c675ad
+    authored_at: '2026-07-04T21:24:10+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple streaming recovery evidence'
+    section: docs
+    commits:
+    - 6a8f69c3c
+    authored_at: '2026-07-04T21:17:29+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record VS Code extension workflow evidence'
+    section: docs
+    commits:
+    - 579db8c34
+    authored_at: '2026-07-04T19:44:23+00:00'
+    changed_paths:
+    - docs/specs/vscode-extension-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple queued state evidence'
+    section: docs
+    commits:
+    - 7cff1bebf
+    authored_at: '2026-07-04T19:33:49+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: refresh Apple lifecycle UI evidence'
+    section: docs
+    commits:
+    - 87c9a09fd
+    authored_at: '2026-07-04T19:25:55+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple lifecycle parity evidence'
+    section: docs
+    commits:
+    - bba242ae2
+    authored_at: '2026-07-04T19:20:09+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple pipeline parity evidence'
+    section: docs
+    commits:
+    - 68b6308c0
+    authored_at: '2026-07-04T19:00:58+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'docs: record Apple parity verification evidence'
+    section: docs
+    commits:
+    - 1ee48ea3d
+    authored_at: '2026-07-04T15:54:41+00:00'
+    changed_paths:
+    - docs/specs/apple-workspace-reporting-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: stabilize iOS quick action UI check'
+    section: tests
+    commits:
+    - 56878b41a
+    authored_at: '2026-07-04T23:54:27+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: enable chat shell UI test discovery'
+    section: tests
+    commits:
+    - ab346153a
+    authored_at: '2026-07-04T23:48:02+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: cover iOS home quick actions'
+    section: tests
+    commits:
+    - 4a59110a4
+    authored_at: '2026-07-04T23:45:56+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: cover Apple anonymous streaming contracts'
+    section: tests
+    commits:
+    - b8cc6446e
+    authored_at: '2026-07-04T21:26:58+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: cover Apple background sender payloads'
+    section: tests
+    commits:
+    - b14262d85
+    authored_at: '2026-07-04T21:22:13+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add VS Code extension installed smoke workflow'
+    section: tests
+    commits:
+    - c0ae0d1c9
+    authored_at: '2026-07-04T18:58:50+00:00'
+    changed_paths:
+    - .github/workflows/vscode-extension.yml
+    - .gitignore
+    - docs/specs/vscode-extension-v1/spec.yml
+    - frontend/apps/vscode_extension/.vscodeignore
+    - frontend/apps/vscode_extension/LICENSE
+    - frontend/apps/vscode_extension/media/openmates-vscode.js
+    - frontend/apps/vscode_extension/package.json
+    - frontend/apps/vscode_extension/scripts/prepareWebAppBundle.mjs
+    - frontend/apps/vscode_extension/src/authMode.ts
+    - frontend/apps/vscode_extension/src/bridge.ts
+    - frontend/apps/vscode_extension/src/extension.ts
+    - frontend/apps/vscode_extension/src/state.ts
+    - frontend/apps/vscode_extension/src/test/installed/suite/index.ts
+    - frontend/apps/vscode_extension/src/test/runInstalledTest.ts
+    - frontend/apps/vscode_extension/src/test/runTest.ts
+    - frontend/apps/vscode_extension/src/test/suite/index.ts
+    - frontend/apps/vscode_extension/src/webviewHtml.ts
+    - frontend/apps/vscode_extension/test_driver/extension.js
+    - frontend/apps/vscode_extension/test_driver/package.json
+    - frontend/apps/vscode_extension/tests/authMode.test.ts
+    - frontend/apps/vscode_extension/tests/bridge.test.ts
+    - frontend/apps/vscode_extension/tests/runtimeConfig.test.ts
+    - frontend/apps/vscode_extension/tests/state.test.ts
+    - frontend/apps/vscode_extension/tests/webview.test.ts
+    - frontend/apps/vscode_extension/tsconfig.json
+    - frontend/apps/web_app/svelte.config.js
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/platform/runtime.ts
+    - pnpm-lock.yaml
+    - scripts/audit_vscode_extension_v1.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover Apple logo assets'
+    section: tests
+    commits:
+    - f009c734b
+    authored_at: '2026-07-04T17:58:44+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: assert Apple chat report form surface'
+    section: tests
+    commits:
+    - 6796cbd1b
+    authored_at: '2026-07-04T17:36:07+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: locate Apple chat report action by label'
+    section: tests
+    commits:
+    - 410fdbfcf
+    authored_at: '2026-07-04T17:33:42+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: wait directly for Apple chat report action'
+    section: tests
+    commits:
+    - b0c88591a
+    authored_at: '2026-07-04T17:30:40+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: enable Apple chat report preview state'
+    section: tests
+    commits:
+    - 18b765554
+    authored_at: '2026-07-04T17:28:17+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: wait for Apple chat report readiness'
+    section: tests
+    commits:
+    - 4d894ac34
+    authored_at: '2026-07-04T17:19:13+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize Apple report button coverage'
+    section: tests
+    commits:
+    - d84d94985
+    authored_at: '2026-07-04T17:11:12+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: find Apple report issue success after scroll'
+    section: tests
+    commits:
+    - 70f5b5ba3
+    authored_at: '2026-07-04T16:23:39+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expose Apple report issue debug state'
+    section: tests
+    commits:
+    - f8da736a4
+    authored_at: '2026-07-04T16:20:15+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: verify Apple report issue submission'
+    section: tests
+    commits:
+    - 72d2843bd
+    authored_at: '2026-07-04T16:04:05+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize compact workspace assertion'
+    section: tests
+    commits:
+    - 2e6e9fd71
+    authored_at: '2026-07-04T15:46:25+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize compact workspace navigation'
+    section: tests
+    commits:
+    - bfab2893e
+    authored_at: '2026-07-04T15:30:13+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: wait for pdf embed store row'
+    section: tests
+    commits:
+    - 2443df449
+    authored_at: '2026-07-04T15:19:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for pdf payload before send'
+    section: tests
+    commits:
+    - 8dc4072c6
+    authored_at: '2026-07-04T15:04:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: keep touch highlight prompt deterministic'
+    section: tests
+    commits:
+    - 223bdafdb
+    authored_at: '2026-07-04T14:43:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for idle before touch highlight'
+    section: tests
+    commits:
+    - 5b15a3278
+    authored_at: '2026-07-04T14:31:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: switch recent chats from carousel'
+    section: tests
+    commits:
+    - 5861a9d79
+    authored_at: '2026-07-04T13:43:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open recent chats by id'
+    section: tests
+    commits:
+    - 5b215e5b8
+    authored_at: '2026-07-04T13:33:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: scope recent chat resume title'
+    section: tests
+    commits:
+    - 1aa1b6955
+    authored_at: '2026-07-04T13:21:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: handle intro inspiration card'
+    section: tests
+    commits:
+    - b9ad4bdad
+    authored_at: '2026-07-04T10:42:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: log app load failed responses'
+    section: tests
+    commits:
+    - 5513c18d1
+    authored_at: '2026-07-04T10:15:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover active chat logout cleanup'
+    section: tests
+    commits:
+    - ae58afdc5
+    authored_at: '2026-07-04T09:14:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stub browser events in auto logout regression'
+    section: tests
+    commits:
+    - f8b51fcd4
+    authored_at: '2026-07-04T09:08:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize auto logout cleanup regression'
+    section: tests
+    commits:
+    - f70437d0c
+    authored_at: '2026-07-04T09:05:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: bump Apple build number'
+    section: infrastructure
+    commits:
+    - 69b5855c2
+    authored_at: '2026-07-04T23:54:15+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'chore: bump Apple build number'
+    section: infrastructure
+    commits:
+    - 55a88a9dd
+    authored_at: '2026-07-04T21:54:58+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'ci: use bootstrap webview for installed login smoke'
+    section: infrastructure
+    commits:
+    - b16c91f23
+    authored_at: '2026-07-04T19:38:22+00:00'
+    changed_paths:
+    - frontend/apps/vscode_extension/src/extension.ts
+    - frontend/apps/vscode_extension/src/test/runInstalledTest.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'ci: terminate VS Code web bundle after static output'
+    section: infrastructure
+    commits:
+    - ba1e9a884
+    authored_at: '2026-07-04T19:20:38+00:00'
+    changed_paths:
+    - .github/workflows/vscode-extension.yml
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/scripts/build-vscode.js
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'ci: avoid VS Code bundle SEO audit'
+    section: infrastructure
+    commits:
+    - 503b0443f
+    authored_at: '2026-07-04T19:12:58+00:00'
+    changed_paths:
+    - .github/workflows/vscode-extension.yml
+    - frontend/apps/web_app/package.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal:
+  - title: 'tools: add parity verification workflow'
+    section: internal
+    commits:
+    - ddfea9d68
+    authored_at: '2026-07-04T14:31:32+00:00'
+    changed_paths:
+    - AGENTS.md
+    - apple/AGENTS.md
+    - docs/contributing/guides/testing.md
+    - scripts/sessions.py
+    - scripts/tests/test_verify_parity.py
+    - scripts/verify_parity.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: repair share extension background pipeline'
+    commits:
+    - 9b4cb3624
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show mobile login CTA'
+    commits:
+    - 7359263b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide compact header gift CTA'
+    commits:
+    - eea2f8662
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reload anonymous messages from hash'
+    commits:
+    - 8d3c08913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore anonymous chat after reload'
+    commits:
+    - c765d5882
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: tighten mobile workspace switcher'
+    commits:
+    - d3e293528
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clear chat state on auto logout'
+    commits:
+    - '503284299'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: repair share extension background pipeline'
+    commits:
+    - 9b4cb3624
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add iOS home screen quick actions'
+    commits:
+    - 72b57734e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: remove Apple diagnostics await warnings'
+    commits:
+    - 0577d0309
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: enable Apple diagnostics forwarding'
+    commits:
+    - 5c00be225
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: satisfy Swift diagnostics concurrency'
+    commits:
+    - 14d1b421b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Apple native diagnostics context'
+    commits:
+    - 95af9f09e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: reconcile Apple streaming after sync'
+    commits:
+    - 98a81ad10
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align Apple cold sync metadata loading'
+    commits:
+    - 6844a7998
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show Apple queued message state'
+    commits:
+    - 103703dd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show Apple streaming processing state'
+    commits:
+    - df98619f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: handle Apple streaming lifecycle events'
+    commits:
+    - afa0e64b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore Apple runtime bootstrap call'
+    commits:
+    - 9f558f70f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: isolate Apple pending response queue'
+    commits:
+    - 10c119e15
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: complete Apple send pipeline helpers'
+    commits:
+    - 3c02555ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: add Apple assistant completion retry'
+    commits:
+    - 62454f0c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: render Apple logo asset'
+    commits:
+    - ee624ee3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: expose Apple chat floating actions'
+    commits:
+    - 90a7c59c9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: load Apple Apps settings metadata'
+    commits:
+    - ced9d1f43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: open Apple report form from chat'
+    commits:
+    - 517e97d3f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: guard Apple report UI test seeding'
+    commits:
+    - 8743e9bd3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show Apple issue success before log upload'
+    commits:
+    - 90a827361
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: serialize Apple issue report payloads'
+    commits:
+    - d830471c5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: resolve Apple workspace compile errors'
+    commits:
+    - 2979c9f8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: make Apple issue report compile'
+    commits:
+    - 103c3a00c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: mark native log collector sendable'
+    commits:
+    - 24b03b9d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: align Apple workspace reporting parity'
+    commits:
+    - 23b4d6bb6
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show mobile login CTA'
+    commits:
+    - 7359263b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align apple workspace switcher'
+    commits:
+    - ac9db1a07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: hide compact header gift CTA'
+    commits:
+    - eea2f8662
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reload anonymous messages from hash'
+    commits:
+    - 8d3c08913
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore anonymous chat after reload'
+    commits:
+    - c765d5882
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: tighten mobile workspace switcher'
+    commits:
+    - d3e293528
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: mark Apple encryption export exempt'
+    commits:
+    - 2ea78cb87
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: redesign workspace header switcher'
+    commits:
+    - 2fc78d695
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: hide empty chat task preview'
+    commits:
+    - 3ff25a007
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: enable macOS App Store sandbox'
+    commits:
+    - 3f313a4b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: close project remote overlay during capture'
+    commits:
+    - c1918b92e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: clear chat state on auto logout'
+    commits:
+    - '503284299'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: automate Apple export compliance'
+    commits:
+    - d146f1c87
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: close project remote fullscreen'
+    commits:
+    - 20f6ce97d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: add iOS microphone purpose string'
+    commits:
+    - d4ebe2c36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 56878b41a1f300bf08d1a7b9ccb4a46716052e90
+    short_sha: 56878b41a
+    authored_at: '2026-07-04T23:54:27+00:00'
+    subject: 'test: stabilize iOS quick action UI check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 69b5855c2e944bc51fc504cbf6ab84adeaafae3b
+    short_sha: 69b5855c2
+    authored_at: '2026-07-04T23:54:15+00:00'
+    subject: 'chore: bump Apple build number'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9b4cb3624b0e1c267008e155495c81aab8bd2bbb
+    short_sha: 9b4cb3624
+    authored_at: '2026-07-04T23:49:08+00:00'
+    subject: 'fix: repair share extension background pipeline'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/active_chat_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/tests/test_chat_directus_encryption_guards.py
+    - backend/tests/test_signup_existing_account_email.py
+    - backend/tests/test_task_smoke.py
+    - backend/tests/test_websocket_set_active_chat.py
+    related_feature_ids: []
+  - sha: ab346153a7a12521edfe25cf6f0d51884b32b9e3
+    short_sha: ab346153a
+    authored_at: '2026-07-04T23:48:02+00:00'
+    subject: 'test: enable chat shell UI test discovery'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4a59110a40eeaa43e37f13411598c7692bb188e2
+    short_sha: 4a59110a4
+    authored_at: '2026-07-04T23:45:56+00:00'
+    subject: 'test: cover iOS home quick actions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 72b57734eeed65c692c91fe67315c7cce4fd6a28
+    short_sha: 72b57734e
+    authored_at: '2026-07-04T23:38:06+00:00'
+    subject: 'feat: add iOS home screen quick actions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0577d030975c45df2ff67481e622a9b90215557c
+    short_sha: 0577d0309
+    authored_at: '2026-07-04T23:02:09+00:00'
+    subject: 'fix: remove Apple diagnostics await warnings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5c00be225b589d180cae70000f07d1ff62d2685c
+    short_sha: 5c00be225
+    authored_at: '2026-07-04T22:59:50+00:00'
+    subject: 'fix: enable Apple diagnostics forwarding'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d069a6ac4a9a96de6c112f337011c42804538136
+    short_sha: d069a6ac4
+    authored_at: '2026-07-04T22:32:12+00:00'
+    subject: 'docs: record Apple diagnostics verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-native-diagnostics-parity/spec.yml
+    related_feature_ids: []
+  - sha: 14d1b421bdb310f603ac922727f049ae20e4138c
+    short_sha: 14d1b421b
+    authored_at: '2026-07-04T22:27:03+00:00'
+    subject: 'fix: satisfy Swift diagnostics concurrency'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 95af9f09ec5abb97801e736576e4c9501ada834a
+    short_sha: 95af9f09e
+    authored_at: '2026-07-04T22:26:08+00:00'
+    subject: 'feat: add Apple native diagnostics context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - apple/AGENTS.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - docs/specs/apple-native-diagnostics-parity/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 89652ad97d5cbc55744865c529ad599b1b6c701b
+    short_sha: 89652ad97
+    authored_at: '2026-07-04T22:04:11+00:00'
+    subject: 'docs: record Apple parity evidence blockers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids: []
+  - sha: 55a88a9dd13ee4b2b59a49280332bdcd667034a2
+    short_sha: 55a88a9dd
+    authored_at: '2026-07-04T21:54:58+00:00'
+    subject: 'chore: bump Apple build number'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 59ac021ef8de380b9e7a46c12fd2aec17f2e4f70
+    short_sha: 59ac021ef
+    authored_at: '2026-07-04T21:41:33+00:00'
+    subject: 'fix: repair Apple share extension auth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: bb185db71fd1ba453bc2a308853176da413e9029
+    short_sha: bb185db71
+    authored_at: '2026-07-04T21:33:03+00:00'
+    subject: 'docs: record Apple CLI cross-client evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids: []
+  - sha: c615c1b2767dd913642f020cf059a18710671254
+    short_sha: c615c1b27
+    authored_at: '2026-07-04T21:30:31+00:00'
+    subject: 'docs: record Apple anonymous streaming evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids: []
+  - sha: b8f7d1c20603e0d4cab0ab4ff10e17abd2b2ae76
+    short_sha: b8f7d1c20
+    authored_at: '2026-07-04T21:28:30+00:00'
+    subject: 'fix: use Apple streaming event names in anonymous tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b8cc6446e8bb9ebba5f8cca23bcdef6180b62eb4
+    short_sha: b8cc6446e
+    authored_at: '2026-07-04T21:26:58+00:00'
+    subject: 'test: cover Apple anonymous streaming contracts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 668c675ad95a68ef43bdb8dd50af273eb5d0784b
+    short_sha: 668c675ad
+    authored_at: '2026-07-04T21:24:10+00:00'
+    subject: 'docs: record Apple background sender evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids: []
+  - sha: b14262d8537d5a617adcf13019572f6bcde0d002
+    short_sha: b14262d85
+    authored_at: '2026-07-04T21:22:13+00:00'
+    subject: 'test: cover Apple background sender payloads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 6a8f69c3c11419d3979b7bf38d210ee522e5d152
+    short_sha: 6a8f69c3c
+    authored_at: '2026-07-04T21:17:29+00:00'
+    subject: 'docs: record Apple streaming recovery evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids: []
+  - sha: 98a81ad104b4bd15ffe17dbf5ba1057cadf560a7
+    short_sha: 98a81ad10
+    authored_at: '2026-07-04T21:12:49+00:00'
+    subject: 'fix: reconcile Apple streaming after sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6844a799839d4958c6f92c71285d5f96026d07b2
+    short_sha: 6844a7998
+    authored_at: '2026-07-04T21:07:47+00:00'
+    subject: 'fix: align Apple cold sync metadata loading'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/SpotlightIndexer.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 579db8c3426f1921bb23cfdf053716e28b1b1e91
+    short_sha: 579db8c34
+    authored_at: '2026-07-04T19:44:23+00:00'
+    subject: 'docs: record VS Code extension workflow evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/vscode-extension-v1/spec.yml
+    related_feature_ids: []
+  - sha: b16c91f230d7ebf9d42632957539121961b701b5
+    short_sha: b16c91f23
+    authored_at: '2026-07-04T19:38:22+00:00'
+    subject: 'ci: use bootstrap webview for installed login smoke'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/vscode_extension/src/extension.ts
+    - frontend/apps/vscode_extension/src/test/runInstalledTest.ts
+    related_feature_ids: []
+  - sha: 7cff1bebf57064b8c4f4474bfd69903e4712628e
+    short_sha: 7cff1bebf
+    authored_at: '2026-07-04T19:33:49+00:00'
+    subject: 'docs: record Apple queued state evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids: []
+  - sha: 103703dd99d4856dfc152d69081f2c4eb01b27d6
+    short_sha: 103703dd9
+    authored_at: '2026-07-04T19:31:55+00:00'
+    subject: 'fix: show Apple queued message state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 51a4aac0f355fea2819fb779efe3992bce62ec5b
+    short_sha: 51a4aac0f
+    authored_at: '2026-07-04T19:29:54+00:00'
+    subject: 'fix: preserve VS Code bundled asset paths'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/vscode_extension/src/assetPaths.ts
+    - frontend/apps/vscode_extension/src/extension.ts
+    - frontend/apps/vscode_extension/tests/assetPaths.test.ts
+    related_feature_ids: []
+  - sha: 87c9a09fd1518a1eefabd1c19768777c7327e091
+    short_sha: 87c9a09fd
+    authored_at: '2026-07-04T19:25:55+00:00'
+    subject: 'docs: refresh Apple lifecycle UI evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids: []
+  - sha: df98619f07f92c59d714187c62f1f5285c6b29b8
+    short_sha: df98619f0
+    authored_at: '2026-07-04T19:23:54+00:00'
+    subject: 'fix: show Apple streaming processing state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ba1e9a8846ec516d26414234c7eda0099f521d39
+    short_sha: ba1e9a884
+    authored_at: '2026-07-04T19:20:38+00:00'
+    subject: 'ci: terminate VS Code web bundle after static output'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/vscode-extension.yml
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/scripts/build-vscode.js
+    related_feature_ids: []
+  - sha: bba242ae22488267a6aee9ed6c3fa25691f32bcd
+    short_sha: bba242ae2
+    authored_at: '2026-07-04T19:20:09+00:00'
+    subject: 'docs: record Apple lifecycle parity evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids: []
+  - sha: afa0e64b11cc93415518797a8ed40d5f73362db3
+    short_sha: afa0e64b1
+    authored_at: '2026-07-04T19:16:06+00:00'
+    subject: 'fix: handle Apple streaming lifecycle events'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 503b0443f5de31cff94048a55a75c19fabcae8fa
+    short_sha: 503b0443f
+    authored_at: '2026-07-04T19:12:58+00:00'
+    subject: 'ci: avoid VS Code bundle SEO audit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/vscode-extension.yml
+    - frontend/apps/web_app/package.json
+    related_feature_ids: []
+  - sha: 9f558f70fccd1afaecc49108f251447f5cbc5a0d
+    short_sha: 9f558f70f
+    authored_at: '2026-07-04T19:03:31+00:00'
+    subject: 'fix: restore Apple runtime bootstrap call'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 68b6308c05744c9e8ad56422957763c855a90a66
+    short_sha: 68b6308c0
+    authored_at: '2026-07-04T19:00:58+00:00'
+    subject: 'docs: record Apple pipeline parity evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c0ae0d1c9b12bb3c91086605fbca9db4a7bb4a3f
+    short_sha: c0ae0d1c9
+    authored_at: '2026-07-04T18:58:50+00:00'
+    subject: 'test: add VS Code extension installed smoke workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/vscode-extension.yml
+    - .gitignore
+    - docs/specs/vscode-extension-v1/spec.yml
+    - frontend/apps/vscode_extension/.vscodeignore
+    - frontend/apps/vscode_extension/LICENSE
+    - frontend/apps/vscode_extension/media/openmates-vscode.js
+    - frontend/apps/vscode_extension/package.json
+    - frontend/apps/vscode_extension/scripts/prepareWebAppBundle.mjs
+    - frontend/apps/vscode_extension/src/authMode.ts
+    - frontend/apps/vscode_extension/src/bridge.ts
+    - frontend/apps/vscode_extension/src/extension.ts
+    - frontend/apps/vscode_extension/src/state.ts
+    - frontend/apps/vscode_extension/src/test/installed/suite/index.ts
+    - frontend/apps/vscode_extension/src/test/runInstalledTest.ts
+    - frontend/apps/vscode_extension/src/test/runTest.ts
+    - frontend/apps/vscode_extension/src/test/suite/index.ts
+    - frontend/apps/vscode_extension/src/webviewHtml.ts
+    - frontend/apps/vscode_extension/test_driver/extension.js
+    - frontend/apps/vscode_extension/test_driver/package.json
+    - frontend/apps/vscode_extension/tests/authMode.test.ts
+    - frontend/apps/vscode_extension/tests/bridge.test.ts
+    - frontend/apps/vscode_extension/tests/runtimeConfig.test.ts
+    - frontend/apps/vscode_extension/tests/state.test.ts
+    - frontend/apps/vscode_extension/tests/webview.test.ts
+    - frontend/apps/vscode_extension/tsconfig.json
+    - frontend/apps/web_app/svelte.config.js
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/platform/runtime.ts
+    - pnpm-lock.yaml
+    - scripts/audit_vscode_extension_v1.py
+    related_feature_ids: []
+  - sha: 10c119e1549e9828438b36869f7b955a47c0d8cc
+    short_sha: 10c119e15
+    authored_at: '2026-07-04T18:57:46+00:00'
+    subject: 'fix: isolate Apple pending response queue'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4053cbbcfa8e3d0876cca6690c5aca8e385190c3
+    short_sha: 4053cbbcf
+    authored_at: '2026-07-04T18:56:39+00:00'
+    subject: 'fix: include Apple parity files in Xcode project'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3c02555efaa2d33a39966f1d3736da37fd1f1b25
+    short_sha: 3c02555ef
+    authored_at: '2026-07-04T18:50:18+00:00'
+    subject: 'fix: complete Apple send pipeline helpers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 62454f0c05e72e5dfd16248ac427396bdbc3a94a
+    short_sha: 62454f0c0
+    authored_at: '2026-07-04T18:49:40+00:00'
+    subject: 'fix: add Apple assistant completion retry'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f009c734b7013ed56d8102f13f97bcbf7e6a3bc3
+    short_sha: f009c734b
+    authored_at: '2026-07-04T17:58:44+00:00'
+    subject: 'test: cover Apple logo assets'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ee624ee3da93b206d3be4d2dbc32a58d04e7d738
+    short_sha: ee624ee3d
+    authored_at: '2026-07-04T17:54:34+00:00'
+    subject: 'fix: render Apple logo asset'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6796cbd1bb3a3a05f3b18b515c23394ff6031b2d
+    short_sha: 6796cbd1b
+    authored_at: '2026-07-04T17:36:07+00:00'
+    subject: 'test: assert Apple chat report form surface'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 410fdbfcf69415d5c69c37ccaa824f320529a588
+    short_sha: 410fdbfcf
+    authored_at: '2026-07-04T17:33:42+00:00'
+    subject: 'test: locate Apple chat report action by label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b0c88591ad54177db8c28fcdb442f2c8d89b45c0
+    short_sha: b0c88591a
+    authored_at: '2026-07-04T17:30:40+00:00'
+    subject: 'test: wait directly for Apple chat report action'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 18b76555460d57ff3cc7477cd1b4b8b30466cf67
+    short_sha: 18b765554
+    authored_at: '2026-07-04T17:28:17+00:00'
+    subject: 'test: enable Apple chat report preview state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 90a7c59c9679fbecd64042af605ffebb3ad18376
+    short_sha: 90a7c59c9
+    authored_at: '2026-07-04T17:24:37+00:00'
+    subject: 'fix: expose Apple chat floating actions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4d894ac34c284a73e3949e9f82eeaf379588dcc4
+    short_sha: 4d894ac34
+    authored_at: '2026-07-04T17:19:13+00:00'
+    subject: 'test: wait for Apple chat report readiness'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d84d94985e2e0859734667371af81688876d376a
+    short_sha: d84d94985
+    authored_at: '2026-07-04T17:11:12+00:00'
+    subject: 'test: stabilize Apple report button coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ced9d1f430b25ccdf6ce0bfc20c349d86d6897eb
+    short_sha: ced9d1f43
+    authored_at: '2026-07-04T17:09:04+00:00'
+    subject: 'fix: load Apple Apps settings metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/SettingsAppsParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 517e97d3f277877031ccfb189c1a4c14da218ffc
+    short_sha: 517e97d3f
+    authored_at: '2026-07-04T17:08:16+00:00'
+    subject: 'fix: open Apple report form from chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8743e9bd3a2d2901ebeb7dd1615fea86f3a6ea01
+    short_sha: 8743e9bd3
+    authored_at: '2026-07-04T16:32:09+00:00'
+    subject: 'fix: guard Apple report UI test seeding'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 70f5b5ba3e215bb443abf32e5b587680d0a74d18
+    short_sha: 70f5b5ba3
+    authored_at: '2026-07-04T16:23:39+00:00'
+    subject: 'test: find Apple report issue success after scroll'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f8da736a42d425388cb206f26c11f9241ea65f2f
+    short_sha: f8da736a4
+    authored_at: '2026-07-04T16:20:15+00:00'
+    subject: 'test: expose Apple report issue debug state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 90a8273619a9ac8ba7e689628732f3889d3793bd
+    short_sha: 90a827361
+    authored_at: '2026-07-04T16:16:02+00:00'
+    subject: 'fix: show Apple issue success before log upload'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d830471c51451c985739f92aaefd41b4f598f365
+    short_sha: d830471c5
+    authored_at: '2026-07-04T16:05:53+00:00'
+    subject: 'fix: serialize Apple issue report payloads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 72d2843bd539b0a177c29845b456ede6d08d824a
+    short_sha: 72d2843bd
+    authored_at: '2026-07-04T16:04:05+00:00'
+    subject: 'test: verify Apple report issue submission'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1ee48ea3dc666848927859a044ad26c6e0dcd4ce
+    short_sha: 1ee48ea3d
+    authored_at: '2026-07-04T15:54:41+00:00'
+    subject: 'docs: record Apple parity verification evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-workspace-reporting-parity/spec.yml
+    related_feature_ids: []
+  - sha: 2e6e9fd710fc6a258834190d2833f8f7fab478e8
+    short_sha: 2e6e9fd71
+    authored_at: '2026-07-04T15:46:25+00:00'
+    subject: 'test: stabilize compact workspace assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2979c9f8c11be7a7062355a27d04b4ba8c3fbba2
+    short_sha: 2979c9f8c
+    authored_at: '2026-07-04T15:40:07+00:00'
+    subject: 'fix: resolve Apple workspace compile errors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 103c3a00c82169e76277a4d8bd4f95da479c9547
+    short_sha: 103c3a00c
+    authored_at: '2026-07-04T15:38:08+00:00'
+    subject: 'fix: make Apple issue report compile'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 24b03b9d32fd7aa3d3aaad61bbbb94aad5d3440e
+    short_sha: 24b03b9d3
+    authored_at: '2026-07-04T15:33:56+00:00'
+    subject: 'fix: mark native log collector sendable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bfab2893e289720ce3bf7fbdd4950cb9ee1b5fc8
+    short_sha: bfab2893e
+    authored_at: '2026-07-04T15:30:13+00:00'
+    subject: 'test: stabilize compact workspace navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 23b4d6bb603d47efa6cb0c500b17a6e75886d586
+    short_sha: 23b4d6bb6
+    authored_at: '2026-07-04T15:23:50+00:00'
+    subject: 'feat: align Apple workspace reporting parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - docs/specs/apple-workspace-reporting-parity/spec.yml
+    - frontend/packages/ui/src/i18n/sources/navigation.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2443df4497fee7d183d65cd6f571076b41c184e1
+    short_sha: 2443df449
+    authored_at: '2026-07-04T15:19:12+00:00'
+    subject: 'test: wait for pdf embed store row'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    related_feature_ids: []
+  - sha: 8dc4072c676f27782becd7d88772042ad950b0f3
+    short_sha: 8dc4072c6
+    authored_at: '2026-07-04T15:04:50+00:00'
+    subject: 'test: wait for pdf payload before send'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pdf-flow.spec.ts
+    related_feature_ids: []
+  - sha: 223bdafdbc90dff54d41f47aafd238563626dbeb
+    short_sha: 223bdafdb
+    authored_at: '2026-07-04T14:43:31+00:00'
+    subject: 'test: keep touch highlight prompt deterministic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    related_feature_ids: []
+  - sha: 5b15a3278edccc42c404e7ec546171bea068cd77
+    short_sha: 5b15a3278
+    authored_at: '2026-07-04T14:31:40+00:00'
+    subject: 'test: wait for idle before touch highlight'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    related_feature_ids: []
+  - sha: ddfea9d686be0b0492d78d75eaf1ad87d35c7938
+    short_sha: ddfea9d68
+    authored_at: '2026-07-04T14:31:32+00:00'
+    subject: 'tools: add parity verification workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - apple/AGENTS.md
+    - docs/contributing/guides/testing.md
+    - scripts/sessions.py
+    - scripts/tests/test_verify_parity.py
+    - scripts/verify_parity.py
+    related_feature_ids: []
+  - sha: 5861a9d7980fba394803aef601328cd983d77a4e
+    short_sha: 5861a9d79
+    authored_at: '2026-07-04T13:43:59+00:00'
+    subject: 'test: switch recent chats from carousel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    related_feature_ids: []
+  - sha: 5b215e5b83c92e1b0eef98fb90ddd8a22e50cd90
+    short_sha: 5b215e5b8
+    authored_at: '2026-07-04T13:33:41+00:00'
+    subject: 'test: open recent chats by id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    related_feature_ids: []
+  - sha: 1aa1b6955e5fa52be847238cc01c6d097f42e0ee
+    short_sha: 1aa1b6955
+    authored_at: '2026-07-04T13:21:46+00:00'
+    subject: 'test: scope recent chat resume title'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    related_feature_ids: []
+  - sha: 7359263b0e6ce8f1f3560d9bda6865f55f34c9d9
+    short_sha: 7359263b0
+    authored_at: '2026-07-04T13:02:07+00:00'
+    subject: 'fix: show mobile login CTA'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: 698c2d0a4852624836d9866e6cdcfe9bd1eeb88a
+    short_sha: 698c2d0a4
+    authored_at: '2026-07-04T13:00:24+00:00'
+    subject: 'fix: preserve iOS passkey entitlements in TestFlight'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    related_feature_ids: []
+  - sha: e1be2de004df56df950c91e967ea4ee0d7e602bf
+    short_sha: e1be2de00
+    authored_at: '2026-07-04T12:36:47+00:00'
+    subject: 'fix: require API auth for deterministic TestFlight deploy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    related_feature_ids: []
+  - sha: cae91f463ade8c1fc24a1eac27cebd3012d2250c
+    short_sha: cae91f463
+    authored_at: '2026-07-04T12:32:52+00:00'
+    subject: 'fix: restore Apple profile backups broadly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    related_feature_ids: []
+  - sha: f7af80cec4849c7b0f35ade5902e05e738dec46d
+    short_sha: f7af80cec
+    authored_at: '2026-07-04T12:31:00+00:00'
+    subject: 'fix: fallback to installed Apple profiles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    related_feature_ids: []
+  - sha: 3a86e3da349ebe09c945e1818bd241c5ab8efdae
+    short_sha: 3a86e3da3
+    authored_at: '2026-07-04T12:27:09+00:00'
+    subject: 'fix: pass App Store Connect config to Apple deploy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    related_feature_ids: []
+  - sha: 362a716823b031b3b3437211116ce3689a64840a
+    short_sha: 362a71682
+    authored_at: '2026-07-04T12:24:03+00:00'
+    subject: 'fix: make Apple TestFlight deploy deterministic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    related_feature_ids: []
+  - sha: ac9db1a07a73fb2c50e8d6792e81189fb6eabc9f
+    short_sha: ac9db1a07
+    authored_at: '2026-07-04T12:13:02+00:00'
+    subject: 'fix: align apple workspace switcher'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: eea2f86626bf50987fb639a0c519ea14d9a71e7a
+    short_sha: eea2f8662
+    authored_at: '2026-07-04T11:32:00+00:00'
+    subject: 'fix: hide compact header gift CTA'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: 8d3c0891396496a8fb4c42e2d8822a3c66e46f66
+    short_sha: 8d3c08913
+    authored_at: '2026-07-04T11:30:06+00:00'
+    subject: 'fix: reload anonymous messages from hash'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: c765d5882e64c6d76f17271a24c0bd8874c60ef4
+    short_sha: c765d5882
+    authored_at: '2026-07-04T11:12:16+00:00'
+    subject: 'fix: restore anonymous chat after reload'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: d3e29352822dfd5b3ffc4adbd876bfda5603ba7a
+    short_sha: d3e293528
+    authored_at: '2026-07-04T11:07:06+00:00'
+    subject: 'fix: tighten mobile workspace switcher'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: 2ea78cb875d055d83e93636d5e48b97e7c6d0b13
+    short_sha: 2ea78cb87
+    authored_at: '2026-07-04T11:02:33+00:00'
+    subject: 'fix: mark Apple encryption export exempt'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/project.yml
+    - scripts/tests/test_app_version_parity.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b9ad4bdada5d9a4d01fbca918fde5335ea4770ae
+    short_sha: b9ad4bdad
+    authored_at: '2026-07-04T10:42:06+00:00'
+    subject: 'test: handle intro inspiration card'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: e193bb9534924fea99be1c1aa870b5313f3e688f
+    short_sha: e193bb953
+    authored_at: '2026-07-04T10:29:11+00:00'
+    subject: 'fix: validate Apple App Group profiles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids: []
+  - sha: 2fc78d695379ac4a7fc9e4a65e64f5ef7c29aae0
+    short_sha: 2fc78d695
+    authored_at: '2026-07-04T10:22:12+00:00'
+    subject: 'feat: redesign workspace header switcher'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: 5513c18d10270aa54b528ac7d1ea9554d2940f8e
+    short_sha: 5513c18d1
+    authored_at: '2026-07-04T10:15:06+00:00'
+    subject: 'test: log app load failed responses'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts
+    related_feature_ids: []
+  - sha: f15fd63c0e032ac4befc79cd180adee24d08088e
+    short_sha: f15fd63c0
+    authored_at: '2026-07-04T09:28:12+00:00'
+    subject: 'fix: stamp macOS archive entitlements'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids: []
+  - sha: 3ff25a0071c3a8cdb328adbedfa1bdc8d3ca2664
+    short_sha: 3ff25a007
+    authored_at: '2026-07-04T09:22:45+00:00'
+    subject: 'fix: hide empty chat task preview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+    - frontend/packages/ui/src/components/tasks/__tests__/activeChatTaskPreview.test.ts
+    related_feature_ids:
+    - platform:tasks
+  - sha: 7b006f27ef8a8473de5758e48fdd9d5e85e78c2c
+    short_sha: 7b006f27e
+    authored_at: '2026-07-04T09:21:57+00:00'
+    subject: 'fix: remove invalid sandbox capability sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids: []
+  - sha: 3f313a4b1354718e0588eb65a06ea04c4e4a17f7
+    short_sha: 3f313a4b1
+    authored_at: '2026-07-04T09:17:56+00:00'
+    subject: 'fix: enable macOS App Store sandbox'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ae58afdc53295d35871185046ea54b4789cfc278
+    short_sha: ae58afdc5
+    authored_at: '2026-07-04T09:14:36+00:00'
+    subject: 'test: cover active chat logout cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    related_feature_ids: []
+  - sha: 8ec3b9b5af1d06d6c495de2b98d1b00853051ef9
+    short_sha: 8ec3b9b5a
+    authored_at: '2026-07-04T09:10:13+00:00'
+    subject: 'fix: select macOS signing certificates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids: []
+  - sha: f8b51fcd4db43957b7ab438dcabb04d4f0b2b214
+    short_sha: f8b51fcd4
+    authored_at: '2026-07-04T09:08:13+00:00'
+    subject: 'test: stub browser events in auto logout regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    related_feature_ids: []
+  - sha: c1918b92ed8796f1b7d9f399d8b4a5d8d6b9541a
+    short_sha: c1918b92e
+    authored_at: '2026-07-04T09:05:38+00:00'
+    subject: 'fix: close project remote overlay during capture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    related_feature_ids:
+    - platform:projects
+  - sha: f70437d0cfd5c31755791735c8d8135d0ee431c2
+    short_sha: f70437d0c
+    authored_at: '2026-07-04T09:05:08+00:00'
+    subject: 'test: stabilize auto logout cleanup regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    related_feature_ids: []
+  - sha: 6f29ec9f209b0f9ef84398c24063041dc7c20a46
+    short_sha: 6f29ec9f2
+    authored_at: '2026-07-04T09:04:51+00:00'
+    subject: 'fix: automate Mac installer certificate'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids: []
+  - sha: 503284299fc800ca93a0076549edd3e100af3256
+    short_sha: '503284299'
+    authored_at: '2026-07-04T09:00:47+00:00'
+    subject: 'fix: clear chat state on auto logout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    related_feature_ids: []
+  - sha: 33a5f4ab5a493d2bb3686693c7f5fea95fe92594
+    short_sha: 33a5f4ab5
+    authored_at: '2026-07-04T08:58:15+00:00'
+    subject: 'fix: rename macOS share extension bundle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 657cceb190b9a59fae27f4d2917a29189c977cb6
+    short_sha: 657cceb19
+    authored_at: '2026-07-04T08:53:36+00:00'
+    subject: 'fix: create Apple extension bundle IDs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids: []
+  - sha: d146f1c8792aaddf070c207c8e5cf69c920b147e
+    short_sha: d146f1c87
+    authored_at: '2026-07-04T08:47:56+00:00'
+    subject: 'fix: automate Apple export compliance'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    - scripts/tests/test_app_version_parity.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 20f6ce97df4de82229ed7217a38f307fdd263e64
+    short_sha: 20f6ce97d
+    authored_at: '2026-07-04T08:42:12+00:00'
+    subject: 'fix: close project remote fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/i18n/sources/navigation.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: d4ebe2c36fd8388cac8c37899461383cfc562746
+    short_sha: d4ebe2c36
+    authored_at: '2026-07-04T08:13:11+00:00'
+    subject: 'fix: add iOS microphone purpose string'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Info.plist
+    - apple/project.yml
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    - scripts/tests/test_app_version_parity.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a3cefe2fff5d8e9d00840b2dce70f56d47b42aaa
+    short_sha: a3cefe2ff
+    authored_at: '2026-07-04T00:00:26+00:00'
+    subject: 'fix: automate Apple TestFlight profile export'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on stabilizing the web application's mobile experience and anonymous chat reliability while
+    making significant internal progress toward Apple platform parity. Key updates include fixes for background share extensions,
+    improved session cleanup, and a massive suite of diagnostic and lifecycle improvements for the unreleased iOS and macOS
+    clients.
+  released_changes:
+  - text: Deployed several stability and UI refinements to the web application, specifically targeting mobile navigation,
+      anonymous chat persistence, and session security.
+    evidence:
+      commits:
+      - 9b4cb3624
+      - 7359263b0
+      - eea2f8662
+      - 8d3c08913
+      - c765d5882
+      - d3e293528
+      - '503284299'
+    release_status: released_main
+  bug_fixes:
+  - text: Repaired the share extension background pipeline to ensure reliable message delivery from external apps.
+    evidence:
+      commits:
+      - 9b4cb3624
+    release_status: released_main
+  - text: Refined the mobile web experience by restoring the login CTA, hiding unnecessary gift prompts in compact headers,
+      and tightening the workspace switcher layout.
+    evidence:
+      commits:
+      - 7359263b0
+      - eea2f8662
+      - d3e293528
+    release_status: released_main
+  - text: Improved anonymous chat reliability by ensuring messages and session state are correctly restored after a page reload.
+    evidence:
+      commits:
+      - 8d3c08913
+      - c765d5882
+    release_status: released_main
+  - text: Ensured chat state is properly cleared during automatic session logouts to maintain privacy.
+    evidence:
+      commits:
+      - '503284299'
+    release_status: released_main
+  unreleased_progress:
+  - text: Advanced the iOS and macOS clients with home screen quick actions, native diagnostics, streaming lifecycle management,
+      and workspace reporting parity.
+    evidence:
+      commits:
+      - 72b57734e
+      - 95af9f09e
+      - 23b4d6bb6
+      - 98a81ad10
+      - 6844a7998
+      - 103703dd9
+      - df98619f0
+      - afa0e64b1
+      - 9f558f70f
+      - 10c119e15
+      - 3c02555ef
+      - 62454f0c0
+      - ee624ee3d
+      - 90a7c59c9
+      - ced9d1f43
+      - 517e97d3f
+      - ac9db1a07
+      - 3f313a4b1
+      - d146f1c87
+      - d4ebe2c36
+    release_status: released_main
+  - text: Refined the unreleased Tasks and Projects interfaces, including a redesigned header switcher and improved overlay
+      behaviors.
+    evidence:
+      commits:
+      - 2fc78d695
+      - 3ff25a007
+      - c1918b92e
+      - 20f6ce97d
+    release_status: released_main
+  - text: Continued development of the VS Code extension, focusing on asset path preservation and automated smoke testing
+      workflows.
+    evidence:
+      commits:
+      - 51a4aac0f
+      - c0ae0d1c9
+      - b16c91f23
+    release_status: released_main
+  internal_progress:
+  - text: Added a new parity verification workflow and internal tools to automate consistency checks across different platform
+      clients.
+    evidence:
+      commits:
+      - ddfea9d68
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Reliability fix for share extension background pipelines.
+      evidence:
+        commits:
+        - 9b4cb3624
+      reason: Fixes a core background functionality for mobile users.
+    - text: Enhanced mobile web workspace switching and login visibility.
+      evidence:
+        commits:
+        - 7359263b0
+        - d3e293528
+      reason: Improves the mobile web navigation and onboarding experience.
+    - text: Improved session restoration for anonymous chat users.
+      evidence:
+        commits:
+        - 8d3c08913
+        - c765d5882
+      reason: Critical fix for users utilizing anonymous chat features.
+    - text: Automatic chat state cleanup on session logout.
+      evidence:
+        commits:
+        - '503284299'
+      reason: Important privacy and session management improvement.
+    exclude:
+    - text: Apple platform parity updates (iOS/macOS)
+      evidence:
+        commits:
+        - 72b57734e
+        - 95af9f09e
+        - 23b4d6bb6
+        - ac9db1a07
+        - 3f313a4b1
+        - d146f1c87
+        - d4ebe2c36
+      reason: iOS and macOS platforms are currently unreleased or disabled in feature availability.
+    - text: Tasks and Projects workspace updates
+      evidence:
+        commits:
+        - 2fc78d695
+        - 3ff25a007
+        - c1918b92e
+        - 20f6ce97d
+      reason: Tasks and Projects platforms are currently unreleased or disabled in feature availability.
+    - text: VS Code extension progress
+      evidence:
+        commits:
+        - 51a4aac0f
+        - c0ae0d1c9
+        - b16c91f23
+      reason: The VS Code extension is currently in development and not ready for public communication.
+    rationale: The newsletter focuses on released improvements to the web application and core chat experience, while excluding
+      several platform-specific updates (iOS, macOS, VS Code, Tasks) that are still under active development.
+  social_video_recommendations:
+  - idea: A quick demonstration of the tightened mobile workspace switcher.
+    priority: medium
+    reason: Shows a tangible improvement to the mobile user interface.
+    evidence:
+      commits:
+      - d3e293528
+  quality_notes:
+  - Significant emphasis on automated parity testing, with over 30 test-related commits covering UI edge cases and platform-specific
+    contracts.
+  - Extensive documentation of parity evidence for unreleased features to ensure cross-platform consistency.
+  validation_warnings: []

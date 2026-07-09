@@ -1,0 +1,1319 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-14'
+generated_at: '2026-07-09T15:42:09+00:00'
+range:
+  since: '2026-06-14T00:00:00+00:00'
+  until: '2026-06-14T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 26
+  section_counts:
+    features: 4
+    bug_fixes: 8
+    improvements: 0
+    docs: 1
+    tests: 11
+    infrastructure: 1
+    internal: 0
+    other: 1
+  newsletter_ready_items: 6
+  user_facing_items: 7
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Berlin rain radar example chat'
+    section: features
+    commits:
+    - cb11f8411
+    authored_at: '2026-06-14T17:48:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-rain-radar-next-10-minutes.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_rain_radar_next_10_minutes.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add weather rain radar skill'
+    section: features
+    commits:
+    - bb069b142
+    authored_at: '2026-06-14T15:48:08+00:00'
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/rain_radar_skill.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/providers/bright_sky/__init__.py
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - backend/tests/test_radar_embed_cleanup.py
+    - backend/tests/test_weather_rain_radar_skill.py
+    - docs/specs/weather-rain-radar/spec.yml
+    - frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/weatherEmbedText.ts
+    - frontend/packages/ui/src/components/embeds/weather/weatherRainRadarCrypto.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: redact PII in text file uploads'
+    section: features
+    commits:
+    - 8604e39a2
+    authored_at: '2026-06-14T13:00:08+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - docs/specs/text-file-pii-redaction-parity/spec.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: improve weather embed visuals'
+    section: features
+    commits:
+    - 03246b875
+    authored_at: '2026-06-14T10:40:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherConditionIcon.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: use rainy Rostock radar example'
+    section: bug_fixes
+    commits:
+    - 2e555bda9
+    authored_at: '2026-06-14T19:45:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-rain-radar-next-10-minutes.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rostock-heavy-rain-radar.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_rain_radar_next_10_minutes.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rostock_heavy_rain_radar.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: render Berlin rain radar example'
+    section: bug_fixes
+    commits:
+    - 36cd085e2
+    authored_at: '2026-06-14T18:35:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-rain-radar-next-10-minutes.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_rain_radar_next_10_minutes.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: refresh stale worker skill registry'
+    section: bug_fixes
+    commits:
+    - 0469f731e
+    authored_at: '2026-06-14T17:29:37+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route rain radar chat requests'
+    section: bug_fixes
+    commits:
+    - 7e1d3e2fb
+    authored_at: '2026-06-14T17:22:13+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: translate example chats into German'
+    section: bug_fixes
+    commits:
+    - 6c1e3e762
+    authored_at: '2026-06-14T12:50:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/ai_workshops_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_transcribe_voice_note.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/balcony_plant_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_dermatology_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_weather_bike_commute.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/buck_converters_24v_5v.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/cancel_test_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/family_stays_kyoto.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/fediverse_activitypub_social_search.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/frontend_developer_career_pivot.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/furnished_apartments_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/germany_historic_film_industry.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_garden_vite_app.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_tracker_onboarding_draft.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/image_vectorize_openmates_header.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/launch_readiness_checklist_doc.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/lh400_flight_status_check.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mastodon_account_recent_posts.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_communication_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_learning_preferences.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_currently_reading.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_favorite_books.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_to_read_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_coding_setup.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_preferred_tech.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_projects.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_want_to_learn.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_docs_writing_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_events_saved_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_medical_history.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_home_saved_listings.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_images_preferred_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_mail_writing_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_reminder_defaults.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_study_learning_goals.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_activities.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_airlines.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_transport.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_connections.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_stays.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_trips.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_movies.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_shows.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_videos_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_bookmarks.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_read_later.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mortgage_payment_calculation.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/nonprofit_event_planning_use_case.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/northstar_metrics_svg_logo.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_add_app_skill_doc.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_app_skills_embeds_docs.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/organic_groceries_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_read_secret_word.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_search_encryption.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_view_page_layout.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_website_hero_background.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/private_workspace_demo_video.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/product_launch_synth_loop.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/python_squares_code_run.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/quiet_cafes_tempelhofer_feld.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rag_explained_videos.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rust_vector_database_repos.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/sqlite_strict_tables_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/svelte_runes_docs.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/ted_talk_transcript_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/upcoming_reminders_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+    - scripts/audit_example_chats.py
+    - scripts/auto_translate.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: use meteocons package for weather icons'
+    section: bug_fixes
+    commits:
+    - f74ceef3e
+    authored_at: '2026-06-14T12:15:45+00:00'
+    changed_paths:
+    - .claude/hooks/bash-guard.sh
+    - .codex/hooks/bash-guard.sh
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/embeds/weather/WeatherConditionIcon.svelte
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: upgrade esbuild dependency'
+    section: bug_fixes
+    commits:
+    - 46f45ee9a
+    authored_at: '2026-06-14T12:07:08+00:00'
+    changed_paths:
+    - package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: enrich Nutrition example recipe embeds'
+    section: bug_fixes
+    commits:
+    - 524bb72a7
+    authored_at: '2026-06-14T10:31:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: verify weather rain radar spec'
+    section: docs
+    commits:
+    - 129246db5
+    authored_at: '2026-06-14T16:41:16+00:00'
+    changed_paths:
+    - docs/specs/weather-rain-radar/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: stabilize preview preload retries'
+    section: tests
+    commits:
+    - b262b2ea8
+    authored_at: '2026-06-14T16:29:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: set pii composer selection before insert'
+    section: tests
+    commits:
+    - feebc5846
+    authored_at: '2026-06-14T15:46:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add pii composer insertion fallback'
+    section: tests
+    commits:
+    - 2b1f64a51
+    authored_at: '2026-06-14T15:35:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: preserve pii editor focus'
+    section: tests
+    commits:
+    - 01c4124f4
+    authored_at: '2026-06-14T15:26:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: focus pii composer before insertion'
+    section: tests
+    commits:
+    - 0910ace08
+    authored_at: '2026-06-14T15:16:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize pii composer input'
+    section: tests
+    commits:
+    - cfedec8f6
+    authored_at: '2026-06-14T15:04:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize new chat before typing'
+    section: tests
+    commits:
+    - '927566090'
+    authored_at: '2026-06-14T14:21:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for stable new chat editor'
+    section: tests
+    commits:
+    - 81bd2876f
+    authored_at: '2026-06-14T14:08:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: avoid double-clicking embed fullscreen'
+    section: tests
+    commits:
+    - ee9746ed1
+    authored_at: '2026-06-14T13:42:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: bound code embed fullscreen close'
+    section: tests
+    commits:
+    - f9792ed9c
+    authored_at: '2026-06-14T13:21:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expose Nutrition recipe preview image'
+    section: tests
+    commits:
+    - 13198913b
+    authored_at: '2026-06-14T10:33:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedPreview.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: upgrade npm routine dependencies'
+    section: infrastructure
+    commits:
+    - 7e15427f5
+    authored_at: '2026-06-14T14:13:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/eslint-config/package.json
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #463 from glowingkitty/dev'
+    section: other
+    commits:
+    - 16efd0570
+    authored_at: '2026-06-14T12:30:19+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add weather rain radar skill'
+    commits:
+    - bb069b142
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: translate example chats into German'
+    commits:
+    - 6c1e3e762
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: refresh stale worker skill registry'
+    commits:
+    - 0469f731e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route rain radar chat requests'
+    commits:
+    - 7e1d3e2fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add weather rain radar skill'
+    commits:
+    - bb069b142
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use meteocons package for weather icons'
+    commits:
+    - f74ceef3e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: improve weather embed visuals'
+    commits:
+    - 03246b875
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enrich Nutrition example recipe embeds'
+    commits:
+    - 524bb72a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: refresh stale worker skill registry'
+    commits:
+    - 0469f731e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route rain radar chat requests'
+    commits:
+    - 7e1d3e2fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add weather rain radar skill'
+    commits:
+    - bb069b142
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: redact PII in text file uploads'
+    commits:
+    - 8604e39a2
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: use meteocons package for weather icons'
+    commits:
+    - f74ceef3e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: improve weather embed visuals'
+    commits:
+    - 03246b875
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enrich Nutrition example recipe embeds'
+    commits:
+    - 524bb72a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 2e555bda9297f94ba154bf362af84ef3612d2bc6
+    short_sha: 2e555bda9
+    authored_at: '2026-06-14T19:45:00+00:00'
+    subject: 'fix: use rainy Rostock radar example'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-rain-radar-next-10-minutes.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rostock-heavy-rain-radar.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_rain_radar_next_10_minutes.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rostock_heavy_rain_radar.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    related_feature_ids: []
+  - sha: 36cd085e2e685d7d38d7a7317277f0ba70e00341
+    short_sha: 36cd085e2
+    authored_at: '2026-06-14T18:35:09+00:00'
+    subject: 'fix: render Berlin rain radar example'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-rain-radar-next-10-minutes.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_rain_radar_next_10_minutes.yml
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    related_feature_ids: []
+  - sha: cb11f84114057bd66d55e72a3578ca393ed8f262
+    short_sha: cb11f8411
+    authored_at: '2026-06-14T17:48:44+00:00'
+    subject: 'feat: add Berlin rain radar example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-rain-radar-next-10-minutes.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_rain_radar_next_10_minutes.yml
+    related_feature_ids: []
+  - sha: 0469f731e479fc58065ee759a2ab3fa5aaaf2136
+    short_sha: 0469f731e
+    authored_at: '2026-06-14T17:29:37+00:00'
+    subject: 'fix: refresh stale worker skill registry'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/tests/test_skill_executor_registry_refresh.py
+    related_feature_ids: []
+  - sha: 7e1d3e2fb00201af1d8ff9cdb0bb29942519ad0d
+    short_sha: 7e1d3e2fb
+    authored_at: '2026-06-14T17:22:13+00:00'
+    subject: 'fix: route rain radar chat requests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 129246db59b72eb71f90f2da5fb183675119f536
+    short_sha: 129246db5
+    authored_at: '2026-06-14T16:41:16+00:00'
+    subject: 'docs: verify weather rain radar spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/weather-rain-radar/spec.yml
+    related_feature_ids: []
+  - sha: b262b2ea8576da8cd74e03f7d0657ae0427d1c5d
+    short_sha: b262b2ea8
+    authored_at: '2026-06-14T16:29:20+00:00'
+    subject: 'test: stabilize preview preload retries'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    related_feature_ids: []
+  - sha: bb069b14295aafdb9bf82b5d49785472b28082b5
+    short_sha: bb069b142
+    authored_at: '2026-06-14T15:48:08+00:00'
+    subject: 'feat: add weather rain radar skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/rain_radar_skill.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/shared/providers/bright_sky/__init__.py
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - backend/tests/test_radar_embed_cleanup.py
+    - backend/tests/test_weather_rain_radar_skill.py
+    - docs/specs/weather-rain-radar/spec.yml
+    - frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/weatherEmbedText.ts
+    - frontend/packages/ui/src/components/embeds/weather/weatherRainRadarCrypto.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    related_feature_ids: []
+  - sha: feebc584610e56e58560de520e812d9e55902e11
+    short_sha: feebc5846
+    authored_at: '2026-06-14T15:46:11+00:00'
+    subject: 'test: set pii composer selection before insert'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2b1f64a5173ae5cb4a748a94afa958ba1e7a6b13
+    short_sha: 2b1f64a51
+    authored_at: '2026-06-14T15:35:59+00:00'
+    subject: 'test: add pii composer insertion fallback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    related_feature_ids: []
+  - sha: 01c4124f49877fa33b0051b9d11cf2b15753dbed
+    short_sha: 01c4124f4
+    authored_at: '2026-06-14T15:26:28+00:00'
+    subject: 'test: preserve pii editor focus'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    related_feature_ids: []
+  - sha: 0910ace08a4052ba0228ff7f219ba0c65b71757e
+    short_sha: 0910ace08
+    authored_at: '2026-06-14T15:16:53+00:00'
+    subject: 'test: focus pii composer before insertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    related_feature_ids: []
+  - sha: cfedec8f6d12ada30138c9ac3bdb2b13830525a8
+    short_sha: cfedec8f6
+    authored_at: '2026-06-14T15:04:59+00:00'
+    subject: 'test: stabilize pii composer input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    related_feature_ids: []
+  - sha: 9275660907b84c83b6d8f7d5aa0a55d7021db73b
+    short_sha: '927566090'
+    authored_at: '2026-06-14T14:21:59+00:00'
+    subject: 'test: stabilize new chat before typing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 7e15427f55f8f0ca31761fdac2ea8c9f4274327c
+    short_sha: 7e15427f5
+    authored_at: '2026-06-14T14:13:34+00:00'
+    subject: 'chore: upgrade npm routine dependencies'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/eslint-config/package.json
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 81bd2876f686b8609b7482478bcf9f81469bc2f7
+    short_sha: 81bd2876f
+    authored_at: '2026-06-14T14:08:24+00:00'
+    subject: 'test: wait for stable new chat editor'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: ee9746ed1aa830348be5a23b2676b74e70479c44
+    short_sha: ee9746ed1
+    authored_at: '2026-06-14T13:42:03+00:00'
+    subject: 'test: avoid double-clicking embed fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: f9792ed9c6e8a0d9de2dd7b475749c7801be6e4b
+    short_sha: f9792ed9c
+    authored_at: '2026-06-14T13:21:11+00:00'
+    subject: 'test: bound code embed fullscreen close'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: 8604e39a2205f66a3297fc58cf7d9cf0f4fad395
+    short_sha: 8604e39a2
+    authored_at: '2026-06-14T13:00:08+00:00'
+    subject: 'feat: redact PII in text file uploads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - docs/specs/text-file-pii-redaction-parity/spec.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6c1e3e7629531612a51339c2300250195ef96fd9
+    short_sha: 6c1e3e762
+    authored_at: '2026-06-14T12:50:51+00:00'
+    subject: 'fix: translate example chats into German'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/example_chats/ai_workshops_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_transcribe_voice_note.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/balcony_plant_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_dermatology_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_weather_bike_commute.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/buck_converters_24v_5v.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/cancel_test_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/family_stays_kyoto.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/fediverse_activitypub_social_search.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/frontend_developer_career_pivot.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/furnished_apartments_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/germany_historic_film_industry.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_garden_vite_app.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_tracker_onboarding_draft.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/image_vectorize_openmates_header.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/launch_readiness_checklist_doc.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/lh400_flight_status_check.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mastodon_account_recent_posts.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_communication_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_ai_learning_preferences.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_currently_reading.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_favorite_books.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_books_to_read_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_coding_setup.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_preferred_tech.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_projects.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_code_want_to_learn.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_docs_writing_style.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_events_saved_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_health_medical_history.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_home_saved_listings.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_images_preferred_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_mail_writing_styles.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_reminder_defaults.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_study_learning_goals.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_activities.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_airlines.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_preferred_transport.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_connections.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_saved_stays.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_travel_trips.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_movies.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_tv_watched_shows.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_videos_to_watch_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_bookmarks.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/memory_web_read_later.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mortgage_payment_calculation.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/nonprofit_event_planning_use_case.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/northstar_metrics_svg_logo.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_add_app_skill_doc.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_app_skills_embeds_docs.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/organic_groceries_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_read_secret_word.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_search_encryption.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_view_page_layout.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_website_hero_background.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/private_workspace_demo_video.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/product_launch_synth_loop.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/python_squares_code_run.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/quiet_cafes_tempelhofer_feld.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rag_explained_videos.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rust_vector_database_repos.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/sqlite_strict_tables_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/svelte_runes_docs.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/ted_talk_transcript_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/upcoming_reminders_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/us_egg_prices_deep_research.yml
+    - scripts/audit_example_chats.py
+    - scripts/auto_translate.py
+    related_feature_ids: []
+  - sha: f74ceef3ecbe459b7be32a8210163d17f35a2d1a
+    short_sha: f74ceef3e
+    authored_at: '2026-06-14T12:15:45+00:00'
+    subject: 'fix: use meteocons package for weather icons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/bash-guard.sh
+    - .codex/hooks/bash-guard.sh
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/components/embeds/weather/WeatherConditionIcon.svelte
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 46f45ee9a954c1eaa1e6d43f6654bae8913f9aaf
+    short_sha: 46f45ee9a
+    authored_at: '2026-06-14T12:07:08+00:00'
+    subject: 'fix: upgrade esbuild dependency'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 03246b875e54bff9d9c056a31a730e188fa0a920
+    short_sha: 03246b875
+    authored_at: '2026-06-14T10:40:23+00:00'
+    subject: 'feat: improve weather embed visuals'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherConditionIcon.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 13198913bbf35306b51858d964066120b6977766
+    short_sha: 13198913b
+    authored_at: '2026-06-14T10:33:17+00:00'
+    subject: 'test: expose Nutrition recipe preview image'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 524bb72a7df8ae549c23ae192b6491b81055164a
+    short_sha: 524bb72a7
+    authored_at: '2026-06-14T10:31:19+00:00'
+    subject: 'fix: enrich Nutrition example recipe embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    related_feature_ids: []
+  - sha: 16efd05707e1f582c92411e92603f56391ffe83b
+    short_sha: 16efd0570
+    authored_at: '2026-06-14T12:30:19+02:00'
+    subject: 'Merge pull request #463 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a new weather rain radar skill and significantly improved the visual quality of weather embeds.
+    The update also included data enrichments for nutrition recipes, a critical fix for AI skill registry management, and
+    extensive localization work for German-speaking users.
+  released_changes:
+  - text: OpenMates added a weather rain radar skill, allowing users to view precipitation data via the Bright Sky provider.
+    evidence:
+      commits:
+      - bb069b142
+    release_status: released_main
+  - text: Weather visuals were improved across daily and forecast embeds, including updated condition icons.
+    evidence:
+      commits:
+      - 03246b875
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates corrected the routing for rain radar chat requests to ensure proper skill activation.
+    evidence:
+      commits:
+      - 7e1d3e2fb
+    release_status: released_main
+  - text: The project transitioned to the meteocons package for more consistent weather condition iconography.
+    evidence:
+      commits:
+      - f74ceef3e
+    release_status: released_main
+  - text: Nutrition recipe embeds were enriched with additional data for the chickpea and spinach protein dinner examples.
+    evidence:
+      commits:
+      - 524bb72a7
+    release_status: released_main
+  - text: A fix was implemented to refresh the worker skill registry when it becomes stale, preventing execution errors.
+    evidence:
+      commits:
+      - 0469f731e
+    release_status: released_main
+  unreleased_progress:
+  - text: Work progressed on PII redaction for text file uploads, specifically targeting integration with the iOS and macOS
+      platforms.
+    evidence:
+      commits:
+      - 8604e39a2
+    release_status: released_main
+  internal_progress:
+  - text: A large set of example chats was translated into German to improve localization coverage.
+    evidence:
+      commits:
+      - 6c1e3e762
+    release_status: released_main
+  - text: Routine dependency maintenance included upgrades to esbuild and various npm packages.
+    evidence:
+      commits:
+      - 46f45ee9a
+      - 7e15427f5
+    release_status: released_main
+  - text: Extensive test stabilization work focused on PII detection flows, chat editor focus, and embed fullscreen interactions.
+    evidence:
+      commits:
+      - feebc5846
+      - 2b1f64a51
+      - 01c4124f4
+      - 0910ace08
+      - cfedec8f6
+      - b262b2ea8
+      - '927566090'
+      - 81bd2876f
+      - ee9746ed1
+      - f9792ed9c
+      - 13198913b
+    release_status: released_main
+  - text: Internal documentation and example chat data were added to support the new rain radar capabilities.
+    evidence:
+      commits:
+      - cb11f8411
+      - 36cd085e2
+      - 2e555bda9
+      - 129246db5
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New weather rain radar skill for real-time precipitation tracking.
+      evidence:
+        commits:
+        - bb069b142
+      reason: This is a significant new user-facing capability for the weather application.
+    - text: Enhanced visual presentation for weather forecast and daily embeds.
+      evidence:
+        commits:
+        - 03246b875
+      reason: Visual improvements directly impact the user experience of the weather feature.
+    - text: Enriched data for nutrition recipe examples.
+      evidence:
+        commits:
+        - 524bb72a7
+      reason: Improves the quality of content in the nutrition application.
+    - text: Improved reliability for AI skill execution via registry refreshing.
+      evidence:
+        commits:
+        - 0469f731e
+      reason: Resolves a potential reliability issue with skill execution.
+    exclude:
+    - text: PII redaction for text file uploads.
+      evidence:
+        commits:
+        - 8604e39a2
+      reason: This feature is associated with the iOS and macOS platforms, which are currently listed as disabled features.
+    rationale: The primary focus for public communication should be the new weather rain radar and the general visual polish
+      of the weather and nutrition components. PII redaction is excluded as it targets unreleased platforms.
+  social_video_recommendations:
+  - idea: A short clip demonstrating a user asking for the rain radar in Berlin and showing the new animated or static radar
+      embed.
+    priority: high
+    reason: The rain radar is a highly visual and practical feature that demonstrates the utility of OpenMates skills.
+    evidence:
+      commits:
+      - bb069b142
+      - 03246b875
+  quality_notes:
+  - The update shows a strong focus on the weather application, combining functional new skills with visual refinements.
+  - Significant effort was directed toward test stability, particularly for complex UI flows like PII detection and fullscreen
+    embeds.
+  validation_warnings: []

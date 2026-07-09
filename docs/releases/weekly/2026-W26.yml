@@ -1,0 +1,4027 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-06-22'
+week_end: '2026-06-28'
+generated_at: '2026-07-09T16:03:59+00:00'
+summary:
+  daily_files: 4
+  total_items: 179
+  newsletter_ready_items: 41
+  user_facing_items: 61
+  dev_only_items: 0
+  unknown_release_items: 0
+  themes: 8
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-06-22'
+  total_commits: 90
+  newsletter_ready_items: 24
+  dev_only_items: 0
+- date: '2026-06-23'
+  total_commits: 32
+  newsletter_ready_items: 2
+  dev_only_items: 0
+- date: '2026-06-24'
+  total_commits: 44
+  newsletter_ready_items: 12
+  dev_only_items: 0
+- date: '2026-06-25'
+  total_commits: 13
+  newsletter_ready_items: 3
+  dev_only_items: 0
+themes:
+- theme: chat
+  item_count: 64
+  newsletter_ready_count: 18
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-22'
+    title: 'feat: add CLI TUI and typed guest interests'
+    commits:
+    - 83d2504fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: add politics focus example chat'
+    commits:
+    - 5ca9f2581
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: complete sdk cli parity'
+    commits:
+    - 0c0880d48
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: label shared chats in continue cards'
+    commits:
+    - 448eb1a09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: normalize sdk chat responses'
+    commits:
+    - 5d4475623
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: preserve Apple interest control identifiers'
+    commits:
+    - 799f96454
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'fix: remove habit garden example chat'
+    commits:
+    - 643c46092
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: show guest shared chats in continue carousel'
+    commits:
+    - baf314012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: show shared chat indicators'
+    commits:
+    - 371ffa774
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: stabilize daily test regressions'
+    commits:
+    - 22de6c0ff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: use translated topic tags on new chat'
+    commits:
+    - 0206544e6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: allow draft chat context in chat flow'
+    commits:
+    - 1e101f3b4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: assert visible Apple suggestion filtering'
+    commits:
+    - b5098dc50
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'test: authenticate chat header navigation spec'
+    commits:
+    - 5c2b289ef
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: cover Apple interest tag filtering'
+    commits:
+    - 3c00e4b96
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'test: disambiguate new chat helper click'
+    commits:
+    - 80cd8bc83
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: find Apple interest continue by identifier'
+    commits:
+    - 275da54d9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'test: focus composer before new chat suggestions'
+    commits:
+    - e1d8bb511
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: focus current guest audio composer'
+    commits:
+    - fc88c5632
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: open demo chat for anonymous flow'
+    commits:
+    - 52d05eb8b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: open demo chat for replay mode'
+    commits:
+    - 69c258cf7
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: open intro chat in demo embed spec'
+    commits:
+    - aa63f6255
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: open intro chat in example chat spec'
+    commits:
+    - 8d5e0ad6f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: query Apple interest rail by identifier'
+    commits:
+    - 9f8c564ee
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'test: scroll Apple interest rail'
+    commits:
+    - 6fca3f822
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'test: scroll Apple interest tag container'
+    commits:
+    - 10e9e0100
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'test: search real sidebar chat titles'
+    commits:
+    - 69f0c44ac
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: select visible Apple interest tags'
+    commits:
+    - b727859ba
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'test: start explicit new chat in chat flow'
+    commits:
+    - 80bd3101f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: target Apple interest tag scroll view'
+    commits:
+    - c47c6fc5c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'test: use guest composer for apple contracts'
+    commits:
+    - 75a648588
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: use sidebar new chat in shared chat spec'
+    commits:
+    - 1685bed24
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: wait for chat management rows to settle'
+    commits:
+    - a8aac32b7
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: wait for new chat scroll to settle'
+    commits:
+    - b541db302
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'fix: align apple new chat parity'
+    commits:
+    - fe0f3242e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: persist webhook chat encryption keys'
+    commits:
+    - 81db88946
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-23'
+    title: 'fix: repair sdk cli webhook test failures'
+    commits:
+    - 868c16fb2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: expose apple version label'
+    commits:
+    - a4e3fb001
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'test: relax apple version assertion'
+    commits:
+    - 518bac679
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'test: show apple version label mismatch'
+    commits:
+    - eeef949b0
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'test: target apple workspace tabs by identifier'
+    commits:
+    - 2b6b97702
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-24'
+    title: 'fix: complete partial chat db repair in place'
+    commits:
+    - 917d053b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: keep focus activation rejectable until active'
+    commits:
+    - 9b345bb88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: localize fork completion action'
+    commits:
+    - ef63a0b78
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: polish guest language and onboarding UI'
+    commits:
+    - 3635d5b7f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: render focus badge during chat updates'
+    commits:
+    - ee70c09d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: restore cancelled new chat draft'
+    commits:
+    - 8b5916b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: serialize chat db schema repair callers'
+    commits:
+    - 59afdea50
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: serialize chat indexeddb schema repair'
+    commits:
+    - 8b84db931
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: settle locale before public chat deep links'
+    commits:
+    - 0b135c958
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: show live focus badge in chat row'
+    commits:
+    - 75822e8b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: align feature availability chat tab'
+    commits:
+    - e16a4eb35
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: align projects flow chat tab'
+    commits:
+    - 2e4cd16b4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: clear capped webhook e2e accounts'
+    commits:
+    - 50b9696e8
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: deep-link localized demo chat'
+    commits:
+    - a92143851
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: repair focus and feature availability failures'
+    commits:
+    - 10b2795b2
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: scroll stale webhook cleanup'
+    commits:
+    - 76a6927bc
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'fix: stabilize search embed test failures'
+    commits:
+    - 1db2db282
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: add login preflight diagnostics'
+    commits:
+    - ea2e4f934
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: bound login diagnostics'
+    commits:
+    - 57df9e356
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: clear guest onboarding before demo chat'
+    commits:
+    - '849540210'
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: open demo chat after guest onboarding'
+    commits:
+    - 9ac0f8621
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: prioritize visible intro chat card'
+    commits:
+    - 481b8747e
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: wait for demo chat CTA'
+    commits:
+    - 74af24a69
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: other
+  item_count: 46
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-22'
+    title: 'Merge pull request #474 from glowingkitty/dev'
+    commits:
+    - c173ebae5
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: add politics app gradient'
+    commits:
+    - a6f7563bc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: align embed streaming test decoding'
+    commits:
+    - 4d4b334ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: decouple cerebras health check model'
+    commits:
+    - 5fb3f808a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: encode api key list filter as directus json'
+    commits:
+    - 01376bbd8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: list api keys by hashed user id'
+    commits:
+    - faebe55f4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: stabilize learning mode test paths'
+    commits:
+    - 47f71c94d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: use admin access for api key records'
+    commits:
+    - 15f6893c2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: assert authenticated backup code login'
+    commits:
+    - ebeac64ef
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: authenticate apple contract uploads'
+    commits:
+    - 28526fd1c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: cover translated guest interest tag labels'
+    commits:
+    - c3b0f2d8f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: dispatch audio recorder hold event'
+    commits:
+    - '961716695'
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: expect welcome screen after backup logout'
+    commits:
+    - a2c660b28
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: fix api key devices locator'
+    commits:
+    - a8837665d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: harden api key developers locator'
+    commits:
+    - cd29dca04
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: ignore resize observer preview warning'
+    commits:
+    - f60d00c8e
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: skip disabled application preview e2e'
+    commits:
+    - a3ff31b48
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: stabilize api key device navigation'
+    commits:
+    - 68cd4be79
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: target active audio recorder button'
+    commits:
+    - 7d22aeb4f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: target embed choice label'
+    commits:
+    - e55e13cc5
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: update api key flow spec for guided creation'
+    commits:
+    - d25436b60
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: use spacebar for audio transcription spec'
+    commits:
+    - fea7bdace
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'config: enable projects and tasks'
+    commits:
+    - 7c3e1132d
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: align EU signup shell waits'
+    commits:
+    - 44046c044
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: allow restricted mailosaur quota checks'
+    commits:
+    - 6bdac7108
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: expect logged-out shell after deletion'
+    commits:
+    - ce9fc3530
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: tolerate restricted mailosaur cleanup'
+    commits:
+    - 851964d12
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: wait for authenticated shell after signup'
+    commits:
+    - 4f864d45c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'chore: resume deploy push after transient failure'
+    commits:
+    - 1a396290c
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: return encrypted webhook display fields'
+    commits:
+    - 53b43168f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: add manual follow-up replay fixture'
+    commits:
+    - '982226885'
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: align welcome language switch spec'
+    commits:
+    - 30dfab98f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: close focus details before stop action'
+    commits:
+    - a4a4d636b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: close visible focus details panel'
+    commits:
+    - 00160a8bb
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: deep-link german language fixture'
+    commits:
+    - 041d4a0d7
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: fork from assistant response'
+    commits:
+    - dea9bb20d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: handle follow-up memory permissions'
+    commits:
+    - 16232472c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: open focus details via context menu'
+    commits:
+    - 5fae14a3d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: slim daily inspiration replay fixture'
+    commits:
+    - 400648bb8
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: slim default model replay fixtures'
+    commits:
+    - 0aba96d13
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: stabilize fork context menu open'
+    commits:
+    - 47ef6a7fd
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: stabilize fork conversation sends'
+    commits:
+    - 42afb47b2
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: use best-effort fork cleanup'
+    commits:
+    - 253458a14
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: verify fork with sidebar closed'
+    commits:
+    - 885bfeb12
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: align guest inspiration carousel assertions'
+    commits:
+    - 0d54cf772
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: allow hardcoded guest inspirations'
+    commits:
+    - 40f931817
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: infrastructure
+  item_count: 17
+  newsletter_ready_count: 5
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-22'
+    title: 'docs: record workflows apple verification blocker'
+    commits:
+    - 81810c1d5
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'docs: record workflows e2e evidence'
+    commits:
+    - 0722fbb34
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: allow audio transcription custom route'
+    commits:
+    - b1865b199
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: allow workflow api through caddy'
+    commits:
+    - b0a20735f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: interpolate image authenticity labels'
+    commits:
+    - 62a17c33a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: render mindmap embeds visually'
+    commits:
+    - 048fd084b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: show mindmap preview title and white icon'
+    commits:
+    - a5472441b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-23'
+    title: 'docs: record shortcut workflow ui evidence'
+    commits:
+    - 374b3f40e
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'docs: update workflows editor evidence'
+    commits:
+    - 331eefb38
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'fix: make workflows editor editable'
+    commits:
+    - b69d46a08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: render workflows as shortcut cards'
+    commits:
+    - ddb547ad2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: show workflow action names in editor'
+    commits:
+    - '754915862'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'test: expect edited workflow action title'
+    commits:
+    - a745d818b
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'test: expect workflow card summaries'
+    commits:
+    - 210f783bf
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-24'
+    title: 'fix: preserve api key device approval errors'
+    commits:
+    - 6a08f6470
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: retry workflow Directus auth with admin token'
+    commits:
+    - fe850bde6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-24'
+    title: 'fix: stabilize workflow save verification'
+    commits:
+    - 461ff46f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: cli_sdk
+  item_count: 16
+  newsletter_ready_count: 4
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-22'
+    title: 'ci: add python sdk pypi publishing'
+    commits:
+    - 628169a24
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'docs: add sdk cli parity spec'
+    commits:
+    - 6fba0fb65
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'docs: record sdk packages green evidence'
+    commits:
+    - 2b5cdc461
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'docs: update sdk package usage guides'
+    commits:
+    - d840e32af
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: complete sdk parity surfaces'
+    commits:
+    - e17cfdf03
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: allow sdk routes through caddy'
+    commits:
+    - 8965b7944
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: call apps api for sdk memory types'
+    commits:
+    - 83d4711f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: route sdk memory types through apps api'
+    commits:
+    - 5a03100fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: use sdk endpoint for api key device approval'
+    commits:
+    - fefca53d9
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'ci: rotate cli api key secret from e2e artifact'
+    commits:
+    - 27d4d590d
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: approve cli api key device in key flow'
+    commits:
+    - f6dcef1ae
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'chore: remove accidental cli workflow hunks'
+    commits:
+    - b1ecc6c74
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'feat: add workflows v1 durable backend'
+    commits:
+    - b3874966d
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-24'
+    title: 'fix: stabilize cli embed version keys'
+    commits:
+    - 9acee5e2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: allow cli memory list retry'
+    commits:
+    - 0386cd01a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: slim ai language replay fixture'
+    commits:
+    - cdf2ae85f
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: apple
+  item_count: 14
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-22'
+    title: 'feat: add Apple interest tag ranking'
+    commits:
+    - 561b9010f
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'feat: add sdk packages v1 foundations'
+    commits:
+    - 70d8c1b50
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'feat: add workflows v1 foundation'
+    commits:
+    - 9f35db7b3
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'feat: support embeds in interactive questions'
+    commits:
+    - 8e4d6f979
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'fix: compile Apple mindmap renderer'
+    commits:
+    - 3ea0641da
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'fix: compile Apple topic preferences'
+    commits:
+    - 17e2fac02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'fix: include mindmap renderer in Apple target'
+    commits:
+    - 6f6e7f5aa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: bind apple version accessibility label'
+    commits:
+    - 1fb9d1e40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: expose apple version text'
+    commits:
+    - b518187ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: expose apple workspace tab buttons'
+    commits:
+    - a70fc79d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: prefer checkout i18n in apple debug'
+    commits:
+    - 0b03171b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: preserve apple workspace tab accessibility'
+    commits:
+    - 973b76403
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: repair apple workspace tab build'
+    commits:
+    - 0c1b15fc9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: resolve apple checkout locale path'
+    commits:
+    - '328510228'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: product
+  item_count: 11
+  newsletter_ready_count: 11
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-22'
+    title: 'feat: add politics focus mode'
+    commits:
+    - 999b870fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: attach generated embeds to interactive questions'
+    commits:
+    - a2219a590
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: block company promotion in daily inspirations'
+    commits:
+    - f4e22dab2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: improve politics focus routing'
+    commits:
+    - 088d03c5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: recover from Gemini malformed stream failures'
+    commits:
+    - e9cd8fc3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: repair filename embed refs in interactive questions'
+    commits:
+    - d3518ad2e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: require embed refs in interactive options'
+    commits:
+    - 8204f3690
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: restore guest intro desktop size'
+    commits:
+    - 922d6cf5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: upsert encrypted embed diff rows'
+    commits:
+    - 347f8a442
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-25'
+    title: 'fix: stop guest inspiration viewed retry loop'
+    commits:
+    - f8ef83e39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-25'
+    title: 'fix: stop inspiration viewed retry after login'
+    commits:
+    - fac000894
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: settings
+  item_count: 10
+  newsletter_ready_count: 3
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-22'
+    title: 'fix: include contact email on authenticated issue reports'
+    commits:
+    - 9c126e423
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: verify api key devices directly'
+    commits:
+    - e1869f955
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'test: expect welcome screen after backup settings logout'
+    commits:
+    - 9c94a60f5
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: allow guest settings chrome after deletion'
+    commits:
+    - 2d41b788d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: handle managed payment provider race'
+    commits:
+    - cd259d5b0
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-23'
+    title: 'test: wait for managed payment switch'
+    commits:
+    - 96275e6ee
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: verify websocket auth before logout'
+    commits:
+    - cd05160b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'test: align recovery key logout assertions'
+    commits:
+    - 11da24aea
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: skip Stripe email checks without Mailosaur read'
+    commits:
+    - '720389113'
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-06-25'
+    title: 'test: wait for Stripe consent overlay'
+    commits:
+    - 8754dda6d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: docs
+  item_count: 1
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-06-22'
+    title: 'docs: update cookie inventory'
+    commits:
+    - aead07fa2
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - date: '2026-06-22'
+    title: 'feat: add CLI TUI and typed guest interests'
+    commits:
+    - 83d2504fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: add politics focus mode'
+    commits:
+    - 999b870fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: complete sdk cli parity'
+    commits:
+    - 0c0880d48
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: complete sdk parity surfaces'
+    commits:
+    - e17cfdf03
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: allow audio transcription custom route'
+    commits:
+    - b1865b199
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: attach generated embeds to interactive questions'
+    commits:
+    - a2219a590
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: block company promotion in daily inspirations'
+    commits:
+    - f4e22dab2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: call apps api for sdk memory types'
+    commits:
+    - 83d4711f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: improve politics focus routing'
+    commits:
+    - 088d03c5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: include contact email on authenticated issue reports'
+    commits:
+    - 9c126e423
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: interpolate image authenticity labels'
+    commits:
+    - 62a17c33a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: label shared chats in continue cards'
+    commits:
+    - 448eb1a09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: normalize sdk chat responses'
+    commits:
+    - 5d4475623
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: recover from Gemini malformed stream failures'
+    commits:
+    - e9cd8fc3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: remove habit garden example chat'
+    commits:
+    - 643c46092
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: render mindmap embeds visually'
+    commits:
+    - 048fd084b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: repair filename embed refs in interactive questions'
+    commits:
+    - d3518ad2e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: require embed refs in interactive options'
+    commits:
+    - 8204f3690
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: route sdk memory types through apps api'
+    commits:
+    - 5a03100fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: show guest shared chats in continue carousel'
+    commits:
+    - baf314012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: show mindmap preview title and white icon'
+    commits:
+    - a5472441b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: show shared chat indicators'
+    commits:
+    - 371ffa774
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: stabilize daily test regressions'
+    commits:
+    - 22de6c0ff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: verify api key devices directly'
+    commits:
+    - e1869f955
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-23'
+    title: 'fix: persist webhook chat encryption keys'
+    commits:
+    - 81db88946
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-23'
+    title: 'fix: repair sdk cli webhook test failures'
+    commits:
+    - 868c16fb2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: keep focus activation rejectable until active'
+    commits:
+    - 9b345bb88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: localize fork completion action'
+    commits:
+    - ef63a0b78
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: polish guest language and onboarding UI'
+    commits:
+    - 3635d5b7f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: preserve api key device approval errors'
+    commits:
+    - 6a08f6470
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: render focus badge during chat updates'
+    commits:
+    - ee70c09d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: restore cancelled new chat draft'
+    commits:
+    - 8b5916b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: restore guest intro desktop size'
+    commits:
+    - 922d6cf5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: settle locale before public chat deep links'
+    commits:
+    - 0b135c958
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: show live focus badge in chat row'
+    commits:
+    - 75822e8b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: stabilize cli embed version keys'
+    commits:
+    - 9acee5e2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: upsert encrypted embed diff rows'
+    commits:
+    - 347f8a442
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: verify websocket auth before logout'
+    commits:
+    - cd05160b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-25'
+    title: 'fix: stabilize search embed test failures'
+    commits:
+    - 1db2db282
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-25'
+    title: 'fix: stop guest inspiration viewed retry loop'
+    commits:
+    - f8ef83e39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-25'
+    title: 'fix: stop inspiration viewed retry after login'
+    commits:
+    - fac000894
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-06-22'
+    title: 'feat: add Apple interest tag ranking'
+    commits:
+    - 561b9010f
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'feat: add CLI TUI and typed guest interests'
+    commits:
+    - 83d2504fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: add politics focus mode'
+    commits:
+    - 999b870fc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: add sdk packages v1 foundations'
+    commits:
+    - 70d8c1b50
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'feat: add workflows v1 foundation'
+    commits:
+    - 9f35db7b3
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'feat: complete sdk cli parity'
+    commits:
+    - 0c0880d48
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: complete sdk parity surfaces'
+    commits:
+    - e17cfdf03
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'feat: support embeds in interactive questions'
+    commits:
+    - 8e4d6f979
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'fix: allow audio transcription custom route'
+    commits:
+    - b1865b199
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: attach generated embeds to interactive questions'
+    commits:
+    - a2219a590
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: block company promotion in daily inspirations'
+    commits:
+    - f4e22dab2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: call apps api for sdk memory types'
+    commits:
+    - 83d4711f8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: compile Apple mindmap renderer'
+    commits:
+    - 3ea0641da
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'fix: compile Apple topic preferences'
+    commits:
+    - 17e2fac02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'fix: improve politics focus routing'
+    commits:
+    - 088d03c5f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: include contact email on authenticated issue reports'
+    commits:
+    - 9c126e423
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: interpolate image authenticity labels'
+    commits:
+    - 62a17c33a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: label shared chats in continue cards'
+    commits:
+    - 448eb1a09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: normalize sdk chat responses'
+    commits:
+    - 5d4475623
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: preserve Apple interest control identifiers'
+    commits:
+    - 799f96454
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-22'
+    title: 'fix: recover from Gemini malformed stream failures'
+    commits:
+    - e9cd8fc3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: remove habit garden example chat'
+    commits:
+    - 643c46092
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: render mindmap embeds visually'
+    commits:
+    - 048fd084b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: repair filename embed refs in interactive questions'
+    commits:
+    - d3518ad2e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: require embed refs in interactive options'
+    commits:
+    - 8204f3690
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: route sdk memory types through apps api'
+    commits:
+    - 5a03100fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: show guest shared chats in continue carousel'
+    commits:
+    - baf314012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: show mindmap preview title and white icon'
+    commits:
+    - a5472441b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: show shared chat indicators'
+    commits:
+    - 371ffa774
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: stabilize daily test regressions'
+    commits:
+    - 22de6c0ff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-22'
+    title: 'fix: verify api key devices directly'
+    commits:
+    - e1869f955
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-23'
+    title: 'fix: align apple new chat parity'
+    commits:
+    - fe0f3242e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: bind apple version accessibility label'
+    commits:
+    - 1fb9d1e40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: expose apple version text'
+    commits:
+    - b518187ee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: expose apple workspace tab buttons'
+    commits:
+    - a70fc79d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: make workflows editor editable'
+    commits:
+    - b69d46a08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: persist webhook chat encryption keys'
+    commits:
+    - 81db88946
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-23'
+    title: 'fix: prefer checkout i18n in apple debug'
+    commits:
+    - 0b03171b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: preserve apple workspace tab accessibility'
+    commits:
+    - 973b76403
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: render workflows as shortcut cards'
+    commits:
+    - ddb547ad2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: repair apple workspace tab build'
+    commits:
+    - 0c1b15fc9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: repair sdk cli webhook test failures'
+    commits:
+    - 868c16fb2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-23'
+    title: 'fix: resolve apple checkout locale path'
+    commits:
+    - '328510228'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-23'
+    title: 'fix: show workflow action names in editor'
+    commits:
+    - '754915862'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-24'
+    title: 'feat: add workflows v1 durable backend'
+    commits:
+    - b3874966d
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-24'
+    title: 'fix: keep focus activation rejectable until active'
+    commits:
+    - 9b345bb88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: localize fork completion action'
+    commits:
+    - ef63a0b78
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: polish guest language and onboarding UI'
+    commits:
+    - 3635d5b7f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: preserve api key device approval errors'
+    commits:
+    - 6a08f6470
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: render focus badge during chat updates'
+    commits:
+    - ee70c09d2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: restore cancelled new chat draft'
+    commits:
+    - 8b5916b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: restore guest intro desktop size'
+    commits:
+    - 922d6cf5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: settle locale before public chat deep links'
+    commits:
+    - 0b135c958
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: show live focus badge in chat row'
+    commits:
+    - 75822e8b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: stabilize cli embed version keys'
+    commits:
+    - 9acee5e2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: stabilize workflow save verification'
+    commits:
+    - 461ff46f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-06-24'
+    title: 'fix: upsert encrypted embed diff rows'
+    commits:
+    - 347f8a442
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-24'
+    title: 'fix: verify websocket auth before logout'
+    commits:
+    - cd05160b3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-25'
+    title: 'fix: stabilize search embed test failures'
+    commits:
+    - 1db2db282
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-25'
+    title: 'fix: stop guest inspiration viewed retry loop'
+    commits:
+    - f8ef83e39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-06-25'
+    title: 'fix: stop inspiration viewed retry after login'
+    commits:
+    - fac000894
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-22.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-23.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-24.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-06-25.yml
+llm_summary:
+  overview: OpenMates focused on developer parity, core interface improvements, and chat reliability this week. Key highlights
+    include achieving full parity between the SDK and CLI, the introduction of a new CLI Terminal User Interface, and the
+    launch of a Politics focus mode. The update also refined shared chat visibility, enhanced Focus Mode indicators, and resolved
+    several reliability issues in AI streaming, webhook encryption, and guest onboarding.
+  released_changes:
+  - text: OpenMates achieved full parity between the SDK and CLI surfaces, including normalized chat responses and memory
+      type routing through the apps API.
+    evidence:
+      commits:
+      - e17cfdf03
+      - 0c0880d48
+      - 5d4475623
+      - 83d4711f8
+      - 5a03100fb
+    release_status: released_main
+  - text: The CLI now features a Terminal User Interface (TUI) and supports typed guest interests.
+    evidence:
+      commits:
+      - 83d2504fc
+    release_status: released_main
+  - text: A new Politics focus mode was added, featuring specialized skills for preparing discussions.
+    evidence:
+      commits:
+      - 999b870fc
+      - 088d03c5f
+    release_status: released_main
+  - text: Shared chats are now more visible with new indicators and labeling in the continue carousel for guests.
+    evidence:
+      commits:
+      - 448eb1a09
+      - baf314012
+      - 371ffa774
+    release_status: released_main
+  - text: Mindmap embeds received visual rendering updates, including improved preview titles and icons.
+    evidence:
+      commits:
+      - 048fd084b
+      - a5472441b
+    release_status: released_main
+  - text: Webhook chat encryption keys are now persisted to ensure secure communication continuity.
+    evidence:
+      commits:
+      - 81db88946
+    release_status: released_main
+  - text: Focus Mode visibility was enhanced with live badges in the chat row and active chat view.
+    evidence:
+      commits:
+      - 75822e8b3
+      - ee70c09d2
+      - 9b345bb88
+    release_status: released_main
+  - text: The guest experience was refined with polished onboarding UI, better language detection, and corrected desktop banner
+      sizing.
+    evidence:
+      commits:
+      - 3635d5b7f
+      - 922d6cf5a
+    release_status: released_main
+  - text: Chat reliability was improved by restoring cancelled drafts, localizing fork actions, and settling locales before
+      processing deep links.
+    evidence:
+      commits:
+      - 8b5916b39
+      - ef63a0b78
+      - 0b135c958
+    release_status: released_main
+  - text: Search embeds for weather, travel, and web results received stability updates to ensure consistent rendering.
+    evidence:
+      commits:
+      - 1db2db282
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates now recovers from malformed Gemini stream failures to ensure chat continuity.
+    evidence:
+      commits:
+      - e9cd8fc3b
+    release_status: released_main
+  - text: Audio transcription now supports custom routing and improved ASCII sanitization.
+    evidence:
+      commits:
+      - b1865b199
+    release_status: released_main
+  - text: Daily inspirations now include a content filter to block company promotions and specific keywords.
+    evidence:
+      commits:
+      - f4e22dab2
+    release_status: released_main
+  - text: Authenticated issue reports now correctly include the user contact email.
+    evidence:
+      commits:
+      - 9c126e423
+    release_status: released_main
+  - text: API key device verification now uses direct ownership checks for improved security.
+    evidence:
+      commits:
+      - e1869f955
+    release_status: released_main
+  - text: Interactive questions received several fixes for embed reference handling and attachment during streaming.
+    evidence:
+      commits:
+      - d3518ad2e
+      - a2219a590
+      - 8204f3690
+    release_status: released_main
+  - text: SDK CLI failures related to webhook parity and API key authentication were resolved.
+    evidence:
+      commits:
+      - 868c16fb2
+    release_status: released_main
+  - text: The daily inspiration banner no longer enters infinite retry loops for guest users or immediately after login.
+    evidence:
+      commits:
+      - fac000894
+      - f8ef83e39
+    release_status: released_main
+  - text: WebSocket authorization is now verified before logout to ensure session security.
+    evidence:
+      commits:
+      - cd05160b3
+    release_status: released_main
+  - text: API key device approval errors are now preserved to provide better feedback during authentication failures.
+    evidence:
+      commits:
+      - 6a08f6470
+    release_status: released_main
+  unreleased_progress:
+  - text: Foundational work for Workflows v1 was added, including a durable backend, editor refinements, and shortcut card
+      rendering, though the feature remains disabled.
+    evidence:
+      commits:
+      - 9f35db7b3
+      - b0a20735f
+      - 81810c1d5
+      - 0722fbb34
+      - ddb547ad2
+      - '754915862'
+      - b69d46a08
+      - 374b3f40e
+      - 331eefb38
+      - b3874966d
+      - 461ff46f9
+      - fe850bde6
+    release_status: released_main
+  - text: Development on the unreleased iOS and macOS apps included accessibility improvements for workspace tabs, localization
+      for the checkout flow, and interest tag ranking.
+    evidence:
+      commits:
+      - 561b9010f
+      - 799f96454
+      - 3ea0641da
+      - 17e2fac02
+      - 6f6e7f5aa
+      - 3c00e4b96
+      - 973b76403
+      - a70fc79d5
+      - 0c1b15fc9
+      - fe0f3242e
+      - '328510228'
+      - 0b03171b9
+      - b518187ee
+      - 1fb9d1e40
+    release_status: released_main
+  - text: Support for embeds within interactive questions was added but is currently gated by unreleased platform flags.
+    evidence:
+      commits:
+      - 8e4d6f979
+    release_status: released_main
+  - text: Foundations for SDK packages v1 were established, including API key scope testing and developer settings updates.
+    evidence:
+      commits:
+      - 70d8c1b50
+      - 2b5cdc461
+    release_status: released_main
+  - text: Backend configuration was updated to enable projects and tasks, though these remain gated by feature flags.
+    evidence:
+      commits:
+      - 7c3e1132d
+    release_status: released_main
+  - text: Internal chat database schema repairs are now serialized to prevent race conditions during maintenance.
+    evidence:
+      commits:
+      - 59afdea50
+      - 917d053b2
+      - 8b84db931
+    release_status: released_main
+  internal_progress:
+  - text: Automated CI workflows were added for publishing the Python SDK to PyPI.
+    evidence:
+      commits:
+      - 628169a24
+    release_status: released_main
+  - text: The CI pipeline now rotates CLI API key secrets from end-to-end test artifacts.
+    evidence:
+      commits:
+      - 27d4d590d
+    release_status: released_main
+  - text: Deployment scripts were updated to handle transient failures, and accidental code hunks were removed from the CLI.
+    evidence:
+      commits:
+      - 1a396290c
+      - b1ecc6c74
+    release_status: released_main
+  - text: The project stabilized several daily test regressions across payment routes, learning mode prompts, and application
+      previews.
+    evidence:
+      commits:
+      - 22de6c0ff
+      - 47f71c94d
+      - a3ff31b48
+    release_status: released_main
+  - text: The test suite was hardened for signup flows, payment provider races, and CLI device approval.
+    evidence:
+      commits:
+      - 44046c044
+      - cd259d5b0
+      - f6dcef1ae
+      - 851964d12
+      - 6bdac7108
+      - 96275e6ee
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Full SDK and CLI parity for chat and application skills.
+      evidence:
+        commits:
+        - e17cfdf03
+        - 0c0880d48
+      reason: Achieves full parity between SDK and CLI surfaces for developers.
+    - text: New Terminal User Interface (TUI) for the OpenMates CLI.
+      evidence:
+        commits:
+        - 83d2504fc
+      reason: Introduces a significant new interface for CLI users.
+    - text: Introduction of the Politics focus mode with optimized discussion routing.
+      evidence:
+        commits:
+        - 999b870fc
+        - 088d03c5f
+      reason: New user-facing focus mode for political discussions.
+    - text: Enhanced shared chat indicators and visibility in the continue carousel.
+      evidence:
+        commits:
+        - 448eb1a09
+        - baf314012
+        - 371ffa774
+      reason: Improves the visibility and labeling of shared content for all users.
+    - text: Visual rendering updates and preview improvements for mindmap embeds.
+      evidence:
+        commits:
+        - 048fd084b
+        - a5472441b
+      reason: Visual improvements to a core embed type.
+    - text: OpenMates now restores cancelled new chat drafts, preventing lost work.
+      evidence:
+        commits:
+        - 8b5916b39
+      reason: Directly improves the chat drafting experience.
+    - text: Focus Mode status is now more visible with live badges in the chat list and active chat view.
+      evidence:
+        commits:
+        - 75822e8b3
+        - ee70c09d2
+      reason: Visual feedback for a core productivity feature.
+    - text: The guest onboarding experience was polished with improved language detection and desktop UI refinements.
+      evidence:
+        commits:
+        - 3635d5b7f
+        - 922d6cf5a
+      reason: Improves the first-run experience for new users.
+    - text: Persistence for webhook chat encryption keys.
+      evidence:
+        commits:
+        - 81db88946
+      reason: Critical fix for maintaining secure webhook communications.
+    exclude:
+    - text: Workflows v1 foundation and durable backend.
+      evidence:
+        commits:
+        - 9f35db7b3
+        - b3874966d
+        - fe850bde6
+      reason: Workflows is a disabled feature.
+    - text: Apple platform UI, localization, and interest tag ranking updates.
+      evidence:
+        commits:
+        - 561b9010f
+        - 799f96454
+        - 3ea0641da
+        - 17e2fac02
+        - 973b76403
+        - a70fc79d5
+      reason: iOS and macOS platforms are currently disabled.
+    - text: Backend configuration for projects and tasks.
+      evidence:
+        commits:
+        - 7c3e1132d
+      reason: Projects and tasks are currently disabled features.
+    - text: Python SDK publishing and CLI secret rotation automation.
+      evidence:
+        commits:
+        - 628169a24
+        - 27d4d590d
+      reason: Internal infrastructure and CI work.
+    rationale: The update focuses on developer experience through SDK/CLI parity and introduces new user-facing features like
+      the Politics focus mode and CLI TUI. Significant work on shared chat visibility, chat reliability, and Focus Mode indicators
+      is also ready for communication. Features gated by disabled platforms (Workflows, iOS, macOS, Projects) are excluded.
+  social_video_recommendations:
+  - idea: A demo of the new CLI TUI showing terminal-based chat interactions.
+    priority: high
+    reason: The TUI is a visually distinct and concrete product update for the developer community.
+    evidence:
+      commits:
+      - 83d2504fc
+  - idea: A short clip showing the new live Focus Mode badges appearing in the chat list as a user enters deep work.
+    priority: medium
+    reason: Provides a clear visual update to a core productivity feature.
+    evidence:
+      commits:
+      - 75822e8b3
+      - ee70c09d2
+  - idea: Showcasing the Politics focus mode and how it helps prepare for discussions.
+    priority: medium
+    reason: Focus modes provide a clear story on how OpenMates assists with specific real-world tasks.
+    evidence:
+      commits:
+      - 999b870fc
+  quality_notes:
+  - The project maintained high test coverage with extensive commits targeting audio recording, API key flows, and platform-specific
+    UI contracts.
+  - UI stability was improved by addressing edge cases in the inspiration banner logic and search embed rendering.
+  - Internal database repairs were hardened to prevent data corruption during schema updates.
+  validation_warnings: []

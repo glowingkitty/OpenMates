@@ -1,0 +1,1006 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-20'
+generated_at: '2026-07-09T15:09:57+00:00'
+range:
+  since: '2026-04-20T00:00:00+00:00'
+  until: '2026-04-20T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 19
+  section_counts:
+    features: 2
+    bug_fixes: 11
+    improvements: 0
+    docs: 2
+    tests: 0
+    infrastructure: 2
+    internal: 0
+    other: 2
+  newsletter_ready_items: 13
+  user_facing_items: 13
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(ui): reduce chat header to 35vh and make daily inspiration banner match height (OPE-450)'
+    section: features
+    commits:
+    - adb33e854
+    authored_at: '2026-04-20T00:46:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(ui): add expanding grey circle transition when starting a new chat (OPE-451)'
+    section: features
+    commits:
+    - 90b2adf61
+    authored_at: '2026-04-20T00:33:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix(chat-header): add bottom padding so signup button clears banner edge'
+    section: bug_fixes
+    commits:
+    - d25d07a2c
+    authored_at: '2026-04-20T09:54:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: move signup/login button below video in chat header'
+    section: bug_fixes
+    commits:
+    - 4a2fe0d08
+    authored_at: '2026-04-20T09:49:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: maintain 16:9 ratio on video header at all viewport sizes'
+    section: bug_fixes
+    commits:
+    - 79d91dd3a
+    authored_at: '2026-04-20T09:47:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore width:100% on mobile media-frame to prevent collapse'
+    section: bug_fixes
+    commits:
+    - d1bcbd55f
+    authored_at: '2026-04-20T09:37:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove circle animation, fade-out on input focus, video height on small viewports'
+    section: bug_fixes
+    commits:
+    - cc02f5ab3
+    authored_at: '2026-04-20T08:57:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: embed centering, center-content position, header title/video order, circle animation'
+    section: bug_fixes
+    commits:
+    - 6fedb1441
+    authored_at: '2026-04-20T08:19:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ui): increase mobile ChatHeader min-height to 230px to clear video player buttons'
+    section: bug_fixes
+    commits:
+    - 8095b4170
+    authored_at: '2026-04-20T01:32:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ui): replace clip-path animation with transform:scale to fix iOS Safari crash (OPE-451)'
+    section: bug_fixes
+    commits:
+    - 7880352c6
+    authored_at: '2026-04-20T01:27:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ui): revert min-height to 240px, match inspiration banner height, hide for-everyone title (OPE-450)'
+    section: bug_fixes
+    commits:
+    - 881e3841a
+    authored_at: '2026-04-20T01:12:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(seo): remove remaining affirmative E2E encryption claims across codebase'
+    section: bug_fixes
+    commits:
+    - c26b6135f
+    authored_at: '2026-04-20T00:16:05+00:00'
+    changed_paths:
+    - docs/architecture/messaging/message-highlights.md
+    - docs/cli/README.md
+    - docs/cli/chats.md
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - scripts/prompts/pattern-consistency-scan.md
+    - scripts/prompts/quick-wins-scan.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(seo): update OG/meta description, remove E2E encryption mention'
+    section: bug_fixes
+    commits:
+    - 3ae64c416
+    authored_at: '2026-04-20T00:05:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/metadata/default.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'Revert "docs: fix grammar in marketing meeting notes 2026-04-20"'
+    section: docs
+    commits:
+    - 048ef9b51
+    authored_at: '2026-04-20T12:58:57+00:00'
+    changed_paths:
+    - 2026_04_20.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: fix grammar in marketing meeting notes 2026-04-20'
+    section: docs
+    commits:
+    - 09199fa0c
+    authored_at: '2026-04-20T12:58:01+00:00'
+    changed_paths:
+    - 2026_04_20.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests: []
+  infrastructure:
+  - title: 'chore(apple): update auth, settings, and root swift ui files'
+    section: infrastructure
+    commits:
+    - 3333c6574
+    authored_at: '2026-04-20T09:38:33+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/BackupCodeView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/RecoveryKeyView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'chore(apple): update swift ui files'
+    section: infrastructure
+    commits:
+    - 7cad36037
+    authored_at: '2026-04-20T09:38:09+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #378 from glowingkitty/dev'
+    section: other
+    commits:
+    - da53b73bf
+    authored_at: '2026-04-20T15:27:52+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'style: increase notification max-width margin to 40px'
+    section: other
+    commits:
+    - 74067d343
+    authored_at: '2026-04-20T10:18:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Notification.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'style: increase notification max-width margin to 40px'
+    commits:
+    - 74067d343
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(chat-header): add bottom padding so signup button clears banner edge'
+    commits:
+    - d25d07a2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: move signup/login button below video in chat header'
+    commits:
+    - 4a2fe0d08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: maintain 16:9 ratio on video header at all viewport sizes'
+    commits:
+    - 79d91dd3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore width:100% on mobile media-frame to prevent collapse'
+    commits:
+    - d1bcbd55f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove circle animation, fade-out on input focus, video height on small viewports'
+    commits:
+    - cc02f5ab3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: embed centering, center-content position, header title/video order, circle animation'
+    commits:
+    - 6fedb1441
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): increase mobile ChatHeader min-height to 230px to clear video player buttons'
+    commits:
+    - 8095b4170
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): replace clip-path animation with transform:scale to fix iOS Safari crash (OPE-451)'
+    commits:
+    - 7880352c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ui): revert min-height to 240px, match inspiration banner height, hide for-everyone title (OPE-450)'
+    commits:
+    - 881e3841a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(ui): reduce chat header to 35vh and make daily inspiration banner match height (OPE-450)'
+    commits:
+    - adb33e854
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(ui): add expanding grey circle transition when starting a new chat (OPE-451)'
+    commits:
+    - 90b2adf61
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(seo): remove remaining affirmative E2E encryption claims across codebase'
+    commits:
+    - c26b6135f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'style: increase notification max-width margin to 40px'
+    commits:
+    - 74067d343
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(chat-header): add bottom padding so signup button clears banner edge'
+    commits:
+    - d25d07a2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: move signup/login button below video in chat header'
+    commits:
+    - 4a2fe0d08
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: maintain 16:9 ratio on video header at all viewport sizes'
+    commits:
+    - 79d91dd3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore width:100% on mobile media-frame to prevent collapse'
+    commits:
+    - d1bcbd55f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: remove circle animation, fade-out on input focus, video height on small viewports'
+    commits:
+    - cc02f5ab3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: embed centering, center-content position, header title/video order, circle animation'
+    commits:
+    - 6fedb1441
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): increase mobile ChatHeader min-height to 230px to clear video player buttons'
+    commits:
+    - 8095b4170
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): replace clip-path animation with transform:scale to fix iOS Safari crash (OPE-451)'
+    commits:
+    - 7880352c6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ui): revert min-height to 240px, match inspiration banner height, hide for-everyone title (OPE-450)'
+    commits:
+    - 881e3841a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(ui): reduce chat header to 35vh and make daily inspiration banner match height (OPE-450)'
+    commits:
+    - adb33e854
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(ui): add expanding grey circle transition when starting a new chat (OPE-451)'
+    commits:
+    - 90b2adf61
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(seo): remove remaining affirmative E2E encryption claims across codebase'
+    commits:
+    - c26b6135f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: da53b73bfaf20ebdaa0757ffa8670fbf6b64aa23
+    short_sha: da53b73bf
+    authored_at: '2026-04-20T15:27:52+02:00'
+    subject: 'Merge pull request #378 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 048ef9b511d872529fba264d21ba128841cf3540
+    short_sha: 048ef9b51
+    authored_at: '2026-04-20T12:58:57+00:00'
+    subject: 'Revert "docs: fix grammar in marketing meeting notes 2026-04-20"'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - 2026_04_20.md
+    related_feature_ids: []
+  - sha: 09199fa0cee75a8ce1f3bf0406cc45007c26ff91
+    short_sha: 09199fa0c
+    authored_at: '2026-04-20T12:58:01+00:00'
+    subject: 'docs: fix grammar in marketing meeting notes 2026-04-20'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - 2026_04_20.md
+    related_feature_ids: []
+  - sha: 74067d3435fce0cf0dc2cd68bb5f468a671066d7
+    short_sha: 74067d343
+    authored_at: '2026-04-20T10:18:38+00:00'
+    subject: 'style: increase notification max-width margin to 40px'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Notification.svelte
+    related_feature_ids: []
+  - sha: d25d07a2cd8207d8a2fbc4eb00ae9cc40b70c7c9
+    short_sha: d25d07a2c
+    authored_at: '2026-04-20T09:54:31+00:00'
+    subject: 'fix(chat-header): add bottom padding so signup button clears banner edge'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 4a2fe0d08ed2cac18a8bef13e6f8c08da2775952
+    short_sha: 4a2fe0d08
+    authored_at: '2026-04-20T09:49:05+00:00'
+    subject: 'fix: move signup/login button below video in chat header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 79d91dd3a482bb6941d5f9d73b9d5408c0e0aed2
+    short_sha: 79d91dd3a
+    authored_at: '2026-04-20T09:47:11+00:00'
+    subject: 'fix: maintain 16:9 ratio on video header at all viewport sizes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 3333c6574bd2ce90129cd7eb8fb2956c2ddd655f
+    short_sha: 3333c6574
+    authored_at: '2026-04-20T09:38:33+00:00'
+    subject: 'chore(apple): update auth, settings, and root swift ui files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/BackupCodeView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/DeviceVerificationView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/RecoveryKeyView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 7cad360378f9ba0dfcea7ba43a6a1f3e79a41138
+    short_sha: 7cad36037
+    authored_at: '2026-04-20T09:38:09+00:00'
+    subject: 'chore(apple): update swift ui files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d1bcbd55f14332ebe4a9f0f3bce50219913e40e2
+    short_sha: d1bcbd55f
+    authored_at: '2026-04-20T09:37:42+00:00'
+    subject: 'fix: restore width:100% on mobile media-frame to prevent collapse'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: cc02f5ab34c97f3f67f4981078a1a38db4bf9f9e
+    short_sha: cc02f5ab3
+    authored_at: '2026-04-20T08:57:38+00:00'
+    subject: 'fix: remove circle animation, fade-out on input focus, video height on small viewports'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 6fedb14417a9c31c477aff0e8ac5be3dd7b3eb97
+    short_sha: 6fedb1441
+    authored_at: '2026-04-20T08:19:00+00:00'
+    subject: 'fix: embed centering, center-content position, header title/video order, circle animation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 8095b417069635cd39fe78dae712160576e9e313
+    short_sha: 8095b4170
+    authored_at: '2026-04-20T01:32:14+00:00'
+    subject: 'fix(ui): increase mobile ChatHeader min-height to 230px to clear video player buttons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 7880352c61322cf4b8837db3c001331ff533b835
+    short_sha: 7880352c6
+    authored_at: '2026-04-20T01:27:17+00:00'
+    subject: 'fix(ui): replace clip-path animation with transform:scale to fix iOS Safari crash (OPE-451)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 881e3841ae86a8797b446310171a5cb6a8ebc411
+    short_sha: 881e3841a
+    authored_at: '2026-04-20T01:12:13+00:00'
+    subject: 'fix(ui): revert min-height to 240px, match inspiration banner height, hide for-everyone title (OPE-450)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: adb33e854800b39c9db4246f4868736699acb22a
+    short_sha: adb33e854
+    authored_at: '2026-04-20T00:46:01+00:00'
+    subject: 'feat(ui): reduce chat header to 35vh and make daily inspiration banner match height (OPE-450)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 90b2adf61230e413e2b882ed5224657537e61023
+    short_sha: 90b2adf61
+    authored_at: '2026-04-20T00:33:12+00:00'
+    subject: 'feat(ui): add expanding grey circle transition when starting a new chat (OPE-451)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: c26b6135f7f17c8637277d60c24d5d01da107407
+    short_sha: c26b6135f
+    authored_at: '2026-04-20T00:16:05+00:00'
+    subject: 'fix(seo): remove remaining affirmative E2E encryption claims across codebase'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/messaging/message-highlights.md
+    - docs/cli/README.md
+    - docs/cli/chats.md
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - scripts/prompts/pattern-consistency-scan.md
+    - scripts/prompts/quick-wins-scan.md
+    related_feature_ids: []
+  - sha: 3ae64c416d03cac945e7d5c35e4a98ac93121a51
+    short_sha: 3ae64c416
+    authored_at: '2026-04-20T00:05:35+00:00'
+    subject: 'fix(seo): update OG/meta description, remove E2E encryption mention'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/metadata/default.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on a visual overhaul of the chat interface today, refining header dimensions and video ratios
+    while resolving animation-related crashes on mobile browsers. The project also corrected messaging regarding encryption
+    across its documentation and metadata.
+  released_changes:
+  - text: Redesigned the chat header to use a 35vh height (reverting to 240px min-height where necessary) and maintained a
+      strict 16:9 ratio for video content. Layout adjustments ensure signup and login buttons clear the banner edges.
+    evidence:
+      commits:
+      - adb33e854
+      - 881e3841a
+      - 79d91dd3a
+      - 4a2fe0d08
+      - d25d07a2c
+    release_status: released_main
+  - text: Increased the maximum width margin for notifications to 40px.
+    evidence:
+      commits:
+      - 74067d343
+    release_status: released_main
+  - text: Added a new expanding circle transition when starting a new chat session.
+    evidence:
+      commits:
+      - 90b2adf61
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved a crash on iOS Safari by replacing clip-path animations with scale transforms, and refined transition behaviors
+      during chat initialization.
+    evidence:
+      commits:
+      - 7880352c6
+      - cc02f5ab3
+      - 6fedb1441
+    release_status: released_main
+  - text: Fixed mobile layout issues where the media frame could collapse and the chat header height was insufficient to clear
+      video player controls.
+    evidence:
+      commits:
+      - d1bcbd55f
+      - 8095b4170
+    release_status: released_main
+  - text: Updated documentation and metadata to remove inaccurate references to end-to-end encryption.
+    evidence:
+      commits:
+      - c26b6135f
+      - 3ae64c416
+    release_status: released_main
+  unreleased_progress:
+  - text: Continued development on Apple platforms with updates to SwiftUI views for authentication, settings, and the root
+      application interface.
+    evidence:
+      commits:
+      - 3333c6574
+      - 7cad36037
+    release_status: released_main
+  internal_progress:
+  - text: Merged development branch updates into the main repository.
+    evidence:
+      commits:
+      - da53b73bf
+    release_status: released_main
+  - text: Corrected grammar in internal marketing meeting documentation.
+    evidence:
+      commits:
+      - 09199fa0c
+      - 048ef9b51
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: The chat header has been redesigned with a 35vh height and 16:9 video ratio to provide a more consistent experience
+        across viewports.
+      evidence:
+        commits:
+        - adb33e854
+        - 881e3841a
+        - 79d91dd3a
+      reason: Significant visual improvement to the primary chat interface.
+    - text: Notification margins have been increased for better legibility.
+      evidence:
+        commits:
+        - 74067d343
+      reason: User-facing UI refinement.
+    exclude:
+    - text: Apple platform SwiftUI updates.
+      evidence:
+        commits:
+        - 3333c6574
+        - 7cad36037
+      reason: iOS and macOS platforms are currently disabled features.
+    rationale: The primary focus for public communication should be the visual refinements to the chat interface and general
+      UI improvements. Internal documentation and unreleased platform work are excluded.
+  social_video_recommendations:
+  - idea: A short clip showing the new chat transition and the responsive video header.
+    priority: medium
+    reason: The visual changes to the header and the new transition provide a concrete 'before and after' story for the UI.
+    evidence:
+      commits:
+      - adb33e854
+      - 90b2adf61
+  quality_notes:
+  - The switch from clip-path to transform:scale specifically addresses stability on iOS Safari.
+  - Layout fixes for the signup button ensure critical user flows are not obstructed by the new header design.
+  validation_warnings: []

@@ -1,0 +1,1766 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-21'
+generated_at: '2026-07-09T15:23:20+00:00'
+range:
+  since: '2026-05-21T00:00:00+00:00'
+  until: '2026-05-21T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 37
+  section_counts:
+    features: 4
+    bug_fixes: 15
+    improvements: 0
+    docs: 0
+    tests: 17
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 15
+  user_facing_items: 17
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add music generation skill'
+    section: features
+    commits:
+    - f5e9f99ac
+    authored_at: '2026-05-21T23:41:46+00:00'
+    changed_paths:
+    - backend/apps/music/app.yml
+    - backend/apps/music/skills/__init__.py
+    - backend/apps/music/skills/generate_skill.py
+    - backend/apps/music/tasks/__init__.py
+    - backend/apps/music/tasks/generate_task.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.yml
+    - backend/providers/google.yml
+    - backend/shared/providers/google/__init__.py
+    - backend/shared/providers/google/gemini_music.py
+    - backend/tests/test_rest_api_music.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - frontend/apps/web_app/tests/skill-music-generate.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/music/musicEmbedText.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/music.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/static/icons/music.svg
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: return async skill results in CLI'
+    section: features
+    commits:
+    - 466dc3895
+    authored_at: '2026-05-21T14:38:54+00:00'
+    changed_paths:
+    - backend/apps/social_media/result_payload.py
+    - backend/apps/social_media/skills/get_posts.py
+    - backend/apps/social_media/skills/search.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/tasks_api.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_social_media_search_skill.py
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:tasks'
+  - title: 'feat: add code output follow-up action'
+    section: features
+    commits:
+    - 413b7e3ec
+    authored_at: '2026-05-21T13:54:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: use Reddit JSON for social media posts'
+    section: features
+    commits:
+    - 490da3dbd
+    authored_at: '2026-05-21T13:29:46+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/social_media/app.yml
+    - backend/apps/social_media/collection.py
+    - backend/apps/social_media/search_collection.py
+    - backend/apps/social_media/skills/get_posts.py
+    - backend/apps/social_media/skills/search.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - backend/shared/providers/reddit/__init__.py
+    - backend/shared/providers/reddit/json.py
+    - backend/shared/providers/reddit/rss.py
+    - backend/tests/test_external_result_sanitizer.py
+    - backend/tests/test_reddit_json_provider.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_social_media_search_skill.py
+    - docs/architecture/apps/social-media.md
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/socialMediaEmbedUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: enable music app registration'
+    section: bug_fixes
+    commits:
+    - 72c114791
+    authored_at: '2026-05-21T23:51:46+00:00'
+    changed_paths:
+    - backend/config/backend_config.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: remove incomplete music embed routing'
+    section: bug_fixes
+    commits:
+    - 123abbf19
+    authored_at: '2026-05-21T23:26:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize provider display names'
+    section: bug_fixes
+    commits:
+    - f22152dc8
+    authored_at: '2026-05-21T23:21:52+00:00'
+    changed_paths:
+    - backend/apps/mail/skills/search_skill.py
+    - backend/apps/social_media/app.yml
+    - backend/apps/social_media/collection.py
+    - backend/apps/social_media/search_collection.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/providers/protonmail.yml
+    - backend/shared/providers/bluesky/public.py
+    - backend/shared/providers/mastodon/__init__.py
+    - backend/shared/providers/mastodon/public.py
+    - backend/shared/providers/reddit/json.py
+    - backend/shared/providers/reddit/rss.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_bluesky_public_provider.py
+    - backend/tests/test_mastodon_public_provider.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_social_media_search_skill.py
+    - frontend/packages/ui/src/components/embeds/mail/MailSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/mail/MailSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/socialMediaEmbedUtils.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/mail.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reject assistant responses encrypted with stale chat keys'
+    section: bug_fixes
+    commits:
+    - 238244c29
+    authored_at: '2026-05-21T23:14:13+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/tests/test_ai_response_completed_key_guard.py
+    - backend/tests/test_chat_ciphertext_fingerprint.py
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve social post embeds'
+    section: bug_fixes
+    commits:
+    - 1dac7397c
+    authored_at: '2026-05-21T17:57:08+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: skip focus countdown on reopened chats'
+    section: bug_fixes
+    commits:
+    - 865b70bcc
+    authored_at: '2026-05-21T17:22:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep focus activation above skill previews'
+    section: bug_fixes
+    commits:
+    - 117d73e02
+    authored_at: '2026-05-21T16:51:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: suppress focus same-turn placeholders'
+    section: bug_fixes
+    commits:
+    - 875eace40
+    authored_at: '2026-05-21T14:36:11+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: filter focus activation continuation history'
+    section: bug_fixes
+    commits:
+    - 50057a7f0
+    authored_at: '2026-05-21T14:05:44+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: persist focus activation from embed countdown'
+    section: bug_fixes
+    commits:
+    - 27fcbb620
+    authored_at: '2026-05-21T12:27:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: make E2B secure mode explicit'
+    section: bug_fixes
+    commits:
+    - 63a7c8ae8
+    authored_at: '2026-05-21T12:15:52+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_e2b_code_runner.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep focus continuation history user-ended'
+    section: bug_fixes
+    commits:
+    - 4e74b8004
+    authored_at: '2026-05-21T10:56:07+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove stale dev web domain references'
+    section: bug_fixes
+    commits:
+    - c610a080c
+    authored_at: '2026-05-21T10:43:15+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Intents/TodaysInspirationIntent.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/app/utils/server_mode.py
+    - backend/preview/Caddyfile.example
+    - backend/preview/main.py
+    - backend/status/README.md
+    - backend/status/app/config.py
+    - backend/status/docker-compose.yml
+    - backend/tests/test_rest_api_core.py
+    - backend/upload/routes/upload_route.py
+    - deployment/preview_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - docs/contributing/guides/git-and-deployment.md
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - frontend/packages/openmates-cli/src/shareEncryption.ts
+    - frontend/packages/openmates-cli/tests/shareEncryption.test.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: stabilize focus mode reload errors'
+    section: bug_fixes
+    commits:
+    - 97c2fac80
+    authored_at: '2026-05-21T10:22:23+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: persist shared chat PII flags with admin access'
+    section: bug_fixes
+    commits:
+    - 449cab0ac
+    authored_at: '2026-05-21T09:23:14+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: serialize code generation e2e'
+    section: tests
+    commits:
+    - a3ac18060
+    authored_at: '2026-05-21T14:57:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make video focus request explicit'
+    section: tests
+    commits:
+    - a0ba9f8bb
+    authored_at: '2026-05-21T14:56:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow known code embed sync noise'
+    section: tests
+    commits:
+    - fa7df450a
+    authored_at: '2026-05-21T14:47:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover code run follow-up embed'
+    section: tests
+    commits:
+    - ec16eba2f
+    authored_at: '2026-05-21T14:29:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: read focus video chat id from hash'
+    section: tests
+    commits:
+    - 38551b2c4
+    authored_at: '2026-05-21T14:12:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add real video focus mode e2e'
+    section: tests
+    commits:
+    - 6533b8849
+    authored_at: '2026-05-21T13:56:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expose focus embed menu actions'
+    section: tests
+    commits:
+    - 6fe19f63c
+    authored_at: '2026-05-21T13:25:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/FocusModeContextMenu.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: bound focus followup sidebar cleanup'
+    section: tests
+    commits:
+    - 7e6986c32
+    authored_at: '2026-05-21T13:13:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: refocus composer before focus followup'
+    section: tests
+    commits:
+    - 67a4aaa95
+    authored_at: '2026-05-21T12:58:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expose focus sidebar badge id'
+    section: tests
+    commits:
+    - c0428f616
+    authored_at: '2026-05-21T12:50:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expose focus context indicator ids'
+    section: tests
+    commits:
+    - c4cfd243b
+    authored_at: '2026-05-21T12:42:29+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert focus pill label and state'
+    section: tests
+    commits:
+    - 3086e2d7a
+    authored_at: '2026-05-21T12:33:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: emit mocked focus activation event'
+    section: tests
+    commits:
+    - 4ebe6be74
+    authored_at: '2026-05-21T12:06:25+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expose focus pill test ids'
+    section: tests
+    commits:
+    - 42b011c2e
+    authored_at: '2026-05-21T11:57:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: avoid empty-editor send button wait'
+    section: tests
+    commits:
+    - '601502036'
+    authored_at: '2026-05-21T11:48:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use valid focus mode fixtures'
+    section: tests
+    commits:
+    - 3dd165666
+    authored_at: '2026-05-21T11:29:30+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/focus_career_followup.json
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify focus activation persists after relogin'
+    section: tests
+    commits:
+    - 73a6049ab
+    authored_at: '2026-05-21T11:06:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'ci: align cli prerelease version with product version'
+    section: infrastructure
+    commits:
+    - e6eb03133
+    authored_at: '2026-05-21T10:25:33+00:00'
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - frontend/packages/openmates-cli/package.json
+    - scripts/prepare_cli_publish_version.mjs
+    - shared/config/product_version.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add music generation skill'
+    commits:
+    - f5e9f99ac
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize provider display names'
+    commits:
+    - f22152dc8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: use Reddit JSON for social media posts'
+    commits:
+    - 490da3dbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add music generation skill'
+    commits:
+    - f5e9f99ac
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove incomplete music embed routing'
+    commits:
+    - 123abbf19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize provider display names'
+    commits:
+    - f22152dc8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reject assistant responses encrypted with stale chat keys'
+    commits:
+    - 238244c29
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve social post embeds'
+    commits:
+    - 1dac7397c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: skip focus countdown on reopened chats'
+    commits:
+    - 865b70bcc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep focus activation above skill previews'
+    commits:
+    - 117d73e02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: suppress focus same-turn placeholders'
+    commits:
+    - 875eace40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: filter focus activation continuation history'
+    commits:
+    - 50057a7f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add code output follow-up action'
+    commits:
+    - 413b7e3ec
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: use Reddit JSON for social media posts'
+    commits:
+    - 490da3dbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: persist focus activation from embed countdown'
+    commits:
+    - 27fcbb620
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep focus continuation history user-ended'
+    commits:
+    - 4e74b8004
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize focus mode reload errors'
+    commits:
+    - 97c2fac80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: persist shared chat PII flags with admin access'
+    commits:
+    - 449cab0ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add music generation skill'
+    commits:
+    - f5e9f99ac
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: remove incomplete music embed routing'
+    commits:
+    - 123abbf19
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize provider display names'
+    commits:
+    - f22152dc8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reject assistant responses encrypted with stale chat keys'
+    commits:
+    - 238244c29
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve social post embeds'
+    commits:
+    - 1dac7397c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: skip focus countdown on reopened chats'
+    commits:
+    - 865b70bcc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep focus activation above skill previews'
+    commits:
+    - 117d73e02
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: return async skill results in CLI'
+    commits:
+    - 466dc3895
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: suppress focus same-turn placeholders'
+    commits:
+    - 875eace40
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: filter focus activation continuation history'
+    commits:
+    - 50057a7f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add code output follow-up action'
+    commits:
+    - 413b7e3ec
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: use Reddit JSON for social media posts'
+    commits:
+    - 490da3dbd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: persist focus activation from embed countdown'
+    commits:
+    - 27fcbb620
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep focus continuation history user-ended'
+    commits:
+    - 4e74b8004
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: remove stale dev web domain references'
+    commits:
+    - c610a080c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: stabilize focus mode reload errors'
+    commits:
+    - 97c2fac80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: persist shared chat PII flags with admin access'
+    commits:
+    - 449cab0ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 72c11479167c724a23c90d9a76052e9d9f400022
+    short_sha: 72c114791
+    authored_at: '2026-05-21T23:51:46+00:00'
+    subject: 'fix: enable music app registration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/config/backend_config.yml
+    related_feature_ids: []
+  - sha: f5e9f99acf1c2dae33515b4d1f116094387aa75f
+    short_sha: f5e9f99ac
+    authored_at: '2026-05-21T23:41:46+00:00'
+    subject: 'feat: add music generation skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/music/app.yml
+    - backend/apps/music/skills/__init__.py
+    - backend/apps/music/skills/generate_skill.py
+    - backend/apps/music/tasks/__init__.py
+    - backend/apps/music/tasks/generate_task.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/docker-compose.yml
+    - backend/providers/google.yml
+    - backend/shared/providers/google/__init__.py
+    - backend/shared/providers/google/gemini_music.py
+    - backend/tests/test_rest_api_music.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - frontend/apps/web_app/tests/skill-music-generate.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/music/musicEmbedText.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/music.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/static/icons/music.svg
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 123abbf19f4640ca835404dcec3f0a1285dfb2e1
+    short_sha: 123abbf19
+    authored_at: '2026-05-21T23:26:56+00:00'
+    subject: 'fix: remove incomplete music embed routing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: f22152dc8b5365d4f812ff568e211685ddbe99ab
+    short_sha: f22152dc8
+    authored_at: '2026-05-21T23:21:52+00:00'
+    subject: 'fix: normalize provider display names'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/mail/skills/search_skill.py
+    - backend/apps/social_media/app.yml
+    - backend/apps/social_media/collection.py
+    - backend/apps/social_media/search_collection.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/providers/protonmail.yml
+    - backend/shared/providers/bluesky/public.py
+    - backend/shared/providers/mastodon/__init__.py
+    - backend/shared/providers/mastodon/public.py
+    - backend/shared/providers/reddit/json.py
+    - backend/shared/providers/reddit/rss.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_bluesky_public_provider.py
+    - backend/tests/test_mastodon_public_provider.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_social_media_search_skill.py
+    - frontend/packages/ui/src/components/embeds/mail/MailSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/mail/MailSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/socialMediaEmbedUtils.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/mail.yml
+    related_feature_ids: []
+  - sha: 238244c295325656936b19154000bae3239325fb
+    short_sha: 238244c29
+    authored_at: '2026-05-21T23:14:13+00:00'
+    subject: 'fix: reject assistant responses encrypted with stale chat keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/tests/test_ai_response_completed_key_guard.py
+    - backend/tests/test_chat_ciphertext_fingerprint.py
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    related_feature_ids: []
+  - sha: 1dac7397c86a3c1c4cd059d6235427470d57dda2
+    short_sha: 1dac7397c
+    authored_at: '2026-05-21T17:57:08+00:00'
+    subject: 'fix: improve social post embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 865b70bccc55c340ae87b1e588458f78c2b5de16
+    short_sha: 865b70bcc
+    authored_at: '2026-05-21T17:22:04+00:00'
+    subject: 'fix: skip focus countdown on reopened chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    related_feature_ids: []
+  - sha: 117d73e0259a095a6bae0a222a6cd70e8e43967d
+    short_sha: 117d73e02
+    authored_at: '2026-05-21T16:51:07+00:00'
+    subject: 'fix: keep focus activation above skill previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    related_feature_ids: []
+  - sha: a3ac180602f36202e33bcb2ec3a8a6dd116396d4
+    short_sha: a3ac18060
+    authored_at: '2026-05-21T14:57:13+00:00'
+    subject: 'test: serialize code generation e2e'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    related_feature_ids: []
+  - sha: a0ba9f8bb4e118c468f5e3fb73cd9a0734c38d82
+    short_sha: a0ba9f8bb
+    authored_at: '2026-05-21T14:56:39+00:00'
+    subject: 'test: make video focus request explicit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    related_feature_ids: []
+  - sha: fa7df450a6a74bed2993c7fafe873ac00d41471a
+    short_sha: fa7df450a
+    authored_at: '2026-05-21T14:47:06+00:00'
+    subject: 'test: allow known code embed sync noise'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    related_feature_ids: []
+  - sha: 466dc3895509a1654136a9ab71551cc123fd54a4
+    short_sha: 466dc3895
+    authored_at: '2026-05-21T14:38:54+00:00'
+    subject: 'feat: return async skill results in CLI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/social_media/result_payload.py
+    - backend/apps/social_media/skills/get_posts.py
+    - backend/apps/social_media/skills/search.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/tasks_api.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_social_media_search_skill.py
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids:
+    - platform:tasks
+  - sha: 875eace4069b5533ae61d9ae71a4a91f0e603758
+    short_sha: 875eace40
+    authored_at: '2026-05-21T14:36:11+00:00'
+    subject: 'fix: suppress focus same-turn placeholders'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+  - sha: ec16eba2f6d157f663e866c8cae08b32caf8ceed
+    short_sha: ec16eba2f
+    authored_at: '2026-05-21T14:29:37+00:00'
+    subject: 'test: cover code run follow-up embed'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    related_feature_ids: []
+  - sha: 38551b2c4e40fad423efc9bcb2c0041432ad3893
+    short_sha: 38551b2c4
+    authored_at: '2026-05-21T14:12:55+00:00'
+    subject: 'test: read focus video chat id from hash'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    related_feature_ids: []
+  - sha: 50057a7f0c3ecf017cb561deb8241877598fce80
+    short_sha: 50057a7f0
+    authored_at: '2026-05-21T14:05:44+00:00'
+    subject: 'fix: filter focus activation continuation history'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    related_feature_ids: []
+  - sha: 6533b884992de5231f7a0032d9931ec86c0b081e
+    short_sha: 6533b8849
+    authored_at: '2026-05-21T13:56:11+00:00'
+    subject: 'test: add real video focus mode e2e'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    related_feature_ids: []
+  - sha: 413b7e3ec239a9ccc3bbff9be0dc2afca5f69710
+    short_sha: 413b7e3ec
+    authored_at: '2026-05-21T13:54:50+00:00'
+    subject: 'feat: add code output follow-up action'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    related_feature_ids: []
+  - sha: 490da3dbd1a925ac427cfc76f2eb610d6cfc1dc9
+    short_sha: 490da3dbd
+    authored_at: '2026-05-21T13:29:46+00:00'
+    subject: 'feat: use Reddit JSON for social media posts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/social_media/app.yml
+    - backend/apps/social_media/collection.py
+    - backend/apps/social_media/search_collection.py
+    - backend/apps/social_media/skills/get_posts.py
+    - backend/apps/social_media/skills/search.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - backend/shared/providers/reddit/__init__.py
+    - backend/shared/providers/reddit/json.py
+    - backend/shared/providers/reddit/rss.py
+    - backend/tests/test_external_result_sanitizer.py
+    - backend/tests/test_reddit_json_provider.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_social_media_search_skill.py
+    - docs/architecture/apps/social-media.md
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/socialMediaEmbedUtils.ts
+    related_feature_ids: []
+  - sha: 6fe19f63c3471bc1f33dfb28593445c729142194
+    short_sha: 6fe19f63c
+    authored_at: '2026-05-21T13:25:51+00:00'
+    subject: 'test: expose focus embed menu actions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/FocusModeContextMenu.svelte
+    related_feature_ids: []
+  - sha: 7e6986c324edc7f77d0ad006ac41e435980042d3
+    short_sha: 7e6986c32
+    authored_at: '2026-05-21T13:13:36+00:00'
+    subject: 'test: bound focus followup sidebar cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 67a4aaa956e05e9fd9b6ce6db4397130eabb0335
+    short_sha: 67a4aaa95
+    authored_at: '2026-05-21T12:58:31+00:00'
+    subject: 'test: refocus composer before focus followup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: c0428f6166f46d080312a950b7c43e37596ee8cb
+    short_sha: c0428f616
+    authored_at: '2026-05-21T12:50:53+00:00'
+    subject: 'test: expose focus sidebar badge id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    related_feature_ids: []
+  - sha: c4cfd243b804ad52c05c4ae99a593731dfd615dc
+    short_sha: c4cfd243b
+    authored_at: '2026-05-21T12:42:29+00:00'
+    subject: 'test: expose focus context indicator ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    related_feature_ids: []
+  - sha: 3086e2d7a9bb64c4ca2ff1f5ac2c7da4c3a9f3b8
+    short_sha: 3086e2d7a
+    authored_at: '2026-05-21T12:33:36+00:00'
+    subject: 'test: assert focus pill label and state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 27fcbb6201fedbf0c3fa1e2dae854fde0e5ae540
+    short_sha: 27fcbb620
+    authored_at: '2026-05-21T12:27:47+00:00'
+    subject: 'fix: persist focus activation from embed countdown'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    related_feature_ids: []
+  - sha: 63a7c8ae89387cc3fae853237431253575e8d900
+    short_sha: 63a7c8ae8
+    authored_at: '2026-05-21T12:15:52+00:00'
+    subject: 'fix: make E2B secure mode explicit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_e2b_code_runner.py
+    related_feature_ids: []
+  - sha: 4ebe6be7472b978a85481c2411ef43fa2c8d7cfa
+    short_sha: 4ebe6be74
+    authored_at: '2026-05-21T12:06:25+00:00'
+    subject: 'test: emit mocked focus activation event'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    related_feature_ids: []
+  - sha: 42b011c2ed7591809b5b0683a73999239a9f5d2b
+    short_sha: 42b011c2e
+    authored_at: '2026-05-21T11:57:09+00:00'
+    subject: 'test: expose focus pill test ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 6015020363c8b39c298d7e90bc2b704234b1f2ad
+    short_sha: '601502036'
+    authored_at: '2026-05-21T11:48:25+00:00'
+    subject: 'test: avoid empty-editor send button wait'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 3dd16566636b69af3e78b63f176892b57bf03842
+    short_sha: 3dd165666
+    authored_at: '2026-05-21T11:29:30+00:00'
+    subject: 'test: use valid focus mode fixtures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/focus_career_followup.json
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 73a6049ab9d5a0c7af36c6ab760ac0a744d13320
+    short_sha: 73a6049ab
+    authored_at: '2026-05-21T11:06:17+00:00'
+    subject: 'test: verify focus activation persists after relogin'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    related_feature_ids: []
+  - sha: 4e74b8004fe2227d919eec1da2f3b3fc59407616
+    short_sha: 4e74b8004
+    authored_at: '2026-05-21T10:56:07+00:00'
+    subject: 'fix: keep focus continuation history user-ended'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/focus_mode_auto_confirm_task.py
+    related_feature_ids: []
+  - sha: c610a080c43bde3c1d48849120a3c760ef2a6f27
+    short_sha: c610a080c
+    authored_at: '2026-05-21T10:43:15+00:00'
+    subject: 'fix: remove stale dev web domain references'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Intents/TodaysInspirationIntent.swift
+    - apple/OpenMatesWidget/OpenMatesWidget.swift
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/app/utils/server_mode.py
+    - backend/preview/Caddyfile.example
+    - backend/preview/main.py
+    - backend/status/README.md
+    - backend/status/app/config.py
+    - backend/status/docker-compose.yml
+    - backend/tests/test_rest_api_core.py
+    - backend/upload/routes/upload_route.py
+    - deployment/preview_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - docs/contributing/guides/git-and-deployment.md
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - frontend/packages/openmates-cli/src/shareEncryption.ts
+    - frontend/packages/openmates-cli/tests/shareEncryption.test.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: e6eb031330d3ba2c430045ed31fb45e7b47e49da
+    short_sha: e6eb03133
+    authored_at: '2026-05-21T10:25:33+00:00'
+    subject: 'ci: align cli prerelease version with product version'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - frontend/packages/openmates-cli/package.json
+    - scripts/prepare_cli_publish_version.mjs
+    - shared/config/product_version.json
+    related_feature_ids: []
+  - sha: 97c2fac80f461e2e95de792231494c5eefb50081
+    short_sha: 97c2fac80
+    authored_at: '2026-05-21T10:22:23+00:00'
+    subject: 'fix: stabilize focus mode reload errors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 449cab0acbdd8dca65a8392cf5678c3c0d4bbe05
+    short_sha: 449cab0ac
+    authored_at: '2026-05-21T09:23:14+00:00'
+    subject: 'fix: persist shared chat PII flags with admin access'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/share.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a new music generation skill and significantly stabilized Focus Mode. The update also includes
+    improved social media data handling via Reddit JSON and security enhancements for encrypted chat responses.
+  released_changes:
+  - text: A music generation skill was added, allowing users to create audio content directly within the app. This includes
+      new preview and fullscreen embeds.
+    evidence:
+      commits:
+      - f5e9f99ac
+      - 123abbf19
+    release_status: released_main
+  - text: Social media skills now utilize Reddit JSON for more reliable post retrieval and rendering.
+    evidence:
+      commits:
+      - 490da3dbd
+    release_status: released_main
+  - text: Code execution embeds now support follow-up actions, enabling a more iterative workflow when working with generated
+      code.
+    evidence:
+      commits:
+      - 413b7e3ec
+    release_status: released_main
+  bug_fixes:
+  - text: Focus Mode received multiple stability updates, including persisting activation from countdowns, suppressing same-turn
+      placeholders, and resolving reload errors.
+    evidence:
+      commits:
+      - 865b70bcc
+      - 117d73e02
+      - 875eace40
+      - 50057a7f0
+      - 27fcbb620
+      - 4e74b8004
+      - 97c2fac80
+    release_status: released_main
+  - text: Assistant responses encrypted with stale chat keys are now rejected to ensure session security.
+    evidence:
+      commits:
+      - 238244c29
+    release_status: released_main
+  - text: Shared chat PII flags are now correctly persisted when modified with administrative access.
+    evidence:
+      commits:
+      - 449cab0ac
+    release_status: released_main
+  - text: Provider display names have been normalized across mail, social media, and video skills for a more consistent interface.
+    evidence:
+      commits:
+      - f22152dc8
+    release_status: released_main
+  - text: Social media post embeds were improved for better rendering of external content.
+    evidence:
+      commits:
+      - 1dac7397c
+    release_status: released_main
+  unreleased_progress:
+  - text: Work on returning asynchronous skill results in the CLI is underway, though currently gated by the Tasks platform
+      status.
+    evidence:
+      commits:
+      - 466dc3895
+    release_status: released_main
+  - text: Domain references for the unreleased iOS and macOS platforms were updated to remove stale development URLs.
+    evidence:
+      commits:
+      - c610a080c
+    release_status: released_main
+  internal_progress:
+  - text: The CLI prerelease versioning was aligned with the core product versioning in the CI pipeline.
+    evidence:
+      commits:
+      - e6eb03133
+    release_status: released_main
+  - text: The E2B code runner now uses an explicit secure mode configuration.
+    evidence:
+      commits:
+      - 63a7c8ae8
+    release_status: released_main
+  - text: Extensive end-to-end test coverage was added for Focus Mode UI states, video requests, and multi-turn code generation.
+    evidence:
+      commits:
+      - a3ac18060
+      - a0ba9f8bb
+      - fa7df450a
+      - ec16eba2f
+      - 38551b2c4
+      - 6533b8849
+      - 6fe19f63c
+      - 7e6986c32
+      - 67a4aaa95
+      - c0428f616
+      - c4cfd243b
+      - 3086e2d7a
+      - 4ebe6be74
+      - 42b011c2e
+      - '601502036'
+      - 3dd165666
+      - 73a6049ab
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New music generation skill powered by Gemini.
+      evidence:
+        commits:
+        - f5e9f99ac
+      reason: A major new creative capability for the platform.
+    - text: Reddit JSON integration for social media posts.
+      evidence:
+        commits:
+        - 490da3dbd
+      reason: Improves the reliability and data quality of social media integrations.
+    - text: Follow-up actions for code output embeds.
+      evidence:
+        commits:
+        - 413b7e3ec
+      reason: Enhances the interactivity of the code execution environment.
+    exclude:
+    - text: Async skill results in the CLI.
+      evidence:
+        commits:
+        - 466dc3895
+      reason: This feature depends on the Tasks platform, which is currently disabled.
+    - text: Cleanup of stale dev domain references for Apple platforms.
+      evidence:
+        commits:
+        - c610a080c
+      reason: This update affects iOS and macOS platforms which are currently disabled.
+    rationale: The music generation skill and Reddit integration represent significant user-facing value, while Focus Mode
+      fixes ensure a stable core experience. Platform-specific work for iOS, macOS, and Tasks remains excluded per feature
+      availability rules.
+  social_video_recommendations:
+  - idea: Showcase the new music generation skill by prompting for a specific genre and showing the resulting audio embed.
+    priority: high
+    reason: Music generation is a highly visual and auditory feature perfect for social media demonstrations.
+    evidence:
+      commits:
+      - f5e9f99ac
+  quality_notes:
+  - Focus Mode stability is a primary focus of this update, addressing several edge cases in activation and persistence.
+  - Security is bolstered by stricter chat key validation.
+  validation_warnings: []

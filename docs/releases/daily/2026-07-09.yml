@@ -1,0 +1,930 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-09'
+generated_at: '2026-07-09T15:54:26+00:00'
+range:
+  since: '2026-07-09T00:00:00+00:00'
+  until: '2026-07-09T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 13
+  section_counts:
+    features: 1
+    bug_fixes: 5
+    improvements: 0
+    docs: 0
+    tests: 6
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 1
+  user_facing_items: 6
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Apple Tiptap WebView composer'
+    section: features
+    commits:
+    - 0feb3b4b4
+    authored_at: '2026-07-09T09:50:45+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Resources/TiptapComposer/index.html
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/core@3.26.0/es2022/core.bundle.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/extension-placeholder@3.26.0/es2022/extension-placeholder.bundle.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/extensions@3.26.0/es2022/extensions.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/commands.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/keymap.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/model.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/schema-list.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/state.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/transform.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/view.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/starter-kit@3.26.0/es2022/starter-kit.bundle.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/tiptap-core.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/tiptap-placeholder.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/tiptap-starter-kit.mjs
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - docs/specs/apple-tiptap-webview-composer/spec.yml
+    - scripts/apple_composer_audit.py
+    - scripts/build_apple_tiptap_composer.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix: make Apple recording overlay cancellable'
+    section: bug_fixes
+    commits:
+    - eca1bbe7d
+    authored_at: '2026-07-09T12:37:40+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: harden CLI self-host backups'
+    section: bug_fixes
+    commits:
+    - f305b3975
+    authored_at: '2026-07-09T12:29:54+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: focus Apple Tiptap WebView on tap'
+    section: bug_fixes
+    commits:
+    - b04573f3e
+    authored_at: '2026-07-09T12:24:51+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: harden Apple Tiptap composer focus'
+    section: bug_fixes
+    commits:
+    - fc6d4b5f5
+    authored_at: '2026-07-09T12:20:27+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: match WebKit navigation delegate signature'
+    section: bug_fixes
+    commits:
+    - 523d40b11
+    authored_at: '2026-07-09T09:52:19+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: stabilize Apple interest suggestion assertion'
+    section: tests
+    commits:
+    - f27c4be6a
+    authored_at: '2026-07-09T13:00:29+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: accept compact Apple welcome cards'
+    section: tests
+    commits:
+    - 3c0f32f38
+    authored_at: '2026-07-09T12:55:34+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: assert Apple recording cancel hint label'
+    section: tests
+    commits:
+    - 8034d4c35
+    authored_at: '2026-07-09T12:47:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: align Apple audio composer smoke coverage'
+    section: tests
+    commits:
+    - 68a3b63ee
+    authored_at: '2026-07-09T12:40:57+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: align Apple attachment composer coverage'
+    section: tests
+    commits:
+    - e1926bddd
+    authored_at: '2026-07-09T12:29:13+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: update Apple composer UI selectors'
+    section: tests
+    commits:
+    - 2f4f9e5f3
+    authored_at: '2026-07-09T12:15:59+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'Merge pull request #485 from glowingkitty/dev'
+    section: other
+    commits:
+    - e09ad91bc
+    authored_at: '2026-07-09T15:03:34+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: harden CLI self-host backups'
+    commits:
+    - f305b3975
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: make Apple recording overlay cancellable'
+    commits:
+    - eca1bbe7d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: harden CLI self-host backups'
+    commits:
+    - f305b3975
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: focus Apple Tiptap WebView on tap'
+    commits:
+    - b04573f3e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: harden Apple Tiptap composer focus'
+    commits:
+    - fc6d4b5f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: match WebKit navigation delegate signature'
+    commits:
+    - 523d40b11
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Apple Tiptap WebView composer'
+    commits:
+    - 0feb3b4b4
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: e09ad91bc889de5cbe2c1add5cda5ba70ec18887
+    short_sha: e09ad91bc
+    authored_at: '2026-07-09T15:03:34+02:00'
+    subject: 'Merge pull request #485 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: f27c4be6ae598f7f0746b2e209050ca84da57eeb
+    short_sha: f27c4be6a
+    authored_at: '2026-07-09T13:00:29+00:00'
+    subject: 'test: stabilize Apple interest suggestion assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3c0f32f3809aa60a54eea48aa281923e8c18cb1c
+    short_sha: 3c0f32f38
+    authored_at: '2026-07-09T12:55:34+00:00'
+    subject: 'test: accept compact Apple welcome cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8034d4c35c485d2969291c2e49c3b709171aecbf
+    short_sha: 8034d4c35
+    authored_at: '2026-07-09T12:47:22+00:00'
+    subject: 'test: assert Apple recording cancel hint label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 68a3b63ee6af5d068e823aea94493bbf9fb919dc
+    short_sha: 68a3b63ee
+    authored_at: '2026-07-09T12:40:57+00:00'
+    subject: 'test: align Apple audio composer smoke coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: eca1bbe7db75071201668806724bbf6f74526bd8
+    short_sha: eca1bbe7d
+    authored_at: '2026-07-09T12:37:40+00:00'
+    subject: 'fix: make Apple recording overlay cancellable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f305b397515b1b44ffc386c843c8e2e93c5f3395
+    short_sha: f305b3975
+    authored_at: '2026-07-09T12:29:54+00:00'
+    subject: 'fix: harden CLI self-host backups'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: e1926bddd228113eb7684efd8a020bca1a11025b
+    short_sha: e1926bddd
+    authored_at: '2026-07-09T12:29:13+00:00'
+    subject: 'test: align Apple attachment composer coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b04573f3e99f7b8a7d94fc4edd00d389d763342d
+    short_sha: b04573f3e
+    authored_at: '2026-07-09T12:24:51+00:00'
+    subject: 'fix: focus Apple Tiptap WebView on tap'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: fc6d4b5f54029fb7c0a83035d7c3c6776919e31e
+    short_sha: fc6d4b5f5
+    authored_at: '2026-07-09T12:20:27+00:00'
+    subject: 'fix: harden Apple Tiptap composer focus'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2f4f9e5f350a8200fa44439fde01cb26b85dfca3
+    short_sha: 2f4f9e5f3
+    authored_at: '2026-07-09T12:15:59+00:00'
+    subject: 'test: update Apple composer UI selectors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 523d40b11ad723fe0c959e27a2cedc38bd81b932
+    short_sha: 523d40b11
+    authored_at: '2026-07-09T09:52:19+00:00'
+    subject: 'fix: match WebKit navigation delegate signature'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0feb3b4b4d184a3d5518fcc575fb2082a6a580cf
+    short_sha: 0feb3b4b4
+    authored_at: '2026-07-09T09:50:45+00:00'
+    subject: 'feat: add Apple Tiptap WebView composer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Resources/TiptapComposer/index.html
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/core@3.26.0/es2022/core.bundle.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/extension-placeholder@3.26.0/es2022/extension-placeholder.bundle.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/extensions@3.26.0/es2022/extensions.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/commands.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/keymap.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/model.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/schema-list.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/state.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/transform.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/pm@3.26.0/es2022/view.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/@tiptap/starter-kit@3.26.0/es2022/starter-kit.bundle.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/tiptap-core.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/tiptap-placeholder.mjs
+    - apple/OpenMates/Resources/TiptapComposer/vendor/tiptap-starter-kit.mjs
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - docs/specs/apple-tiptap-webview-composer/spec.yml
+    - scripts/apple_composer_audit.py
+    - scripts/build_apple_tiptap_composer.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: OpenMates improved self-hosting reliability by hardening CLI backups. Significant development also continued on
+    the upcoming Apple platform support, specifically focusing on a new rich-text composer and voice recording refinements.
+  released_changes:
+  - text: OpenMates hardened the backup procedures within the CLI for self-hosted environments.
+    evidence:
+      commits:
+      - f305b3975
+    release_status: released_main
+  bug_fixes:
+  - text: The OpenMates CLI now features hardened self-host backup logic to improve reliability during server planning and
+      deployment.
+    evidence:
+      commits:
+      - f305b3975
+    release_status: released_main
+  unreleased_progress:
+  - text: A new Tiptap-based WebView composer was added for Apple platforms, providing a foundation for rich-text editing.
+    evidence:
+      commits:
+      - 0feb3b4b4
+    release_status: released_main
+  - text: The voice recording overlay for Apple platforms was updated to be cancellable, improving the user experience for
+      audio messages.
+    evidence:
+      commits:
+      - eca1bbe7d
+    release_status: released_main
+  - text: Several refinements were made to the Apple Tiptap composer, including better focus handling on tap and WebKit navigation
+      delegate compatibility.
+    evidence:
+      commits:
+      - b04573f3e
+      - fc6d4b5f5
+      - 523d40b11
+    release_status: released_main
+  internal_progress:
+  - text: UI test coverage for Apple platforms was expanded to include audio recording cancel hints and stabilized interest
+      suggestion assertions.
+    evidence:
+      commits:
+      - f27c4be6a
+      - 8034d4c35
+      - 68a3b63ee
+      - e1926bddd
+    release_status: released_main
+  - text: Apple platform UI selectors and welcome card assertions were updated to maintain parity with recent design changes.
+    evidence:
+      commits:
+      - 3c0f32f38
+      - 2f4f9e5f3
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Hardened self-host backups in the OpenMates CLI.
+      evidence:
+        commits:
+        - f305b3975
+      reason: This is a released improvement to the CLI tool with a ready communication status.
+    exclude:
+    - text: Apple Tiptap WebView composer integration.
+      evidence:
+        commits:
+        - 0feb3b4b4
+      reason: The Apple Tiptap composer is part of the unreleased iOS and macOS platforms.
+    - text: Apple platform recording and composer refinements.
+      evidence:
+        commits:
+        - eca1bbe7d
+        - b04573f3e
+        - fc6d4b5f5
+        - 523d40b11
+      reason: These fixes relate to the unreleased iOS and macOS platforms.
+    rationale: The CLI backup hardening is the only user-facing change ready for public communication. All other work pertains
+      to the unreleased iOS and macOS platforms.
+  social_video_recommendations:
+  - idea: A preview of the new Tiptap-based rich text composer coming to Apple platforms.
+    priority: medium
+    reason: Shows concrete progress on the highly anticipated mobile and desktop apps.
+    evidence:
+      commits:
+      - 0feb3b4b4
+  quality_notes:
+  - Focus on UI test parity for the upcoming Apple platform release.
+  - Refinement of rich-text editor focus and navigation delegates in WebView components.
+  validation_warnings: []

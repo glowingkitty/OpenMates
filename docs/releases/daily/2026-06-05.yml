@@ -1,0 +1,1093 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-05'
+generated_at: '2026-07-09T15:35:33+00:00'
+range:
+  since: '2026-06-05T00:00:00+00:00'
+  until: '2026-06-05T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 20
+  section_counts:
+    features: 4
+    bug_fixes: 7
+    improvements: 2
+    docs: 3
+    tests: 4
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 10
+  user_facing_items: 10
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add documentation claims checks'
+    section: features
+    commits:
+    - 75124fa6b
+    authored_at: '2026-06-05T13:22:04+00:00'
+    changed_paths:
+    - backend/tests/conftest.py
+    - docs/contributing/guides/docs-writing-guidelines.md
+    - docs/user-guide/export-account.md
+    - docs/user-guide/import-account.md
+    - docs/user-guide/sharing.md
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/doc-checkpoint.ts
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - scripts/docs_claims_review.py
+    - scripts/docs_claims_verify.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: trigger opencode from admin issue reports'
+    section: features
+    commits:
+    - 0ae5239d9
+    authored_at: '2026-06-05T11:27:23+00:00'
+    changed_paths:
+    - backend/admin_sidecar/main.py
+    - backend/core/api/app/routes/settings.py
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    - scripts/agent-trigger-watcher.sh
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add weekly technical debt scan'
+    section: features
+    commits:
+    - 9a955e068
+    authored_at: '2026-06-05T09:20:03+00:00'
+    changed_paths:
+    - .claude/hooks/code-debt-pre-edit-guard.sh
+    - .claude/rules/code-quality.md
+    - .codex/hooks/claude-hook-bridge.sh
+    - .gitignore
+    - backend/tests/test__technical_debt_helper.py
+    - backend/tests/test_code_quality_guard.py
+    - backend/tests/test_technical_debt_scan.py
+    - docs/architecture/infrastructure/cronjobs.md
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    - opencode.json
+    - scripts/_technical_debt_helper.py
+    - scripts/code_quality_guard.py
+    - scripts/install-hooks.sh
+    - scripts/prompts/technical-debt-analysis.md
+    - scripts/technical_debt_scan.py
+    - scripts/weekly-technical-debt.sh
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add contract audit recommendation chat'
+    section: features
+    commits:
+    - c897088ad
+    authored_at: '2026-06-05T09:01:26+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/_contract_audit_review_helper.py
+    - scripts/prompts/contract-audit-review.md
+    - scripts/weekly-contract-audits.sh
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: preserve valid skill requests in malformed batches'
+    section: bug_fixes
+    commits:
+    - 2d39d7463
+    authored_at: '2026-06-05T13:33:34+00:00'
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/apps/base_skill.py
+    - backend/apps/code/skills/search_repos_skill.py
+    - backend/apps/electronics/skills/search_components.py
+    - backend/apps/health/skills/search_appointments_skill.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/maps/skills/search_skill.py
+    - backend/apps/news/skills/search_skill.py
+    - backend/apps/nutrition/skills/search_recipes.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/travel/skills/price_calendar.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/apps/travel/skills/search_stays.py
+    - backend/apps/videos/skills/search_skill.py
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/apps/web/skills/read_skill.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/tests/test_base_skill_request_partitioning.py
+    - backend/tests/test_events_provider_routing.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restrict docker port exposure'
+    section: bug_fixes
+    commits:
+    - f7180da5f
+    authored_at: '2026-06-05T13:17:02+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - backend/preview/docker-compose.preview.yml
+    - backend/tests/test_code_quality_guard.py
+    - scripts/code_quality_guard.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: prevent malformed event batch items from blocking results'
+    section: bug_fixes
+    commits:
+    - a93737971
+    authored_at: '2026-06-05T13:04:31+00:00'
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover missing auto-fix summaries'
+    section: bug_fixes
+    commits:
+    - 9689bf602
+    authored_at: '2026-06-05T09:04:10+00:00'
+    changed_paths:
+    - backend/tests/test_auto_fix_failed_tests_controller.py
+    - scripts/auto_fix_failed_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: auto-fix failed tests g13-b60e2c90'
+    section: bug_fixes
+    commits:
+    - 89bb6b99c
+    authored_at: '2026-06-05T02:04:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-redesign.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: auto-fix failed tests g11-3434d2db'
+    section: bug_fixes
+    commits:
+    - 5d151f2ce
+    authored_at: '2026-06-05T01:25:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: auto-fix failed tests g10-87385f1e'
+    section: bug_fixes
+    commits:
+    - 6f5558ea4
+    authored_at: '2026-06-05T01:12:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'refactor: extract ActiveChat replay helpers'
+    section: improvements
+    commits:
+    - 831f326b8
+    authored_at: '2026-06-05T12:27:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/activeChatReplayUtils.ts
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'refactor: extract ActiveChat pure helpers'
+    section: improvements
+    commits:
+    - cfaf8b3ef
+    authored_at: '2026-06-05T09:33:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs:
+  - title: 'docs: add architecture claim coverage'
+    section: docs
+    commits:
+    - 7382e8110
+    authored_at: '2026-06-05T13:30:47+00:00'
+    changed_paths:
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_privacy_promises.py
+    - docs/architecture/core/chat-encryption-implementation.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/privacy/privacy-promises.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: improve skill auto-selection guidance'
+    section: docs
+    commits:
+    - 425203da0
+    authored_at: '2026-06-05T11:33:01+00:00'
+    changed_paths:
+    - AGENTS.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: add spec-driven development workflow'
+    section: docs
+    commits:
+    - 07a7e6a0a
+    authored_at: '2026-06-05T09:25:09+00:00'
+    changed_paths:
+    - .agents/skills/add-api/SKILL.md
+    - .agents/skills/add-app-skill/SKILL.md
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/add-api/SKILL.md
+    - .claude/skills/add-app-skill/SKILL.md
+    - .claude/skills/add-example-chat/SKILL.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/README.md
+    - opencode.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: enable pretalx provider async coverage'
+    section: tests
+    commits:
+    - 002bac7d8
+    authored_at: '2026-06-05T13:21:49+00:00'
+    changed_paths:
+    - backend/tests/test_pretalx_events_provider.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: account for admin report email defaults'
+    section: tests
+    commits:
+    - 3b5fa934b
+    authored_at: '2026-06-05T11:50:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept network rejection for admin issue endpoint'
+    section: tests
+    commits:
+    - b62f69f70
+    authored_at: '2026-06-05T11:41:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover non-admin report issue automation controls'
+    section: tests
+    commits:
+    - ef91e2b61
+    authored_at: '2026-06-05T11:35:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: preserve valid skill requests in malformed batches'
+    commits:
+    - 2d39d7463
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add documentation claims checks'
+    commits:
+    - 75124fa6b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent malformed event batch items from blocking results'
+    commits:
+    - a93737971
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor: extract ActiveChat replay helpers'
+    commits:
+    - 831f326b8
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: trigger opencode from admin issue reports'
+    commits:
+    - 0ae5239d9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor: extract ActiveChat pure helpers'
+    commits:
+    - cfaf8b3ef
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add weekly technical debt scan'
+    commits:
+    - 9a955e068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: auto-fix failed tests g13-b60e2c90'
+    commits:
+    - 89bb6b99c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: auto-fix failed tests g11-3434d2db'
+    commits:
+    - 5d151f2ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: auto-fix failed tests g10-87385f1e'
+    commits:
+    - 6f5558ea4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: preserve valid skill requests in malformed batches'
+    commits:
+    - 2d39d7463
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add documentation claims checks'
+    commits:
+    - 75124fa6b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent malformed event batch items from blocking results'
+    commits:
+    - a93737971
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor: extract ActiveChat replay helpers'
+    commits:
+    - 831f326b8
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: trigger opencode from admin issue reports'
+    commits:
+    - 0ae5239d9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor: extract ActiveChat pure helpers'
+    commits:
+    - cfaf8b3ef
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add weekly technical debt scan'
+    commits:
+    - 9a955e068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: auto-fix failed tests g13-b60e2c90'
+    commits:
+    - 89bb6b99c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: auto-fix failed tests g11-3434d2db'
+    commits:
+    - 5d151f2ce
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: auto-fix failed tests g10-87385f1e'
+    commits:
+    - 6f5558ea4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 2d39d7463b5f44b136abe789e9fe5cb7f4e6c3d0
+    short_sha: 2d39d7463
+    authored_at: '2026-06-05T13:33:34+00:00'
+    subject: 'fix: preserve valid skill requests in malformed batches'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/skills/transcribe_skill.py
+    - backend/apps/base_skill.py
+    - backend/apps/code/skills/search_repos_skill.py
+    - backend/apps/electronics/skills/search_components.py
+    - backend/apps/health/skills/search_appointments_skill.py
+    - backend/apps/home/skills/search_skill.py
+    - backend/apps/maps/skills/search_skill.py
+    - backend/apps/news/skills/search_skill.py
+    - backend/apps/nutrition/skills/search_recipes.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/travel/skills/price_calendar.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/apps/travel/skills/search_stays.py
+    - backend/apps/videos/skills/search_skill.py
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/apps/web/skills/read_skill.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/tests/test_base_skill_request_partitioning.py
+    - backend/tests/test_events_provider_routing.py
+    related_feature_ids: []
+  - sha: 7382e8110a411e461ba843feec48f064b9aed3e2
+    short_sha: 7382e8110
+    authored_at: '2026-06-05T13:30:47+00:00'
+    subject: 'docs: add architecture claim coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_privacy_promises.py
+    - docs/architecture/core/chat-encryption-implementation.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/privacy/privacy-promises.md
+    related_feature_ids: []
+  - sha: 75124fa6b533dcb097e108c7e896394ab33ed1a1
+    short_sha: 75124fa6b
+    authored_at: '2026-06-05T13:22:04+00:00'
+    subject: 'feat: add documentation claims checks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/conftest.py
+    - docs/contributing/guides/docs-writing-guidelines.md
+    - docs/user-guide/export-account.md
+    - docs/user-guide/import-account.md
+    - docs/user-guide/sharing.md
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/doc-checkpoint.ts
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - scripts/docs_claims_review.py
+    - scripts/docs_claims_verify.py
+    related_feature_ids: []
+  - sha: 002bac7d83cf4e8550372300f5601a3bbadeba0b
+    short_sha: 002bac7d8
+    authored_at: '2026-06-05T13:21:49+00:00'
+    subject: 'test: enable pretalx provider async coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_pretalx_events_provider.py
+    related_feature_ids: []
+  - sha: f7180da5fefbadbd86ab719d4a5bb4867dbf0a0b
+    short_sha: f7180da5f
+    authored_at: '2026-06-05T13:17:02+00:00'
+    subject: 'fix: restrict docker port exposure'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - backend/preview/docker-compose.preview.yml
+    - backend/tests/test_code_quality_guard.py
+    - scripts/code_quality_guard.py
+    related_feature_ids: []
+  - sha: a9373797179846e042be36e7810f2c54a10a30cb
+    short_sha: a93737971
+    authored_at: '2026-06-05T13:04:31+00:00'
+    subject: 'fix: prevent malformed event batch items from blocking results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    related_feature_ids: []
+  - sha: 831f326b82687bd4a7a4db831488f41e20b8da39
+    short_sha: 831f326b8
+    authored_at: '2026-06-05T12:27:41+00:00'
+    subject: 'refactor: extract ActiveChat replay helpers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/activeChatReplayUtils.ts
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    related_feature_ids: []
+  - sha: 3b5fa934bad6c0acac3abbfc0cf0596cd9591e73
+    short_sha: 3b5fa934b
+    authored_at: '2026-06-05T11:50:49+00:00'
+    subject: 'test: account for admin report email defaults'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    related_feature_ids: []
+  - sha: b62f69f70f98aa92abe92f32b422fdd834254327
+    short_sha: b62f69f70
+    authored_at: '2026-06-05T11:41:27+00:00'
+    subject: 'test: accept network rejection for admin issue endpoint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    related_feature_ids: []
+  - sha: ef91e2b61f1125a59a20a9a54235ca49ae1ed8bf
+    short_sha: ef91e2b61
+    authored_at: '2026-06-05T11:35:40+00:00'
+    subject: 'test: cover non-admin report issue automation controls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    related_feature_ids: []
+  - sha: 425203da06596f0468ae2a85f8cef002e368dabd
+    short_sha: 425203da0
+    authored_at: '2026-06-05T11:33:01+00:00'
+    subject: 'docs: improve skill auto-selection guidance'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    related_feature_ids: []
+  - sha: 0ae5239d933a8ccbed5b4142d5f89c701e005082
+    short_sha: 0ae5239d9
+    authored_at: '2026-06-05T11:27:23+00:00'
+    subject: 'feat: trigger opencode from admin issue reports'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/admin_sidecar/main.py
+    - backend/core/api/app/routes/settings.py
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    - scripts/agent-trigger-watcher.sh
+    related_feature_ids: []
+  - sha: cfaf8b3ef29269553642f7a161786b9693434848
+    short_sha: cfaf8b3ef
+    authored_at: '2026-06-05T09:33:34+00:00'
+    subject: 'refactor: extract ActiveChat pure helpers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    related_feature_ids: []
+  - sha: 07a7e6a0af206c9b57d63614095ff94ca600665e
+    short_sha: 07a7e6a0a
+    authored_at: '2026-06-05T09:25:09+00:00'
+    subject: 'docs: add spec-driven development workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-api/SKILL.md
+    - .agents/skills/add-app-skill/SKILL.md
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/add-api/SKILL.md
+    - .claude/skills/add-app-skill/SKILL.md
+    - .claude/skills/add-example-chat/SKILL.md
+    - .claude/skills/clarify/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/next-tasks/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/README.md
+    - opencode.json
+    related_feature_ids: []
+  - sha: 9a955e068a2132f09cd96743f598f070cb802118
+    short_sha: 9a955e068
+    authored_at: '2026-06-05T09:20:03+00:00'
+    subject: 'feat: add weekly technical debt scan'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/code-debt-pre-edit-guard.sh
+    - .claude/rules/code-quality.md
+    - .codex/hooks/claude-hook-bridge.sh
+    - .gitignore
+    - backend/tests/test__technical_debt_helper.py
+    - backend/tests/test_code_quality_guard.py
+    - backend/tests/test_technical_debt_scan.py
+    - docs/architecture/infrastructure/cronjobs.md
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/activeChatUtils.ts
+    - opencode.json
+    - scripts/_technical_debt_helper.py
+    - scripts/code_quality_guard.py
+    - scripts/install-hooks.sh
+    - scripts/prompts/technical-debt-analysis.md
+    - scripts/technical_debt_scan.py
+    - scripts/weekly-technical-debt.sh
+    related_feature_ids: []
+  - sha: 9689bf60286790f74229b1b258fa0c08e1920067
+    short_sha: 9689bf602
+    authored_at: '2026-06-05T09:04:10+00:00'
+    subject: 'fix: recover missing auto-fix summaries'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_auto_fix_failed_tests_controller.py
+    - scripts/auto_fix_failed_tests.py
+    related_feature_ids: []
+  - sha: c897088ad5ca9e6474df902ca6cf20ced93803ad
+    short_sha: c897088ad
+    authored_at: '2026-06-05T09:01:26+00:00'
+    subject: 'feat: add contract audit recommendation chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/_contract_audit_review_helper.py
+    - scripts/prompts/contract-audit-review.md
+    - scripts/weekly-contract-audits.sh
+    related_feature_ids: []
+  - sha: 89bb6b99c9cc7406dee3a3d8d3757973167655ee
+    short_sha: 89bb6b99c
+    authored_at: '2026-06-05T02:04:12+00:00'
+    subject: 'fix: auto-fix failed tests g13-b60e2c90'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-redesign.spec.ts
+    related_feature_ids: []
+  - sha: 5d151f2cec5f261b42f34a2900bbfeabc6be4377
+    short_sha: 5d151f2ce
+    authored_at: '2026-06-05T01:25:13+00:00'
+    subject: 'fix: auto-fix failed tests g11-3434d2db'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    related_feature_ids: []
+  - sha: 6f5558ea417aaaf79a357ae55632b5f6ff97cc84
+    short_sha: 6f5558ea4
+    authored_at: '2026-06-05T01:12:38+00:00'
+    subject: 'fix: auto-fix failed tests g10-87385f1e'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on system resilience and quality assurance today, introducing automated documentation verification
+    and improving the reliability of skill batch processing. Significant work was also done on internal maintenance tools,
+    including technical debt scanning and admin-side troubleshooting integrations.
+  released_changes:
+  - text: A new verification system was added to automatically check documentation claims—such as account export and sharing
+      functionality—against the actual codebase.
+    evidence:
+      commits:
+      - 75124fa6b
+    release_status: released_main
+  - text: The admin interface now supports triggering OpenCode directly from issue reports to accelerate troubleshooting.
+    evidence:
+      commits:
+      - 0ae5239d9
+    release_status: released_main
+  - text: A weekly automated technical debt scan was implemented to monitor and maintain code quality.
+    evidence:
+      commits:
+      - 9a955e068
+    release_status: released_main
+  - text: Chat UI components were refactored to extract replay and utility helpers, improving frontend maintainability.
+    evidence:
+      commits:
+      - 831f326b8
+      - cfaf8b3ef
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates improved the resilience of skill execution by ensuring that malformed items within a batch do not block
+      valid requests or results.
+    evidence:
+      commits:
+      - 2d39d7463
+      - a93737971
+    release_status: released_main
+  - text: Automated fixes were applied to stabilize UI tests for reminders and chat deduplication.
+    evidence:
+      commits:
+      - 89bb6b99c
+      - 5d151f2ce
+    release_status: released_main
+  unreleased_progress:
+  - text: Maintenance work was performed on the Projects platform, which remains disabled.
+    evidence:
+      commits:
+      - 6f5558ea4
+    release_status: released_main
+  - text: Internal progress continued on architecture documentation, agent skill selection guidance, and spec-driven development
+      workflows.
+    evidence:
+      commits:
+      - 7382e8110
+      - 425203da0
+      - 07a7e6a0a
+      - c897088ad
+    release_status: released_main
+  internal_progress:
+  - text: Docker port exposure was restricted to improve environment security.
+    evidence:
+      commits:
+      - f7180da5f
+    release_status: released_main
+  - text: The automated test-fix controller now correctly recovers missing summaries.
+    evidence:
+      commits:
+      - 9689bf602
+    release_status: released_main
+  - text: Test coverage was expanded for the Pretalx provider and admin issue reporting flows.
+    evidence:
+      commits:
+      - 002bac7d8
+      - 3b5fa934b
+      - b62f69f70
+      - ef91e2b61
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Enhanced resilience for skill batch processing.
+      evidence:
+        commits:
+        - 2d39d7463
+        - a93737971
+      reason: Improves the reliability of AI skill responses for users.
+    - text: Automated documentation claims verification.
+      evidence:
+        commits:
+        - 75124fa6b
+      reason: Introduces a robust way to ensure user-facing documentation remains accurate.
+    - text: Admin issue reports now integrate directly with OpenCode.
+      evidence:
+        commits:
+        - 0ae5239d9
+      reason: Streamlines the support process for administrators.
+    - text: New weekly automated technical debt scanning.
+      evidence:
+        commits:
+        - 9a955e068
+      reason: Demonstrates a commitment to long-term code quality and performance.
+    exclude:
+    - text: Automated test fix for projects flow.
+      evidence:
+        commits:
+        - 6f5558ea4
+      reason: This fix targets the Projects platform, which is currently a disabled feature.
+    rationale: The highlights focus on significant improvements to system reliability, documentation integrity, and administrative
+      troubleshooting tools.
+  social_video_recommendations:
+  - idea: A short video explaining how OpenMates uses 'Doc Claims' to ensure the user guide never goes out of sync with the
+      app.
+    priority: medium
+    reason: This is a unique technical feature that highlights the project's focus on accuracy and quality.
+    evidence:
+      commits:
+      - 75124fa6b
+  - idea: A walkthrough of the admin issue reporting flow showing an agent being triggered to investigate a report.
+    priority: low
+    reason: Useful for demonstrating the integrated nature of the OpenMates admin tools.
+    evidence:
+      commits:
+      - 0ae5239d9
+  quality_notes:
+  - The introduction of documentation claims checks (75124fa6b) provides a new layer of automated verification for user-facing
+    guides.
+  - Skill execution is now more robust against malformed data in multi-item batches (2d39d7463).
+  validation_warnings: []

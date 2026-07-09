@@ -1,0 +1,1145 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-22'
+generated_at: '2026-07-09T15:23:40+00:00'
+range:
+  since: '2026-05-22T00:00:00+00:00'
+  until: '2026-05-22T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 22
+  section_counts:
+    features: 2
+    bug_fixes: 13
+    improvements: 0
+    docs: 0
+    tests: 6
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 12
+  user_facing_items: 12
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: expand Code Run language support'
+    section: features
+    commits:
+    - 2200f7e1f
+    authored_at: '2026-05-22T19:09:27+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add generated media asset pipeline'
+    section: features
+    commits:
+    - 7fb483602
+    authored_at: '2026-05-22T13:26:14+00:00'
+    changed_paths:
+    - backend/apps/base_skill.py
+    - backend/apps/images/app.yml
+    - backend/apps/images/skills/generate_skill.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/apps/music/app.yml
+    - backend/apps/music/tasks/generate_task.py
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/skills/generate_skill.py
+    - backend/apps/videos/tasks/__init__.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/generated_assets_api.py
+    - backend/core/api/app/schemas/app_metadata_schemas.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/providers/google.yml
+    - backend/shared/providers/google/__init__.py
+    - backend/shared/providers/google/gemini_video.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/billing_utils.py
+    - backend/shared/python_utils/generated_assets/__init__.py
+    - backend/shared/python_utils/generated_assets/service.py
+    - backend/tests/test_billing_utils.py
+    - backend/tests/test_generated_media_credit_precheck.py
+    - backend/tests/test_rest_api_music.py
+    - backend/tests/test_video_generate_task.py
+    - backend/tests/test_video_generation_pricing.py
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/videoEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+    - frontend/packages/ui/src/types/apps.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: mock Sightengine HTTP calls in tests'
+    section: bug_fixes
+    commits:
+    - 9325f2dfd
+    authored_at: '2026-05-22T15:55:31+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/shared/providers/sightengine/client.py
+    - backend/tests/test_image_safety_pipeline.py
+    - backend/tests/test_sightengine_service.py
+    - backend/upload/services/sightengine_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: omit unsupported Veo count'
+    section: bug_fixes
+    commits:
+    - 0de33919b
+    authored_at: '2026-05-22T13:52:29+00:00'
+    changed_paths:
+    - backend/shared/providers/google/gemini_video.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: send numeric Veo duration'
+    section: bug_fixes
+    commits:
+    - da4d2ac34
+    authored_at: '2026-05-22T13:47:13+00:00'
+    changed_paths:
+    - backend/shared/providers/google/gemini_video.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: align CLI upload endpoint'
+    section: bug_fixes
+    commits:
+    - f485d2f8d
+    authored_at: '2026-05-22T11:54:05+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: retry CLI file uploads'
+    section: bug_fixes
+    commits:
+    - 499e2db18
+    authored_at: '2026-05-22T11:45:29+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve CLI file embed payloads'
+    section: bug_fixes
+    commits:
+    - 5b70239bf
+    authored_at: '2026-05-22T11:20:21+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve CLI file embed references'
+    section: bug_fixes
+    commits:
+    - 5274a21d6
+    authored_at: '2026-05-22T11:19:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render music embed icons correctly'
+    section: bug_fixes
+    commits:
+    - 54cdc9375
+    authored_at: '2026-05-22T10:32:55+00:00'
+    changed_paths:
+    - backend/apps/music/app.yml
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/music.yml
+    - frontend/packages/ui/src/styles/icons.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize top failing playwright specs'
+    section: bug_fixes
+    commits:
+    - e88519da5
+    authored_at: '2026-05-22T10:08:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose music app metadata with Vertex credentials'
+    section: bug_fixes
+    commits:
+    - 7127d70ac
+    authored_at: '2026-05-22T09:54:10+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent daily inspiration media mismatches'
+    section: bug_fixes
+    commits:
+    - 2bed73247
+    authored_at: '2026-05-22T09:35:47+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/tests/test_daily_inspiration_generator.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route music generation embeds'
+    section: bug_fixes
+    commits:
+    - 2eb9ca4bf
+    authored_at: '2026-05-22T00:19:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add music embed preview showcase'
+    section: bug_fixes
+    commits:
+    - f1b620a0f
+    authored_at: '2026-05-22T00:03:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.preview.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: cover Code Run CTA support'
+    section: tests
+    commits:
+    - 7f561ce9c
+    authored_at: '2026-05-22T19:33:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/__tests__/codeRunSupport.test.ts
+    - frontend/packages/ui/src/components/embeds/code/codeRunSupport.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for CLI chat sync'
+    section: tests
+    commits:
+    - 16fd7424b
+    authored_at: '2026-05-22T11:36:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden CLI upload timing'
+    section: tests
+    commits:
+    - 1e07ae425
+    authored_at: '2026-05-22T11:28:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align CLI file upload pair auth flow'
+    section: tests
+    commits:
+    - b16941252
+    authored_at: '2026-05-22T11:04:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: parse CLI pair token URL format'
+    section: tests
+    commits:
+    - caadf7a33
+    authored_at: '2026-05-22T10:45:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify music app store and playback'
+    section: tests
+    commits:
+    - c1e0e51ec
+    authored_at: '2026-05-22T09:21:51+00:00'
+    changed_paths:
+    - backend/apps/music/app.yml
+    - frontend/apps/web_app/tests/skill-music-generate.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'infra: add generated video worker'
+    section: other
+    commits:
+    - 4c7e1e470
+    authored_at: '2026-05-22T13:29:29+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add generated media asset pipeline'
+    commits:
+    - 7fb483602
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render music embed icons correctly'
+    commits:
+    - 54cdc9375
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: expose music app metadata with Vertex credentials'
+    commits:
+    - 7127d70ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'test: verify music app store and playback'
+    commits:
+    - c1e0e51ec
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: expand Code Run language support'
+    commits:
+    - 2200f7e1f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add generated media asset pipeline'
+    commits:
+    - 7fb483602
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align CLI upload endpoint'
+    commits:
+    - f485d2f8d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: retry CLI file uploads'
+    commits:
+    - 499e2db18
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve CLI file embed payloads'
+    commits:
+    - 5b70239bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve CLI file embed references'
+    commits:
+    - 5274a21d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render music embed icons correctly'
+    commits:
+    - 54cdc9375
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize top failing playwright specs'
+    commits:
+    - e88519da5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: expose music app metadata with Vertex credentials'
+    commits:
+    - 7127d70ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent daily inspiration media mismatches'
+    commits:
+    - 2bed73247
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route music generation embeds'
+    commits:
+    - 2eb9ca4bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add music embed preview showcase'
+    commits:
+    - f1b620a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: expand Code Run language support'
+    commits:
+    - 2200f7e1f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add generated media asset pipeline'
+    commits:
+    - 7fb483602
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align CLI upload endpoint'
+    commits:
+    - f485d2f8d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: retry CLI file uploads'
+    commits:
+    - 499e2db18
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve CLI file embed payloads'
+    commits:
+    - 5b70239bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve CLI file embed references'
+    commits:
+    - 5274a21d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render music embed icons correctly'
+    commits:
+    - 54cdc9375
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize top failing playwright specs'
+    commits:
+    - e88519da5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expose music app metadata with Vertex credentials'
+    commits:
+    - 7127d70ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent daily inspiration media mismatches'
+    commits:
+    - 2bed73247
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route music generation embeds'
+    commits:
+    - 2eb9ca4bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add music embed preview showcase'
+    commits:
+    - f1b620a0f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 7f561ce9ca1273496732311f3dcdb42135d31062
+    short_sha: 7f561ce9c
+    authored_at: '2026-05-22T19:33:27+00:00'
+    subject: 'test: cover Code Run CTA support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/__tests__/codeRunSupport.test.ts
+    - frontend/packages/ui/src/components/embeds/code/codeRunSupport.ts
+    related_feature_ids: []
+  - sha: 2200f7e1f42e14a46bcdd1cd9b39233e5cebca29
+    short_sha: 2200f7e1f
+    authored_at: '2026-05-22T19:09:27+00:00'
+    subject: 'feat: expand Code Run language support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 9325f2dfd496477d08fc78338fb22d14a7792bd7
+    short_sha: 9325f2dfd
+    authored_at: '2026-05-22T15:55:31+00:00'
+    subject: 'fix: mock Sightengine HTTP calls in tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/shared/providers/sightengine/client.py
+    - backend/tests/test_image_safety_pipeline.py
+    - backend/tests/test_sightengine_service.py
+    - backend/upload/services/sightengine_service.py
+    related_feature_ids: []
+  - sha: 0de33919b3d062377951f740a651aa9d7ebecfa8
+    short_sha: 0de33919b
+    authored_at: '2026-05-22T13:52:29+00:00'
+    subject: 'fix: omit unsupported Veo count'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/google/gemini_video.py
+    related_feature_ids: []
+  - sha: da4d2ac346e3a49d8b7344404708f436d30061ea
+    short_sha: da4d2ac34
+    authored_at: '2026-05-22T13:47:13+00:00'
+    subject: 'fix: send numeric Veo duration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/google/gemini_video.py
+    related_feature_ids: []
+  - sha: 4c7e1e470682d30b2b015d5fb4d4715666514e9d
+    short_sha: 4c7e1e470
+    authored_at: '2026-05-22T13:29:29+00:00'
+    subject: 'infra: add generated video worker'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    related_feature_ids: []
+  - sha: 7fb4836023a546be5cd2c3b2ef688c912fa81c08
+    short_sha: 7fb483602
+    authored_at: '2026-05-22T13:26:14+00:00'
+    subject: 'feat: add generated media asset pipeline'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/base_skill.py
+    - backend/apps/images/app.yml
+    - backend/apps/images/skills/generate_skill.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/apps/music/app.yml
+    - backend/apps/music/tasks/generate_task.py
+    - backend/apps/videos/app.yml
+    - backend/apps/videos/skills/generate_skill.py
+    - backend/apps/videos/tasks/__init__.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/generated_assets_api.py
+    - backend/core/api/app/schemas/app_metadata_schemas.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/providers/google.yml
+    - backend/shared/providers/google/__init__.py
+    - backend/shared/providers/google/gemini_video.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/billing_utils.py
+    - backend/shared/python_utils/generated_assets/__init__.py
+    - backend/shared/python_utils/generated_assets/service.py
+    - backend/tests/test_billing_utils.py
+    - backend/tests/test_generated_media_credit_precheck.py
+    - backend/tests/test_rest_api_music.py
+    - backend/tests/test_video_generate_task.py
+    - backend/tests/test_video_generation_pricing.py
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/videoEmbedText.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/videos.yml
+    - frontend/packages/ui/src/types/apps.ts
+    related_feature_ids: []
+  - sha: f485d2f8d8c9c486d79cafbb0738d20d7f54ae60
+    short_sha: f485d2f8d
+    authored_at: '2026-05-22T11:54:05+00:00'
+    subject: 'fix: align CLI upload endpoint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    related_feature_ids: []
+  - sha: 499e2db18ebad0acec5d1c8345c1d1cb1449dd91
+    short_sha: 499e2db18
+    authored_at: '2026-05-22T11:45:29+00:00'
+    subject: 'fix: retry CLI file uploads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    related_feature_ids: []
+  - sha: 16fd7424b682b37229a0fff3c7d280ef9b84a14a
+    short_sha: 16fd7424b
+    authored_at: '2026-05-22T11:36:35+00:00'
+    subject: 'test: wait for CLI chat sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    related_feature_ids: []
+  - sha: 1e07ae425790243e1dfe2f2cac5352cef2a3791e
+    short_sha: 1e07ae425
+    authored_at: '2026-05-22T11:28:28+00:00'
+    subject: 'test: harden CLI upload timing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    related_feature_ids: []
+  - sha: 5b70239bfa96c580d4873852fdd8351a4602b841
+    short_sha: 5b70239bf
+    authored_at: '2026-05-22T11:20:21+00:00'
+    subject: 'fix: preserve CLI file embed payloads'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    related_feature_ids: []
+  - sha: 5274a21d615e37f08457c8dee879bdcb40767c4c
+    short_sha: 5274a21d6
+    authored_at: '2026-05-22T11:19:50+00:00'
+    subject: 'fix: preserve CLI file embed references'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    related_feature_ids: []
+  - sha: b169412520c5991dbc5fe23b25bc1d33aee35ad5
+    short_sha: b16941252
+    authored_at: '2026-05-22T11:04:07+00:00'
+    subject: 'test: align CLI file upload pair auth flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    related_feature_ids: []
+  - sha: caadf7a33ac5a05bb8d591935a5f32d9795bc429
+    short_sha: caadf7a33
+    authored_at: '2026-05-22T10:45:16+00:00'
+    subject: 'test: parse CLI pair token URL format'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    related_feature_ids: []
+  - sha: 54cdc93758472e35d4a27f67888453f336495550
+    short_sha: 54cdc9375
+    authored_at: '2026-05-22T10:32:55+00:00'
+    subject: 'fix: render music embed icons correctly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/music/app.yml
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/music.yml
+    - frontend/packages/ui/src/styles/icons.css
+    related_feature_ids: []
+  - sha: e88519da515ed4a586410ac3e85da9b122c06c89
+    short_sha: e88519da5
+    authored_at: '2026-05-22T10:08:37+00:00'
+    subject: 'fix: stabilize top failing playwright specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: 7127d70aca478f2b9f5d7678de8cfe174c9f5f07
+    short_sha: 7127d70ac
+    authored_at: '2026-05-22T09:54:10+00:00'
+    subject: 'fix: expose music app metadata with Vertex credentials'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    related_feature_ids: []
+  - sha: 2bed7324717a4c7202261c6c689fe4b6600ad1c5
+    short_sha: 2bed73247
+    authored_at: '2026-05-22T09:35:47+00:00'
+    subject: 'fix: prevent daily inspiration media mismatches'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/tests/test_daily_inspiration_generator.py
+    related_feature_ids: []
+  - sha: c1e0e51ecbcd3fe4155e22e39cc370d357d20b39
+    short_sha: c1e0e51ec
+    authored_at: '2026-05-22T09:21:51+00:00'
+    subject: 'test: verify music app store and playback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/music/app.yml
+    - frontend/apps/web_app/tests/skill-music-generate.spec.ts
+    related_feature_ids: []
+  - sha: 2eb9ca4bfec226734cd332d508977e34ca2315c5
+    short_sha: 2eb9ca4bf
+    authored_at: '2026-05-22T00:19:20+00:00'
+    subject: 'fix: route music generation embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: f1b620a0f80686d90efc9b8db429723f06876c5e
+    short_sha: f1b620a0f
+    authored_at: '2026-05-22T00:03:51+00:00'
+    subject: 'fix: add music embed preview showcase'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.preview.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a comprehensive pipeline for generated media assets and expanded code execution capabilities,
+    while significantly hardening the CLI file upload process.
+  released_changes:
+  - text: OpenMates added a unified generated media asset pipeline, enabling integrated tasks for image, music, and video
+      generation across the platform.
+    evidence:
+      commits:
+      - 7fb483602
+    release_status: released_main
+  - text: The Code Run feature now supports an expanded range of programming languages for execution.
+    evidence:
+      commits:
+      - 2200f7e1f
+    release_status: released_main
+  - text: The OpenMates CLI was updated with improved upload endpoint alignment, retry logic for file transfers, and better
+      preservation of embed payloads and references.
+    evidence:
+      commits:
+      - f485d2f8d
+      - 499e2db18
+      - 5b70239bf
+      - 5274a21d6
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved issues with music generation embeds, including icon rendering, routing, and preview displays.
+    evidence:
+      commits:
+      - 54cdc9375
+      - 2eb9ca4bf
+      - f1b620a0f
+    release_status: released_main
+  - text: Fixed a mismatch issue in the daily inspiration generator to ensure media assets align correctly with content.
+    evidence:
+      commits:
+      - 2bed73247
+    release_status: released_main
+  - text: Improved the stability of chat synchronization and resolved several failing automated tests in the web application.
+    evidence:
+      commits:
+      - e88519da5
+    release_status: released_main
+  - text: Adjusted video generation parameters for Gemini and Veo providers to ensure correct duration and count formatting.
+    evidence:
+      commits:
+      - 0de33919b
+      - da4d2ac34
+    release_status: released_main
+  unreleased_progress:
+  - text: Infrastructure for a generated video worker was added to the core configuration.
+    evidence:
+      commits:
+      - 4c7e1e470
+    release_status: released_main
+  - text: Test reliability was improved by mocking external Sightengine HTTP calls.
+    evidence:
+      commits:
+      - 9325f2dfd
+    release_status: released_main
+  - text: Extensive test coverage was added for Code Run CTAs, CLI auth flows, and music playback verification.
+    evidence:
+      commits:
+      - 7f561ce9c
+      - 16fd7424b
+      - 1e07ae425
+      - b16941252
+      - caadf7a33
+      - c1e0e51ec
+    release_status: released_main
+  internal_progress:
+  - text: Updated music app metadata handling to properly expose Vertex credentials.
+    evidence:
+      commits:
+      - 7127d70ac
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New generated media asset pipeline for images, music, and video.
+      evidence:
+        commits:
+        - 7fb483602
+      reason: This is a major feature addition enabling multi-modal media generation.
+    - text: Expanded language support for Code Run execution.
+      evidence:
+        commits:
+        - 2200f7e1f
+      reason: Expands the utility of the existing Code Run feature.
+    - text: Enhanced CLI reliability with upload retries and improved reference preservation.
+      evidence:
+        commits:
+        - f485d2f8d
+        - 499e2db18
+        - 5b70239bf
+        - 5274a21d6
+      reason: Significantly improves the reliability of the developer CLI tool.
+    exclude:
+    - text: Internal test infrastructure updates.
+      evidence:
+        commits:
+        - 9325f2dfd
+      reason: Internal test mocking for Sightengine does not impact end users.
+    - text: Backend worker configuration.
+      evidence:
+        commits:
+        - 4c7e1e470
+      reason: Infrastructure-level worker addition is a technical detail.
+    rationale: The release features a significant expansion of media generation capabilities and critical reliability improvements
+      for the developer CLI.
+  social_video_recommendations:
+  - idea: A montage showing the seamless generation of an image, a music track, and a video clip within the OpenMates interface.
+    priority: high
+    reason: The media pipeline is a high-impact visual feature suitable for social demonstration.
+    evidence:
+      commits:
+      - 7fb483602
+  - idea: A quick demonstration of running code in multiple newly supported languages directly within a chat.
+    priority: medium
+    reason: Showcases the versatility of the platform for technical users.
+    evidence:
+      commits:
+      - 2200f7e1f
+  quality_notes:
+  - The project is prioritizing the reliability of developer tools (CLI) alongside new feature rollouts.
+  - Foundational work for video generation is progressing with the addition of dedicated worker infrastructure.
+  validation_warnings: []

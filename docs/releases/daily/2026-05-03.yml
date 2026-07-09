@@ -1,0 +1,847 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-03'
+generated_at: '2026-07-09T15:15:11+00:00'
+range:
+  since: '2026-05-03T00:00:00+00:00'
+  until: '2026-05-03T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 15
+  section_counts:
+    features: 6
+    bug_fixes: 8
+    improvements: 0
+    docs: 0
+    tests: 1
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 12
+  user_facing_items: 12
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add mail embed diff-based editing support'
+    section: features
+    commits:
+    - 63fedfcd8
+    authored_at: '2026-05-03T16:47:11+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_diff_editing_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/tests/test_embed_diff_service.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: embed diff-based editing — backend engine, LLM instruction, frontend timeline'
+    section: features
+    commits:
+    - 5f1ac0f75
+    authored_at: '2026-05-03T13:38:30+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_diff_editing_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/tests/test_embed_diff_service.py
+    - backend/core/directus/schemas/embed_diffs.yml
+    - docs/architecture/messaging/embed-diff-editing.md
+    - docs/architecture/messaging/embeds.md
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: diff-based editing engine, LLM instruction, version timeline UI, and architecture'
+    section: features
+    commits:
+    - 556e68f69
+    authored_at: '2026-05-03T13:37:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: diff-based editing for code/doc/sheet embeds with version timeline'
+    section: features
+    commits:
+    - 09caa2968
+    authored_at: '2026-05-03T13:37:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: video create embed preview/fullscreen with synced timeline and video playback'
+    section: features
+    commits:
+    - 8f360dcbb
+    authored_at: '2026-05-03T01:37:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/static/dev-fixtures/video-creation/data-viz.mp4
+    - frontend/apps/web_app/static/dev-fixtures/video-creation/product-launch.mp4
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoTimeline.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: video timeline parser + dev preview page for Video Create skill research'
+    section: features
+    commits:
+    - b3da0ebaf
+    authored_at: '2026-05-03T01:17:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/video-timeline/+page.svelte
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/utils/remotionTimelineParser.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: embed-diff-editing spec — use real AI inference, not mocks'
+    section: bug_fixes
+    commits:
+    - 892202c3a
+    authored_at: '2026-05-03T14:54:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: embed-diff-editing spec — add test.slow() for AI inference timeouts'
+    section: bug_fixes
+    commits:
+    - 2a7c93b06
+    authored_at: '2026-05-03T14:39:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: embed-diff-editing spec — correct createStepScreenshotter and screenshot signatures'
+    section: bug_fixes
+    commits:
+    - 55535ad0c
+    authored_at: '2026-05-03T14:31:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: embed-diff-editing spec — use correct loginToTestAccount positional args'
+    section: bug_fixes
+    commits:
+    - 8217ae26b
+    authored_at: '2026-05-03T14:23:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: embed-diff-editing spec — correct skipWithoutCredentials signature'
+    section: bug_fixes
+    commits:
+    - f4e97fdaf
+    authored_at: '2026-05-03T14:17:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: video create embed — match timeline duration to video and use proper play/pause icons'
+    section: bug_fixes
+    commits:
+    - b22fdbb64
+    authored_at: '2026-05-03T11:06:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.preview.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: retrigger Vercel deploy for video create embed fixes'
+    section: bug_fixes
+    commits:
+    - d1822dcac
+    authored_at: '2026-05-03T01:59:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: video create embed preview — correct appId and fullscreen prop wrapping'
+    section: bug_fixes
+    commits:
+    - 5179eab43
+    authored_at: '2026-05-03T01:53:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: add E2E specs for embed diff-based editing (code, doc, sheet)'
+    section: tests
+    commits:
+    - b0a921de4
+    authored_at: '2026-05-03T14:08:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add mail embed diff-based editing support'
+    commits:
+    - 63fedfcd8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: embed-diff-editing spec — use real AI inference, not mocks'
+    commits:
+    - 892202c3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: embed-diff-editing spec — add test.slow() for AI inference timeouts'
+    commits:
+    - 2a7c93b06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: embed-diff-editing spec — correct createStepScreenshotter and screenshot signatures'
+    commits:
+    - 55535ad0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: embed-diff-editing spec — use correct loginToTestAccount positional args'
+    commits:
+    - 8217ae26b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: embed-diff-editing spec — correct skipWithoutCredentials signature'
+    commits:
+    - f4e97fdaf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: embed diff-based editing — backend engine, LLM instruction, frontend timeline'
+    commits:
+    - 5f1ac0f75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: video create embed — match timeline duration to video and use proper play/pause icons'
+    commits:
+    - b22fdbb64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: retrigger Vercel deploy for video create embed fixes'
+    commits:
+    - d1822dcac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: video create embed preview — correct appId and fullscreen prop wrapping'
+    commits:
+    - 5179eab43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: video create embed preview/fullscreen with synced timeline and video playback'
+    commits:
+    - 8f360dcbb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: video timeline parser + dev preview page for Video Create skill research'
+    commits:
+    - b3da0ebaf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add mail embed diff-based editing support'
+    commits:
+    - 63fedfcd8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: embed-diff-editing spec — use real AI inference, not mocks'
+    commits:
+    - 892202c3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: embed-diff-editing spec — add test.slow() for AI inference timeouts'
+    commits:
+    - 2a7c93b06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: embed-diff-editing spec — correct createStepScreenshotter and screenshot signatures'
+    commits:
+    - 55535ad0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: embed-diff-editing spec — use correct loginToTestAccount positional args'
+    commits:
+    - 8217ae26b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: embed-diff-editing spec — correct skipWithoutCredentials signature'
+    commits:
+    - f4e97fdaf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: embed diff-based editing — backend engine, LLM instruction, frontend timeline'
+    commits:
+    - 5f1ac0f75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: video create embed — match timeline duration to video and use proper play/pause icons'
+    commits:
+    - b22fdbb64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: retrigger Vercel deploy for video create embed fixes'
+    commits:
+    - d1822dcac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: video create embed preview — correct appId and fullscreen prop wrapping'
+    commits:
+    - 5179eab43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: video create embed preview/fullscreen with synced timeline and video playback'
+    commits:
+    - 8f360dcbb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: video timeline parser + dev preview page for Video Create skill research'
+    commits:
+    - b3da0ebaf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 63fedfcd8d436ce23c748b48238f035575bee69f
+    short_sha: 63fedfcd8
+    authored_at: '2026-05-03T16:47:11+00:00'
+    subject: 'feat: add mail embed diff-based editing support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_diff_editing_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/tests/test_embed_diff_service.py
+    related_feature_ids: []
+  - sha: 892202c3a9e9a1aa0242010039401b818c384ec9
+    short_sha: 892202c3a
+    authored_at: '2026-05-03T14:54:21+00:00'
+    subject: 'fix: embed-diff-editing spec — use real AI inference, not mocks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: 2a7c93b060095fa3357c0121a3b0fe0022a6ff34
+    short_sha: 2a7c93b06
+    authored_at: '2026-05-03T14:39:00+00:00'
+    subject: 'fix: embed-diff-editing spec — add test.slow() for AI inference timeouts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: 55535ad0c3a92389cdf5952d34843e2135f378ef
+    short_sha: 55535ad0c
+    authored_at: '2026-05-03T14:31:06+00:00'
+    subject: 'fix: embed-diff-editing spec — correct createStepScreenshotter and screenshot signatures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: 8217ae26b8fd1df6964efe21265a9f026376fe1b
+    short_sha: 8217ae26b
+    authored_at: '2026-05-03T14:23:43+00:00'
+    subject: 'fix: embed-diff-editing spec — use correct loginToTestAccount positional args'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: f4e97fdafa3fe0140719a7d022401612a04ebd4b
+    short_sha: f4e97fdaf
+    authored_at: '2026-05-03T14:17:16+00:00'
+    subject: 'fix: embed-diff-editing spec — correct skipWithoutCredentials signature'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: b0a921de4d1b3f7145212f00e35a58e77656a469
+    short_sha: b0a921de4
+    authored_at: '2026-05-03T14:08:24+00:00'
+    subject: 'test: add E2E specs for embed diff-based editing (code, doc, sheet)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: 5f1ac0f75d6941c222450ac608fae617a733eb9b
+    short_sha: 5f1ac0f75
+    authored_at: '2026-05-03T13:38:30+00:00'
+    subject: 'feat: embed diff-based editing — backend engine, LLM instruction, frontend timeline'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_diff_editing_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/tests/test_embed_diff_service.py
+    - backend/core/directus/schemas/embed_diffs.yml
+    - docs/architecture/messaging/embed-diff-editing.md
+    - docs/architecture/messaging/embeds.md
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 556e68f6945a72e6f675e023cb4facb53042991f
+    short_sha: 556e68f69
+    authored_at: '2026-05-03T13:37:59+00:00'
+    subject: 'feat: diff-based editing engine, LLM instruction, version timeline UI, and architecture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 09caa29684c96e0f4c3d075badb81affe79e40a6
+    short_sha: 09caa2968
+    authored_at: '2026-05-03T13:37:07+00:00'
+    subject: 'feat: diff-based editing for code/doc/sheet embeds with version timeline'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    related_feature_ids: []
+  - sha: b22fdbb642c47b5526afab06bc83100b362ea848
+    short_sha: b22fdbb64
+    authored_at: '2026-05-03T11:06:06+00:00'
+    subject: 'fix: video create embed — match timeline duration to video and use proper play/pause icons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.preview.ts
+    related_feature_ids: []
+  - sha: d1822dcac33ab937107373d36b62a5815f659628
+    short_sha: d1822dcac
+    authored_at: '2026-05-03T01:59:00+00:00'
+    subject: 'fix: retrigger Vercel deploy for video create embed fixes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 5179eab4304195a9522d0f1cf06f76c6a9057ea3
+    short_sha: 5179eab43
+    authored_at: '2026-05-03T01:53:41+00:00'
+    subject: 'fix: video create embed preview — correct appId and fullscreen prop wrapping'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 8f360dcbbb8bff2e4a395e99ac4c28506f9eb268
+    short_sha: 8f360dcbb
+    authored_at: '2026-05-03T01:37:38+00:00'
+    subject: 'feat: video create embed preview/fullscreen with synced timeline and video playback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/static/dev-fixtures/video-creation/data-viz.mp4
+    - frontend/apps/web_app/static/dev-fixtures/video-creation/product-launch.mp4
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoTimeline.svelte
+    related_feature_ids: []
+  - sha: b3da0ebaf0ec0423b6add7e7213cdabacc96b5b1
+    short_sha: b3da0ebaf
+    authored_at: '2026-05-03T01:17:15+00:00'
+    subject: 'feat: video timeline parser + dev preview page for Video Create skill research'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/dev/preview/video-timeline/+page.svelte
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/utils/remotionTimelineParser.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced significant updates to embed interaction, launching a diff-based editing engine for multiple
+    document types and advancing the Video Creation skill with a new interactive timeline and playback UI.
+  released_changes:
+  - text: OpenMates added support for diff-based editing across mail, code, document, and sheet embeds, featuring a backend
+      engine and a frontend version timeline.
+    evidence:
+      commits:
+      - 63fedfcd8
+      - 5f1ac0f75
+    release_status: released_main
+  - text: The project introduced a video creation embed that includes a synced timeline, video playback, and a specialized
+      timeline parser for skill research.
+    evidence:
+      commits:
+      - 8f360dcbb
+      - b3da0ebaf
+    release_status: released_main
+  bug_fixes:
+  - text: The video creation embed was updated to ensure the timeline duration matches the video length and uses correct play/pause
+      iconography.
+    evidence:
+      commits:
+      - b22fdbb64
+      - 5179eab43
+    release_status: released_main
+  - text: Several stability issues in the E2E test suite for diff-based editing were resolved, including handling AI inference
+      timeouts and correcting test account login signatures.
+    evidence:
+      commits:
+      - 892202c3a
+      - 2a7c93b06
+      - 55535ad0c
+      - 8217ae26b
+      - f4e97fdaf
+    release_status: released_main
+  unreleased_progress:
+  - text: Internal architecture and state management for the diff-based editing engine were established.
+    evidence:
+      commits:
+      - 556e68f69
+      - 09caa2968
+    release_status: released_main
+  - text: New E2E specifications were added to cover code, document, and sheet editing workflows.
+    evidence:
+      commits:
+      - b0a921de4
+    release_status: released_main
+  internal_progress:
+  - text: A deployment retrigger was performed to ensure video embed fixes were correctly propagated to the production environment.
+    evidence:
+      commits:
+      - d1822dcac
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Diff-based editing for mail, code, and document embeds.
+      evidence:
+        commits:
+        - 63fedfcd8
+        - 5f1ac0f75
+      reason: This is a major new capability allowing users to see and manage AI-driven edits to their content.
+    - text: New video creation embed with synced playback timeline.
+      evidence:
+        commits:
+        - 8f360dcbb
+        - b3da0ebaf
+      reason: Introduces the visual interface for the upcoming video creation capabilities.
+    exclude:
+    - text: E2E test suite stability fixes for AI inference.
+      evidence:
+        commits:
+        - 892202c3a
+        - 2a7c93b06
+        - 55535ad0c
+        - 8217ae26b
+        - f4e97fdaf
+      reason: These items are technical fixes for the E2E test suite and do not represent new user-facing functionality.
+    - text: Vercel deployment retrigger.
+      evidence:
+        commits:
+        - d1822dcac
+      reason: This is a CI/CD deployment detail.
+    rationale: 'The summary highlights the two primary product advancements: the new diff-based editing engine for embeds
+      and the interactive video creation UI. Technical test fixes and deployment details are excluded to maintain focus on
+      user-facing value.'
+  social_video_recommendations:
+  - idea: A screen recording showing the AI editing an email or document with the version timeline updating in real-time.
+    priority: high
+    reason: Visually demonstrates the new diff-based editing engine and versioning UI.
+    evidence:
+      commits:
+      - 63fedfcd8
+      - 5f1ac0f75
+  - idea: A demonstration of the video creation embed showing the synced timeline moving in tandem with video playback.
+    priority: medium
+    reason: Shows progress on the Video Creation skill and the polished playback UI.
+    evidence:
+      commits:
+      - 8f360dcbb
+  quality_notes:
+  - The E2E test suite for AI-driven editing was significantly hardened against timeouts and credential issues.
+  - Video playback synchronization with the UI timeline was corrected for better preview accuracy.
+  validation_warnings: []

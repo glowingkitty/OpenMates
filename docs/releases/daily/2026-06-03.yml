@@ -1,0 +1,1803 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-03'
+generated_at: '2026-07-09T15:33:31+00:00'
+range:
+  since: '2026-06-03T00:00:00+00:00'
+  until: '2026-06-03T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 42
+  section_counts:
+    features: 4
+    bug_fixes: 25
+    improvements: 1
+    docs: 1
+    tests: 11
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 17
+  user_facing_items: 17
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add degraded services discord digest'
+    section: features
+    commits:
+    - '601499634'
+    authored_at: '2026-06-03T17:00:36+00:00'
+    changed_paths:
+    - .env.example
+    - backend/core/api/app/services/degraded_services_report.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_degraded_services_discord_report.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: notify admins for docs guide updates'
+    section: features
+    commits:
+    - 3a58a6271
+    authored_at: '2026-06-03T10:47:31+00:00'
+    changed_paths:
+    - scripts/docs_guide_review.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: verify docs guide review results'
+    section: features
+    commits:
+    - dee4a13f4
+    authored_at: '2026-06-03T10:42:16+00:00'
+    changed_paths:
+    - docs/user-guide/export-account.md
+    - scripts/docs_guide_review.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add user guide review workflow'
+    section: features
+    commits:
+    - d533d00ae
+    authored_at: '2026-06-03T10:31:46+00:00'
+    changed_paths:
+    - docs/contributing/guides/docs-writing-guidelines.md
+    - scripts/docs_guide_review.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: delete auto-fix sessions immediately'
+    section: bug_fixes
+    commits:
+    - 710393b28
+    authored_at: '2026-06-03T14:38:05+00:00'
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: isolate auto-fix opencode storage'
+    section: bug_fixes
+    commits:
+    - cabcc3699
+    authored_at: '2026-06-03T14:34:17+00:00'
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: delete hidden auto-fix opencode sessions'
+    section: bug_fixes
+    commits:
+    - 841cdf7c7
+    authored_at: '2026-06-03T14:20:31+00:00'
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: hide auto-fix opencode sessions'
+    section: bug_fixes
+    commits:
+    - 59d841418
+    authored_at: '2026-06-03T14:18:21+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/auto_fix_failed_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: capture weather day clicks'
+    section: bug_fixes
+    commits:
+    - 5e17c7fbb
+    authored_at: '2026-06-03T11:50:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: receive weather day pointer events'
+    section: bug_fixes
+    commits:
+    - aa7e257f1
+    authored_at: '2026-06-03T11:36:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep weather day drilldown local'
+    section: bug_fixes
+    commits:
+    - ade635edb
+    authored_at: '2026-06-03T11:19:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: complete auto-fix retry pipeline'
+    section: bug_fixes
+    commits:
+    - 63faab728
+    authored_at: '2026-06-03T11:16:04+00:00'
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    - scripts/prompts/auto-fix-failed-test-group.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: open unified weather day previews'
+    section: bug_fixes
+    commits:
+    - a03cc302b
+    authored_at: '2026-06-03T11:02:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore unified weather day previews'
+    section: bug_fixes
+    commits:
+    - 5c5a6f51f
+    authored_at: '2026-06-03T10:46:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: respect event provider selection'
+    section: bug_fixes
+    commits:
+    - bf9b898e7
+    authored_at: '2026-06-03T10:44:11+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: localize Wikipedia inline links'
+    section: bug_fixes
+    commits:
+    - 032438d0b
+    authored_at: '2026-06-03T10:37:52+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/shared/providers/wikipedia/wikipedia_api.py
+    - backend/tests/test_wikipedia_language.py
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render selected weather day directly'
+    section: bug_fixes
+    commits:
+    - '179186245'
+    authored_at: '2026-06-03T10:34:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route weather day drilldown'
+    section: bug_fixes
+    commits:
+    - 8632c866e
+    authored_at: '2026-06-03T10:19:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: retry auto-fix verification failures'
+    section: bug_fixes
+    commits:
+    - 13349f8e1
+    authored_at: '2026-06-03T10:12:41+00:00'
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    - scripts/prompts/auto-fix-failed-test-group.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: derive selected weather day from loaded days'
+    section: bug_fixes
+    commits:
+    - 559b3eb90
+    authored_at: '2026-06-03T10:03:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: pass selected weather day directly'
+    section: bug_fixes
+    commits:
+    - 05ec9376d
+    authored_at: '2026-06-03T09:47:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: read cached chat versions as model'
+    section: bug_fixes
+    commits:
+    - e96f82428
+    authored_at: '2026-06-03T09:46:09+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open weather day on pointer interaction'
+    section: bug_fixes
+    commits:
+    - 6e57d4bd9
+    authored_at: '2026-06-03T09:33:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: filter auto-fix temp changed files'
+    section: bug_fixes
+    commits:
+    - 592734a47
+    authored_at: '2026-06-03T09:32:46+00:00'
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: center daily inspiration wiki text'
+    section: bug_fixes
+    commits:
+    - c74cc0ecd
+    authored_at: '2026-06-03T09:22:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show event provider logos'
+    section: bug_fixes
+    commits:
+    - 9cc0db36c
+    authored_at: '2026-06-03T09:19:27+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/__init__.py
+    - backend/apps/events/providers/eventbrite.py
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/providers/berlin_philharmonic.yml
+    - backend/providers/eventbrite.yml
+    - backend/providers/flightradar24.yml
+    - backend/providers/google_events.yml
+    - backend/providers/siegessaeule.yml
+    - frontend/apps/web_app/tests/helpers/provider-icon-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    - frontend/packages/ui/scripts/generate-providers-metadata.js
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/data/providerIcons.ts
+    - frontend/packages/ui/static/icons/berlin_philharmonic.svg
+    - frontend/packages/ui/static/icons/eventbrite.svg
+    - frontend/packages/ui/static/icons/flightradar24.svg
+    - frontend/packages/ui/static/icons/siegessaeule.jpg
+    - scripts/api_tests/test_eventbrite_api.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair weather forecast embed UI'
+    section: bug_fixes
+    commits:
+    - 757f57d5b
+    authored_at: '2026-06-03T09:17:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow auto-fix with dirty worktree'
+    section: bug_fixes
+    commits:
+    - a62ff9099
+    authored_at: '2026-06-03T09:17:19+00:00'
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: enable visible failed-test auto-fix'
+    section: bug_fixes
+    commits:
+    - f5a4ac583
+    authored_at: '2026-06-03T09:12:57+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/auto_fix_failed_tests.py
+    - scripts/prompts/auto-fix-failed-test-group.md
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements:
+  - title: 'perf: optimize docs route loading'
+    section: improvements
+    commits:
+    - 2e9849b80
+    authored_at: '2026-06-03T11:56:36+00:00'
+    changed_paths:
+    - docs/architecture/frontend/docs-web-app.md
+    - docs/user-guide/docs-web-page.md
+    - frontend/apps/web_app/.gitignore
+    - frontend/apps/web_app/scripts/process-docs.js
+    - frontend/apps/web_app/scripts/vite-plugin-docs.js
+    - frontend/apps/web_app/src/lib/components/docs/DocsActionBar.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsBreadcrumb.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsCodeBlock.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsContent.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsMessage.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsMessageInput.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsSearch.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsSidebar.svelte
+    - frontend/apps/web_app/src/lib/types/docs.ts
+    - frontend/apps/web_app/src/routes/docs/+layout.svelte
+    - frontend/apps/web_app/src/routes/docs/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/+page.ts
+    - frontend/apps/web_app/src/routes/docs/[...slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/[...slug]/+page.ts
+    - frontend/apps/web_app/src/routes/docs/api/+page.svelte
+    - frontend/packages/ui/src/i18n/sources/documentation.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs:
+  - title: 'docs: refresh import account guide'
+    section: docs
+    commits:
+    - 007749016
+    authored_at: '2026-06-03T10:42:51+00:00'
+    changed_paths:
+    - docs/user-guide/import-account.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: update docs performance landing selectors'
+    section: tests
+    commits:
+    - 34364844e
+    authored_at: '2026-06-03T12:23:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/docs/+page.svelte
+    - frontend/apps/web_app/tests/page-load-performance.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify import export data roundtrip'
+    section: tests
+    commits:
+    - b4d3da2fc
+    authored_at: '2026-06-03T10:15:13+00:00'
+    changed_paths:
+    - docs/user-guide/README.md
+    - docs/user-guide/import-account.md
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/fixtures/import-chat-1.yml
+    - frontend/apps/web_app/tests/fixtures/import-chats-test.zip
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    - frontend/packages/ui/src/services/chatImportService.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use unanchored events card selector'
+    section: tests
+    commits:
+    - 3568390d0
+    authored_at: '2026-06-03T10:07:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize events provider card selector'
+    section: tests
+    commits:
+    - 8504e2513
+    authored_at: '2026-06-03T09:59:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: skip unroutable provider skill pages'
+    section: tests
+    commits:
+    - 84c009501
+    authored_at: '2026-06-03T09:46:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify rendered provider icons'
+    section: tests
+    commits:
+    - 0a050ee88
+    authored_at: '2026-06-03T09:40:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: match export zip filename'
+    section: tests
+    commits:
+    - af80c7758
+    authored_at: '2026-06-03T09:36:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: read app provider metadata from bundle'
+    section: tests
+    commits:
+    - 9c24628ce
+    authored_at: '2026-06-03T09:33:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix export account mock fixture'
+    section: tests
+    commits:
+    - ef7bca9b3
+    authored_at: '2026-06-03T09:29:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: support metadata response shapes'
+    section: tests
+    commits:
+    - 727dc82d5
+    authored_at: '2026-06-03T09:27:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: connect user guides to e2e flows'
+    section: tests
+    commits:
+    - 4a423d906
+    authored_at: '2026-06-03T09:21:59+00:00'
+    changed_paths:
+    - docs/user-guide/export-account.md
+    - docs/user-guide/sharing.md
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/doc-checkpoint.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - scripts/docs_guide_verify.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: respect event provider selection'
+    commits:
+    - bf9b898e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show event provider logos'
+    commits:
+    - 9cc0db36c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair weather forecast embed UI'
+    commits:
+    - 757f57d5b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'perf: optimize docs route loading'
+    commits:
+    - 2e9849b80
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: capture weather day clicks'
+    commits:
+    - 5e17c7fbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: receive weather day pointer events'
+    commits:
+    - aa7e257f1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep weather day drilldown local'
+    commits:
+    - ade635edb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open unified weather day previews'
+    commits:
+    - a03cc302b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore unified weather day previews'
+    commits:
+    - 5c5a6f51f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: respect event provider selection'
+    commits:
+    - bf9b898e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: localize Wikipedia inline links'
+    commits:
+    - 032438d0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render selected weather day directly'
+    commits:
+    - '179186245'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route weather day drilldown'
+    commits:
+    - 8632c866e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: derive selected weather day from loaded days'
+    commits:
+    - 559b3eb90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: pass selected weather day directly'
+    commits:
+    - 05ec9376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: read cached chat versions as model'
+    commits:
+    - e96f82428
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open weather day on pointer interaction'
+    commits:
+    - 6e57d4bd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: center daily inspiration wiki text'
+    commits:
+    - c74cc0ecd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show event provider logos'
+    commits:
+    - 9cc0db36c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair weather forecast embed UI'
+    commits:
+    - 757f57d5b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'perf: optimize docs route loading'
+    commits:
+    - 2e9849b80
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: capture weather day clicks'
+    commits:
+    - 5e17c7fbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: receive weather day pointer events'
+    commits:
+    - aa7e257f1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep weather day drilldown local'
+    commits:
+    - ade635edb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open unified weather day previews'
+    commits:
+    - a03cc302b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore unified weather day previews'
+    commits:
+    - 5c5a6f51f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: respect event provider selection'
+    commits:
+    - bf9b898e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: localize Wikipedia inline links'
+    commits:
+    - 032438d0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render selected weather day directly'
+    commits:
+    - '179186245'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route weather day drilldown'
+    commits:
+    - 8632c866e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: derive selected weather day from loaded days'
+    commits:
+    - 559b3eb90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: pass selected weather day directly'
+    commits:
+    - 05ec9376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: read cached chat versions as model'
+    commits:
+    - e96f82428
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open weather day on pointer interaction'
+    commits:
+    - 6e57d4bd9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: center daily inspiration wiki text'
+    commits:
+    - c74cc0ecd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show event provider logos'
+    commits:
+    - 9cc0db36c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair weather forecast embed UI'
+    commits:
+    - 757f57d5b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 6014996347212a5c14c6cbed2b3c26d757c58697
+    short_sha: '601499634'
+    authored_at: '2026-06-03T17:00:36+00:00'
+    subject: 'feat: add degraded services discord digest'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/core/api/app/services/degraded_services_report.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/tests/test_degraded_services_discord_report.py
+    related_feature_ids: []
+  - sha: 710393b283985bdfe138712a90840f7e8e63323b
+    short_sha: 710393b28
+    authored_at: '2026-06-03T14:38:05+00:00'
+    subject: 'fix: delete auto-fix sessions immediately'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    related_feature_ids: []
+  - sha: cabcc3699e9a01f19de055e9c740c5a8df8fdc84
+    short_sha: cabcc3699
+    authored_at: '2026-06-03T14:34:17+00:00'
+    subject: 'fix: isolate auto-fix opencode storage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    related_feature_ids: []
+  - sha: 841cdf7c76ae83e5cae66e272e8d84c092424393
+    short_sha: 841cdf7c7
+    authored_at: '2026-06-03T14:20:31+00:00'
+    subject: 'fix: delete hidden auto-fix opencode sessions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    related_feature_ids: []
+  - sha: 59d84141823b9e81e78d4fb2da49f562223fea9e
+    short_sha: 59d841418
+    authored_at: '2026-06-03T14:18:21+00:00'
+    subject: 'fix: hide auto-fix opencode sessions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/auto_fix_failed_tests.py
+    related_feature_ids: []
+  - sha: 34364844e84654d67fa62c835e4982c7309deb6a
+    short_sha: 34364844e
+    authored_at: '2026-06-03T12:23:25+00:00'
+    subject: 'test: update docs performance landing selectors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/docs/+page.svelte
+    - frontend/apps/web_app/tests/page-load-performance.spec.ts
+    related_feature_ids: []
+  - sha: 2e9849b80d985135032b8346d1ba958c6ade74b0
+    short_sha: 2e9849b80
+    authored_at: '2026-06-03T11:56:36+00:00'
+    subject: 'perf: optimize docs route loading'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/frontend/docs-web-app.md
+    - docs/user-guide/docs-web-page.md
+    - frontend/apps/web_app/.gitignore
+    - frontend/apps/web_app/scripts/process-docs.js
+    - frontend/apps/web_app/scripts/vite-plugin-docs.js
+    - frontend/apps/web_app/src/lib/components/docs/DocsActionBar.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsBreadcrumb.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsCodeBlock.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsContent.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsMessage.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsMessageInput.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsSearch.svelte
+    - frontend/apps/web_app/src/lib/components/docs/DocsSidebar.svelte
+    - frontend/apps/web_app/src/lib/types/docs.ts
+    - frontend/apps/web_app/src/routes/docs/+layout.svelte
+    - frontend/apps/web_app/src/routes/docs/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/+page.ts
+    - frontend/apps/web_app/src/routes/docs/[...slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/docs/[...slug]/+page.ts
+    - frontend/apps/web_app/src/routes/docs/api/+page.svelte
+    - frontend/packages/ui/src/i18n/sources/documentation.yml
+    related_feature_ids: []
+  - sha: 5e17c7fbb5181ea4d8ba77da1420a8b07bcba154
+    short_sha: 5e17c7fbb
+    authored_at: '2026-06-03T11:50:35+00:00'
+    subject: 'fix: capture weather day clicks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: aa7e257f1a47b0993f39333fb4b09f84fbda0287
+    short_sha: aa7e257f1
+    authored_at: '2026-06-03T11:36:36+00:00'
+    subject: 'fix: receive weather day pointer events'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: ade635edb4845921724ca675b996509cdc148c8a
+    short_sha: ade635edb
+    authored_at: '2026-06-03T11:19:17+00:00'
+    subject: 'fix: keep weather day drilldown local'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 63faab728c32f782c3b7135d2a0528653dc47ed8
+    short_sha: 63faab728
+    authored_at: '2026-06-03T11:16:04+00:00'
+    subject: 'fix: complete auto-fix retry pipeline'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    - scripts/prompts/auto-fix-failed-test-group.md
+    related_feature_ids: []
+  - sha: a03cc302b76ba04455ddcb67aaa94d5731d4580c
+    short_sha: a03cc302b
+    authored_at: '2026-06-03T11:02:14+00:00'
+    subject: 'fix: open unified weather day previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 3a58a62718ab971692c11be290e87fac14d3ae7f
+    short_sha: 3a58a6271
+    authored_at: '2026-06-03T10:47:31+00:00'
+    subject: 'feat: notify admins for docs guide updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/docs_guide_review.py
+    related_feature_ids: []
+  - sha: 5c5a6f51f95cd595861260e3090ff7c806bc927d
+    short_sha: 5c5a6f51f
+    authored_at: '2026-06-03T10:46:26+00:00'
+    subject: 'fix: restore unified weather day previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: bf9b898e7960f1f57c9ac484a30bf3ded0745253
+    short_sha: bf9b898e7
+    authored_at: '2026-06-03T10:44:11+00:00'
+    subject: 'fix: respect event provider selection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: 007749016d7aa85457c81ac904acc3a2ae843141
+    short_sha: 007749016
+    authored_at: '2026-06-03T10:42:51+00:00'
+    subject: 'docs: refresh import account guide'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/import-account.md
+    related_feature_ids: []
+  - sha: dee4a13f487d6be88fef1315ea6013dd27251b40
+    short_sha: dee4a13f4
+    authored_at: '2026-06-03T10:42:16+00:00'
+    subject: 'feat: verify docs guide review results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/export-account.md
+    - scripts/docs_guide_review.py
+    related_feature_ids: []
+  - sha: 032438d0bde76911afbaab851f6eccbdc12f2956
+    short_sha: 032438d0b
+    authored_at: '2026-06-03T10:37:52+00:00'
+    subject: 'fix: localize Wikipedia inline links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/shared/providers/wikipedia/wikipedia_api.py
+    - backend/tests/test_wikipedia_language.py
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    related_feature_ids: []
+  - sha: 179186245aa26fd25095c73a1a8baccc39db8169
+    short_sha: '179186245'
+    authored_at: '2026-06-03T10:34:01+00:00'
+    subject: 'fix: render selected weather day directly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: d533d00ae47918ee7bb5b17237870571acb5905d
+    short_sha: d533d00ae
+    authored_at: '2026-06-03T10:31:46+00:00'
+    subject: 'feat: add user guide review workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/docs-writing-guidelines.md
+    - scripts/docs_guide_review.py
+    related_feature_ids: []
+  - sha: 8632c866e8373d2290747d8e4103e94f8265ced4
+    short_sha: 8632c866e
+    authored_at: '2026-06-03T10:19:44+00:00'
+    subject: 'fix: route weather day drilldown'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: b4d3da2fcdcbc6b47a7a20708437e9bbf0bcd431
+    short_sha: b4d3da2fc
+    authored_at: '2026-06-03T10:15:13+00:00'
+    subject: 'test: verify import export data roundtrip'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/README.md
+    - docs/user-guide/import-account.md
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/fixtures/import-chat-1.yml
+    - frontend/apps/web_app/tests/fixtures/import-chats-test.zip
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    - frontend/packages/ui/src/services/chatImportService.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    related_feature_ids: []
+  - sha: 13349f8e1deb198dbf44e1e6485f0c5a24c4e899
+    short_sha: 13349f8e1
+    authored_at: '2026-06-03T10:12:41+00:00'
+    subject: 'fix: retry auto-fix verification failures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    - scripts/prompts/auto-fix-failed-test-group.md
+    related_feature_ids: []
+  - sha: 3568390d029b6b4345bff22d26bb7ca6bd4a3bd2
+    short_sha: 3568390d0
+    authored_at: '2026-06-03T10:07:50+00:00'
+    subject: 'test: use unanchored events card selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 559b3eb901b49e478aaf83443389709bcace6104
+    short_sha: 559b3eb90
+    authored_at: '2026-06-03T10:03:42+00:00'
+    subject: 'fix: derive selected weather day from loaded days'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 8504e251343fd24385ab58aeedea506f061cd06f
+    short_sha: 8504e2513
+    authored_at: '2026-06-03T09:59:07+00:00'
+    subject: 'test: stabilize events provider card selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 05ec9376d809901092b534834fc11df4f15a0e2a
+    short_sha: 05ec9376d
+    authored_at: '2026-06-03T09:47:55+00:00'
+    subject: 'fix: pass selected weather day directly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 84c009501cbae0d2e20d5372853431a444d8e1dc
+    short_sha: 84c009501
+    authored_at: '2026-06-03T09:46:29+00:00'
+    subject: 'test: skip unroutable provider skill pages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    related_feature_ids: []
+  - sha: e96f82428ef24d298e4ff5f8e775c7d2b5cfa204
+    short_sha: e96f82428
+    authored_at: '2026-06-03T09:46:09+00:00'
+    subject: 'fix: read cached chat versions as model'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    related_feature_ids: []
+  - sha: 0a050ee88daf28ff44d515a3704a262d22941d0f
+    short_sha: 0a050ee88
+    authored_at: '2026-06-03T09:40:39+00:00'
+    subject: 'test: verify rendered provider icons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    related_feature_ids: []
+  - sha: af80c7758965df67b540acd141616ec8871ded92
+    short_sha: af80c7758
+    authored_at: '2026-06-03T09:36:08+00:00'
+    subject: 'test: match export zip filename'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    related_feature_ids: []
+  - sha: 9c24628ce53d2b2452a1441c3e94e857b00e0f59
+    short_sha: 9c24628ce
+    authored_at: '2026-06-03T09:33:56+00:00'
+    subject: 'test: read app provider metadata from bundle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    related_feature_ids: []
+  - sha: 6e57d4bd9c0987da8db952dc8c816604aad694f3
+    short_sha: 6e57d4bd9
+    authored_at: '2026-06-03T09:33:33+00:00'
+    subject: 'fix: open weather day on pointer interaction'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 592734a47876badf372f011e90d4eb679a15a8fd
+    short_sha: 592734a47
+    authored_at: '2026-06-03T09:32:46+00:00'
+    subject: 'fix: filter auto-fix temp changed files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    related_feature_ids: []
+  - sha: ef7bca9b33cbc1e7cb280846c129da5279868c57
+    short_sha: ef7bca9b3
+    authored_at: '2026-06-03T09:29:39+00:00'
+    subject: 'test: fix export account mock fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    related_feature_ids: []
+  - sha: 727dc82d59f68c912a9096667cc1cc6fb07a81e5
+    short_sha: 727dc82d5
+    authored_at: '2026-06-03T09:27:23+00:00'
+    subject: 'test: support metadata response shapes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    related_feature_ids: []
+  - sha: c74cc0ecda7e991dcd1b47751fe48e6acf4ddfc7
+    short_sha: c74cc0ecd
+    authored_at: '2026-06-03T09:22:03+00:00'
+    subject: 'fix: center daily inspiration wiki text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 4a423d90643956a847bcc6a429e7023c50a65d10
+    short_sha: 4a423d906
+    authored_at: '2026-06-03T09:21:59+00:00'
+    subject: 'test: connect user guides to e2e flows'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/export-account.md
+    - docs/user-guide/sharing.md
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/doc-checkpoint.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - scripts/docs_guide_verify.py
+    related_feature_ids: []
+  - sha: 9cc0db36cea707973a5abf44eea4cf1db673eee6
+    short_sha: 9cc0db36c
+    authored_at: '2026-06-03T09:19:27+00:00'
+    subject: 'fix: show event provider logos'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/__init__.py
+    - backend/apps/events/providers/eventbrite.py
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/providers/berlin_philharmonic.yml
+    - backend/providers/eventbrite.yml
+    - backend/providers/flightradar24.yml
+    - backend/providers/google_events.yml
+    - backend/providers/siegessaeule.yml
+    - frontend/apps/web_app/tests/helpers/provider-icon-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    - frontend/packages/ui/scripts/generate-providers-metadata.js
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/data/providerIcons.ts
+    - frontend/packages/ui/static/icons/berlin_philharmonic.svg
+    - frontend/packages/ui/static/icons/eventbrite.svg
+    - frontend/packages/ui/static/icons/flightradar24.svg
+    - frontend/packages/ui/static/icons/siegessaeule.jpg
+    - scripts/api_tests/test_eventbrite_api.py
+    related_feature_ids: []
+  - sha: 757f57d5be6f61f1afed3b1fc56bab5e405400af
+    short_sha: 757f57d5b
+    authored_at: '2026-06-03T09:17:39+00:00'
+    subject: 'fix: repair weather forecast embed UI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedHeader.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    related_feature_ids: []
+  - sha: a62ff9099eba68e9b1aa615546fb13432233d0b9
+    short_sha: a62ff9099
+    authored_at: '2026-06-03T09:17:19+00:00'
+    subject: 'fix: allow auto-fix with dirty worktree'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/auto_fix_failed_tests.py
+    related_feature_ids: []
+  - sha: f5a4ac583c87f52281bfcf353b3b5f9a9a60ec14
+    short_sha: f5a4ac583
+    authored_at: '2026-06-03T09:12:57+00:00'
+    subject: 'fix: enable visible failed-test auto-fix'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/auto_fix_failed_tests.py
+    - scripts/prompts/auto-fix-failed-test-group.md
+    - scripts/run_tests.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the user experience for embedded content, specifically weather forecasts and event
+    searches, while delivering significant performance optimizations to the documentation platform.
+  released_changes:
+  - text: Optimized route loading for the documentation web application to improve navigation speed.
+    evidence:
+      commits:
+      - 2e9849b80
+    release_status: released_main
+  - text: Updated the events app to display provider logos and correctly route searches based on provider selection.
+    evidence:
+      commits:
+      - 9cc0db36c
+      - bf9b898e7
+    release_status: released_main
+  - text: Improved Wikipedia embeds with localized inline links and centered text for daily inspiration previews.
+    evidence:
+      commits:
+      - 032438d0b
+      - c74cc0ecd
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where cached chat versions were not correctly identified as models during history loading.
+    evidence:
+      commits:
+      - e96f82428
+    release_status: released_main
+  - text: Fixed multiple interaction and UI issues in the weather forecast embed, including pointer event capture, local drilldown
+      routing, and direct rendering of selected days.
+    evidence:
+      commits:
+      - 757f57d5b
+      - 6e57d4bd9
+      - 05ec9376d
+      - 559b3eb90
+      - 8632c866e
+      - '179186245'
+      - 5c5a6f51f
+      - a03cc302b
+      - ade635edb
+      - aa7e257f1
+      - 5e17c7fbb
+    release_status: released_main
+  unreleased_progress:
+  - text: OpenMates added an internal Discord digest for reporting degraded services.
+    evidence:
+      commits:
+      - '601499634'
+    release_status: released_main
+  - text: The project introduced a user guide review workflow and admin notification system for documentation updates.
+    evidence:
+      commits:
+      - 3a58a6271
+      - dee4a13f4
+      - d533d00ae
+    release_status: released_main
+  - text: Infrastructure for automatically fixing failed tests was expanded with session isolation and retry logic.
+    evidence:
+      commits:
+      - 710393b28
+      - cabcc3699
+      - 841cdf7c7
+      - 59d841418
+      - 63faab728
+      - 13349f8e1
+      - 592734a47
+      - a62ff9099
+      - f5a4ac583
+    release_status: released_main
+  internal_progress:
+  - text: Expanded the end-to-end test suite to verify account export/import roundtrips and provider icon rendering.
+    evidence:
+      commits:
+      - b4d3da2fc
+      - 0a050ee88
+      - af80c7758
+      - ef7bca9b3
+      - 4a423d906
+    release_status: released_main
+  - text: Stabilized test selectors for event search and documentation performance monitoring.
+    evidence:
+      commits:
+      - 34364844e
+      - 3568390d0
+      - 8504e2513
+      - 9c24628ce
+      - 727dc82d5
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Optimized route loading for the documentation web application.
+      evidence:
+        commits:
+        - 2e9849b80
+      reason: Significant performance improvement for the documentation platform.
+    - text: Added event provider logos to search results.
+      evidence:
+        commits:
+        - 9cc0db36c
+      reason: Visual improvement for event search results.
+    - text: Ensured event search results respect specific provider selections.
+      evidence:
+        commits:
+        - bf9b898e7
+      reason: Functional fix for event provider selection.
+    - text: Localized inline links within Wikipedia embeds.
+      evidence:
+        commits:
+        - 032438d0b
+      reason: Improved localization for Wikipedia content.
+    - text: Refined interaction and UI stability for weather forecast embeds.
+      evidence:
+        commits:
+        - 757f57d5b
+        - 5e17c7fbb
+      reason: Critical UI and interaction fixes for weather embeds.
+    exclude:
+    - text: Degraded services Discord digest.
+      evidence:
+        commits:
+        - '601499634'
+      reason: Internal health reporting service.
+    - text: User guide review workflows.
+      evidence:
+        commits:
+        - 3a58a6271
+        - dee4a13f4
+        - d533d00ae
+      reason: Internal documentation review automation.
+    - text: Failed-test auto-fix pipeline.
+      evidence:
+        commits:
+        - 710393b28
+        - cabcc3699
+        - 841cdf7c7
+        - 59d841418
+        - 63faab728
+        - 13349f8e1
+        - 592734a47
+        - a62ff9099
+        - f5a4ac583
+      reason: Developer-only test infrastructure improvements.
+    rationale: The update features significant user-facing refinements to the weather and event embeds, alongside a major
+      performance boost for the documentation site. Internal automation and test infrastructure changes are excluded to focus
+      on product value.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the smooth drilldown interaction in the weather embed and the new provider logos in event
+      search.
+    priority: Medium
+    reason: These are concrete visual improvements that demonstrate product polish.
+    evidence:
+      commits:
+      - 757f57d5b
+      - 9cc0db36c
+  quality_notes:
+  - The high volume of iterative fixes for the weather embed indicates a strong push for production-ready interaction stability.
+  - Documentation performance was a key focus, with optimizations targeting route loading speeds.
+  validation_warnings: []

@@ -1,0 +1,2284 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-30'
+generated_at: '2026-07-09T15:14:15+00:00'
+range:
+  since: '2026-04-30T00:00:00+00:00'
+  until: '2026-04-30T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 50
+  section_counts:
+    features: 12
+    bug_fixes: 31
+    improvements: 1
+    docs: 0
+    tests: 1
+    infrastructure: 5
+    internal: 0
+    other: 0
+  newsletter_ready_items: 38
+  user_facing_items: 39
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add GPT 5.5 model with premium credit pricing'
+    section: features
+    commits:
+    - 7e601c367
+    authored_at: '2026-04-30T20:55:21+00:00'
+    changed_paths:
+    - backend/data/models_leaderboard.yml
+    - backend/providers/openai.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: hide new-chat button on input focus, show cancel/save-draft, fix followup placeholder'
+    section: features
+    commits:
+    - 24086fe71
+    authored_at: '2026-04-30T14:15:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Placeholder.ts
+    - frontend/packages/ui/src/i18n/sources/common.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add OMToggle, OMDropdown, OMConfirmDialog, OMSheet custom primitives'
+    section: features
+    commits:
+    - 2a2f024be
+    authored_at: '2026-04-30T14:34:42+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add inlineCompact prop and CSS to MessageInput'
+    section: features
+    commits:
+    - d7d44027f
+    authored_at: '2026-04-30T11:56:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: MessageInput inline compact mode and followup placeholder variant'
+    section: features
+    commits:
+    - 756e2c6d8
+    authored_at: '2026-04-30T11:55:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/Placeholder.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: message input + new chat button UI corrections'
+    section: features
+    commits:
+    - b93a13c3a
+    authored_at: '2026-04-30T11:54:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add floating deco icons to teaser layout and use ai.svg for for-everyone chat'
+    section: features
+    commits:
+    - 86c50baa4
+    authored_at: '2026-04-30T11:48:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Obsidian daily note and prod stats to daily meeting'
+    section: features
+    commits:
+    - 770fb1708
+    authored_at: '2026-04-30T11:41:57+00:00'
+    changed_paths:
+    - .claude/skills/daily-meeting/SKILL.md
+    - scripts/_daily_meeting_helper.py
+    - scripts/prompts/daily-meeting.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: improve newsletter send script with status bar and delivery tracking'
+    section: features
+    commits:
+    - f4cb1d135
+    authored_at: '2026-04-30T11:41:52+00:00'
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add Stripe revenue summary to admin server stats'
+    section: features
+    commits:
+    - c3f6c53d8
+    authored_at: '2026-04-30T11:41:43+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/scripts/server_stats_query.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: include public chats in search suggestions'
+    section: features
+    commits:
+    - adb9f9b0c
+    authored_at: '2026-04-30T11:41:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add startNewChatOnClick mode to MessageInput'
+    section: features
+    commits:
+    - 3188eef43
+    authored_at: '2026-04-30T11:41:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Placeholder.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: auto-unwrap LLM requests array for flat-schema skills (pdf.read 422)'
+    section: bug_fixes
+    commits:
+    - 253071ffd
+    authored_at: '2026-04-30T23:20:01+00:00'
+    changed_paths:
+    - backend/apps/base_app.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: migrate 20 inline-login specs to submitPasswordAndHandleOtp helper'
+    section: bug_fixes
+    commits:
+    - e21900a6a
+    authored_at: '2026-04-30T23:11:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+    - frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    - frontend/apps/web_app/tests/embed-json-leak.spec.ts
+    - frontend/apps/web_app/tests/example-chat-clone.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/apps/web_app/tests/location-security-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    - frontend/apps/web_app/tests/reminder-repeating-and-cancel.spec.ts
+    - frontend/apps/web_app/tests/reminder-same-chat.spec.ts
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: disable pointer-events on faded new-chat welcome content'
+    section: bug_fixes
+    commits:
+    - 8f7127c8c
+    authored_at: '2026-04-30T23:03:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove invalid task.request assignment in celery dedup tests'
+    section: bug_fixes
+    commits:
+    - d8d35b787
+    authored_at: '2026-04-30T23:01:50+00:00'
+    changed_paths:
+    - backend/tests/test_celery_dedup.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: CLI PDF test — tolerate stale CLI session after OPE-362 re-login'
+    section: bug_fixes
+    commits:
+    - 29f411b6d
+    authored_at: '2026-04-30T21:53:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: CLI PDF test — use proven send pattern from pdf-flow spec'
+    section: bug_fixes
+    commits:
+    - ca8b35fd1
+    authored_at: '2026-04-30T21:42:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: CLI PDF test — wait for chat-id URL + extract from hash format'
+    section: bug_fixes
+    commits:
+    - d28e36ceb
+    authored_at: '2026-04-30T21:19:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add data-testid to booking CTA buttons in travel connection fullscreen'
+    section: bug_fixes
+    commits:
+    - e4e738a95
+    authored_at: '2026-04-30T21:13:28+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
+    section: bug_fixes
+    commits:
+    - 2fcd00e8e
+    authored_at: '2026-04-30T21:02:41+00:00'
+    changed_paths:
+    - backend/apps/travel/providers/serpapi_provider.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover TOON content after relogin for finished embeds'
+    section: bug_fixes
+    commits:
+    - 421592b1c
+    authored_at: '2026-04-30T21:02:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover TOON content after relogin + fix CLI PDF test session drop'
+    section: bug_fixes
+    commits:
+    - ec9af6dbb
+    authored_at: '2026-04-30T21:01:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update 4 inline-login specs to use submitPasswordAndHandleOtp helper'
+    section: bug_fixes
+    commits:
+    - 59025e4a4
+    authored_at: '2026-04-30T20:15:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-images-generate-safety.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: handle login without 2FA in test helper (race OTP vs auth signal)'
+    section: bug_fixes
+    commits:
+    - d91bc9fb5
+    authored_at: '2026-04-30T20:04:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: rename (minimal)/+layout to +layout@ to reset layout chain'
+    section: bug_fixes
+    commits:
+    - 37a507eb9
+    authored_at: '2026-04-30T18:58:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(minimal)/+layout.svelte
+    - frontend/apps/web_app/src/routes/(minimal)/+layout@.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reset (minimal) layout chain so MetaTags title doesn''t override status page'
+    section: bug_fixes
+    commits:
+    - cd3bfa084
+    authored_at: '2026-04-30T18:57:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(minimal)/status/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: guard messageInputFieldRef in setTimeout callbacks (null-ref after chat delete)'
+    section: bug_fixes
+    commits:
+    - 32df7f3fd
+    authored_at: '2026-04-30T18:37:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve 3 test failure groups (console.error, status title, teaser testid)'
+    section: bug_fixes
+    commits:
+    - 9c99238d7
+    authored_at: '2026-04-30T18:12:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(minimal)/status/+page.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add smooth height transition to DailyInspirationBanner (iPad Safari)'
+    section: bug_fixes
+    commits:
+    - 545e1419a
+    authored_at: '2026-04-30T17:56:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: invalidate metadata cache on title update + refresh carousel on key-ready (Safari race)'
+    section: bug_fixes
+    commits:
+    - 0c843a73d
+    authored_at: '2026-04-30T16:34:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: release dedup lock on retry, skip SightEngine when quota exhausted (OPE-482)'
+    section: bug_fixes
+    commits:
+    - 0b0bafc74
+    authored_at: '2026-04-30T15:50:48+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/base_task.py
+    - backend/shared/python_utils/celery_dedup.py
+    - backend/tests/test_celery_dedup.py
+    - backend/upload/services/sightengine_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: update E2E specs for new-chat button UI changes'
+    section: bug_fixes
+    commits:
+    - 8f34a2c13
+    authored_at: '2026-04-30T15:47:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show fullwidth new-chat CTA on intro/legal chats for authenticated users'
+    section: bug_fixes
+    commits:
+    - f80715045
+    authored_at: '2026-04-30T15:34:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: dismiss button styling, position, and draft compact-mode restore'
+    section: bug_fixes
+    commits:
+    - 855e92d81
+    authored_at: '2026-04-30T14:57:33+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: fullwidth new-chat CTA for intro/legal chats + Safari nav race'
+    section: bug_fixes
+    commits:
+    - 0f9281bf7
+    authored_at: '2026-04-30T13:58:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: placeholder vertical centering in inline-compact input'
+    section: bug_fixes
+    commits:
+    - 5f775e980
+    authored_at: '2026-04-30T13:18:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: placeholder vertical centering and mobile new-chat label'
+    section: bug_fixes
+    commits:
+    - e628e4c32
+    authored_at: '2026-04-30T13:07:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: placeholder vertical centering in inline-compact input'
+    section: bug_fixes
+    commits:
+    - dea99692c
+    authored_at: '2026-04-30T12:27:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: new chat button centering, icon-only on focus, smooth transitions, mobile label'
+    section: bug_fixes
+    commits:
+    - f6df78d1f
+    authored_at: '2026-04-30T12:16:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: tighten teaser split layout width'
+    section: bug_fixes
+    commits:
+    - 765e78c48
+    authored_at: '2026-04-30T11:00:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: load localized intro video in chat header'
+    section: bug_fixes
+    commits:
+    - 4aa198f0b
+    authored_at: '2026-04-30T10:48:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: constrain teaser video height'
+    section: bug_fixes
+    commits:
+    - 7a99d8fd4
+    authored_at: '2026-04-30T10:42:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'refactor: use shared waitForChatReady in multi-tab encryption spec'
+    section: improvements
+    commits:
+    - bb13d93d6
+    authored_at: '2026-04-30T11:41:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs: []
+  tests:
+  - title: 'chore: update test runner and Obsidian test sync'
+    section: tests
+    commits:
+    - f36273107
+    authored_at: '2026-04-30T11:42:20+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: add iOS native control guard hooks and expand counterparts mapping'
+    section: infrastructure
+    commits:
+    - 2017a8bb8
+    authored_at: '2026-04-30T14:28:27+02:00'
+    changed_paths:
+    - .claude/hooks/native-ios-control-guard.sh
+    - .claude/hooks/svelte-swift-counterpart-linker.sh
+    - .claude/rules/apple-ui.md
+    - apple/SVELTE_SWIFT_COUNTERPARTS.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'chore: add Claude hooks and update configs'
+    section: infrastructure
+    commits:
+    - 8fcbb8c53
+    authored_at: '2026-04-30T11:42:15+00:00'
+    changed_paths:
+    - .claude/hooks/e2e-encryption-guard.sh
+    - .claude/hooks/encryption-architecture-reminder.sh
+    - .gitignore
+    - opencode.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'chore: update compliance docs and dependabot state'
+    section: infrastructure
+    commits:
+    - a4e239fc5
+    authored_at: '2026-04-30T11:42:11+00:00'
+    changed_paths:
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - scripts/dependabot-processed.json
+    - talks/ideas.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'chore: add OpenCode reverse proxy config'
+    section: infrastructure
+    commits:
+    - d79c055cb
+    authored_at: '2026-04-30T11:42:06+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'chore: add Obsidian sync scripts'
+    section: infrastructure
+    commits:
+    - 4bf136dad
+    authored_at: '2026-04-30T11:42:01+00:00'
+    changed_paths:
+    - scripts/generate_obsidian_task_boards.py
+    - scripts/normalize_obsidian_task_notes.py
+    - scripts/sync_obsidian_tasks.py
+    - scripts/update_obsidian_daily_note.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: resolve 3 test failure groups (console.error, status title, teaser testid)'
+    commits:
+    - 9c99238d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: auto-unwrap LLM requests array for flat-schema skills (pdf.read 422)'
+    commits:
+    - 253071ffd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: migrate 20 inline-login specs to submitPasswordAndHandleOtp helper'
+    commits:
+    - e21900a6a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: disable pointer-events on faded new-chat welcome content'
+    commits:
+    - 8f7127c8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: CLI PDF test — tolerate stale CLI session after OPE-362 re-login'
+    commits:
+    - 29f411b6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: CLI PDF test — use proven send pattern from pdf-flow spec'
+    commits:
+    - ca8b35fd1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: CLI PDF test — wait for chat-id URL + extract from hash format'
+    commits:
+    - d28e36ceb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add data-testid to booking CTA buttons in travel connection fullscreen'
+    commits:
+    - e4e738a95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
+    commits:
+    - 2fcd00e8e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recover TOON content after relogin for finished embeds'
+    commits:
+    - 421592b1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recover TOON content after relogin + fix CLI PDF test session drop'
+    commits:
+    - ec9af6dbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update 4 inline-login specs to use submitPasswordAndHandleOtp helper'
+    commits:
+    - 59025e4a4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: handle login without 2FA in test helper (race OTP vs auth signal)'
+    commits:
+    - d91bc9fb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: rename (minimal)/+layout to +layout@ to reset layout chain'
+    commits:
+    - 37a507eb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reset (minimal) layout chain so MetaTags title doesn''t override status page'
+    commits:
+    - cd3bfa084
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: guard messageInputFieldRef in setTimeout callbacks (null-ref after chat delete)'
+    commits:
+    - 32df7f3fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve 3 test failure groups (console.error, status title, teaser testid)'
+    commits:
+    - 9c99238d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add smooth height transition to DailyInspirationBanner (iPad Safari)'
+    commits:
+    - 545e1419a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: invalidate metadata cache on title update + refresh carousel on key-ready (Safari race)'
+    commits:
+    - 0c843a73d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: update E2E specs for new-chat button UI changes'
+    commits:
+    - 8f34a2c13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show fullwidth new-chat CTA on intro/legal chats for authenticated users'
+    commits:
+    - f80715045
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: dismiss button styling, position, and draft compact-mode restore'
+    commits:
+    - 855e92d81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: hide new-chat button on input focus, show cancel/save-draft, fix followup placeholder'
+    commits:
+    - 24086fe71
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: fullwidth new-chat CTA for intro/legal chats + Safari nav race'
+    commits:
+    - 0f9281bf7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - 5f775e980
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: placeholder vertical centering and mobile new-chat label'
+    commits:
+    - e628e4c32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - dea99692c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: new chat button centering, icon-only on focus, smooth transitions, mobile label'
+    commits:
+    - f6df78d1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add inlineCompact prop and CSS to MessageInput'
+    commits:
+    - d7d44027f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: MessageInput inline compact mode and followup placeholder variant'
+    commits:
+    - 756e2c6d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: message input + new chat button UI corrections'
+    commits:
+    - b93a13c3a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add floating deco icons to teaser layout and use ai.svg for for-everyone chat'
+    commits:
+    - 86c50baa4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Stripe revenue summary to admin server stats'
+    commits:
+    - c3f6c53d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor: use shared waitForChatReady in multi-tab encryption spec'
+    commits:
+    - bb13d93d6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: include public chats in search suggestions'
+    commits:
+    - adb9f9b0c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add startNewChatOnClick mode to MessageInput'
+    commits:
+    - 3188eef43
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: tighten teaser split layout width'
+    commits:
+    - 765e78c48
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: load localized intro video in chat header'
+    commits:
+    - 4aa198f0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: constrain teaser video height'
+    commits:
+    - 7a99d8fd4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: auto-unwrap LLM requests array for flat-schema skills (pdf.read 422)'
+    commits:
+    - 253071ffd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: migrate 20 inline-login specs to submitPasswordAndHandleOtp helper'
+    commits:
+    - e21900a6a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: disable pointer-events on faded new-chat welcome content'
+    commits:
+    - 8f7127c8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: CLI PDF test — tolerate stale CLI session after OPE-362 re-login'
+    commits:
+    - 29f411b6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: CLI PDF test — use proven send pattern from pdf-flow spec'
+    commits:
+    - ca8b35fd1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: CLI PDF test — wait for chat-id URL + extract from hash format'
+    commits:
+    - d28e36ceb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add data-testid to booking CTA buttons in travel connection fullscreen'
+    commits:
+    - e4e738a95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
+    commits:
+    - 2fcd00e8e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recover TOON content after relogin for finished embeds'
+    commits:
+    - 421592b1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recover TOON content after relogin + fix CLI PDF test session drop'
+    commits:
+    - ec9af6dbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update 4 inline-login specs to use submitPasswordAndHandleOtp helper'
+    commits:
+    - 59025e4a4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: handle login without 2FA in test helper (race OTP vs auth signal)'
+    commits:
+    - d91bc9fb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: rename (minimal)/+layout to +layout@ to reset layout chain'
+    commits:
+    - 37a507eb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reset (minimal) layout chain so MetaTags title doesn''t override status page'
+    commits:
+    - cd3bfa084
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: guard messageInputFieldRef in setTimeout callbacks (null-ref after chat delete)'
+    commits:
+    - 32df7f3fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve 3 test failure groups (console.error, status title, teaser testid)'
+    commits:
+    - 9c99238d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add smooth height transition to DailyInspirationBanner (iPad Safari)'
+    commits:
+    - 545e1419a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: invalidate metadata cache on title update + refresh carousel on key-ready (Safari race)'
+    commits:
+    - 0c843a73d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: update E2E specs for new-chat button UI changes'
+    commits:
+    - 8f34a2c13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show fullwidth new-chat CTA on intro/legal chats for authenticated users'
+    commits:
+    - f80715045
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: dismiss button styling, position, and draft compact-mode restore'
+    commits:
+    - 855e92d81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: hide new-chat button on input focus, show cancel/save-draft, fix followup placeholder'
+    commits:
+    - 24086fe71
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: fullwidth new-chat CTA for intro/legal chats + Safari nav race'
+    commits:
+    - 0f9281bf7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - 5f775e980
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: placeholder vertical centering and mobile new-chat label'
+    commits:
+    - e628e4c32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add OMToggle, OMDropdown, OMConfirmDialog, OMSheet custom primitives'
+    commits:
+    - 2a2f024be
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - dea99692c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: new chat button centering, icon-only on focus, smooth transitions, mobile label'
+    commits:
+    - f6df78d1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add inlineCompact prop and CSS to MessageInput'
+    commits:
+    - d7d44027f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: MessageInput inline compact mode and followup placeholder variant'
+    commits:
+    - 756e2c6d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: message input + new chat button UI corrections'
+    commits:
+    - b93a13c3a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add floating deco icons to teaser layout and use ai.svg for for-everyone chat'
+    commits:
+    - 86c50baa4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Stripe revenue summary to admin server stats'
+    commits:
+    - c3f6c53d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor: use shared waitForChatReady in multi-tab encryption spec'
+    commits:
+    - bb13d93d6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: include public chats in search suggestions'
+    commits:
+    - adb9f9b0c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add startNewChatOnClick mode to MessageInput'
+    commits:
+    - 3188eef43
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: tighten teaser split layout width'
+    commits:
+    - 765e78c48
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: load localized intro video in chat header'
+    commits:
+    - 4aa198f0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: constrain teaser video height'
+    commits:
+    - 7a99d8fd4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 253071ffd33208532ee0fa755ce5af6296e35f9c
+    short_sha: 253071ffd
+    authored_at: '2026-04-30T23:20:01+00:00'
+    subject: 'fix: auto-unwrap LLM requests array for flat-schema skills (pdf.read 422)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/base_app.py
+    related_feature_ids: []
+  - sha: e21900a6aff5217effe14384900247892e361733
+    short_sha: e21900a6a
+    authored_at: '2026-04-30T23:11:45+00:00'
+    subject: 'fix: migrate 20 inline-login specs to submitPasswordAndHandleOtp helper'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+    - frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - frontend/apps/web_app/tests/cli-file-upload.spec.ts
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    - frontend/apps/web_app/tests/embed-json-leak.spec.ts
+    - frontend/apps/web_app/tests/example-chat-clone.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/apps/web_app/tests/location-security-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-email.spec.ts
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    - frontend/apps/web_app/tests/reminder-repeating-and-cancel.spec.ts
+    - frontend/apps/web_app/tests/reminder-same-chat.spec.ts
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: 8f7127c8c2cecd1ae9846a4edfe8e18f305d71b0
+    short_sha: 8f7127c8c
+    authored_at: '2026-04-30T23:03:09+00:00'
+    subject: 'fix: disable pointer-events on faded new-chat welcome content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: d8d35b787f39225fc3f1085f3f9cdb9ee43466c2
+    short_sha: d8d35b787
+    authored_at: '2026-04-30T23:01:50+00:00'
+    subject: 'fix: remove invalid task.request assignment in celery dedup tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_celery_dedup.py
+    related_feature_ids: []
+  - sha: 29f411b6db15204034266fbda0d360eb7c04f99b
+    short_sha: 29f411b6d
+    authored_at: '2026-04-30T21:53:24+00:00'
+    subject: 'fix: CLI PDF test — tolerate stale CLI session after OPE-362 re-login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: ca8b35fd10fe7e4f50621dd68aa77f26523b2291
+    short_sha: ca8b35fd1
+    authored_at: '2026-04-30T21:42:55+00:00'
+    subject: 'fix: CLI PDF test — use proven send pattern from pdf-flow spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: d28e36cebc5a207c46a883a15cff7d1d09baccf5
+    short_sha: d28e36ceb
+    authored_at: '2026-04-30T21:19:40+00:00'
+    subject: 'fix: CLI PDF test — wait for chat-id URL + extract from hash format'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: e4e738a956a78dbfd6eaa445babebd139afed314
+    short_sha: e4e738a95
+    authored_at: '2026-04-30T21:13:28+00:00'
+    subject: 'fix: add data-testid to booking CTA buttons in travel connection fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 2fcd00e8e47b5b62cbf87ceb0c8c914a1d300bab
+    short_sha: 2fcd00e8e
+    authored_at: '2026-04-30T21:02:41+00:00'
+    subject: 'fix: clamp past outbound_date in SerpAPI booking lookup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/providers/serpapi_provider.py
+    related_feature_ids: []
+  - sha: 421592b1c8bfe6932a30ef81c714a68472116ca5
+    short_sha: 421592b1c
+    authored_at: '2026-04-30T21:02:36+00:00'
+    subject: 'fix: recover TOON content after relogin for finished embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: ec9af6dbb3f6faf722a5f2867a3aeceef80f0ea2
+    short_sha: ec9af6dbb
+    authored_at: '2026-04-30T21:01:14+00:00'
+    subject: 'fix: recover TOON content after relogin + fix CLI PDF test session drop'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: 7e601c3674dfc77da4c2546900544c102cf760cb
+    short_sha: 7e601c367
+    authored_at: '2026-04-30T20:55:21+00:00'
+    subject: 'feat: add GPT 5.5 model with premium credit pricing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/data/models_leaderboard.yml
+    - backend/providers/openai.yml
+    related_feature_ids: []
+  - sha: 59025e4a4db99e77e0fe042c2afbd6a57da1ef7b
+    short_sha: 59025e4a4
+    authored_at: '2026-04-30T20:15:38+00:00'
+    subject: 'fix: update 4 inline-login specs to use submitPasswordAndHandleOtp helper'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-images-generate-safety.spec.ts
+    related_feature_ids: []
+  - sha: d91bc9fb52e31f00e894b1d08954a2896b6282c6
+    short_sha: d91bc9fb5
+    authored_at: '2026-04-30T20:04:00+00:00'
+    subject: 'fix: handle login without 2FA in test helper (race OTP vs auth signal)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: 37a507eb9de402b8d6cb1c05ac4e92fa83dafc42
+    short_sha: 37a507eb9
+    authored_at: '2026-04-30T18:58:31+00:00'
+    subject: 'fix: rename (minimal)/+layout to +layout@ to reset layout chain'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(minimal)/+layout.svelte
+    - frontend/apps/web_app/src/routes/(minimal)/+layout@.svelte
+    related_feature_ids: []
+  - sha: cd3bfa0849a8c43300b3d9306641b08acf6f6861
+    short_sha: cd3bfa084
+    authored_at: '2026-04-30T18:57:58+00:00'
+    subject: 'fix: reset (minimal) layout chain so MetaTags title doesn''t override status page'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(minimal)/status/+page.svelte
+    related_feature_ids: []
+  - sha: 32df7f3fd68cd0c50084ad40cf5772eea2c63841
+    short_sha: 32df7f3fd
+    authored_at: '2026-04-30T18:37:03+00:00'
+    subject: 'fix: guard messageInputFieldRef in setTimeout callbacks (null-ref after chat delete)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 9c99238d7ea8e66094e0ae7b144752d90506b5ee
+    short_sha: 9c99238d7
+    authored_at: '2026-04-30T18:12:09+00:00'
+    subject: 'fix: resolve 3 test failure groups (console.error, status title, teaser testid)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(minimal)/status/+page.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/encryption/MetadataEncryptor.ts
+    related_feature_ids: []
+  - sha: 545e1419a92c85bb306431330af978b69f445750
+    short_sha: 545e1419a
+    authored_at: '2026-04-30T17:56:57+00:00'
+    subject: 'fix: add smooth height transition to DailyInspirationBanner (iPad Safari)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 0c843a73d134201e763b03e093ef875c2c855563
+    short_sha: 0c843a73d
+    authored_at: '2026-04-30T16:34:21+00:00'
+    subject: 'fix: invalidate metadata cache on title update + refresh carousel on key-ready (Safari race)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: 0b0bafc742e999c000dd57083338f86fc0f80254
+    short_sha: 0b0bafc74
+    authored_at: '2026-04-30T15:50:48+00:00'
+    subject: 'fix: release dedup lock on retry, skip SightEngine when quota exhausted (OPE-482)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/base_task.py
+    - backend/shared/python_utils/celery_dedup.py
+    - backend/tests/test_celery_dedup.py
+    - backend/upload/services/sightengine_service.py
+    related_feature_ids: []
+  - sha: 8f34a2c13fed2f2dca3ef59662f54961418aed88
+    short_sha: 8f34a2c13
+    authored_at: '2026-04-30T15:47:26+00:00'
+    subject: 'fix: update E2E specs for new-chat button UI changes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: f80715045fe66488ae22cfdd075c4f5d9ced4020
+    short_sha: f80715045
+    authored_at: '2026-04-30T15:34:31+00:00'
+    subject: 'fix: show fullwidth new-chat CTA on intro/legal chats for authenticated users'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 855e92d813e4212caadde58adba78fe85cee8503
+    short_sha: 855e92d81
+    authored_at: '2026-04-30T14:57:33+00:00'
+    subject: 'fix: dismiss button styling, position, and draft compact-mode restore'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 24086fe71b98dec3950a69265e764ca4a5cee4a5
+    short_sha: 24086fe71
+    authored_at: '2026-04-30T14:15:41+00:00'
+    subject: 'feat: hide new-chat button on input focus, show cancel/save-draft, fix followup placeholder'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Placeholder.ts
+    - frontend/packages/ui/src/i18n/sources/common.yml
+    related_feature_ids: []
+  - sha: 0f9281bf74a0c5e4ce5abc83994e8fca18fee311
+    short_sha: 0f9281bf7
+    authored_at: '2026-04-30T13:58:16+00:00'
+    subject: 'fix: fullwidth new-chat CTA for intro/legal chats + Safari nav race'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    related_feature_ids: []
+  - sha: 5f775e980a8bb76093968b3c89dc331d5695e149
+    short_sha: 5f775e980
+    authored_at: '2026-04-30T13:18:30+00:00'
+    subject: 'fix: placeholder vertical centering in inline-compact input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    related_feature_ids: []
+  - sha: e628e4c32577f5cb1b055dc9e5aedc3cffb67595
+    short_sha: e628e4c32
+    authored_at: '2026-04-30T13:07:24+00:00'
+    subject: 'fix: placeholder vertical centering and mobile new-chat label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    related_feature_ids: []
+  - sha: 2a2f024be5c99b931bf1ff1d9bfad4c340a0bd49
+    short_sha: 2a2f024be
+    authored_at: '2026-04-30T14:34:42+02:00'
+    subject: 'feat: add OMToggle, OMDropdown, OMConfirmDialog, OMSheet custom primitives'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2017a8bb8a605aaa4353c057d094b1e88a0c75de
+    short_sha: 2017a8bb8
+    authored_at: '2026-04-30T14:28:27+02:00'
+    subject: 'chore: add iOS native control guard hooks and expand counterparts mapping'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/native-ios-control-guard.sh
+    - .claude/hooks/svelte-swift-counterpart-linker.sh
+    - .claude/rules/apple-ui.md
+    - apple/SVELTE_SWIFT_COUNTERPARTS.md
+    related_feature_ids: []
+  - sha: dea99692ca38f6d3fcee67a6c7246001a08aa748
+    short_sha: dea99692c
+    authored_at: '2026-04-30T12:27:32+00:00'
+    subject: 'fix: placeholder vertical centering in inline-compact input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    related_feature_ids: []
+  - sha: f6df78d1f772cd708904e061324a6720167cc5d0
+    short_sha: f6df78d1f
+    authored_at: '2026-04-30T12:16:40+00:00'
+    subject: 'fix: new chat button centering, icon-only on focus, smooth transitions, mobile label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    related_feature_ids: []
+  - sha: d7d44027f7489ad9fc9bff91106c3af86b069982
+    short_sha: d7d44027f
+    authored_at: '2026-04-30T11:56:58+00:00'
+    subject: 'feat: add inlineCompact prop and CSS to MessageInput'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 756e2c6d8c4501a953db873fe6a5967dd66359d9
+    short_sha: 756e2c6d8
+    authored_at: '2026-04-30T11:55:16+00:00'
+    subject: 'feat: MessageInput inline compact mode and followup placeholder variant'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/Placeholder.ts
+    related_feature_ids: []
+  - sha: b93a13c3aea759a7d425e6691704eb4bbec75b67
+    short_sha: b93a13c3a
+    authored_at: '2026-04-30T11:54:31+00:00'
+    subject: 'feat: message input + new chat button UI corrections'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    related_feature_ids: []
+  - sha: 86c50baa4f9013d480dc6d2a77fef0a8e7d52db0
+    short_sha: 86c50baa4
+    authored_at: '2026-04-30T11:48:59+00:00'
+    subject: 'feat: add floating deco icons to teaser layout and use ai.svg for for-everyone chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: f3627310718271c7047625e80e32a23be2c4421c
+    short_sha: f36273107
+    authored_at: '2026-04-30T11:42:20+00:00'
+    subject: 'chore: update test runner and Obsidian test sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    related_feature_ids: []
+  - sha: 8fcbb8c5339bb26659923a95a2eb3945cece218d
+    short_sha: 8fcbb8c53
+    authored_at: '2026-04-30T11:42:15+00:00'
+    subject: 'chore: add Claude hooks and update configs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/e2e-encryption-guard.sh
+    - .claude/hooks/encryption-architecture-reminder.sh
+    - .gitignore
+    - opencode.json
+    related_feature_ids: []
+  - sha: a4e239fc5fbf40dbcecac124b554eb4006aa555c
+    short_sha: a4e239fc5
+    authored_at: '2026-04-30T11:42:11+00:00'
+    subject: 'chore: update compliance docs and dependabot state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - scripts/dependabot-processed.json
+    - talks/ideas.md
+    related_feature_ids: []
+  - sha: d79c055cbae05ff3ff3d97cd99a9c25585cccf28
+    short_sha: d79c055cb
+    authored_at: '2026-04-30T11:42:06+00:00'
+    subject: 'chore: add OpenCode reverse proxy config'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    related_feature_ids: []
+  - sha: 4bf136dadff426fde3df1e136e75d846c24e3a63
+    short_sha: 4bf136dad
+    authored_at: '2026-04-30T11:42:01+00:00'
+    subject: 'chore: add Obsidian sync scripts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/generate_obsidian_task_boards.py
+    - scripts/normalize_obsidian_task_notes.py
+    - scripts/sync_obsidian_tasks.py
+    - scripts/update_obsidian_daily_note.py
+    related_feature_ids: []
+  - sha: 770fb1708e53f3285920491167e8aec9cebeef91
+    short_sha: 770fb1708
+    authored_at: '2026-04-30T11:41:57+00:00'
+    subject: 'feat: add Obsidian daily note and prod stats to daily meeting'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/skills/daily-meeting/SKILL.md
+    - scripts/_daily_meeting_helper.py
+    - scripts/prompts/daily-meeting.md
+    related_feature_ids: []
+  - sha: f4cb1d1353db8c0a8283518cef8decc0642c80c9
+    short_sha: f4cb1d135
+    authored_at: '2026-04-30T11:41:52+00:00'
+    subject: 'feat: improve newsletter send script with status bar and delivery tracking'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    related_feature_ids: []
+  - sha: c3f6c53d8aa9cd15395f336d226451b1ab4b9502
+    short_sha: c3f6c53d8
+    authored_at: '2026-04-30T11:41:43+00:00'
+    subject: 'feat: add Stripe revenue summary to admin server stats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/services/payment/stripe_service.py
+    - backend/scripts/server_stats_query.py
+    related_feature_ids: []
+  - sha: bb13d93d621484e3ba096c248111510f04772d68
+    short_sha: bb13d93d6
+    authored_at: '2026-04-30T11:41:34+00:00'
+    subject: 'refactor: use shared waitForChatReady in multi-tab encryption spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: adb9f9b0c8e73130a0fad7dc2737df7b34394de8
+    short_sha: adb9f9b0c
+    authored_at: '2026-04-30T11:41:23+00:00'
+    subject: 'feat: include public chats in search suggestions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    related_feature_ids: []
+  - sha: 3188eef43d218bfa3c3bcb24236aa3fe65092358
+    short_sha: 3188eef43
+    authored_at: '2026-04-30T11:41:18+00:00'
+    subject: 'feat: add startNewChatOnClick mode to MessageInput'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Placeholder.ts
+    related_feature_ids: []
+  - sha: 765e78c48074204be08267aaa14684e48ea4fda9
+    short_sha: 765e78c48
+    authored_at: '2026-04-30T11:00:51+00:00'
+    subject: 'fix: tighten teaser split layout width'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 4aa198f0babfd2cbe09d31eaa542619b92aa30e9
+    short_sha: 4aa198f0b
+    authored_at: '2026-04-30T10:48:00+00:00'
+    subject: 'fix: load localized intro video in chat header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 7a99d8fd4acaaa8563ac4d336e9e232c3a2241e8
+    short_sha: 7a99d8fd4
+    authored_at: '2026-04-30T10:42:54+00:00'
+    subject: 'fix: constrain teaser video height'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on significant UI polish for the chat interface, improving the behavior of the message input
+    and new-chat controls. The update also expanded search discovery to include public chats and addressed several compatibility
+    issues for Safari and iPad users.
+  released_changes:
+  - text: The chat interface now features a more intelligent 'New Chat' button that hides when the input is focused to reveal
+      save-draft and cancel options. A compact 'inline' mode for the message input was also introduced for follow-up interactions.
+    evidence:
+      commits:
+      - 24086fe71
+      - d7d44027f
+      - 756e2c6d8
+      - b93a13c3a
+      - 3188eef43
+    release_status: released_main
+  - text: Public chats are now included in search suggestions, enhancing the discoverability of shared conversations.
+    evidence:
+      commits:
+      - adb9f9b0c
+    release_status: released_main
+  - text: The teaser and header layouts were updated with floating decorative icons, localized intro videos, and refined split-layout
+      widths.
+    evidence:
+      commits:
+      - 86c50baa4
+      - 765e78c48
+      - 4aa198f0b
+      - 7a99d8fd4
+    release_status: released_main
+  - text: Admin tools now include a Stripe revenue summary within the server statistics dashboard.
+    evidence:
+      commits:
+      - c3f6c53d8
+    release_status: released_main
+  bug_fixes:
+  - text: OpenMates resolved an issue where LLM requests for flat-schema skills, such as PDF reading, would fail with 422
+      errors by automatically unwrapping request arrays.
+    evidence:
+      commits:
+      - 253071ffd
+    release_status: released_main
+  - text: Compatibility for iPad Safari was improved with smooth height transitions for the daily inspiration banner and fixes
+      for navigation race conditions.
+    evidence:
+      commits:
+      - 545e1419a
+      - 0f9281bf7
+    release_status: released_main
+  - text: Chat reliability was enhanced by ensuring metadata caches invalidate correctly on title updates and adding guards
+      against null references after chat deletion.
+    evidence:
+      commits:
+      - 0c843a73d
+      - 32df7f3fd
+    release_status: released_main
+  - text: The travel connection now correctly clamps past outbound dates when performing booking lookups via SerpAPI.
+    evidence:
+      commits:
+      - 2fcd00e8e
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on Apple platform support with the addition of custom design primitives like OMToggle and
+      OMSheet for iOS and macOS.
+    evidence:
+      commits:
+      - 2a2f024be
+    release_status: released_main
+  - text: Internal productivity tools were expanded with new Obsidian synchronization scripts and enhanced newsletter delivery
+      tracking.
+    evidence:
+      commits:
+      - 770fb1708
+      - f4cb1d135
+      - 4bf136dad
+    release_status: released_main
+  internal_progress:
+  - text: The project migrated over 20 end-to-end login specifications to a more robust authentication helper to better handle
+      2FA and OTP race conditions.
+    evidence:
+      commits:
+      - e21900a6a
+      - 59025e4a4
+      - d91bc9fb5
+    release_status: released_main
+  - text: Infrastructure updates included new Claude hooks for enforcing encryption architecture and iOS native control guards.
+    evidence:
+      commits:
+      - 2017a8bb8
+      - 8fcbb8c53
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: A refined chat interface featuring a dynamic new-chat button that transitions to draft controls on focus, paired
+        with a new compact input mode for follow-up messages.
+      evidence:
+        commits:
+        - 24086fe71
+        - d7d44027f
+        - 756e2c6d8
+        - b93a13c3a
+        - 3188eef43
+      reason: Significant user-facing UI improvement for the core chat experience.
+    - text: Search suggestions now incorporate public chats, allowing users to find community conversations more easily.
+      evidence:
+        commits:
+        - adb9f9b0c
+      reason: Improves feature discoverability.
+    exclude:
+    - text: Custom design primitives for Apple platforms.
+      evidence:
+        commits:
+        - 2a2f024be
+      reason: Related to unreleased iOS and macOS platforms.
+    - text: GPT 5.5 model integration.
+      evidence:
+        commits:
+        - 7e601c367
+      reason: Marked as not user-facing.
+    rationale: The primary user-facing value today is the significant polish applied to the chat interface and the expansion
+      of search capabilities. Internal infrastructure and unreleased platform work are excluded.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the smooth transition of the chat input from a 'New Chat' state to a focused draft state.
+    priority: high
+    reason: This is a high-quality UI interaction that demonstrates product polish.
+    evidence:
+      commits:
+      - 24086fe71
+      - d7d44027f
+  quality_notes:
+  - Extensive work was done to stabilize the test suite, particularly around authentication flows.
+  - Significant attention was paid to UI transitions and centering logic across mobile and desktop views.
+  validation_warnings: []

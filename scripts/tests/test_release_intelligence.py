@@ -612,3 +612,34 @@ def test_newsletter_include_commits_from_weekly_source_uses_daily_candidates() -
     source = build_weekly_llm_source(weekly, [daily])
 
     assert newsletter_include_commits_from_source(source) == {"abc1234"}
+
+
+def test_collect_commits_keeps_date_bounds_with_from_ref(monkeypatch) -> None:
+    logged_commands = []
+
+    def fake_git_output(command, check=True):
+        if command[0] == "log":
+            logged_commands.append(command)
+        return ""
+
+    monkeypatch.setattr(_release_intelligence, "git_output", fake_git_output)
+
+    commits = _release_intelligence.collect_commits(
+        since="2026-04-13T12:11:31+00:00",
+        until="2026-04-13T23:59:59+00:00",
+        from_ref="v0.9.0-alpha",
+        to_ref="origin/main",
+        main_ref="origin/main",
+        dev_ref="origin/dev",
+    )
+
+    assert commits == []
+    assert logged_commands == [
+        [
+            "log",
+            "--format=%x1e%H%x1f%h%x1f%aI%x1f%s%x1f%b",
+            "--since=2026-04-13T12:11:31+00:00",
+            "--until=2026-04-13T23:59:59+00:00",
+            "v0.9.0-alpha..origin/main",
+        ]
+    ]

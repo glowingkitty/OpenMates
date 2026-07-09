@@ -1,0 +1,1358 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-16'
+generated_at: '2026-07-09T15:20:24+00:00'
+range:
+  since: '2026-05-16T00:00:00+00:00'
+  until: '2026-05-16T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 30
+  section_counts:
+    features: 2
+    bug_fixes: 14
+    improvements: 0
+    docs: 0
+    tests: 11
+    infrastructure: 0
+    internal: 0
+    other: 3
+  newsletter_ready_items: 13
+  user_facing_items: 13
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add privacy video demo mode'
+    section: features
+    commits:
+    - ec88d1724
+    authored_at: '2026-05-16T20:13:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/privacy-video-recording.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/demoMode.ts
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add image provider model selection'
+    section: features
+    commits:
+    - 78c2ce11e
+    authored_at: '2026-05-16T19:48:08+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/base_app.py
+    - backend/apps/images/app.yml
+    - backend/apps/images/skills/generate_skill.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - backend/providers/openai.yml
+    - backend/providers/recraft.yml
+    - backend/shared/providers/openai/__init__.py
+    - backend/shared/providers/openai/image_generation.py
+    - backend/shared/providers/recraft/recraft.py
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/authTypes.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - shared/config/costs.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: align GPT Image 2 request parameters'
+    section: bug_fixes
+    commits:
+    - '574684069'
+    authored_at: '2026-05-16T19:54:24+00:00'
+    changed_paths:
+    - backend/shared/providers/openai/image_generation.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: repair cold inline embed refs'
+    section: bug_fixes
+    commits:
+    - 2829e6561
+    authored_at: '2026-05-16T18:56:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve async skill ask config'
+    section: bug_fixes
+    commits:
+    - 639180c5c
+    authored_at: '2026-05-16T18:45:07+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/social_media/app.yml
+    - backend/tests/test_async_skill_continuation.py
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve source-backed markdown links'
+    section: bug_fixes
+    commits:
+    - c340a24b2
+    authored_at: '2026-05-16T18:29:59+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/shared/python_utils/markdown_links.py
+    - backend/shared/python_utils/url_normalizer.py
+    - backend/tests/test_url_normalizer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: scroll embed deep links to highlighted targets'
+    section: bug_fixes
+    commits:
+    - 29277b7f6
+    authored_at: '2026-05-16T18:28:28+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent embed-only AI responses from invalid tools'
+    section: bug_fixes
+    commits:
+    - b34e5b311
+    authored_at: '2026-05-16T17:47:17+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render Euler exponentials in math plots'
+    section: bug_fixes
+    commits:
+    - a844dfe5c
+    authored_at: '2026-05-16T17:45:53+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_plot_code_block_instruction.md
+    - frontend/packages/ui/src/components/embeds/math/MathPlotEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/math/__tests__/plotExpression.test.ts
+    - frontend/packages/ui/src/components/embeds/math/plotExpression.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve direct embed refs'
+    section: bug_fixes
+    commits:
+    - 3339ec342
+    authored_at: '2026-05-16T17:44:45+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_embed_referencing_instruction.md
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/EmbedInlineNode.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - frontend/packages/ui/src/utils/embedFragmentUtils.ts
+    - frontend/packages/ui/src/utils/embedLinkUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: harden phased sync metadata recovery'
+    section: bug_fixes
+    commits:
+    - cb877e890
+    authored_at: '2026-05-16T17:28:30+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render uploaded code files as embeds'
+    section: bug_fixes
+    commits:
+    - b6c1950af
+    authored_at: '2026-05-16T15:36:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep embed placeholders processing until content arrives'
+    section: bug_fixes
+    commits:
+    - 08fe819b0
+    authored_at: '2026-05-16T14:35:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: add pending phased sync state'
+    section: bug_fixes
+    commits:
+    - da6b39d47
+    authored_at: '2026-05-16T11:17:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/phasedSyncStateStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep sync UI pending for cold cache recovery'
+    section: bug_fixes
+    commits:
+    - 0112e5f07
+    authored_at: '2026-05-16T11:17:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep chat sync pending when server chats exist'
+    section: bug_fixes
+    commits:
+    - 94bd570ac
+    authored_at: '2026-05-16T09:50:46+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: add code upload embed regression'
+    section: tests
+    commits:
+    - '849236961'
+    authored_at: '2026-05-16T15:42:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: clarify blocked sync payload naming'
+    section: tests
+    commits:
+    - 6f96faff2
+    authored_at: '2026-05-16T11:19:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wrap native WebSocket for sync recovery regression'
+    section: tests
+    commits:
+    - 9cb1c64e5
+    authored_at: '2026-05-16T11:06:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert sync recovery websocket shim installation'
+    section: tests
+    commits:
+    - 58e765ffc
+    authored_at: '2026-05-16T11:00:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: install sync recovery shims at browser context level'
+    section: tests
+    commits:
+    - '128187970'
+    authored_at: '2026-05-16T10:55:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: block bulk sync responses in empty IndexedDB regression'
+    section: tests
+    commits:
+    - 7b45de137
+    authored_at: '2026-05-16T10:49:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: clear chat IndexedDB on recovery boot'
+    section: tests
+    commits:
+    - 1074aec3c
+    authored_at: '2026-05-16T10:43:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify empty IndexedDB before sync recovery assertion'
+    section: tests
+    commits:
+    - d210688f3
+    authored_at: '2026-05-16T10:38:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: block delta sync in empty IndexedDB regression'
+    section: tests
+    commits:
+    - 5ea4bffb1
+    authored_at: '2026-05-16T10:32:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: handle websocket event envelopes in sync regression'
+    section: tests
+    commits:
+    - 390c1f575
+    authored_at: '2026-05-16T10:10:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize chat sync empty IndexedDB regression'
+    section: tests
+    commits:
+    - 3a2101847
+    authored_at: '2026-05-16T10:03:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'Merge pull request #403 from glowingkitty/dev'
+    section: other
+    commits:
+    - 027d3a47d
+    authored_at: '2026-05-16T21:07:13+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #402 from glowingkitty/dev'
+    section: other
+    commits:
+    - 70ee94366
+    authored_at: '2026-05-16T20:32:39+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #401 from glowingkitty/dev'
+    section: other
+    commits:
+    - d15fe6ffe
+    authored_at: '2026-05-16T14:56:14+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add image provider model selection'
+    commits:
+    - 78c2ce11e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve async skill ask config'
+    commits:
+    - 639180c5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add privacy video demo mode'
+    commits:
+    - ec88d1724
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add image provider model selection'
+    commits:
+    - 78c2ce11e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair cold inline embed refs'
+    commits:
+    - 2829e6561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve async skill ask config'
+    commits:
+    - 639180c5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve source-backed markdown links'
+    commits:
+    - c340a24b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: scroll embed deep links to highlighted targets'
+    commits:
+    - 29277b7f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent embed-only AI responses from invalid tools'
+    commits:
+    - b34e5b311
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render Euler exponentials in math plots'
+    commits:
+    - a844dfe5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve direct embed refs'
+    commits:
+    - 3339ec342
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden phased sync metadata recovery'
+    commits:
+    - cb877e890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render uploaded code files as embeds'
+    commits:
+    - b6c1950af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add pending phased sync state'
+    commits:
+    - da6b39d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep chat sync pending when server chats exist'
+    commits:
+    - 94bd570ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add privacy video demo mode'
+    commits:
+    - ec88d1724
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add image provider model selection'
+    commits:
+    - 78c2ce11e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair cold inline embed refs'
+    commits:
+    - 2829e6561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve async skill ask config'
+    commits:
+    - 639180c5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve source-backed markdown links'
+    commits:
+    - c340a24b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: scroll embed deep links to highlighted targets'
+    commits:
+    - 29277b7f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent embed-only AI responses from invalid tools'
+    commits:
+    - b34e5b311
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render Euler exponentials in math plots'
+    commits:
+    - a844dfe5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve direct embed refs'
+    commits:
+    - 3339ec342
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden phased sync metadata recovery'
+    commits:
+    - cb877e890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render uploaded code files as embeds'
+    commits:
+    - b6c1950af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add pending phased sync state'
+    commits:
+    - da6b39d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep chat sync pending when server chats exist'
+    commits:
+    - 94bd570ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ec88d17244f0f39e8ceae7e7e63869ab2bef5196
+    short_sha: ec88d1724
+    authored_at: '2026-05-16T20:13:52+00:00'
+    subject: 'feat: add privacy video demo mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/privacy-video-recording.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/demoMode.ts
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    related_feature_ids: []
+  - sha: 574684069f1af995604173553e99f1989f641c4d
+    short_sha: '574684069'
+    authored_at: '2026-05-16T19:54:24+00:00'
+    subject: 'fix: align GPT Image 2 request parameters'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/openai/image_generation.py
+    related_feature_ids: []
+  - sha: 78c2ce11e61a990f47dccdacc6d8100036e1feb4
+    short_sha: 78c2ce11e
+    authored_at: '2026-05-16T19:48:08+00:00'
+    subject: 'feat: add image provider model selection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/base_app.py
+    - backend/apps/images/app.yml
+    - backend/apps/images/skills/generate_skill.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - backend/providers/openai.yml
+    - backend/providers/recraft.yml
+    - backend/shared/providers/openai/__init__.py
+    - backend/shared/providers/openai/image_generation.py
+    - backend/shared/providers/recraft/recraft.py
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/authTypes.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    - shared/config/costs.yml
+    related_feature_ids: []
+  - sha: 027d3a47d1c967e66491793bdb5402ed86fa1e68
+    short_sha: 027d3a47d
+    authored_at: '2026-05-16T21:07:13+02:00'
+    subject: 'Merge pull request #403 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 2829e65616cfb864b038a234bd0f9b2558bcc612
+    short_sha: 2829e6561
+    authored_at: '2026-05-16T18:56:36+00:00'
+    subject: 'fix: repair cold inline embed refs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 639180c5ccb44f2c21cfa8968a8ee69f81f82763
+    short_sha: 639180c5c
+    authored_at: '2026-05-16T18:45:07+00:00'
+    subject: 'fix: preserve async skill ask config'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/social_media/app.yml
+    - backend/tests/test_async_skill_continuation.py
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 70ee94366edfaf881a1c1f0163ecbffd6924e158
+    short_sha: 70ee94366
+    authored_at: '2026-05-16T20:32:39+02:00'
+    subject: 'Merge pull request #402 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: c340a24b28316c8e61d196e65229021daeb0085a
+    short_sha: c340a24b2
+    authored_at: '2026-05-16T18:29:59+00:00'
+    subject: 'fix: preserve source-backed markdown links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/shared/python_utils/markdown_links.py
+    - backend/shared/python_utils/url_normalizer.py
+    - backend/tests/test_url_normalizer.py
+    related_feature_ids: []
+  - sha: 29277b7f6b9a5713b2dcb78ae9b8fbbf8b72a9c5
+    short_sha: 29277b7f6
+    authored_at: '2026-05-16T18:28:28+00:00'
+    subject: 'fix: scroll embed deep links to highlighted targets'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: b34e5b31161f368a7bccc8c38b2f2c4188915f82
+    short_sha: b34e5b311
+    authored_at: '2026-05-16T17:47:17+00:00'
+    subject: 'fix: prevent embed-only AI responses from invalid tools'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    related_feature_ids: []
+  - sha: a844dfe5cd65b10912f10cae82dfb26f27614715
+    short_sha: a844dfe5c
+    authored_at: '2026-05-16T17:45:53+00:00'
+    subject: 'fix: render Euler exponentials in math plots'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_plot_code_block_instruction.md
+    - frontend/packages/ui/src/components/embeds/math/MathPlotEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/math/__tests__/plotExpression.test.ts
+    - frontend/packages/ui/src/components/embeds/math/plotExpression.ts
+    related_feature_ids: []
+  - sha: 3339ec3427fe8ffb99a788d4f29932feb0e3ccff
+    short_sha: 3339ec342
+    authored_at: '2026-05-16T17:44:45+00:00'
+    subject: 'fix: resolve direct embed refs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_embed_referencing_instruction.md
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/EmbedInlineNode.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/types/embedFullscreen.ts
+    - frontend/packages/ui/src/utils/embedFragmentUtils.ts
+    - frontend/packages/ui/src/utils/embedLinkUtils.ts
+    related_feature_ids: []
+  - sha: cb877e8907dbb1ab253fe3912423bc9dec5fd116
+    short_sha: cb877e890
+    authored_at: '2026-05-16T17:28:30+00:00'
+    subject: 'fix: harden phased sync metadata recovery'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    related_feature_ids: []
+  - sha: 849236961cb4770add5d729a0c8b8e92a2361913
+    short_sha: '849236961'
+    authored_at: '2026-05-16T15:42:32+00:00'
+    subject: 'test: add code upload embed regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: b6c1950af07de04a2a488ede24b2f7548a765a12
+    short_sha: b6c1950af
+    authored_at: '2026-05-16T15:36:24+00:00'
+    subject: 'fix: render uploaded code files as embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    related_feature_ids: []
+  - sha: 08fe819b0faa78804c0a6fd44fc173a9a60c36f0
+    short_sha: 08fe819b0
+    authored_at: '2026-05-16T14:35:59+00:00'
+    subject: 'fix: keep embed placeholders processing until content arrives'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: d15fe6ffe6111d0c561888065b22f364aa92d2c1
+    short_sha: d15fe6ffe
+    authored_at: '2026-05-16T14:56:14+02:00'
+    subject: 'Merge pull request #401 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 6f96faff264da0427c6efc9009ef15339692f3a4
+    short_sha: 6f96faff2
+    authored_at: '2026-05-16T11:19:15+00:00'
+    subject: 'test: clarify blocked sync payload naming'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: da6b39d477e13cb586db59bed5acfc12119954df
+    short_sha: da6b39d47
+    authored_at: '2026-05-16T11:17:58+00:00'
+    subject: 'fix: add pending phased sync state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/phasedSyncStateStore.ts
+    related_feature_ids: []
+  - sha: 0112e5f071a381242eda6b49eb0180c9b9b83ffd
+    short_sha: 0112e5f07
+    authored_at: '2026-05-16T11:17:01+00:00'
+    subject: 'fix: keep sync UI pending for cold cache recovery'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    related_feature_ids: []
+  - sha: 9cb1c64e5f13d6b47d09d1d7816b6428b1dd75f7
+    short_sha: 9cb1c64e5
+    authored_at: '2026-05-16T11:06:03+00:00'
+    subject: 'test: wrap native WebSocket for sync recovery regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 58e765ffc37f406842cbb19c56e8b61a22bb0381
+    short_sha: 58e765ffc
+    authored_at: '2026-05-16T11:00:30+00:00'
+    subject: 'test: assert sync recovery websocket shim installation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 128187970be9f35546e2373ef22659e8ed8f3f7d
+    short_sha: '128187970'
+    authored_at: '2026-05-16T10:55:08+00:00'
+    subject: 'test: install sync recovery shims at browser context level'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 7b45de1377aa5b75be54e3088fccfccd845b3061
+    short_sha: 7b45de137
+    authored_at: '2026-05-16T10:49:23+00:00'
+    subject: 'test: block bulk sync responses in empty IndexedDB regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 1074aec3c53af9edf827107e14e47f2999495a81
+    short_sha: 1074aec3c
+    authored_at: '2026-05-16T10:43:57+00:00'
+    subject: 'test: clear chat IndexedDB on recovery boot'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: d210688f3279fed2b3ae93c9efa4b37eac051972
+    short_sha: d210688f3
+    authored_at: '2026-05-16T10:38:34+00:00'
+    subject: 'test: verify empty IndexedDB before sync recovery assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 5ea4bffb15f37438a0de920c20c429317d2ca423
+    short_sha: 5ea4bffb1
+    authored_at: '2026-05-16T10:32:22+00:00'
+    subject: 'test: block delta sync in empty IndexedDB regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 390c1f575dd4c4ccabcc944f9f4c81fd578313af
+    short_sha: 390c1f575
+    authored_at: '2026-05-16T10:10:01+00:00'
+    subject: 'test: handle websocket event envelopes in sync regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 3a2101847653001cfaa97ba6c7c1b85b911dd62a
+    short_sha: 3a2101847
+    authored_at: '2026-05-16T10:03:56+00:00'
+    subject: 'test: stabilize chat sync empty IndexedDB regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 94bd570ac47b2b87a476c6888f39f1b1c623930a
+    short_sha: 94bd570ac
+    authored_at: '2026-05-16T09:50:46+00:00'
+    subject: 'fix: keep chat sync pending when server chats exist'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced greater flexibility for AI image generation and privacy tools for screen recording, alongside
+    significant improvements to chat synchronization and embed rendering.
+  released_changes:
+  - text: OpenMates added the ability for users to select specific models for image generation providers within the settings.
+    evidence:
+      commits:
+      - 78c2ce11e
+    release_status: released_main
+  - text: A new privacy video demo mode was introduced to facilitate screen recordings while protecting personal data.
+    evidence:
+      commits:
+      - ec88d1724
+    release_status: released_main
+  - text: Embed functionality was enhanced with support for scrolling deep links to highlighted targets and improved resolution
+      of direct references.
+    evidence:
+      commits:
+      - 29277b7f6
+      - 3339ec342
+      - 2829e6561
+    release_status: released_main
+  - text: The math plotting component now correctly renders Euler exponentials.
+    evidence:
+      commits:
+      - a844dfe5c
+    release_status: released_main
+  - text: Uploaded code files are now automatically rendered as interactive embeds within the chat interface.
+    evidence:
+      commits:
+      - b6c1950af
+    release_status: released_main
+  bug_fixes:
+  - text: Reliability of chat synchronization was improved by hardening metadata recovery and introducing more granular pending
+      states for phased sync, particularly when server-side chats exist.
+    evidence:
+      commits:
+      - cb877e890
+      - da6b39d47
+      - 94bd570ac
+    release_status: released_main
+  - text: AI processing logic was refined to preserve asynchronous skill configurations, maintain source-backed markdown links,
+      and prevent invalid tool calls from generating empty responses.
+    evidence:
+      commits:
+      - 639180c5c
+      - c340a24b2
+      - b34e5b311
+    release_status: released_main
+  unreleased_progress:
+  - text: Extensive testing infrastructure was deployed to validate chat synchronization recovery and IndexedDB stability.
+    evidence:
+      commits:
+      - '849236961'
+      - 6f96faff2
+      - 9cb1c64e5
+      - 58e765ffc
+      - '128187970'
+      - 7b45de137
+      - 1074aec3c
+      - d210688f3
+      - 5ea4bffb1
+      - 390c1f575
+      - 3a2101847
+    release_status: released_main
+  internal_progress:
+  - text: Internal maintenance included aligning GPT Image 2 request parameters and merging several development updates into
+      the main branch.
+    evidence:
+      commits:
+      - '574684069'
+      - 027d3a47d
+      - 70ee94366
+      - d15fe6ffe
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Image provider model selection.
+      evidence:
+        commits:
+        - 78c2ce11e
+      reason: This adds significant user control over AI image generation by allowing specific model selection.
+    - text: Privacy video demo mode.
+      evidence:
+        commits:
+        - ec88d1724
+      reason: This is a useful utility for users who need to record or demo the application while protecting personal data.
+    - text: Deep link scrolling for embeds.
+      evidence:
+        commits:
+        - 29277b7f6
+      reason: Improves the navigation experience when using deep links within complex embedded content.
+    exclude:
+    - text: Internal sync and placeholder state management.
+      evidence:
+        commits:
+        - 0112e5f07
+        - 08fe819b0
+      reason: These updates involve internal state management for synchronization and placeholders that do not represent a
+        distinct user-facing feature.
+    rationale: The highlights focus on increased user control over AI tools, privacy features for content creators, and improved
+      navigation within the interface.
+  social_video_recommendations:
+  - idea: A short clip showing the new model selection dropdown in settings and the resulting change in image generation style.
+    priority: high
+    reason: Visual changes in AI output and new UI controls are highly engaging for social platforms.
+    evidence:
+      commits:
+      - 78c2ce11e
+  - idea: A demonstration of the privacy demo mode being toggled on to show how it masks sensitive information for creators.
+    priority: medium
+    reason: This appeals to the community of power users and creators who share their workflows.
+    evidence:
+      commits:
+      - ec88d1724
+  quality_notes:
+  - A large volume of regression tests was added to ensure the stability of chat synchronization in edge cases, such as empty
+    local databases.
+  - Embed rendering was improved across multiple formats, including math plots and uploaded code files.
+  validation_warnings: []

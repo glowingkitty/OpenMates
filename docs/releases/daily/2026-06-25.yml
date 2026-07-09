@@ -1,0 +1,616 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-25'
+generated_at: '2026-07-09T15:50:40+00:00'
+range:
+  since: '2026-06-25T00:00:00+00:00'
+  until: '2026-06-25T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 13
+  section_counts:
+    features: 0
+    bug_fixes: 3
+    improvements: 0
+    docs: 0
+    tests: 10
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 3
+  user_facing_items: 3
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: stop inspiration viewed retry after login'
+    section: bug_fixes
+    commits:
+    - fac000894
+    authored_at: '2026-06-25T11:03:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stop guest inspiration viewed retry loop'
+    section: bug_fixes
+    commits:
+    - f8ef83e39
+    authored_at: '2026-06-25T10:14:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize search embed test failures'
+    section: bug_fixes
+    commits:
+    - 1db2db282
+    authored_at: '2026-06-25T08:56:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStaysEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: prioritize visible intro chat card'
+    section: tests
+    commits:
+    - 481b8747e
+    authored_at: '2026-06-25T13:54:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: clear guest onboarding before demo chat'
+    section: tests
+    commits:
+    - '849540210'
+    authored_at: '2026-06-25T13:41:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for demo chat CTA'
+    section: tests
+    commits:
+    - 74af24a69
+    authored_at: '2026-06-25T13:28:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align guest inspiration carousel assertions'
+    section: tests
+    commits:
+    - 0d54cf772
+    authored_at: '2026-06-25T13:13:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow hardcoded guest inspirations'
+    section: tests
+    commits:
+    - 40f931817
+    authored_at: '2026-06-25T12:50:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open demo chat after guest onboarding'
+    section: tests
+    commits:
+    - 9ac0f8621
+    authored_at: '2026-06-25T12:37:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: skip Stripe email checks without Mailosaur read'
+    section: tests
+    commits:
+    - '720389113'
+    authored_at: '2026-06-25T11:43:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for Stripe consent overlay'
+    section: tests
+    commits:
+    - 8754dda6d
+    authored_at: '2026-06-25T11:29:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: bound login diagnostics'
+    section: tests
+    commits:
+    - 57df9e356
+    authored_at: '2026-06-25T10:46:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add login preflight diagnostics'
+    section: tests
+    commits:
+    - ea2e4f934
+    authored_at: '2026-06-25T10:29:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: stop inspiration viewed retry after login'
+    commits:
+    - fac000894
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stop guest inspiration viewed retry loop'
+    commits:
+    - f8ef83e39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize search embed test failures'
+    commits:
+    - 1db2db282
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: stop inspiration viewed retry after login'
+    commits:
+    - fac000894
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stop guest inspiration viewed retry loop'
+    commits:
+    - f8ef83e39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize search embed test failures'
+    commits:
+    - 1db2db282
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 481b8747e3bbc9e7c7dfd4a387f48cda9fd1f2bd
+    short_sha: 481b8747e
+    authored_at: '2026-06-25T13:54:24+00:00'
+    subject: 'test: prioritize visible intro chat card'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 8495402104d51097efb8a1f0197882be35827d79
+    short_sha: '849540210'
+    authored_at: '2026-06-25T13:41:51+00:00'
+    subject: 'test: clear guest onboarding before demo chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 74af24a6978504f9cf8eec109acd4b1f8227b7ba
+    short_sha: 74af24a69
+    authored_at: '2026-06-25T13:28:32+00:00'
+    subject: 'test: wait for demo chat CTA'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 0d54cf772500b28f511c3c309de3d8088082a240
+    short_sha: 0d54cf772
+    authored_at: '2026-06-25T13:13:21+00:00'
+    subject: 'test: align guest inspiration carousel assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 40f931817ffd0fd75852ae4ab4234b65be75227c
+    short_sha: 40f931817
+    authored_at: '2026-06-25T12:50:02+00:00'
+    subject: 'test: allow hardcoded guest inspirations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 9ac0f8621e139a1842b8b473b37318e09e886719
+    short_sha: 9ac0f8621
+    authored_at: '2026-06-25T12:37:17+00:00'
+    subject: 'test: open demo chat after guest onboarding'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 720389113caaed9e7dba9a2f564004221ec5f5a1
+    short_sha: '720389113'
+    authored_at: '2026-06-25T11:43:42+00:00'
+    subject: 'test: skip Stripe email checks without Mailosaur read'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 8754dda6d4ab3437fef7c3df3f2a38664a69b1ed
+    short_sha: 8754dda6d
+    authored_at: '2026-06-25T11:29:07+00:00'
+    subject: 'test: wait for Stripe consent overlay'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: fac0008940e1d857c1e75f0b6b91cc8652b67afc
+    short_sha: fac000894
+    authored_at: '2026-06-25T11:03:35+00:00'
+    subject: 'fix: stop inspiration viewed retry after login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 57df9e356b44c104388399997032c26974fe701a
+    short_sha: 57df9e356
+    authored_at: '2026-06-25T10:46:58+00:00'
+    subject: 'test: bound login diagnostics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: ea2e4f9346108cd46a549b66e6d15fe3cda6f304
+    short_sha: ea2e4f934
+    authored_at: '2026-06-25T10:29:34+00:00'
+    subject: 'test: add login preflight diagnostics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: f8ef83e394dfb8c23476bdcfd38bdd77cb5e9786
+    short_sha: f8ef83e39
+    authored_at: '2026-06-25T10:14:58+00:00'
+    subject: 'fix: stop guest inspiration viewed retry loop'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 1db2db282c2ba42aac7bac1fa198173fa9d0c53a
+    short_sha: 1db2db282
+    authored_at: '2026-06-25T08:56:02+00:00'
+    subject: 'fix: stabilize search embed test failures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathCalculateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelPriceCalendarEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStaysEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on UI stability and test coverage. Key fixes addressed infinite retry loops in the inspiration
+    banner and improved the reliability of search embeds across the platform.
+  released_changes:
+  - text: The daily inspiration banner now correctly handles view states for guests and newly logged-in users without unnecessary
+      retries.
+    evidence:
+      commits:
+      - fac000894
+      - f8ef83e39
+    release_status: released_main
+  - text: Search embeds for weather, travel, and web results received stability updates to ensure consistent rendering.
+    evidence:
+      commits:
+      - 1db2db282
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where the daily inspiration banner would enter an infinite retry loop for guest users or immediately
+      after a user logged in.
+    evidence:
+      commits:
+      - fac000894
+      - f8ef83e39
+    release_status: released_main
+  - text: Improved the stability of various search embeds, including weather, travel, and web search components.
+    evidence:
+      commits:
+      - 1db2db282
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: Expanded the test suite for unauthenticated application loads, specifically covering guest onboarding and demo chat
+      interactions.
+    evidence:
+      commits:
+      - 481b8747e
+      - '849540210'
+      - 74af24a69
+      - 0d54cf772
+      - 40f931817
+      - 9ac0f8621
+    release_status: released_main
+  - text: Added diagnostic logging and preflight checks to login and payment processing tests to improve CI reliability.
+    evidence:
+      commits:
+      - '720389113'
+      - 8754dda6d
+      - 57df9e356
+      - ea2e4f934
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Fixes for daily inspiration banner retry loops.
+      evidence:
+        commits:
+        - fac000894
+        - f8ef83e39
+      reason: These fixes improve the reliability of the initial user experience and the inspiration banner.
+    - text: Stability improvements for search embeds.
+      evidence:
+        commits:
+        - 1db2db282
+      reason: This update ensures search embeds across multiple categories function more reliably.
+    exclude: []
+    rationale: The updates focus on resolving UI loops and stabilizing core search components, which directly impacts the
+      reliability of the user interface.
+  social_video_recommendations: []
+  quality_notes:
+  - Significant focus on test reliability for critical paths like onboarding and payments.
+  - UI stability was improved by addressing edge cases in the inspiration banner logic.
+  validation_warnings: []

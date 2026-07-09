@@ -1,0 +1,2799 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-27'
+generated_at: '2026-07-09T15:26:34+00:00'
+range:
+  since: '2026-05-27T00:00:00+00:00'
+  until: '2026-05-27T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 64
+  section_counts:
+    features: 5
+    bug_fixes: 46
+    improvements: 0
+    docs: 1
+    tests: 10
+    infrastructure: 1
+    internal: 0
+    other: 1
+  newsletter_ready_items: 47
+  user_facing_items: 47
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: launch daily meetings in opencode'
+    section: features
+    commits:
+    - 807e2d1d0
+    authored_at: '2026-05-27T18:44:48+00:00'
+    changed_paths:
+    - .env.example
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/tasks/email_tasks/cron_session_email_task.py
+    - backend/core/api/templates/email/cron_session_notification.mjml
+    - backend/tests/test_opencode_daily_meeting.py
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/_opencode_daily_meeting.py
+    - scripts/daily-meeting.sh
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: shorten daily inspiration rotation'
+    section: features
+    commits:
+    - f227b560e
+    authored_at: '2026-05-27T18:02:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: auto-rotate daily inspiration banner'
+    section: features
+    commits:
+    - c5af72a38
+    authored_at: '2026-05-27T17:54:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: remember last login method'
+    section: features
+    commits:
+    - 7797d8d4d
+    authored_at: '2026-05-27T15:15:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/components/signup/steps/password/PasswordBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    - frontend/packages/ui/src/utils/lastAuthMethod.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add quick tips preference'
+    section: features
+    commits:
+    - 3c1e67aa8
+    authored_at: '2026-05-27T12:44:59+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - backend/tests/test_postprocessor.py
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: recover chat navigation on safari'
+    section: bug_fixes
+    commits:
+    - 84b423552
+    authored_at: '2026-05-27T20:47:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/i18n/setup.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: harden web app i18n startup'
+    section: bug_fixes
+    commits:
+    - aaa1d2652
+    authored_at: '2026-05-27T20:23:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/packages/ui/src/i18n/translations.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove web app PWA support'
+    section: bug_fixes
+    commits:
+    - 077b69e58
+    authored_at: '2026-05-27T19:49:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/.gitignore
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/hooks.client.js
+    - frontend/apps/web_app/src/service-worker.ts
+    - frontend/apps/web_app/static/sw.js
+    - frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts
+    - frontend/apps/web_app/vite.config.ts
+    - frontend/packages/ui/src/stores/pushNotificationStore.ts
+    - package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: bound iOS service worker cleanup'
+    section: bug_fixes
+    commits:
+    - f791ca7e1
+    authored_at: '2026-05-27T19:17:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: force iOS service worker cleanup'
+    section: bug_fixes
+    commits:
+    - 34f634c29
+    authored_at: '2026-05-27T19:08:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/vercel.json
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: clean stale service workers on boot'
+    section: bug_fixes
+    commits:
+    - af43d09bf
+    authored_at: '2026-05-27T18:54:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/hooks.client.js
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: retire broken web service worker'
+    section: bug_fixes
+    commits:
+    - 07ff07b36
+    authored_at: '2026-05-27T18:46:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/hooks.client.js
+    - frontend/apps/web_app/vite.config.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: pin sveltekit to stable app build'
+    section: bug_fixes
+    commits:
+    - 795cbb3b8
+    authored_at: '2026-05-27T18:30:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize app initialization on safari'
+    section: bug_fixes
+    commits:
+    - 3196f8b81
+    authored_at: '2026-05-27T18:19:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/services/pushNotificationService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: bump chat IndexedDB schema'
+    section: bug_fixes
+    commits:
+    - 028b7e1d3
+    authored_at: '2026-05-27T17:50:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: send daily issue digest to admin fallback'
+    section: bug_fixes
+    commits:
+    - b44efc297
+    authored_at: '2026-05-27T17:21:05+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/daily_issue_digest_task.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: replace stale pending invoice rows'
+    section: bug_fixes
+    commits:
+    - c255ed46e
+    authored_at: '2026-05-27T17:07:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refresh pending invoices'
+    section: bug_fixes
+    commits:
+    - b0e8073a6
+    authored_at: '2026-05-27T16:53:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: avoid saved card checkout misroute'
+    section: bug_fixes
+    commits:
+    - 2fe18d7b1
+    authored_at: '2026-05-27T16:33:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve saved card country'
+    section: bug_fixes
+    commits:
+    - 314f58222
+    authored_at: '2026-05-27T16:22:26+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: ignore stale chat ownership checks'
+    section: bug_fixes
+    commits:
+    - 9274c8171
+    authored_at: '2026-05-27T16:12:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: narrow payment auth test selector'
+    section: bug_fixes
+    commits:
+    - feb3a77b8
+    authored_at: '2026-05-27T15:56:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/PaymentAuth.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose payment auth modal to tests'
+    section: bug_fixes
+    commits:
+    - aaf38f4c0
+    authored_at: '2026-05-27T15:39:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/PaymentAuth.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: alert on essential flow test failures'
+    section: bug_fixes
+    commits:
+    - 268685bcb
+    authored_at: '2026-05-27T15:01:33+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - scripts/_daily_runner_helper.py
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open signup from public follow-up suggestions'
+    section: bug_fixes
+    commits:
+    - cd9b0ea46
+    authored_at: '2026-05-27T14:53:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: let inspiration manual navigation win'
+    section: bug_fixes
+    commits:
+    - d9f76c520
+    authored_at: '2026-05-27T14:29:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open social embed refs'
+    section: bug_fixes
+    commits:
+    - 60a97ef09
+    authored_at: '2026-05-27T14:21:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve inspiration swipe navigation'
+    section: bug_fixes
+    commits:
+    - eac3f76ab
+    authored_at: '2026-05-27T14:20:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep daily inspiration reload rotation'
+    section: bug_fixes
+    commits:
+    - b0712308b
+    authored_at: '2026-05-27T14:07:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve social embed post links'
+    section: bug_fixes
+    commits:
+    - e9bb5d3fa
+    authored_at: '2026-05-27T13:34:05+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/tests/test_async_skill_continuation.py
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: harden embed recovery rendering'
+    section: bug_fixes
+    commits:
+    - c2c10ae20
+    authored_at: '2026-05-27T12:36:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/MathPlotRenderer.ts
+    - frontend/packages/ui/src/services/__tests__/embedResolver.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/services/sendersEmbeds.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restrict referral code access'
+    section: bug_fixes
+    commits:
+    - 799952dd5
+    authored_at: '2026-05-27T12:27:34+00:00'
+    changed_paths:
+    - backend/core/api/app/services/referral_service.py
+    - frontend/packages/ui/src/components/settings/billing/SettingsReferralCode.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show existing chat suggestions first'
+    section: bug_fixes
+    commits:
+    - 9dd6ccd4e
+    authored_at: '2026-05-27T12:25:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add quick tip debug diagnostics'
+    section: bug_fixes
+    commits:
+    - 56dd3ee05
+    authored_at: '2026-05-27T12:25:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/debug_sync.py
+    - frontend/packages/ui/src/services/debugUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use generic quick tip CTA'
+    section: bug_fixes
+    commits:
+    - a62e7bf00
+    authored_at: '2026-05-27T12:16:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/data/quickTips.ts
+    - frontend/packages/ui/src/i18n/sources/chat/quick_tips.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: resolve settings deep-link banner icons'
+    section: bug_fixes
+    commits:
+    - 45e8b9938
+    authored_at: '2026-05-27T11:59:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent child embed fullscreen flicker'
+    section: bug_fixes
+    commits:
+    - fbc8ea5bb
+    authored_at: '2026-05-27T11:08:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/ChildEmbedOverlay.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align export data settings UI'
+    section: bug_fixes
+    commits:
+    - 6cf5594da
+    authored_at: '2026-05-27T10:59:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsAccount.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep new-chat embeds as overlays'
+    section: bug_fixes
+    commits:
+    - 9494f728a
+    authored_at: '2026-05-27T10:41:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show hide personal data header icon'
+    section: bug_fixes
+    commits:
+    - e855e0c2a
+    authored_at: '2026-05-27T10:31:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: cycle daily inspiration banner visits'
+    section: bug_fixes
+    commits:
+    - 3401bf00a
+    authored_at: '2026-05-27T10:26:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: forward quick tip card clicks'
+    section: bug_fixes
+    commits:
+    - 629e9892d
+    authored_at: '2026-05-27T10:25:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep feature inspiration selected'
+    section: bug_fixes
+    commits:
+    - d8967d42c
+    authored_at: '2026-05-27T10:22:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use literal white quick tip styling'
+    section: bug_fixes
+    commits:
+    - f26fa17ac
+    authored_at: '2026-05-27T10:11:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/quick_tips.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align quick tip card with suggestion surface'
+    section: bug_fixes
+    commits:
+    - 37d30309a
+    authored_at: '2026-05-27T09:59:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/quick_tips.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: rerun chat db migrations for broken v27 schemas'
+    section: bug_fixes
+    commits:
+    - '602158020'
+    authored_at: '2026-05-27T09:30:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve wiki inspiration preview'
+    section: bug_fixes
+    commits:
+    - 39834a25a
+    authored_at: '2026-05-27T09:28:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: match quick tip card to chat header'
+    section: bug_fixes
+    commits:
+    - a46e195cf
+    authored_at: '2026-05-27T09:12:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refresh guest inspiration cache'
+    section: bug_fixes
+    commits:
+    - 6c00fdc49
+    authored_at: '2026-05-27T09:07:33+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep guest inspiration feature fallbacks'
+    section: bug_fixes
+    commits:
+    - 5e7069d96
+    authored_at: '2026-05-27T09:02:52+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/default_inspirations.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve guest inspiration feature quota'
+    section: bug_fixes
+    commits:
+    - f982cacec
+    authored_at: '2026-05-27T08:58:45+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: refresh compliance storage metadata'
+    section: docs
+    commits:
+    - c2ac8d764
+    authored_at: '2026-05-27T12:46:27+00:00'
+    changed_paths:
+    - backend/providers/texas_instruments.yml
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: cover daily inspiration auto rotation'
+    section: tests
+    commits:
+    - e38cbc231
+    authored_at: '2026-05-27T18:11:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use enabled invoice download button'
+    section: tests
+    commits:
+    - d7c4e1be8
+    authored_at: '2026-05-27T17:20:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: narrow purchase success assertion'
+    section: tests
+    commits:
+    - 4c7d2e166
+    authored_at: '2026-05-27T16:42:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add embed json leak fixture'
+    section: tests
+    commits:
+    - e1cf06255
+    authored_at: '2026-05-27T16:30:25+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/embed_json_leak.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize last used email assertion'
+    section: tests
+    commits:
+    - 836a36b2a
+    authored_at: '2026-05-27T16:21:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for payment auth modal'
+    section: tests
+    commits:
+    - 315741e14
+    authored_at: '2026-05-27T16:13:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover last used login hint'
+    section: tests
+    commits:
+    - 593cb3398
+    authored_at: '2026-05-27T16:04:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for chat readiness in embed json spec'
+    section: tests
+    commits:
+    - 80e4ebe0e
+    authored_at: '2026-05-27T15:38:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-json-leak.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize embed json leak spec'
+    section: tests
+    commits:
+    - 8e08183af
+    authored_at: '2026-05-27T15:25:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-json-leak.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize inspiration cycling regression'
+    section: tests
+    commits:
+    - f29f693bb
+    authored_at: '2026-05-27T10:45:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'build: upgrade vulnerable npm packages'
+    section: infrastructure
+    commits:
+    - 25492bbea
+    authored_at: '2026-05-27T18:10:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #408 from glowingkitty/dev'
+    section: other
+    commits:
+    - a6032c885
+    authored_at: '2026-05-27T19:18:57+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: recover chat navigation on safari'
+    commits:
+    - 84b423552
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden web app i18n startup'
+    commits:
+    - aaa1d2652
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove web app PWA support'
+    commits:
+    - 077b69e58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: bound iOS service worker cleanup'
+    commits:
+    - f791ca7e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: force iOS service worker cleanup'
+    commits:
+    - 34f634c29
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clean stale service workers on boot'
+    commits:
+    - af43d09bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: retire broken web service worker'
+    commits:
+    - 07ff07b36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: launch daily meetings in opencode'
+    commits:
+    - 807e2d1d0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: pin sveltekit to stable app build'
+    commits:
+    - 795cbb3b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: shorten daily inspiration rotation'
+    commits:
+    - f227b560e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: auto-rotate daily inspiration banner'
+    commits:
+    - c5af72a38
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: replace stale pending invoice rows'
+    commits:
+    - c255ed46e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refresh pending invoices'
+    commits:
+    - b0e8073a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: avoid saved card checkout misroute'
+    commits:
+    - 2fe18d7b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve saved card country'
+    commits:
+    - 314f58222
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: ignore stale chat ownership checks'
+    commits:
+    - 9274c8171
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: narrow payment auth test selector'
+    commits:
+    - feb3a77b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: expose payment auth modal to tests'
+    commits:
+    - aaf38f4c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: remember last login method'
+    commits:
+    - 7797d8d4d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: alert on essential flow test failures'
+    commits:
+    - 268685bcb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open signup from public follow-up suggestions'
+    commits:
+    - cd9b0ea46
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: let inspiration manual navigation win'
+    commits:
+    - d9f76c520
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open social embed refs'
+    commits:
+    - 60a97ef09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve inspiration swipe navigation'
+    commits:
+    - eac3f76ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep daily inspiration reload rotation'
+    commits:
+    - b0712308b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve social embed post links'
+    commits:
+    - e9bb5d3fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add quick tips preference'
+    commits:
+    - 3c1e67aa8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden embed recovery rendering'
+    commits:
+    - c2c10ae20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restrict referral code access'
+    commits:
+    - 799952dd5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show existing chat suggestions first'
+    commits:
+    - 9dd6ccd4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add quick tip debug diagnostics'
+    commits:
+    - 56dd3ee05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve settings deep-link banner icons'
+    commits:
+    - 45e8b9938
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent child embed fullscreen flicker'
+    commits:
+    - fbc8ea5bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align export data settings UI'
+    commits:
+    - 6cf5594da
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep new-chat embeds as overlays'
+    commits:
+    - 9494f728a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show hide personal data header icon'
+    commits:
+    - e855e0c2a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: cycle daily inspiration banner visits'
+    commits:
+    - 3401bf00a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: forward quick tip card clicks'
+    commits:
+    - 629e9892d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep feature inspiration selected'
+    commits:
+    - d8967d42c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use literal white quick tip styling'
+    commits:
+    - f26fa17ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align quick tip card with suggestion surface'
+    commits:
+    - 37d30309a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: rerun chat db migrations for broken v27 schemas'
+    commits:
+    - '602158020'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve wiki inspiration preview'
+    commits:
+    - 39834a25a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: match quick tip card to chat header'
+    commits:
+    - a46e195cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refresh guest inspiration cache'
+    commits:
+    - 6c00fdc49
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep guest inspiration feature fallbacks'
+    commits:
+    - 5e7069d96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve guest inspiration feature quota'
+    commits:
+    - f982cacec
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: recover chat navigation on safari'
+    commits:
+    - 84b423552
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden web app i18n startup'
+    commits:
+    - aaa1d2652
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: remove web app PWA support'
+    commits:
+    - 077b69e58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: bound iOS service worker cleanup'
+    commits:
+    - f791ca7e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: force iOS service worker cleanup'
+    commits:
+    - 34f634c29
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clean stale service workers on boot'
+    commits:
+    - af43d09bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: retire broken web service worker'
+    commits:
+    - 07ff07b36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: launch daily meetings in opencode'
+    commits:
+    - 807e2d1d0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: pin sveltekit to stable app build'
+    commits:
+    - 795cbb3b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: shorten daily inspiration rotation'
+    commits:
+    - f227b560e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: auto-rotate daily inspiration banner'
+    commits:
+    - c5af72a38
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: replace stale pending invoice rows'
+    commits:
+    - c255ed46e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refresh pending invoices'
+    commits:
+    - b0e8073a6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: avoid saved card checkout misroute'
+    commits:
+    - 2fe18d7b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve saved card country'
+    commits:
+    - 314f58222
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: ignore stale chat ownership checks'
+    commits:
+    - 9274c8171
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: narrow payment auth test selector'
+    commits:
+    - feb3a77b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expose payment auth modal to tests'
+    commits:
+    - aaf38f4c0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: remember last login method'
+    commits:
+    - 7797d8d4d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: alert on essential flow test failures'
+    commits:
+    - 268685bcb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open signup from public follow-up suggestions'
+    commits:
+    - cd9b0ea46
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: let inspiration manual navigation win'
+    commits:
+    - d9f76c520
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open social embed refs'
+    commits:
+    - 60a97ef09
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve inspiration swipe navigation'
+    commits:
+    - eac3f76ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep daily inspiration reload rotation'
+    commits:
+    - b0712308b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve social embed post links'
+    commits:
+    - e9bb5d3fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add quick tips preference'
+    commits:
+    - 3c1e67aa8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden embed recovery rendering'
+    commits:
+    - c2c10ae20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restrict referral code access'
+    commits:
+    - 799952dd5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show existing chat suggestions first'
+    commits:
+    - 9dd6ccd4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add quick tip debug diagnostics'
+    commits:
+    - 56dd3ee05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve settings deep-link banner icons'
+    commits:
+    - 45e8b9938
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent child embed fullscreen flicker'
+    commits:
+    - fbc8ea5bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align export data settings UI'
+    commits:
+    - 6cf5594da
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep new-chat embeds as overlays'
+    commits:
+    - 9494f728a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show hide personal data header icon'
+    commits:
+    - e855e0c2a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: cycle daily inspiration banner visits'
+    commits:
+    - 3401bf00a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: forward quick tip card clicks'
+    commits:
+    - 629e9892d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep feature inspiration selected'
+    commits:
+    - d8967d42c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use literal white quick tip styling'
+    commits:
+    - f26fa17ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align quick tip card with suggestion surface'
+    commits:
+    - 37d30309a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: rerun chat db migrations for broken v27 schemas'
+    commits:
+    - '602158020'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve wiki inspiration preview'
+    commits:
+    - 39834a25a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: match quick tip card to chat header'
+    commits:
+    - a46e195cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refresh guest inspiration cache'
+    commits:
+    - 6c00fdc49
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep guest inspiration feature fallbacks'
+    commits:
+    - 5e7069d96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve guest inspiration feature quota'
+    commits:
+    - f982cacec
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 84b42355212ef4c016b9d2351af21d56e73c4a17
+    short_sha: 84b423552
+    authored_at: '2026-05-27T20:47:59+00:00'
+    subject: 'fix: recover chat navigation on safari'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/i18n/setup.ts
+    related_feature_ids: []
+  - sha: aaa1d265264f71a1c881172cda21d07023062b32
+    short_sha: aaa1d2652
+    authored_at: '2026-05-27T20:23:12+00:00'
+    subject: 'fix: harden web app i18n startup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/packages/ui/src/i18n/translations.ts
+    related_feature_ids: []
+  - sha: 077b69e5832c961a8ffa7423c07851529eb9ed88
+    short_sha: 077b69e58
+    authored_at: '2026-05-27T19:49:17+00:00'
+    subject: 'fix: remove web app PWA support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/.gitignore
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/hooks.client.js
+    - frontend/apps/web_app/src/service-worker.ts
+    - frontend/apps/web_app/static/sw.js
+    - frontend/apps/web_app/tests/app-load-no-error-logs.spec.ts
+    - frontend/apps/web_app/vite.config.ts
+    - frontend/packages/ui/src/stores/pushNotificationStore.ts
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: f791ca7e1fbc54351b791128ca5edb0920b34167
+    short_sha: f791ca7e1
+    authored_at: '2026-05-27T19:17:07+00:00'
+    subject: 'fix: bound iOS service worker cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    related_feature_ids: []
+  - sha: 34f634c29f5fcf088a73b72bbcea65c158c19a74
+    short_sha: 34f634c29
+    authored_at: '2026-05-27T19:08:51+00:00'
+    subject: 'fix: force iOS service worker cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/vercel.json
+    related_feature_ids: []
+  - sha: af43d09bf282358c84054cdb4bf86d5d184e8dea
+    short_sha: af43d09bf
+    authored_at: '2026-05-27T18:54:03+00:00'
+    subject: 'fix: clean stale service workers on boot'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/hooks.client.js
+    related_feature_ids: []
+  - sha: 07ff07b365532bdb71e044b8cd418e7fb8a75904
+    short_sha: 07ff07b36
+    authored_at: '2026-05-27T18:46:41+00:00'
+    subject: 'fix: retire broken web service worker'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/hooks.client.js
+    - frontend/apps/web_app/vite.config.ts
+    related_feature_ids: []
+  - sha: 807e2d1d0386191abb30e2991b4fdb444afc168c
+    short_sha: 807e2d1d0
+    authored_at: '2026-05-27T18:44:48+00:00'
+    subject: 'feat: launch daily meetings in opencode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/tasks/email_tasks/cron_session_email_task.py
+    - backend/core/api/templates/email/cron_session_notification.mjml
+    - backend/tests/test_opencode_daily_meeting.py
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/_opencode_daily_meeting.py
+    - scripts/daily-meeting.sh
+    related_feature_ids: []
+  - sha: 795cbb3b83d290eae522d8382eea57f88507a59e
+    short_sha: 795cbb3b8
+    authored_at: '2026-05-27T18:30:53+00:00'
+    subject: 'fix: pin sveltekit to stable app build'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 3196f8b81e52302b05b0046a3d2578e687d73c74
+    short_sha: 3196f8b81
+    authored_at: '2026-05-27T18:19:48+00:00'
+    subject: 'fix: stabilize app initialization on safari'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/services/pushNotificationService.ts
+    related_feature_ids: []
+  - sha: e38cbc23157f9f9de7bb914ee1a0a0841df06320
+    short_sha: e38cbc231
+    authored_at: '2026-05-27T18:11:23+00:00'
+    subject: 'test: cover daily inspiration auto rotation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 25492bbea9a03363e680cf62a6b8091193f60550
+    short_sha: 25492bbea
+    authored_at: '2026-05-27T18:10:51+00:00'
+    subject: 'build: upgrade vulnerable npm packages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: f227b560ed02af71c6dd9db4d171c03865db5e20
+    short_sha: f227b560e
+    authored_at: '2026-05-27T18:02:22+00:00'
+    subject: 'feat: shorten daily inspiration rotation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: c5af72a38e44ee11cca79e26f1f71e3ff7db1d9b
+    short_sha: c5af72a38
+    authored_at: '2026-05-27T17:54:51+00:00'
+    subject: 'feat: auto-rotate daily inspiration banner'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 028b7e1d38909857bb33af5d2031921263536d0e
+    short_sha: 028b7e1d3
+    authored_at: '2026-05-27T17:50:58+00:00'
+    subject: 'fix: bump chat IndexedDB schema'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: b44efc297f727f9c7595882581056f81d059c59f
+    short_sha: b44efc297
+    authored_at: '2026-05-27T17:21:05+00:00'
+    subject: 'fix: send daily issue digest to admin fallback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/daily_issue_digest_task.py
+    related_feature_ids: []
+  - sha: d7c4e1be87377390ecc31000a43425511cb1e86e
+    short_sha: d7c4e1be8
+    authored_at: '2026-05-27T17:20:23+00:00'
+    subject: 'test: use enabled invoice download button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    related_feature_ids: []
+  - sha: a6032c88522dd165aed52557a826e9f67946b387
+    short_sha: a6032c885
+    authored_at: '2026-05-27T19:18:57+02:00'
+    subject: 'Merge pull request #408 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: c255ed46e84c85e34977fbaeed3df2d7b5d0e838
+    short_sha: c255ed46e
+    authored_at: '2026-05-27T17:07:07+00:00'
+    subject: 'fix: replace stale pending invoice rows'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    related_feature_ids: []
+  - sha: b0e8073a6242da0b8dc7a79ce9972760915b77fd
+    short_sha: b0e8073a6
+    authored_at: '2026-05-27T16:53:03+00:00'
+    subject: 'fix: refresh pending invoices'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    related_feature_ids: []
+  - sha: 4c7d2e166d9f00a80c6f91adb0b64e22df3469d5
+    short_sha: 4c7d2e166
+    authored_at: '2026-05-27T16:42:20+00:00'
+    subject: 'test: narrow purchase success assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2fe18d7b133624663c4d854356ebf2c2e8586823
+    short_sha: 2fe18d7b1
+    authored_at: '2026-05-27T16:33:06+00:00'
+    subject: 'fix: avoid saved card checkout misroute'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    related_feature_ids: []
+  - sha: e1cf06255d76e7244a1cd02b4915a88e1e465e1b
+    short_sha: e1cf06255
+    authored_at: '2026-05-27T16:30:25+00:00'
+    subject: 'test: add embed json leak fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/embed_json_leak.json
+    related_feature_ids: []
+  - sha: 314f58222a076f17e2509cc2d6702e57c622d143
+    short_sha: 314f58222
+    authored_at: '2026-05-27T16:22:26+00:00'
+    subject: 'fix: preserve saved card country'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    related_feature_ids: []
+  - sha: 836a36b2a452f2b3df52d0f16b3e47511e1c4a16
+    short_sha: 836a36b2a
+    authored_at: '2026-05-27T16:21:07+00:00'
+    subject: 'test: stabilize last used email assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: 315741e14a77a0541668dc86265b3a0f427913b7
+    short_sha: 315741e14
+    authored_at: '2026-05-27T16:13:05+00:00'
+    subject: 'test: wait for payment auth modal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    related_feature_ids: []
+  - sha: 9274c81716d583c994df657bcc5b2c22b2110e9a
+    short_sha: 9274c8171
+    authored_at: '2026-05-27T16:12:45+00:00'
+    subject: 'fix: ignore stale chat ownership checks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 593cb3398faf13010ba0eb5354475513fc087896
+    short_sha: 593cb3398
+    authored_at: '2026-05-27T16:04:44+00:00'
+    subject: 'test: cover last used login hint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    related_feature_ids: []
+  - sha: feb3a77b8f657e67e484b42ff3061a16674b0fcb
+    short_sha: feb3a77b8
+    authored_at: '2026-05-27T15:56:36+00:00'
+    subject: 'fix: narrow payment auth test selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/PaymentAuth.svelte
+    related_feature_ids: []
+  - sha: aaf38f4c0a1c235de42000b4c108a268d885f244
+    short_sha: aaf38f4c0
+    authored_at: '2026-05-27T15:39:57+00:00'
+    subject: 'fix: expose payment auth modal to tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/PaymentAuth.svelte
+    related_feature_ids: []
+  - sha: 80e4ebe0ecaa8d2f121ffc3527f330f20b4155cc
+    short_sha: 80e4ebe0e
+    authored_at: '2026-05-27T15:38:33+00:00'
+    subject: 'test: wait for chat readiness in embed json spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-json-leak.spec.ts
+    related_feature_ids: []
+  - sha: 8e08183afac9cb334d01dbbd8c3cb439c177e0ef
+    short_sha: 8e08183af
+    authored_at: '2026-05-27T15:25:35+00:00'
+    subject: 'test: stabilize embed json leak spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-json-leak.spec.ts
+    related_feature_ids: []
+  - sha: 7797d8d4d533efb93140d5dfa16612b923febb54
+    short_sha: 7797d8d4d
+    authored_at: '2026-05-27T15:15:25+00:00'
+    subject: 'feat: remember last login method'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/components/signup/steps/password/PasswordBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    - frontend/packages/ui/src/utils/lastAuthMethod.ts
+    related_feature_ids: []
+  - sha: 268685bcbc1700272e95c8acd216e1961df6852d
+    short_sha: 268685bcb
+    authored_at: '2026-05-27T15:01:33+00:00'
+    subject: 'fix: alert on essential flow test failures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - scripts/_daily_runner_helper.py
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: cd9b0ea4650f017cff1c6015ad56d1a3df149ca7
+    short_sha: cd9b0ea46
+    authored_at: '2026-05-27T14:53:12+00:00'
+    subject: 'fix: open signup from public follow-up suggestions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: d9f76c52003507dcbb1e665610b5e4109059c854
+    short_sha: d9f76c520
+    authored_at: '2026-05-27T14:29:05+00:00'
+    subject: 'fix: let inspiration manual navigation win'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 60a97ef09c8af693b473ae90f330eb056d6dea9f
+    short_sha: 60a97ef09
+    authored_at: '2026-05-27T14:21:34+00:00'
+    subject: 'fix: open social embed refs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: eac3f76ab15d1f56918b377473b21a9a19db0875
+    short_sha: eac3f76ab
+    authored_at: '2026-05-27T14:20:16+00:00'
+    subject: 'fix: preserve inspiration swipe navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: b0712308b082d7118cbdf47a7914a9415d9c0584
+    short_sha: b0712308b
+    authored_at: '2026-05-27T14:07:52+00:00'
+    subject: 'fix: keep daily inspiration reload rotation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: e9bb5d3fa4d71de66736ef2b1f79c879cdae530d
+    short_sha: e9bb5d3fa
+    authored_at: '2026-05-27T13:34:05+00:00'
+    subject: 'fix: improve social embed post links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/tests/test_async_skill_continuation.py
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaPostEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: c2ac8d764cd51f70a0f844d5cd32b2b120c25c49
+    short_sha: c2ac8d764
+    authored_at: '2026-05-27T12:46:27+00:00'
+    subject: 'docs: refresh compliance storage metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/providers/texas_instruments.yml
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    related_feature_ids: []
+  - sha: 3c1e67aa82d2488572bf1f0053fd71412bcc4ebb
+    short_sha: 3c1e67aa8
+    authored_at: '2026-05-27T12:44:59+00:00'
+    subject: 'feat: add quick tips preference'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - backend/tests/test_postprocessor.py
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    related_feature_ids: []
+  - sha: c2c10ae207164a7620b2877f27ef2d6f3d06b01e
+    short_sha: c2c10ae20
+    authored_at: '2026-05-27T12:36:20+00:00'
+    subject: 'fix: harden embed recovery rendering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/MathPlotRenderer.ts
+    - frontend/packages/ui/src/services/__tests__/embedResolver.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/services/sendersEmbeds.ts
+    related_feature_ids: []
+  - sha: 799952dd5a195f27dfcb9c3d2b2aa14462c38039
+    short_sha: 799952dd5
+    authored_at: '2026-05-27T12:27:34+00:00'
+    subject: 'fix: restrict referral code access'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/referral_service.py
+    - frontend/packages/ui/src/components/settings/billing/SettingsReferralCode.svelte
+    related_feature_ids: []
+  - sha: 9dd6ccd4e1f78c8f68bd0d450f5e7aa65d074043
+    short_sha: 9dd6ccd4e
+    authored_at: '2026-05-27T12:25:47+00:00'
+    subject: 'fix: show existing chat suggestions first'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    related_feature_ids: []
+  - sha: 56dd3ee05cf1f7f1d5faa9c2a449a7f14a862497
+    short_sha: 56dd3ee05
+    authored_at: '2026-05-27T12:25:03+00:00'
+    subject: 'fix: add quick tip debug diagnostics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/debug_sync.py
+    - frontend/packages/ui/src/services/debugUtils.ts
+    related_feature_ids: []
+  - sha: a62e7bf00298998301f325fe256311f1d9199b6f
+    short_sha: a62e7bf00
+    authored_at: '2026-05-27T12:16:14+00:00'
+    subject: 'fix: use generic quick tip CTA'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/data/quickTips.ts
+    - frontend/packages/ui/src/i18n/sources/chat/quick_tips.yml
+    related_feature_ids: []
+  - sha: 45e8b9938a197e0dbf80ced6d3e5b2fa3e714405
+    short_sha: 45e8b9938
+    authored_at: '2026-05-27T11:59:30+00:00'
+    subject: 'fix: resolve settings deep-link banner icons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: fbc8ea5bb370cb0daba37365a70bf7de56d21baa
+    short_sha: fbc8ea5bb
+    authored_at: '2026-05-27T11:08:19+00:00'
+    subject: 'fix: prevent child embed fullscreen flicker'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/ChildEmbedOverlay.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    related_feature_ids: []
+  - sha: 6cf5594dab7b686f4a46fa2cf1cb0fa275f3f7ed
+    short_sha: 6cf5594da
+    authored_at: '2026-05-27T10:59:51+00:00'
+    subject: 'fix: align export data settings UI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsAccount.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
+    related_feature_ids: []
+  - sha: f29f693bbfe7619bc824dbb528f90a5b846c92a1
+    short_sha: f29f693bb
+    authored_at: '2026-05-27T10:45:21+00:00'
+    subject: 'test: stabilize inspiration cycling regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 9494f728a790f6b2803c82ae068a77912198f626
+    short_sha: 9494f728a
+    authored_at: '2026-05-27T10:41:08+00:00'
+    subject: 'fix: keep new-chat embeds as overlays'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: e855e0c2aa9974ed68ee859d3b8326495c4bbca8
+    short_sha: e855e0c2a
+    authored_at: '2026-05-27T10:31:04+00:00'
+    subject: 'fix: show hide personal data header icon'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    related_feature_ids: []
+  - sha: 3401bf00a7258db94276754e01a451c83afb444f
+    short_sha: 3401bf00a
+    authored_at: '2026-05-27T10:26:17+00:00'
+    subject: 'fix: cycle daily inspiration banner visits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 629e9892da44ce9edc1791d92c899a14cde805fd
+    short_sha: 629e9892d
+    authored_at: '2026-05-27T10:25:21+00:00'
+    subject: 'fix: forward quick tip card clicks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    related_feature_ids: []
+  - sha: d8967d42cfbe980df7f653c8f8a065e838e91a9d
+    short_sha: d8967d42c
+    authored_at: '2026-05-27T10:22:41+00:00'
+    subject: 'fix: keep feature inspiration selected'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids: []
+  - sha: f26fa17acf01936ad689ac87d7de54a68ee21659
+    short_sha: f26fa17ac
+    authored_at: '2026-05-27T10:11:53+00:00'
+    subject: 'fix: use literal white quick tip styling'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/quick_tips.yml
+    related_feature_ids: []
+  - sha: 37d30309a2f74f6e89bc2a8015d9c9c6d4006d8e
+    short_sha: 37d30309a
+    authored_at: '2026-05-27T09:59:05+00:00'
+    subject: 'fix: align quick tip card with suggestion surface'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/quick_tips.yml
+    related_feature_ids: []
+  - sha: 60215802088cf2590e1dcdfdbb0c7d1b250b9497
+    short_sha: '602158020'
+    authored_at: '2026-05-27T09:30:08+00:00'
+    subject: 'fix: rerun chat db migrations for broken v27 schemas'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 39834a25a41855d297f7469b8d14b6c9546d690f
+    short_sha: 39834a25a
+    authored_at: '2026-05-27T09:28:36+00:00'
+    subject: 'fix: improve wiki inspiration preview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: a46e195cfd81144d8e23c810981bb0a95f8f3d79
+    short_sha: a46e195cf
+    authored_at: '2026-05-27T09:12:16+00:00'
+    subject: 'fix: match quick tip card to chat header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/QuickTipsCard.svelte
+    related_feature_ids: []
+  - sha: 6c00fdc49ecca9476230b66db6ef530b23303745
+    short_sha: 6c00fdc49
+    authored_at: '2026-05-27T09:07:33+00:00'
+    subject: 'fix: refresh guest inspiration cache'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    related_feature_ids: []
+  - sha: 5e7069d96fb7fb66b4c32a44d2f315216d5bd235
+    short_sha: 5e7069d96
+    authored_at: '2026-05-27T09:02:52+00:00'
+    subject: 'fix: keep guest inspiration feature fallbacks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/default_inspirations.py
+    related_feature_ids: []
+  - sha: f982cacecaab92ce9221a3d869625418896e471e
+    short_sha: f982cacec
+    authored_at: '2026-05-27T08:58:45+00:00'
+    subject: 'fix: preserve guest inspiration feature quota'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/default_inspirations.py
+    - backend/core/api/app/tasks/default_inspiration_tasks.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on platform stability and user experience refinements today. Key updates include the launch
+    of daily meetings in OpenCode, a more dynamic daily inspiration banner, and significant fixes for Safari and service worker
+    reliability. The project also introduced a preference for quick tips and improved login persistence.
+  released_changes:
+  - text: Enhanced the Daily Inspiration banner with auto-rotation, shortened rotation cycles, and improved swipe navigation.
+    evidence:
+      commits:
+      - c5af72a38
+      - f227b560e
+      - d9f76c520
+      - eac3f76ab
+      - b0712308b
+      - 3401bf00a
+      - d8967d42c
+    release_status: released_main
+  - text: Added a user preference to toggle quick tips and refined the visual alignment of tip cards within the chat history.
+    evidence:
+      commits:
+      - 3c1e67aa8
+      - 629e9892d
+      - f26fa17ac
+      - 37d30309a
+      - a46e195cf
+    release_status: released_main
+  - text: The login interface now remembers and suggests the last used authentication method.
+    evidence:
+      commits:
+      - 7797d8d4d
+    release_status: released_main
+  - text: Launched daily meeting functionality within OpenCode, including automated email notifications.
+    evidence:
+      commits:
+      - 807e2d1d0
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved several stability issues on Safari, including chat navigation failures and app initialization errors.
+    evidence:
+      commits:
+      - 84b423552
+      - aaa1d2652
+      - 3196f8b81
+    release_status: released_main
+  - text: Retired the web app PWA service worker and implemented forced cleanup of stale service workers to prevent startup
+      hangs.
+    evidence:
+      commits:
+      - 077b69e58
+      - f791ca7e1
+      - 34f634c29
+      - af43d09bf
+      - 07ff07b36
+    release_status: released_main
+  - text: Improved the billing experience by refreshing pending invoices, preserving country data for saved cards, and fixing
+      checkout routing issues.
+    evidence:
+      commits:
+      - c255ed46e
+      - b0e8073a6
+      - 2fe18d7b1
+      - 314f58222
+      - feb3a77b8
+      - aaf38f4c0
+    release_status: released_main
+  - text: Refined content embeds with better link handling for social media, flicker-free fullscreen transitions, and improved
+      Wikipedia previews.
+    evidence:
+      commits:
+      - 60a97ef09
+      - e9bb5d3fa
+      - c2c10ae20
+      - fbc8ea5bb
+      - 39834a25a
+    release_status: released_main
+  - text: Fixed local database synchronization by rerunning migrations for corrupted chat schemas.
+    evidence:
+      commits:
+      - '602158020'
+      - 028b7e1d3
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: Upgraded several npm packages to address security vulnerabilities.
+    evidence:
+      commits:
+      - 25492bbea
+    release_status: released_main
+  - text: Implemented automated alerts for failures in essential user flow tests.
+    evidence:
+      commits:
+      - 268685bcb
+    release_status: released_main
+  - text: Updated internal compliance documentation regarding browser storage and cookies.
+    evidence:
+      commits:
+      - c2ac8d764
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: The daily inspiration banner now features auto-rotation and faster content cycles.
+      evidence:
+        commits:
+        - c5af72a38
+        - f227b560e
+      reason: User-facing enhancement to the dashboard experience.
+    - text: A new setting allows users to enable or disable quick tips within the chat interface.
+      evidence:
+        commits:
+        - 3c1e67aa8
+      reason: New user preference for AI interaction.
+    - text: OpenMates now remembers the last used login method to streamline subsequent sign-ins.
+      evidence:
+        commits:
+        - 7797d8d4d
+      reason: Significant quality-of-life improvement for returning users.
+    - text: Daily meetings have officially launched within the OpenCode environment.
+      evidence:
+        commits:
+        - 807e2d1d0
+      reason: New product feature launch.
+    exclude:
+    - text: Daily issue digest fallback for admins.
+      evidence:
+        commits:
+        - b44efc297
+      reason: Internal administrative task fix.
+    rationale: The highlights focus on the new OpenCode meeting feature, improved login persistence, and the visual updates
+      to the daily inspiration banner, all of which are ready for public communication.
+  social_video_recommendations:
+  - idea: A short clip showing the new auto-rotating inspiration banner on the dashboard.
+    priority: Medium
+    reason: Visual update that is easy to demonstrate and improves the 'freshness' of the app.
+    evidence:
+      commits:
+      - c5af72a38
+      - f227b560e
+  - idea: A walkthrough of joining a daily meeting in OpenCode.
+    priority: High
+    reason: Concrete new feature launch for the developer-focused OpenCode toolset.
+    evidence:
+      commits:
+      - 807e2d1d0
+  quality_notes:
+  - Extensive work was done to resolve service worker conflicts that were affecting web app startup.
+  - Safari-specific navigation and initialization bugs were prioritized and resolved.
+  - Database schema migrations were hardened to recover from previous sync errors.
+  validation_warnings: []

@@ -1,0 +1,2277 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-28'
+generated_at: '2026-07-09T15:26:58+00:00'
+range:
+  since: '2026-05-28T00:00:00+00:00'
+  until: '2026-05-28T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 50
+  section_counts:
+    features: 6
+    bug_fixes: 33
+    improvements: 0
+    docs: 0
+    tests: 10
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 32
+  user_facing_items: 32
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: suggest code run dependencies'
+    section: features
+    commits:
+    - 69b93d993
+    authored_at: '2026-05-28T17:35:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Mastodon social search'
+    section: features
+    commits:
+    - 12885a8f6
+    authored_at: '2026-05-28T16:33:59+00:00'
+    changed_paths:
+    - backend/apps/social_media/app.yml
+    - backend/apps/social_media/search_collection.py
+    - backend/shared/providers/mastodon/public.py
+    - backend/tests/test_mastodon_public_provider.py
+    - backend/tests/test_social_media_search_skill.py
+    - docs/architecture/apps/social-media.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(newsletter): add dated v010 and v011 announcements'
+    section: features
+    commits:
+    - 72b33df7c
+    authored_at: '2026-05-28T13:24:36+00:00'
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v010.yml
+    - backend/newsletters/issues/introducing-openmates-v011.yml
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/newsletters/issues/referral-feature-launch.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/demo_chats/convertToChat.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v010.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v011.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v09.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_referral_feature_launch.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v010.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v011.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_referral_feature_launch.yml
+    - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(newsletter): add referral feature draft'
+    section: features
+    commits:
+    - 0b56e8106
+    authored_at: '2026-05-28T12:28:19+00:00'
+    changed_paths:
+    - backend/core/api/templates/email/components/icons/gift.svg
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/newsletters/issues/referral-feature-launch.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/demo_chats/data/announcements_referral_feature_launch.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_referral_feature_launch.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: improve paste content classification'
+    section: features
+    commits:
+    - cf6c8a8e1
+    authored_at: '2026-05-28T11:51:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/pasteClassification.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/services/pasteClassification.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add dev test recording browser'
+    section: features
+    commits:
+    - 648eda13d
+    authored_at: '2026-05-28T10:57:10+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/main.py
+    - backend/tests/test_test_recordings.py
+    - frontend/apps/web_app/src/routes/tests/+layout.svelte
+    - frontend/apps/web_app/src/routes/tests/+layout.ts
+    - frontend/apps/web_app/src/routes/tests/+page.svelte
+    - frontend/apps/web_app/src/routes/tests/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/tests/testRecordings.ts
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: hide unmatched embed protocol blocks'
+    section: bug_fixes
+    commits:
+    - 1b5a56ef8
+    authored_at: '2026-05-28T18:04:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/documentEnhancement.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: group test recordings by spec file'
+    section: bug_fixes
+    commits:
+    - 64dd5ca5e
+    authored_at: '2026-05-28T16:17:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/tests/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: block duplicate audio recording transcription'
+    section: bug_fixes
+    commits:
+    - 21a0b1f33
+    authored_at: '2026-05-28T16:12:14+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/audio_recording_guard.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/audio/app.yml
+    - backend/tests/test_preprocessor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep live audio draft on reload'
+    section: bug_fixes
+    commits:
+    - aef784808
+    authored_at: '2026-05-28T15:58:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve live audio draft'
+    section: bug_fixes
+    commits:
+    - e3b223926
+    authored_at: '2026-05-28T15:31:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: shorten web search no-results preview'
+    section: bug_fixes
+    commits:
+    - b95711c2a
+    authored_at: '2026-05-28T14:57:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep audio recording composer open'
+    section: bug_fixes
+    commits:
+    - e4467403d
+    authored_at: '2026-05-28T14:45:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide follow-ups on manual send'
+    section: bug_fixes
+    commits:
+    - 0075a2f1a
+    authored_at: '2026-05-28T14:41:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(newsletter): clarify announcement publishing rules'
+    section: bug_fixes
+    commits:
+    - b80750371
+    authored_at: '2026-05-28T14:28:33+00:00'
+    changed_paths:
+    - .agents/skills/publish-newsletter/SKILL.md
+    - .claude/skills/publish-newsletter/SKILL.md
+    - backend/newsletters/issues/introducing-openmates-v011.yml
+    - backend/scripts/publish_newsletter.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v011.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render invalid settings links as text'
+    section: bug_fixes
+    commits:
+    - e537c0b95
+    authored_at: '2026-05-28T14:03:10+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/markdownParser.preprocess.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/utils/__tests__/internalLinkValidation.test.ts
+    - frontend/packages/ui/src/utils/internalLinkValidation.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(newsletter): refine announcement ordering and icon color'
+    section: bug_fixes
+    commits:
+    - 9419ecf49
+    authored_at: '2026-05-28T13:53:41+00:00'
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v010.yml
+    - backend/newsletters/issues/referral-feature-launch.yml
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v010.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide paste recovery chip on real typing'
+    section: bug_fixes
+    commits:
+    - 6b177c2e5
+    authored_at: '2026-05-28T12:47:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep paste recovery chip visible until typing'
+    section: bug_fixes
+    commits:
+    - fef9a3b30
+    authored_at: '2026-05-28T12:41:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: split multi-test recording videos'
+    section: bug_fixes
+    commits:
+    - 8b3c32932
+    authored_at: '2026-05-28T12:22:07+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/tests/test_test_recordings.py
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show legacy test recording bundles'
+    section: bug_fixes
+    commits:
+    - 44894c61d
+    authored_at: '2026-05-28T12:11:50+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/tests/test_test_recordings.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: list all test recordings and simplify steps'
+    section: bug_fixes
+    commits:
+    - dabd98039
+    authored_at: '2026-05-28T12:06:00+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/tests/test_test_recordings.py
+    - frontend/apps/web_app/src/routes/tests/[slug]/+page.svelte
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: tighten paste classification test coverage'
+    section: bug_fixes
+    commits:
+    - 266a8b1f1
+    authored_at: '2026-05-28T12:01:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    - frontend/packages/ui/src/components/enter_message/services/pasteClassification.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide follow-up suggestions on click'
+    section: bug_fixes
+    commits:
+    - db2453cfc
+    authored_at: '2026-05-28T11:52:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: build recording step screenshots reliably'
+    section: bug_fixes
+    commits:
+    - af3083fc4
+    authored_at: '2026-05-28T11:42:30+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: show recording screenshots inline with steps'
+    section: bug_fixes
+    commits:
+    - ae5042619
+    authored_at: '2026-05-28T11:42:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/tests/[slug]/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep app store card headings white'
+    section: bug_fixes
+    commits:
+    - 86e459801
+    authored_at: '2026-05-28T11:29:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: pause inspiration rotation on open'
+    section: bug_fixes
+    commits:
+    - e90056bfa
+    authored_at: '2026-05-28T11:10:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route test recordings through dev caddy'
+    section: bug_fixes
+    commits:
+    - 39832f0e4
+    authored_at: '2026-05-28T11:04:14+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: advance inspiration after progress animation'
+    section: bug_fixes
+    commits:
+    - 8c170f847
+    authored_at: '2026-05-28T10:51:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prime guest intro chat before first paint'
+    section: bug_fixes
+    commits:
+    - b9ae5fed9
+    authored_at: '2026-05-28T10:49:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize daily inspiration carousel'
+    section: bug_fixes
+    commits:
+    - 87a7d1333
+    authored_at: '2026-05-28T10:37:49+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: harden example chat seo rendering'
+    section: bug_fixes
+    commits:
+    - 0f0b474ca
+    authored_at: '2026-05-28T10:18:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/scripts/audit-example-seo.js
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/hooks.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore safe inspiration auto rotation'
+    section: bug_fixes
+    commits:
+    - a11d258ac
+    authored_at: '2026-05-28T10:17:33+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include apply_patch in claude hooks'
+    section: bug_fixes
+    commits:
+    - 04af33936
+    authored_at: '2026-05-28T09:55:46+00:00'
+    changed_paths:
+    - .claude/settings.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: align opencode hook parity'
+    section: bug_fixes
+    commits:
+    - 2bc2852d2
+    authored_at: '2026-05-28T09:54:38+00:00'
+    changed_paths:
+    - .codex/hooks/claude-hook-bridge.sh
+    - .opencode/plugins/openmates-hooks.js
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: correct web app seo metadata'
+    section: bug_fixes
+    commits:
+    - 098857c6c
+    authored_at: '2026-05-28T09:41:20+00:00'
+    changed_paths:
+    - .claude/hooks/e2e-encryption-guard.sh
+    - .codex/hooks/e2e-encryption-guard.sh
+    - frontend/packages/ui/src/i18n/sources/metadata/webapp.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep inspiration carousel indexes filtered'
+    section: bug_fixes
+    commits:
+    - 907a476ae
+    authored_at: '2026-05-28T09:35:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stop welcome overlap effect loop'
+    section: bug_fixes
+    commits:
+    - dd1965af0
+    authored_at: '2026-05-28T09:13:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: adjust invalid settings link regression'
+    section: tests
+    commits:
+    - 986ba62bd
+    authored_at: '2026-05-28T14:06:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/markdownParser.preprocess.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: split paste classification e2e cases'
+    section: tests
+    commits:
+    - f724e9e90
+    authored_at: '2026-05-28T12:56:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make sheet paste case terminal'
+    section: tests
+    commits:
+    - 24252c397
+    authored_at: '2026-05-28T12:34:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: close paste embed fullscreen during cleanup'
+    section: tests
+    commits:
+    - 65897103d
+    authored_at: '2026-05-28T12:22:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize paste classification spec'
+    section: tests
+    commits:
+    - '172630769'
+    authored_at: '2026-05-28T12:11:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: select chat inspiration in flow spec'
+    section: tests
+    commits:
+    - 6f98431da
+    authored_at: '2026-05-28T11:28:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align inspiration carousel spec'
+    section: tests
+    commits:
+    - 264f5daa0
+    authored_at: '2026-05-28T11:20:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert inspiration progress auto-rotation'
+    section: tests
+    commits:
+    - f1b5bdef1
+    authored_at: '2026-05-28T11:01:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize example chat seo checks'
+    section: tests
+    commits:
+    - f4e075cb8
+    authored_at: '2026-05-28T10:49:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/scripts/audit-example-seo.js
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: disable inspiration auto cycling'
+    section: tests
+    commits:
+    - 28cad6736
+    authored_at: '2026-05-28T09:49:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'Merge pull request #409 from glowingkitty/dev'
+    section: other
+    commits:
+    - e33864a33
+    authored_at: '2026-05-28T13:30:02+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add Mastodon social search'
+    commits:
+    - 12885a8f6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: block duplicate audio recording transcription'
+    commits:
+    - 21a0b1f33
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct web app seo metadata'
+    commits:
+    - 098857c6c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: suggest code run dependencies'
+    commits:
+    - 69b93d993
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Mastodon social search'
+    commits:
+    - 12885a8f6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: group test recordings by spec file'
+    commits:
+    - 64dd5ca5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: block duplicate audio recording transcription'
+    commits:
+    - 21a0b1f33
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep live audio draft on reload'
+    commits:
+    - aef784808
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve live audio draft'
+    commits:
+    - e3b223926
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: shorten web search no-results preview'
+    commits:
+    - b95711c2a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep audio recording composer open'
+    commits:
+    - e4467403d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide follow-ups on manual send'
+    commits:
+    - 0075a2f1a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(newsletter): clarify announcement publishing rules'
+    commits:
+    - b80750371
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render invalid settings links as text'
+    commits:
+    - e537c0b95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(newsletter): refine announcement ordering and icon color'
+    commits:
+    - 9419ecf49
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(newsletter): add dated v010 and v011 announcements'
+    commits:
+    - 72b33df7c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide paste recovery chip on real typing'
+    commits:
+    - 6b177c2e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep paste recovery chip visible until typing'
+    commits:
+    - fef9a3b30
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: split multi-test recording videos'
+    commits:
+    - 8b3c32932
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show legacy test recording bundles'
+    commits:
+    - 44894c61d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: list all test recordings and simplify steps'
+    commits:
+    - dabd98039
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: tighten paste classification test coverage'
+    commits:
+    - 266a8b1f1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide follow-up suggestions on click'
+    commits:
+    - db2453cfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: improve paste content classification'
+    commits:
+    - cf6c8a8e1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show recording screenshots inline with steps'
+    commits:
+    - ae5042619
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep app store card headings white'
+    commits:
+    - 86e459801
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: pause inspiration rotation on open'
+    commits:
+    - e90056bfa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add dev test recording browser'
+    commits:
+    - 648eda13d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: advance inspiration after progress animation'
+    commits:
+    - 8c170f847
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prime guest intro chat before first paint'
+    commits:
+    - b9ae5fed9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize daily inspiration carousel'
+    commits:
+    - 87a7d1333
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden example chat seo rendering'
+    commits:
+    - 0f0b474ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore safe inspiration auto rotation'
+    commits:
+    - a11d258ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep inspiration carousel indexes filtered'
+    commits:
+    - 907a476ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stop welcome overlap effect loop'
+    commits:
+    - dd1965af0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: suggest code run dependencies'
+    commits:
+    - 69b93d993
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Mastodon social search'
+    commits:
+    - 12885a8f6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: group test recordings by spec file'
+    commits:
+    - 64dd5ca5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: block duplicate audio recording transcription'
+    commits:
+    - 21a0b1f33
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep live audio draft on reload'
+    commits:
+    - aef784808
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve live audio draft'
+    commits:
+    - e3b223926
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: shorten web search no-results preview'
+    commits:
+    - b95711c2a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep audio recording composer open'
+    commits:
+    - e4467403d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide follow-ups on manual send'
+    commits:
+    - 0075a2f1a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(newsletter): clarify announcement publishing rules'
+    commits:
+    - b80750371
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render invalid settings links as text'
+    commits:
+    - e537c0b95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(newsletter): refine announcement ordering and icon color'
+    commits:
+    - 9419ecf49
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(newsletter): add dated v010 and v011 announcements'
+    commits:
+    - 72b33df7c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide paste recovery chip on real typing'
+    commits:
+    - 6b177c2e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep paste recovery chip visible until typing'
+    commits:
+    - fef9a3b30
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: split multi-test recording videos'
+    commits:
+    - 8b3c32932
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show legacy test recording bundles'
+    commits:
+    - 44894c61d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: list all test recordings and simplify steps'
+    commits:
+    - dabd98039
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: tighten paste classification test coverage'
+    commits:
+    - 266a8b1f1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide follow-up suggestions on click'
+    commits:
+    - db2453cfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: improve paste content classification'
+    commits:
+    - cf6c8a8e1
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show recording screenshots inline with steps'
+    commits:
+    - ae5042619
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep app store card headings white'
+    commits:
+    - 86e459801
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: pause inspiration rotation on open'
+    commits:
+    - e90056bfa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add dev test recording browser'
+    commits:
+    - 648eda13d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: advance inspiration after progress animation'
+    commits:
+    - 8c170f847
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prime guest intro chat before first paint'
+    commits:
+    - b9ae5fed9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize daily inspiration carousel'
+    commits:
+    - 87a7d1333
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden example chat seo rendering'
+    commits:
+    - 0f0b474ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore safe inspiration auto rotation'
+    commits:
+    - a11d258ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep inspiration carousel indexes filtered'
+    commits:
+    - 907a476ae
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stop welcome overlap effect loop'
+    commits:
+    - dd1965af0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 1b5a56ef80c753034253d8ee5981c2c445015f90
+    short_sha: 1b5a56ef8
+    authored_at: '2026-05-28T18:04:24+00:00'
+    subject: 'fix: hide unmatched embed protocol blocks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/documentEnhancement.test.ts
+    - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+    related_feature_ids: []
+  - sha: 69b93d9935e1d9dc47e5b54850059b77928e971e
+    short_sha: 69b93d993
+    authored_at: '2026-05-28T17:35:40+00:00'
+    subject: 'feat: suggest code run dependencies'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/code_execution.py
+    - backend/tests/test_code_execution.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/codeRunService.ts
+    related_feature_ids: []
+  - sha: 12885a8f6496c0fac7b63fff1694804d1352bba3
+    short_sha: 12885a8f6
+    authored_at: '2026-05-28T16:33:59+00:00'
+    subject: 'feat: add Mastodon social search'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/social_media/app.yml
+    - backend/apps/social_media/search_collection.py
+    - backend/shared/providers/mastodon/public.py
+    - backend/tests/test_mastodon_public_provider.py
+    - backend/tests/test_social_media_search_skill.py
+    - docs/architecture/apps/social-media.md
+    related_feature_ids: []
+  - sha: 64dd5ca5ee9853574f55ccfc89ab9e380a827af2
+    short_sha: 64dd5ca5e
+    authored_at: '2026-05-28T16:17:12+00:00'
+    subject: 'fix: group test recordings by spec file'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/tests/+page.svelte
+    related_feature_ids: []
+  - sha: 21a0b1f33fb99b6e581d797f4f06964f0f7c7c7d
+    short_sha: 21a0b1f33
+    authored_at: '2026-05-28T16:12:14+00:00'
+    subject: 'fix: block duplicate audio recording transcription'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/audio_recording_guard.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/audio/app.yml
+    - backend/tests/test_preprocessor.py
+    related_feature_ids: []
+  - sha: aef7848081e3081f418de5d8c79ea06128c6136e
+    short_sha: aef784808
+    authored_at: '2026-05-28T15:58:31+00:00'
+    subject: 'fix: keep live audio draft on reload'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: e3b223926a1fbbd0350e5860dd138b0ec432496d
+    short_sha: e3b223926
+    authored_at: '2026-05-28T15:31:01+00:00'
+    subject: 'fix: preserve live audio draft'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/placeholder.yml
+    related_feature_ids: []
+  - sha: b95711c2a2a029f848f9f2fd22321115f816e515
+    short_sha: b95711c2a
+    authored_at: '2026-05-28T14:57:58+00:00'
+    subject: 'fix: shorten web search no-results preview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    related_feature_ids: []
+  - sha: e4467403d3412b4fdd681ed73badc7d93502d308
+    short_sha: e4467403d
+    authored_at: '2026-05-28T14:45:58+00:00'
+    subject: 'fix: keep audio recording composer open'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/packages/ui/src/components/KeyboardShortcuts.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 0075a2f1afbf073fdbb9ff839867fc4aa4bab9b9
+    short_sha: 0075a2f1a
+    authored_at: '2026-05-28T14:41:49+00:00'
+    subject: 'fix: hide follow-ups on manual send'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: b8075037141f1c7e49a7d18b1cd544a344c2bc90
+    short_sha: b80750371
+    authored_at: '2026-05-28T14:28:33+00:00'
+    subject: 'fix(newsletter): clarify announcement publishing rules'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/publish-newsletter/SKILL.md
+    - .claude/skills/publish-newsletter/SKILL.md
+    - backend/newsletters/issues/introducing-openmates-v011.yml
+    - backend/scripts/publish_newsletter.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v011.yml
+    related_feature_ids: []
+  - sha: 986ba62bdc6faa9f27e355b18a5a1e6c70ebbb2d
+    short_sha: 986ba62bd
+    authored_at: '2026-05-28T14:06:21+00:00'
+    subject: 'test: adjust invalid settings link regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/markdownParser.preprocess.test.ts
+    related_feature_ids: []
+  - sha: e537c0b95ded04061247ef73bab9a4a62e451cb4
+    short_sha: e537c0b95
+    authored_at: '2026-05-28T14:03:10+00:00'
+    subject: 'fix: render invalid settings links as text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/markdownParser.preprocess.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/utils/__tests__/internalLinkValidation.test.ts
+    - frontend/packages/ui/src/utils/internalLinkValidation.ts
+    related_feature_ids: []
+  - sha: 9419ecf49d88e748b8e74b1d01bca602fbe6e65b
+    short_sha: 9419ecf49
+    authored_at: '2026-05-28T13:53:41+00:00'
+    subject: 'fix(newsletter): refine announcement ordering and icon color'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v010.yml
+    - backend/newsletters/issues/referral-feature-launch.yml
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v010.yml
+    related_feature_ids: []
+  - sha: 72b33df7c64921a756c22221326a9a0e35055ce6
+    short_sha: 72b33df7c
+    authored_at: '2026-05-28T13:24:36+00:00'
+    subject: 'feat(newsletter): add dated v010 and v011 announcements'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v010.yml
+    - backend/newsletters/issues/introducing-openmates-v011.yml
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/newsletters/issues/referral-feature-launch.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/demo_chats/convertToChat.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v010.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v011.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v09.ts
+    - frontend/packages/ui/src/demo_chats/data/announcements_referral_feature_launch.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v010.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v011.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_referral_feature_launch.yml
+    - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    related_feature_ids: []
+  - sha: f724e9e90938f810658b357ec9282b2fe91911ca
+    short_sha: f724e9e90
+    authored_at: '2026-05-28T12:56:56+00:00'
+    subject: 'test: split paste classification e2e cases'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    related_feature_ids: []
+  - sha: 6b177c2e5a8c0a71be3e008d5ec867529b665bc6
+    short_sha: 6b177c2e5
+    authored_at: '2026-05-28T12:47:36+00:00'
+    subject: 'fix: hide paste recovery chip on real typing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: fef9a3b305b41016abb26b56f3f55a507ea7e74a
+    short_sha: fef9a3b30
+    authored_at: '2026-05-28T12:41:11+00:00'
+    subject: 'fix: keep paste recovery chip visible until typing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 24252c3976fd565207dd2f0d3849a1a1a6843e54
+    short_sha: 24252c397
+    authored_at: '2026-05-28T12:34:27+00:00'
+    subject: 'test: make sheet paste case terminal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    related_feature_ids: []
+  - sha: 0b56e8106e4311829af4dfd286d758d2cb5a52c9
+    short_sha: 0b56e8106
+    authored_at: '2026-05-28T12:28:19+00:00'
+    subject: 'feat(newsletter): add referral feature draft'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/templates/email/components/icons/gift.svg
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/newsletters/issues/referral-feature-launch.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/demo_chats/data/announcements_referral_feature_launch.ts
+    - frontend/packages/ui/src/demo_chats/newsletterChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_referral_feature_launch.yml
+    related_feature_ids: []
+  - sha: 65897103d683c9315f21074ccef0be9d1a0e4254
+    short_sha: 65897103d
+    authored_at: '2026-05-28T12:22:47+00:00'
+    subject: 'test: close paste embed fullscreen during cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    related_feature_ids: []
+  - sha: 8b3c3293212c8487a9a1e8f854a24a7411dccad0
+    short_sha: 8b3c32932
+    authored_at: '2026-05-28T12:22:07+00:00'
+    subject: 'fix: split multi-test recording videos'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/tests/test_test_recordings.py
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 44894c61d3c27ad1ba3364ecbd55500c19bdae7c
+    short_sha: 44894c61d
+    authored_at: '2026-05-28T12:11:50+00:00'
+    subject: 'fix: show legacy test recording bundles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/tests/test_test_recordings.py
+    related_feature_ids: []
+  - sha: 17263076917a5a46861b18962e9dc0a6d5668b3b
+    short_sha: '172630769'
+    authored_at: '2026-05-28T12:11:01+00:00'
+    subject: 'test: stabilize paste classification spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    related_feature_ids: []
+  - sha: dabd9803929674ca54b849299623383cd1a34af1
+    short_sha: dabd98039
+    authored_at: '2026-05-28T12:06:00+00:00'
+    subject: 'fix: list all test recordings and simplify steps'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/tests/test_test_recordings.py
+    - frontend/apps/web_app/src/routes/tests/[slug]/+page.svelte
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 266a8b1f1ec2906172648c0f81ab319e4a5dc2c5
+    short_sha: 266a8b1f1
+    authored_at: '2026-05-28T12:01:53+00:00'
+    subject: 'fix: tighten paste classification test coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    - frontend/packages/ui/src/components/enter_message/services/pasteClassification.ts
+    related_feature_ids: []
+  - sha: db2453cfcd20b9c1d94de8d73614cd3ca34839fd
+    short_sha: db2453cfc
+    authored_at: '2026-05-28T11:52:56+00:00'
+    subject: 'fix: hide follow-up suggestions on click'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: cf6c8a8e1129927c6e9035a5fb01e97534792c88
+    short_sha: cf6c8a8e1
+    authored_at: '2026-05-28T11:51:39+00:00'
+    subject: 'feat: improve paste content classification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/services/__tests__/pasteClassification.test.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/components/enter_message/services/pasteClassification.ts
+    related_feature_ids: []
+  - sha: af3083fc47361551a1a1d80f5617d8d172ea1f65
+    short_sha: af3083fc4
+    authored_at: '2026-05-28T11:42:30+00:00'
+    subject: 'fix: build recording step screenshots reliably'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: ae504261907140df0b0f39312ef2ad6a562a37cd
+    short_sha: ae5042619
+    authored_at: '2026-05-28T11:42:10+00:00'
+    subject: 'fix: show recording screenshots inline with steps'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/tests/[slug]/+page.svelte
+    related_feature_ids: []
+  - sha: e33864a33f0816a5860520873e1b4553822dea31
+    short_sha: e33864a33
+    authored_at: '2026-05-28T13:30:02+02:00'
+    subject: 'Merge pull request #409 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 86e459801a9022b0c90429352ab84475cd7a23d7
+    short_sha: 86e459801
+    authored_at: '2026-05-28T11:29:21+00:00'
+    subject: 'fix: keep app store card headings white'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    related_feature_ids: []
+  - sha: 6f98431daafcadc3c58280e76d02a424a8663a6e
+    short_sha: 6f98431da
+    authored_at: '2026-05-28T11:28:53+00:00'
+    subject: 'test: select chat inspiration in flow spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 264f5daa066dffe47b8dd90b3164c7e8fca9124a
+    short_sha: 264f5daa0
+    authored_at: '2026-05-28T11:20:21+00:00'
+    subject: 'test: align inspiration carousel spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: e90056bfa829e28db09529527858f2331371fbbe
+    short_sha: e90056bfa
+    authored_at: '2026-05-28T11:10:30+00:00'
+    subject: 'fix: pause inspiration rotation on open'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 39832f0e4af0568e258f53b98b461396d8d3baa7
+    short_sha: 39832f0e4
+    authored_at: '2026-05-28T11:04:14+00:00'
+    subject: 'fix: route test recordings through dev caddy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    related_feature_ids: []
+  - sha: f1b5bdef1d3ab085d0a4d9ec2c7e43343d17fd10
+    short_sha: f1b5bdef1
+    authored_at: '2026-05-28T11:01:04+00:00'
+    subject: 'test: assert inspiration progress auto-rotation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 648eda13d4225fc9d0c1ba259cc33887d767da03
+    short_sha: 648eda13d
+    authored_at: '2026-05-28T10:57:10+00:00'
+    subject: 'feat: add dev test recording browser'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/core/api/app/services/s3/config.py
+    - backend/core/api/main.py
+    - backend/tests/test_test_recordings.py
+    - frontend/apps/web_app/src/routes/tests/+layout.svelte
+    - frontend/apps/web_app/src/routes/tests/+layout.ts
+    - frontend/apps/web_app/src/routes/tests/+page.svelte
+    - frontend/apps/web_app/src/routes/tests/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/tests/testRecordings.ts
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 8c170f847aad73b0d4b31fba21ca73902a1d6f9b
+    short_sha: 8c170f847
+    authored_at: '2026-05-28T10:51:16+00:00'
+    subject: 'fix: advance inspiration after progress animation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: f4e075cb8c98cba89cd71403cc3235b192d7064f
+    short_sha: f4e075cb8
+    authored_at: '2026-05-28T10:49:35+00:00'
+    subject: 'test: stabilize example chat seo checks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/scripts/audit-example-seo.js
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: b9ae5fed95cfd7d7f9bd7c45ae6988f56f136d81
+    short_sha: b9ae5fed9
+    authored_at: '2026-05-28T10:49:33+00:00'
+    subject: 'fix: prime guest intro chat before first paint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 87a7d1333a7ad6045f5ef333bfde8806d95cfba4
+    short_sha: 87a7d1333
+    authored_at: '2026-05-28T10:37:49+00:00'
+    subject: 'fix: stabilize daily inspiration carousel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/tests/test_daily_inspiration_public_defaults.py
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 0f0b474caf8049d401b29d6596e4fe62aafa3ea4
+    short_sha: 0f0b474ca
+    authored_at: '2026-05-28T10:18:07+00:00'
+    subject: 'fix: harden example chat seo rendering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/scripts/audit-example-seo.js
+    - frontend/apps/web_app/src/app.html
+    - frontend/apps/web_app/src/hooks.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: a11d258ac3b557ad34f7a1f1c60f10ba64170840
+    short_sha: a11d258ac
+    authored_at: '2026-05-28T10:17:33+00:00'
+    subject: 'fix: restore safe inspiration auto rotation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 04af339365962346bf06f3bbc67f8b852072d4d8
+    short_sha: 04af33936
+    authored_at: '2026-05-28T09:55:46+00:00'
+    subject: 'fix: include apply_patch in claude hooks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/settings.json
+    related_feature_ids: []
+  - sha: 2bc2852d2eed652ae535906cbd9e752fcb5b319f
+    short_sha: 2bc2852d2
+    authored_at: '2026-05-28T09:54:38+00:00'
+    subject: 'fix: align opencode hook parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .codex/hooks/claude-hook-bridge.sh
+    - .opencode/plugins/openmates-hooks.js
+    related_feature_ids: []
+  - sha: 28cad6736e41f62f5090c2c0209fe01d67bd9368
+    short_sha: 28cad6736
+    authored_at: '2026-05-28T09:49:46+00:00'
+    subject: 'test: disable inspiration auto cycling'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 098857c6c06ee716e6c96567e80d352e66ba0a1d
+    short_sha: 098857c6c
+    authored_at: '2026-05-28T09:41:20+00:00'
+    subject: 'fix: correct web app seo metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/e2e-encryption-guard.sh
+    - .codex/hooks/e2e-encryption-guard.sh
+    - frontend/packages/ui/src/i18n/sources/metadata/webapp.yml
+    related_feature_ids: []
+  - sha: 907a476aeecc86623f98c18bdcdb9b1b5322109b
+    short_sha: 907a476ae
+    authored_at: '2026-05-28T09:35:38+00:00'
+    subject: 'fix: keep inspiration carousel indexes filtered'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: dd1965af0ae195eb208a013de284a12c0b3ed80a
+    short_sha: dd1965af0
+    authored_at: '2026-05-28T09:13:13+00:00'
+    subject: 'fix: stop welcome overlap effect loop'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates expanded its search capabilities with Mastodon integration and enhanced the code execution experience
+    by suggesting dependencies. The update also focused heavily on UI stability, particularly for audio recording drafts and
+    the daily inspiration carousel.
+  released_changes:
+  - text: OpenMates added a Mastodon public social search provider to the social media application.
+    evidence:
+      commits:
+      - 12885a8f6
+    release_status: released_main
+  - text: The project now suggests necessary dependencies when users attempt to run code blocks.
+    evidence:
+      commits:
+      - 69b93d993
+    release_status: released_main
+  - text: Paste content classification was improved to more accurately identify code and structured data formats.
+    evidence:
+      commits:
+      - cf6c8a8e1
+    release_status: released_main
+  - text: New dated announcements were added for versions v0.9, v0.10, and v0.11.
+    evidence:
+      commits:
+      - 72b33df7c
+    release_status: released_main
+  bug_fixes:
+  - text: Audio recording stability was improved by preventing duplicate transcriptions, ensuring live drafts persist across
+      page reloads, and keeping the composer open during active recording.
+    evidence:
+      commits:
+      - 21a0b1f33
+      - aef784808
+      - e3b223926
+      - e4467403d
+    release_status: released_main
+  - text: The daily inspiration carousel received several fixes to stabilize rotation animations, pause cycling when open,
+      and ensure correct index filtering.
+    evidence:
+      commits:
+      - e90056bfa
+      - 8c170f847
+      - 87a7d1333
+      - a11d258ac
+      - 907a476ae
+    release_status: released_main
+  - text: Web performance and SEO were hardened by priming the guest intro chat before the first paint and improving metadata
+      rendering for example chats.
+    evidence:
+      commits:
+      - 0f0b474ca
+      - b9ae5fed9
+    release_status: released_main
+  - text: UI refinements include better visibility logic for the paste recovery chip, shortened previews for empty web search
+      results, and improved behavior for follow-up suggestions.
+    evidence:
+      commits:
+      - 6b177c2e5
+      - fef9a3b30
+      - b95711c2a
+      - 0075a2f1a
+      - db2453cfc
+    release_status: released_main
+  unreleased_progress:
+  - text: Initial drafting for a referral feature has begun, including email templates and demo chat data.
+    evidence:
+      commits:
+      - 0b56e8106
+    release_status: released_main
+  - text: A developer-only browser for viewing and managing test recordings was added to the web application.
+    evidence:
+      commits:
+      - 648eda13d
+      - 64dd5ca5e
+      - 8b3c32932
+      - 44894c61d
+      - dabd98039
+      - ae5042619
+    release_status: released_main
+  internal_progress:
+  - text: Extensive work was performed to stabilize E2E test suites covering paste classification, inspiration flows, and
+      SEO auditing.
+    evidence:
+      commits:
+      - 986ba62bd
+      - f724e9e90
+      - 24252c397
+      - 65897103d
+      - '172630769'
+      - 6f98431da
+      - 264f5daa0
+      - f1b5bdef1
+      - f4e075cb8
+      - 28cad6736
+    release_status: released_main
+  - text: Development environment hooks were aligned for parity between Claude and OpenCode plugins.
+    evidence:
+      commits:
+      - 04af33936
+      - 2bc2852d2
+      - 098857c6c
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Mastodon social search integration
+      evidence:
+        commits:
+        - 12885a8f6
+      reason: Expands the social search capabilities of the platform.
+    - text: Dependency suggestions for code execution
+      evidence:
+        commits:
+        - 69b93d993
+      reason: Improves the developer experience within the chat interface.
+    - text: Improved paste content classification
+      evidence:
+        commits:
+        - cf6c8a8e1
+      reason: Enhances the intelligence of content handling when users paste data.
+    - text: Live audio draft persistence
+      evidence:
+        commits:
+        - aef784808
+        - e3b223926
+      reason: Solves a common frustration with losing audio drafts on reload.
+    exclude:
+    - text: Referral feature launch draft
+      evidence:
+        commits:
+        - 0b56e8106
+      reason: The referral feature is currently a draft and not yet user-facing.
+    - text: Dev test recording browser
+      evidence:
+        commits:
+        - 648eda13d
+        - 64dd5ca5e
+        - 8b3c32932
+        - 44894c61d
+        - dabd98039
+        - ae5042619
+      reason: The test recording browser is a developer-focused tool.
+    rationale: The highlights focus on new search capabilities, improved code handling, and significant quality-of-life improvements
+      for audio and paste interactions.
+  social_video_recommendations:
+  - idea: Demonstrate the new Mastodon social search capability by finding real-time public posts.
+    priority: high
+    reason: Concrete new feature with a clear visual story.
+    evidence:
+      commits:
+      - 12885a8f6
+  - idea: Show the code execution flow where the system intelligently suggests missing dependencies.
+    priority: medium
+    reason: Strong developer-focused feature.
+    evidence:
+      commits:
+      - 69b93d993
+  quality_notes:
+  - Significant focus on SEO hardening and guest experience priming.
+  - Extensive stabilization of the daily inspiration carousel logic.
+  - Improved reliability of audio transcription and draft persistence.
+  validation_warnings: []

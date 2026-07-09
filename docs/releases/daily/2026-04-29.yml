@@ -1,0 +1,1464 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-29'
+generated_at: '2026-07-09T15:13:57+00:00'
+range:
+  since: '2026-04-29T00:00:00+00:00'
+  until: '2026-04-29T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 28
+  section_counts:
+    features: 5
+    bug_fixes: 20
+    improvements: 0
+    docs: 0
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 26
+  user_facing_items: 26
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: cycle daily inspiration embed on mobile'
+    section: features
+    commits:
+    - 29d0483b5
+    authored_at: '2026-04-29T22:33:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add privacy and safety intro pages'
+    section: features
+    commits:
+    - 67e301c8e
+    authored_at: '2026-04-29T15:11:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/demo_chats/data/for_developers.ts
+    - frontend/packages/ui/src/demo_chats/data/privacy.ts
+    - frontend/packages/ui/src/demo_chats/data/safety.ts
+    - frontend/packages/ui/src/demo_chats/data/who_develops_openmates.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/safety.yml
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: split teaser layout in ChatHeader (text left, video right)'
+    section: features
+    commits:
+    - d453a561d
+    authored_at: '2026-04-29T11:11:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: expand intro teaser across chat header'
+    section: features
+    commits:
+    - d8a53326c
+    authored_at: '2026-04-29T10:32:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.mp4
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.webm
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.webp
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/data/videos.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: autoplay intro teaser video'
+    section: features
+    commits:
+    - 7f4ef1892
+    authored_at: '2026-04-29T09:27:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.webm
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.webp
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/data/videos.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: expand teaser video layout'
+    section: bug_fixes
+    commits:
+    - 3e7efa72e
+    authored_at: '2026-04-29T20:08:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: move ?lang= locale apply to onMount top + fix ChatHeader hardcoded teaser strings'
+    section: bug_fixes
+    commits:
+    - 1f805d6e8
+    authored_at: '2026-04-29T15:41:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: enlarge teaser video previews'
+    section: bug_fixes
+    commits:
+    - 4f4a41c9e
+    authored_at: '2026-04-29T15:12:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct teaser video header layout'
+    section: bug_fixes
+    commits:
+    - 900b7a521
+    authored_at: '2026-04-29T14:59:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v09.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct chat header navigation direction'
+    section: bug_fixes
+    commits:
+    - a05d690dc
+    authored_at: '2026-04-29T14:32:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: constrain DailyInspirationBanner height when settings panel opens'
+    section: bug_fixes
+    commits:
+    - aabe50180
+    authored_at: '2026-04-29T11:17:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: check German message body text in test 10 (chat-header-title hidden for unauth)'
+    section: bug_fixes
+    commits:
+    - f1640f255
+    authored_at: '2026-04-29T10:55:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: relax shared tab readiness in encryption spec'
+    section: bug_fixes
+    commits:
+    - 98a6cfb66
+    authored_at: '2026-04-29T10:46:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: apply ?lang= locale before loading default chat to prevent English flash'
+    section: bug_fixes
+    commits:
+    - 83b582c3b
+    authored_at: '2026-04-29T10:42:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct 16:9 embed sizing on large displays in daily inspiration banner'
+    section: bug_fixes
+    commits:
+    - f7f51ab64
+    authored_at: '2026-04-29T10:37:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for authenticated chat UI in multi-tab spec'
+    section: bug_fixes
+    commits:
+    - abf0f86eb
+    authored_at: '2026-04-29T10:33:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use shared login flow in multi-tab encryption spec'
+    section: bug_fixes
+    commits:
+    - 7f1ac7c9b
+    authored_at: '2026-04-29T10:21:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: treat Groq ''json'' tool-name quirk as retryable, restore Groq as primary sanitization provider'
+    section: bug_fixes
+    commits:
+    - e222ffa1f
+    authored_at: '2026-04-29T10:21:12+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/utils/llm_utils.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: accept banner login CTA after chat flow logout'
+    section: bug_fixes
+    commits:
+    - 9ac6ebbc5
+    authored_at: '2026-04-29T09:02:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open sidebar before checking intro chat title in test 10'
+    section: bug_fixes
+    commits:
+    - 5883d89b2
+    authored_at: '2026-04-29T08:56:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow chat key e2e checks without debug helper'
+    section: bug_fixes
+    commits:
+    - 81dd8ab2c
+    authored_at: '2026-04-29T08:55:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-key-invariants.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use resilient login entry in chat flow spec'
+    section: bug_fixes
+    commits:
+    - dbd0bc3f6
+    authored_at: '2026-04-29T08:50:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use notification-action testid to avoid strict mode violation in language tests 1+2'
+    section: bug_fixes
+    commits:
+    - 1f10ffe2d
+    authored_at: '2026-04-29T08:47:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: re-translate intro chat titles after ?lang= URL param change'
+    section: bug_fixes
+    commits:
+    - 7155aaf94
+    authored_at: '2026-04-29T08:35:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct embed aspect ratio to 16:9 on large displays in daily inspiration banner'
+    section: bug_fixes
+    commits:
+    - d72cfbee4
+    authored_at: '2026-04-29T08:34:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: add ?lang=es test 11 to verify Spanish chat loading parity'
+    section: tests
+    commits:
+    - 7045ea450
+    authored_at: '2026-04-29T11:15:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add chat encryption key invariant e2e coverage'
+    section: tests
+    commits:
+    - 782ba8602
+    authored_at: '2026-04-29T08:41:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-key-invariants.ts
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'revert: restore daily inspiration banner embed to original small preview'
+    section: other
+    commits:
+    - 36da07b40
+    authored_at: '2026-04-29T10:46:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: treat Groq ''json'' tool-name quirk as retryable, restore Groq as primary sanitization provider'
+    commits:
+    - e222ffa1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: cycle daily inspiration embed on mobile'
+    commits:
+    - 29d0483b5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: expand teaser video layout'
+    commits:
+    - 3e7efa72e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: move ?lang= locale apply to onMount top + fix ChatHeader hardcoded teaser strings'
+    commits:
+    - 1f805d6e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enlarge teaser video previews'
+    commits:
+    - 4f4a41c9e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add privacy and safety intro pages'
+    commits:
+    - 67e301c8e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct teaser video header layout'
+    commits:
+    - 900b7a521
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct chat header navigation direction'
+    commits:
+    - a05d690dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: constrain DailyInspirationBanner height when settings panel opens'
+    commits:
+    - aabe50180
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: split teaser layout in ChatHeader (text left, video right)'
+    commits:
+    - d453a561d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: check German message body text in test 10 (chat-header-title hidden for unauth)'
+    commits:
+    - f1640f255
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: relax shared tab readiness in encryption spec'
+    commits:
+    - 98a6cfb66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'revert: restore daily inspiration banner embed to original small preview'
+    commits:
+    - 36da07b40
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: apply ?lang= locale before loading default chat to prevent English flash'
+    commits:
+    - 83b582c3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct 16:9 embed sizing on large displays in daily inspiration banner'
+    commits:
+    - f7f51ab64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for authenticated chat UI in multi-tab spec'
+    commits:
+    - abf0f86eb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: expand intro teaser across chat header'
+    commits:
+    - d8a53326c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use shared login flow in multi-tab encryption spec'
+    commits:
+    - 7f1ac7c9b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: treat Groq ''json'' tool-name quirk as retryable, restore Groq as primary sanitization provider'
+    commits:
+    - e222ffa1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: autoplay intro teaser video'
+    commits:
+    - 7f4ef1892
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: accept banner login CTA after chat flow logout'
+    commits:
+    - 9ac6ebbc5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open sidebar before checking intro chat title in test 10'
+    commits:
+    - 5883d89b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow chat key e2e checks without debug helper'
+    commits:
+    - 81dd8ab2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use resilient login entry in chat flow spec'
+    commits:
+    - dbd0bc3f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use notification-action testid to avoid strict mode violation in language tests 1+2'
+    commits:
+    - 1f10ffe2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: re-translate intro chat titles after ?lang= URL param change'
+    commits:
+    - 7155aaf94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct embed aspect ratio to 16:9 on large displays in daily inspiration banner'
+    commits:
+    - d72cfbee4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: cycle daily inspiration embed on mobile'
+    commits:
+    - 29d0483b5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expand teaser video layout'
+    commits:
+    - 3e7efa72e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: move ?lang= locale apply to onMount top + fix ChatHeader hardcoded teaser strings'
+    commits:
+    - 1f805d6e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enlarge teaser video previews'
+    commits:
+    - 4f4a41c9e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add privacy and safety intro pages'
+    commits:
+    - 67e301c8e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct teaser video header layout'
+    commits:
+    - 900b7a521
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct chat header navigation direction'
+    commits:
+    - a05d690dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: constrain DailyInspirationBanner height when settings panel opens'
+    commits:
+    - aabe50180
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: split teaser layout in ChatHeader (text left, video right)'
+    commits:
+    - d453a561d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: check German message body text in test 10 (chat-header-title hidden for unauth)'
+    commits:
+    - f1640f255
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: relax shared tab readiness in encryption spec'
+    commits:
+    - 98a6cfb66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'revert: restore daily inspiration banner embed to original small preview'
+    commits:
+    - 36da07b40
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: apply ?lang= locale before loading default chat to prevent English flash'
+    commits:
+    - 83b582c3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct 16:9 embed sizing on large displays in daily inspiration banner'
+    commits:
+    - f7f51ab64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for authenticated chat UI in multi-tab spec'
+    commits:
+    - abf0f86eb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: expand intro teaser across chat header'
+    commits:
+    - d8a53326c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use shared login flow in multi-tab encryption spec'
+    commits:
+    - 7f1ac7c9b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: treat Groq ''json'' tool-name quirk as retryable, restore Groq as primary sanitization provider'
+    commits:
+    - e222ffa1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: autoplay intro teaser video'
+    commits:
+    - 7f4ef1892
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: accept banner login CTA after chat flow logout'
+    commits:
+    - 9ac6ebbc5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open sidebar before checking intro chat title in test 10'
+    commits:
+    - 5883d89b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow chat key e2e checks without debug helper'
+    commits:
+    - 81dd8ab2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use resilient login entry in chat flow spec'
+    commits:
+    - dbd0bc3f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use notification-action testid to avoid strict mode violation in language tests 1+2'
+    commits:
+    - 1f10ffe2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: re-translate intro chat titles after ?lang= URL param change'
+    commits:
+    - 7155aaf94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct embed aspect ratio to 16:9 on large displays in daily inspiration banner'
+    commits:
+    - d72cfbee4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 29d0483b5c1f8940ed8ba4def4e32cdf381f7f98
+    short_sha: 29d0483b5
+    authored_at: '2026-04-29T22:33:43+00:00'
+    subject: 'feat: cycle daily inspiration embed on mobile'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 3e7efa72ea7e8bab5feee65bc6d2db1a57bb4848
+    short_sha: 3e7efa72e
+    authored_at: '2026-04-29T20:08:05+00:00'
+    subject: 'fix: expand teaser video layout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 1f805d6e8040ed840c9ccfd90a178919fa64b0b8
+    short_sha: 1f805d6e8
+    authored_at: '2026-04-29T15:41:57+00:00'
+    subject: 'fix: move ?lang= locale apply to onMount top + fix ChatHeader hardcoded teaser strings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    related_feature_ids: []
+  - sha: 4f4a41c9e0f17712b180952d2ac915a465b3f6ad
+    short_sha: 4f4a41c9e
+    authored_at: '2026-04-29T15:12:27+00:00'
+    subject: 'fix: enlarge teaser video previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 67e301c8e9890ff85c4d32469d62529e2b0de55f
+    short_sha: 67e301c8e
+    authored_at: '2026-04-29T15:11:36+00:00'
+    subject: 'feat: add privacy and safety intro pages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/demo_chats/data/for_developers.ts
+    - frontend/packages/ui/src/demo_chats/data/privacy.ts
+    - frontend/packages/ui/src/demo_chats/data/safety.ts
+    - frontend/packages/ui/src/demo_chats/data/who_develops_openmates.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/safety.yml
+    - frontend/packages/ui/src/services/drafts/draftSave.ts
+    related_feature_ids: []
+  - sha: 900b7a521de6b10892523e9c45236cc01ab6b180
+    short_sha: 900b7a521
+    authored_at: '2026-04-29T14:59:57+00:00'
+    subject: 'fix: correct teaser video header layout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/announcements_introducing_openmates_v09.ts
+    related_feature_ids: []
+  - sha: a05d690dcfb9ca364a8652e08ed350d43f0ec7a9
+    short_sha: a05d690dc
+    authored_at: '2026-04-29T14:32:15+00:00'
+    subject: 'fix: correct chat header navigation direction'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: aabe501803b70c2c1e9082fb82bdc90afd7485bf
+    short_sha: aabe50180
+    authored_at: '2026-04-29T11:17:01+00:00'
+    subject: 'fix: constrain DailyInspirationBanner height when settings panel opens'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 7045ea4508ffcd9b2eb27779c7b79737048bffe1
+    short_sha: 7045ea450
+    authored_at: '2026-04-29T11:15:11+00:00'
+    subject: 'test: add ?lang=es test 11 to verify Spanish chat loading parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    related_feature_ids: []
+  - sha: d453a561d16dfd2ced446469dd17ad197c655743
+    short_sha: d453a561d
+    authored_at: '2026-04-29T11:11:42+00:00'
+    subject: 'feat: split teaser layout in ChatHeader (text left, video right)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: f1640f25520de24f7ce1a893428f8482a4947359
+    short_sha: f1640f255
+    authored_at: '2026-04-29T10:55:47+00:00'
+    subject: 'fix: check German message body text in test 10 (chat-header-title hidden for unauth)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    related_feature_ids: []
+  - sha: 98a6cfb667edac6f44e7ed975c399fae0f7e9b8d
+    short_sha: 98a6cfb66
+    authored_at: '2026-04-29T10:46:16+00:00'
+    subject: 'fix: relax shared tab readiness in encryption spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: 36da07b4030fe955a8331c4dbe3e39a72edb3450
+    short_sha: 36da07b40
+    authored_at: '2026-04-29T10:46:01+00:00'
+    subject: 'revert: restore daily inspiration banner embed to original small preview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 83b582c3b7802e0021a1d2224d625fff961f01e7
+    short_sha: 83b582c3b
+    authored_at: '2026-04-29T10:42:14+00:00'
+    subject: 'fix: apply ?lang= locale before loading default chat to prevent English flash'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    related_feature_ids: []
+  - sha: f7f51ab645f6b86683f1beba439813c8deb4f347
+    short_sha: f7f51ab64
+    authored_at: '2026-04-29T10:37:13+00:00'
+    subject: 'fix: correct 16:9 embed sizing on large displays in daily inspiration banner'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: abf0f86eba3d04bf3490c912d278486e412b1cf1
+    short_sha: abf0f86eb
+    authored_at: '2026-04-29T10:33:52+00:00'
+    subject: 'fix: wait for authenticated chat UI in multi-tab spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: d8a53326c2ec6285f9677e5b79834dda8354937c
+    short_sha: d8a53326c
+    authored_at: '2026-04-29T10:32:59+00:00'
+    subject: 'feat: expand intro teaser across chat header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.mp4
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.webm
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.webp
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/data/videos.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    related_feature_ids: []
+  - sha: 7f1ac7c9bf98f63aed48d09e01cda144fd7d156b
+    short_sha: 7f1ac7c9b
+    authored_at: '2026-04-29T10:21:44+00:00'
+    subject: 'fix: use shared login flow in multi-tab encryption spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: e222ffa1fd7cde2a37fc1db66499064f14d9912b
+    short_sha: e222ffa1f
+    authored_at: '2026-04-29T10:21:12+00:00'
+    subject: 'fix: treat Groq ''json'' tool-name quirk as retryable, restore Groq as primary sanitization provider'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/utils/llm_utils.py
+    related_feature_ids: []
+  - sha: 7f4ef1892b657776d358c1d70702b1155dc50c5a
+    short_sha: 7f4ef1892
+    authored_at: '2026-04-29T09:27:29+00:00'
+    subject: 'feat: autoplay intro teaser video'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.webm
+    - frontend/apps/web_app/static/intro-teasers/openmates-intro-teaser.webp
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/data/videos.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    related_feature_ids: []
+  - sha: 9ac6ebbc5537e292c446f51fab6b2d2ba690d013
+    short_sha: 9ac6ebbc5
+    authored_at: '2026-04-29T09:02:43+00:00'
+    subject: 'fix: accept banner login CTA after chat flow logout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 5883d89b2f57f1be5214558d0d58e6de2acda978
+    short_sha: 5883d89b2
+    authored_at: '2026-04-29T08:56:53+00:00'
+    subject: 'fix: open sidebar before checking intro chat title in test 10'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    related_feature_ids: []
+  - sha: 81dd8ab2ce1000c7d104aeac5cc8d69d01e9fbde
+    short_sha: 81dd8ab2c
+    authored_at: '2026-04-29T08:55:46+00:00'
+    subject: 'fix: allow chat key e2e checks without debug helper'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-key-invariants.ts
+    related_feature_ids: []
+  - sha: dbd0bc3f6874ccb65c639f7c7c5e1dacef79355e
+    short_sha: dbd0bc3f6
+    authored_at: '2026-04-29T08:50:31+00:00'
+    subject: 'fix: use resilient login entry in chat flow spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 1f10ffe2d6628db085a42f6efb265b0fd9e6aad9
+    short_sha: 1f10ffe2d
+    authored_at: '2026-04-29T08:47:00+00:00'
+    subject: 'fix: use notification-action testid to avoid strict mode violation in language tests 1+2'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    related_feature_ids: []
+  - sha: 782ba860222978e5581f0358a68f6d2c4da3231c
+    short_sha: 782ba8602
+    authored_at: '2026-04-29T08:41:05+00:00'
+    subject: 'test: add chat encryption key invariant e2e coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-key-invariants.ts
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    related_feature_ids: []
+  - sha: 7155aaf9440497a1bc44305da6f3127d093a3981
+    short_sha: 7155aaf94
+    authored_at: '2026-04-29T08:35:26+00:00'
+    subject: 'fix: re-translate intro chat titles after ?lang= URL param change'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/language-auto-detect.spec.ts
+    related_feature_ids: []
+  - sha: d72cfbee4713c099edaa54469369e1b84282c485
+    short_sha: d72cfbee4
+    authored_at: '2026-04-29T08:34:44+00:00'
+    subject: 'fix: correct embed aspect ratio to 16:9 on large displays in daily inspiration banner'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on the introductory user experience today, introducing autoplaying video teasers and dedicated
+    privacy and safety pages. Significant refinements were also made to the Daily Inspiration banner and localization handling
+    to ensure a smoother first impression.
+  released_changes:
+  - text: The chat header now features an expanded intro teaser layout with autoplaying video support and a split design that
+      places text on the left and video on the right.
+    evidence:
+      commits:
+      - 7f4ef1892
+      - d8a53326c
+      - d453a561d
+    release_status: released_main
+  - text: New introductory pages dedicated to privacy and safety were added to the platform.
+    evidence:
+      commits:
+      - 67e301c8e
+    release_status: released_main
+  - text: The Daily Inspiration banner now supports cycling through embeds on mobile devices.
+    evidence:
+      commits:
+      - 29d0483b5
+    release_status: released_main
+  bug_fixes:
+  - text: Localization logic was updated to apply language preferences from URL parameters earlier in the loading process,
+      preventing a brief flash of English content and ensuring intro chat titles are correctly translated.
+    evidence:
+      commits:
+      - 83b582c3b
+      - 1f805d6e8
+      - 7155aaf94
+    release_status: released_main
+  - text: The Daily Inspiration banner received several layout corrections, including 16:9 aspect ratio fixes for large displays
+      and height constraints when the settings panel is active.
+    evidence:
+      commits:
+      - d72cfbee4
+      - f7f51ab64
+      - aabe50180
+    release_status: released_main
+  - text: AI content sanitization was stabilized by restoring Groq as the primary provider and implementing retries for specific
+      tool-naming quirks.
+    evidence:
+      commits:
+      - e222ffa1f
+    release_status: released_main
+  - text: The chat header and teaser video layouts were refined to correct navigation direction and ensure consistent preview
+      sizing.
+    evidence:
+      commits:
+      - 900b7a521
+      - 4f4a41c9e
+      - 3e7efa72e
+      - a05d690dc
+    release_status: released_main
+  unreleased_progress:
+  - text: Internal AI configuration was adjusted to handle specific tool-name quirks as retryable events.
+    evidence:
+      commits:
+      - e222ffa1f
+    release_status: released_main
+  internal_progress:
+  - text: End-to-end test coverage was expanded for chat encryption key invariants and multi-tab session synchronization.
+    evidence:
+      commits:
+      - 782ba8602
+      - 81dd8ab2c
+      - 7f1ac7c9b
+      - abf0f86eb
+      - 98a6cfb66
+    release_status: released_main
+  - text: Automated testing for language auto-detection and chat flows was improved to handle sidebar states and resilient
+      login entries.
+    evidence:
+      commits:
+      - 7045ea450
+      - f1640f255
+      - dbd0bc3f6
+      - 9ac6ebbc5
+      - 1f10ffe2d
+      - 5883d89b2
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New autoplaying video teasers and split-layout chat headers for a more engaging introduction.
+      evidence:
+        commits:
+        - 7f4ef1892
+        - d8a53326c
+        - d453a561d
+      reason: Significant visual improvement to the first-time user experience.
+    - text: Dedicated privacy and safety introductory pages.
+      evidence:
+        commits:
+        - 67e301c8e
+      reason: Important transparency and trust-building content for users.
+    - text: Support for cycling through daily inspiration embeds on mobile devices.
+      evidence:
+        commits:
+        - 29d0483b5
+      reason: Functional improvement for mobile users.
+    exclude:
+    - text: Reversion of daily inspiration banner preview size.
+      evidence:
+        commits:
+        - 36da07b40
+      reason: This is a revert of a previous layout change.
+    - text: Internal end-to-end test suite expansions.
+      evidence:
+        commits:
+        - 782ba8602
+        - 7045ea450
+      reason: Internal testing and CI improvements are not user-facing features.
+    rationale: The most impactful changes for users are the visual overhaul of the intro experience and the addition of transparency-focused
+      content like privacy pages.
+  social_video_recommendations:
+  - idea: A short clip showing the new split-screen chat header with the autoplaying video teaser.
+    priority: high
+    reason: This is a highly visual change that modernizes the landing experience.
+    evidence:
+      commits:
+      - d453a561d
+      - 7f4ef1892
+  quality_notes:
+  - The fix for the 'English flash' (83b582c3b) significantly improves perceived performance for non-English users.
+  - The restoration of Groq for sanitization (e222ffa1f) addresses specific tool-calling reliability issues.
+  validation_warnings: []

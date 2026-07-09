@@ -1,0 +1,1933 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-13'
+generated_at: '2026-07-09T15:41:50+00:00'
+range:
+  since: '2026-06-13T00:00:00+00:00'
+  until: '2026-06-13T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 37
+  section_counts:
+    features: 5
+    bug_fixes: 26
+    improvements: 0
+    docs: 2
+    tests: 3
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 23
+  user_facing_items: 24
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: replace nutrition recipe search with Edamam'
+    section: features
+    commits:
+    - adf726d84
+    authored_at: '2026-06-13T13:08:48+00:00'
+    changed_paths:
+    - backend/apps/nutrition/app.yml
+    - backend/apps/nutrition/providers/edamam_recipe_provider.py
+    - backend/apps/nutrition/providers/rewe_recipe_provider.py
+    - backend/apps/nutrition/skills/rewe_online.py
+    - backend/apps/nutrition/skills/search_recipes.py
+    - backend/tests/test_edamam_recipe_provider.py
+    - backend/tests/test_nutrition_search_recipes_skill.py
+    - docs/specs/edamam-nutrition-recipes/spec.yml
+    - docs/user-guide/apps/README.md
+    - docs/user-guide/apps/nutrition.md
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/nutrition.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: show decrypting chats during resume sync'
+    section: features
+    commits:
+    - d7b5acbbc
+    authored_at: '2026-06-13T09:30:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: improve app skill quality guardrails'
+    section: features
+    commits:
+    - 0b03ae46a
+    authored_at: '2026-06-13T08:02:38+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/project.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/skills/search_connections.py
+    - backend/apps/travel/skills/search_stays.py
+    - backend/tests/test_app_skill_processing_quality.py
+    - backend/tests/test_apple_remote.py
+    - backend/tests/test_travel_skill_constraints.py
+    - deployment/apply-caddy-config.sh
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/specs/app-skill-processing-quality/spec.yml
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - scripts/apple_remote.py
+    - scripts/tests/test_apply_caddy_config.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add shared chat og cta metadata'
+    section: features
+    commits:
+    - 3e404b3a7
+    authored_at: '2026-06-13T00:40:07+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/tests/test_share_short_links.py
+    - frontend/apps/web_app/src/routes/s/[token]/+server.ts
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+server.ts
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/services/shareMetadataQueue.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Kimi K2.7 Code model'
+    section: features
+    commits:
+    - 1d5ba2de6
+    authored_at: '2026-06-13T00:24:39+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/together_client.py
+    - backend/apps/ai/testing/fixtures/model_override.json
+    - backend/providers/moonshot.yml
+    - backend/scripts/test_kimi_k2_7_code.py
+    - backend/tests/test_kimi_k2_7_code_script.py
+    - backend/tests/test_together_kimi_k2_5.py
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: serialize startup sync handlers'
+    section: bug_fixes
+    commits:
+    - 1e98b6b0e
+    authored_at: '2026-06-13T19:46:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: avoid safari key unwrap stall'
+    section: bug_fixes
+    commits:
+    - 50df3c51a
+    authored_at: '2026-06-13T19:21:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/cryptoService.test.ts
+    - frontend/packages/ui/src/services/cryptoService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: harden chat highlight teardown'
+    section: bug_fixes
+    commits:
+    - 8ed8f76d6
+    authored_at: '2026-06-13T19:04:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/userDB.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve event search calendar dates'
+    section: bug_fixes
+    commits:
+    - 81b3741b8
+    authored_at: '2026-06-13T17:46:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show event search date ranges'
+    section: bug_fixes
+    commits:
+    - 264b98b5c
+    authored_at: '2026-06-13T17:26:50+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_skill_preview_metadata.py
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve streaming app skill embeds'
+    section: bug_fixes
+    commits:
+    - aec695b5e
+    authored_at: '2026-06-13T16:44:47+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve example chat skill calls'
+    section: bug_fixes
+    commits:
+    - 0b2f6cc70
+    authored_at: '2026-06-13T16:27:40+00:00'
+    changed_paths:
+    - backend/tests/test_example_chat_scaffold.py
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render Nutrition example recipe embed'
+    section: bug_fixes
+    commits:
+    - eec48133b
+    authored_at: '2026-06-13T16:00:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve Nutrition example SEO answer'
+    section: bug_fixes
+    commits:
+    - e411160d9
+    authored_at: '2026-06-13T15:09:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: wire Nutrition example embed metadata'
+    section: bug_fixes
+    commits:
+    - ab6360c88
+    authored_at: '2026-06-13T15:00:11+00:00'
+    changed_paths:
+    - backend/providers/edamam.yml
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render Nutrition example embed and Edamam logo'
+    section: bug_fixes
+    commits:
+    - 637756e5d
+    authored_at: '2026-06-13T14:59:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/static/icons/edamam.png
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: show Edamam nutrition app in settings'
+    section: bug_fixes
+    commits:
+    - 3746055f5
+    authored_at: '2026-06-13T14:04:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/apps.py
+    - backend/tests/test_apps_metadata_availability.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: persist shared chat short links'
+    section: bug_fixes
+    commits:
+    - 3966c90f6
+    authored_at: '2026-06-13T11:44:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/shareMetadataQueue.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align chat cache pipeline keys'
+    section: bug_fixes
+    commits:
+    - b36b53984
+    authored_at: '2026-06-13T10:43:11+00:00'
+    changed_paths:
+    - backend/core/api/app/services/cache_base.py
+    - backend/tests/test_cache_base.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: fall back when chat metadata batch is empty'
+    section: bug_fixes
+    commits:
+    - 3f14495d9
+    authored_at: '2026-06-13T10:25:54+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_metadata_permissions.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show share link when short URL creation fails'
+    section: bug_fixes
+    commits:
+    - 0ddfa9d82
+    authored_at: '2026-06-13T10:17:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: adapt message input auth CTA'
+    section: bug_fixes
+    commits:
+    - 54c6182b6
+    authored_at: '2026-06-13T10:15:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover empty chat IndexedDB schema'
+    section: bug_fixes
+    commits:
+    - 9e796e7aa
+    authored_at: '2026-06-13T10:14:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: open login from login CTA'
+    section: bug_fixes
+    commits:
+    - a3c964715
+    authored_at: '2026-06-13T10:07:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align auth CTA label and color'
+    section: bug_fixes
+    commits:
+    - 52e45b4e5
+    authored_at: '2026-06-13T09:57:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve share creation metadata fallback'
+    section: bug_fixes
+    commits:
+    - 7fa1e11a2
+    authored_at: '2026-06-13T09:36:29+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_metadata_permissions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: improve app skill result quality'
+    section: bug_fixes
+    commits:
+    - 5a5eec3a2
+    authored_at: '2026-06-13T09:30:20+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/apps/travel/skills/search_stays.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - backend/tests/test_app_skill_processing_quality.py
+    - backend/tests/test_travel_skill_constraints.py
+    - docs/specs/app-skill-processing-quality/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve daily inspiration manual navigation'
+    section: bug_fixes
+    commits:
+    - e3a633354
+    authored_at: '2026-06-13T08:53:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize authenticated daily inspiration carousel'
+    section: bug_fixes
+    commits:
+    - a07ca16ca
+    authored_at: '2026-06-13T07:53:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove unavailable Claude Fable 5'
+    section: bug_fixes
+    commits:
+    - 688bca4e1
+    authored_at: '2026-06-13T07:42:42+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/providers/anthropic.yml
+    - backend/tests/test_model_selection.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve daily inspiration carousel mobile interactions'
+    section: bug_fixes
+    commits:
+    - 2bcbcefc1
+    authored_at: '2026-06-13T00:32:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record Edamam nutrition verification'
+    section: docs
+    commits:
+    - 534be4c61
+    authored_at: '2026-06-13T13:15:24+00:00'
+    changed_paths:
+    - docs/specs/edamam-nutrition-recipes/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: update remaining v0.12 references'
+    section: docs
+    commits:
+    - d3e62581e
+    authored_at: '2026-06-13T08:00:37+00:00'
+    changed_paths:
+    - backend/tests/test_software_update_docker_mode.py
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/self-hosting/setup.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: stabilize memory mail example assertion'
+    section: tests
+    commits:
+    - f29495458
+    authored_at: '2026-06-13T15:35:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update memory example assertion'
+    section: tests
+    commits:
+    - 5a9b9db18
+    authored_at: '2026-06-13T15:22:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover Edamam provider icon metadata'
+    section: tests
+    commits:
+    - 2e4aa15aa
+    authored_at: '2026-06-13T15:01:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: bump alpha version to v0.12'
+    section: infrastructure
+    commits:
+    - 4c6d0686a
+    authored_at: '2026-06-13T07:59:50+00:00'
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - docs/architecture/platforms/cli-package.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - scripts/prepare_cli_publish_version.mjs
+    - shared/config/product_version.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: show event search date ranges'
+    commits:
+    - 264b98b5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show Edamam nutrition app in settings'
+    commits:
+    - 3746055f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: replace nutrition recipe search with Edamam'
+    commits:
+    - adf726d84
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: persist shared chat short links'
+    commits:
+    - 3966c90f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: fall back when chat metadata batch is empty'
+    commits:
+    - 3f14495d9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve share creation metadata fallback'
+    commits:
+    - 7fa1e11a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: improve app skill quality guardrails'
+    commits:
+    - 0b03ae46a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add shared chat og cta metadata'
+    commits:
+    - 3e404b3a7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: harden chat highlight teardown'
+    commits:
+    - 8ed8f76d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve event search calendar dates'
+    commits:
+    - 81b3741b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show event search date ranges'
+    commits:
+    - 264b98b5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve streaming app skill embeds'
+    commits:
+    - aec695b5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve example chat skill calls'
+    commits:
+    - 0b2f6cc70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render Nutrition example recipe embed'
+    commits:
+    - eec48133b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wire Nutrition example embed metadata'
+    commits:
+    - ab6360c88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show Edamam nutrition app in settings'
+    commits:
+    - 3746055f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: replace nutrition recipe search with Edamam'
+    commits:
+    - adf726d84
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: persist shared chat short links'
+    commits:
+    - 3966c90f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: fall back when chat metadata batch is empty'
+    commits:
+    - 3f14495d9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show share link when short URL creation fails'
+    commits:
+    - 0ddfa9d82
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: adapt message input auth CTA'
+    commits:
+    - 54c6182b6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open login from login CTA'
+    commits:
+    - a3c964715
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align auth CTA label and color'
+    commits:
+    - 52e45b4e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show decrypting chats during resume sync'
+    commits:
+    - d7b5acbbc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve app skill result quality'
+    commits:
+    - 5a5eec3a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve daily inspiration manual navigation'
+    commits:
+    - e3a633354
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize authenticated daily inspiration carousel'
+    commits:
+    - a07ca16ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: remove unavailable Claude Fable 5'
+    commits:
+    - 688bca4e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add shared chat og cta metadata'
+    commits:
+    - 3e404b3a7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve daily inspiration carousel mobile interactions'
+    commits:
+    - 2bcbcefc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Kimi K2.7 Code model'
+    commits:
+    - 1d5ba2de6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: harden chat highlight teardown'
+    commits:
+    - 8ed8f76d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve event search calendar dates'
+    commits:
+    - 81b3741b8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show event search date ranges'
+    commits:
+    - 264b98b5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve streaming app skill embeds'
+    commits:
+    - aec695b5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve example chat skill calls'
+    commits:
+    - 0b2f6cc70
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render Nutrition example recipe embed'
+    commits:
+    - eec48133b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wire Nutrition example embed metadata'
+    commits:
+    - ab6360c88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show Edamam nutrition app in settings'
+    commits:
+    - 3746055f5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: replace nutrition recipe search with Edamam'
+    commits:
+    - adf726d84
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: persist shared chat short links'
+    commits:
+    - 3966c90f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: fall back when chat metadata batch is empty'
+    commits:
+    - 3f14495d9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show share link when short URL creation fails'
+    commits:
+    - 0ddfa9d82
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: adapt message input auth CTA'
+    commits:
+    - 54c6182b6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open login from login CTA'
+    commits:
+    - a3c964715
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align auth CTA label and color'
+    commits:
+    - 52e45b4e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show decrypting chats during resume sync'
+    commits:
+    - d7b5acbbc
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve app skill result quality'
+    commits:
+    - 5a5eec3a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve daily inspiration manual navigation'
+    commits:
+    - e3a633354
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: improve app skill quality guardrails'
+    commits:
+    - 0b03ae46a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: stabilize authenticated daily inspiration carousel'
+    commits:
+    - a07ca16ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: remove unavailable Claude Fable 5'
+    commits:
+    - 688bca4e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add shared chat og cta metadata'
+    commits:
+    - 3e404b3a7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve daily inspiration carousel mobile interactions'
+    commits:
+    - 2bcbcefc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Kimi K2.7 Code model'
+    commits:
+    - 1d5ba2de6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 1e98b6b0ec185d7172297db0becd8e3d3569b6f4
+    short_sha: 1e98b6b0e
+    authored_at: '2026-06-13T19:46:54+00:00'
+    subject: 'fix: serialize startup sync handlers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: 50df3c51a3b1202781f28db57c39d0cda2e5770c
+    short_sha: 50df3c51a
+    authored_at: '2026-06-13T19:21:44+00:00'
+    subject: 'fix: avoid safari key unwrap stall'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/cryptoService.test.ts
+    - frontend/packages/ui/src/services/cryptoService.ts
+    related_feature_ids: []
+  - sha: 8ed8f76d6ed0802b4243159dbbe1c928e081f413
+    short_sha: 8ed8f76d6
+    authored_at: '2026-06-13T19:04:52+00:00'
+    subject: 'fix: harden chat highlight teardown'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/userDB.ts
+    related_feature_ids: []
+  - sha: 81b3741b87e52fd44f45b24e5b009fc8d9137f98
+    short_sha: 81b3741b8
+    authored_at: '2026-06-13T17:46:06+00:00'
+    subject: 'fix: preserve event search calendar dates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 264b98b5c317fd0afe8a0529a5e7111e73df3692
+    short_sha: 264b98b5c
+    authored_at: '2026-06-13T17:26:50+00:00'
+    subject: 'fix: show event search date ranges'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_skill_preview_metadata.py
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    related_feature_ids: []
+  - sha: aec695b5ead964cabc9e9692a73b9ae88e254da1
+    short_sha: aec695b5e
+    authored_at: '2026-06-13T16:44:47+00:00'
+    subject: 'fix: preserve streaming app skill embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    related_feature_ids: []
+  - sha: 0b2f6cc704b8cc3d3a61e02153174facb12fa440
+    short_sha: 0b2f6cc70
+    authored_at: '2026-06-13T16:27:40+00:00'
+    subject: 'fix: preserve example chat skill calls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_example_chat_scaffold.py
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - scripts/audit_example_chats.py
+    - scripts/create-example-chat-from-share.mjs
+    related_feature_ids: []
+  - sha: eec48133b4df15270354b52a5e415a05a6a8390e
+    short_sha: eec48133b
+    authored_at: '2026-06-13T16:00:38+00:00'
+    subject: 'fix: render Nutrition example recipe embed'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    related_feature_ids: []
+  - sha: f294954585092ead432828ac44709a21d2e83808
+    short_sha: f29495458
+    authored_at: '2026-06-13T15:35:37+00:00'
+    subject: 'test: stabilize memory mail example assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 5a9b9db18ba48817e345916efd17203b0c72fa8c
+    short_sha: 5a9b9db18
+    authored_at: '2026-06-13T15:22:45+00:00'
+    subject: 'test: update memory example assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: e411160d94d1e9bc43d66b8d6e1aff2e66be912c
+    short_sha: e411160d9
+    authored_at: '2026-06-13T15:09:00+00:00'
+    subject: 'fix: preserve Nutrition example SEO answer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    related_feature_ids: []
+  - sha: 2e4aa15aadba914d46242fd421dc21159bfe59fe
+    short_sha: 2e4aa15aa
+    authored_at: '2026-06-13T15:01:01+00:00'
+    subject: 'test: cover Edamam provider icon metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    related_feature_ids: []
+  - sha: ab6360c8823fcbf8434e057ffb5276c205cea6ee
+    short_sha: ab6360c88
+    authored_at: '2026-06-13T15:00:11+00:00'
+    subject: 'fix: wire Nutrition example embed metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/providers/edamam.yml
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    related_feature_ids: []
+  - sha: 637756e5d2918872a63b1a26dbc48517ab8a3ade
+    short_sha: 637756e5d
+    authored_at: '2026-06-13T14:59:14+00:00'
+    subject: 'fix: render Nutrition example embed and Edamam logo'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/static/icons/edamam.png
+    related_feature_ids: []
+  - sha: 3746055f57243ad38aa4716655a4155157fef780
+    short_sha: 3746055f5
+    authored_at: '2026-06-13T14:04:40+00:00'
+    subject: 'fix: show Edamam nutrition app in settings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/apps.py
+    - backend/tests/test_apps_metadata_availability.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 534be4c61739e351365230cb349a41a9f8a9bcd7
+    short_sha: 534be4c61
+    authored_at: '2026-06-13T13:15:24+00:00'
+    subject: 'docs: record Edamam nutrition verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/edamam-nutrition-recipes/spec.yml
+    related_feature_ids: []
+  - sha: adf726d845f7233aa330d3a03d4cf888010e0e00
+    short_sha: adf726d84
+    authored_at: '2026-06-13T13:08:48+00:00'
+    subject: 'feat: replace nutrition recipe search with Edamam'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/nutrition/app.yml
+    - backend/apps/nutrition/providers/edamam_recipe_provider.py
+    - backend/apps/nutrition/providers/rewe_recipe_provider.py
+    - backend/apps/nutrition/skills/rewe_online.py
+    - backend/apps/nutrition/skills/search_recipes.py
+    - backend/tests/test_edamam_recipe_provider.py
+    - backend/tests/test_nutrition_search_recipes_skill.py
+    - docs/specs/edamam-nutrition-recipes/spec.yml
+    - docs/user-guide/apps/README.md
+    - docs/user-guide/apps/nutrition.md
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionRecipeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/nutrition.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 3966c90f6c20076454a6da331c61ba167a4da071
+    short_sha: 3966c90f6
+    authored_at: '2026-06-13T11:44:42+00:00'
+    subject: 'fix: persist shared chat short links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncMerge.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/shareMetadataQueue.ts
+    related_feature_ids: []
+  - sha: b36b5398477a1849a84da2c6ed2af6a51696626a
+    short_sha: b36b53984
+    authored_at: '2026-06-13T10:43:11+00:00'
+    subject: 'fix: align chat cache pipeline keys'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/cache_base.py
+    - backend/tests/test_cache_base.py
+    related_feature_ids: []
+  - sha: 3f14495d94aca1155237edd8321f458c4b474490
+    short_sha: 3f14495d9
+    authored_at: '2026-06-13T10:25:54+00:00'
+    subject: 'fix: fall back when chat metadata batch is empty'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_metadata_permissions.py
+    related_feature_ids: []
+  - sha: 0ddfa9d82a0ca2eb7fd0d084caa00bf953521f24
+    short_sha: 0ddfa9d82
+    authored_at: '2026-06-13T10:17:09+00:00'
+    subject: 'fix: show share link when short URL creation fails'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    related_feature_ids: []
+  - sha: 54c6182b67be70905d0846db0d005f8b8a78fba2
+    short_sha: 54c6182b6
+    authored_at: '2026-06-13T10:15:00+00:00'
+    subject: 'fix: adapt message input auth CTA'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 9e796e7aa405d1155f8d8fc6b0e3803a5206927d
+    short_sha: 9e796e7aa
+    authored_at: '2026-06-13T10:14:36+00:00'
+    subject: 'fix: recover empty chat IndexedDB schema'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: a3c964715ee45240a182757b3a5c0f342511115c
+    short_sha: a3c964715
+    authored_at: '2026-06-13T10:07:58+00:00'
+    subject: 'fix: open login from login CTA'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: 52e45b4e5a3bfc2c077fe9af65d976ce7cc47112
+    short_sha: 52e45b4e5
+    authored_at: '2026-06-13T09:57:14+00:00'
+    subject: 'fix: align auth CTA label and color'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    related_feature_ids: []
+  - sha: 7fa1e11a262f2f50d533bb0b74463270759be4cd
+    short_sha: 7fa1e11a2
+    authored_at: '2026-06-13T09:36:29+00:00'
+    subject: 'fix: preserve share creation metadata fallback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_metadata_permissions.py
+    related_feature_ids: []
+  - sha: d7b5acbbc1aeaf77696635e1da331272750cca44
+    short_sha: d7b5acbbc
+    authored_at: '2026-06-13T09:30:23+00:00'
+    subject: 'feat: show decrypting chats during resume sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    related_feature_ids: []
+  - sha: 5a5eec3a283a93aa79b1c91fe1ab67178f659039
+    short_sha: 5a5eec3a2
+    authored_at: '2026-06-13T09:30:20+00:00'
+    subject: 'fix: improve app skill result quality'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/apps/travel/skills/search_stays.py
+    - backend/tests/test_app_skill_json_cleanup.py
+    - backend/tests/test_app_skill_processing_quality.py
+    - backend/tests/test_travel_skill_constraints.py
+    - docs/specs/app-skill-processing-quality/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: e3a63335404fa6a07fcc5177cec1d7c91704522e
+    short_sha: e3a633354
+    authored_at: '2026-06-13T08:53:31+00:00'
+    subject: 'fix: preserve daily inspiration manual navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 0b03ae46a79e86cc2dc9963ae56c511f2f040202
+    short_sha: 0b03ae46a
+    authored_at: '2026-06-13T08:02:38+00:00'
+    subject: 'feat: improve app skill quality guardrails'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/project.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/skills/search_connections.py
+    - backend/apps/travel/skills/search_stays.py
+    - backend/tests/test_app_skill_processing_quality.py
+    - backend/tests/test_apple_remote.py
+    - backend/tests/test_travel_skill_constraints.py
+    - deployment/apply-caddy-config.sh
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/specs/app-skill-processing-quality/spec.yml
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - scripts/apple_remote.py
+    - scripts/tests/test_apply_caddy_config.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d3e62581e5768ca398db86cb26d5460a90eef3b0
+    short_sha: d3e62581e
+    authored_at: '2026-06-13T08:00:37+00:00'
+    subject: 'docs: update remaining v0.12 references'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_software_update_docker_mode.py
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/self-hosting/setup.md
+    related_feature_ids: []
+  - sha: 4c6d0686ad74dc4d53889930e16feec21094efba
+    short_sha: 4c6d0686a
+    authored_at: '2026-06-13T07:59:50+00:00'
+    subject: 'chore: bump alpha version to v0.12'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - docs/architecture/platforms/cli-package.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - scripts/prepare_cli_publish_version.mjs
+    - shared/config/product_version.json
+    related_feature_ids: []
+  - sha: a07ca16ca44c8466a5b198c891e08e816f39ec4b
+    short_sha: a07ca16ca
+    authored_at: '2026-06-13T07:53:04+00:00'
+    subject: 'fix: stabilize authenticated daily inspiration carousel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids: []
+  - sha: 688bca4e12537a431082bf1d6658d51b168829b7
+    short_sha: 688bca4e1
+    authored_at: '2026-06-13T07:42:42+00:00'
+    subject: 'fix: remove unavailable Claude Fable 5'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/anthropic_direct_api.py
+    - backend/apps/ai/tests/test_anthropic_direct_api.py
+    - backend/providers/anthropic.yml
+    - backend/tests/test_model_selection.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    related_feature_ids: []
+  - sha: 3e404b3a717c3462f29fdf38385360b3b6677f09
+    short_sha: 3e404b3a7
+    authored_at: '2026-06-13T00:40:07+00:00'
+    subject: 'feat: add shared chat og cta metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/tests/test_share_short_links.py
+    - frontend/apps/web_app/src/routes/s/[token]/+server.ts
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+server.ts
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/services/shareMetadataQueue.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 2bcbcefc1083b6ac91b7c9bfa13b2f7c964b6138
+    short_sha: 2bcbcefc1
+    authored_at: '2026-06-13T00:32:47+00:00'
+    subject: 'fix: improve daily inspiration carousel mobile interactions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: 1d5ba2de6b7f4868c87c98038b2f5b8a7ce3a97e
+    short_sha: 1d5ba2de6
+    authored_at: '2026-06-13T00:24:39+00:00'
+    subject: 'feat: add Kimi K2.7 Code model'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/together_client.py
+    - backend/apps/ai/testing/fixtures/model_override.json
+    - backend/providers/moonshot.yml
+    - backend/scripts/test_kimi_k2_7_code.py
+    - backend/tests/test_kimi_k2_7_code_script.py
+    - backend/tests/test_together_kimi_k2_5.py
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates transitioned its nutrition recipe provider to Edamam, improved the reliability of shared chat metadata,
+    and officially bumped the project version to v0.12. The update also includes several UI refinements for daily inspiration
+    and authentication flows.
+  released_changes:
+  - text: The nutrition app now utilizes Edamam for recipe searches, featuring updated fullscreen and preview embeds.
+    evidence:
+      commits:
+      - adf726d84
+      - 3746055f5
+      - ab6360c88
+      - eec48133b
+    release_status: released_main
+  - text: Chat sharing was enhanced with dedicated Open Graph metadata and improved error handling for short-link generation.
+    evidence:
+      commits:
+      - 3e404b3a7
+      - 3966c90f6
+      - 0ddfa9d82
+    release_status: released_main
+  - text: AI model availability was updated to include Kimi K2.7 Code while removing the unavailable Claude Fable 5 model.
+    evidence:
+      commits:
+      - 1d5ba2de6
+      - 688bca4e1
+    release_status: released_main
+  - text: The chat interface now displays a decryption status during resume syncs and handles empty metadata batches more
+      gracefully.
+    evidence:
+      commits:
+      - d7b5acbbc
+      - 3f14495d9
+    release_status: released_main
+  bug_fixes:
+  - text: The project hardened chat highlight teardown to prevent UI inconsistencies during navigation.
+    evidence:
+      commits:
+      - 8ed8f76d6
+    release_status: released_main
+  - text: Event search now correctly preserves calendar dates and displays date ranges in the UI.
+    evidence:
+      commits:
+      - 81b3741b8
+      - 264b98b5c
+    release_status: released_main
+  - text: Daily inspiration carousels received stability improvements for authenticated users and better touch interactions
+      on mobile.
+    evidence:
+      commits:
+      - e3a633354
+      - a07ca16ca
+      - 2bcbcefc1
+    release_status: released_main
+  - text: Authentication calls-to-action were refined across the header and message input to ensure consistent labeling and
+      reliable login redirection.
+    evidence:
+      commits:
+      - 54c6182b6
+      - a3c964715
+      - 52e45b4e5
+    release_status: released_main
+  unreleased_progress:
+  - text: Work continued on app skill quality guardrails specifically targeting the unreleased iOS and macOS platforms.
+    evidence:
+      commits:
+      - 0b03ae46a
+    release_status: released_main
+  internal_progress:
+  - text: OpenMates bumped the alpha version to v0.12 and updated related documentation and self-hosting guides.
+    evidence:
+      commits:
+      - 4c6d0686a
+      - d3e62581e
+    release_status: released_main
+  - text: Internal updates include serialized startup sync handlers, Safari-specific cryptographic fixes, and IndexedDB schema
+      recovery.
+    evidence:
+      commits:
+      - 1e98b6b0e
+      - 50df3c51a
+      - 9e796e7aa
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: OpenMates has transitioned its nutrition recipe search to the Edamam provider, offering improved search results
+        and recipe metadata.
+      evidence:
+        commits:
+        - adf726d84
+        - 3746055f5
+      reason: Significant provider transition for a core app skill.
+    - text: Shared chats now include Open Graph metadata for better social previews and more reliable short-link persistence.
+      evidence:
+        commits:
+        - 3e404b3a7
+        - 3966c90f6
+      reason: Improves the social sharing experience.
+    - text: The Kimi K2.7 Code model is now available for use within the platform.
+      evidence:
+        commits:
+        - 1d5ba2de6
+      reason: New model support for developers.
+    exclude:
+    - text: App skill quality guardrails for Apple platforms.
+      evidence:
+        commits:
+        - 0b03ae46a
+      reason: Relates to unreleased iOS and macOS platforms.
+    rationale: The transition to Edamam for nutrition and the improvements to chat sharing are the most impactful user-facing
+      updates. The version bump to v0.12 marks a significant project milestone.
+  social_video_recommendations:
+  - idea: A walkthrough of the new Edamam-powered nutrition search, showing how to find and view detailed recipe information.
+    priority: high
+    reason: Visual demonstration of a new third-party integration and its UI.
+    evidence:
+      commits:
+      - adf726d84
+  quality_notes:
+  - Multiple fixes were deployed to ensure example chats correctly render skill embeds and SEO metadata.
+  - App skill result quality was improved by refining JSON cleanup and stream consumption.
+  validation_warnings: []

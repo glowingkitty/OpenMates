@@ -1,0 +1,3427 @@
+schema_version: 1
+cadence: daily
+date: '2026-07-05'
+generated_at: '2026-07-09T15:52:33+00:00'
+range:
+  since: '2026-07-05T00:00:00+00:00'
+  until: '2026-07-05T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 65
+  section_counts:
+    features: 5
+    bug_fixes: 24
+    improvements: 0
+    docs: 8
+    tests: 28
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 3
+  user_facing_items: 25
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Apple PII attachment reveal parity'
+    section: features
+    commits:
+    - 583cb0ff5
+    authored_at: '2026-07-05T20:57:13+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add Apple PII reveal and highlight parity'
+    section: features
+    commits:
+    - c26932be0
+    authored_at: '2026-07-05T20:41:58+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: align Apple PII settings with web'
+    section: features
+    commits:
+    - 1c52ffc54
+    authored_at: '2026-07-05T19:12:20+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add macOS menu bar quick capture'
+    section: features
+    commits:
+    - 27a916945
+    authored_at: '2026-07-05T16:45:25+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:apple-watch, platform:ios, platform:macos'
+  - title: 'feat: add workflow input sessions'
+    section: features
+    commits:
+    - d9e97dadc
+    authored_at: '2026-07-05T16:05:45+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_input_security.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/core/directus/schemas/workflow_input_events.yml
+    - backend/core/directus/schemas/workflow_input_mutations.yml
+    - backend/core/directus/schemas/workflow_input_sessions.yml
+    - backend/tests/test_workflow_input_sessions.py
+    - backend/tests/workflow_test_utils.py
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:workflows, platform:projects, platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: app:workflows, platform:projects, platform:workflows'
+  bug_fixes:
+  - title: 'fix: repair Apple app skill shortcuts'
+    section: bug_fixes
+    commits:
+    - bd1c27201
+    authored_at: '2026-07-05T23:22:25+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Intents/OpenMatesShortcuts.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/CodeDocsIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/EventsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/HealthSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/HomeSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/ImageSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MailSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MapsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MathCalculateIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/NewsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/NutritionSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/ShoppingSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/SkillExecutor.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/TravelSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/VideoSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/WebSearchIntent.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: detect PII in Apple welcome composer'
+    section: bug_fixes
+    commits:
+    - 5110a4483
+    authored_at: '2026-07-05T22:40:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: rebuild API key settings flow'
+    section: bug_fixes
+    commits:
+    - c64a97f96
+    authored_at: '2026-07-05T22:34:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open workflow cards in editor'
+    section: bug_fixes
+    commits:
+    - 339ed24ec
+    authored_at: '2026-07-05T21:38:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: include Apple PII attachment upload mappings'
+    section: bug_fixes
+    commits:
+    - a29cb0153
+    authored_at: '2026-07-05T20:58:40+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: match Apple new chat responsive parity'
+    section: bug_fixes
+    commits:
+    - b1c7c148e
+    authored_at: '2026-07-05T20:52:41+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: map privacy filter JS spans'
+    section: bug_fixes
+    commits:
+    - 7defa5b6e
+    authored_at: '2026-07-05T20:50:36+00:00'
+    changed_paths:
+    - apple/Benchmarks/privacy_filter_benchmark.mjs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: clear workflow cards above input'
+    section: bug_fixes
+    commits:
+    - dc7d157a3
+    authored_at: '2026-07-05T20:39:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep workflows cards in one row'
+    section: bug_fixes
+    commits:
+    - f12335db4
+    authored_at: '2026-07-05T20:28:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: keep workflows home focused'
+    section: bug_fixes
+    commits:
+    - e940923d5
+    authored_at: '2026-07-05T20:17:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: match workflows home to chat welcome'
+    section: bug_fixes
+    commits:
+    - 9eff2bb6d
+    authored_at: '2026-07-05T19:15:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: load workspace inspirations by surface'
+    section: bug_fixes
+    commits:
+    - 9ecb753ef
+    authored_at: '2026-07-05T18:48:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose quick capture child test ids'
+    section: bug_fixes
+    commits:
+    - d73fde4cb
+    authored_at: '2026-07-05T18:38:30+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: unify workflows home shell'
+    section: bug_fixes
+    commits:
+    - 129ed152f
+    authored_at: '2026-07-05T18:30:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: restore background sender test build'
+    section: bug_fixes
+    commits:
+    - 5b8305e8b
+    authored_at: '2026-07-05T18:15:32+00:00'
+    changed_paths:
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: show recent workflows on mobile'
+    section: bug_fixes
+    commits:
+    - 5cbd27284
+    authored_at: '2026-07-05T17:31:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: mark quick capture labels main actor'
+    section: bug_fixes
+    commits:
+    - fd78409b6
+    authored_at: '2026-07-05T17:24:54+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: align workflows start screen with chat UI'
+    section: bug_fixes
+    commits:
+    - 436396c1b
+    authored_at: '2026-07-05T17:17:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:workflows'
+  - title: 'fix: encode background websocket payloads before send'
+    section: bug_fixes
+    commits:
+    - 295c43419
+    authored_at: '2026-07-05T17:09:30+00:00'
+    changed_paths:
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'fix: repair quick capture Apple build'
+    section: bug_fixes
+    commits:
+    - 1e0b36ed9
+    authored_at: '2026-07-05T16:56:03+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:apple-watch, platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:apple-watch, platform:ios, platform:macos'
+  - title: 'fix: add Apple local chat search highlighting'
+    section: bug_fixes
+    commits:
+    - 43c5749bb
+    authored_at: '2026-07-05T14:55:19+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: deploy TestFlight to iOS and macOS together'
+    section: bug_fixes
+    commits:
+    - c46934ae4
+    authored_at: '2026-07-05T14:29:11+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: repair iOS quick action photo flow'
+    section: bug_fixes
+    commits:
+    - 8509e4ca2
+    authored_at: '2026-07-05T09:10:34+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Sources/Features/Chat/Views/CameraView.swift
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: register iOS quick actions in app plist'
+    section: bug_fixes
+    commits:
+    - 2bac2c0f2
+    authored_at: '2026-07-05T00:01:35+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  improvements: []
+  docs:
+  - title: 'docs: verify Apple PII parity spec'
+    section: docs
+    commits:
+    - 447737b31
+    authored_at: '2026-07-05T23:03:22+00:00'
+    changed_paths:
+    - docs/specs/apple-pii-detection-web-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record quick capture TestFlight upload'
+    section: docs
+    commits:
+    - 5d2f16626
+    authored_at: '2026-07-05T21:46:16+00:00'
+    changed_paths:
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: waive quick capture TestFlight gate'
+    section: docs
+    commits:
+    - d1089bc7d
+    authored_at: '2026-07-05T21:33:15+00:00'
+    changed_paths:
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple PII attachment parity evidence'
+    section: docs
+    commits:
+    - c4166c0e9
+    authored_at: '2026-07-05T21:04:08+00:00'
+    changed_paths:
+    - docs/specs/apple-pii-detection-web-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record quick capture macOS UI blocker'
+    section: docs
+    commits:
+    - e445938cb
+    authored_at: '2026-07-05T19:57:36+00:00'
+    changed_paths:
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: add Apple PII parity spec'
+    section: docs
+    commits:
+    - b555282a2
+    authored_at: '2026-07-05T19:12:34+00:00'
+    changed_paths:
+    - docs/specs/apple-pii-detection-web-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record quick capture UI verification blocker'
+    section: docs
+    commits:
+    - 1d335e7d4
+    authored_at: '2026-07-05T17:53:10+00:00'
+    changed_paths:
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record workflows verification evidence'
+    section: docs
+    commits:
+    - a33452024
+    authored_at: '2026-07-05T16:49:33+00:00'
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: find existing E2E API keys in cleanup'
+    section: tests
+    commits:
+    - 42151b145
+    authored_at: '2026-07-05T23:01:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: pass Apple PII visibility fixture env'
+    section: tests
+    commits:
+    - 4fd3524c1
+    authored_at: '2026-07-05T22:53:50+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: disambiguate API key revoke confirmation'
+    section: tests
+    commits:
+    - 72d7c4058
+    authored_at: '2026-07-05T22:50:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: move Apple welcome PII regression'
+    section: tests
+    commits:
+    - 1369338df
+    authored_at: '2026-07-05T22:47:24+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expose Apple PII fixture toggle text'
+    section: tests
+    commits:
+    - 382600c61
+    authored_at: '2026-07-05T21:59:47+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: target Apple PII toggle labels'
+    section: tests
+    commits:
+    - 3d0576ae4
+    authored_at: '2026-07-05T21:57:21+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Apple PII visibility fixture'
+    section: tests
+    commits:
+    - 66b3fe1d6
+    authored_at: '2026-07-05T21:54:51+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: assert Apple PII fixture by labels'
+    section: tests
+    commits:
+    - 276812a20
+    authored_at: '2026-07-05T21:44:28+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: route Apple PII fixture via environment'
+    section: tests
+    commits:
+    - f55453afb
+    authored_at: '2026-07-05T21:40:01+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Apple PII fixture sentinel'
+    section: tests
+    commits:
+    - c97411701
+    authored_at: '2026-07-05T21:37:19+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: expose Apple PII UI container identifiers'
+    section: tests
+    commits:
+    - f879b2959
+    authored_at: '2026-07-05T21:33:42+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: use Apple PII banner component fixture'
+    section: tests
+    commits:
+    - ab815d5bf
+    authored_at: '2026-07-05T21:31:07+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: reset Apple PII fixture settings'
+    section: tests
+    commits:
+    - 862160ee9
+    authored_at: '2026-07-05T21:25:55+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: cover workflow card edit navigation'
+    section: tests
+    commits:
+    - f9acfaf26
+    authored_at: '2026-07-05T21:25:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:workflows'
+    - commit is reachable from main
+  - title: 'test: seed Apple PII composer UI fixture'
+    section: tests
+    commits:
+    - 85519fe49
+    authored_at: '2026-07-05T21:23:28+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize Apple PII composer UI lookup'
+    section: tests
+    commits:
+    - 8b7c31e0f
+    authored_at: '2026-07-05T21:19:33+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Apple PII composer visibility UI coverage'
+    section: tests
+    commits:
+    - b12b09beb
+    authored_at: '2026-07-05T21:12:42+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Transformers.js privacy filter benchmark'
+    section: tests
+    commits:
+    - 744f3abc0
+    authored_at: '2026-07-05T20:44:35+00:00'
+    changed_paths:
+    - apple/Benchmarks/privacy_filter_benchmark.mjs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align Apple PII category overlap coverage'
+    section: tests
+    commits:
+    - a00f9728f
+    authored_at: '2026-07-05T19:22:24+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Apple privacy filter benchmark'
+    section: tests
+    commits:
+    - cdaf2fa0a
+    authored_at: '2026-07-05T19:10:29+00:00'
+    changed_paths:
+    - apple/Benchmarks/privacy_filter_benchmark.py
+    - apple/Benchmarks/privacy_filter_fixtures.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add macOS quick capture UI scheme'
+    section: tests
+    commits:
+    - b1fa3dc58
+    authored_at: '2026-07-05T19:06:12+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_macOS.xcscheme
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: tolerate native send button label'
+    section: tests
+    commits:
+    - ef49c1bdc
+    authored_at: '2026-07-05T18:48:38+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: improve quick capture UI diagnostics'
+    section: tests
+    commits:
+    - 697468a03
+    authored_at: '2026-07-05T18:36:00+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: stabilize quick capture UI harness'
+    section: tests
+    commits:
+    - 340a05861
+    authored_at: '2026-07-05T18:25:10+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add quick capture UI harness'
+    section: tests
+    commits:
+    - 7e77aed47
+    authored_at: '2026-07-05T17:49:34+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add workflows input e2e coverage'
+    section: tests
+    commits:
+    - b64159ae4
+    authored_at: '2026-07-05T16:17:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:workflows, platform:workflows'
+    - commit is reachable from main
+  - title: 'test: align quick action title expectations'
+    section: tests
+    commits:
+    - 81bfb2384
+    authored_at: '2026-07-05T00:05:32+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: fix quick action assertion types'
+    section: tests
+    commits:
+    - 9a04bab50
+    authored_at: '2026-07-05T00:02:50+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: rebuild API key settings flow'
+    commits:
+    - c64a97f96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clear workflow cards above input'
+    commits:
+    - dc7d157a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: load workspace inspirations by surface'
+    commits:
+    - 9ecb753ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: repair Apple app skill shortcuts'
+    commits:
+    - bd1c27201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: detect PII in Apple welcome composer'
+    commits:
+    - 5110a4483
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: rebuild API key settings flow'
+    commits:
+    - c64a97f96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open workflow cards in editor'
+    commits:
+    - 339ed24ec
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: include Apple PII attachment upload mappings'
+    commits:
+    - a29cb0153
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Apple PII attachment reveal parity'
+    commits:
+    - 583cb0ff5
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: match Apple new chat responsive parity'
+    commits:
+    - b1c7c148e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Apple PII reveal and highlight parity'
+    commits:
+    - c26932be0
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: clear workflow cards above input'
+    commits:
+    - dc7d157a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep workflows cards in one row'
+    commits:
+    - f12335db4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep workflows home focused'
+    commits:
+    - e940923d5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: match workflows home to chat welcome'
+    commits:
+    - 9eff2bb6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: align Apple PII settings with web'
+    commits:
+    - 1c52ffc54
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: load workspace inspirations by surface'
+    commits:
+    - 9ecb753ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expose quick capture child test ids'
+    commits:
+    - d73fde4cb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: unify workflows home shell'
+    commits:
+    - 129ed152f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show recent workflows on mobile'
+    commits:
+    - 5cbd27284
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: mark quick capture labels main actor'
+    commits:
+    - fd78409b6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: align workflows start screen with chat UI'
+    commits:
+    - 436396c1b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: repair quick capture Apple build'
+    commits:
+    - 1e0b36ed9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add macOS menu bar quick capture'
+    commits:
+    - 27a916945
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add workflow input sessions'
+    commits:
+    - d9e97dadc
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:workflows
+      kind: app
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: backend/apps/workflows/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: add Apple local chat search highlighting'
+    commits:
+    - 43c5749bb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: repair iOS quick action photo flow'
+    commits:
+    - 8509e4ca2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: register iOS quick actions in app plist'
+    commits:
+    - 2bac2c0f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: bd1c2720142612f674d7aed173230da82068617d
+    short_sha: bd1c27201
+    authored_at: '2026-07-05T23:22:25+00:00'
+    subject: 'fix: repair Apple app skill shortcuts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Intents/OpenMatesShortcuts.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/CodeDocsIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/EventsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/HealthSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/HomeSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/ImageSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MailSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MapsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/MathCalculateIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/NewsSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/NutritionSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/ShoppingSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/SkillExecutor.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/TravelSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/VideoSearchIntent.swift
+    - apple/OpenMates/Sources/Core/Intents/Skills/WebSearchIntent.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 447737b315fee7a366ca194169cd4672d263e868
+    short_sha: 447737b31
+    authored_at: '2026-07-05T23:03:22+00:00'
+    subject: 'docs: verify Apple PII parity spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-pii-detection-web-parity/spec.yml
+    related_feature_ids: []
+  - sha: 42151b145c7e281101b80eb02d9c9d9e2e6d252a
+    short_sha: 42151b145
+    authored_at: '2026-07-05T23:01:47+00:00'
+    subject: 'test: find existing E2E API keys in cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 4fd3524c19d76ed98c64c6904fe8609b8629a976
+    short_sha: 4fd3524c1
+    authored_at: '2026-07-05T22:53:50+00:00'
+    subject: 'test: pass Apple PII visibility fixture env'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 72d7c4058c0d8855e405eaa40e68711e9117fbac
+    short_sha: 72d7c4058
+    authored_at: '2026-07-05T22:50:54+00:00'
+    subject: 'test: disambiguate API key revoke confirmation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 1369338df4de685cc66eb758fdaf74489b8a19f4
+    short_sha: 1369338df
+    authored_at: '2026-07-05T22:47:24+00:00'
+    subject: 'test: move Apple welcome PII regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5110a4483d1cbb78adcb3d762e452de88b3bd49b
+    short_sha: 5110a4483
+    authored_at: '2026-07-05T22:40:22+00:00'
+    subject: 'fix: detect PII in Apple welcome composer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c64a97f96a12451581a3bb119052b783b3aabe6c
+    short_sha: c64a97f96
+    authored_at: '2026-07-05T22:34:20+00:00'
+    subject: 'fix: rebuild API key settings flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: 382600c61082579d8f4f0818f0ec67f9b0d91b4a
+    short_sha: 382600c61
+    authored_at: '2026-07-05T21:59:47+00:00'
+    subject: 'test: expose Apple PII fixture toggle text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3d0576ae4f55934b13323e7dd6d5596e055fab73
+    short_sha: 3d0576ae4
+    authored_at: '2026-07-05T21:57:21+00:00'
+    subject: 'test: target Apple PII toggle labels'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 66b3fe1d6f210b460607722201d98fc53cc34fa8
+    short_sha: 66b3fe1d6
+    authored_at: '2026-07-05T21:54:51+00:00'
+    subject: 'test: add Apple PII visibility fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5d2f1662699656a8eae9d0d180bac0fa4f36da9b
+    short_sha: 5d2f16626
+    authored_at: '2026-07-05T21:46:16+00:00'
+    subject: 'docs: record quick capture TestFlight upload'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    related_feature_ids: []
+  - sha: 276812a203a9b2a5c86e77ff71ec9e249afa552a
+    short_sha: 276812a20
+    authored_at: '2026-07-05T21:44:28+00:00'
+    subject: 'test: assert Apple PII fixture by labels'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f55453afbb4eee33220330297821e82585184b3d
+    short_sha: f55453afb
+    authored_at: '2026-07-05T21:40:01+00:00'
+    subject: 'test: route Apple PII fixture via environment'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 339ed24ec8bbe8147af815354733363e1b78c0de
+    short_sha: 339ed24ec
+    authored_at: '2026-07-05T21:38:35+00:00'
+    subject: 'fix: open workflow cards in editor'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: c974117017caa05ac965cc28aeb551a2d2e282e2
+    short_sha: c97411701
+    authored_at: '2026-07-05T21:37:19+00:00'
+    subject: 'test: add Apple PII fixture sentinel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f879b2959c5c9b7d09641938cb3ba858cbe7a063
+    short_sha: f879b2959
+    authored_at: '2026-07-05T21:33:42+00:00'
+    subject: 'test: expose Apple PII UI container identifiers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d1089bc7d3b8ab9c16730991684200178f2e558f
+    short_sha: d1089bc7d
+    authored_at: '2026-07-05T21:33:15+00:00'
+    subject: 'docs: waive quick capture TestFlight gate'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    related_feature_ids: []
+  - sha: ab815d5bf5edf49abc305cf67c78af3dedd4accd
+    short_sha: ab815d5bf
+    authored_at: '2026-07-05T21:31:07+00:00'
+    subject: 'test: use Apple PII banner component fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 862160ee9e78ea57b90e5cd98871e8265e07b1b5
+    short_sha: 862160ee9
+    authored_at: '2026-07-05T21:25:55+00:00'
+    subject: 'test: reset Apple PII fixture settings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f9acfaf26627701f9b99cf91fb004ab86a44cef0
+    short_sha: f9acfaf26
+    authored_at: '2026-07-05T21:25:43+00:00'
+    subject: 'test: cover workflow card edit navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 85519fe497c761877072cd3be981d0599dd5f0a2
+    short_sha: 85519fe49
+    authored_at: '2026-07-05T21:23:28+00:00'
+    subject: 'test: seed Apple PII composer UI fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8b7c31e0f57a519d667f6a674ce1a82596c9b51c
+    short_sha: 8b7c31e0f
+    authored_at: '2026-07-05T21:19:33+00:00'
+    subject: 'test: stabilize Apple PII composer UI lookup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b12b09beb943aa46c957f023fc1d689a1f1f688d
+    short_sha: b12b09beb
+    authored_at: '2026-07-05T21:12:42+00:00'
+    subject: 'test: add Apple PII composer visibility UI coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c4166c0e926e8bc439ab15ba90fbed696449b151
+    short_sha: c4166c0e9
+    authored_at: '2026-07-05T21:04:08+00:00'
+    subject: 'docs: record Apple PII attachment parity evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-pii-detection-web-parity/spec.yml
+    related_feature_ids: []
+  - sha: a29cb01530d609a2575b4121ec7c419801107ee8
+    short_sha: a29cb0153
+    authored_at: '2026-07-05T20:58:40+00:00'
+    subject: 'fix: include Apple PII attachment upload mappings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 583cb0ff57a3b6765f6fdc712afab12afda5b03a
+    short_sha: 583cb0ff5
+    authored_at: '2026-07-05T20:57:13+00:00'
+    subject: 'feat: add Apple PII attachment reveal parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b1c7c148ee709e555ea507e732d4c903e7b4ac14
+    short_sha: b1c7c148e
+    authored_at: '2026-07-05T20:52:41+00:00'
+    subject: 'fix: match Apple new chat responsive parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 7defa5b6e3d1e4f8c320c58f2fdab8a459bc35b6
+    short_sha: 7defa5b6e
+    authored_at: '2026-07-05T20:50:36+00:00'
+    subject: 'fix: map privacy filter JS spans'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/Benchmarks/privacy_filter_benchmark.mjs
+    related_feature_ids: []
+  - sha: 744f3abc089cad27675e02fa6df5be490e0e9bc3
+    short_sha: 744f3abc0
+    authored_at: '2026-07-05T20:44:35+00:00'
+    subject: 'test: add Transformers.js privacy filter benchmark'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/Benchmarks/privacy_filter_benchmark.mjs
+    related_feature_ids: []
+  - sha: c26932be00745150af97c826d1ff12859aa3853c
+    short_sha: c26932be0
+    authored_at: '2026-07-05T20:41:58+00:00'
+    subject: 'feat: add Apple PII reveal and highlight parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: dc7d157a33dbe468139688a94b1051d01d3251d0
+    short_sha: dc7d157a3
+    authored_at: '2026-07-05T20:39:36+00:00'
+    subject: 'fix: clear workflow cards above input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids: []
+  - sha: f12335db40a2027576b77e837a7c1d6d67a66354
+    short_sha: f12335db4
+    authored_at: '2026-07-05T20:28:15+00:00'
+    subject: 'fix: keep workflows cards in one row'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: e940923d578d0da24f8cc08401d45dd043ca904c
+    short_sha: e940923d5
+    authored_at: '2026-07-05T20:17:43+00:00'
+    subject: 'fix: keep workflows home focused'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: e445938cbfbb6fb6a238789e05bc0f61c2896885
+    short_sha: e445938cb
+    authored_at: '2026-07-05T19:57:36+00:00'
+    subject: 'docs: record quick capture macOS UI blocker'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    related_feature_ids: []
+  - sha: a00f9728fc7ded1f2aa14445e5010d32e8d0789e
+    short_sha: a00f9728f
+    authored_at: '2026-07-05T19:22:24+00:00'
+    subject: 'test: align Apple PII category overlap coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9eff2bb6da88f46b4665c9402118ec2c7ef99eb6
+    short_sha: 9eff2bb6d
+    authored_at: '2026-07-05T19:15:52+00:00'
+    subject: 'fix: match workflows home to chat welcome'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: b555282a2a27e3f9c041227f3d179b9ecbc7898b
+    short_sha: b555282a2
+    authored_at: '2026-07-05T19:12:34+00:00'
+    subject: 'docs: add Apple PII parity spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-pii-detection-web-parity/spec.yml
+    related_feature_ids: []
+  - sha: 1c52ffc54c20babca040ac32bfca6bad2787d2e9
+    short_sha: 1c52ffc54
+    authored_at: '2026-07-05T19:12:20+00:00'
+    subject: 'feat: align Apple PII settings with web'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: cdaf2fa0a1b9475cf98ba1614dafca70f243ca1b
+    short_sha: cdaf2fa0a
+    authored_at: '2026-07-05T19:10:29+00:00'
+    subject: 'test: add Apple privacy filter benchmark'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/Benchmarks/privacy_filter_benchmark.py
+    - apple/Benchmarks/privacy_filter_fixtures.json
+    related_feature_ids: []
+  - sha: b1fa3dc58c35e5326dd1beeb08dddad88bb2837d
+    short_sha: b1fa3dc58
+    authored_at: '2026-07-05T19:06:12+00:00'
+    subject: 'test: add macOS quick capture UI scheme'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_macOS.xcscheme
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ef49c1bdc7b92174ae4c4ece16a96e0f389e0f8d
+    short_sha: ef49c1bdc
+    authored_at: '2026-07-05T18:48:38+00:00'
+    subject: 'test: tolerate native send button label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9ecb753ef3503d2fe3fe00bae6ced41881c011d8
+    short_sha: 9ecb753ef
+    authored_at: '2026-07-05T18:48:20+00:00'
+    subject: 'fix: load workspace inspirations by surface'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids: []
+  - sha: d73fde4cbe86018d4c32cdb5dd1e5097a9d0c48e
+    short_sha: d73fde4cb
+    authored_at: '2026-07-05T18:38:30+00:00'
+    subject: 'fix: expose quick capture child test ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 697468a03f967fe3cc31c85b737db38d79ce4aee
+    short_sha: 697468a03
+    authored_at: '2026-07-05T18:36:00+00:00'
+    subject: 'test: improve quick capture UI diagnostics'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 129ed152f2796499e8e9aa99bc7f1f28337e38ac
+    short_sha: 129ed152f
+    authored_at: '2026-07-05T18:30:09+00:00'
+    subject: 'fix: unify workflows home shell'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/stores/dailyInspirationStore.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 340a05861ba7538f71a92834a4cb648f63650fa8
+    short_sha: 340a05861
+    authored_at: '2026-07-05T18:25:10+00:00'
+    subject: 'test: stabilize quick capture UI harness'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5b8305e8ba2593f0a5ff24c68ad6dadf0a2e39c4
+    short_sha: 5b8305e8b
+    authored_at: '2026-07-05T18:15:32+00:00'
+    subject: 'fix: restore background sender test build'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 1d335e7d44121ca8c6789bcb2ef5eece46693f7b
+    short_sha: 1d335e7d4
+    authored_at: '2026-07-05T17:53:10+00:00'
+    subject: 'docs: record quick capture UI verification blocker'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    related_feature_ids: []
+  - sha: 7e77aed47a6dd314f4b11ff73396e4bd27ebfeae
+    short_sha: 7e77aed47
+    authored_at: '2026-07-05T17:49:34+00:00'
+    subject: 'test: add quick capture UI harness'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5cbd2728411f4b2225c79ec493b35faed8659d61
+    short_sha: 5cbd27284
+    authored_at: '2026-07-05T17:31:23+00:00'
+    subject: 'fix: show recent workflows on mobile'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: fd78409b6d19d1c210167cab746ad3d3fd7da9e2
+    short_sha: fd78409b6
+    authored_at: '2026-07-05T17:24:54+00:00'
+    subject: 'fix: mark quick capture labels main actor'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 436396c1b2334dae077fe845b52e5779764bb2f4
+    short_sha: 436396c1b
+    authored_at: '2026-07-05T17:17:01+00:00'
+    subject: 'fix: align workflows start screen with chat UI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    related_feature_ids:
+    - platform:workflows
+  - sha: 295c43419c79c81884ccf82cf41168a2c3f332b6
+    short_sha: 295c43419
+    authored_at: '2026-07-05T17:09:30+00:00'
+    subject: 'fix: encode background websocket payloads before send'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: 1e0b36ed9f130242340b58c4cb649a29d7a3bc16
+    short_sha: 1e0b36ed9
+    authored_at: '2026-07-05T16:56:03+00:00'
+    subject: 'fix: repair quick capture Apple build'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: a334520246936cd244daabd2d31fd81905123234
+    short_sha: a33452024
+    authored_at: '2026-07-05T16:49:33+00:00'
+    subject: 'docs: record workflows verification evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/workflows-v1/spec.yml
+    related_feature_ids: []
+  - sha: 27a9169450bad2a5d64f08fee4c3acf554ef5d05
+    short_sha: 27a916945
+    authored_at: '2026-07-05T16:45:25+00:00'
+    subject: 'feat: add macOS menu bar quick capture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    related_feature_ids:
+    - platform:apple-watch
+    - platform:ios
+    - platform:macos
+  - sha: b64159ae4762f4892c53d65c05329e0f45af9b46
+    short_sha: b64159ae4
+    authored_at: '2026-07-05T16:17:30+00:00'
+    subject: 'test: add workflows input e2e coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    related_feature_ids:
+    - app:workflows
+    - platform:workflows
+  - sha: d9e97dadca4a5f576d6f47efa64949fe46aa408c
+    short_sha: d9e97dadc
+    authored_at: '2026-07-05T16:05:45+00:00'
+    subject: 'feat: add workflow input sessions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_input_security.py
+    - backend/core/api/app/services/workflow_input_service.py
+    - backend/core/directus/schemas/workflow_input_events.yml
+    - backend/core/directus/schemas/workflow_input_mutations.yml
+    - backend/core/directus/schemas/workflow_input_sessions.yml
+    - backend/tests/test_workflow_input_sessions.py
+    - backend/tests/workflow_test_utils.py
+    - docs/specs/workflows-v1/spec.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_workflows.py
+    related_feature_ids:
+    - app:workflows
+    - platform:projects
+    - platform:workflows
+  - sha: 43c5749bb434f1ce2957efd9773d7b140b2cd43b
+    short_sha: 43c5749bb
+    authored_at: '2026-07-05T14:55:19+00:00'
+    subject: 'fix: add Apple local chat search highlighting'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: c46934ae41df1da607ffbe9bb7ae10ff6ff28417
+    short_sha: c46934ae4
+    authored_at: '2026-07-05T14:29:11+00:00'
+    subject: 'fix: deploy TestFlight to iOS and macOS together'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_testflight.py
+    related_feature_ids: []
+  - sha: 8509e4ca2c76ecd9a3d5ba3ca73343d473b747f7
+    short_sha: 8509e4ca2
+    authored_at: '2026-07-05T09:10:34+00:00'
+    subject: 'fix: repair iOS quick action photo flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Sources/Features/Chat/Views/CameraView.swift
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - frontend/packages/ui/src/i18n/sources/activity.yml
+    - scripts/apple_remote.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 81bfb238461345d321c4c0c495875948f82551b6
+    short_sha: 81bfb2384
+    authored_at: '2026-07-05T00:05:32+00:00'
+    subject: 'test: align quick action title expectations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9a04bab50fd510669b432d8866c8dc4d5b67628a
+    short_sha: 9a04bab50
+    authored_at: '2026-07-05T00:02:50+00:00'
+    subject: 'test: fix quick action assertion types'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2bac2c0f26642c4627a644d1e0223a87ea534779
+    short_sha: 2bac2c0f2
+    authored_at: '2026-07-05T00:01:35+00:00'
+    subject: 'fix: register iOS quick actions in app plist'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: OpenMates focused on developer experience and workspace stability today, rebuilding the API key management flow
+    and refining the workspace home shell. Significant progress was also made on unreleased features, including PII detection
+    parity for Apple platforms and the introduction of workflow input sessions.
+  released_changes:
+  - text: OpenMates introduced a rebuilt API key settings interface, providing a more robust flow for developer credentials.
+    evidence:
+      commits:
+      - c64a97f96
+    release_status: released_main
+  - text: The workspace home shell now supports surface-specific loading for daily inspirations.
+    evidence:
+      commits:
+      - 9ecb753ef
+    release_status: released_main
+  bug_fixes:
+  - text: The API key settings flow was rebuilt to improve the developer experience when managing and revoking keys.
+    evidence:
+      commits:
+      - c64a97f96
+    release_status: released_main
+  - text: A layout issue in the workspace home shell was resolved to ensure workflow cards are cleared correctly above the
+      input area.
+    evidence:
+      commits:
+      - dc7d157a3
+    release_status: released_main
+  - text: Workspace inspirations now load correctly based on the specific UI surface being accessed.
+    evidence:
+      commits:
+      - 9ecb753ef
+    release_status: released_main
+  unreleased_progress:
+  - text: PII detection, reveal, and highlighting features are being aligned between Apple platforms and the web application.
+    evidence:
+      commits:
+      - 583cb0ff5
+      - c26932be0
+      - 1c52ffc54
+      - 5110a4483
+      - a29cb0153
+    release_status: released_main
+  - text: A new macOS menu bar quick capture feature is under development, including background sender support.
+    evidence:
+      commits:
+      - 27a916945
+      - fd78409b6
+      - 1e0b36ed9
+    release_status: released_main
+  - text: Workflow input sessions were added to the backend and SDKs, enabling structured data collection within automated
+      workflows.
+    evidence:
+      commits:
+      - d9e97dadc
+    release_status: released_main
+  - text: App skill shortcuts and iOS quick actions for photos and chat management are being repaired and registered.
+    evidence:
+      commits:
+      - bd1c27201
+      - 8509e4ca2
+      - 2bac2c0f2
+    release_status: released_main
+  internal_progress:
+  - text: Deployment scripts were updated to support simultaneous TestFlight uploads for iOS and macOS.
+    evidence:
+      commits:
+      - c46934ae4
+    release_status: released_main
+  - text: New benchmarks and span mapping were added for the privacy filter using Transformers.js and Python.
+    evidence:
+      commits:
+      - 744f3abc0
+      - cdaf2fa0a
+      - 7defa5b6e
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Rebuilt API key management experience for developers.
+      evidence:
+        commits:
+        - c64a97f96
+      reason: The API key management flow is a significant improvement for developers and is ready for communication.
+    - text: Refinements to workspace inspiration loading and layout.
+      evidence:
+        commits:
+        - 9ecb753ef
+        - dc7d157a3
+      reason: These refinements improve the stability and layout of the workspace home shell.
+    exclude:
+    - text: Apple platform PII detection and search features.
+      evidence:
+        commits:
+        - 583cb0ff5
+        - c26932be0
+        - 1c52ffc54
+        - 5110a4483
+        - a29cb0153
+        - 43c5749bb
+      reason: PII detection and search highlighting for Apple platforms are currently unreleased.
+    - text: Apple platform quick capture and shortcut integrations.
+      evidence:
+        commits:
+        - 27a916945
+        - bd1c27201
+        - 8509e4ca2
+        - 2bac2c0f2
+      reason: macOS quick capture and iOS quick actions are currently unreleased.
+    - text: Workflow input sessions and workspace UI refinements.
+      evidence:
+        commits:
+        - d9e97dadc
+        - 339ed24ec
+        - f12335db4
+        - e940923d5
+        - 9eff2bb6d
+        - 129ed152f
+        - 5cbd27284
+        - 436396c1b
+      reason: Workflow input sessions and workspace home refinements are part of the unreleased Workflows application.
+    rationale: The primary released updates focus on developer settings and workspace stability, while major feature work
+      on Apple platforms and Workflows remains in an unreleased state.
+  social_video_recommendations:
+  - idea: A walkthrough of the new API key management interface, highlighting the improved revocation and creation flow.
+    priority: medium
+    reason: This is a concrete, user-facing improvement for the developer community.
+    evidence:
+      commits:
+      - c64a97f96
+  quality_notes:
+  - Extensive UI testing fixtures and benchmarks were added to ensure parity for PII detection across platforms.
+  - The project introduced SDK-level support for workflow input sessions, laying the groundwork for advanced automation features.
+  validation_warnings: []

@@ -1,0 +1,1107 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-13'
+generated_at: '2026-07-09T15:19:32+00:00'
+range:
+  since: '2026-05-13T00:00:00+00:00'
+  until: '2026-05-13T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 20
+  section_counts:
+    features: 5
+    bug_fixes: 12
+    improvements: 0
+    docs: 0
+    tests: 3
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 15
+  user_facing_items: 15
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Germany film industry example chat'
+    section: features
+    commits:
+    - 553ac29b6
+    authored_at: '2026-05-13T21:43:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/germany-historic-film-industry.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/germany_historic_film_industry.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: route travel searches by provider country'
+    section: features
+    commits:
+    - e2fc7b068
+    authored_at: '2026-05-13T15:56:41+00:00'
+    changed_paths:
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: prioritize timely continue items'
+    section: features
+    commits:
+    - da20a855e
+    authored_at: '2026-05-13T14:36:01+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
+    - frontend/packages/ui/src/services/continueCarouselService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add public event SEO page'
+    section: features
+    commits:
+    - 1ecbe43e4
+    authored_at: '2026-05-13T12:12:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add sidebar events section'
+    section: features
+    commits:
+    - dd9da7172
+    authored_at: '2026-05-13T11:39:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: compact skill card provider layout'
+    section: bug_fixes
+    commits:
+    - e65bc0797
+    authored_at: '2026-05-13T16:53:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open public event embeds correctly'
+    section: bug_fixes
+    commits:
+    - 1177b527d
+    authored_at: '2026-05-13T16:42:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reject mismatched chat key writes'
+    section: bug_fixes
+    commits:
+    - 77a17dc37
+    authored_at: '2026-05-13T16:01:37+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: retry chat sync after cache rewarming'
+    section: bug_fixes
+    commits:
+    - 60624ecb6
+    authored_at: '2026-05-13T16:01:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: gate embed memory actions by authentication'
+    section: bug_fixes
+    commits:
+    - 913e835ac
+    authored_at: '2026-05-13T14:51:57+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve vulnerable dependency alerts'
+    section: bug_fixes
+    commits:
+    - 5d77db43b
+    authored_at: '2026-05-13T14:25:37+00:00'
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/Dockerfile
+    - backend/preview/app/services/cache_service.py
+    - backend/preview/docker-compose.preview.yml
+    - backend/preview/requirements.txt
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - backend/tests/test_preview_cache_service.py
+    - backend/upload/requirements.txt
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent skill card description clipping'
+    section: bug_fixes
+    commits:
+    - 13d5124d3
+    authored_at: '2026-05-13T13:33:18+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide ended sidebar events'
+    section: bug_fixes
+    commits:
+    - a047a41f7
+    authored_at: '2026-05-13T13:32:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: refresh chat metadata after key recovery'
+    section: bug_fixes
+    commits:
+    - 98744c322
+    authored_at: '2026-05-13T12:20:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render grouped social media skills'
+    section: bug_fixes
+    commits:
+    - 762a850e8
+    authored_at: '2026-05-13T11:31:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve async skill task ids'
+    section: bug_fixes
+    commits:
+    - 4a0af5212
+    authored_at: '2026-05-13T09:49:09+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for fast social media async results'
+    section: bug_fixes
+    commits:
+    - 06f4ed57b
+    authored_at: '2026-05-13T08:29:01+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/tests/test_async_skill_continuation.py
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: insert fork mock marker exactly'
+    section: tests
+    commits:
+    - 384f5f15d
+    authored_at: '2026-05-13T10:45:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add share chat mock fixture'
+    section: tests
+    commits:
+    - 63ea6df76
+    authored_at: '2026-05-13T10:27:12+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/share_chat_flow.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: isolate social media celery stubs'
+    section: tests
+    commits:
+    - 4de9d9af6
+    authored_at: '2026-05-13T09:21:35+00:00'
+    changed_paths:
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_social_media_search_skill.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: reject mismatched chat key writes'
+    commits:
+    - 77a17dc37
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: route travel searches by provider country'
+    commits:
+    - e2fc7b068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: compact skill card provider layout'
+    commits:
+    - e65bc0797
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open public event embeds correctly'
+    commits:
+    - 1177b527d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reject mismatched chat key writes'
+    commits:
+    - 77a17dc37
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: route travel searches by provider country'
+    commits:
+    - e2fc7b068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: gate embed memory actions by authentication'
+    commits:
+    - 913e835ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: prioritize timely continue items'
+    commits:
+    - da20a855e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve vulnerable dependency alerts'
+    commits:
+    - 5d77db43b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent skill card description clipping'
+    commits:
+    - 13d5124d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide ended sidebar events'
+    commits:
+    - a047a41f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: refresh chat metadata after key recovery'
+    commits:
+    - 98744c322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add public event SEO page'
+    commits:
+    - 1ecbe43e4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add sidebar events section'
+    commits:
+    - dd9da7172
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render grouped social media skills'
+    commits:
+    - 762a850e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve async skill task ids'
+    commits:
+    - 4a0af5212
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for fast social media async results'
+    commits:
+    - 06f4ed57b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: compact skill card provider layout'
+    commits:
+    - e65bc0797
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open public event embeds correctly'
+    commits:
+    - 1177b527d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reject mismatched chat key writes'
+    commits:
+    - 77a17dc37
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: route travel searches by provider country'
+    commits:
+    - e2fc7b068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: gate embed memory actions by authentication'
+    commits:
+    - 913e835ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: prioritize timely continue items'
+    commits:
+    - da20a855e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve vulnerable dependency alerts'
+    commits:
+    - 5d77db43b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent skill card description clipping'
+    commits:
+    - 13d5124d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide ended sidebar events'
+    commits:
+    - a047a41f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: refresh chat metadata after key recovery'
+    commits:
+    - 98744c322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add public event SEO page'
+    commits:
+    - 1ecbe43e4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add sidebar events section'
+    commits:
+    - dd9da7172
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render grouped social media skills'
+    commits:
+    - 762a850e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve async skill task ids'
+    commits:
+    - 4a0af5212
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for fast social media async results'
+    commits:
+    - 06f4ed57b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 553ac29b608f9335d78622babded5032829ef1b6
+    short_sha: 553ac29b6
+    authored_at: '2026-05-13T21:43:06+00:00'
+    subject: 'feat: add Germany film industry example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/germany-historic-film-industry.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/germany_historic_film_industry.yml
+    related_feature_ids: []
+  - sha: e65bc0797fd355a369dea22ca0160e3ba6412592
+    short_sha: e65bc0797
+    authored_at: '2026-05-13T16:53:58+00:00'
+    subject: 'fix: compact skill card provider layout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    related_feature_ids: []
+  - sha: 1177b527d8958f28dcd1509b0162977fd47d59a4
+    short_sha: 1177b527d
+    authored_at: '2026-05-13T16:42:04+00:00'
+    subject: 'fix: open public event embeds correctly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 77a17dc37302202cf478ec308f894d952967c0ac
+    short_sha: 77a17dc37
+    authored_at: '2026-05-13T16:01:37+00:00'
+    subject: 'fix: reject mismatched chat key writes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    related_feature_ids: []
+  - sha: 60624ecb625dbc270582d620874630282a841c72
+    short_sha: 60624ecb6
+    authored_at: '2026-05-13T16:01:07+00:00'
+    subject: 'fix: retry chat sync after cache rewarming'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    related_feature_ids: []
+  - sha: e2fc7b068e1b3706e42c5b0bb9307281f8e01399
+    short_sha: e2fc7b068
+    authored_at: '2026-05-13T15:56:41+00:00'
+    subject: 'feat: route travel searches by provider country'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/app.yml
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/flix_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/tests/test_travel_search_connections.py
+    related_feature_ids: []
+  - sha: 913e835aceba36c24f6bb4f408d543420e9a4918
+    short_sha: 913e835ac
+    authored_at: '2026-05-13T14:51:57+00:00'
+    subject: 'fix: gate embed memory actions by authentication'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    related_feature_ids: []
+  - sha: da20a855e5ffc76c99ffa1e0e01e9f5422ae1dd5
+    short_sha: da20a855e
+    authored_at: '2026-05-13T14:36:01+00:00'
+    subject: 'feat: prioritize timely continue items'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
+    - frontend/packages/ui/src/services/continueCarouselService.ts
+    related_feature_ids: []
+  - sha: 5d77db43bd049645d75cdb0588ed50db4ac5bdc3
+    short_sha: 5d77db43b
+    authored_at: '2026-05-13T14:25:37+00:00'
+    subject: 'fix: resolve vulnerable dependency alerts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/Dockerfile
+    - backend/preview/app/services/cache_service.py
+    - backend/preview/docker-compose.preview.yml
+    - backend/preview/requirements.txt
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - backend/tests/test_preview_cache_service.py
+    - backend/upload/requirements.txt
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 13d5124d356ffe2d210ec81d92fd4a2f7d5a9cf9
+    short_sha: 13d5124d3
+    authored_at: '2026-05-13T13:33:18+00:00'
+    subject: 'fix: prevent skill card description clipping'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    related_feature_ids: []
+  - sha: a047a41f7beb1af27a8d51e4a4c71cb7d4460412
+    short_sha: a047a41f7
+    authored_at: '2026-05-13T13:32:35+00:00'
+    subject: 'fix: hide ended sidebar events'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: 98744c3227562bfdef56758784e9892c078cd7d8
+    short_sha: 98744c322
+    authored_at: '2026-05-13T12:20:17+00:00'
+    subject: 'fix: refresh chat metadata after key recovery'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/multi-tab-encryption.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 1ecbe43e42765e5ede66fdf99ebefb5c49388052
+    short_sha: 1ecbe43e4
+    authored_at: '2026-05-13T12:12:17+00:00'
+    subject: 'feat: add public event SEO page'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/index.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    related_feature_ids: []
+  - sha: dd9da71727ce3e2af7ae8bdcc924317f84123bda
+    short_sha: dd9da7172
+    authored_at: '2026-05-13T11:39:31+00:00'
+    subject: 'feat: add sidebar events section'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: 762a850e82ab56829a3b65a0e2322f8f6dedcf03
+    short_sha: 762a850e8
+    authored_at: '2026-05-13T11:31:12+00:00'
+    subject: 'fix: render grouped social media skills'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: 384f5f15d03fcd53d2bd054e0d38c8d8fb7d2dea
+    short_sha: 384f5f15d
+    authored_at: '2026-05-13T10:45:29+00:00'
+    subject: 'test: insert fork mock marker exactly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    related_feature_ids: []
+  - sha: 63ea6df761e15fa1c9d19d9f6630b721908f7c41
+    short_sha: 63ea6df76
+    authored_at: '2026-05-13T10:27:12+00:00'
+    subject: 'test: add share chat mock fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/share_chat_flow.json
+    related_feature_ids: []
+  - sha: 4a0af52126661061e389ba2331d12f1c7d3ae2e1
+    short_sha: 4a0af5212
+    authored_at: '2026-05-13T09:49:09+00:00'
+    subject: 'fix: preserve async skill task ids'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    related_feature_ids: []
+  - sha: 4de9d9af6b888fafdb81cc735235c3c4d214db8a
+    short_sha: 4de9d9af6
+    authored_at: '2026-05-13T09:21:35+00:00'
+    subject: 'test: isolate social media celery stubs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_social_media_get_posts_async.py
+    - backend/tests/test_social_media_search_skill.py
+    related_feature_ids: []
+  - sha: 06f4ed57b1a0c7de6e3e5f2fcbf63cb41647965f
+    short_sha: 06f4ed57b
+    authored_at: '2026-05-13T08:29:01+00:00'
+    subject: 'fix: wait for fast social media async results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/tests/test_async_skill_continuation.py
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced public event SEO pages and a dedicated sidebar events section. Travel searches are now routed
+    by provider country for better accuracy, and the 'continue' carousel prioritizes timely items. Security updates include
+    authenticated memory actions and improved handling of encrypted chat metadata.
+  released_changes:
+  - text: Public event SEO pages and a dedicated sidebar section for events were added to the web application.
+    evidence:
+      commits:
+      - 1ecbe43e4
+      - dd9da7172
+    release_status: released_main
+  - text: Travel searches now route through providers based on the country of the provider.
+    evidence:
+      commits:
+      - e2fc7b068
+    release_status: released_main
+  - text: The 'continue' carousel was updated to prioritize items based on timeliness.
+    evidence:
+      commits:
+      - da20a855e
+    release_status: released_main
+  - text: Social media skill rendering was improved for grouped results and asynchronous task handling.
+    evidence:
+      commits:
+      - 762a850e8
+      - 4a0af5212
+      - 06f4ed57b
+    release_status: released_main
+  bug_fixes:
+  - text: Public event embeds now open correctly, and ended events are automatically hidden from the sidebar.
+    evidence:
+      commits:
+      - 1177b527d
+      - a047a41f7
+    release_status: released_main
+  - text: Skill cards in the app store received layout fixes to prevent description clipping and provide a more compact provider
+      view.
+    evidence:
+      commits:
+      - 13d5124d3
+      - e65bc0797
+    release_status: released_main
+  - text: Security was enhanced by gating memory actions behind authentication and rejecting mismatched chat key writes during
+      WebSocket communication.
+    evidence:
+      commits:
+      - 913e835ac
+      - 77a17dc37
+    release_status: released_main
+  - text: Chat metadata now refreshes automatically following a successful key recovery.
+    evidence:
+      commits:
+      - 98744c322
+    release_status: released_main
+  - text: Vulnerable dependencies were updated across the backend and frontend packages.
+    evidence:
+      commits:
+      - 5d77db43b
+    release_status: released_main
+  unreleased_progress:
+  - text: A new example chat for the German film industry was added to the demo data.
+    evidence:
+      commits:
+      - 553ac29b6
+    release_status: released_main
+  - text: Chat synchronization logic was refined to retry after cache rewarming phases.
+    evidence:
+      commits:
+      - 60624ecb6
+    release_status: released_main
+  internal_progress:
+  - text: Test coverage was expanded for social media celery stubs, chat sharing flows, and conversation forking.
+    evidence:
+      commits:
+      - 4de9d9af6
+      - 63ea6df76
+      - 384f5f15d
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Public event SEO pages.
+      evidence:
+        commits:
+        - 1ecbe43e4
+      reason: New public-facing SEO feature for events.
+    - text: Travel search routing by provider country.
+      evidence:
+        commits:
+        - e2fc7b068
+      reason: Significant improvement to travel search accuracy.
+    - text: Prioritized timely items in the continue carousel.
+      evidence:
+        commits:
+        - da20a855e
+      reason: User-facing UX improvement for the continue carousel.
+    - text: Authenticated gating for embed memory actions.
+      evidence:
+        commits:
+        - 913e835ac
+      reason: Important security update for user data.
+    exclude:
+    - text: Germany film industry example chat.
+      evidence:
+        commits:
+        - 553ac29b6
+      reason: Classified as not user-facing.
+    - text: Chat sync retry logic.
+      evidence:
+        commits:
+        - 60624ecb6
+      reason: Internal synchronization logic update.
+    rationale: The update introduces significant new public-facing surfaces for events and improves the intelligence of travel
+      and carousel features, alongside critical security hardening.
+  social_video_recommendations:
+  - idea: Showcase the new public event SEO pages and how they integrate into the sidebar for easy discovery.
+    priority: high
+    reason: This is a highly visible new feature that changes how users interact with events on the platform.
+    evidence:
+      commits:
+      - 1ecbe43e4
+      - dd9da7172
+  - idea: Demonstrate the 'continue' carousel prioritizing recent or relevant items to show improved UX flow.
+    priority: medium
+    reason: Provides a concrete example of the platform becoming more 'intelligent' and responsive to user timing.
+    evidence:
+      commits:
+      - da20a855e
+  quality_notes:
+  - Dependency vulnerabilities were addressed project-wide.
+  - Asynchronous skill handling for social media was stabilized to prevent task ID loss.
+  validation_warnings: []

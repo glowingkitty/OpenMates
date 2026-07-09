@@ -1,0 +1,1328 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-14'
+generated_at: '2026-07-09T15:19:52+00:00'
+range:
+  since: '2026-05-14T00:00:00+00:00'
+  until: '2026-05-14T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 29
+  section_counts:
+    features: 2
+    bug_fixes: 25
+    improvements: 0
+    docs: 0
+    tests: 1
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 16
+  user_facing_items: 16
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(newsletter): prepare meetup email'
+    section: features
+    commits:
+    - 95d3a256b
+    authored_at: '2026-05-14T14:42:49+00:00'
+    changed_paths:
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/newsletters/issues/openmates-meetup-may-19.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_openmates_meetup_may_19.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add DeepSeek V4 model support'
+    section: features
+    commits:
+    - 6eaa21ff8
+    authored_at: '2026-05-14T10:34:56+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_maas_client.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/providers/deepseek.yml
+    - backend/scripts/aggregate_leaderboards.py
+    - backend/scripts/test_deepseek_v3_2.py
+    - backend/scripts/test_deepseek_v4_flash.py
+    - backend/scripts/test_deepseek_v4_models.py
+    - backend/tests/test_rest_api_ai.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - shared/docs/privacy_policy.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: emit title_generated event before awaiting summary translation'
+    section: bug_fixes
+    commits:
+    - efbf95fe7
+    authored_at: '2026-05-14T20:23:48+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: require generated translation JSON at runtime'
+    section: bug_fixes
+    commits:
+    - '706096817'
+    authored_at: '2026-05-14T18:51:03+00:00'
+    changed_paths:
+    - backend/core/api/app/services/translations.py
+    - backend/tests/test_translation_service.py
+    - docs/contributing/guides/git-and-deployment.md
+    - scripts/sessions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: warm translations before celery forks'
+    section: bug_fixes
+    commits:
+    - d29773d88
+    authored_at: '2026-05-14T18:43:34+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: warm translation cache on boot'
+    section: bug_fixes
+    commits:
+    - a3760c66a
+    authored_at: '2026-05-14T17:28:44+00:00'
+    changed_paths:
+    - backend/core/api/app/services/translations.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/tests/test_celery_config.py
+    - backend/tests/test_translation_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: hide saved embed memory prompt'
+    section: bug_fixes
+    commits:
+    - 2face5e0a
+    authored_at: '2026-05-14T17:27:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: mask email template debug logs'
+    section: bug_fixes
+    commits:
+    - 9d294042a
+    authored_at: '2026-05-14T16:36:19+00:00'
+    changed_paths:
+    - backend/core/api/app/services/email/variable_processor.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: add carousel top padding for priority pill'
+    section: bug_fixes
+    commits:
+    - 0740d8923
+    authored_at: '2026-05-14T16:09:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align saved embed carousel card'
+    section: bug_fixes
+    commits:
+    - '105072980'
+    authored_at: '2026-05-14T15:48:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: place saved embed priority pill above preview'
+    section: bug_fixes
+    commits:
+    - 4eef509bf
+    authored_at: '2026-05-14T15:33:04+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show saved embed priority pill'
+    section: bug_fixes
+    commits:
+    - d557c0217
+    authored_at: '2026-05-14T15:28:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: enrich saved event carousel previews'
+    section: bug_fixes
+    commits:
+    - 0164e49fa
+    authored_at: '2026-05-14T15:18:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render saved event previews in continue carousel'
+    section: bug_fixes
+    commits:
+    - 74575f322
+    authored_at: '2026-05-14T14:59:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: sanitize external search results'
+    section: bug_fixes
+    commits:
+    - dea573e4e
+    authored_at: '2026-05-14T14:50:06+00:00'
+    changed_paths:
+    - backend/apps/images/skills/search_skill.py
+    - backend/apps/nutrition/skills/search_recipes.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore saved embed previews in continue carousel'
+    section: bug_fixes
+    commits:
+    - cd561828c
+    authored_at: '2026-05-14T14:46:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove broken example embed reference'
+    section: bug_fixes
+    commits:
+    - 5f977a680
+    authored_at: '2026-05-14T11:36:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/germany-historic-film-industry.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/germany_historic_film_industry.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve embed preview alignment in welcome carousel'
+    section: bug_fixes
+    commits:
+    - 49c9f438a
+    authored_at: '2026-05-14T11:21:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore large event preview title'
+    section: bug_fixes
+    commits:
+    - 9259e4920
+    authored_at: '2026-05-14T11:08:21+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render friendly embed inline labels'
+    section: bug_fixes
+    commits:
+    - f85a56890
+    authored_at: '2026-05-14T11:06:14+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/embed_display_text.py
+    - backend/tests/test_embed_link_fixes.py
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/utils/embedDisplayText.ts
+    - frontend/packages/ui/src/utils/embedLinkUtils.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: update OpenMates meetup coordinates'
+    section: bug_fixes
+    commits:
+    - 8a921a338
+    authored_at: '2026-05-14T10:58:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: update OpenMates meetup location'
+    section: bug_fixes
+    commits:
+    - 0f89d7918
+    authored_at: '2026-05-14T10:57:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: improve event embed preview layout'
+    section: bug_fixes
+    commits:
+    - 6d6a86318
+    authored_at: '2026-05-14T10:55:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove broken example chat image'
+    section: bug_fixes
+    commits:
+    - a6096a485
+    authored_at: '2026-05-14T10:51:40+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/germany-historic-film-industry.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore DeepSeek announcement links'
+    section: bug_fixes
+    commits:
+    - 3eb85ae54
+    authored_at: '2026-05-14T10:36:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: only split fullscreen embeds with chat context'
+    section: bug_fixes
+    commits:
+    - 460cbb682
+    authored_at: '2026-05-14T10:33:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent faded welcome content clicks'
+    section: bug_fixes
+    commits:
+    - 5c6fc5056
+    authored_at: '2026-05-14T10:31:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: report chat response latency'
+    section: tests
+    commits:
+    - 2bb1de7c8
+    authored_at: '2026-05-14T17:31:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'Merge pull request #396 from glowingkitty/dev'
+    section: other
+    commits:
+    - 74e63c8df
+    authored_at: '2026-05-14T18:17:46+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: emit title_generated event before awaiting summary translation'
+    commits:
+    - efbf95fe7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add carousel top padding for priority pill'
+    commits:
+    - 0740d8923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align saved embed carousel card'
+    commits:
+    - '105072980'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: place saved embed priority pill above preview'
+    commits:
+    - 4eef509bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show saved embed priority pill'
+    commits:
+    - d557c0217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enrich saved event carousel previews'
+    commits:
+    - 0164e49fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render saved event previews in continue carousel'
+    commits:
+    - 74575f322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: sanitize external search results'
+    commits:
+    - dea573e4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore saved embed previews in continue carousel'
+    commits:
+    - cd561828c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve embed preview alignment in welcome carousel'
+    commits:
+    - 49c9f438a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore large event preview title'
+    commits:
+    - 9259e4920
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render friendly embed inline labels'
+    commits:
+    - f85a56890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve event embed preview layout'
+    commits:
+    - 6d6a86318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add DeepSeek V4 model support'
+    commits:
+    - 6eaa21ff8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: only split fullscreen embeds with chat context'
+    commits:
+    - 460cbb682
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent faded welcome content clicks'
+    commits:
+    - 5c6fc5056
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: emit title_generated event before awaiting summary translation'
+    commits:
+    - efbf95fe7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add carousel top padding for priority pill'
+    commits:
+    - 0740d8923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align saved embed carousel card'
+    commits:
+    - '105072980'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: place saved embed priority pill above preview'
+    commits:
+    - 4eef509bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show saved embed priority pill'
+    commits:
+    - d557c0217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enrich saved event carousel previews'
+    commits:
+    - 0164e49fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render saved event previews in continue carousel'
+    commits:
+    - 74575f322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: sanitize external search results'
+    commits:
+    - dea573e4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore saved embed previews in continue carousel'
+    commits:
+    - cd561828c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve embed preview alignment in welcome carousel'
+    commits:
+    - 49c9f438a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore large event preview title'
+    commits:
+    - 9259e4920
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render friendly embed inline labels'
+    commits:
+    - f85a56890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve event embed preview layout'
+    commits:
+    - 6d6a86318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add DeepSeek V4 model support'
+    commits:
+    - 6eaa21ff8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: only split fullscreen embeds with chat context'
+    commits:
+    - 460cbb682
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent faded welcome content clicks'
+    commits:
+    - 5c6fc5056
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: efbf95fe797a5167429c45bc231309de9328420f
+    short_sha: efbf95fe7
+    authored_at: '2026-05-14T20:23:48+00:00'
+    subject: 'fix: emit title_generated event before awaiting summary translation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    related_feature_ids: []
+  - sha: 70609681723de6cd870f0ebf01473964a71f70a7
+    short_sha: '706096817'
+    authored_at: '2026-05-14T18:51:03+00:00'
+    subject: 'fix: require generated translation JSON at runtime'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/translations.py
+    - backend/tests/test_translation_service.py
+    - docs/contributing/guides/git-and-deployment.md
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: d29773d8827eecf4d3b5869d915b7d122356e692
+    short_sha: d29773d88
+    authored_at: '2026-05-14T18:43:34+00:00'
+    subject: 'fix: warm translations before celery forks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/celery_config.py
+    related_feature_ids: []
+  - sha: 2bb1de7c827da38d1065460aa20e0c3a2f12685e
+    short_sha: 2bb1de7c8
+    authored_at: '2026-05-14T17:31:18+00:00'
+    subject: 'test: report chat response latency'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: a3760c66a1dbb650dedb47366ab8dbd98dd52afa
+    short_sha: a3760c66a
+    authored_at: '2026-05-14T17:28:44+00:00'
+    subject: 'fix: warm translation cache on boot'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/translations.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/main.py
+    - backend/tests/test_celery_config.py
+    - backend/tests/test_translation_service.py
+    related_feature_ids: []
+  - sha: 2face5e0af908acc7734f0b72936e5974add0dab
+    short_sha: 2face5e0a
+    authored_at: '2026-05-14T17:27:46+00:00'
+    subject: 'fix: hide saved embed memory prompt'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    related_feature_ids: []
+  - sha: 9d294042a6842f40f4b46f6df41bc5a094e12724
+    short_sha: 9d294042a
+    authored_at: '2026-05-14T16:36:19+00:00'
+    subject: 'fix: mask email template debug logs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/email/variable_processor.py
+    related_feature_ids: []
+  - sha: 74e63c8df813e2b2a31dca5b98fcea62b60c596a
+    short_sha: 74e63c8df
+    authored_at: '2026-05-14T18:17:46+02:00'
+    subject: 'Merge pull request #396 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 0740d89237b1e9f085e40f625afc2ad424f24148
+    short_sha: 0740d8923
+    authored_at: '2026-05-14T16:09:20+00:00'
+    subject: 'fix: add carousel top padding for priority pill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 105072980e9ac56130cec6926051a7be887d3e5c
+    short_sha: '105072980'
+    authored_at: '2026-05-14T15:48:05+00:00'
+    subject: 'fix: align saved embed carousel card'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    related_feature_ids: []
+  - sha: 4eef509bf8731b2de6c822853815525ce7d1db91
+    short_sha: 4eef509bf
+    authored_at: '2026-05-14T15:33:04+00:00'
+    subject: 'fix: place saved embed priority pill above preview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    related_feature_ids: []
+  - sha: d557c02172c6f315731df25755fe43bbfb767416
+    short_sha: d557c0217
+    authored_at: '2026-05-14T15:28:30+00:00'
+    subject: 'fix: show saved embed priority pill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    related_feature_ids: []
+  - sha: 0164e49fa7027e689c7fc44368db4cd4563f2f81
+    short_sha: 0164e49fa
+    authored_at: '2026-05-14T15:18:50+00:00'
+    subject: 'fix: enrich saved event carousel previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    related_feature_ids: []
+  - sha: 74575f322aa66264ad0381ae6901a3435fa5e741
+    short_sha: 74575f322
+    authored_at: '2026-05-14T14:59:15+00:00'
+    subject: 'fix: render saved event previews in continue carousel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    related_feature_ids: []
+  - sha: dea573e4e03eba36978f62e376333b45f61eb8be
+    short_sha: dea573e4e
+    authored_at: '2026-05-14T14:50:06+00:00'
+    subject: 'fix: sanitize external search results'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/images/skills/search_skill.py
+    - backend/apps/nutrition/skills/search_recipes.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    related_feature_ids: []
+  - sha: cd561828c3fb23055ec1496cb16be5dbee78c589
+    short_sha: cd561828c
+    authored_at: '2026-05-14T14:46:54+00:00'
+    subject: 'fix: restore saved embed previews in continue carousel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/SavedEmbedContinuePreview.svelte
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    related_feature_ids: []
+  - sha: 95d3a256b1d80eb4dc418d24f661dc03fdea937a
+    short_sha: 95d3a256b
+    authored_at: '2026-05-14T14:42:49+00:00'
+    subject: 'feat(newsletter): prepare meetup email'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/newsletters/issues/openmates-meetup-may-19.yml
+    - backend/scripts/publish_newsletter.py
+    - backend/scripts/send_newsletter.py
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_openmates_meetup_may_19.yml
+    related_feature_ids: []
+  - sha: 5f977a6801cd4d68a1466be71fd000a334c6bb7a
+    short_sha: 5f977a680
+    authored_at: '2026-05-14T11:36:41+00:00'
+    subject: 'fix: remove broken example embed reference'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/germany-historic-film-industry.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/germany_historic_film_industry.yml
+    related_feature_ids: []
+  - sha: 49c9f438a5e2c282eebafc0ede0ebc9ffc01ecd3
+    short_sha: 49c9f438a
+    authored_at: '2026-05-14T11:21:39+00:00'
+    subject: 'fix: preserve embed preview alignment in welcome carousel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: 9259e49200f15d74f0f6e6190a2377df09e06cbc
+    short_sha: 9259e4920
+    authored_at: '2026-05-14T11:08:21+00:00'
+    subject: 'fix: restore large event preview title'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: f85a56890dbb263f79bc7ec08734dce7317ba13e
+    short_sha: f85a56890
+    authored_at: '2026-05-14T11:06:14+00:00'
+    subject: 'fix: render friendly embed inline labels'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/embed_display_text.py
+    - backend/tests/test_embed_link_fixes.py
+    - frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
+    - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/utils/embedDisplayText.ts
+    - frontend/packages/ui/src/utils/embedLinkUtils.ts
+    related_feature_ids: []
+  - sha: 8a921a338e5399e4f8f48b3ce560824086a7ffe3
+    short_sha: 8a921a338
+    authored_at: '2026-05-14T10:58:59+00:00'
+    subject: 'fix: update OpenMates meetup coordinates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    related_feature_ids: []
+  - sha: 0f89d79183be0a60947ace8fa2d017600a252a2f
+    short_sha: 0f89d7918
+    authored_at: '2026-05-14T10:57:03+00:00'
+    subject: 'fix: update OpenMates meetup location'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    related_feature_ids: []
+  - sha: 6d6a863183f57a2dfdf57efd0ec1512aed25dfaf
+    short_sha: 6d6a86318
+    authored_at: '2026-05-14T10:55:00+00:00'
+    subject: 'fix: improve event embed preview layout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: a6096a485cacd86c3c8cbfff2fa671b9f4a8d90f
+    short_sha: a6096a485
+    authored_at: '2026-05-14T10:51:40+00:00'
+    subject: 'fix: remove broken example chat image'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/germany-historic-film-industry.ts
+    related_feature_ids: []
+  - sha: 3eb85ae54824ba04a9ebd3295a424e3aa71c1081
+    short_sha: 3eb85ae54
+    authored_at: '2026-05-14T10:36:38+00:00'
+    subject: 'fix: restore DeepSeek announcement links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    related_feature_ids: []
+  - sha: 6eaa21ff8adca0138b815ea70353ad7448dda0a9
+    short_sha: 6eaa21ff8
+    authored_at: '2026-05-14T10:34:56+00:00'
+    subject: 'feat: add DeepSeek V4 model support'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_maas_client.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/model_selector.py
+    - backend/providers/deepseek.yml
+    - backend/scripts/aggregate_leaderboards.py
+    - backend/scripts/test_deepseek_v3_2.py
+    - backend/scripts/test_deepseek_v4_flash.py
+    - backend/scripts/test_deepseek_v4_models.py
+    - backend/tests/test_rest_api_ai.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 460cbb682fa2ba0634b6b795b70d48c01ae3720e
+    short_sha: 460cbb682
+    authored_at: '2026-05-14T10:33:02+00:00'
+    subject: 'fix: only split fullscreen embeds with chat context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: 5c6fc50561d2c466294958dbc6f10c77b5372070
+    short_sha: 5c6fc5056
+    authored_at: '2026-05-14T10:31:03+00:00'
+    subject: 'fix: prevent faded welcome content clicks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced support for DeepSeek V4 models and implemented a comprehensive series of refinements to the
+    user interface, specifically focusing on embed previews and the chat carousel.
+  released_changes:
+  - text: OpenMates added support for DeepSeek V4 models, including integration with the model selector and updated privacy
+      documentation.
+    evidence:
+      commits:
+      - 6eaa21ff8
+    release_status: released_main
+  - text: The 'continue' carousel now features restored and enriched previews for saved embeds and events, including improved
+      alignment for priority pills and card layouts.
+    evidence:
+      commits:
+      - cd561828c
+      - 74575f322
+      - 0164e49fa
+      - d557c0217
+      - 4eef509bf
+      - '105072980'
+    release_status: released_main
+  - text: Event embed previews received several layout improvements, including restored large titles, better alignment in
+      the welcome carousel, and corrected padding.
+    evidence:
+      commits:
+      - 6d6a86318
+      - 9259e4920
+      - 49c9f438a
+      - 0740d8923
+    release_status: released_main
+  - text: Inline labels for embeds are now rendered more clearly within the chat interface.
+    evidence:
+      commits:
+      - f85a56890
+    release_status: released_main
+  bug_fixes:
+  - text: External search results for images, nutrition, shopping, and social media are now sanitized before processing.
+    evidence:
+      commits:
+      - dea573e4e
+    release_status: released_main
+  - text: The title_generated event is now emitted before awaiting summary translations to ensure timely UI updates.
+    evidence:
+      commits:
+      - efbf95fe7
+    release_status: released_main
+  - text: Fullscreen embeds now only utilize a split-view layout when active chat context is available.
+    evidence:
+      commits:
+      - 460cbb682
+    release_status: released_main
+  - text: Interaction with faded welcome content is now prevented to avoid accidental clicks.
+    evidence:
+      commits:
+      - 5c6fc5056
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: Translation caches are now warmed during system boot and before Celery worker forks to improve runtime performance.
+    evidence:
+      commits:
+      - a3760c66a
+      - d29773d88
+      - '706096817'
+    release_status: released_main
+  - text: Infrastructure for the upcoming May 19 meetup was prepared, including email templates and updated location coordinates.
+    evidence:
+      commits:
+      - 95d3a256b
+      - 8a921a338
+      - 0f89d7918
+    release_status: released_main
+  - text: Debug logs for email template variable processing are now masked for improved security.
+    evidence:
+      commits:
+      - 9d294042a
+    release_status: released_main
+  - text: Automated chat flow tests now include latency reporting for response times.
+    evidence:
+      commits:
+      - 2bb1de7c8
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Support for DeepSeek V4 models.
+      evidence:
+        commits:
+        - 6eaa21ff8
+      reason: This is a major model update providing users with more AI options.
+    - text: Restored and enriched previews for saved events and embeds in the continue carousel.
+      evidence:
+        commits:
+        - cd561828c
+        - 74575f322
+        - 0164e49fa
+      reason: These fixes significantly improve the visual quality and reliability of the chat history carousel.
+    - text: Enhanced rendering of friendly inline labels for embeds.
+      evidence:
+        commits:
+        - f85a56890
+      reason: Improves the readability of links and references within chat messages.
+    exclude:
+    - text: Meetup email template preparation.
+      evidence:
+        commits:
+        - 95d3a256b
+      reason: This commit involves internal preparation for a future event and is marked as not user-facing.
+    - text: Translation cache warming.
+      evidence:
+        commits:
+        - a3760c66a
+        - d29773d88
+      reason: These are backend performance optimizations that do not change the user experience directly.
+    rationale: The addition of DeepSeek V4 is the primary feature update, while the extensive refinements to the embed carousel
+      and preview system significantly improve the core chat experience.
+  social_video_recommendations:
+  - idea: Showcase the new DeepSeek V4 model in action within the OpenMates interface.
+    priority: high
+    reason: New model support is a high-interest feature for AI users.
+    evidence:
+      commits:
+      - 6eaa21ff8
+  - idea: A quick walkthrough of the 'continue' carousel showing how saved events and embeds now look more detailed.
+    priority: medium
+    reason: Visual improvements to the dashboard are easy to demonstrate and improve perceived quality.
+    evidence:
+      commits:
+      - cd561828c
+      - 74575f322
+      - 0164e49fa
+  quality_notes:
+  - Significant focus on UI polish for the 'continue' carousel and event previews.
+  - Proactive sanitization of external data sources added to search skills.
+  - Performance optimizations for the translation service.
+  validation_warnings: []

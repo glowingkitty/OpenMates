@@ -1,0 +1,4510 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-15'
+generated_at: '2026-07-09T15:42:31+00:00'
+range:
+  since: '2026-06-15T00:00:00+00:00'
+  until: '2026-06-15T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 92
+  section_counts:
+    features: 24
+    bug_fixes: 38
+    improvements: 0
+    docs: 8
+    tests: 21
+    infrastructure: 0
+    internal: 1
+    other: 0
+  newsletter_ready_items: 41
+  user_facing_items: 50
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: select Calendar permission actions'
+    section: features
+    commits:
+    - cd25d28b3
+    authored_at: '2026-06-15T23:54:24+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/connected_account_permission_confirmed_handler.py
+    - backend/tests/test_connected_account_permission_confirmed_handler.py
+    - frontend/packages/ui/src/components/ConnectedAccountPermissionDialog.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/stores/connectedAccountPermissionStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: show image authenticity detection badges'
+    section: features
+    commits:
+    - 4820cbf06
+    authored_at: '2026-06-15T23:18:32+00:00'
+    changed_paths:
+    - backend/tests/test_upload_ai_detection_metadata.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/sightengine_service.py
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageAuthenticityBadge.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/__tests__/imageAuthenticity.test.ts
+    - frontend/packages/ui/src/components/embeds/images/imageAuthenticity.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/services/uploadService.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/images.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: use natural app-skill suggestions'
+    section: features
+    commits:
+    - eed410ad0
+    authored_at: '2026-06-15T19:55:35+00:00'
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_postprocessor.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/demo_chats/defaultNewChatSuggestions.ts
+    - frontend/packages/ui/src/i18n/sources/chat/new_chat_suggestions.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: show Apple embed version timeline'
+    section: features
+    commits:
+    - ff0888320
+    authored_at: '2026-06-15T18:46:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add code focus modes'
+    section: features
+    commits:
+    - 342701b27
+    authored_at: '2026-06-15T17:59:53+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/focus_modes/learn-by-building/SKILL.md
+    - backend/apps/code/focus_modes/project-planner/SKILL.md
+    - backend/apps/code/focus_modes/research-solutions/SKILL.md
+    - docs/user-guide/apps/code.md
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/code.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/code_learn_by_building.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/code_project_planner.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/code_research_solutions.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add connected account rejection receipts'
+    section: features
+    commits:
+    - cab14d555
+    authored_at: '2026-06-15T16:15:19+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/connected_account_permission_confirmed_handler.py
+    - backend/tests/test_connected_account_permission_confirmed_handler.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add connected account receipt undo'
+    section: features
+    commits:
+    - 12d0b81c6
+    authored_at: '2026-06-15T16:06:01+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_receipts.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_connected_account_receipts.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: publish connected account undo receipts'
+    section: features
+    commits:
+    - 239c1fa8b
+    authored_at: '2026-06-15T15:48:06+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_actions.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add connected account receipts'
+    section: features
+    commits:
+    - 7ba8d4d19
+    authored_at: '2026-06-15T15:43:16+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_receipts.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/tests/test_connected_account_operation_journal.py
+    - backend/tests/test_connected_account_receipts.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add connected account undo route'
+    section: features
+    commits:
+    - 3ebd4ef86
+    authored_at: '2026-06-15T15:29:25+00:00'
+    changed_paths:
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/core/api/app/services/token_broker.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/connected_account_operation_journal.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: persist connected account operation journal'
+    section: features
+    commits:
+    - 39d34899f
+    authored_at: '2026-06-15T15:18:40+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_connected_account_operation_journal.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add connected account approval continuation'
+    section: features
+    commits:
+    - a0afd52cb
+    authored_at: '2026-06-15T14:58:22+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/connected_account_permission_confirmed_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_connected_account_permission_confirmed_handler.py
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ConnectedAccountPermissionDialog.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/stores/connectedAccountPermissionStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: pause calendar actions for account approval'
+    section: features
+    commits:
+    - e12c26018
+    authored_at: '2026-06-15T13:48:13+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/tests/test_connected_account_permission_request.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: add calendar connected account settings'
+    section: features
+    commits:
+    - 94457e0b0
+    authored_at: '2026-06-15T13:35:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: add calendar oauth settings wiring'
+    section: features
+    commits:
+    - 1e6ba3399
+    authored_at: '2026-06-15T13:33:48+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: add connected account oauth client'
+    section: features
+    commits:
+    - 280b32137
+    authored_at: '2026-06-15T13:23:15+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feature: implement client-encrypted embed diff history'
+    section: features
+    commits:
+    - ed8f7248e
+    authored_at: '2026-06-15T13:19:35+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_diff_version_contract.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    - frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/__tests__/embedDiffStore.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    - frontend/packages/ui/src/services/embedSenders.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/sendersEmbeds.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feature: add google calendar oauth adapter'
+    section: features
+    commits:
+    - 486231b74
+    authored_at: '2026-06-15T13:19:06+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/core/api/main.py
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: add connected account oauth handoff'
+    section: features
+    commits:
+    - f0a384f3b
+    authored_at: '2026-06-15T13:09:31+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_oauth.py
+    - backend/core/api/app/services/connected_account_oauth_handoff.py
+    - backend/core/api/main.py
+    - backend/tests/test_connected_account_oauth_handoff.py
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: build connected account send context'
+    section: features
+    commits:
+    - 161519d98
+    authored_at: '2026-06-15T12:50:01+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feature: add connected account web storage client'
+    section: features
+    commits:
+    - 2662b0a3c
+    authored_at: '2026-06-15T12:43:32+00:00'
+    changed_paths:
+    - backend/apps/calendar/app.yml
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - frontend/packages/ui/src/services/connectedAccountTokenBrokerService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feature: add connected account storage routes'
+    section: features
+    commits:
+    - 74b652f9d
+    authored_at: '2026-06-15T12:29:56+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/connected_accounts.py
+    - backend/core/api/app/routes/token_broker.py
+    - backend/core/api/main.py
+    - backend/tests/test_connected_accounts_permissions.py
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add reverse image search example chat'
+    section: features
+    commits:
+    - d735746e7
+    authored_at: '2026-06-15T12:23:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/classic-car-reverse-image-search.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/classic_car_reverse_image_search.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feature: add calendar connected-account foundation'
+    section: features
+    commits:
+    - 275f1c292
+    authored_at: '2026-06-15T12:20:10+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/permission_broker.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/base_app.py
+    - backend/apps/base_skill.py
+    - backend/apps/calendar/__init__.py
+    - backend/apps/calendar/app.yml
+    - backend/apps/calendar/skills/__init__.py
+    - backend/apps/calendar/skills/create_event_skill.py
+    - backend/apps/calendar/skills/delete_event_skill.py
+    - backend/apps/calendar/skills/get_events_skill.py
+    - backend/apps/calendar/skills/update_event_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/token_broker.py
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/core/api/app/services/connected_accounts_service.py
+    - backend/core/api/app/services/rest_skill_execution_policy.py
+    - backend/core/api/app/services/token_broker.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/connected_account_operation_journal.yml
+    - backend/core/directus/schemas/connected_accounts.yml
+    - backend/shared/providers/google_calendar/__init__.py
+    - backend/shared/providers/google_calendar/client.py
+    - backend/shared/providers/google_calendar/models.py
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/live/test_google_calendar_permissions_live.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_calendar_permission_broker.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_connected_account_operation_journal.py
+    - backend/tests/test_connected_accounts_permissions.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_token_broker_refs.py
+    - docs/architecture/apps/action-confirmation.md
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/connectedAccountTokenBrokerService.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: preserve Calendar permission request details'
+    section: bug_fixes
+    commits:
+    - 9843d21b2
+    authored_at: '2026-06-15T22:50:49+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/tests/test_connected_account_permission_request.py
+    - frontend/packages/ui/src/components/ConnectedAccountPermissionDialog.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide raw Calendar connected-account errors'
+    section: bug_fixes
+    commits:
+    - b04052ebb
+    authored_at: '2026-06-15T21:24:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add apps settings title translation'
+    section: bug_fixes
+    commits:
+    - b8b5a52be
+    authored_at: '2026-06-15T21:15:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: wire Google Calendar connected accounts'
+    section: bug_fixes
+    commits:
+    - 02946e306
+    authored_at: '2026-06-15T19:17:39+00:00'
+    changed_paths:
+    - .env.example
+    - backend/apps/calendar/app.yml
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/test_apps_metadata_availability.py
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_connected_account_permission_request.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - frontend/packages/ui/scripts/generate-providers-metadata.js
+    - frontend/packages/ui/src/i18n/sources/app_skills/calendar.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - frontend/packages/ui/src/stores/connectedAccountPermissionStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: expose Apple restore beside version dots'
+    section: bug_fixes
+    commits:
+    - ee8ad9ab1
+    authored_at: '2026-06-15T19:15:34+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: show Apple restore in timeline header'
+    section: bug_fixes
+    commits:
+    - 6dbb1e9ab
+    authored_at: '2026-06-15T19:09:26+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: keep Apple historical restore exposed'
+    section: bug_fixes
+    commits:
+    - 7dd58daf5
+    authored_at: '2026-06-15T19:03:59+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: make CLI test login helper reliable'
+    section: bug_fixes
+    commits:
+    - 3f5217424
+    authored_at: '2026-06-15T19:02:09+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/openmates_cli_test_account.mjs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stack Apple embed timeline actions'
+    section: bug_fixes
+    commits:
+    - 0c83b48e4
+    authored_at: '2026-06-15T18:53:29+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: expose Apple embed restore identifier'
+    section: bug_fixes
+    commits:
+    - ebd73f9a2
+    authored_at: '2026-06-15T18:51:10+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: keep Apple embed restore action visible'
+    section: bug_fixes
+    commits:
+    - 98ea3dc41
+    authored_at: '2026-06-15T18:48:52+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: decode Apple embed version history'
+    section: bug_fixes
+    commits:
+    - 1f18ebe43
+    authored_at: '2026-06-15T18:32:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: tolerate connected account lookup failures'
+    section: bug_fixes
+    commits:
+    - 5eba1d74d
+    authored_at: '2026-06-15T18:08:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: avoid stream consumer json shadowing'
+    section: bug_fixes
+    commits:
+    - c62cc3d54
+    authored_at: '2026-06-15T17:30:14+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_version_contract.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use embed cache lookup signature consistently'
+    section: bug_fixes
+    commits:
+    - 15652e0df
+    authored_at: '2026-06-15T17:17:21+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_version_contract.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include current user content in ai requests'
+    section: bug_fixes
+    commits:
+    - 5d99a81d3
+    authored_at: '2026-06-15T17:06:45+00:00'
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: pass current edit prompt to embed fallback'
+    section: bug_fixes
+    commits:
+    - d5fcc6039
+    authored_at: '2026-06-15T17:06:17+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: attach connected account send context'
+    section: bug_fixes
+    commits:
+    - 7008d0b47
+    authored_at: '2026-06-15T16:57:50+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: repair embed edit cache fallback'
+    section: bug_fixes
+    commits:
+    - 935fdf68b
+    authored_at: '2026-06-15T16:47:31+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: harden calendar account connection'
+    section: bug_fixes
+    commits:
+    - e5e718a63
+    authored_at: '2026-06-15T16:38:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reuse embeds during streaming regenerated edits'
+    section: bug_fixes
+    commits:
+    - 29c67cc5e
+    authored_at: '2026-06-15T16:34:45+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve stay logged in token rotation'
+    section: bug_fixes
+    commits:
+    - ea2abeea0
+    authored_at: '2026-06-15T16:32:21+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/application_preview.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/connected_account_actions.py
+    - backend/tests/test_auth_endpoints.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reuse prior history embed for regenerated edits'
+    section: bug_fixes
+    commits:
+    - 2de8ed0e1
+    authored_at: '2026-06-15T16:20:56+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include connected account undo service'
+    section: bug_fixes
+    commits:
+    - 53f33dd6d
+    authored_at: '2026-06-15T16:07:01+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/connectedAccountActionService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: reuse cached code embed for regenerated edits'
+    section: bug_fixes
+    commits:
+    - 04aa9f7fb
+    authored_at: '2026-06-15T15:59:32+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reuse first embed for regenerated edits'
+    section: bug_fixes
+    commits:
+    - 6d7061684
+    authored_at: '2026-06-15T15:39:10+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include connected account undo route files'
+    section: bug_fixes
+    commits:
+    - 710c800e7
+    authored_at: '2026-06-15T15:29:48+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_actions.py
+    - backend/tests/test_connected_account_actions.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reuse code embeds for full replacement edits'
+    section: bug_fixes
+    commits:
+    - 40e85c069
+    authored_at: '2026-06-15T15:25:36+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: strengthen embed diff editing prompt'
+    section: bug_fixes
+    commits:
+    - 5c5216d1b
+    authored_at: '2026-06-15T15:14:06+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_diff_editing_instruction.md
+    - backend/tests/test_embed_diff_version_contract.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve json_embed references for diff editing'
+    section: bug_fixes
+    commits:
+    - 4a422b0b1
+    authored_at: '2026-06-15T15:00:24+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_execution.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: save ai cache before final stream marker'
+    section: bug_fixes
+    commits:
+    - 8ddab6bbf
+    authored_at: '2026-06-15T13:59:12+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_version_contract.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow calendar update token refs'
+    section: bug_fixes
+    commits:
+    - 32bcecd00
+    authored_at: '2026-06-15T13:50:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: add embed diff handler tracing'
+    section: bug_fixes
+    commits:
+    - 95b576277
+    authored_at: '2026-06-15T13:36:55+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: register calendar embed text renderers'
+    section: bug_fixes
+    commits:
+    - dd3464246
+    authored_at: '2026-06-15T12:23:30+00:00'
+    changed_paths:
+    - backend/core/directus/schemas/connected_accounts.yml
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep chat context menu open after right-click'
+    section: bug_fixes
+    commits:
+    - e4654af3e
+    authored_at: '2026-06-15T10:29:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize chat context menu opening'
+    section: bug_fixes
+    commits:
+    - 0820a4d5e
+    authored_at: '2026-06-15T10:07:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep active chat visible in sidebar'
+    section: bug_fixes
+    commits:
+    - f8fcfed7b
+    authored_at: '2026-06-15T09:39:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore chat composer dependency pins'
+    section: bug_fixes
+    commits:
+    - ea30a8960
+    authored_at: '2026-06-15T09:13:10+00:00'
+    changed_paths:
+    - docs/architecture/audit_frontend_dependency_pins.md
+    - docs/architecture/frontend/docs-web-app.md
+    - docs/architecture/frontend/web-app.md
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    - scripts/audit_frontend_dependency_pins.py
+    - scripts/tests/test_audit_frontend_dependency_pins.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record Apple embed timeline UI evidence'
+    section: docs
+    commits:
+    - 1729f55df
+    authored_at: '2026-06-15T19:19:46+00:00'
+    changed_paths:
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Apple embed diff unit evidence'
+    section: docs
+    commits:
+    - 71d471a0e
+    authored_at: '2026-06-15T18:36:52+00:00'
+    changed_paths:
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record embed diff verification evidence'
+    section: docs
+    commits:
+    - 0efce19a8
+    authored_at: '2026-06-15T18:27:59+00:00'
+    changed_paths:
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record connected account send evidence'
+    section: docs
+    commits:
+    - bfd2eea4f
+    authored_at: '2026-06-15T17:03:31+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record calendar account settings evidence'
+    section: docs
+    commits:
+    - 1f6e0b34d
+    authored_at: '2026-06-15T16:53:15+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record connected account builder verification'
+    section: docs
+    commits:
+    - f652b2de1
+    authored_at: '2026-06-15T12:52:16+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: clarify chat embed encryption storage tiers'
+    section: docs
+    commits:
+    - fff9a6e15
+    authored_at: '2026-06-15T12:42:24+00:00'
+    changed_paths:
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/embeds.yml
+    - backend/core/directus/schemas/messages.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: correct encryption metadata notes'
+    section: docs
+    commits:
+    - 660bcd83e
+    authored_at: '2026-06-15T12:25:10+00:00'
+    changed_paths:
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/messages.yml
+    - backend/core/directus/schemas/user_app_settings_and_memories.yml
+    - docs/architecture/core/client-side-encryption.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: allow CLI auth refresh in restore guard'
+    section: tests
+    commits:
+    - 4169344b3
+    authored_at: '2026-06-15T23:43:14+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: run token broker async contracts'
+    section: tests
+    commits:
+    - 551ffdeff
+    authored_at: '2026-06-15T23:40:11+00:00'
+    changed_paths:
+    - backend/tests/test_token_broker_refs.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: run Calendar permission async contracts'
+    section: tests
+    commits:
+    - 604f3dc32
+    authored_at: '2026-06-15T23:39:48+00:00'
+    changed_paths:
+    - backend/tests/test_connected_accounts_permissions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: define Calendar permission dispatch stub'
+    section: tests
+    commits:
+    - b403435fa
+    authored_at: '2026-06-15T22:57:33+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align Calendar permission handler test environment'
+    section: tests
+    commits:
+    - 3821e085e
+    authored_at: '2026-06-15T22:55:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix Calendar permission handler coverage'
+    section: tests
+    commits:
+    - 0b998d690
+    authored_at: '2026-06-15T22:53:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align CLI embed restore cache contract'
+    section: tests
+    commits:
+    - a052d1151
+    authored_at: '2026-06-15T22:15:53+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: strengthen Calendar connected-account contracts'
+    section: tests
+    commits:
+    - cf370586f
+    authored_at: '2026-06-15T22:12:23+00:00'
+    changed_paths:
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_connected_account_execution.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add live calendar OAuth settings coverage'
+    section: tests
+    commits:
+    - 7d021c3e3
+    authored_at: '2026-06-15T20:45:55+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/instructions/base_settings_memories_deep_link_instruction.md
+    - backend/apps/images/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/travel/skills/get_flight.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/provider_health.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - docs/architecture/apple/settings-web-spec-coverage.md
+    - docs/specs/apple-settings-billing-parity/spec.yml
+    - docs/specs/content-embed-example-chats/spec.yml
+    - docs/user-guide/apps/app-store.md
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/connected-account-calendar-live-oauth.spec.ts
+    - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-mail-search.spec.ts
+    - frontend/apps/web_app/tests/skill-music-generate.spec.ts
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/scripts/generate-providers-metadata.js
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/AppStoreGroup.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
+    - frontend/packages/ui/src/components/embeds/FocusModesGroup.svelte
+    - frontend/packages/ui/src/components/embeds/SettingsMemoriesGroup.svelte
+    - frontend/packages/ui/src/components/embeds/SkillsGroup.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/MarkdownExtensions.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/markdownParser.preprocess.test.ts
+    - frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte
+    - frontend/packages/ui/src/components/settings/AiModelDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsHeader.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCreateEntry.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesEntryDetail.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/components/settings/ProviderDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/components/settings/SettingsChat.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPricing.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/ActiveRemindersList.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/ReminderEntryDetail.svelte
+    - frontend/packages/ui/src/components/settings/notifications/SettingsReminders.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/components/signup/steps/credits/CreditsTopContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/settings/SettingsTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/appSkillsService.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/services/skillStoreExamplesResolver.ts
+    - frontend/packages/ui/src/stores/allAppsFilterStore.ts
+    - frontend/packages/ui/src/stores/appHealthStore.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    - frontend/packages/ui/src/stores/appStoreNavigationStore.ts
+    - frontend/packages/ui/src/stores/panelStateStore.ts
+    - frontend/packages/ui/src/utils/__tests__/internalLinkValidation.test.ts
+    - frontend/packages/ui/src/utils/internalLinkValidation.ts
+    - marketing/selling_points.md
+    - scripts/audit_app_provider_contracts.py
+    - scripts/contract_audits.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: remove Apple timeline diagnostic dump'
+    section: tests
+    commits:
+    - e7288b7d1
+    authored_at: '2026-06-15T19:17:11+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: keep Apple timeline diagnostic on selected state'
+    section: tests
+    commits:
+    - 6cca182fc
+    authored_at: '2026-06-15T19:13:11+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: dump Apple embed timeline tree on restore miss'
+    section: tests
+    commits:
+    - 7d62c18c3
+    authored_at: '2026-06-15T19:06:37+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: scroll to Apple embed restore action'
+    section: tests
+    commits:
+    - 0e33afbaf
+    authored_at: '2026-06-15T19:00:52+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: surface Apple versioned code fixture first'
+    section: tests
+    commits:
+    - 8a8014e58
+    authored_at: '2026-06-15T18:41:50+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: add Apple embed diff timeline UI coverage'
+    section: tests
+    commits:
+    - 9d08f7f51
+    authored_at: '2026-06-15T18:39:03+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: fix Apple embed diff fixture'
+    section: tests
+    commits:
+    - fa7883de7
+    authored_at: '2026-06-15T18:34:43+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: serialize embed diff web spec'
+    section: tests
+    commits:
+    - 37de8699c
+    authored_at: '2026-06-15T17:50:10+00:00'
+    changed_paths:
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make reverse image fixture download reliable'
+    section: tests
+    commits:
+    - b8e342d29
+    authored_at: '2026-06-15T11:44:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover reverse image search in CLI'
+    section: tests
+    commits:
+    - af671d60b
+    authored_at: '2026-06-15T11:35:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert hidden chat section state'
+    section: tests
+    commits:
+    - 96f88b394
+    authored_at: '2026-06-15T11:29:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/hidden-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: open sidebar in hidden chats flow'
+    section: tests
+    commits:
+    - 13ca715f7
+    authored_at: '2026-06-15T11:08:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/hidden-chats-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal:
+  - title: 'config: prefer Together for Kimi and DeepSeek'
+    section: internal
+    commits:
+    - 781cdab6f
+    authored_at: '2026-06-15T11:49:50+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/model_selector.py
+    - backend/providers/deepseek.yml
+    - backend/providers/moonshot.yml
+    - backend/scripts/test_kimi_k2_7_code.py
+    - backend/tests/test_deepseek_v4_models_script.py
+    - backend/tests/test_kimi_k2_7_code_script.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: show image authenticity detection badges'
+    commits:
+    - 4820cbf06
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'test: add live calendar OAuth settings coverage'
+    commits:
+    - 7d021c3e3
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wire Google Calendar connected accounts'
+    commits:
+    - 02946e306
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add code focus modes'
+    commits:
+    - 342701b27
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add connected account web storage client'
+    commits:
+    - 2662b0a3c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add calendar connected-account foundation'
+    commits:
+    - 275f1c292
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: select Calendar permission actions'
+    commits:
+    - cd25d28b3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show image authenticity detection badges'
+    commits:
+    - 4820cbf06
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve Calendar permission request details'
+    commits:
+    - 9843d21b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide raw Calendar connected-account errors'
+    commits:
+    - b04052ebb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: use natural app-skill suggestions'
+    commits:
+    - eed410ad0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wire Google Calendar connected accounts'
+    commits:
+    - 02946e306
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add code focus modes'
+    commits:
+    - 342701b27
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: avoid stream consumer json shadowing'
+    commits:
+    - c62cc3d54
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use embed cache lookup signature consistently'
+    commits:
+    - 15652e0df
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include current user content in ai requests'
+    commits:
+    - 5d99a81d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: pass current edit prompt to embed fallback'
+    commits:
+    - d5fcc6039
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair embed edit cache fallback'
+    commits:
+    - 935fdf68b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden calendar account connection'
+    commits:
+    - e5e718a63
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reuse embeds during streaming regenerated edits'
+    commits:
+    - 29c67cc5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve stay logged in token rotation'
+    commits:
+    - ea2abeea0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reuse prior history embed for regenerated edits'
+    commits:
+    - 2de8ed0e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add connected account rejection receipts'
+    commits:
+    - cab14d555
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add connected account receipt undo'
+    commits:
+    - 12d0b81c6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reuse cached code embed for regenerated edits'
+    commits:
+    - 04aa9f7fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: publish connected account undo receipts'
+    commits:
+    - 239c1fa8b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add connected account receipts'
+    commits:
+    - 7ba8d4d19
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reuse first embed for regenerated edits'
+    commits:
+    - 6d7061684
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include connected account undo route files'
+    commits:
+    - 710c800e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reuse code embeds for full replacement edits'
+    commits:
+    - 40e85c069
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: persist connected account operation journal'
+    commits:
+    - 39d34899f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: strengthen embed diff editing prompt'
+    commits:
+    - 5c5216d1b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add connected account approval continuation'
+    commits:
+    - a0afd52cb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: save ai cache before final stream marker'
+    commits:
+    - 8ddab6bbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: pause calendar actions for account approval'
+    commits:
+    - e12c26018
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add embed diff handler tracing'
+    commits:
+    - 95b576277
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add calendar connected account settings'
+    commits:
+    - 94457e0b0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add calendar oauth settings wiring'
+    commits:
+    - 1e6ba3399
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add google calendar oauth adapter'
+    commits:
+    - 486231b74
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add connected account oauth handoff'
+    commits:
+    - f0a384f3b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add connected account web storage client'
+    commits:
+    - 2662b0a3c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add connected account storage routes'
+    commits:
+    - 74b652f9d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feature: add calendar connected-account foundation'
+    commits:
+    - 275f1c292
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep chat context menu open after right-click'
+    commits:
+    - e4654af3e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize chat context menu opening'
+    commits:
+    - 0820a4d5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep active chat visible in sidebar'
+    commits:
+    - f8fcfed7b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore chat composer dependency pins'
+    commits:
+    - ea30a8960
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: select Calendar permission actions'
+    commits:
+    - cd25d28b3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show image authenticity detection badges'
+    commits:
+    - 4820cbf06
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve Calendar permission request details'
+    commits:
+    - 9843d21b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide raw Calendar connected-account errors'
+    commits:
+    - b04052ebb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: use natural app-skill suggestions'
+    commits:
+    - eed410ad0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wire Google Calendar connected accounts'
+    commits:
+    - 02946e306
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: expose Apple restore beside version dots'
+    commits:
+    - ee8ad9ab1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show Apple restore in timeline header'
+    commits:
+    - 6dbb1e9ab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep Apple historical restore exposed'
+    commits:
+    - 7dd58daf5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: stack Apple embed timeline actions'
+    commits:
+    - 0c83b48e4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: expose Apple embed restore identifier'
+    commits:
+    - ebd73f9a2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep Apple embed restore action visible'
+    commits:
+    - 98ea3dc41
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: show Apple embed version timeline'
+    commits:
+    - ff0888320
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: decode Apple embed version history'
+    commits:
+    - 1f18ebe43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add code focus modes'
+    commits:
+    - 342701b27
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: avoid stream consumer json shadowing'
+    commits:
+    - c62cc3d54
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use embed cache lookup signature consistently'
+    commits:
+    - 15652e0df
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include current user content in ai requests'
+    commits:
+    - 5d99a81d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: pass current edit prompt to embed fallback'
+    commits:
+    - d5fcc6039
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair embed edit cache fallback'
+    commits:
+    - 935fdf68b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden calendar account connection'
+    commits:
+    - e5e718a63
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reuse embeds during streaming regenerated edits'
+    commits:
+    - 29c67cc5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve stay logged in token rotation'
+    commits:
+    - ea2abeea0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reuse prior history embed for regenerated edits'
+    commits:
+    - 2de8ed0e1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add connected account rejection receipts'
+    commits:
+    - cab14d555
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add connected account receipt undo'
+    commits:
+    - 12d0b81c6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reuse cached code embed for regenerated edits'
+    commits:
+    - 04aa9f7fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: publish connected account undo receipts'
+    commits:
+    - 239c1fa8b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add connected account receipts'
+    commits:
+    - 7ba8d4d19
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reuse first embed for regenerated edits'
+    commits:
+    - 6d7061684
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include connected account undo route files'
+    commits:
+    - 710c800e7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reuse code embeds for full replacement edits'
+    commits:
+    - 40e85c069
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: persist connected account operation journal'
+    commits:
+    - 39d34899f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: strengthen embed diff editing prompt'
+    commits:
+    - 5c5216d1b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add connected account approval continuation'
+    commits:
+    - a0afd52cb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: save ai cache before final stream marker'
+    commits:
+    - 8ddab6bbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: pause calendar actions for account approval'
+    commits:
+    - e12c26018
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add embed diff handler tracing'
+    commits:
+    - 95b576277
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: add calendar connected account settings'
+    commits:
+    - 94457e0b0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: add calendar oauth settings wiring'
+    commits:
+    - 1e6ba3399
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: implement client-encrypted embed diff history'
+    commits:
+    - ed8f7248e
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feature: add google calendar oauth adapter'
+    commits:
+    - 486231b74
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: add connected account oauth handoff'
+    commits:
+    - f0a384f3b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: add connected account web storage client'
+    commits:
+    - 2662b0a3c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: add connected account storage routes'
+    commits:
+    - 74b652f9d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feature: add calendar connected-account foundation'
+    commits:
+    - 275f1c292
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep chat context menu open after right-click'
+    commits:
+    - e4654af3e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize chat context menu opening'
+    commits:
+    - 0820a4d5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep active chat visible in sidebar'
+    commits:
+    - f8fcfed7b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore chat composer dependency pins'
+    commits:
+    - ea30a8960
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: cd25d28b33df90a41952daa48ca295c5d1807378
+    short_sha: cd25d28b3
+    authored_at: '2026-06-15T23:54:24+00:00'
+    subject: 'feat: select Calendar permission actions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/connected_account_permission_confirmed_handler.py
+    - backend/tests/test_connected_account_permission_confirmed_handler.py
+    - frontend/packages/ui/src/components/ConnectedAccountPermissionDialog.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/stores/connectedAccountPermissionStore.ts
+    related_feature_ids: []
+  - sha: 4169344b359239d2dc3cfe99d54100e77c72e61b
+    short_sha: 4169344b3
+    authored_at: '2026-06-15T23:43:14+00:00'
+    subject: 'test: allow CLI auth refresh in restore guard'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 551ffdeff0b8dcbc2e0a58a94906495bf8d276d4
+    short_sha: 551ffdeff
+    authored_at: '2026-06-15T23:40:11+00:00'
+    subject: 'test: run token broker async contracts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_token_broker_refs.py
+    related_feature_ids: []
+  - sha: 604f3dc32acec55768f8f363590de8c687b294da
+    short_sha: 604f3dc32
+    authored_at: '2026-06-15T23:39:48+00:00'
+    subject: 'test: run Calendar permission async contracts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_connected_accounts_permissions.py
+    related_feature_ids: []
+  - sha: 4820cbf063f0c54fef00f15886177d62affaab6e
+    short_sha: 4820cbf06
+    authored_at: '2026-06-15T23:18:32+00:00'
+    subject: 'feat: show image authenticity detection badges'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_upload_ai_detection_metadata.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/sightengine_service.py
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageAuthenticityBadge.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/__tests__/imageAuthenticity.test.ts
+    - frontend/packages/ui/src/components/embeds/images/imageAuthenticity.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/services/uploadService.ts
+    - frontend/packages/ui/src/i18n/sources/app_skills/images.yml
+    related_feature_ids: []
+  - sha: b403435faf558c716a7037cf28ee53b5a4219ee9
+    short_sha: b403435fa
+    authored_at: '2026-06-15T22:57:33+00:00'
+    subject: 'test: define Calendar permission dispatch stub'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    related_feature_ids: []
+  - sha: 3821e085ec0a5638b06f7c546f3a0cd1f963dfc0
+    short_sha: 3821e085e
+    authored_at: '2026-06-15T22:55:22+00:00'
+    subject: 'test: align Calendar permission handler test environment'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    related_feature_ids: []
+  - sha: 0b998d690fdb6090a8bad15e0f2e7314fcc70a89
+    short_sha: 0b998d690
+    authored_at: '2026-06-15T22:53:09+00:00'
+    subject: 'test: fix Calendar permission handler coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    related_feature_ids: []
+  - sha: 9843d21b205fedf394703f9ae1fc81125daf0d73
+    short_sha: 9843d21b2
+    authored_at: '2026-06-15T22:50:49+00:00'
+    subject: 'fix: preserve Calendar permission request details'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/tests/test_connected_account_permission_request.py
+    - frontend/packages/ui/src/components/ConnectedAccountPermissionDialog.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    related_feature_ids: []
+  - sha: a052d11512df30664471be24f7120765d698d2cd
+    short_sha: a052d1151
+    authored_at: '2026-06-15T22:15:53+00:00'
+    subject: 'test: align CLI embed restore cache contract'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: cf370586fd72267eb315da8aff28487e351bb5b5
+    short_sha: cf370586f
+    authored_at: '2026-06-15T22:12:23+00:00'
+    subject: 'test: strengthen Calendar connected-account contracts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_connected_account_execution.py
+    related_feature_ids: []
+  - sha: b04052ebb4dc885efc2bff3b8d72f02abf8fe36e
+    short_sha: b04052ebb
+    authored_at: '2026-06-15T21:24:21+00:00'
+    subject: 'fix: hide raw Calendar connected-account errors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    related_feature_ids: []
+  - sha: b8b5a52bedb6fb9148388d2a8a914f2a9d780aee
+    short_sha: b8b5a52be
+    authored_at: '2026-06-15T21:15:45+00:00'
+    subject: 'fix: add apps settings title translation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: 7d021c3e3ed0067679d46b246ca8b1f55518d6d0
+    short_sha: 7d021c3e3
+    authored_at: '2026-06-15T20:45:55+00:00'
+    subject: 'test: add live calendar OAuth settings coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/feature_suggestions.py
+    - backend/apps/ai/instructions/base_settings_memories_deep_link_instruction.md
+    - backend/apps/images/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/travel/skills/get_flight.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/provider_health.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - docs/architecture/apple/settings-web-spec-coverage.md
+    - docs/specs/apple-settings-billing-parity/spec.yml
+    - docs/specs/content-embed-example-chats/spec.yml
+    - docs/user-guide/apps/app-store.md
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/connected-account-calendar-live-oauth.spec.ts
+    - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-mail-search.spec.ts
+    - frontend/apps/web_app/tests/skill-music-generate.spec.ts
+    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    - frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/scripts/generate-providers-metadata.js
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/embeds/AppStoreGroup.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
+    - frontend/packages/ui/src/components/embeds/FocusModesGroup.svelte
+    - frontend/packages/ui/src/components/embeds/SettingsMemoriesGroup.svelte
+    - frontend/packages/ui/src/components/embeds/SkillsGroup.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/shopping/ShoppingSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaGetPostsEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/embeds/social_media/SocialMediaSearchEmbedPreview.examples.ts
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/MarkdownExtensions.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/markdownParser.preprocess.test.ts
+    - frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte
+    - frontend/packages/ui/src/components/settings/AiModelDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsHeader.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCreateEntry.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesEntryDetail.svelte
+    - frontend/packages/ui/src/components/settings/AppSkillModelDetails.svelte
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/components/settings/ProviderDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/components/settings/SettingsChat.svelte
+    - frontend/packages/ui/src/components/settings/SettingsMemoriesHub.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPricing.svelte
+    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/ActiveRemindersList.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/ReminderEntryDetail.svelte
+    - frontend/packages/ui/src/components/settings/notifications/SettingsReminders.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/components/signup/steps/credits/CreditsTopContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/settings/SettingsTopContent.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/audio.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/appSkillsService.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/services/searchService.ts
+    - frontend/packages/ui/src/services/searchSettingsCatalog.ts
+    - frontend/packages/ui/src/services/skillStoreExamplesResolver.ts
+    - frontend/packages/ui/src/stores/allAppsFilterStore.ts
+    - frontend/packages/ui/src/stores/appHealthStore.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    - frontend/packages/ui/src/stores/appStoreNavigationStore.ts
+    - frontend/packages/ui/src/stores/panelStateStore.ts
+    - frontend/packages/ui/src/utils/__tests__/internalLinkValidation.test.ts
+    - frontend/packages/ui/src/utils/internalLinkValidation.ts
+    - marketing/selling_points.md
+    - scripts/audit_app_provider_contracts.py
+    - scripts/contract_audits.py
+    related_feature_ids: []
+  - sha: eed410ad028b6a447cf61c2ecb6b509e5ab52ec2
+    short_sha: eed410ad0
+    authored_at: '2026-06-15T19:55:35+00:00'
+    subject: 'feat: use natural app-skill suggestions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/tests/test_postprocessor.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/demo_chats/defaultNewChatSuggestions.ts
+    - frontend/packages/ui/src/i18n/sources/chat/new_chat_suggestions.yml
+    related_feature_ids: []
+  - sha: 1729f55df4c9026cf2ebe6dbd49bca8fc5e4152e
+    short_sha: 1729f55df
+    authored_at: '2026-06-15T19:19:46+00:00'
+    subject: 'docs: record Apple embed timeline UI evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    related_feature_ids: []
+  - sha: 02946e3065e583183f1ce934ef3bfa2b569e051b
+    short_sha: 02946e306
+    authored_at: '2026-06-15T19:17:39+00:00'
+    subject: 'fix: wire Google Calendar connected accounts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/apps/calendar/app.yml
+    - backend/core/api/app/routes/apps.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/test_apps_metadata_availability.py
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_connected_account_permission_request.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - frontend/packages/ui/scripts/generate-providers-metadata.js
+    - frontend/packages/ui/src/i18n/sources/app_skills/calendar.yml
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - frontend/packages/ui/src/stores/connectedAccountPermissionStore.ts
+    related_feature_ids: []
+  - sha: e7288b7d164e2e8245f15597ebc9f8e1860d7c65
+    short_sha: e7288b7d1
+    authored_at: '2026-06-15T19:17:11+00:00'
+    subject: 'test: remove Apple timeline diagnostic dump'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ee8ad9ab14dd4acfbf506d67b42aa7dd512a8f94
+    short_sha: ee8ad9ab1
+    authored_at: '2026-06-15T19:15:34+00:00'
+    subject: 'fix: expose Apple restore beside version dots'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6cca182fc014eb8e6cafc3dbda61405dd538eeeb
+    short_sha: 6cca182fc
+    authored_at: '2026-06-15T19:13:11+00:00'
+    subject: 'test: keep Apple timeline diagnostic on selected state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6dbb1e9ab0b2a012e4841d0b8c57cc0964c50443
+    short_sha: 6dbb1e9ab
+    authored_at: '2026-06-15T19:09:26+00:00'
+    subject: 'fix: show Apple restore in timeline header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 7d62c18c3812f1017bf7823fd4e2a2aa8254749d
+    short_sha: 7d62c18c3
+    authored_at: '2026-06-15T19:06:37+00:00'
+    subject: 'test: dump Apple embed timeline tree on restore miss'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 7dd58daf53b93c38ea8ff1beaa44bf697a2fb6e6
+    short_sha: 7dd58daf5
+    authored_at: '2026-06-15T19:03:59+00:00'
+    subject: 'fix: keep Apple historical restore exposed'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 3f52174244b9ab8ec2089d65c8f8c8dcbcd45c55
+    short_sha: 3f5217424
+    authored_at: '2026-06-15T19:02:09+00:00'
+    subject: 'fix: make CLI test login helper reliable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/openmates_cli_test_account.mjs
+    related_feature_ids: []
+  - sha: 0e33afbaff55c15e1932de2108d0f21cbf62b5bc
+    short_sha: 0e33afbaf
+    authored_at: '2026-06-15T19:00:52+00:00'
+    subject: 'test: scroll to Apple embed restore action'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0c83b48e4c4dc4bc33e7ed3f54749721af2ea8c5
+    short_sha: 0c83b48e4
+    authored_at: '2026-06-15T18:53:29+00:00'
+    subject: 'fix: stack Apple embed timeline actions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ebd73f9a237b96fb163f5e252dcf52d67aadab19
+    short_sha: ebd73f9a2
+    authored_at: '2026-06-15T18:51:10+00:00'
+    subject: 'fix: expose Apple embed restore identifier'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 98ea3dc41c62a922bf9af2aa63dd3c3bd38c4f51
+    short_sha: 98ea3dc41
+    authored_at: '2026-06-15T18:48:52+00:00'
+    subject: 'fix: keep Apple embed restore action visible'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ff08883204389460605becabe4f8945bb8b84f42
+    short_sha: ff0888320
+    authored_at: '2026-06-15T18:46:22+00:00'
+    subject: 'feat: show Apple embed version timeline'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8a8014e58d7bbee2b2af3ed9ac0678b733b11ae8
+    short_sha: 8a8014e58
+    authored_at: '2026-06-15T18:41:50+00:00'
+    subject: 'test: surface Apple versioned code fixture first'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9d08f7f51ace655c01b7a56dbb7c22f7a07309e2
+    short_sha: 9d08f7f51
+    authored_at: '2026-06-15T18:39:03+00:00'
+    subject: 'test: add Apple embed diff timeline UI coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 71d471a0e94dedb25bb3d0070a5adbd6c0e077c5
+    short_sha: 71d471a0e
+    authored_at: '2026-06-15T18:36:52+00:00'
+    subject: 'docs: record Apple embed diff unit evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    related_feature_ids: []
+  - sha: fa7883de76e74754a24b5e463c94bee242dc5264
+    short_sha: fa7883de7
+    authored_at: '2026-06-15T18:34:43+00:00'
+    subject: 'test: fix Apple embed diff fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1f18ebe439718534f3c2a03d654e6bd00f58483b
+    short_sha: 1f18ebe43
+    authored_at: '2026-06-15T18:32:22+00:00'
+    subject: 'fix: decode Apple embed version history'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 0efce19a89f69b52b46802ed8f9d54521d4ed323
+    short_sha: 0efce19a8
+    authored_at: '2026-06-15T18:27:59+00:00'
+    subject: 'docs: record embed diff verification evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    related_feature_ids: []
+  - sha: 5eba1d74de35db637a387d09ddb03ff495c6a5a1
+    short_sha: 5eba1d74d
+    authored_at: '2026-06-15T18:08:35+00:00'
+    subject: 'fix: tolerate connected account lookup failures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    related_feature_ids: []
+  - sha: 342701b27e4ba05f303959794cc08bc77e2836e7
+    short_sha: 342701b27
+    authored_at: '2026-06-15T17:59:53+00:00'
+    subject: 'feat: add code focus modes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/focus_modes/learn-by-building/SKILL.md
+    - backend/apps/code/focus_modes/project-planner/SKILL.md
+    - backend/apps/code/focus_modes/research-solutions/SKILL.md
+    - docs/user-guide/apps/code.md
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/code.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/code_learn_by_building.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/code_project_planner.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/code_research_solutions.yml
+    related_feature_ids: []
+  - sha: 37de8699c4642236ba00b8f50d5bd34688530fa2
+    short_sha: 37de8699c
+    authored_at: '2026-06-15T17:50:10+00:00'
+    subject: 'test: serialize embed diff web spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    related_feature_ids: []
+  - sha: c62cc3d5452ad5d124a10ae56338e25f3b8bbd5f
+    short_sha: c62cc3d54
+    authored_at: '2026-06-15T17:30:14+00:00'
+    subject: 'fix: avoid stream consumer json shadowing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_version_contract.py
+    related_feature_ids: []
+  - sha: 15652e0dfd4ab2dd9669b22e2c3fd5437662b78c
+    short_sha: 15652e0df
+    authored_at: '2026-06-15T17:17:21+00:00'
+    subject: 'fix: use embed cache lookup signature consistently'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_version_contract.py
+    related_feature_ids: []
+  - sha: 5d99a81d3bf448023fd0af492004ddefa6c1030a
+    short_sha: 5d99a81d3
+    authored_at: '2026-06-15T17:06:45+00:00'
+    subject: 'fix: include current user content in ai requests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    related_feature_ids: []
+  - sha: d5fcc60399813dfcb9baa82fce285da818e32aaa
+    short_sha: d5fcc6039
+    authored_at: '2026-06-15T17:06:17+00:00'
+    subject: 'fix: pass current edit prompt to embed fallback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: bfd2eea4f318897f7277342ddb87acc750ba224e
+    short_sha: bfd2eea4f
+    authored_at: '2026-06-15T17:03:31+00:00'
+    subject: 'docs: record connected account send evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: 7008d0b4795f459dbe56475fbf1cc195e279b4d3
+    short_sha: 7008d0b47
+    authored_at: '2026-06-15T16:57:50+00:00'
+    subject: 'fix: attach connected account send context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    related_feature_ids: []
+  - sha: 1f6e0b34d0432cc02246d109383b55c4688f3daa
+    short_sha: 1f6e0b34d
+    authored_at: '2026-06-15T16:53:15+00:00'
+    subject: 'docs: record calendar account settings evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: 935fdf68bff77d75fb1ff228d8231f1b3a0b9a7a
+    short_sha: 935fdf68b
+    authored_at: '2026-06-15T16:47:31+00:00'
+    subject: 'fix: repair embed edit cache fallback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: e5e718a63b1e44984f90bf7e7c6d1bd1a401562f
+    short_sha: e5e718a63
+    authored_at: '2026-06-15T16:38:23+00:00'
+    subject: 'fix: harden calendar account connection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    related_feature_ids: []
+  - sha: 29c67cc5eaba2557f7fe1b2e0af7d5015b8b984e
+    short_sha: 29c67cc5e
+    authored_at: '2026-06-15T16:34:45+00:00'
+    subject: 'fix: reuse embeds during streaming regenerated edits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids: []
+  - sha: ea2abeea08a836751606cd838d22d828dbd15cde
+    short_sha: ea2abeea0
+    authored_at: '2026-06-15T16:32:21+00:00'
+    subject: 'fix: preserve stay logged in token rotation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/application_preview.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/connected_account_actions.py
+    - backend/tests/test_auth_endpoints.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: 2de8ed0e1ed962dfed886e575437a5048c8228df
+    short_sha: 2de8ed0e1
+    authored_at: '2026-06-15T16:20:56+00:00'
+    subject: 'fix: reuse prior history embed for regenerated edits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: cab14d555c0b678b528ae065c647fd3db25a6bc1
+    short_sha: cab14d555
+    authored_at: '2026-06-15T16:15:19+00:00'
+    subject: 'feat: add connected account rejection receipts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/connected_account_permission_confirmed_handler.py
+    - backend/tests/test_connected_account_permission_confirmed_handler.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids: []
+  - sha: 53f33dd6d5ba765d24d88b0d9d60c9997d22cb25
+    short_sha: 53f33dd6d
+    authored_at: '2026-06-15T16:07:01+00:00'
+    subject: 'fix: include connected account undo service'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/connectedAccountActionService.ts
+    related_feature_ids: []
+  - sha: 12d0b81c639a4a60491eb335d3c0d93ea1014ee5
+    short_sha: 12d0b81c6
+    authored_at: '2026-06-15T16:06:01+00:00'
+    subject: 'feat: add connected account receipt undo'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_receipts.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_connected_account_receipts.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    related_feature_ids: []
+  - sha: 04aa9f7fb6ef24a6f7d62766ff1264e37fb1a3cf
+    short_sha: 04aa9f7fb
+    authored_at: '2026-06-15T15:59:32+00:00'
+    subject: 'fix: reuse cached code embed for regenerated edits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: 239c1fa8be25a2d3cb3889324bbb447d1e240d7a
+    short_sha: 239c1fa8b
+    authored_at: '2026-06-15T15:48:06+00:00'
+    subject: 'feat: publish connected account undo receipts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_actions.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids: []
+  - sha: 7ba8d4d19d5e003ef9d26fdf14fe25f6d5952bf1
+    short_sha: 7ba8d4d19
+    authored_at: '2026-06-15T15:43:16+00:00'
+    subject: 'feat: add connected account receipts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_receipts.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/tests/test_connected_account_operation_journal.py
+    - backend/tests/test_connected_account_receipts.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    related_feature_ids: []
+  - sha: 6d7061684e4a4d8b82157f896a6f451cbc0c0b29
+    short_sha: 6d7061684
+    authored_at: '2026-06-15T15:39:10+00:00'
+    subject: 'fix: reuse first embed for regenerated edits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: 710c800e7b55b25ee773309798241a8ee5aefc26
+    short_sha: 710c800e7
+    authored_at: '2026-06-15T15:29:48+00:00'
+    subject: 'fix: include connected account undo route files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_actions.py
+    - backend/tests/test_connected_account_actions.py
+    related_feature_ids: []
+  - sha: 3ebd4ef860e7a9b4b9ebc5ea4356e44d9096db3e
+    short_sha: 3ebd4ef86
+    authored_at: '2026-06-15T15:29:25+00:00'
+    subject: 'feat: add connected account undo route'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/core/api/app/services/token_broker.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/connected_account_operation_journal.yml
+    related_feature_ids: []
+  - sha: 40e85c069bf3ab36d261776f42cbc8e47a263111
+    short_sha: 40e85c069
+    authored_at: '2026-06-15T15:25:36+00:00'
+    subject: 'fix: reuse code embeds for full replacement edits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_full_replacement.py
+    related_feature_ids: []
+  - sha: 39d34899fabffca7426eea691ced46d5e3f5738a
+    short_sha: 39d34899f
+    authored_at: '2026-06-15T15:18:40+00:00'
+    subject: 'feat: persist connected account operation journal'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_connected_account_operation_journal.py
+    related_feature_ids: []
+  - sha: 5c5216d1b129fcf305f51bbae1d43b3524f21f9c
+    short_sha: 5c5216d1b
+    authored_at: '2026-06-15T15:14:06+00:00'
+    subject: 'fix: strengthen embed diff editing prompt'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_diff_editing_instruction.md
+    - backend/tests/test_embed_diff_version_contract.py
+    related_feature_ids: []
+  - sha: 4a422b0b190335ab03494b9953f36ed53bd7de1d
+    short_sha: 4a422b0b1
+    authored_at: '2026-06-15T15:00:24+00:00'
+    subject: 'fix: resolve json_embed references for diff editing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_execution.py
+    related_feature_ids: []
+  - sha: a0afd52cb959562997b2115c1666a7a82cb700ad
+    short_sha: a0afd52cb
+    authored_at: '2026-06-15T14:58:22+00:00'
+    subject: 'feat: add connected account approval continuation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/connected_account_permission_confirmed_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_connected_account_permission_confirmed_handler.py
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/ui/src/app.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ConnectedAccountPermissionDialog.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersConnectedAccounts.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/ui/src/stores/connectedAccountPermissionStore.ts
+    related_feature_ids: []
+  - sha: 8ddab6bbf649cc0737a92bc45323bb78aea8906a
+    short_sha: 8ddab6bbf
+    authored_at: '2026-06-15T13:59:12+00:00'
+    subject: 'fix: save ai cache before final stream marker'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_embed_diff_version_contract.py
+    related_feature_ids: []
+  - sha: 32bcecd00ff99a28384ee1dc212f2fc3a5e1406a
+    short_sha: 32bcecd00
+    authored_at: '2026-06-15T13:50:15+00:00'
+    subject: 'fix: allow calendar update token refs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    related_feature_ids: []
+  - sha: e12c260187f80e53d2afae58371560dcc5548b5c
+    short_sha: e12c26018
+    authored_at: '2026-06-15T13:48:13+00:00'
+    subject: 'feature: pause calendar actions for account approval'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_permission_request.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/tests/test_connected_account_permission_request.py
+    related_feature_ids: []
+  - sha: 95b5762779d916eefb8466cada2fa4761b5a1d09
+    short_sha: 95b576277
+    authored_at: '2026-06-15T13:36:55+00:00'
+    subject: 'fix: add embed diff handler tracing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    related_feature_ids: []
+  - sha: 94457e0b0ecddd54cace697b13a607879b4e5186
+    short_sha: 94457e0b0
+    authored_at: '2026-06-15T13:35:26+00:00'
+    subject: 'feature: add calendar connected account settings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    related_feature_ids: []
+  - sha: 1e6ba3399387a25affde0b0fb373223623ba9ee4
+    short_sha: 1e6ba3399
+    authored_at: '2026-06-15T13:33:48+00:00'
+    subject: 'feature: add calendar oauth settings wiring'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    related_feature_ids: []
+  - sha: 280b32137e06f63b279c1f361bef4d88a400e4ff
+    short_sha: 280b32137
+    authored_at: '2026-06-15T13:23:15+00:00'
+    subject: 'feature: add connected account oauth client'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    related_feature_ids: []
+  - sha: ed8f7248edfc87a9207f010ca72b141f9689514b
+    short_sha: ed8f7248e
+    authored_at: '2026-06-15T13:19:35+00:00'
+    subject: 'feature: implement client-encrypted embed diff history'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/embeds_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_diff_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/embed_diff_service.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_diff_version_contract.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_embed_version_routes.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    - frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/videos/VideoCreateEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/__tests__/embedDiffStore.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    - frontend/packages/ui/src/services/embedSenders.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/sendersEmbeds.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 486231b745f12282e85e1729b7a3682848666918
+    short_sha: 486231b74
+    authored_at: '2026-06-15T13:19:06+00:00'
+    subject: 'feature: add google calendar oauth adapter'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/core/api/main.py
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: f0a384f3bbc5e9492bf159f09589c525efc1d7f2
+    short_sha: f0a384f3b
+    authored_at: '2026-06-15T13:09:31+00:00'
+    subject: 'feature: add connected account oauth handoff'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_oauth.py
+    - backend/core/api/app/services/connected_account_oauth_handoff.py
+    - backend/core/api/main.py
+    - backend/tests/test_connected_account_oauth_handoff.py
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: f652b2de116a5ad2e054097bfebca57b557eb1b8
+    short_sha: f652b2de1
+    authored_at: '2026-06-15T12:52:16+00:00'
+    subject: 'docs: record connected account builder verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: 161519d98a314f03dc3c054cb0a43ca46bfb869c
+    short_sha: 161519d98
+    authored_at: '2026-06-15T12:50:01+00:00'
+    subject: 'feature: build connected account send context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    related_feature_ids: []
+  - sha: 2662b0a3cca0678b3fe43ab34e208390d295f50c
+    short_sha: 2662b0a3c
+    authored_at: '2026-06-15T12:43:32+00:00'
+    subject: 'feature: add connected account web storage client'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/calendar/app.yml
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - frontend/packages/ui/src/services/connectedAccountTokenBrokerService.ts
+    related_feature_ids: []
+  - sha: fff9a6e15ee4c9aabbd196e414f0ec536e06f565
+    short_sha: fff9a6e15
+    authored_at: '2026-06-15T12:42:24+00:00'
+    subject: 'docs: clarify chat embed encryption storage tiers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/embeds.yml
+    - backend/core/directus/schemas/messages.yml
+    related_feature_ids: []
+  - sha: 74b652f9d90638011ba025334ac8fb3cc8988e66
+    short_sha: 74b652f9d
+    authored_at: '2026-06-15T12:29:56+00:00'
+    subject: 'feature: add connected account storage routes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/connected_accounts.py
+    - backend/core/api/app/routes/token_broker.py
+    - backend/core/api/main.py
+    - backend/tests/test_connected_accounts_permissions.py
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: 660bcd83e702bcb7930523a48cd0e9d3dfbfddeb
+    short_sha: 660bcd83e
+    authored_at: '2026-06-15T12:25:10+00:00'
+    subject: 'docs: correct encryption metadata notes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/messages.yml
+    - backend/core/directus/schemas/user_app_settings_and_memories.yml
+    - docs/architecture/core/client-side-encryption.md
+    related_feature_ids: []
+  - sha: d735746e782670edd539e22b8070f04d81febb9c
+    short_sha: d735746e7
+    authored_at: '2026-06-15T12:23:49+00:00'
+    subject: 'feat: add reverse image search example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/classic-car-reverse-image-search.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/classic_car_reverse_image_search.yml
+    related_feature_ids: []
+  - sha: dd346424668fa653238e645e4d1490be9899523c
+    short_sha: dd3464246
+    authored_at: '2026-06-15T12:23:30+00:00'
+    subject: 'fix: register calendar embed text renderers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/schemas/connected_accounts.yml
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    related_feature_ids: []
+  - sha: 275f1c292d78cb79067a846a3f32ee43da08b8ba
+    short_sha: 275f1c292
+    authored_at: '2026-06-15T12:20:10+00:00'
+    subject: 'feature: add calendar connected-account foundation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/permission_broker.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/base_app.py
+    - backend/apps/base_skill.py
+    - backend/apps/calendar/__init__.py
+    - backend/apps/calendar/app.yml
+    - backend/apps/calendar/skills/__init__.py
+    - backend/apps/calendar/skills/create_event_skill.py
+    - backend/apps/calendar/skills/delete_event_skill.py
+    - backend/apps/calendar/skills/get_events_skill.py
+    - backend/apps/calendar/skills/update_event_skill.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/token_broker.py
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/core/api/app/services/connected_accounts_service.py
+    - backend/core/api/app/services/rest_skill_execution_policy.py
+    - backend/core/api/app/services/token_broker.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/connected_account_operation_journal.yml
+    - backend/core/directus/schemas/connected_accounts.yml
+    - backend/shared/providers/google_calendar/__init__.py
+    - backend/shared/providers/google_calendar/client.py
+    - backend/shared/providers/google_calendar/models.py
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/live/test_google_calendar_permissions_live.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_calendar_permission_broker.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/test_connected_account_operation_journal.py
+    - backend/tests/test_connected_accounts_permissions.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_token_broker_refs.py
+    - docs/architecture/apps/action-confirmation.md
+    - docs/specs/calendar-permission-management/spec.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/connectedAccountTokenBrokerService.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 781cdab6fa4564cdfd7de9fce8893873b9fb636b
+    short_sha: 781cdab6f
+    authored_at: '2026-06-15T11:49:50+00:00'
+    subject: 'config: prefer Together for Kimi and DeepSeek'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/model_selector.py
+    - backend/providers/deepseek.yml
+    - backend/providers/moonshot.yml
+    - backend/scripts/test_kimi_k2_7_code.py
+    - backend/tests/test_deepseek_v4_models_script.py
+    - backend/tests/test_kimi_k2_7_code_script.py
+    related_feature_ids: []
+  - sha: b8e342d29088c7a8fe459383fb8ee880d689250d
+    short_sha: b8e342d29
+    authored_at: '2026-06-15T11:44:15+00:00'
+    subject: 'test: make reverse image fixture download reliable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    related_feature_ids: []
+  - sha: af671d60bb50437fb89fc38676c1e17178d13005
+    short_sha: af671d60b
+    authored_at: '2026-06-15T11:35:29+00:00'
+    subject: 'test: cover reverse image search in CLI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    related_feature_ids: []
+  - sha: 96f88b394eefe0698d0cffaba3b1eadf8de22743
+    short_sha: 96f88b394
+    authored_at: '2026-06-15T11:29:04+00:00'
+    subject: 'test: assert hidden chat section state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/hidden-chats-flow.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: 13ca715f797f22c53c8be2de7d59736179c3432f
+    short_sha: 13ca715f7
+    authored_at: '2026-06-15T11:08:10+00:00'
+    subject: 'test: open sidebar in hidden chats flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/hidden-chats-flow.spec.ts
+    related_feature_ids: []
+  - sha: e4654af3e97cdd2c5aecfaf97b4500b85c29b988
+    short_sha: e4654af3e
+    authored_at: '2026-06-15T10:29:47+00:00'
+    subject: 'fix: keep chat context menu open after right-click'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    related_feature_ids: []
+  - sha: 0820a4d5e6139ab86a4519150586cdc8b6fc218a
+    short_sha: 0820a4d5e
+    authored_at: '2026-06-15T10:07:55+00:00'
+    subject: 'fix: stabilize chat context menu opening'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    related_feature_ids: []
+  - sha: f8fcfed7b9f5c96ade7c3faf6288f8871d3b6c1c
+    short_sha: f8fcfed7b
+    authored_at: '2026-06-15T09:39:56+00:00'
+    subject: 'fix: keep active chat visible in sidebar'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: ea30a8960aab5e95933d7747879a0b5665472461
+    short_sha: ea30a8960
+    authored_at: '2026-06-15T09:13:10+00:00'
+    subject: 'fix: restore chat composer dependency pins'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/audit_frontend_dependency_pins.md
+    - docs/architecture/frontend/docs-web-app.md
+    - docs/architecture/frontend/web-app.md
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    - scripts/audit_frontend_dependency_pins.py
+    - scripts/tests/test_audit_frontend_dependency_pins.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a comprehensive foundation for Calendar integration and connected account management, including
+    granular permission controls and operation receipts. The update also added image authenticity detection and new specialized
+    focus modes for coding.
+  released_changes:
+  - text: OpenMates added a robust Calendar and connected account system. This includes Google Calendar OAuth support, granular
+      permission selection, operation journals, and 'receipts' in the chat that allow users to see and undo actions taken
+      by the AI.
+    evidence:
+      commits:
+      - 275f1c292
+      - 74b652f9d
+      - 2662b0a3c
+      - f0a384f3b
+      - 486231b74
+      - 1e6ba3399
+      - 94457e0b0
+      - e12c26018
+      - a0afd52cb
+      - 39d34899f
+      - 7ba8d4d19
+      - 239c1fa8b
+      - 12d0b81c6
+      - cab14d555
+      - cd25d28b3
+    release_status: released_main
+  - text: Image authenticity detection badges are now displayed, providing transparency on whether images are AI-generated
+      or verified.
+    evidence:
+      commits:
+      - 4820cbf06
+    release_status: released_main
+  - text: The project now uses more natural app-skill suggestions for follow-up actions in the chat interface.
+    evidence:
+      commits:
+      - eed410ad0
+    release_status: released_main
+  - text: New focus modes were added to the Code app, including 'Learn by Building', 'Project Planner', and 'Research Solutions'.
+    evidence:
+      commits:
+      - 342701b27
+    release_status: released_main
+  bug_fixes:
+  - text: The Calendar integration was hardened with improved error handling for connected accounts, reliable permission detail
+      preservation, and fixed OAuth wiring.
+    evidence:
+      commits:
+      - 9843d21b2
+      - b04052ebb
+      - 02946e306
+      - e5e718a63
+      - 710c800e7
+    release_status: released_main
+  - text: Embed diff editing was significantly stabilized by ensuring embeds are reused during streaming, strengthening AI
+      editing prompts, and fixing cache fallback logic for regenerated edits.
+    evidence:
+      commits:
+      - d5fcc6039
+      - 935fdf68b
+      - 29c67cc5e
+      - 2de8ed0e1
+      - 04aa9f7fb
+      - 6d7061684
+      - 40e85c069
+      - 5c5216d1b
+      - 8ddab6bbf
+      - 95b576277
+      - c62cc3d54
+      - 15652e0df
+    release_status: released_main
+  - text: Chat UI reliability was improved by stabilizing the context menu behavior and ensuring the active chat remains visible
+      in the sidebar.
+    evidence:
+      commits:
+      - e4654af3e
+      - 0820a4d5e
+      - f8fcfed7b
+      - ea30a8960
+    release_status: released_main
+  - text: Authentication was improved to preserve token rotation for users who choose to stay logged in.
+    evidence:
+      commits:
+      - ea2abeea0
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on the Apple platform apps, focusing on embed versioning, timeline UI, and client-side encrypted
+      diff history.
+    evidence:
+      commits:
+      - ff0888320
+      - ed8f7248e
+      - ee8ad9ab1
+      - 6dbb1e9ab
+      - 7dd58daf5
+      - 0c83b48e4
+      - ebd73f9a2
+      - 98ea3dc41
+      - 1f18ebe43
+    release_status: released_main
+  internal_progress:
+  - text: Model selection logic was updated to prefer Together AI for Kimi and DeepSeek models.
+    evidence:
+      commits:
+      - 781cdab6f
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Granular Calendar permissions and operation receipts with undo support.
+      evidence:
+        commits:
+        - cd25d28b3
+        - a0afd52cb
+        - 7ba8d4d19
+        - 12d0b81c6
+      reason: Major new functionality for managing external account permissions with transparency.
+    - text: Image authenticity detection badges.
+      evidence:
+        commits:
+        - 4820cbf06
+      reason: Important safety and transparency feature for AI-generated content.
+    - text: Natural app-skill suggestions for follow-up actions.
+      evidence:
+        commits:
+        - eed410ad0
+      reason: Improves the natural feel of interacting with the AI.
+    - text: New Code focus modes including 'Learn by Building' and 'Project Planner'.
+      evidence:
+        commits:
+        - 342701b27
+      reason: New specialized modes for developers.
+    exclude:
+    - text: Apple platform embed versioning and timeline features.
+      evidence:
+        commits:
+        - ff0888320
+        - ed8f7248e
+        - ee8ad9ab1
+        - 6dbb1e9ab
+        - 7dd58daf5
+        - 0c83b48e4
+        - ebd73f9a2
+        - 98ea3dc41
+        - 1f18ebe43
+      reason: These items relate to the iOS and macOS platforms, which are currently listed as disabled features.
+    - text: AI model provider preference updates.
+      evidence:
+        commits:
+        - 781cdab6f
+      reason: Internal configuration change with no direct user impact.
+    rationale: The update introduces significant transparency features for connected accounts and AI-generated content, alongside
+      new productivity modes for developers.
+  social_video_recommendations:
+  - idea: Demonstrate the Calendar permission flow.
+    priority: high
+    reason: The flow from asking for permission to seeing a 'receipt' and being able to undo an action is a strong transparency
+      story.
+    evidence:
+      commits:
+      - cd25d28b3
+      - 7ba8d4d19
+      - 12d0b81c6
+  - idea: Showcase image authenticity badges.
+    priority: medium
+    reason: Visually demonstrates the project's commitment to AI safety and content transparency.
+    evidence:
+      commits:
+      - 4820cbf06
+  quality_notes:
+  - Extensive test coverage was added for the new Calendar OAuth and permission flows.
+  - Significant effort was directed at stabilizing the embed diff editing experience, particularly for regenerated content.
+  - UI polish focused on chat navigation and context menu reliability.
+  validation_warnings: []

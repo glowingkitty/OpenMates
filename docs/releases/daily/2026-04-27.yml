@@ -1,0 +1,1025 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-27'
+generated_at: '2026-07-09T15:12:04+00:00'
+range:
+  since: '2026-04-27T00:00:00+00:00'
+  until: '2026-04-27T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 19
+  section_counts:
+    features: 3
+    bug_fixes: 11
+    improvements: 0
+    docs: 0
+    tests: 4
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 14
+  user_facing_items: 14
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: split signup-flow into stripe-eu and stripe-managed; delete original'
+    section: features
+    commits:
+    - bb6e9afdd
+    authored_at: '2026-04-27T15:57:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/status-page.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: remove Polar payment provider; complete migration to Stripe Managed Payments'
+    section: features
+    commits:
+    - fd34fb52b
+    authored_at: '2026-04-27T15:04:12+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/routes/status_routes.py
+    - backend/core/api/app/services/cache_order_mixin.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/services/payment/payment_service.py
+    - backend/core/api/app/services/payment_tier_service.py
+    - backend/core/api/app/services/pdf/credit_note.py
+    - backend/core/api/app/services/pdf/invoice.py
+    - backend/core/api/app/services/status_aggregator.py
+    - backend/core/api/app/services/stripe_product_sync.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/api/main.py
+    - backend/tests/test_payment_provider_routing.py
+    - backend/tests/test_webhook_incoming.py
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/apps/web_app/tests/status-page.spec.ts
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/payment/ProcessingPayment.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuyPayment.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/invoices_and_credit_notes/main.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add account email change'
+    section: features
+    commits:
+    - 5041358b6
+    authored_at: '2026-04-27T09:58:39+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/email_change_verification_task.py
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsEmail.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/account.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: relogin after email-change identity updates'
+    section: bug_fixes
+    commits:
+    - af77f6799
+    authored_at: '2026-04-27T22:11:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for authenticated UI after email-change login'
+    section: bug_fixes
+    commits:
+    - fe2985868
+    authored_at: '2026-04-27T21:54:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: accept demo route after email-change login'
+    section: bug_fixes
+    commits:
+    - d23cd719f
+    authored_at: '2026-04-27T21:41:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: advance email-change login password step'
+    section: bug_fixes
+    commits:
+    - 99df1b296
+    authored_at: '2026-04-27T21:26:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for email-change E2E login completion'
+    section: bug_fixes
+    commits:
+    - 978ee06cf
+    authored_at: '2026-04-27T21:15:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reset settings menu during email-change E2E'
+    section: bug_fixes
+    commits:
+    - 2740e0201
+    authored_at: '2026-04-27T21:06:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow Gmail delivery timestamp skew'
+    section: bug_fixes
+    commits:
+    - c1d16d174
+    authored_at: '2026-04-27T20:49:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve password plus 2fa settings auth'
+    section: bug_fixes
+    commits:
+    - ba8c9fe99
+    authored_at: '2026-04-27T20:33:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open visible login entry in email-change E2E'
+    section: bug_fixes
+    commits:
+    - f35ba707f
+    authored_at: '2026-04-27T20:18:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize quote text before highlight match in embed fullscreen'
+    section: bug_fixes
+    commits:
+    - fd3d9faef
+    authored_at: '2026-04-27T19:07:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: poll Gmail aliases from message headers'
+    section: bug_fixes
+    commits:
+    - 727f7947c
+    authored_at: '2026-04-27T14:47:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: find Gmail alias delivery headers'
+    section: tests
+    commits:
+    - 867bda0b7
+    authored_at: '2026-04-27T10:14:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept managed refund PDF attachment'
+    section: tests
+    commits:
+    - 96c02f833
+    authored_at: '2026-04-27T02:52:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: choose payment email inbox by recipient'
+    section: tests
+    commits:
+    - 072cea694
+    authored_at: '2026-04-27T02:36:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify managed Stripe email PDFs'
+    section: tests
+    commits:
+    - ee2e8eed4
+    authored_at: '2026-04-27T02:15:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: git rm deleted Polar files (staged deletions)'
+    section: infrastructure
+    commits:
+    - a7585ec9b
+    authored_at: '2026-04-27T15:24:58+00:00'
+    changed_paths:
+    - backend/core/api/app/services/payment/polar_service.py
+    - backend/core/api/app/services/polar_product_sync.py
+    - frontend/apps/web_app/tests/settings-buy-credits-polar.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: relogin after email-change identity updates'
+    commits:
+    - af77f6799
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for authenticated UI after email-change login'
+    commits:
+    - fe2985868
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: accept demo route after email-change login'
+    commits:
+    - d23cd719f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: advance email-change login password step'
+    commits:
+    - 99df1b296
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for email-change E2E login completion'
+    commits:
+    - 978ee06cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reset settings menu during email-change E2E'
+    commits:
+    - 2740e0201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow Gmail delivery timestamp skew'
+    commits:
+    - c1d16d174
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve password plus 2fa settings auth'
+    commits:
+    - ba8c9fe99
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open visible login entry in email-change E2E'
+    commits:
+    - f35ba707f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize quote text before highlight match in embed fullscreen'
+    commits:
+    - fd3d9faef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: split signup-flow into stripe-eu and stripe-managed; delete original'
+    commits:
+    - bb6e9afdd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: remove Polar payment provider; complete migration to Stripe Managed Payments'
+    commits:
+    - fd34fb52b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: poll Gmail aliases from message headers'
+    commits:
+    - 727f7947c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add account email change'
+    commits:
+    - 5041358b6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: relogin after email-change identity updates'
+    commits:
+    - af77f6799
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for authenticated UI after email-change login'
+    commits:
+    - fe2985868
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: accept demo route after email-change login'
+    commits:
+    - d23cd719f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: advance email-change login password step'
+    commits:
+    - 99df1b296
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for email-change E2E login completion'
+    commits:
+    - 978ee06cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reset settings menu during email-change E2E'
+    commits:
+    - 2740e0201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow Gmail delivery timestamp skew'
+    commits:
+    - c1d16d174
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve password plus 2fa settings auth'
+    commits:
+    - ba8c9fe99
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open visible login entry in email-change E2E'
+    commits:
+    - f35ba707f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize quote text before highlight match in embed fullscreen'
+    commits:
+    - fd3d9faef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: split signup-flow into stripe-eu and stripe-managed; delete original'
+    commits:
+    - bb6e9afdd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: remove Polar payment provider; complete migration to Stripe Managed Payments'
+    commits:
+    - fd34fb52b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: poll Gmail aliases from message headers'
+    commits:
+    - 727f7947c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add account email change'
+    commits:
+    - 5041358b6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: af77f67996c7d18d48859f36366c4c7d60bc032d
+    short_sha: af77f6799
+    authored_at: '2026-04-27T22:11:14+00:00'
+    subject: 'fix: relogin after email-change identity updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: fe2985868592e78f987bec1268444ca0ec76056d
+    short_sha: fe2985868
+    authored_at: '2026-04-27T21:54:02+00:00'
+    subject: 'fix: wait for authenticated UI after email-change login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: d23cd719fdbf33fa82bc48a650ff5aea8d076440
+    short_sha: d23cd719f
+    authored_at: '2026-04-27T21:41:11+00:00'
+    subject: 'fix: accept demo route after email-change login'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: 99df1b296987ea9caf5d763c080fd30b757e6471
+    short_sha: 99df1b296
+    authored_at: '2026-04-27T21:26:13+00:00'
+    subject: 'fix: advance email-change login password step'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: 978ee06cf3c9d696f66aea4853dd35b7c9491fbb
+    short_sha: 978ee06cf
+    authored_at: '2026-04-27T21:15:56+00:00'
+    subject: 'fix: wait for email-change E2E login completion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: 2740e0201b9c23c2b0ff59eec32cc9a7bd5b663e
+    short_sha: 2740e0201
+    authored_at: '2026-04-27T21:06:05+00:00'
+    subject: 'fix: reset settings menu during email-change E2E'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: c1d16d1745f5cb609e493af69b84bc653ac21191
+    short_sha: c1d16d174
+    authored_at: '2026-04-27T20:49:21+00:00'
+    subject: 'fix: allow Gmail delivery timestamp skew'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: ba8c9fe99adf1b44b4212c248f91d82ec09293f9
+    short_sha: ba8c9fe99
+    authored_at: '2026-04-27T20:33:16+00:00'
+    subject: 'fix: preserve password plus 2fa settings auth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    related_feature_ids: []
+  - sha: f35ba707fa6d8b43374980fcece017146b57d9ce
+    short_sha: f35ba707f
+    authored_at: '2026-04-27T20:18:20+00:00'
+    subject: 'fix: open visible login entry in email-change E2E'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    related_feature_ids: []
+  - sha: fd3d9faef9ff19128c8dd3fd794c0dc21148ad8c
+    short_sha: fd3d9faef
+    authored_at: '2026-04-27T19:07:45+00:00'
+    subject: 'fix: normalize quote text before highlight match in embed fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: bb6e9afddbaafaee0418a1bac92940476533f6a8
+    short_sha: bb6e9afdd
+    authored_at: '2026-04-27T15:57:06+00:00'
+    subject: 'feat: split signup-flow into stripe-eu and stripe-managed; delete original'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/status-page.spec.ts
+    related_feature_ids: []
+  - sha: a7585ec9b38e2fa6d5e9d2cb4367567939975eb9
+    short_sha: a7585ec9b
+    authored_at: '2026-04-27T15:24:58+00:00'
+    subject: 'chore: git rm deleted Polar files (staged deletions)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/payment/polar_service.py
+    - backend/core/api/app/services/polar_product_sync.py
+    - frontend/apps/web_app/tests/settings-buy-credits-polar.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-polar.spec.ts
+    related_feature_ids: []
+  - sha: fd34fb52b5c4c4e7712f6f021ad44b149bef6e81
+    short_sha: fd34fb52b
+    authored_at: '2026-04-27T15:04:12+00:00'
+    subject: 'feat: remove Polar payment provider; complete migration to Stripe Managed Payments'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/routes/status_routes.py
+    - backend/core/api/app/services/cache_order_mixin.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/services/payment/payment_service.py
+    - backend/core/api/app/services/payment_tier_service.py
+    - backend/core/api/app/services/pdf/credit_note.py
+    - backend/core/api/app/services/pdf/invoice.py
+    - backend/core/api/app/services/status_aggregator.py
+    - backend/core/api/app/services/stripe_product_sync.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/api/main.py
+    - backend/tests/test_payment_provider_routing.py
+    - backend/tests/test_webhook_incoming.py
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/apps/web_app/tests/status-page.spec.ts
+    - frontend/packages/ui/src/components/Payment.svelte
+    - frontend/packages/ui/src/components/payment/ProcessingPayment.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuyPayment.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/invoices_and_credit_notes/main.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    related_feature_ids: []
+  - sha: 727f7947ce5f65a3c967d2c7d470f7e7f15c37bc
+    short_sha: 727f7947c
+    authored_at: '2026-04-27T14:47:54+00:00'
+    subject: 'fix: poll Gmail aliases from message headers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: 867bda0b742b92810d833b853fa57287beabd4e8
+    short_sha: 867bda0b7
+    authored_at: '2026-04-27T10:14:19+00:00'
+    subject: 'test: find Gmail alias delivery headers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: 5041358b61fece74a22f23bd6c747be3eb78e940
+    short_sha: 5041358b6
+    authored_at: '2026-04-27T09:58:39+00:00'
+    subject: 'feat: add account email change'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/email_change_verification_task.py
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsEmail.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/account.yml
+    related_feature_ids: []
+  - sha: 96c02f83313c6ef073e6199dcb372a561f8d579a
+    short_sha: 96c02f833
+    authored_at: '2026-04-27T02:52:55+00:00'
+    subject: 'test: accept managed refund PDF attachment'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    related_feature_ids: []
+  - sha: 072cea694794af9a4033c1d450e33cd438d16e26
+    short_sha: 072cea694
+    authored_at: '2026-04-27T02:36:29+00:00'
+    subject: 'test: choose payment email inbox by recipient'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: ee2e8eed468c961376be9787d7a7e24a8d7779e2
+    short_sha: ee2e8eed4
+    authored_at: '2026-04-27T02:15:59+00:00'
+    subject: 'test: verify managed Stripe email PDFs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced account email change functionality and finalized its migration to Stripe Managed Payments,
+    resulting in the removal of the Polar payment provider. The update also includes several refinements to security settings
+    and embed UI behavior.
+  released_changes:
+  - text: OpenMates added the ability for users to change their account email address directly within the account settings.
+    evidence:
+      commits:
+      - 5041358b6
+    release_status: released_main
+  - text: The project completed its transition to Stripe Managed Payments, removing all legacy Polar payment provider integrations
+      and updating the signup flow to support Stripe EU and Managed configurations.
+    evidence:
+      commits:
+      - fd34fb52b
+      - bb6e9afdd
+    release_status: released_main
+  bug_fixes:
+  - text: The email change process received several stability updates, addressing relogin handling, UI synchronization, and
+      route redirection after identity updates.
+    evidence:
+      commits:
+      - af77f6799
+      - fe2985868
+      - d23cd719f
+      - 99df1b296
+      - 978ee06cf
+      - 2740e0201
+      - f35ba707f
+    release_status: released_main
+  - text: Security settings now correctly preserve password and two-factor authentication (2FA) configurations during authentication
+      updates.
+    evidence:
+      commits:
+      - ba8c9fe99
+    release_status: released_main
+  - text: Text normalization was implemented for fullscreen embed views to ensure highlight matches function correctly.
+    evidence:
+      commits:
+      - fd3d9faef
+    release_status: released_main
+  - text: Signup reliability was improved by accounting for Gmail delivery timestamp skew and polling aliases directly from
+      message headers.
+    evidence:
+      commits:
+      - c1d16d174
+      - 727f7947c
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: The test suite was enhanced to verify Stripe refund PDFs and improve Gmail alias detection in automated flows.
+    evidence:
+      commits:
+      - 96c02f833
+      - ee2e8eed4
+      - 072cea694
+      - 867bda0b7
+    release_status: released_main
+  - text: Legacy code and configuration files for the Polar payment provider were removed following the migration to Stripe.
+    evidence:
+      commits:
+      - a7585ec9b
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New account email change functionality in settings.
+      evidence:
+        commits:
+        - 5041358b6
+      reason: This is a significant new user-facing feature for account management.
+    - text: Completion of the migration to Stripe Managed Payments and removal of the Polar provider.
+      evidence:
+        commits:
+        - fd34fb52b
+        - bb6e9afdd
+      reason: This marks the completion of a major infrastructure transition for payments.
+    exclude:
+    - text: Technical improvements to Gmail alias polling and delivery timestamp handling.
+      evidence:
+        commits:
+        - c1d16d174
+        - 727f7947c
+      reason: These fixes involve technical details regarding Gmail header polling and timestamp skew that are not relevant
+        to a general audience.
+    rationale: The summary highlights the most impactful user-facing features—email changes and the finalized payment migration—while
+      excluding technical bug fixes related to test environment stability and email header parsing.
+  social_video_recommendations:
+  - idea: A short walkthrough showing how to update an account email address in the settings menu.
+    priority: medium
+    reason: This is a standard but highly requested quality-of-life feature that demonstrates product maturity.
+    evidence:
+      commits:
+      - 5041358b6
+  quality_notes:
+  - The email change feature was accompanied by a high volume of follow-up fixes for E2E test stability and UI edge cases.
+  - The removal of the Polar payment provider appears to be a complete deprecation across both backend services and frontend
+    UI components.
+  validation_warnings: []

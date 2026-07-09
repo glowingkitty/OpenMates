@@ -1,0 +1,1649 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-12'
+generated_at: '2026-07-09T15:19:03+00:00'
+range:
+  since: '2026-05-12T00:00:00+00:00'
+  until: '2026-05-12T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 28
+  section_counts:
+    features: 4
+    bug_fixes: 17
+    improvements: 0
+    docs: 0
+    tests: 5
+    infrastructure: 1
+    internal: 0
+    other: 1
+  newsletter_ready_items: 15
+  user_facing_items: 17
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add follow-up suggestions setting'
+    section: features
+    commits:
+    - 43b99e6b8
+    authored_at: '2026-05-12T21:36:47+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/llm-eval.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add native Apple embed parity previews'
+    section: features
+    commits:
+    - 2d5a7c613
+    authored_at: '2026-05-12T16:14:34+02:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageResultEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImagesSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedRendererSupport.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelConnectionEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelFlightDetailsEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelPriceCalendarEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelStayEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelStaysEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebReadEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebsiteEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - scripts/apple_embed_visual_compare.swift
+    - scripts/apple_embed_visual_qa.mjs
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add agent tooling parity'
+    section: features
+    commits:
+    - 4185f224e
+    authored_at: '2026-05-12T12:36:27+00:00'
+    changed_paths:
+    - .agents/skills/add-api/SKILL.md
+    - .agents/skills/add-app-skill/SKILL.md
+    - .agents/skills/add-embed-type/SKILL.md
+    - .agents/skills/add-example-chat/SKILL.md
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/create-pr/SKILL.md
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/daily-meeting/SKILL.md
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .agents/skills/ios/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/organize-linear-tasks/SKILL.md
+    - .agents/skills/prod-ssh/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/resume-tasks/SKILL.md
+    - .agents/skills/review-video-script/SKILL.md
+    - .agents/skills/task-status/SKILL.md
+    - .agents/skills/triage-recent-bugs/SKILL.md
+    - .claude/skills/review-video-script/SKILL.md
+    - .codex/agents/chat-sync-detective.toml
+    - .codex/agents/code-reviewer.toml
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/embed-rendering-investigator.toml
+    - .codex/agents/encryption-flow-tracer.toml
+    - .codex/agents/issue-forensics.toml
+    - .codex/agents/legal-compliance-auditor.toml
+    - .codex/agents/main-processor-guru.toml
+    - .codex/agents/seo-auditor.toml
+    - .codex/agents/settings-ui-consistency-checker.toml
+    - .codex/agents/skill-integration-doctor.toml
+    - .codex/agents/test-failure-triager.toml
+    - .codex/config.toml
+    - .codex/hooks.json
+    - .codex/hooks/claude-hook-bridge.sh
+    - .gitignore
+    - .opencode/agents/chat-sync-detective.md
+    - .opencode/agents/code-reviewer.md
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/embed-rendering-investigator.md
+    - .opencode/agents/encryption-flow-tracer.md
+    - .opencode/agents/issue-forensics.md
+    - .opencode/agents/legal-compliance-auditor.md
+    - .opencode/agents/main-processor-guru.md
+    - .opencode/agents/seo-auditor.md
+    - .opencode/agents/settings-ui-consistency-checker.md
+    - .opencode/agents/skill-integration-doctor.md
+    - .opencode/agents/test-failure-triager.md
+    - .opencode/plugins/openmates-claude-hooks.js
+    - AGENTS.md
+    - docs/architecture/agent-tooling-parity.md
+    - scripts/sync_agent_parity.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add interactive touch drawer dragging'
+    section: features
+    commits:
+    - 429aabb81
+    authored_at: '2026-05-12T08:53:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: await chat key candidate preservation'
+    section: bug_fixes
+    commits:
+    - 63b4e3a68
+    authored_at: '2026-05-12T22:23:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: recover authoritative chat keys during sync'
+    section: bug_fixes
+    commits:
+    - a3d1defb5
+    authored_at: '2026-05-12T21:57:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/encryption/MessageEncryptor.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: convert GitHub web results to repo embeds'
+    section: bug_fixes
+    commits:
+    - 7259f79fa
+    authored_at: '2026-05-12T21:29:47+00:00'
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_composite.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore social media app card styling'
+    section: bug_fixes
+    commits:
+    - 1a019b539
+    authored_at: '2026-05-12T21:24:30+00:00'
+    changed_paths:
+    - backend/apps/social_media/app.yml
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    - frontend/packages/ui/static/icons/reddit.svg
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve settings horizontal scrolling'
+    section: bug_fixes
+    commits:
+    - 4977996f6
+    authored_at: '2026-05-12T21:22:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize mixed skill identifiers'
+    section: bug_fixes
+    commits:
+    - df255f923
+    authored_at: '2026-05-12T21:00:20+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor_skill_resolver.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: enable social media runtime'
+    section: bug_fixes
+    commits:
+    - f0fc5d012
+    authored_at: '2026-05-12T19:43:10+00:00'
+    changed_paths:
+    - backend/config/backend_config.yml
+    - backend/core/docker-compose.yml
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve Apple embed parity'
+    section: bug_fixes
+    commits:
+    - 32edeb8a5
+    authored_at: '2026-05-12T20:30:12+02:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PhonePairLoginView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventsSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelConnectionEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelStayEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - scripts/apple_embed_visual_qa.mjs
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: serve OG image asset'
+    section: bug_fixes
+    commits:
+    - ed08ce5f7
+    authored_at: '2026-05-12T17:51:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+server.ts
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+server.ts
+    - frontend/apps/web_app/static/images/og-image.jpg
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: scale tablet teaser text by banner'
+    section: bug_fixes
+    commits:
+    - a09dfa0f7
+    authored_at: '2026-05-12T10:07:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: tune tablet chat header teaser cycle'
+    section: bug_fixes
+    commits:
+    - 3cf5809e3
+    authored_at: '2026-05-12T09:52:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: enlarge tablet chat header teaser'
+    section: bug_fixes
+    commits:
+    - 63626c2ac
+    authored_at: '2026-05-12T09:39:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: drag drawers across wide layouts'
+    section: bug_fixes
+    commits:
+    - d1a53706b
+    authored_at: '2026-05-12T09:33:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent tablet chat drawer drag jump'
+    section: bug_fixes
+    commits:
+    - 3c2fdb51b
+    authored_at: '2026-05-12T09:23:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show travel provider logos and times in previews'
+    section: bug_fixes
+    commits:
+    - ef480ab58
+    authored_at: '2026-05-12T09:21:57+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow backup codes after 2FA signup verification'
+    section: bug_fixes
+    commits:
+    - 6bbbd84af
+    authored_at: '2026-05-12T09:17:42+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair managed checkout and bank transfer address'
+    section: bug_fixes
+    commits:
+    - 4afd12659
+    authored_at: '2026-05-12T07:50:52+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/services/stripe_product_sync.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py
+    - backend/core/api/templates/email/bank-transfer-reminder.mjml
+    - backend/tests/test_bank_transfer.py
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    - scripts/revolut_business_setup.py
+    - scripts/stripe_audit.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: add follow-up suggestion mock fixtures'
+    section: tests
+    commits:
+    - 55b28ca1a
+    authored_at: '2026-05-12T21:56:28+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/follow_up_suggestions.json
+    - backend/apps/ai/testing/fixtures/follow_up_suggestions_disabled.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: require social media embeds in e2e'
+    section: tests
+    commits:
+    - 04c4ec244
+    authored_at: '2026-05-12T20:39:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: relax social media continuation assertion'
+    section: tests
+    commits:
+    - d9179cd6c
+    authored_at: '2026-05-12T20:25:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden social media embed assertions'
+    section: tests
+    commits:
+    - f897c5a5a
+    authored_at: '2026-05-12T20:10:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize social media e2e'
+    section: tests
+    commits:
+    - 95a41fbb6
+    authored_at: '2026-05-12T19:57:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: update social media skill pricing'
+    section: infrastructure
+    commits:
+    - f54965f32
+    authored_at: '2026-05-12T22:03:26+00:00'
+    changed_paths:
+    - backend/apps/social_media/app.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #395 from glowingkitty/dev'
+    section: other
+    commits:
+    - 49c524a1f
+    authored_at: '2026-05-12T12:57:46+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'chore: update social media skill pricing'
+    commits:
+    - f54965f32
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore social media app card styling'
+    commits:
+    - 1a019b539
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add follow-up suggestions setting'
+    commits:
+    - 43b99e6b8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore social media app card styling'
+    commits:
+    - 1a019b539
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve settings horizontal scrolling'
+    commits:
+    - 4977996f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize mixed skill identifiers'
+    commits:
+    - df255f923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enable social media runtime'
+    commits:
+    - f0fc5d012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: serve OG image asset'
+    commits:
+    - ed08ce5f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: scale tablet teaser text by banner'
+    commits:
+    - a09dfa0f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: tune tablet chat header teaser cycle'
+    commits:
+    - 3cf5809e3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enlarge tablet chat header teaser'
+    commits:
+    - 63626c2ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: drag drawers across wide layouts'
+    commits:
+    - d1a53706b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent tablet chat drawer drag jump'
+    commits:
+    - 3c2fdb51b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show travel provider logos and times in previews'
+    commits:
+    - ef480ab58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow backup codes after 2FA signup verification'
+    commits:
+    - 6bbbd84af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add interactive touch drawer dragging'
+    commits:
+    - 429aabb81
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair managed checkout and bank transfer address'
+    commits:
+    - 4afd12659
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add follow-up suggestions setting'
+    commits:
+    - 43b99e6b8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore social media app card styling'
+    commits:
+    - 1a019b539
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve settings horizontal scrolling'
+    commits:
+    - 4977996f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize mixed skill identifiers'
+    commits:
+    - df255f923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enable social media runtime'
+    commits:
+    - f0fc5d012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve Apple embed parity'
+    commits:
+    - 32edeb8a5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add native Apple embed parity previews'
+    commits:
+    - 2d5a7c613
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: serve OG image asset'
+    commits:
+    - ed08ce5f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: scale tablet teaser text by banner'
+    commits:
+    - a09dfa0f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: tune tablet chat header teaser cycle'
+    commits:
+    - 3cf5809e3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enlarge tablet chat header teaser'
+    commits:
+    - 63626c2ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: drag drawers across wide layouts'
+    commits:
+    - d1a53706b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent tablet chat drawer drag jump'
+    commits:
+    - 3c2fdb51b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show travel provider logos and times in previews'
+    commits:
+    - ef480ab58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow backup codes after 2FA signup verification'
+    commits:
+    - 6bbbd84af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add interactive touch drawer dragging'
+    commits:
+    - 429aabb81
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair managed checkout and bank transfer address'
+    commits:
+    - 4afd12659
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 63b4e3a68b7648cb45fe8675bcdbd67aa003e46b
+    short_sha: 63b4e3a68
+    authored_at: '2026-05-12T22:23:44+00:00'
+    subject: 'fix: await chat key candidate preservation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    related_feature_ids: []
+  - sha: f54965f32fec8f7c8a7337f14db8142dcc0373a3
+    short_sha: f54965f32
+    authored_at: '2026-05-12T22:03:26+00:00'
+    subject: 'chore: update social media skill pricing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/social_media/app.yml
+    related_feature_ids: []
+  - sha: a3d1defb56b8c6676559eacc07110401fe1babdd
+    short_sha: a3d1defb5
+    authored_at: '2026-05-12T21:57:23+00:00'
+    subject: 'fix: recover authoritative chat keys during sync'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/encryption/MessageEncryptor.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/ChatKeyManager.test.ts
+    related_feature_ids: []
+  - sha: 55b28ca1aeb4aa506fc12fe401fe96eaa7d8b7cc
+    short_sha: 55b28ca1a
+    authored_at: '2026-05-12T21:56:28+00:00'
+    subject: 'test: add follow-up suggestion mock fixtures'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/follow_up_suggestions.json
+    - backend/apps/ai/testing/fixtures/follow_up_suggestions_disabled.json
+    related_feature_ids: []
+  - sha: 43b99e6b8da8075c65add093c4538430f5aed37a
+    short_sha: 43b99e6b8
+    authored_at: '2026-05-12T21:36:47+00:00'
+    subject: 'feat: add follow-up suggestions setting'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/schemas/settings.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/directus/schemas/users.yml
+    - frontend/apps/web_app/tests/follow-up-suggestions-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/llm-eval.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/FollowUpSuggestions.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    - frontend/packages/ui/src/config/api.ts
+    - frontend/packages/ui/src/i18n/sources/settings/ai_ask.yml
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/userProfile.ts
+    related_feature_ids: []
+  - sha: 7259f79fa13c4fc1155b792f1787166151c746ec
+    short_sha: 7259f79fa
+    authored_at: '2026-05-12T21:29:47+00:00'
+    subject: 'fix: convert GitHub web results to repo embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_embed_service_composite.py
+    related_feature_ids: []
+  - sha: 1a019b5395b9c1cdb38de1f67b48107425eb15f1
+    short_sha: 1a019b539
+    authored_at: '2026-05-12T21:24:30+00:00'
+    subject: 'fix: restore social media app card styling'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/social_media/app.yml
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    - frontend/packages/ui/src/i18n/sources/apps.yml
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    - frontend/packages/ui/static/icons/reddit.svg
+    related_feature_ids: []
+  - sha: 4977996f6de93d6aa26a86fc03c26db1d2428337
+    short_sha: 4977996f6
+    authored_at: '2026-05-12T21:22:20+00:00'
+    subject: 'fix: preserve settings horizontal scrolling'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    related_feature_ids: []
+  - sha: df255f923f667ade58bb712cc54167381e939df6
+    short_sha: df255f923
+    authored_at: '2026-05-12T21:00:20+00:00'
+    subject: 'fix: normalize mixed skill identifiers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/test_preprocessor_skill_resolver.py
+    related_feature_ids: []
+  - sha: 04c4ec2441549db02453f17de67050a7ce5d8e6e
+    short_sha: 04c4ec244
+    authored_at: '2026-05-12T20:39:48+00:00'
+    subject: 'test: require social media embeds in e2e'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    related_feature_ids: []
+  - sha: d9179cd6cf086762dcda5a79e82249187120f12a
+    short_sha: d9179cd6c
+    authored_at: '2026-05-12T20:25:05+00:00'
+    subject: 'test: relax social media continuation assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    related_feature_ids: []
+  - sha: f897c5a5a8e68c656ac4e35e59e5a257a95204ed
+    short_sha: f897c5a5a
+    authored_at: '2026-05-12T20:10:51+00:00'
+    subject: 'test: harden social media embed assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    related_feature_ids: []
+  - sha: 95a41fbb6ca8863fc3a15a9bd77d88e8710bf67b
+    short_sha: 95a41fbb6
+    authored_at: '2026-05-12T19:57:54+00:00'
+    subject: 'test: stabilize social media e2e'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    related_feature_ids: []
+  - sha: f0fc5d0121b1e858b13db5d1dc05399541b22e46
+    short_sha: f0fc5d012
+    authored_at: '2026-05-12T19:43:10+00:00'
+    subject: 'fix: enable social media runtime'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/config/backend_config.yml
+    - backend/core/docker-compose.yml
+    - frontend/apps/web_app/tests/skill-social-media.spec.ts
+    related_feature_ids: []
+  - sha: 32edeb8a542cf043f96e8be2bafb7851680fd0e4
+    short_sha: 32edeb8a5
+    authored_at: '2026-05-12T20:30:12+02:00'
+    subject: 'fix: improve Apple embed parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PhonePairLoginView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/EventsSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelConnectionEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelStayEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - scripts/apple_embed_visual_qa.mjs
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2d5a7c61313b25e9a2254dbe9d4c9fbf9c702d6d
+    short_sha: 2d5a7c613
+    authored_at: '2026-05-12T16:14:34+02:00'
+    subject: 'feat: add native Apple embed parity previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageGenerateEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImageResultEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ImagesSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedRendererSupport.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelConnectionEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelFlightDetailsEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelPriceCalendarEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelStayEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelStaysEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebReadEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebsiteEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - scripts/apple_embed_visual_compare.swift
+    - scripts/apple_embed_visual_qa.mjs
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ed08ce5f7741300a6ab0d817382b8f5f5d00b525
+    short_sha: ed08ce5f7
+    authored_at: '2026-05-12T17:51:55+00:00'
+    subject: 'fix: serve OG image asset'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+server.ts
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+server.ts
+    - frontend/apps/web_app/static/images/og-image.jpg
+    related_feature_ids: []
+  - sha: 4185f224e5372eeaebe862f2beb8051ade91a443
+    short_sha: 4185f224e
+    authored_at: '2026-05-12T12:36:27+00:00'
+    subject: 'feat: add agent tooling parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-api/SKILL.md
+    - .agents/skills/add-app-skill/SKILL.md
+    - .agents/skills/add-embed-type/SKILL.md
+    - .agents/skills/add-example-chat/SKILL.md
+    - .agents/skills/clarify/SKILL.md
+    - .agents/skills/create-pr/SKILL.md
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/daily-meeting/SKILL.md
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .agents/skills/ios/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/next-tasks/SKILL.md
+    - .agents/skills/organize-linear-tasks/SKILL.md
+    - .agents/skills/prod-ssh/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/resume-tasks/SKILL.md
+    - .agents/skills/review-video-script/SKILL.md
+    - .agents/skills/task-status/SKILL.md
+    - .agents/skills/triage-recent-bugs/SKILL.md
+    - .claude/skills/review-video-script/SKILL.md
+    - .codex/agents/chat-sync-detective.toml
+    - .codex/agents/code-reviewer.toml
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/embed-rendering-investigator.toml
+    - .codex/agents/encryption-flow-tracer.toml
+    - .codex/agents/issue-forensics.toml
+    - .codex/agents/legal-compliance-auditor.toml
+    - .codex/agents/main-processor-guru.toml
+    - .codex/agents/seo-auditor.toml
+    - .codex/agents/settings-ui-consistency-checker.toml
+    - .codex/agents/skill-integration-doctor.toml
+    - .codex/agents/test-failure-triager.toml
+    - .codex/config.toml
+    - .codex/hooks.json
+    - .codex/hooks/claude-hook-bridge.sh
+    - .gitignore
+    - .opencode/agents/chat-sync-detective.md
+    - .opencode/agents/code-reviewer.md
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/embed-rendering-investigator.md
+    - .opencode/agents/encryption-flow-tracer.md
+    - .opencode/agents/issue-forensics.md
+    - .opencode/agents/legal-compliance-auditor.md
+    - .opencode/agents/main-processor-guru.md
+    - .opencode/agents/seo-auditor.md
+    - .opencode/agents/settings-ui-consistency-checker.md
+    - .opencode/agents/skill-integration-doctor.md
+    - .opencode/agents/test-failure-triager.md
+    - .opencode/plugins/openmates-claude-hooks.js
+    - AGENTS.md
+    - docs/architecture/agent-tooling-parity.md
+    - scripts/sync_agent_parity.py
+    related_feature_ids: []
+  - sha: 49c524a1ff3a1e4b331eb204021b5923f50349fd
+    short_sha: 49c524a1f
+    authored_at: '2026-05-12T12:57:46+02:00'
+    subject: 'Merge pull request #395 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: a09dfa0f7d405def12a1937e33ce2337ef138f8b
+    short_sha: a09dfa0f7
+    authored_at: '2026-05-12T10:07:25+00:00'
+    subject: 'fix: scale tablet teaser text by banner'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 3cf5809e320a52c9eb7f515d7ba8067289a4eba4
+    short_sha: 3cf5809e3
+    authored_at: '2026-05-12T09:52:34+00:00'
+    subject: 'fix: tune tablet chat header teaser cycle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: 63626c2ac309bd41ccadc198a2f80a6f63961041
+    short_sha: 63626c2ac
+    authored_at: '2026-05-12T09:39:08+00:00'
+    subject: 'fix: enlarge tablet chat header teaser'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    related_feature_ids: []
+  - sha: d1a53706b66963c05e21a662228a6d2253706936
+    short_sha: d1a53706b
+    authored_at: '2026-05-12T09:33:48+00:00'
+    subject: 'fix: drag drawers across wide layouts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 3c2fdb51b368e9f87bd1eec34765d05e69ce273d
+    short_sha: 3c2fdb51b
+    authored_at: '2026-05-12T09:23:27+00:00'
+    subject: 'fix: prevent tablet chat drawer drag jump'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    related_feature_ids: []
+  - sha: ef480ab5842f521cb27cd06c26aa7bb57b8baa6a
+    short_sha: ef480ab58
+    authored_at: '2026-05-12T09:21:57+00:00'
+    subject: 'fix: show travel provider logos and times in previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: 6bbbd84afa8c0339683ce5781a2a2d7bab0d1a2f
+    short_sha: 6bbbd84af
+    authored_at: '2026-05-12T09:17:42+00:00'
+    subject: 'fix: allow backup codes after 2FA signup verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
+    related_feature_ids: []
+  - sha: 429aabb81d00a6f44a185647e78dd5f76f3d5ae3
+    short_sha: 429aabb81
+    authored_at: '2026-05-12T08:53:26+00:00'
+    subject: 'feat: add interactive touch drawer dragging'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 4afd12659f9bc98467a7b9c13220fe7518d0822e
+    short_sha: 4afd12659
+    authored_at: '2026-05-12T07:50:52+00:00'
+    subject: 'fix: repair managed checkout and bank transfer address'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/services/stripe_product_sync.py
+    - backend/core/api/app/tasks/email_tasks/bank_transfer_reminder_email_task.py
+    - backend/core/api/templates/email/bank-transfer-reminder.mjml
+    - backend/tests/test_bank_transfer.py
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/packages/ui/src/components/payment/BankTransferPayment.svelte
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/settings/billing.yml
+    - scripts/revolut_business_setup.py
+    - scripts/stripe_audit.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a new AI setting for follow-up suggestions and significantly improved the touch experience
+    for drawer navigation. The social media skill was also enabled with corrected styling, alongside several refinements for
+    tablet layouts and payment workflows.
+  released_changes:
+  - text: OpenMates added a toggle in AI settings to enable or disable follow-up suggestions after chat responses.
+    evidence:
+      commits:
+      - 43b99e6b8
+    release_status: released_main
+  - text: The touch interface now supports interactive dragging for drawers, with specific fixes for wide layouts and tablet-specific
+      jumpiness.
+    evidence:
+      commits:
+      - 429aabb81
+      - d1a53706b
+      - 3c2fdb51b
+    release_status: released_main
+  - text: The social media skill is now active, featuring restored card styling and Reddit icon support.
+    evidence:
+      commits:
+      - f0fc5d012
+      - 1a019b539
+    release_status: released_main
+  - text: Tablet users will see improved chat headers with larger, better-scaled teaser text and tuned animation cycles.
+    evidence:
+      commits:
+      - a09dfa0f7
+      - 3cf5809e3
+      - 63626c2ac
+    release_status: released_main
+  - text: Travel previews now display provider logos and departure/arrival times in the basic info bar.
+    evidence:
+      commits:
+      - ef480ab58
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where backup codes were not accessible immediately after 2FA signup verification.
+    evidence:
+      commits:
+      - 6bbbd84af
+    release_status: released_main
+  - text: Fixed managed checkout and bank transfer address handling in payment workflows and reminder emails.
+    evidence:
+      commits:
+      - 4afd12659
+    release_status: released_main
+  - text: Corrected horizontal scrolling behavior within the settings menu to prevent layout shifts.
+    evidence:
+      commits:
+      - 4977996f6
+    release_status: released_main
+  - text: Improved skill resolution by normalizing mixed identifiers during AI preprocessing.
+    evidence:
+      commits:
+      - df255f923
+    release_status: released_main
+  - text: Ensured Open Graph (OG) images are correctly served for shared chats and embeds.
+    evidence:
+      commits:
+      - ed08ce5f7
+    release_status: released_main
+  unreleased_progress:
+  - text: Significant work continued on the iOS and macOS platforms, focusing on native embed parity and visual QA for travel
+      and event renderers.
+    evidence:
+      commits:
+      - 2d5a7c613
+      - 32edeb8a5
+    release_status: released_main
+  - text: Internal agent tooling was expanded to improve parity across different development environments.
+    evidence:
+      commits:
+      - 4185f224e
+    release_status: released_main
+  - text: Refinements were made to chat key recovery and synchronization logic during phased sync.
+    evidence:
+      commits:
+      - 63b4e3a68
+      - a3d1defb5
+    release_status: released_main
+  - text: Added logic to convert GitHub web results into specialized repository embeds.
+    evidence:
+      commits:
+      - 7259f79fa
+    release_status: released_main
+  internal_progress:
+  - text: Updated pricing metadata for the social media skill.
+    evidence:
+      commits:
+      - f54965f32
+    release_status: released_main
+  - text: Expanded test coverage for follow-up suggestions and social media embed stability.
+    evidence:
+      commits:
+      - 55b28ca1a
+      - 04c4ec244
+      - d9179cd6c
+      - f897c5a5a
+      - 95a41fbb6
+    release_status: released_main
+  - text: Merged development branch updates into the main repository.
+    evidence:
+      commits:
+      - 49c524a1f
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New AI setting for follow-up suggestions.
+      evidence:
+        commits:
+        - 43b99e6b8
+      reason: New user-facing AI setting for follow-up suggestions.
+    - text: Interactive touch drawer dragging for mobile and tablet.
+      evidence:
+        commits:
+        - 429aabb81
+        - d1a53706b
+        - 3c2fdb51b
+      reason: Significant improvement to the touch and tablet navigation experience.
+    - text: Activation of the social media skill with corrected styling.
+      evidence:
+        commits:
+        - f0fc5d012
+        - 1a019b539
+      reason: The social media skill is now fully enabled and styled.
+    - text: Travel previews now include provider logos and arrival/departure times.
+      evidence:
+        commits:
+        - ef480ab58
+      reason: Enhanced travel information in chat previews.
+    exclude:
+    - text: Native Apple embed parity and visual QA improvements.
+      evidence:
+        commits:
+        - 2d5a7c613
+        - 32edeb8a5
+      reason: iOS and macOS platforms are currently disabled in feature availability.
+    - text: Agent tooling parity updates.
+      evidence:
+        commits:
+        - 4185f224e
+      reason: Internal development tooling is not user-facing.
+    rationale: The update introduces a key AI configuration setting and major UI refinements for touch users, alongside the
+      activation of the social media skill. Internal tooling and unreleased platform work are excluded.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the smooth new touch drawer dragging followed by interacting with the new AI follow-up
+      suggestions.
+    priority: High
+    reason: Shows concrete UI improvements and a new functional AI feature.
+    evidence:
+      commits:
+      - 429aabb81
+      - 43b99e6b8
+  quality_notes:
+  - Strong focus on tablet and touch UX refinements.
+  - Social media skill is now fully operational with verified e2e tests.
+  - Apple platform work is progressing but remains gated behind feature flags.
+  validation_warnings: []

@@ -1,0 +1,1395 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-06'
+generated_at: '2026-07-09T15:35:53+00:00'
+range:
+  since: '2026-06-06T00:00:00+00:00'
+  until: '2026-06-06T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 32
+  section_counts:
+    features: 3
+    bug_fixes: 10
+    improvements: 0
+    docs: 6
+    tests: 7
+    infrastructure: 6
+    internal: 0
+    other: 0
+  newsletter_ready_items: 6
+  user_facing_items: 7
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add explain in new chat action'
+    section: features
+    commits:
+    - 2fb4ffbfd
+    authored_at: '2026-06-06T17:05:56+00:00'
+    changed_paths:
+    - docs/specs/explain-in-new-chat/spec.yml
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/services/forkChatService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add self-host signup modes'
+    section: features
+    commits:
+    - 5ebb4f703
+    authored_at: '2026-06-06T13:37:10+00:00'
+    changed_paths:
+    - .env.example
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/api/app/routes/auth_routes/auth_email.py
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/auth_routes/auth_password.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/utils/invite_code.py
+    - backend/core/directus/schemas/invite_codes.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_self_host_signup_requirements.py
+    - docs/cli/server-management.md
+    - docs/self-hosting/README.md
+    - docs/self-hosting/setup.md
+    - docs/specs/self-host-signup-mode/plan.md
+    - docs/specs/self-host-signup-mode/spec.md
+    - docs/specs/self-host-signup-mode/tasks.md
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - setup.sh
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add unified notification events'
+    section: features
+    commits:
+    - 34669e142
+    authored_at: '2026-06-06T09:54:56+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMatesNotificationService/Info.plist
+    - apple/OpenMatesNotificationService/NotificationService.swift
+    - apple/OpenMatesNotificationService/OpenMatesNotificationService.entitlements
+    - backend/core/api/app/routes/notifications.py
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/notification_event_service.py
+    - backend/core/api/app/services/notification_sse.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/main.py
+    - backend/tests/test_notifications_api.py
+    - backend/tests/test_unified_notifications.py
+    - docs/specs/unified-notifications/plan.md
+    - docs/specs/unified-notifications/spec.md
+    - docs/specs/unified-notifications/tasks.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/i18n/sources/notifications.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix: move explain action into highlight menu'
+    section: bug_fixes
+    commits:
+    - 41013cd8b
+    authored_at: '2026-06-06T17:14:05+00:00'
+    changed_paths:
+    - docs/specs/explain-in-new-chat/spec.yml
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve admin auth cache'
+    section: bug_fixes
+    commits:
+    - 8b50c9542
+    authored_at: '2026-06-06T16:53:17+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/admin_methods.py
+    - backend/tests/test_admin_methods_cache.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: sync admin session cache'
+    section: bug_fixes
+    commits:
+    - dfc22dc47
+    authored_at: '2026-06-06T16:38:14+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/admin_methods.py
+    - backend/tests/test_admin_methods_cache.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: show searched event providers in embeds'
+    section: bug_fixes
+    commits:
+    - fd6fb7983
+    authored_at: '2026-06-06T11:22:00+00:00'
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use Directus ping in API lifespan'
+    section: bug_fixes
+    commits:
+    - 5fbd457c9
+    authored_at: '2026-06-06T11:10:20+00:00'
+    changed_paths:
+    - backend/core/api/main.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: use Directus ping for API startup'
+    section: bug_fixes
+    commits:
+    - fc464ec92
+    authored_at: '2026-06-06T11:09:45+00:00'
+    changed_paths:
+    - backend/core/api/wait-for-vault.sh
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: use Directus ping for cms healthcheck'
+    section: bug_fixes
+    commits:
+    - 5ead61303
+    authored_at: '2026-06-06T10:54:19+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: use configured postgres user in healthcheck'
+    section: bug_fixes
+    commits:
+    - d3c26adcc
+    authored_at: '2026-06-06T10:43:18+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: include docs in webapp image build'
+    section: bug_fixes
+    commits:
+    - 0eaf4e4f0
+    authored_at: '2026-06-06T10:31:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/Dockerfile
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include shared metadata in webapp image'
+    section: bug_fixes
+    commits:
+    - 7593924f2
+    authored_at: '2026-06-06T10:28:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/Dockerfile
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: verify explain in new chat spec'
+    section: docs
+    commits:
+    - b8267e2ee
+    authored_at: '2026-06-06T18:01:53+00:00'
+    changed_paths:
+    - docs/specs/explain-in-new-chat/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: clarify self-host admin promotion'
+    section: docs
+    commits:
+    - cb1810e4e
+    authored_at: '2026-06-06T17:11:03+00:00'
+    changed_paths:
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: remove legacy spec markdown references'
+    section: docs
+    commits:
+    - 9758d4427
+    authored_at: '2026-06-06T15:27:14+00:00'
+    changed_paths:
+    - .agents/skills/specify/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/README.md
+    - docs/specs/self-host-signup-mode/plan.md
+    - docs/specs/self-host-signup-mode/spec.md
+    - docs/specs/self-host-signup-mode/spec.yml
+    - docs/specs/self-host-signup-mode/tasks.md
+    - docs/specs/unified-notifications/plan.md
+    - docs/specs/unified-notifications/spec.md
+    - docs/specs/unified-notifications/spec.yml
+    - docs/specs/unified-notifications/tasks.md
+    - scripts/spec_validate.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: add executable spec workflow'
+    section: docs
+    commits:
+    - bd065a701
+    authored_at: '2026-06-06T15:02:08+00:00'
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/README.md
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: update self-host setup guide'
+    section: docs
+    commits:
+    - 6f70b60bd
+    authored_at: '2026-06-06T12:25:04+00:00'
+    changed_paths:
+    - docs/cli/server-management.md
+    - docs/self-hosting/README.md
+    - docs/self-hosting/setup.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: add auth and CLI claim coverage'
+    section: docs
+    commits:
+    - beb507e9e
+    authored_at: '2026-06-06T09:57:56+00:00'
+    changed_paths:
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_rest_api_auth.py
+    - docs/architecture/core/signup-and-auth.md
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: stabilize explain context menu click'
+    section: tests
+    commits:
+    - f127d7757
+    authored_at: '2026-06-06T17:59:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix explain chat selectors'
+    section: tests
+    commits:
+    - 1a1b8ce93
+    authored_at: '2026-06-06T17:39:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add explain in new chat fixture'
+    section: tests
+    commits:
+    - c72ab0b9a
+    authored_at: '2026-06-06T17:30:27+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/explain_in_new_chat_seed.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: poll self-host session with browser session id'
+    section: tests
+    commits:
+    - 806b51fa6
+    authored_at: '2026-06-06T16:18:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix self-host smoke username length'
+    section: tests
+    commits:
+    - 2403c2007
+    authored_at: '2026-06-06T16:03:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add self-host install smoke workflow'
+    section: tests
+    commits:
+    - 24d791d85
+    authored_at: '2026-06-06T10:25:25+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/api/app/routes/settings.py
+    - backend/core/docker-compose.yml
+    - frontend/apps/web_app/Dockerfile
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    - setup.sh
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert background chat notification source'
+    section: tests
+    commits:
+    - 540f8f038
+    authored_at: '2026-06-06T10:11:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'ci: fix self-host alpha smoke install source'
+    section: infrastructure
+    commits:
+    - 32fca5de7
+    authored_at: '2026-06-06T15:43:59+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'ci: test self-host alpha signup admin flow'
+    section: infrastructure
+    commits:
+    - 72433d032
+    authored_at: '2026-06-06T15:34:26+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/auth_routes/auth_password.py
+    - docs/cli/server-management.md
+    - docs/self-hosting/README.md
+    - docs/self-hosting/setup.md
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'ci: disable video in self-host smoke'
+    section: infrastructure
+    commits:
+    - 75f6a944e
+    authored_at: '2026-06-06T12:07:35+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/apps/web_app/playwright.config.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'ci: use system chrome for self-host smoke'
+    section: infrastructure
+    commits:
+    - 1f23125c8
+    authored_at: '2026-06-06T11:55:25+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/apps/web_app/playwright.config.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'ci: bound self-host smoke browser install'
+    section: infrastructure
+    commits:
+    - 17041e55a
+    authored_at: '2026-06-06T11:29:04+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'ci: harden self-host smoke startup'
+    section: infrastructure
+    commits:
+    - 5c3f910b0
+    authored_at: '2026-06-06T10:56:25+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: move explain action into highlight menu'
+    commits:
+    - 41013cd8b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add explain in new chat action'
+    commits:
+    - 2fb4ffbfd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add self-host signup modes'
+    commits:
+    - 5ebb4f703
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show searched event providers in embeds'
+    commits:
+    - fd6fb7983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include docs in webapp image build'
+    commits:
+    - 0eaf4e4f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include shared metadata in webapp image'
+    commits:
+    - 7593924f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: move explain action into highlight menu'
+    commits:
+    - 41013cd8b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add explain in new chat action'
+    commits:
+    - 2fb4ffbfd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add self-host signup modes'
+    commits:
+    - 5ebb4f703
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show searched event providers in embeds'
+    commits:
+    - fd6fb7983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include docs in webapp image build'
+    commits:
+    - 0eaf4e4f0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include shared metadata in webapp image'
+    commits:
+    - 7593924f2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add unified notification events'
+    commits:
+    - 34669e142
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: b8267e2ee8b2a64459434c63e55b77800b274d3c
+    short_sha: b8267e2ee
+    authored_at: '2026-06-06T18:01:53+00:00'
+    subject: 'docs: verify explain in new chat spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/explain-in-new-chat/spec.yml
+    related_feature_ids: []
+  - sha: f127d77576c6618a344e4b63201f0a873f984df9
+    short_sha: f127d7757
+    authored_at: '2026-06-06T17:59:12+00:00'
+    subject: 'test: stabilize explain context menu click'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    related_feature_ids: []
+  - sha: 1a1b8ce937a8f7c1a9851be2676453374453277c
+    short_sha: 1a1b8ce93
+    authored_at: '2026-06-06T17:39:15+00:00'
+    subject: 'test: fix explain chat selectors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    related_feature_ids: []
+  - sha: c72ab0b9a90c5a07389c994e58aeda2395288bed
+    short_sha: c72ab0b9a
+    authored_at: '2026-06-06T17:30:27+00:00'
+    subject: 'test: add explain in new chat fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/explain_in_new_chat_seed.json
+    related_feature_ids: []
+  - sha: 41013cd8b2d35ef3882040ff2b2d7602ec446e5f
+    short_sha: 41013cd8b
+    authored_at: '2026-06-06T17:14:05+00:00'
+    subject: 'fix: move explain action into highlight menu'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/explain-in-new-chat/spec.yml
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    related_feature_ids: []
+  - sha: cb1810e4e0315c59f83ebeeecf8cb40fb22764ac
+    short_sha: cb1810e4e
+    authored_at: '2026-06-06T17:11:03+00:00'
+    subject: 'docs: clarify self-host admin promotion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    related_feature_ids: []
+  - sha: 2fb4ffbfdf0c870015412f3df8eaa4909074277d
+    short_sha: 2fb4ffbfd
+    authored_at: '2026-06-06T17:05:56+00:00'
+    subject: 'feat: add explain in new chat action'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/explain-in-new-chat/spec.yml
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    - frontend/packages/ui/src/i18n/sources/chats.yml
+    - frontend/packages/ui/src/services/forkChatService.ts
+    related_feature_ids: []
+  - sha: 8b50c9542787ba4963e9c6df682c3bea7d650c08
+    short_sha: 8b50c9542
+    authored_at: '2026-06-06T16:53:17+00:00'
+    subject: 'fix: preserve admin auth cache'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/admin_methods.py
+    - backend/tests/test_admin_methods_cache.py
+    related_feature_ids: []
+  - sha: dfc22dc474c0ea1dcebbf4befb22ce72dd14599c
+    short_sha: dfc22dc47
+    authored_at: '2026-06-06T16:38:14+00:00'
+    subject: 'fix: sync admin session cache'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/admin_methods.py
+    - backend/tests/test_admin_methods_cache.py
+    related_feature_ids: []
+  - sha: 806b51fa694d12a55f74f860f58a69ef0ac5c33e
+    short_sha: 806b51fa6
+    authored_at: '2026-06-06T16:18:05+00:00'
+    subject: 'test: poll self-host session with browser session id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    related_feature_ids: []
+  - sha: 2403c20070c6cf38bd57409ee26d13a1bb378845
+    short_sha: 2403c2007
+    authored_at: '2026-06-06T16:03:36+00:00'
+    subject: 'test: fix self-host smoke username length'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    related_feature_ids: []
+  - sha: 32fca5de7c10e9d8d1aaa81d189e12cc94a905a1
+    short_sha: 32fca5de7
+    authored_at: '2026-06-06T15:43:59+00:00'
+    subject: 'ci: fix self-host alpha smoke install source'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    related_feature_ids: []
+  - sha: 72433d032826a6ea0dad33a84496e287ee120262
+    short_sha: 72433d032
+    authored_at: '2026-06-06T15:34:26+00:00'
+    subject: 'ci: test self-host alpha signup admin flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/auth_routes/auth_password.py
+    - docs/cli/server-management.md
+    - docs/self-hosting/README.md
+    - docs/self-hosting/setup.md
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 9758d442745b7a039592ac5762857c8acdaaece4
+    short_sha: 9758d4427
+    authored_at: '2026-06-06T15:27:14+00:00'
+    subject: 'docs: remove legacy spec markdown references'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/specify/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/README.md
+    - docs/specs/self-host-signup-mode/plan.md
+    - docs/specs/self-host-signup-mode/spec.md
+    - docs/specs/self-host-signup-mode/spec.yml
+    - docs/specs/self-host-signup-mode/tasks.md
+    - docs/specs/unified-notifications/plan.md
+    - docs/specs/unified-notifications/spec.md
+    - docs/specs/unified-notifications/spec.yml
+    - docs/specs/unified-notifications/tasks.md
+    - scripts/spec_validate.py
+    related_feature_ids: []
+  - sha: bd065a70113015bbc1d08aabdebb0f21920fd83e
+    short_sha: bd065a701
+    authored_at: '2026-06-06T15:02:08+00:00'
+    subject: 'docs: add executable spec workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .claude/skills/plan-from-spec/SKILL.md
+    - .claude/skills/specify/SKILL.md
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/README.md
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    related_feature_ids: []
+  - sha: 5ebb4f703a0fe11e20d3a35aaf55bf7989a0d130
+    short_sha: 5ebb4f703
+    authored_at: '2026-06-06T13:37:10+00:00'
+    subject: 'feat: add self-host signup modes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/api/app/routes/auth_routes/auth_email.py
+    - backend/core/api/app/routes/auth_routes/auth_invite.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/auth_routes/auth_password.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/utils/invite_code.py
+    - backend/core/directus/schemas/invite_codes.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_self_host_signup_requirements.py
+    - docs/cli/server-management.md
+    - docs/self-hosting/README.md
+    - docs/self-hosting/setup.md
+    - docs/specs/self-host-signup-mode/plan.md
+    - docs/specs/self-host-signup-mode/spec.md
+    - docs/specs/self-host-signup-mode/tasks.md
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - setup.sh
+    related_feature_ids: []
+  - sha: 6f70b60bdc6efeb2b84572e5bfc64e5886fb6ae1
+    short_sha: 6f70b60bd
+    authored_at: '2026-06-06T12:25:04+00:00'
+    subject: 'docs: update self-host setup guide'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/cli/server-management.md
+    - docs/self-hosting/README.md
+    - docs/self-hosting/setup.md
+    related_feature_ids: []
+  - sha: 75f6a944e1e4262ce8b608b9c161f444511face2
+    short_sha: 75f6a944e
+    authored_at: '2026-06-06T12:07:35+00:00'
+    subject: 'ci: disable video in self-host smoke'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/apps/web_app/playwright.config.ts
+    related_feature_ids: []
+  - sha: 1f23125c8a646852e26ed6f62c41765682122f15
+    short_sha: 1f23125c8
+    authored_at: '2026-06-06T11:55:25+00:00'
+    subject: 'ci: use system chrome for self-host smoke'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - frontend/apps/web_app/playwright.config.ts
+    related_feature_ids: []
+  - sha: 17041e55ad826cf614520116a23bbf0b04f7382f
+    short_sha: 17041e55a
+    authored_at: '2026-06-06T11:29:04+00:00'
+    subject: 'ci: bound self-host smoke browser install'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    related_feature_ids: []
+  - sha: fd6fb7983af09b276b47c36db3377890582c5be5
+    short_sha: fd6fb7983
+    authored_at: '2026-06-06T11:22:00+00:00'
+    subject: 'fix: show searched event providers in embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    related_feature_ids: []
+  - sha: 5fbd457c9ed5c31460df91f4f240dc4fa5f32dfa
+    short_sha: 5fbd457c9
+    authored_at: '2026-06-06T11:10:20+00:00'
+    subject: 'fix: use Directus ping in API lifespan'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/main.py
+    related_feature_ids: []
+  - sha: fc464ec9286950198a750f19b7a0a1d4394ff0b1
+    short_sha: fc464ec92
+    authored_at: '2026-06-06T11:09:45+00:00'
+    subject: 'fix: use Directus ping for API startup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/wait-for-vault.sh
+    related_feature_ids: []
+  - sha: 5c3f910b0cd3f4b0683fdf6b1de2f5efc0bcb0e9
+    short_sha: 5c3f910b0
+    authored_at: '2026-06-06T10:56:25+00:00'
+    subject: 'ci: harden self-host smoke startup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    related_feature_ids: []
+  - sha: 5ead613038ce240d6fd05de335729f672bdedf2c
+    short_sha: 5ead61303
+    authored_at: '2026-06-06T10:54:19+00:00'
+    subject: 'fix: use Directus ping for cms healthcheck'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    related_feature_ids: []
+  - sha: d3c26adcc18036e550b9a57508a49f6ec606709a
+    short_sha: d3c26adcc
+    authored_at: '2026-06-06T10:43:18+00:00'
+    subject: 'fix: use configured postgres user in healthcheck'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    related_feature_ids: []
+  - sha: 0eaf4e4f047d8bb06fe43d7b46e4a663ad594d21
+    short_sha: 0eaf4e4f0
+    authored_at: '2026-06-06T10:31:50+00:00'
+    subject: 'fix: include docs in webapp image build'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/Dockerfile
+    related_feature_ids: []
+  - sha: 7593924f24675c044bd0f231ea0425e68abe432a
+    short_sha: 7593924f2
+    authored_at: '2026-06-06T10:28:58+00:00'
+    subject: 'fix: include shared metadata in webapp image'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/Dockerfile
+    related_feature_ids: []
+  - sha: 24d791d850c30f67b6198420c89bb959b11c23ae
+    short_sha: 24d791d85
+    authored_at: '2026-06-06T10:25:25+00:00'
+    subject: 'test: add self-host install smoke workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/api/app/routes/settings.py
+    - backend/core/docker-compose.yml
+    - frontend/apps/web_app/Dockerfile
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    - setup.sh
+    related_feature_ids: []
+  - sha: 540f8f03860472b578e6515a483230517c6086e3
+    short_sha: 540f8f038
+    authored_at: '2026-06-06T10:11:27+00:00'
+    subject: 'test: assert background chat notification source'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    - frontend/packages/ui/src/components/ChatMessageNotification.svelte
+    related_feature_ids: []
+  - sha: beb507e9e9c02c967f103818020afea750dc661b
+    short_sha: beb507e9e
+    authored_at: '2026-06-06T09:57:56+00:00'
+    subject: 'docs: add auth and CLI claim coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_rest_api_auth.py
+    - docs/architecture/core/signup-and-auth.md
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: 34669e1425d05b862b9a20734605e7914818e807
+    short_sha: 34669e142
+    authored_at: '2026-06-06T09:54:56+00:00'
+    subject: 'feat: add unified notification events'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMatesNotificationService/Info.plist
+    - apple/OpenMatesNotificationService/NotificationService.swift
+    - apple/OpenMatesNotificationService/OpenMatesNotificationService.entitlements
+    - backend/core/api/app/routes/notifications.py
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/notification_event_service.py
+    - backend/core/api/app/services/notification_sse.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/main.py
+    - backend/tests/test_notifications_api.py
+    - backend/tests/test_unified_notifications.py
+    - docs/specs/unified-notifications/plan.md
+    - docs/specs/unified-notifications/spec.md
+    - docs/specs/unified-notifications/tasks.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/i18n/sources/notifications.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+llm_summary:
+  overview: OpenMates introduced a new 'Explain in new chat' feature for focused message clarification and expanded self-hosting
+    capabilities with configurable signup modes. Significant work was also completed on a unified notification system for
+    Apple platforms, though it remains unreleased.
+  released_changes:
+  - text: OpenMates added an 'Explain in new chat' action, allowing users to fork a conversation from a specific highlighted
+      message.
+    evidence:
+      commits:
+      - 2fb4ffbfd
+    release_status: released_main
+  - text: New signup modes for self-hosted instances were introduced, supporting invite codes and various authentication requirements.
+    evidence:
+      commits:
+      - 5ebb4f703
+    release_status: released_main
+  - text: Documentation for self-hosting was updated to clarify admin promotion and CLI-based server management.
+    evidence:
+      commits:
+      - cb1810e4e
+      - 6f70b60bd
+      - beb507e9e
+    release_status: released_main
+  bug_fixes:
+  - text: The "Explain in new chat" action was moved into the message highlight context menu for better accessibility.
+    evidence:
+      commits:
+      - 41013cd8b
+    release_status: released_main
+  - text: Event providers now correctly appear in embedded views when using the search skill.
+    evidence:
+      commits:
+      - fd6fb7983
+    release_status: released_main
+  - text: The web application Docker image now correctly includes documentation and shared metadata.
+    evidence:
+      commits:
+      - 0eaf4e4f0
+      - 7593924f2
+    release_status: released_main
+  unreleased_progress:
+  - text: Development began on a unified notification event system to support real-time updates and push notifications on
+      iOS and macOS.
+    evidence:
+      commits:
+      - 34669e142
+    release_status: released_main
+  internal_progress:
+  - text: Infrastructure for self-hosted installations was hardened with a new smoke test suite covering browser sessions,
+      admin promotion, and startup reliability.
+    evidence:
+      commits:
+      - 24d791d85
+      - 32fca5de7
+      - 72433d032
+      - 75f6a944e
+      - 1f23125c8
+      - 17041e55a
+      - 5c3f910b0
+    release_status: released_main
+  - text: Backend healthchecks were updated to use Directus ping and configured database credentials for more accurate service
+      monitoring.
+    evidence:
+      commits:
+      - 5fbd457c9
+      - fc464ec92
+      - 5ead61303
+      - d3c26adcc
+    release_status: released_main
+  - text: The spec-driven development workflow was improved with new executable validation scripts and updated agent skills.
+    evidence:
+      commits:
+      - 9758d4427
+      - bd065a701
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: 'Explain in New Chat: Highlight any message text to start a focused clarification conversation.'
+      evidence:
+        commits:
+        - 2fb4ffbfd
+        - 41013cd8b
+      reason: New user-facing interaction for chat clarification.
+    - text: 'Flexible Self-Host Signups: New support for invite-only and email-based registration modes on private instances.'
+      evidence:
+        commits:
+        - 5ebb4f703
+      reason: Significant update for the self-hosting community.
+    exclude:
+    - text: Unified notification events.
+      evidence:
+        commits:
+        - 34669e142
+      reason: Relates to unreleased iOS and macOS platforms.
+    rationale: The 'Explain' feature and self-hosting signup modes are the primary user-facing highlights ready for public
+      communication. Notification work is excluded as it targets disabled platforms.
+  social_video_recommendations:
+  - idea: Demonstrate the 'Explain in new chat' workflow.
+    priority: high
+    reason: It is a concrete, visual productivity feature that shows how OpenMates handles context.
+    evidence:
+      commits:
+      - 2fb4ffbfd
+      - 41013cd8b
+  quality_notes:
+  - The project is shifting toward YAML-based executable specifications for feature definitions.
+  - Self-hosting reliability is a current focus, evidenced by the extensive new smoke testing suite.
+  validation_warnings: []

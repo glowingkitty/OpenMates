@@ -1,0 +1,3913 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-05-11'
+week_end: '2026-05-17'
+generated_at: '2026-07-09T15:58:41+00:00'
+summary:
+  daily_files: 7
+  total_items: 148
+  newsletter_ready_items: 86
+  user_facing_items: 92
+  dev_only_items: 0
+  unknown_release_items: 0
+  themes: 9
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-05-11'
+  total_commits: 18
+  newsletter_ready_items: 8
+  dev_only_items: 0
+- date: '2026-05-12'
+  total_commits: 28
+  newsletter_ready_items: 15
+  dev_only_items: 0
+- date: '2026-05-13'
+  total_commits: 20
+  newsletter_ready_items: 15
+  dev_only_items: 0
+- date: '2026-05-14'
+  total_commits: 29
+  newsletter_ready_items: 16
+  dev_only_items: 0
+- date: '2026-05-15'
+  total_commits: 4
+  newsletter_ready_items: 3
+  dev_only_items: 0
+- date: '2026-05-16'
+  total_commits: 30
+  newsletter_ready_items: 13
+  dev_only_items: 0
+- date: '2026-05-17'
+  total_commits: 19
+  newsletter_ready_items: 16
+  dev_only_items: 0
+themes:
+- theme: chat
+  item_count: 79
+  newsletter_ready_count: 51
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-11'
+    title: 'feat: add encrypted Apple share task flow'
+    commits:
+    - 2abf23f00
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-11'
+    title: 'fix: add native notification replies'
+    commits:
+    - a86533159
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-11'
+    title: 'fix: align Safari chrome tint with chats panel'
+    commits:
+    - 6a66f515f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: base chat header layout on container width'
+    commits:
+    - b95e9354d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: preserve app skill embeds in final messages'
+    commits:
+    - 31f7929a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: render repo search embeds in groups'
+    commits:
+    - 71bc45129
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: show repo search result counts'
+    commits:
+    - 1cc1082c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: sync native assistant responses'
+    commits:
+    - d3cf66dfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-12'
+    title: 'feat: add agent tooling parity'
+    commits:
+    - 4185f224e
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'feat: add follow-up suggestions setting'
+    commits:
+    - 43b99e6b8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'feat: add native Apple embed parity previews'
+    commits:
+    - 2d5a7c613
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-12'
+    title: 'fix: await chat key candidate preservation'
+    commits:
+    - 63b4e3a68
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: enlarge tablet chat header teaser'
+    commits:
+    - 63626c2ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: improve Apple embed parity'
+    commits:
+    - 32edeb8a5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-12'
+    title: 'fix: prevent tablet chat drawer drag jump'
+    commits:
+    - 3c2fdb51b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: recover authoritative chat keys during sync'
+    commits:
+    - a3d1defb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: scale tablet teaser text by banner'
+    commits:
+    - a09dfa0f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: serve OG image asset'
+    commits:
+    - ed08ce5f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: show travel provider logos and times in previews'
+    commits:
+    - ef480ab58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: tune tablet chat header teaser cycle'
+    commits:
+    - 3cf5809e3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: add Germany film industry example chat'
+    commits:
+    - 553ac29b6
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: add public event SEO page'
+    commits:
+    - 1ecbe43e4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: add sidebar events section'
+    commits:
+    - dd9da7172
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: prioritize timely continue items'
+    commits:
+    - da20a855e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: gate embed memory actions by authentication'
+    commits:
+    - 913e835ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: hide ended sidebar events'
+    commits:
+    - a047a41f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: open public event embeds correctly'
+    commits:
+    - 1177b527d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: refresh chat metadata after key recovery'
+    commits:
+    - 98744c322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: reject mismatched chat key writes'
+    commits:
+    - 77a17dc37
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: render grouped social media skills'
+    commits:
+    - 762a850e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: retry chat sync after cache rewarming'
+    commits:
+    - 60624ecb6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: wait for fast social media async results'
+    commits:
+    - 06f4ed57b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'test: add share chat mock fixture'
+    commits:
+    - 63ea6df76
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'feat(newsletter): prepare meetup email'
+    commits:
+    - 95d3a256b
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'feat: add DeepSeek V4 model support'
+    commits:
+    - 6eaa21ff8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: add carousel top padding for priority pill'
+    commits:
+    - 0740d8923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: enrich saved event carousel previews'
+    commits:
+    - 0164e49fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: only split fullscreen embeds with chat context'
+    commits:
+    - 460cbb682
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: preserve embed preview alignment in welcome carousel'
+    commits:
+    - 49c9f438a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: prevent faded welcome content clicks'
+    commits:
+    - 5c6fc5056
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: remove broken example chat image'
+    commits:
+    - a6096a485
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: remove broken example embed reference'
+    commits:
+    - 5f977a680
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: render friendly embed inline labels'
+    commits:
+    - f85a56890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: render saved event previews in continue carousel'
+    commits:
+    - 74575f322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: restore DeepSeek announcement links'
+    commits:
+    - 3eb85ae54
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: restore saved embed previews in continue carousel'
+    commits:
+    - cd561828c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'test: report chat response latency'
+    commits:
+    - 2bb1de7c8
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-15'
+    title: 'fix: compact continue embeds on mobile'
+    commits:
+    - b62d52671
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-15'
+    title: 'fix: match compact event continue cards'
+    commits:
+    - 27f54a983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'feat: add image provider model selection'
+    commits:
+    - 78c2ce11e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'feat: add privacy video demo mode'
+    commits:
+    - ec88d1724
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: harden phased sync metadata recovery'
+    commits:
+    - cb877e890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: keep chat sync pending when server chats exist'
+    commits:
+    - 94bd570ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: keep embed placeholders processing until content arrives'
+    commits:
+    - 08fe819b0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: keep sync UI pending for cold cache recovery'
+    commits:
+    - 0112e5f07
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: render uploaded code files as embeds'
+    commits:
+    - b6c1950af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: resolve direct embed refs'
+    commits:
+    - 3339ec342
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: assert sync recovery websocket shim installation'
+    commits:
+    - 58e765ffc
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: block bulk sync responses in empty IndexedDB regression'
+    commits:
+    - 7b45de137
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: block delta sync in empty IndexedDB regression'
+    commits:
+    - 5ea4bffb1
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: clarify blocked sync payload naming'
+    commits:
+    - 6f96faff2
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: clear chat IndexedDB on recovery boot'
+    commits:
+    - 1074aec3c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: handle websocket event envelopes in sync regression'
+    commits:
+    - 390c1f575
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: install sync recovery shims at browser context level'
+    commits:
+    - '128187970'
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: stabilize chat sync empty IndexedDB regression'
+    commits:
+    - 3a2101847
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: verify empty IndexedDB before sync recovery assertion'
+    commits:
+    - d210688f3
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: wrap native WebSocket for sync recovery regression'
+    commits:
+    - 9cb1c64e5
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: add image search chat header backgrounds'
+    commits:
+    - 599f4a712
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: cycle chat header image bubbles'
+    commits:
+    - 6c4ed9181
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: search synced uploaded files'
+    commits:
+    - ffa11b9e7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: show image search bubbles in chat header'
+    commits:
+    - c4989e40e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: keep file search tied to active input'
+    commits:
+    - 9c05e9119
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: keep privacy demo embed stable'
+    commits:
+    - c037f8e97
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: refine privacy video demo'
+    commits:
+    - d49bbf035
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: retain inline mail embed fields'
+    commits:
+    - 9be1db362
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: show image source domains in embed previews'
+    commits:
+    - 3c1715003
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: show privacy demo mail draft reliably'
+    commits:
+    - a47c8aa89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'style: enlarge chat header image bubbles'
+    commits:
+    - 022815bb2
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'style: smooth chat header bubble cycling'
+    commits:
+    - 9d780084a
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: other
+  item_count: 25
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-11'
+    title: 'Merge pull request #391 from glowingkitty/dev'
+    commits:
+    - 0c0f034b5
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-11'
+    title: 'feat: add manual bank transfer approval'
+    commits:
+    - a12d05518
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: create repo children for code searches'
+    commits:
+    - 26b007a57
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: resolve repo embed refs on cold load'
+    commits:
+    - 9be68c3d8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-11'
+    title: 'test: assert repo search embeds survive completion'
+    commits:
+    - 03846b874
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-11'
+    title: 'test: handle repo search memory prompt'
+    commits:
+    - 40668c71a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'Merge pull request #395 from glowingkitty/dev'
+    commits:
+    - 49c524a1f
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: convert GitHub web results to repo embeds'
+    commits:
+    - 7259f79fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'test: add follow-up suggestion mock fixtures'
+    commits:
+    - 55b28ca1a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-13'
+    title: 'test: insert fork mock marker exactly'
+    commits:
+    - 384f5f15d
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'Merge pull request #396 from glowingkitty/dev'
+    commits:
+    - 74e63c8df
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: hide saved embed memory prompt'
+    commits:
+    - 2face5e0a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: mask email template debug logs'
+    commits:
+    - 9d294042a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: update OpenMates meetup coordinates'
+    commits:
+    - 8a921a338
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: update OpenMates meetup location'
+    commits:
+    - 0f89d7918
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: warm translation cache on boot'
+    commits:
+    - a3760c66a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: warm translations before celery forks'
+    commits:
+    - d29773d88
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'Merge pull request #401 from glowingkitty/dev'
+    commits:
+    - d15fe6ffe
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'Merge pull request #402 from glowingkitty/dev'
+    commits:
+    - 70ee94366
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'Merge pull request #403 from glowingkitty/dev'
+    commits:
+    - 027d3a47d
+    section: other
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: align GPT Image 2 request parameters'
+    commits:
+    - '574684069'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-16'
+    title: 'test: add code upload embed regression'
+    commits:
+    - '849236961'
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: find encrypted code uploads in suggestions'
+    commits:
+    - e09c08911
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: restrict file suggestions to uploads'
+    commits:
+    - c4f9b701c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: search decrypted file names'
+    commits:
+    - c2075fa85
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: product
+  item_count: 21
+  newsletter_ready_count: 21
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-11'
+    title: 'feat: expand travel connection results'
+    commits:
+    - 5657c5e32
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'revert: restore Safari chrome tint behavior'
+    commits:
+    - ffb04d8db
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: allow backup codes after 2FA signup verification'
+    commits:
+    - 6bbbd84af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: normalize mixed skill identifiers'
+    commits:
+    - df255f923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: route travel searches by provider country'
+    commits:
+    - e2fc7b068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: preserve async skill task ids'
+    commits:
+    - 4a0af5212
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: align saved embed carousel card'
+    commits:
+    - '105072980'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: emit title_generated event before awaiting summary translation'
+    commits:
+    - efbf95fe7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: improve event embed preview layout'
+    commits:
+    - 6d6a86318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: place saved embed priority pill above preview'
+    commits:
+    - 4eef509bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: show saved embed priority pill'
+    commits:
+    - d557c0217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-15'
+    title: 'fix: include bank transfer revenue in daily stats'
+    commits:
+    - 696257fac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: add pending phased sync state'
+    commits:
+    - da6b39d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: preserve source-backed markdown links'
+    commits:
+    - c340a24b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: prevent embed-only AI responses from invalid tools'
+    commits:
+    - b34e5b311
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: render Euler exponentials in math plots'
+    commits:
+    - a844dfe5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: repair cold inline embed refs'
+    commits:
+    - 2829e6561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: preserve inline mail embed data'
+    commits:
+    - 32f81f6a8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: stabilize privacy video recording'
+    commits:
+    - 6b08021fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: stack image result fullscreen details'
+    commits:
+    - bcc3efb0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: strip false source quotes'
+    commits:
+    - 83d80fbbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: infrastructure
+  item_count: 10
+  newsletter_ready_count: 3
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-12'
+    title: 'chore: update social media skill pricing'
+    commits:
+    - f54965f32
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'test: harden social media embed assertions'
+    commits:
+    - f897c5a5a
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'test: relax social media continuation assertion'
+    commits:
+    - d9179cd6c
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'test: require social media embeds in e2e'
+    commits:
+    - 04c4ec244
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-12'
+    title: 'test: stabilize social media e2e'
+    commits:
+    - 95a41fbb6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-13'
+    title: 'test: isolate social media celery stubs'
+    commits:
+    - 4de9d9af6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: require generated translation JSON at runtime'
+    commits:
+    - '706096817'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: restore large event preview title'
+    commits:
+    - 9259e4920
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: sanitize external search results'
+    commits:
+    - dea573e4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: preserve async skill ask config'
+    commits:
+    - 639180c5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: settings
+  item_count: 6
+  newsletter_ready_count: 6
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-12'
+    title: 'feat: add interactive touch drawer dragging'
+    commits:
+    - 429aabb81
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: drag drawers across wide layouts'
+    commits:
+    - d1a53706b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: preserve settings horizontal scrolling'
+    commits:
+    - 4977996f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: repair managed checkout and bank transfer address'
+    commits:
+    - 4afd12659
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: restore social media app card styling'
+    commits:
+    - 1a019b539
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: compact skill card provider layout'
+    commits:
+    - e65bc0797
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: cli_sdk
+  item_count: 3
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-13'
+    title: 'fix: prevent skill card description clipping'
+    commits:
+    - 13d5124d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: resolve vulnerable dependency alerts'
+    commits:
+    - 5d77db43b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-15'
+    title: 'ci: harden npm supply chain protections'
+    commits:
+    - c801fe784
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: docs
+  item_count: 2
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-11'
+    title: 'feat: add Flix travel provider'
+    commits:
+    - 64a236d8a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: scroll embed deep links to highlighted targets'
+    commits:
+    - 29277b7f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: apple
+  item_count: 1
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-11'
+    title: 'fix: support personal Apple local builds'
+    commits:
+    - 8cce766ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: self_hosting
+  item_count: 1
+  newsletter_ready_count: 1
+  dev_only_count: 0
+  source_items:
+  - date: '2026-05-12'
+    title: 'fix: enable social media runtime'
+    commits:
+    - f0fc5d012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - date: '2026-05-11'
+    title: 'feat: add Flix travel provider'
+    commits:
+    - 64a236d8a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'feat: expand travel connection results'
+    commits:
+    - 5657c5e32
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: align Safari chrome tint with chats panel'
+    commits:
+    - 6a66f515f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: base chat header layout on container width'
+    commits:
+    - b95e9354d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: preserve app skill embeds in final messages'
+    commits:
+    - 31f7929a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: render repo search embeds in groups'
+    commits:
+    - 71bc45129
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: show repo search result counts'
+    commits:
+    - 1cc1082c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'revert: restore Safari chrome tint behavior'
+    commits:
+    - ffb04d8db
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'feat: add follow-up suggestions setting'
+    commits:
+    - 43b99e6b8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'feat: add interactive touch drawer dragging'
+    commits:
+    - 429aabb81
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: allow backup codes after 2FA signup verification'
+    commits:
+    - 6bbbd84af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: drag drawers across wide layouts'
+    commits:
+    - d1a53706b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: enable social media runtime'
+    commits:
+    - f0fc5d012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: enlarge tablet chat header teaser'
+    commits:
+    - 63626c2ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: normalize mixed skill identifiers'
+    commits:
+    - df255f923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: preserve settings horizontal scrolling'
+    commits:
+    - 4977996f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: prevent tablet chat drawer drag jump'
+    commits:
+    - 3c2fdb51b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: repair managed checkout and bank transfer address'
+    commits:
+    - 4afd12659
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: restore social media app card styling'
+    commits:
+    - 1a019b539
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: scale tablet teaser text by banner'
+    commits:
+    - a09dfa0f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: serve OG image asset'
+    commits:
+    - ed08ce5f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: show travel provider logos and times in previews'
+    commits:
+    - ef480ab58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: tune tablet chat header teaser cycle'
+    commits:
+    - 3cf5809e3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: add public event SEO page'
+    commits:
+    - 1ecbe43e4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: add sidebar events section'
+    commits:
+    - dd9da7172
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: prioritize timely continue items'
+    commits:
+    - da20a855e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: route travel searches by provider country'
+    commits:
+    - e2fc7b068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: compact skill card provider layout'
+    commits:
+    - e65bc0797
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: gate embed memory actions by authentication'
+    commits:
+    - 913e835ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: hide ended sidebar events'
+    commits:
+    - a047a41f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: open public event embeds correctly'
+    commits:
+    - 1177b527d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: preserve async skill task ids'
+    commits:
+    - 4a0af5212
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: prevent skill card description clipping'
+    commits:
+    - 13d5124d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: refresh chat metadata after key recovery'
+    commits:
+    - 98744c322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: reject mismatched chat key writes'
+    commits:
+    - 77a17dc37
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: render grouped social media skills'
+    commits:
+    - 762a850e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: resolve vulnerable dependency alerts'
+    commits:
+    - 5d77db43b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: wait for fast social media async results'
+    commits:
+    - 06f4ed57b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'feat: add DeepSeek V4 model support'
+    commits:
+    - 6eaa21ff8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: add carousel top padding for priority pill'
+    commits:
+    - 0740d8923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: align saved embed carousel card'
+    commits:
+    - '105072980'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: emit title_generated event before awaiting summary translation'
+    commits:
+    - efbf95fe7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: enrich saved event carousel previews'
+    commits:
+    - 0164e49fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: improve event embed preview layout'
+    commits:
+    - 6d6a86318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: only split fullscreen embeds with chat context'
+    commits:
+    - 460cbb682
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: place saved embed priority pill above preview'
+    commits:
+    - 4eef509bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: preserve embed preview alignment in welcome carousel'
+    commits:
+    - 49c9f438a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: prevent faded welcome content clicks'
+    commits:
+    - 5c6fc5056
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: render friendly embed inline labels'
+    commits:
+    - f85a56890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: render saved event previews in continue carousel'
+    commits:
+    - 74575f322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: restore large event preview title'
+    commits:
+    - 9259e4920
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: restore saved embed previews in continue carousel'
+    commits:
+    - cd561828c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: sanitize external search results'
+    commits:
+    - dea573e4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: show saved embed priority pill'
+    commits:
+    - d557c0217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-15'
+    title: 'fix: compact continue embeds on mobile'
+    commits:
+    - b62d52671
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-15'
+    title: 'fix: include bank transfer revenue in daily stats'
+    commits:
+    - 696257fac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-15'
+    title: 'fix: match compact event continue cards'
+    commits:
+    - 27f54a983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'feat: add image provider model selection'
+    commits:
+    - 78c2ce11e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'feat: add privacy video demo mode'
+    commits:
+    - ec88d1724
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: add pending phased sync state'
+    commits:
+    - da6b39d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: harden phased sync metadata recovery'
+    commits:
+    - cb877e890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: keep chat sync pending when server chats exist'
+    commits:
+    - 94bd570ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: preserve async skill ask config'
+    commits:
+    - 639180c5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: preserve source-backed markdown links'
+    commits:
+    - c340a24b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: prevent embed-only AI responses from invalid tools'
+    commits:
+    - b34e5b311
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: render Euler exponentials in math plots'
+    commits:
+    - a844dfe5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: render uploaded code files as embeds'
+    commits:
+    - b6c1950af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: repair cold inline embed refs'
+    commits:
+    - 2829e6561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: resolve direct embed refs'
+    commits:
+    - 3339ec342
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: scroll embed deep links to highlighted targets'
+    commits:
+    - 29277b7f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: add image search chat header backgrounds'
+    commits:
+    - 599f4a712
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: cycle chat header image bubbles'
+    commits:
+    - 6c4ed9181
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: search synced uploaded files'
+    commits:
+    - ffa11b9e7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: show image search bubbles in chat header'
+    commits:
+    - c4989e40e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: keep file search tied to active input'
+    commits:
+    - 9c05e9119
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: keep privacy demo embed stable'
+    commits:
+    - c037f8e97
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: preserve inline mail embed data'
+    commits:
+    - 32f81f6a8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: refine privacy video demo'
+    commits:
+    - d49bbf035
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: retain inline mail embed fields'
+    commits:
+    - 9be1db362
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: show image source domains in embed previews'
+    commits:
+    - 3c1715003
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: show privacy demo mail draft reliably'
+    commits:
+    - a47c8aa89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: stabilize privacy video recording'
+    commits:
+    - 6b08021fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: stack image result fullscreen details'
+    commits:
+    - bcc3efb0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: strip false source quotes'
+    commits:
+    - 83d80fbbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'style: enlarge chat header image bubbles'
+    commits:
+    - 022815bb2
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'style: smooth chat header bubble cycling'
+    commits:
+    - 9d780084a
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-05-11'
+    title: 'feat: add Flix travel provider'
+    commits:
+    - 64a236d8a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'feat: add encrypted Apple share task flow'
+    commits:
+    - 2abf23f00
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:apple-watch
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-11'
+    title: 'feat: expand travel connection results'
+    commits:
+    - 5657c5e32
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: add native notification replies'
+    commits:
+    - a86533159
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-11'
+    title: 'fix: align Safari chrome tint with chats panel'
+    commits:
+    - 6a66f515f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: base chat header layout on container width'
+    commits:
+    - b95e9354d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: preserve app skill embeds in final messages'
+    commits:
+    - 31f7929a7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: render repo search embeds in groups'
+    commits:
+    - 71bc45129
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: show repo search result counts'
+    commits:
+    - 1cc1082c8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-11'
+    title: 'fix: support personal Apple local builds'
+    commits:
+    - 8cce766ca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-11'
+    title: 'fix: sync native assistant responses'
+    commits:
+    - d3cf66dfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-11'
+    title: 'revert: restore Safari chrome tint behavior'
+    commits:
+    - ffb04d8db
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'feat: add follow-up suggestions setting'
+    commits:
+    - 43b99e6b8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'feat: add interactive touch drawer dragging'
+    commits:
+    - 429aabb81
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'feat: add native Apple embed parity previews'
+    commits:
+    - 2d5a7c613
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-12'
+    title: 'fix: allow backup codes after 2FA signup verification'
+    commits:
+    - 6bbbd84af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: drag drawers across wide layouts'
+    commits:
+    - d1a53706b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: enable social media runtime'
+    commits:
+    - f0fc5d012
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: enlarge tablet chat header teaser'
+    commits:
+    - 63626c2ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: improve Apple embed parity'
+    commits:
+    - 32edeb8a5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-12'
+    title: 'fix: normalize mixed skill identifiers'
+    commits:
+    - df255f923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: preserve settings horizontal scrolling'
+    commits:
+    - 4977996f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: prevent tablet chat drawer drag jump'
+    commits:
+    - 3c2fdb51b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: repair managed checkout and bank transfer address'
+    commits:
+    - 4afd12659
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: restore social media app card styling'
+    commits:
+    - 1a019b539
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: scale tablet teaser text by banner'
+    commits:
+    - a09dfa0f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: serve OG image asset'
+    commits:
+    - ed08ce5f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: show travel provider logos and times in previews'
+    commits:
+    - ef480ab58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-12'
+    title: 'fix: tune tablet chat header teaser cycle'
+    commits:
+    - 3cf5809e3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: add public event SEO page'
+    commits:
+    - 1ecbe43e4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: add sidebar events section'
+    commits:
+    - dd9da7172
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: prioritize timely continue items'
+    commits:
+    - da20a855e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'feat: route travel searches by provider country'
+    commits:
+    - e2fc7b068
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: compact skill card provider layout'
+    commits:
+    - e65bc0797
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: gate embed memory actions by authentication'
+    commits:
+    - 913e835ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: hide ended sidebar events'
+    commits:
+    - a047a41f7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: open public event embeds correctly'
+    commits:
+    - 1177b527d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: preserve async skill task ids'
+    commits:
+    - 4a0af5212
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: prevent skill card description clipping'
+    commits:
+    - 13d5124d3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: refresh chat metadata after key recovery'
+    commits:
+    - 98744c322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: reject mismatched chat key writes'
+    commits:
+    - 77a17dc37
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: render grouped social media skills'
+    commits:
+    - 762a850e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: resolve vulnerable dependency alerts'
+    commits:
+    - 5d77db43b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-13'
+    title: 'fix: wait for fast social media async results'
+    commits:
+    - 06f4ed57b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'feat: add DeepSeek V4 model support'
+    commits:
+    - 6eaa21ff8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: add carousel top padding for priority pill'
+    commits:
+    - 0740d8923
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: align saved embed carousel card'
+    commits:
+    - '105072980'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: emit title_generated event before awaiting summary translation'
+    commits:
+    - efbf95fe7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: enrich saved event carousel previews'
+    commits:
+    - 0164e49fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: improve event embed preview layout'
+    commits:
+    - 6d6a86318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: only split fullscreen embeds with chat context'
+    commits:
+    - 460cbb682
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: place saved embed priority pill above preview'
+    commits:
+    - 4eef509bf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: preserve embed preview alignment in welcome carousel'
+    commits:
+    - 49c9f438a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: prevent faded welcome content clicks'
+    commits:
+    - 5c6fc5056
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: render friendly embed inline labels'
+    commits:
+    - f85a56890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: render saved event previews in continue carousel'
+    commits:
+    - 74575f322
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: restore large event preview title'
+    commits:
+    - 9259e4920
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: restore saved embed previews in continue carousel'
+    commits:
+    - cd561828c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: sanitize external search results'
+    commits:
+    - dea573e4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-14'
+    title: 'fix: show saved embed priority pill'
+    commits:
+    - d557c0217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-15'
+    title: 'fix: compact continue embeds on mobile'
+    commits:
+    - b62d52671
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-15'
+    title: 'fix: include bank transfer revenue in daily stats'
+    commits:
+    - 696257fac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-15'
+    title: 'fix: match compact event continue cards'
+    commits:
+    - 27f54a983
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'feat: add image provider model selection'
+    commits:
+    - 78c2ce11e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'feat: add privacy video demo mode'
+    commits:
+    - ec88d1724
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: add pending phased sync state'
+    commits:
+    - da6b39d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: harden phased sync metadata recovery'
+    commits:
+    - cb877e890
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: keep chat sync pending when server chats exist'
+    commits:
+    - 94bd570ac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: preserve async skill ask config'
+    commits:
+    - 639180c5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: preserve source-backed markdown links'
+    commits:
+    - c340a24b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: prevent embed-only AI responses from invalid tools'
+    commits:
+    - b34e5b311
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: render Euler exponentials in math plots'
+    commits:
+    - a844dfe5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: render uploaded code files as embeds'
+    commits:
+    - b6c1950af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: repair cold inline embed refs'
+    commits:
+    - 2829e6561
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: resolve direct embed refs'
+    commits:
+    - 3339ec342
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-16'
+    title: 'fix: scroll embed deep links to highlighted targets'
+    commits:
+    - 29277b7f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: add image search chat header backgrounds'
+    commits:
+    - 599f4a712
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: cycle chat header image bubbles'
+    commits:
+    - 6c4ed9181
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: search synced uploaded files'
+    commits:
+    - ffa11b9e7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'feature: show image search bubbles in chat header'
+    commits:
+    - c4989e40e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: keep file search tied to active input'
+    commits:
+    - 9c05e9119
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: keep privacy demo embed stable'
+    commits:
+    - c037f8e97
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: preserve inline mail embed data'
+    commits:
+    - 32f81f6a8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: refine privacy video demo'
+    commits:
+    - d49bbf035
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: retain inline mail embed fields'
+    commits:
+    - 9be1db362
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: show image source domains in embed previews'
+    commits:
+    - 3c1715003
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: show privacy demo mail draft reliably'
+    commits:
+    - a47c8aa89
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: stabilize privacy video recording'
+    commits:
+    - 6b08021fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: stack image result fullscreen details'
+    commits:
+    - bcc3efb0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'fix: strip false source quotes'
+    commits:
+    - 83d80fbbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'style: enlarge chat header image bubbles'
+    commits:
+    - 022815bb2
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-17'
+    title: 'style: smooth chat header bubble cycling'
+    commits:
+    - 9d780084a
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-11.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-12.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-13.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-14.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-15.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-16.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-17.yml
+llm_summary:
+  overview: OpenMates introduced support for DeepSeek V4 models and expanded its travel capabilities with Flix integration
+    and country-based routing. The update also featured significant visual polish, including dynamic chat header backgrounds,
+    public event SEO pages, and a new interactive touch drawer for mobile and tablet users. Security and reliability were
+    also addressed through authenticated memory actions and hardened chat synchronization.
+  released_changes:
+  - text: OpenMates added support for DeepSeek V4 models, including integration with the model selector and updated privacy
+      documentation.
+    evidence:
+      commits:
+      - 6eaa21ff8
+    release_status: released_main
+  - text: Flix was added as a travel provider, and searches now route through providers based on the country of origin for
+      better accuracy.
+    evidence:
+      commits:
+      - 64a236d8a
+      - e2fc7b068
+    release_status: released_main
+  - text: Public event SEO pages and a dedicated sidebar section for events were added to the web application.
+    evidence:
+      commits:
+      - 1ecbe43e4
+      - dd9da7172
+    release_status: released_main
+  - text: Users can now select specific models for image generation providers within the settings.
+    evidence:
+      commits:
+      - 78c2ce11e
+    release_status: released_main
+  - text: The chat header now features cycling image search bubbles and backgrounds with improved transition smoothness.
+    evidence:
+      commits:
+      - 6c4ed9181
+      - c4989e40e
+      - 599f4a712
+      - 9d780084a
+      - 022815bb2
+    release_status: released_main
+  - text: A new toggle in AI settings allows users to enable or disable follow-up suggestions after chat responses.
+    evidence:
+      commits:
+      - 43b99e6b8
+    release_status: released_main
+  - text: The touch interface now supports interactive dragging for drawers, with specific fixes for wide layouts and tablet
+      responsiveness.
+    evidence:
+      commits:
+      - 429aabb81
+      - d1a53706b
+      - 3c2fdb51b
+    release_status: released_main
+  - text: Search functionality was expanded to include synced uploaded files directly within the chat interface.
+    evidence:
+      commits:
+      - ffa11b9e7
+    release_status: released_main
+  - text: A new privacy video demo mode was introduced to facilitate screen recordings while protecting personal data.
+    evidence:
+      commits:
+      - ec88d1724
+    release_status: released_main
+  - text: The social media skill is now active, featuring restored card styling and Reddit icon support.
+    evidence:
+      commits:
+      - f0fc5d012
+      - 1a019b539
+    release_status: released_main
+  bug_fixes:
+  - text: The 'continue' carousel now features restored and enriched previews for saved embeds and events, including improved
+      alignment for priority pills.
+    evidence:
+      commits:
+      - cd561828c
+      - 74575f322
+      - 0164e49fa
+    release_status: released_main
+  - text: Mobile layouts now correctly render compact event cards and continue embeds to match the desktop experience.
+    evidence:
+      commits:
+      - 27f54a983
+      - b62d52671
+    release_status: released_main
+  - text: Safari browser styling was adjusted to ensure the chrome tinting aligns correctly with the chat panel.
+    evidence:
+      commits:
+      - 6a66f515f
+      - ffb04d8db
+    release_status: released_main
+  - text: Resolved an issue where backup codes were not accessible immediately after 2FA signup verification.
+    evidence:
+      commits:
+      - 6bbbd84af
+    release_status: released_main
+  - text: Managed checkout and bank transfer address handling was corrected in payment workflows and reminder emails.
+    evidence:
+      commits:
+      - 4afd12659
+    release_status: released_main
+  - text: The math plotting component now correctly renders Euler exponentials.
+    evidence:
+      commits:
+      - a844dfe5c
+    release_status: released_main
+  - text: The AI processor now strips false source quotes to improve the accuracy of generated citations.
+    evidence:
+      commits:
+      - 83d80fbbb
+    release_status: released_main
+  - text: The code repository search interface now displays result counts for better clarity.
+    evidence:
+      commits:
+      - 1cc1082c8
+    release_status: released_main
+  - text: Reliability of chat synchronization was improved by hardening metadata recovery and introducing granular pending
+      states for phased sync.
+    evidence:
+      commits:
+      - cb877e890
+      - da6b39d47
+      - 94bd570ac
+    release_status: released_main
+  - text: Inline mail embed data and fields are now preserved more reliably during user interaction.
+    evidence:
+      commits:
+      - 9be1db362
+      - 32f81f6a8
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on an encrypted share task flow for Apple platforms.
+    evidence:
+      commits:
+      - 2abf23f00
+    release_status: released_main
+  - text: Work progressed on native notification replies for the iOS and macOS applications.
+    evidence:
+      commits:
+      - a86533159
+    release_status: released_main
+  - text: Assistant response synchronization logic was implemented for native Apple platforms.
+    evidence:
+      commits:
+      - d3cf66dfc
+    release_status: released_main
+  - text: Support for personal local builds on Apple hardware was added to the development environment.
+    evidence:
+      commits:
+      - 8cce766ca
+    release_status: released_main
+  - text: Work continued on native embed parity and visual QA for travel and event renderers on iOS and macOS.
+    evidence:
+      commits:
+      - 2d5a7c613
+      - 32edeb8a5
+    release_status: released_main
+  - text: Testing infrastructure was deployed to validate chat synchronization recovery and IndexedDB stability.
+    evidence:
+      commits:
+      - '849236961'
+      - 6f96faff2
+      - 9cb1c64e5
+    release_status: released_main
+  - text: A new example chat for the German film industry was added to the demo data.
+    evidence:
+      commits:
+      - 553ac29b6
+    release_status: released_main
+  - text: Internal agent tooling was expanded to improve parity across different development environments.
+    evidence:
+      commits:
+      - 4185f224e
+    release_status: released_main
+  internal_progress:
+  - text: Translation caches are now warmed during system boot and before Celery worker forks to improve runtime performance.
+    evidence:
+      commits:
+      - a3760c66a
+      - d29773d88
+      - '706096817'
+    release_status: released_main
+  - text: Infrastructure for the upcoming May 19 meetup was prepared, including email templates and updated location coordinates.
+    evidence:
+      commits:
+      - 95d3a256b
+      - 8a921a338
+      - 0f89d7918
+    release_status: released_main
+  - text: Supply chain protections were hardened by implementing new security workflows and audit guards for npm packages.
+    evidence:
+      commits:
+      - c801fe784
+    release_status: released_main
+  - text: Administrative scripts were added to facilitate manual approval of bank transfers via Revolut Business.
+    evidence:
+      commits:
+      - a12d05518
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Support for DeepSeek V4 models.
+      evidence:
+        commits:
+        - 6eaa21ff8
+      reason: Major model update providing users with more AI options.
+    - text: Integration with Flix and country-based routing for travel searches.
+      evidence:
+        commits:
+        - 64a236d8a
+        - e2fc7b068
+      reason: Significant expansion and accuracy improvement for travel search.
+    - text: Public event SEO pages and a dedicated sidebar events section.
+      evidence:
+        commits:
+        - 1ecbe43e4
+        - dd9da7172
+      reason: New public-facing surfaces for event discovery.
+    - text: Image provider model selection in settings.
+      evidence:
+        commits:
+        - 78c2ce11e
+      reason: Adds significant user control over AI image generation.
+    - text: Interactive touch drawer dragging for mobile and tablet users.
+      evidence:
+        commits:
+        - 429aabb81
+      reason: Major improvement to the touch and tablet navigation experience.
+    - text: Dynamic chat header image bubbles and backgrounds.
+      evidence:
+        commits:
+        - 6c4ed9181
+        - c4989e40e
+        - 599f4a712
+      reason: Highly visible UI update that improves the aesthetic appeal of the chat interface.
+    exclude:
+    - text: Native Apple platform updates including share extensions, notification replies, and embed parity.
+      evidence:
+        commits:
+        - 2abf23f00
+        - a86533159
+        - d3cf66dfc
+        - 8cce766ca
+        - 2d5a7c613
+        - 32edeb8a5
+      reason: iOS, macOS, and Apple Watch platforms are currently listed as disabled features.
+    - text: Meetup email template and location preparation.
+      evidence:
+        commits:
+        - 95d3a256b
+        - 8a921a338
+        - 0f89d7918
+      reason: This involves internal preparation for a future event and is not yet user-facing.
+    - text: Manual bank transfer approval scripts.
+      evidence:
+        commits:
+        - a12d05518
+      reason: This is an internal administrative tool not intended for end users.
+    rationale: The newsletter highlights major AI model additions, significant travel search improvements, and a series of
+      high-visibility UI refinements, while excluding internal tools and features for unreleased platforms.
+  social_video_recommendations:
+  - idea: Showcase the new DeepSeek V4 model in action within the OpenMates interface.
+    priority: high
+    reason: New model support is a high-interest feature for AI users.
+    evidence:
+      commits:
+      - 6eaa21ff8
+  - idea: A short clip demonstrating the smooth new touch drawer dragging followed by interacting with the new AI follow-up
+      suggestions.
+    priority: high
+    reason: Shows concrete UI improvements and a new functional AI feature.
+    evidence:
+      commits:
+      - 429aabb81
+      - 43b99e6b8
+  - idea: A short clip showing the chat header backgrounds and bubbles cycling as a user interacts with the search.
+    priority: medium
+    reason: The new cycling animations provide a visually engaging product story for social media.
+    evidence:
+      commits:
+      - 6c4ed9181
+      - c4989e40e
+      - 599f4a712
+      - 9d780084a
+  quality_notes:
+  - Significant focus on UI polish for the 'continue' carousel, chat header, and event previews.
+  - Proactive sanitization of external data sources added to search skills.
+  - Regression tests were expanded to ensure the stability of chat synchronization in edge cases.
+  - Administrative data integrity was improved with the inclusion of bank transfer revenue in daily statistics.
+  validation_warnings: []

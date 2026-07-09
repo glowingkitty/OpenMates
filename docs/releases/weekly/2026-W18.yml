@@ -1,0 +1,5242 @@
+schema_version: 1
+cadence: weekly
+week_start: '2026-04-27'
+week_end: '2026-05-03'
+generated_at: '2026-07-09T15:56:49+00:00'
+summary:
+  daily_files: 7
+  total_items: 177
+  newsletter_ready_items: 129
+  user_facing_items: 140
+  dev_only_items: 0
+  unknown_release_items: 0
+  themes: 9
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+daily_summaries:
+- date: '2026-04-27'
+  total_commits: 19
+  newsletter_ready_items: 14
+  dev_only_items: 0
+- date: '2026-04-28'
+  total_commits: 20
+  newsletter_ready_items: 14
+  dev_only_items: 0
+- date: '2026-04-29'
+  total_commits: 28
+  newsletter_ready_items: 26
+  dev_only_items: 0
+- date: '2026-04-30'
+  total_commits: 50
+  newsletter_ready_items: 38
+  dev_only_items: 0
+- date: '2026-05-01'
+  total_commits: 27
+  newsletter_ready_items: 21
+  dev_only_items: 0
+- date: '2026-05-02'
+  total_commits: 18
+  newsletter_ready_items: 4
+  dev_only_items: 0
+- date: '2026-05-03'
+  total_commits: 15
+  newsletter_ready_items: 12
+  dev_only_items: 0
+themes:
+- theme: chat
+  item_count: 76
+  newsletter_ready_count: 63
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-27'
+    title: 'fix: poll Gmail aliases from message headers'
+    commits:
+    - 727f7947c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: add swipe navigation to headers'
+    commits:
+    - cb98225f9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: expose incognito chat header title to tests'
+    commits:
+    - 00d61ada5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: increase delete-account success-message timeout to 30s in signup specs'
+    commits:
+    - c0e916484
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: preserve chat header navigation order'
+    commits:
+    - d7bf96916
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: prevent mixed chat encryption keys'
+    commits:
+    - a3f5e137f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: prevent new chat screen freeze for unauthenticated users'
+    commits:
+    - 744c1ecc7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: use openSignupInterface helper to handle banner/header button visibility'
+    commits:
+    - b57e2fd20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'test: avoid intro chats in header navigation regression'
+    commits:
+    - 9583063f8
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-28'
+    title: 'test: fix chat header navigation regression spec'
+    commits:
+    - 0c9c259dc
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-28'
+    title: 'test: include touch identifiers in header swipe regression'
+    commits:
+    - 9151162fe
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: add privacy and safety intro pages'
+    commits:
+    - 67e301c8e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: autoplay intro teaser video'
+    commits:
+    - 7f4ef1892
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: expand intro teaser across chat header'
+    commits:
+    - d8a53326c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: split teaser layout in ChatHeader (text left, video right)'
+    commits:
+    - d453a561d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: accept banner login CTA after chat flow logout'
+    commits:
+    - 9ac6ebbc5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: allow chat key e2e checks without debug helper'
+    commits:
+    - 81dd8ab2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: apply ?lang= locale before loading default chat to prevent English flash'
+    commits:
+    - 83b582c3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: check German message body text in test 10 (chat-header-title hidden for unauth)'
+    commits:
+    - f1640f255
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct chat header navigation direction'
+    commits:
+    - a05d690dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct embed aspect ratio to 16:9 on large displays in daily inspiration banner'
+    commits:
+    - d72cfbee4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct teaser video header layout'
+    commits:
+    - 900b7a521
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: enlarge teaser video previews'
+    commits:
+    - 4f4a41c9e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: expand teaser video layout'
+    commits:
+    - 3e7efa72e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: move ?lang= locale apply to onMount top + fix ChatHeader hardcoded teaser strings'
+    commits:
+    - 1f805d6e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: open sidebar before checking intro chat title in test 10'
+    commits:
+    - 5883d89b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: re-translate intro chat titles after ?lang= URL param change'
+    commits:
+    - 7155aaf94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: use resilient login entry in chat flow spec'
+    commits:
+    - dbd0bc3f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: wait for authenticated chat UI in multi-tab spec'
+    commits:
+    - abf0f86eb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'test: add ?lang=es test 11 to verify Spanish chat loading parity'
+    commits:
+    - 7045ea450
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-29'
+    title: 'test: add chat encryption key invariant e2e coverage'
+    commits:
+    - 782ba8602
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: MessageInput inline compact mode and followup placeholder variant'
+    commits:
+    - 756e2c6d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add floating deco icons to teaser layout and use ai.svg for for-everyone chat'
+    commits:
+    - 86c50baa4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add inlineCompact prop and CSS to MessageInput'
+    commits:
+    - d7d44027f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add startNewChatOnClick mode to MessageInput'
+    commits:
+    - 3188eef43
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: hide new-chat button on input focus, show cancel/save-draft, fix followup placeholder'
+    commits:
+    - 24086fe71
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: include public chats in search suggestions'
+    commits:
+    - adb9f9b0c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: message input + new chat button UI corrections'
+    commits:
+    - b93a13c3a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: CLI PDF test — wait for chat-id URL + extract from hash format'
+    commits:
+    - d28e36ceb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: constrain teaser video height'
+    commits:
+    - 7a99d8fd4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: disable pointer-events on faded new-chat welcome content'
+    commits:
+    - 8f7127c8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: dismiss button styling, position, and draft compact-mode restore'
+    commits:
+    - 855e92d81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: fullwidth new-chat CTA for intro/legal chats + Safari nav race'
+    commits:
+    - 0f9281bf7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: guard messageInputFieldRef in setTimeout callbacks (null-ref after chat delete)'
+    commits:
+    - 32df7f3fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: handle login without 2FA in test helper (race OTP vs auth signal)'
+    commits:
+    - d91bc9fb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: invalidate metadata cache on title update + refresh carousel on key-ready (Safari race)'
+    commits:
+    - 0c843a73d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: load localized intro video in chat header'
+    commits:
+    - 4aa198f0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: migrate 20 inline-login specs to submitPasswordAndHandleOtp helper'
+    commits:
+    - e21900a6a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: new chat button centering, icon-only on focus, smooth transitions, mobile label'
+    commits:
+    - f6df78d1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: placeholder vertical centering and mobile new-chat label'
+    commits:
+    - e628e4c32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - 5f775e980
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - dea99692c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: resolve 3 test failure groups (console.error, status title, teaser testid)'
+    commits:
+    - 9c99238d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: show fullwidth new-chat CTA on intro/legal chats for authenticated users'
+    commits:
+    - f80715045
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: tighten teaser split layout width'
+    commits:
+    - 765e78c48
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: update 4 inline-login specs to use submitPasswordAndHandleOtp helper'
+    commits:
+    - 59025e4a4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: update E2E specs for new-chat button UI changes'
+    commits:
+    - 8f34a2c13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'refactor: use shared waitForChatReady in multi-tab encryption spec'
+    commits:
+    - bb13d93d6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat(ios): fix ChatBanner to match web ChatHeader — video, fonts, nav, gradients'
+    commits:
+    - 1f34b4480
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-01'
+    title: 'feat(ios): previous session iOS visual fixes — settings, embeds, chat views, font registration'
+    commits:
+    - 47c32dd9c
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-01'
+    title: 'feat: fix iOS default view, i18n keys, and replace native controls in settings sub-pages'
+    commits:
+    - a04023356
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-01'
+    title: 'fix: add files field and request_embed for deduplicated PDF uploads'
+    commits:
+    - 583cd1343
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: compare content size for deduplicated embed cache protection'
+    commits:
+    - a5f4e0dc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: disable PDF deduplication — OCR must always run for AI reading'
+    commits:
+    - 6fc968098
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: include PDF filename+pageCount in serialized embed reference'
+    commits:
+    - 9fadd64aa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: post-login navigation settle, celery request access, status page title observer'
+    commits:
+    - 6d9e90217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: preserve full embed cache for deduplicated PDFs on server'
+    commits:
+    - d882f7027
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: re-trigger OCR from message handler for deduplicated PDF embeds'
+    commits:
+    - 972097dfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: register PDF embeds in EmbedStore to prevent dedup key mismatch'
+    commits:
+    - 192e43bab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: remove client-side PDF embed EmbedStore registration that overwrites OCR cache'
+    commits:
+    - 153d4735d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: skip sending deduplicated PDF embed content to prevent server cache overwrite'
+    commits:
+    - 18163c82c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: use _deduplicated flag to prevent cache overwrite for dedup PDF embeds'
+    commits:
+    - 6396c00b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'feat(ios): inline new chat welcome screen matching web app'
+    commits:
+    - '875157440'
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(01-01): fix openMatesOfficial gradient hex and add appOpenmates/appChat'
+    commits:
+    - 4f5b0ec0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix: clear stale embedCache in multi-tab DUPLICATE path — fixes Loading embeds and re-request loop'
+    commits:
+    - d52d31b77
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-02'
+    title: 'fix: hide action buttons in draft preview mode, clamp to 3 lines'
+    commits:
+    - d63fab7ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: product
+  item_count: 47
+  newsletter_ready_count: 47
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-27'
+    title: 'feat: split signup-flow into stripe-eu and stripe-managed; delete original'
+    commits:
+    - bb6e9afdd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: allow Gmail delivery timestamp skew'
+    commits:
+    - c1d16d174
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: normalize quote text before highlight match in embed fullscreen'
+    commits:
+    - fd3d9faef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: add swipe close gestures for menus'
+    commits:
+    - f30df002c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: add touch edge swipes for menus'
+    commits:
+    - 2b19b1e09
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: default to English on first visit with browser language suggestion notification'
+    commits:
+    - bf43c58dd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: use large embed layout for daily inspiration banner on wide displays'
+    commits:
+    - 66a8dfae9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: handle duplicate AutoTopUp during step transitions in signup specs'
+    commits:
+    - 846b83b96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: match header swipe direction to arrows'
+    commits:
+    - fdef4949a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: route content_sanitization_model through OpenRouter to fix Groq 400 tool-call error'
+    commits:
+    - 76d8b2621
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: cycle daily inspiration embed on mobile'
+    commits:
+    - 29d0483b5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct 16:9 embed sizing on large displays in daily inspiration banner'
+    commits:
+    - f7f51ab64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: relax shared tab readiness in encryption spec'
+    commits:
+    - 98a6cfb66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: treat Groq ''json'' tool-name quirk as retryable, restore Groq as primary sanitization provider'
+    commits:
+    - e222ffa1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: use notification-action testid to avoid strict mode violation in language tests 1+2'
+    commits:
+    - 1f10ffe2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: use shared login flow in multi-tab encryption spec'
+    commits:
+    - 7f1ac7c9b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'revert: restore daily inspiration banner embed to original small preview'
+    commits:
+    - 36da07b40
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add Stripe revenue summary to admin server stats'
+    commits:
+    - c3f6c53d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: add data-testid to booking CTA buttons in travel connection fullscreen'
+    commits:
+    - e4e738a95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: add smooth height transition to DailyInspirationBanner (iPad Safari)'
+    commits:
+    - 545e1419a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: auto-unwrap LLM requests array for flat-schema skills (pdf.read 422)'
+    commits:
+    - 253071ffd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
+    commits:
+    - 2fcd00e8e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: recover TOON content after relogin for finished embeds'
+    commits:
+    - 421592b1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: rename (minimal)/+layout to +layout@ to reset layout chain'
+    commits:
+    - 37a507eb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: reset (minimal) layout chain so MetaTags title doesn''t override status page'
+    commits:
+    - cd3bfa084
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat: add bahn.de booking deeplinks to train connection results'
+    commits:
+    - d909babd4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat: safe PDF dedup — reuse S3 object with fresh embed_id (OPE-485)'
+    commits:
+    - 6a1d19717
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: dynamic provider attribution for train vs flight results'
+    commits:
+    - 06ebb3293
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: eagerly load first PDF pages in fullscreen (skip IntersectionObserver)'
+    commits:
+    - a1310b844
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: make AI skill card persistence check non-fatal after reload/relogin'
+    commits:
+    - 7060fb91d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: pdf-flow test — detect stuck Sending and reload to reconnect WebSocket'
+    commits:
+    - 25a1efd4f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: retry TOON content recovery for finished embeds with missing content'
+    commits:
+    - a06f28c64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: skip PDF dedup in core API check-duplicate endpoint'
+    commits:
+    - 430e6376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: skip preview image check after reload in pdf-flow test'
+    commits:
+    - 7fb12f82d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: update skill schema to advertise train support to the LLM'
+    commits:
+    - 66cc3ba7e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'feat(travel): show provider logos instead of hardcoded ''via Google'' in search preview'
+    commits:
+    - 616abde82
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'feat: OCR cache copy for PDF dedup — skip OCR when cache is warm (OPE-485)'
+    commits:
+    - 89a464008
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: add mail embed diff-based editing support'
+    commits:
+    - 63fedfcd8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: video create embed preview/fullscreen with synced timeline and video playback'
+    commits:
+    - 8f360dcbb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: video timeline parser + dev preview page for Video Create skill research'
+    commits:
+    - b3da0ebaf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — add test.slow() for AI inference timeouts'
+    commits:
+    - 2a7c93b06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — correct createStepScreenshotter and screenshot signatures'
+    commits:
+    - 55535ad0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — correct skipWithoutCredentials signature'
+    commits:
+    - f4e97fdaf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — use correct loginToTestAccount positional args'
+    commits:
+    - 8217ae26b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — use real AI inference, not mocks'
+    commits:
+    - 892202c3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: video create embed preview — correct appId and fullscreen prop wrapping'
+    commits:
+    - 5179eab43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: video create embed — match timeline duration to video and use proper play/pause icons'
+    commits:
+    - b22fdbb64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: other
+  item_count: 20
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-27'
+    title: 'test: find Gmail alias delivery headers'
+    commits:
+    - 867bda0b7
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-28'
+    title: 'test: record playwright videos in artifacts'
+    commits:
+    - b44535aea
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'chore: add Claude hooks and update configs'
+    commits:
+    - 8fcbb8c53
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'chore: add Obsidian sync scripts'
+    commits:
+    - 4bf136dad
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'chore: add OpenCode reverse proxy config'
+    commits:
+    - d79c055cb
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'chore: update test runner and Obsidian test sync'
+    commits:
+    - f36273107
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add Obsidian daily note and prod stats to daily meeting'
+    commits:
+    - 770fb1708
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: improve newsletter send script with status bar and delivery tracking'
+    commits:
+    - f4cb1d135
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: release dedup lock on retry, skip SightEngine when quota exhausted (OPE-482)'
+    commits:
+    - 0b0bafc74
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: remove invalid task.request assignment in celery dedup tests'
+    commits:
+    - d8d35b787
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: re-trigger OCR for deduplicated PDF uploads'
+    commits:
+    - 1b906a2b7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-01'
+    title: 'test: add E2E spec for train connections via Deutsche Bahn'
+    commits:
+    - 4ca692aee
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-02'
+    title: 'docs(01-01): complete token sync plan — SUMMARY, STATE, ROADMAP'
+    commits:
+    - 2f9797ecd
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-02'
+    title: 'docs(01-02): complete primitive fixes plan — awaiting visual checkpoint'
+    commits:
+    - dde9e3bf7
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-02'
+    title: 'docs(01-foundation): create phase plan — token verification + primitive fixes'
+    commits:
+    - 8068c9ed9
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-02'
+    title: 'docs: initialize project — Apple app web parity'
+    commits:
+    - dceb080c6
+    section: docs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-02'
+    title: 'fix: always charge credits for PDF uploads including dedup'
+    commits:
+    - c7684dad1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: diff-based editing engine, LLM instruction, version timeline UI, and architecture'
+    commits:
+    - 556e68f69
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: diff-based editing for code/doc/sheet embeds with version timeline'
+    commits:
+    - 09caa2968
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-03'
+    title: 'test: add E2E specs for embed diff-based editing (code, doc, sheet)'
+    commits:
+    - b0a921de4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: settings
+  item_count: 16
+  newsletter_ready_count: 12
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-27'
+    title: 'chore: git rm deleted Polar files (staged deletions)'
+    commits:
+    - a7585ec9b
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-27'
+    title: 'feat: add account email change'
+    commits:
+    - 5041358b6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'feat: remove Polar payment provider; complete migration to Stripe Managed Payments'
+    commits:
+    - fd34fb52b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: accept demo route after email-change login'
+    commits:
+    - d23cd719f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: advance email-change login password step'
+    commits:
+    - 99df1b296
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: open visible login entry in email-change E2E'
+    commits:
+    - f35ba707f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: preserve password plus 2fa settings auth'
+    commits:
+    - ba8c9fe99
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: relogin after email-change identity updates'
+    commits:
+    - af77f6799
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: reset settings menu during email-change E2E'
+    commits:
+    - 2740e0201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: wait for authenticated UI after email-change login'
+    commits:
+    - fe2985868
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: wait for email-change E2E login completion'
+    commits:
+    - 978ee06cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'test: accept managed refund PDF attachment'
+    commits:
+    - 96c02f833
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-27'
+    title: 'test: choose payment email inbox by recipient'
+    commits:
+    - 072cea694
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-27'
+    title: 'test: verify managed Stripe email PDFs'
+    commits:
+    - ee2e8eed4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: close settings on swipe gesture'
+    commits:
+    - c3984bad3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: constrain DailyInspirationBanner height when settings panel opens'
+    commits:
+    - aabe50180
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: apple
+  item_count: 8
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-30'
+    title: 'chore: add iOS native control guard hooks and expand counterparts mapping'
+    commits:
+    - 2017a8bb8
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add OMToggle, OMDropdown, OMConfirmDialog, OMSheet custom primitives'
+    commits:
+    - 2a2f024be
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(01-01): fix Swift font family name in build-tokens.js'
+    commits:
+    - 585aeb4bc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-02'
+    title: 'fix(01-01): use LinearGradient initializer instead of omGradient in DataExtensions'
+    commits:
+    - be3db6324
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(01-02): fix OMToggle gradient, inset shadow, OMDropdown radius, row padding/gap'
+    commits:
+    - 90a8bea9a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(ios): match OMSettingsRow icon size and padding to web SettingsItem.svelte'
+    commits:
+    - b273cfb3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(ios): redesign settings menu to match web app design'
+    commits:
+    - '047224522'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(ios): remove iOS chrome from settings — flat layout matching web'
+    commits:
+    - 4438b6026
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+- theme: cli_sdk
+  item_count: 3
+  newsletter_ready_count: 3
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-30'
+    title: 'fix: CLI PDF test — tolerate stale CLI session after OPE-362 re-login'
+    commits:
+    - 29f411b6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: CLI PDF test — use proven send pattern from pdf-flow spec'
+    commits:
+    - ca8b35fd1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: recover TOON content after relogin + fix CLI PDF test session drop'
+    commits:
+    - ec9af6dbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: docs
+  item_count: 3
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-28'
+    title: 'fix: update privacy promises registry and obsidian screenshot sync'
+    commits:
+    - 0320671ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat: add Deutsche Bahn train provider for search_connections skill'
+    commits:
+    - 1ff0f4ac3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: embed diff-based editing — backend engine, LLM instruction, frontend timeline'
+    commits:
+    - 5f1ac0f75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: infrastructure
+  item_count: 3
+  newsletter_ready_count: 2
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-30'
+    title: 'feat: add GPT 5.5 model with premium credit pricing'
+    commits:
+    - 7e601c367
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-05-02'
+    title: 'fix(travel): add daytime detection and layover city name for DB train connections'
+    commits:
+    - 118296ef7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: retrigger Vercel deploy for video create embed fixes'
+    commits:
+    - d1822dcac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+- theme: security
+  item_count: 1
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-04-30'
+    title: 'chore: update compliance docs and dependabot state'
+    commits:
+    - a4e239fc5
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - date: '2026-04-27'
+    title: 'feat: add account email change'
+    commits:
+    - 5041358b6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'feat: remove Polar payment provider; complete migration to Stripe Managed Payments'
+    commits:
+    - fd34fb52b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'feat: split signup-flow into stripe-eu and stripe-managed; delete original'
+    commits:
+    - bb6e9afdd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: accept demo route after email-change login'
+    commits:
+    - d23cd719f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: advance email-change login password step'
+    commits:
+    - 99df1b296
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: allow Gmail delivery timestamp skew'
+    commits:
+    - c1d16d174
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: normalize quote text before highlight match in embed fullscreen'
+    commits:
+    - fd3d9faef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: open visible login entry in email-change E2E'
+    commits:
+    - f35ba707f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: poll Gmail aliases from message headers'
+    commits:
+    - 727f7947c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: preserve password plus 2fa settings auth'
+    commits:
+    - ba8c9fe99
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: relogin after email-change identity updates'
+    commits:
+    - af77f6799
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: reset settings menu during email-change E2E'
+    commits:
+    - 2740e0201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: wait for authenticated UI after email-change login'
+    commits:
+    - fe2985868
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: wait for email-change E2E login completion'
+    commits:
+    - 978ee06cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: add swipe close gestures for menus'
+    commits:
+    - f30df002c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: add swipe navigation to headers'
+    commits:
+    - cb98225f9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: add touch edge swipes for menus'
+    commits:
+    - 2b19b1e09
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: default to English on first visit with browser language suggestion notification'
+    commits:
+    - bf43c58dd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: use large embed layout for daily inspiration banner on wide displays'
+    commits:
+    - 66a8dfae9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: close settings on swipe gesture'
+    commits:
+    - c3984bad3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: expose incognito chat header title to tests'
+    commits:
+    - 00d61ada5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: handle duplicate AutoTopUp during step transitions in signup specs'
+    commits:
+    - 846b83b96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: increase delete-account success-message timeout to 30s in signup specs'
+    commits:
+    - c0e916484
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: match header swipe direction to arrows'
+    commits:
+    - fdef4949a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: preserve chat header navigation order'
+    commits:
+    - d7bf96916
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: prevent new chat screen freeze for unauthenticated users'
+    commits:
+    - 744c1ecc7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: route content_sanitization_model through OpenRouter to fix Groq 400 tool-call error'
+    commits:
+    - 76d8b2621
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: use openSignupInterface helper to handle banner/header button visibility'
+    commits:
+    - b57e2fd20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: add privacy and safety intro pages'
+    commits:
+    - 67e301c8e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: autoplay intro teaser video'
+    commits:
+    - 7f4ef1892
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: cycle daily inspiration embed on mobile'
+    commits:
+    - 29d0483b5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: expand intro teaser across chat header'
+    commits:
+    - d8a53326c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: split teaser layout in ChatHeader (text left, video right)'
+    commits:
+    - d453a561d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: accept banner login CTA after chat flow logout'
+    commits:
+    - 9ac6ebbc5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: allow chat key e2e checks without debug helper'
+    commits:
+    - 81dd8ab2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: apply ?lang= locale before loading default chat to prevent English flash'
+    commits:
+    - 83b582c3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: check German message body text in test 10 (chat-header-title hidden for unauth)'
+    commits:
+    - f1640f255
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: constrain DailyInspirationBanner height when settings panel opens'
+    commits:
+    - aabe50180
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct 16:9 embed sizing on large displays in daily inspiration banner'
+    commits:
+    - f7f51ab64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct chat header navigation direction'
+    commits:
+    - a05d690dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct embed aspect ratio to 16:9 on large displays in daily inspiration banner'
+    commits:
+    - d72cfbee4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct teaser video header layout'
+    commits:
+    - 900b7a521
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: enlarge teaser video previews'
+    commits:
+    - 4f4a41c9e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: expand teaser video layout'
+    commits:
+    - 3e7efa72e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: move ?lang= locale apply to onMount top + fix ChatHeader hardcoded teaser strings'
+    commits:
+    - 1f805d6e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: open sidebar before checking intro chat title in test 10'
+    commits:
+    - 5883d89b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: re-translate intro chat titles after ?lang= URL param change'
+    commits:
+    - 7155aaf94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: relax shared tab readiness in encryption spec'
+    commits:
+    - 98a6cfb66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: treat Groq ''json'' tool-name quirk as retryable, restore Groq as primary sanitization provider'
+    commits:
+    - e222ffa1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: use notification-action testid to avoid strict mode violation in language tests 1+2'
+    commits:
+    - 1f10ffe2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: use resilient login entry in chat flow spec'
+    commits:
+    - dbd0bc3f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: use shared login flow in multi-tab encryption spec'
+    commits:
+    - 7f1ac7c9b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: wait for authenticated chat UI in multi-tab spec'
+    commits:
+    - abf0f86eb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'revert: restore daily inspiration banner embed to original small preview'
+    commits:
+    - 36da07b40
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: MessageInput inline compact mode and followup placeholder variant'
+    commits:
+    - 756e2c6d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add Stripe revenue summary to admin server stats'
+    commits:
+    - c3f6c53d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add floating deco icons to teaser layout and use ai.svg for for-everyone chat'
+    commits:
+    - 86c50baa4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add inlineCompact prop and CSS to MessageInput'
+    commits:
+    - d7d44027f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add startNewChatOnClick mode to MessageInput'
+    commits:
+    - 3188eef43
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: hide new-chat button on input focus, show cancel/save-draft, fix followup placeholder'
+    commits:
+    - 24086fe71
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: include public chats in search suggestions'
+    commits:
+    - adb9f9b0c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: message input + new chat button UI corrections'
+    commits:
+    - b93a13c3a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: CLI PDF test — tolerate stale CLI session after OPE-362 re-login'
+    commits:
+    - 29f411b6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: CLI PDF test — use proven send pattern from pdf-flow spec'
+    commits:
+    - ca8b35fd1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: CLI PDF test — wait for chat-id URL + extract from hash format'
+    commits:
+    - d28e36ceb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: add data-testid to booking CTA buttons in travel connection fullscreen'
+    commits:
+    - e4e738a95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: add smooth height transition to DailyInspirationBanner (iPad Safari)'
+    commits:
+    - 545e1419a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: auto-unwrap LLM requests array for flat-schema skills (pdf.read 422)'
+    commits:
+    - 253071ffd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
+    commits:
+    - 2fcd00e8e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: constrain teaser video height'
+    commits:
+    - 7a99d8fd4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: disable pointer-events on faded new-chat welcome content'
+    commits:
+    - 8f7127c8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: dismiss button styling, position, and draft compact-mode restore'
+    commits:
+    - 855e92d81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: fullwidth new-chat CTA for intro/legal chats + Safari nav race'
+    commits:
+    - 0f9281bf7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: guard messageInputFieldRef in setTimeout callbacks (null-ref after chat delete)'
+    commits:
+    - 32df7f3fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: handle login without 2FA in test helper (race OTP vs auth signal)'
+    commits:
+    - d91bc9fb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: invalidate metadata cache on title update + refresh carousel on key-ready (Safari race)'
+    commits:
+    - 0c843a73d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: load localized intro video in chat header'
+    commits:
+    - 4aa198f0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: migrate 20 inline-login specs to submitPasswordAndHandleOtp helper'
+    commits:
+    - e21900a6a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: new chat button centering, icon-only on focus, smooth transitions, mobile label'
+    commits:
+    - f6df78d1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: placeholder vertical centering and mobile new-chat label'
+    commits:
+    - e628e4c32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - 5f775e980
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - dea99692c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: recover TOON content after relogin + fix CLI PDF test session drop'
+    commits:
+    - ec9af6dbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: recover TOON content after relogin for finished embeds'
+    commits:
+    - 421592b1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: rename (minimal)/+layout to +layout@ to reset layout chain'
+    commits:
+    - 37a507eb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: reset (minimal) layout chain so MetaTags title doesn''t override status page'
+    commits:
+    - cd3bfa084
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: resolve 3 test failure groups (console.error, status title, teaser testid)'
+    commits:
+    - 9c99238d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: show fullwidth new-chat CTA on intro/legal chats for authenticated users'
+    commits:
+    - f80715045
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: tighten teaser split layout width'
+    commits:
+    - 765e78c48
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: update 4 inline-login specs to use submitPasswordAndHandleOtp helper'
+    commits:
+    - 59025e4a4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: update E2E specs for new-chat button UI changes'
+    commits:
+    - 8f34a2c13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'refactor: use shared waitForChatReady in multi-tab encryption spec'
+    commits:
+    - bb13d93d6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat: add Deutsche Bahn train provider for search_connections skill'
+    commits:
+    - 1ff0f4ac3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat: add bahn.de booking deeplinks to train connection results'
+    commits:
+    - d909babd4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat: safe PDF dedup — reuse S3 object with fresh embed_id (OPE-485)'
+    commits:
+    - 6a1d19717
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: add files field and request_embed for deduplicated PDF uploads'
+    commits:
+    - 583cd1343
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: compare content size for deduplicated embed cache protection'
+    commits:
+    - a5f4e0dc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: disable PDF deduplication — OCR must always run for AI reading'
+    commits:
+    - 6fc968098
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: dynamic provider attribution for train vs flight results'
+    commits:
+    - 06ebb3293
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: eagerly load first PDF pages in fullscreen (skip IntersectionObserver)'
+    commits:
+    - a1310b844
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: make AI skill card persistence check non-fatal after reload/relogin'
+    commits:
+    - 7060fb91d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: pdf-flow test — detect stuck Sending and reload to reconnect WebSocket'
+    commits:
+    - 25a1efd4f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: post-login navigation settle, celery request access, status page title observer'
+    commits:
+    - 6d9e90217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: preserve full embed cache for deduplicated PDFs on server'
+    commits:
+    - d882f7027
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: re-trigger OCR from message handler for deduplicated PDF embeds'
+    commits:
+    - 972097dfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: register PDF embeds in EmbedStore to prevent dedup key mismatch'
+    commits:
+    - 192e43bab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: remove client-side PDF embed EmbedStore registration that overwrites OCR cache'
+    commits:
+    - 153d4735d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: retry TOON content recovery for finished embeds with missing content'
+    commits:
+    - a06f28c64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: skip PDF dedup in core API check-duplicate endpoint'
+    commits:
+    - 430e6376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: skip preview image check after reload in pdf-flow test'
+    commits:
+    - 7fb12f82d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: skip sending deduplicated PDF embed content to prevent server cache overwrite'
+    commits:
+    - 18163c82c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: update skill schema to advertise train support to the LLM'
+    commits:
+    - 66cc3ba7e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: use _deduplicated flag to prevent cache overwrite for dedup PDF embeds'
+    commits:
+    - 6396c00b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'feat(travel): show provider logos instead of hardcoded ''via Google'' in search preview'
+    commits:
+    - 616abde82
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'feat: OCR cache copy for PDF dedup — skip OCR when cache is warm (OPE-485)'
+    commits:
+    - 89a464008
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'fix(travel): add daytime detection and layover city name for DB train connections'
+    commits:
+    - 118296ef7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'fix: hide action buttons in draft preview mode, clamp to 3 lines'
+    commits:
+    - d63fab7ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: add mail embed diff-based editing support'
+    commits:
+    - 63fedfcd8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: embed diff-based editing — backend engine, LLM instruction, frontend timeline'
+    commits:
+    - 5f1ac0f75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: video create embed preview/fullscreen with synced timeline and video playback'
+    commits:
+    - 8f360dcbb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: video timeline parser + dev preview page for Video Create skill research'
+    commits:
+    - b3da0ebaf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — add test.slow() for AI inference timeouts'
+    commits:
+    - 2a7c93b06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — correct createStepScreenshotter and screenshot signatures'
+    commits:
+    - 55535ad0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — correct skipWithoutCredentials signature'
+    commits:
+    - f4e97fdaf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — use correct loginToTestAccount positional args'
+    commits:
+    - 8217ae26b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — use real AI inference, not mocks'
+    commits:
+    - 892202c3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: retrigger Vercel deploy for video create embed fixes'
+    commits:
+    - d1822dcac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: video create embed preview — correct appId and fullscreen prop wrapping'
+    commits:
+    - 5179eab43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: video create embed — match timeline duration to video and use proper play/pause icons'
+    commits:
+    - b22fdbb64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  social_or_video:
+  - date: '2026-04-27'
+    title: 'feat: add account email change'
+    commits:
+    - 5041358b6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'feat: remove Polar payment provider; complete migration to Stripe Managed Payments'
+    commits:
+    - fd34fb52b
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'feat: split signup-flow into stripe-eu and stripe-managed; delete original'
+    commits:
+    - bb6e9afdd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: accept demo route after email-change login'
+    commits:
+    - d23cd719f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: advance email-change login password step'
+    commits:
+    - 99df1b296
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: allow Gmail delivery timestamp skew'
+    commits:
+    - c1d16d174
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: normalize quote text before highlight match in embed fullscreen'
+    commits:
+    - fd3d9faef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: open visible login entry in email-change E2E'
+    commits:
+    - f35ba707f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: poll Gmail aliases from message headers'
+    commits:
+    - 727f7947c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: preserve password plus 2fa settings auth'
+    commits:
+    - ba8c9fe99
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: relogin after email-change identity updates'
+    commits:
+    - af77f6799
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: reset settings menu during email-change E2E'
+    commits:
+    - 2740e0201
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: wait for authenticated UI after email-change login'
+    commits:
+    - fe2985868
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-27'
+    title: 'fix: wait for email-change E2E login completion'
+    commits:
+    - 978ee06cf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: add swipe close gestures for menus'
+    commits:
+    - f30df002c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: add swipe navigation to headers'
+    commits:
+    - cb98225f9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: add touch edge swipes for menus'
+    commits:
+    - 2b19b1e09
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: default to English on first visit with browser language suggestion notification'
+    commits:
+    - bf43c58dd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'feat: use large embed layout for daily inspiration banner on wide displays'
+    commits:
+    - 66a8dfae9
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: close settings on swipe gesture'
+    commits:
+    - c3984bad3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: expose incognito chat header title to tests'
+    commits:
+    - 00d61ada5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: handle duplicate AutoTopUp during step transitions in signup specs'
+    commits:
+    - 846b83b96
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: increase delete-account success-message timeout to 30s in signup specs'
+    commits:
+    - c0e916484
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: match header swipe direction to arrows'
+    commits:
+    - fdef4949a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: preserve chat header navigation order'
+    commits:
+    - d7bf96916
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: prevent new chat screen freeze for unauthenticated users'
+    commits:
+    - 744c1ecc7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: route content_sanitization_model through OpenRouter to fix Groq 400 tool-call error'
+    commits:
+    - 76d8b2621
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-28'
+    title: 'fix: use openSignupInterface helper to handle banner/header button visibility'
+    commits:
+    - b57e2fd20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: add privacy and safety intro pages'
+    commits:
+    - 67e301c8e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: autoplay intro teaser video'
+    commits:
+    - 7f4ef1892
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: cycle daily inspiration embed on mobile'
+    commits:
+    - 29d0483b5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: expand intro teaser across chat header'
+    commits:
+    - d8a53326c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'feat: split teaser layout in ChatHeader (text left, video right)'
+    commits:
+    - d453a561d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: accept banner login CTA after chat flow logout'
+    commits:
+    - 9ac6ebbc5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: allow chat key e2e checks without debug helper'
+    commits:
+    - 81dd8ab2c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: apply ?lang= locale before loading default chat to prevent English flash'
+    commits:
+    - 83b582c3b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: check German message body text in test 10 (chat-header-title hidden for unauth)'
+    commits:
+    - f1640f255
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: constrain DailyInspirationBanner height when settings panel opens'
+    commits:
+    - aabe50180
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct 16:9 embed sizing on large displays in daily inspiration banner'
+    commits:
+    - f7f51ab64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct chat header navigation direction'
+    commits:
+    - a05d690dc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct embed aspect ratio to 16:9 on large displays in daily inspiration banner'
+    commits:
+    - d72cfbee4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: correct teaser video header layout'
+    commits:
+    - 900b7a521
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: enlarge teaser video previews'
+    commits:
+    - 4f4a41c9e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: expand teaser video layout'
+    commits:
+    - 3e7efa72e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: move ?lang= locale apply to onMount top + fix ChatHeader hardcoded teaser strings'
+    commits:
+    - 1f805d6e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: open sidebar before checking intro chat title in test 10'
+    commits:
+    - 5883d89b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: re-translate intro chat titles after ?lang= URL param change'
+    commits:
+    - 7155aaf94
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: relax shared tab readiness in encryption spec'
+    commits:
+    - 98a6cfb66
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: treat Groq ''json'' tool-name quirk as retryable, restore Groq as primary sanitization provider'
+    commits:
+    - e222ffa1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: use notification-action testid to avoid strict mode violation in language tests 1+2'
+    commits:
+    - 1f10ffe2d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: use resilient login entry in chat flow spec'
+    commits:
+    - dbd0bc3f6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: use shared login flow in multi-tab encryption spec'
+    commits:
+    - 7f1ac7c9b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'fix: wait for authenticated chat UI in multi-tab spec'
+    commits:
+    - abf0f86eb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-29'
+    title: 'revert: restore daily inspiration banner embed to original small preview'
+    commits:
+    - 36da07b40
+    section: other
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: MessageInput inline compact mode and followup placeholder variant'
+    commits:
+    - 756e2c6d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add OMToggle, OMDropdown, OMConfirmDialog, OMSheet custom primitives'
+    commits:
+    - 2a2f024be
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-04-30'
+    title: 'feat: add Stripe revenue summary to admin server stats'
+    commits:
+    - c3f6c53d8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add floating deco icons to teaser layout and use ai.svg for for-everyone chat'
+    commits:
+    - 86c50baa4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add inlineCompact prop and CSS to MessageInput'
+    commits:
+    - d7d44027f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: add startNewChatOnClick mode to MessageInput'
+    commits:
+    - 3188eef43
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: hide new-chat button on input focus, show cancel/save-draft, fix followup placeholder'
+    commits:
+    - 24086fe71
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: include public chats in search suggestions'
+    commits:
+    - adb9f9b0c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'feat: message input + new chat button UI corrections'
+    commits:
+    - b93a13c3a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: CLI PDF test — tolerate stale CLI session after OPE-362 re-login'
+    commits:
+    - 29f411b6d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: CLI PDF test — use proven send pattern from pdf-flow spec'
+    commits:
+    - ca8b35fd1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: CLI PDF test — wait for chat-id URL + extract from hash format'
+    commits:
+    - d28e36ceb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: add data-testid to booking CTA buttons in travel connection fullscreen'
+    commits:
+    - e4e738a95
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: add smooth height transition to DailyInspirationBanner (iPad Safari)'
+    commits:
+    - 545e1419a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: auto-unwrap LLM requests array for flat-schema skills (pdf.read 422)'
+    commits:
+    - 253071ffd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: clamp past outbound_date in SerpAPI booking lookup'
+    commits:
+    - 2fcd00e8e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: constrain teaser video height'
+    commits:
+    - 7a99d8fd4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: disable pointer-events on faded new-chat welcome content'
+    commits:
+    - 8f7127c8c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: dismiss button styling, position, and draft compact-mode restore'
+    commits:
+    - 855e92d81
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: fullwidth new-chat CTA for intro/legal chats + Safari nav race'
+    commits:
+    - 0f9281bf7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: guard messageInputFieldRef in setTimeout callbacks (null-ref after chat delete)'
+    commits:
+    - 32df7f3fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: handle login without 2FA in test helper (race OTP vs auth signal)'
+    commits:
+    - d91bc9fb5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: invalidate metadata cache on title update + refresh carousel on key-ready (Safari race)'
+    commits:
+    - 0c843a73d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: load localized intro video in chat header'
+    commits:
+    - 4aa198f0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: migrate 20 inline-login specs to submitPasswordAndHandleOtp helper'
+    commits:
+    - e21900a6a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: new chat button centering, icon-only on focus, smooth transitions, mobile label'
+    commits:
+    - f6df78d1f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: placeholder vertical centering and mobile new-chat label'
+    commits:
+    - e628e4c32
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - 5f775e980
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: placeholder vertical centering in inline-compact input'
+    commits:
+    - dea99692c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: recover TOON content after relogin + fix CLI PDF test session drop'
+    commits:
+    - ec9af6dbb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: recover TOON content after relogin for finished embeds'
+    commits:
+    - 421592b1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: rename (minimal)/+layout to +layout@ to reset layout chain'
+    commits:
+    - 37a507eb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: reset (minimal) layout chain so MetaTags title doesn''t override status page'
+    commits:
+    - cd3bfa084
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: resolve 3 test failure groups (console.error, status title, teaser testid)'
+    commits:
+    - 9c99238d7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: show fullwidth new-chat CTA on intro/legal chats for authenticated users'
+    commits:
+    - f80715045
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: tighten teaser split layout width'
+    commits:
+    - 765e78c48
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: update 4 inline-login specs to use submitPasswordAndHandleOtp helper'
+    commits:
+    - 59025e4a4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'fix: update E2E specs for new-chat button UI changes'
+    commits:
+    - 8f34a2c13
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-04-30'
+    title: 'refactor: use shared waitForChatReady in multi-tab encryption spec'
+    commits:
+    - bb13d93d6
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat(ios): fix ChatBanner to match web ChatHeader — video, fonts, nav, gradients'
+    commits:
+    - 1f34b4480
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-01'
+    title: 'feat(ios): previous session iOS visual fixes — settings, embeds, chat views, font registration'
+    commits:
+    - 47c32dd9c
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-01'
+    title: 'feat: add Deutsche Bahn train provider for search_connections skill'
+    commits:
+    - 1ff0f4ac3
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat: add bahn.de booking deeplinks to train connection results'
+    commits:
+    - d909babd4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'feat: fix iOS default view, i18n keys, and replace native controls in settings sub-pages'
+    commits:
+    - a04023356
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-01'
+    title: 'feat: safe PDF dedup — reuse S3 object with fresh embed_id (OPE-485)'
+    commits:
+    - 6a1d19717
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: add files field and request_embed for deduplicated PDF uploads'
+    commits:
+    - 583cd1343
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: compare content size for deduplicated embed cache protection'
+    commits:
+    - a5f4e0dc1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: disable PDF deduplication — OCR must always run for AI reading'
+    commits:
+    - 6fc968098
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: dynamic provider attribution for train vs flight results'
+    commits:
+    - 06ebb3293
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: eagerly load first PDF pages in fullscreen (skip IntersectionObserver)'
+    commits:
+    - a1310b844
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: make AI skill card persistence check non-fatal after reload/relogin'
+    commits:
+    - 7060fb91d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: pdf-flow test — detect stuck Sending and reload to reconnect WebSocket'
+    commits:
+    - 25a1efd4f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: post-login navigation settle, celery request access, status page title observer'
+    commits:
+    - 6d9e90217
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: preserve full embed cache for deduplicated PDFs on server'
+    commits:
+    - d882f7027
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: re-trigger OCR from message handler for deduplicated PDF embeds'
+    commits:
+    - 972097dfc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: register PDF embeds in EmbedStore to prevent dedup key mismatch'
+    commits:
+    - 192e43bab
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: remove client-side PDF embed EmbedStore registration that overwrites OCR cache'
+    commits:
+    - 153d4735d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: retry TOON content recovery for finished embeds with missing content'
+    commits:
+    - a06f28c64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: skip PDF dedup in core API check-duplicate endpoint'
+    commits:
+    - 430e6376d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: skip preview image check after reload in pdf-flow test'
+    commits:
+    - 7fb12f82d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: skip sending deduplicated PDF embed content to prevent server cache overwrite'
+    commits:
+    - 18163c82c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: update skill schema to advertise train support to the LLM'
+    commits:
+    - 66cc3ba7e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-01'
+    title: 'fix: use _deduplicated flag to prevent cache overwrite for dedup PDF embeds'
+    commits:
+    - 6396c00b4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'feat(ios): inline new chat welcome screen matching web app'
+    commits:
+    - '875157440'
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'feat(travel): show provider logos instead of hardcoded ''via Google'' in search preview'
+    commits:
+    - 616abde82
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'feat: OCR cache copy for PDF dedup — skip OCR when cache is warm (OPE-485)'
+    commits:
+    - 89a464008
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'fix(01-01): fix openMatesOfficial gradient hex and add appOpenmates/appChat'
+    commits:
+    - 4f5b0ec0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(01-01): use LinearGradient initializer instead of omGradient in DataExtensions'
+    commits:
+    - be3db6324
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(01-02): fix OMToggle gradient, inset shadow, OMDropdown radius, row padding/gap'
+    commits:
+    - 90a8bea9a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(ios): match OMSettingsRow icon size and padding to web SettingsItem.svelte'
+    commits:
+    - b273cfb3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(ios): redesign settings menu to match web app design'
+    commits:
+    - '047224522'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(ios): remove iOS chrome from settings — flat layout matching web'
+    commits:
+    - 4438b6026
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - date: '2026-05-02'
+    title: 'fix(travel): add daytime detection and layover city name for DB train connections'
+    commits:
+    - 118296ef7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-02'
+    title: 'fix: hide action buttons in draft preview mode, clamp to 3 lines'
+    commits:
+    - d63fab7ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: add mail embed diff-based editing support'
+    commits:
+    - 63fedfcd8
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: embed diff-based editing — backend engine, LLM instruction, frontend timeline'
+    commits:
+    - 5f1ac0f75
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: video create embed preview/fullscreen with synced timeline and video playback'
+    commits:
+    - 8f360dcbb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'feat: video timeline parser + dev preview page for Video Create skill research'
+    commits:
+    - b3da0ebaf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — add test.slow() for AI inference timeouts'
+    commits:
+    - 2a7c93b06
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — correct createStepScreenshotter and screenshot signatures'
+    commits:
+    - 55535ad0c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — correct skipWithoutCredentials signature'
+    commits:
+    - f4e97fdaf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — use correct loginToTestAccount positional args'
+    commits:
+    - 8217ae26b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: embed-diff-editing spec — use real AI inference, not mocks'
+    commits:
+    - 892202c3a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: retrigger Vercel deploy for video create embed fixes'
+    commits:
+    - d1822dcac
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: video create embed preview — correct appId and fullscreen prop wrapping'
+    commits:
+    - 5179eab43
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-05-03'
+    title: 'fix: video create embed — match timeline duration to video and use proper play/pause icons'
+    commits:
+    - b22fdbb64
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+risks:
+  communication:
+  - Use weekly themes for PR/release/newsletter drafting; do not list every daily item one-by-one.
+  - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
+sources:
+  daily_files:
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-27.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-28.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-29.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-04-30.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-01.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-02.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-05-03.yml
+llm_summary:
+  overview: OpenMates delivered a major update this week, highlighted by the launch of a diff-based editing engine for document
+    embeds and the expansion of the travel skill to include Deutsche Bahn train connections. The project also finalized its
+    migration to Stripe Managed Payments, introduced a comprehensive suite of mobile touch gestures, and overhauled the introductory
+    user experience with autoplaying video teasers and dedicated privacy pages.
+  released_changes:
+  - text: OpenMates added the ability for users to update their account email address directly within the settings menu.
+    evidence:
+      commits:
+      - 5041358b6
+    release_status: released_main
+  - text: The transition to Stripe Managed Payments is now complete, resulting in the removal of the Polar payment provider
+      and an updated signup flow for EU and Managed configurations.
+    evidence:
+      commits:
+      - fd34fb52b
+      - bb6e9afdd
+    release_status: released_main
+  - text: A new suite of touch gestures was introduced, including edge swipes for menus, swipe-to-close for settings, and
+      swipe navigation for chat and embed headers.
+    evidence:
+      commits:
+      - 2b19b1e09
+      - f30df002c
+      - cb98225f9
+    release_status: released_main
+  - text: The chat header now features an expanded intro teaser with autoplaying video support and a split design for better
+      visual engagement.
+    evidence:
+      commits:
+      - 7f4ef1892
+    release_status: released_main
+  - text: The chat interface was refined with a dynamic 'New Chat' button that transitions to draft controls on focus, alongside
+      a new compact input mode for follow-up messages.
+    evidence:
+      commits:
+      - 24086fe71
+      - d7d44027f
+      - 756e2c6d8
+    release_status: released_main
+  - text: Public chats are now included in search suggestions to improve the discoverability of community conversations.
+    evidence:
+      commits:
+      - adb9f9b0c
+    release_status: released_main
+  - text: The travel application now supports train connection searches via Deutsche Bahn, featuring official provider logos
+      and direct booking deeplinks.
+    evidence:
+      commits:
+      - 1ff0f4ac3
+      - d909babd4
+      - 616abde82
+    release_status: released_main
+  - text: A new diff-based editing engine was launched for mail, code, and document embeds, allowing users to track AI-driven
+      changes via a version timeline.
+    evidence:
+      commits:
+      - 63fedfcd8
+      - 5f1ac0f75
+    release_status: released_main
+  - text: OpenMates introduced a video creation embed that includes a synced playback timeline and specialized parser for
+      skill research.
+    evidence:
+      commits:
+      - 8f360dcbb
+      - b3da0ebaf
+    release_status: released_main
+  - text: PDF handling was optimized through safe deduplication and a new OCR cache that skips redundant analysis for duplicate
+      files.
+    evidence:
+      commits:
+      - 6a1d19717
+      - 89a464008
+    release_status: released_main
+  bug_fixes:
+  - text: The account email change process was stabilized with fixes for identity-update relogins, authenticated UI synchronization,
+      and route redirection.
+    evidence:
+      commits:
+      - af77f6799
+      - fe2985868
+      - d23cd719f
+      - 978ee06cf
+    release_status: released_main
+  - text: A critical issue causing the new chat screen to freeze for unauthenticated users was resolved.
+    evidence:
+      commits:
+      - 744c1ecc7
+    release_status: released_main
+  - text: AI content sanitization was stabilized by implementing retries for tool-naming quirks and optimizing model routing
+      through OpenRouter and Groq.
+    evidence:
+      commits:
+      - 76d8b2621
+      - e222ffa1f
+    release_status: released_main
+  - text: Localization logic now applies language preferences from URL parameters earlier in the load cycle, eliminating the
+      'English flash' and ensuring intro chat titles are correctly translated.
+    evidence:
+      commits:
+      - 83b582c3b
+      - 1f805d6e8
+      - 7155aaf94
+    release_status: released_main
+  - text: Compatibility for iPad Safari was improved with smooth height transitions for the daily inspiration banner and resolved
+      navigation race conditions.
+    evidence:
+      commits:
+      - 545e1419a
+      - 0f9281bf7
+    release_status: released_main
+  - text: PDF processing reliability was enhanced by ensuring OCR always runs for AI reading and protecting server-side caches
+      from being overwritten by duplicate uploads.
+    evidence:
+      commits:
+      - 6fc968098
+      - 972097dfc
+      - a5f4e0dc1
+      - 6396c00b4
+    release_status: released_main
+  - text: Travel connection data was refined to include daytime detection and layover city names for trains, while outbound
+      dates are now correctly clamped in booking lookups.
+    evidence:
+      commits:
+      - 118296ef7
+      - 2fcd00e8e
+    release_status: released_main
+  - text: The video creation embed received corrections for timeline duration matching, playback iconography, and fullscreen
+      property wrapping.
+    evidence:
+      commits:
+      - b22fdbb64
+      - 5179eab43
+    release_status: released_main
+  unreleased_progress:
+  - text: Development of custom design primitives like OMToggle and OMSheet continued for upcoming Apple platform releases.
+    evidence:
+      commits:
+      - 2a2f024be
+    release_status: released_main
+  - text: The unreleased iOS app received significant UI updates, including a new chat welcome screen and a redesigned settings
+      menu to match the web experience.
+    evidence:
+      commits:
+      - '875157440'
+      - 4438b6026
+      - '047224522'
+    release_status: released_main
+  - text: Design token synchronization was refined for Apple platforms, including fixes for gradients, inset shadows, and
+      font registration.
+    evidence:
+      commits:
+      - 90a8bea9a
+      - be3db6324
+      - 4f5b0ec0b
+    release_status: released_main
+  - text: Internal productivity tools were expanded with new Obsidian synchronization scripts for daily notes and production
+      statistics.
+    evidence:
+      commits:
+      - 770fb1708
+      - 4bf136dad
+    release_status: released_main
+  - text: Integration work began for the GPT 5.5 model, including premium credit pricing configurations.
+    evidence:
+      commits:
+      - 7e601c367
+    release_status: released_main
+  - text: Project planning and roadmaps were initialized to achieve feature parity between the web application and upcoming
+      Apple platform releases.
+    evidence:
+      commits:
+      - dde9e3bf7
+      - 2f9797ecd
+      - 8068c9ed9
+      - dceb080c6
+    release_status: released_main
+  - text: Internal architecture and state management for the diff-based editing engine were established to support multiple
+      document types.
+    evidence:
+      commits:
+      - 556e68f69
+      - 09caa2968
+    release_status: released_main
+  internal_progress:
+  - text: Over 20 end-to-end login specifications were migrated to a robust authentication helper to better manage 2FA and
+      OTP race conditions.
+    evidence:
+      commits:
+      - e21900a6a
+      - 59025e4a4
+      - d91bc9fb5
+    release_status: released_main
+  - text: The test suite was expanded to verify Stripe Managed Payment refund PDFs and improve recipient-based inbox selection
+      in automated flows.
+    evidence:
+      commits:
+      - 96c02f833
+      - ee2e8eed4
+      - 072cea694
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New account email change functionality in settings.
+      evidence:
+        commits:
+        - 5041358b6
+      reason: Significant new user-facing account management feature.
+    - text: Completion of the migration to Stripe Managed Payments and removal of legacy providers.
+      evidence:
+        commits:
+        - fd34fb52b
+        - bb6e9afdd
+      reason: Marks the completion of a major infrastructure transition for payments.
+    - text: New suite of touch gestures including edge swipes for menus and swipe navigation for headers.
+      evidence:
+        commits:
+        - 2b19b1e09
+        - f30df002c
+        - cb98225f9
+      reason: Major improvement to mobile and touch-based navigation.
+    - text: Train connection search via Deutsche Bahn with integrated booking links and official provider logos.
+      evidence:
+        commits:
+        - 1ff0f4ac3
+        - d909babd4
+        - 616abde82
+      reason: Significant expansion of the travel skill with high-value utility.
+    - text: Diff-based editing engine for mail, code, and document embeds with a version timeline UI.
+      evidence:
+        commits:
+        - 63fedfcd8
+        - 5f1ac0f75
+      reason: Major new capability for managing AI-driven edits to content.
+    - text: Interactive video creation embed featuring a synced playback timeline.
+      evidence:
+        commits:
+        - 8f360dcbb
+        - b3da0ebaf
+      reason: Introduces the visual interface for upcoming video creation capabilities.
+    exclude:
+    - text: Foundational UI and design primitive work for Apple platforms.
+      evidence:
+        commits:
+        - 2a2f024be
+        - '875157440'
+        - '047224522'
+      reason: iOS and macOS platforms are currently disabled features and not yet ready for public communication.
+    - text: GPT 5.5 model integration and premium credit pricing.
+      evidence:
+        commits:
+        - 7e601c367
+      reason: This update is marked as not user-facing.
+    - text: Technical end-to-end test suite hardening and authentication helper migrations.
+      evidence:
+        commits:
+        - e21900a6a
+        - 96c02f833
+      reason: Internal testing and CI improvements are not relevant to a general audience.
+    rationale: The newsletter highlights the most impactful user-facing advancements, including the new diff-based editing
+      engine, the expansion of travel search to include trains, and significant mobile UX improvements. Internal infrastructure
+      and unreleased platform work are excluded.
+  social_video_recommendations:
+  - idea: A screen recording showing the AI editing a document with the version timeline updating in real-time.
+    priority: high
+    reason: Visually demonstrates the new diff-based editing engine and versioning UI.
+    evidence:
+      commits:
+      - 63fedfcd8
+      - 5f1ac0f75
+  - idea: A short clip demonstrating the fluidity of the new edge swipes and header navigation on a mobile device.
+    priority: high
+    reason: Gestures are highly visual and demonstrate a significant improvement in app feel.
+    evidence:
+      commits:
+      - 2b19b1e09
+      - f30df002c
+      - cb98225f9
+  - idea: A walkthrough of a user asking for train connections and receiving a list with direct booking links to bahn.de.
+    priority: high
+    reason: This is a concrete, high-value feature that is easy to demonstrate visually.
+    evidence:
+      commits:
+      - 1ff0f4ac3
+      - d909babd4
+  quality_notes:
+  - The introduction of diff-based editing was accompanied by extensive E2E test hardening to ensure reliability during AI
+    inference.
+  - Significant focus was placed on international UX, specifically resolving the 'English flash' during initial page loads.
+  - The travel skill expansion to Deutsche Bahn includes deep integration such as daytime detection and direct booking links.
+  validation_warnings: []

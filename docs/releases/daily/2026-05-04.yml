@@ -1,0 +1,751 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-04'
+generated_at: '2026-07-09T15:15:30+00:00'
+range:
+  since: '2026-05-04T00:00:00+00:00'
+  until: '2026-05-04T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 13
+  section_counts:
+    features: 1
+    bug_fixes: 9
+    improvements: 0
+    docs: 1
+    tests: 1
+    infrastructure: 1
+    internal: 0
+    other: 0
+  newsletter_ready_items: 8
+  user_facing_items: 8
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add announcement video to deletion reminders'
+    section: features
+    commits:
+    - '320255205'
+    authored_at: '2026-05-04T16:45:16+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/email.py
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/core/api/templates/email/incomplete-signup-deletion-reminder.mjml
+    - backend/scripts/send_incomplete_signup_deletion_email_tests.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: harden security-sensitive fulfillment and reauth'
+    section: bug_fixes
+    commits:
+    - ec7f6b011
+    authored_at: '2026-05-04T18:42:33+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/api_methods.py
+    - backend/core/api/app/services/directus/apple_iap_transaction_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/payment/apple_iap_service.py
+    - backend/core/directus/schemas/apple_iap_transactions.yml
+    - backend/tests/test_security_regressions.py
+    - deployment/dev_server/Caddyfile
+    - frontend/packages/ui/src/components/settings/account/SettingsEmail.svelte
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    - frontend/packages/ui/src/config/api.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore v0.9 announcement copy'
+    section: bug_fixes
+    commits:
+    - fd3a912a9
+    authored_at: '2026-05-04T17:47:35+00:00'
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/scripts/backfill_account_contact_emails.py
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: hide dates for public chat suggestions'
+    section: bug_fixes
+    commits:
+    - f61184b39
+    authored_at: '2026-05-04T14:37:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show new chat button for drafted welcome input'
+    section: bug_fixes
+    commits:
+    - 8a425abc6
+    authored_at: '2026-05-04T13:33:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: center mobile welcome content'
+    section: bug_fixes
+    commits:
+    - 90b3cee36
+    authored_at: '2026-05-04T12:16:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: add daily inspiration swipe navigation'
+    section: bug_fixes
+    commits:
+    - 361adf95d
+    authored_at: '2026-05-04T12:15:23+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use chatDB in embed diff store (Vercel build)'
+    section: bug_fixes
+    commits:
+    - a958543e8
+    authored_at: '2026-05-04T11:20:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: resolve embed timeline import (Vercel build)'
+    section: bug_fixes
+    commits:
+    - '767150815'
+    authored_at: '2026-05-04T11:13:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show new chat CTA for announcements'
+    section: bug_fixes
+    commits:
+    - 428e55bbf
+    authored_at: '2026-05-04T11:04:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: update version references to v0.10'
+    section: docs
+    commits:
+    - e36868110
+    authored_at: '2026-05-04T17:35:46+00:00'
+    changed_paths:
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/scripts/backfill_account_contact_emails.py
+    - docs/architecture/apps/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: fix daily inspiration touch event regression'
+    section: tests
+    commits:
+    - 6a90c31b1
+    authored_at: '2026-05-04T12:25:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: remove temporary privacy and safety intro pages'
+    section: infrastructure
+    commits:
+    - 7dd06cfe2
+    authored_at: '2026-05-04T12:42:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/demo_chats/data/privacy.ts
+    - frontend/packages/ui/src/demo_chats/data/safety.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/safety.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: harden security-sensitive fulfillment and reauth'
+    commits:
+    - ec7f6b011
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add announcement video to deletion reminders'
+    commits:
+    - '320255205'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide dates for public chat suggestions'
+    commits:
+    - f61184b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show new chat button for drafted welcome input'
+    commits:
+    - 8a425abc6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: center mobile welcome content'
+    commits:
+    - 90b3cee36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add daily inspiration swipe navigation'
+    commits:
+    - 361adf95d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve embed timeline import (Vercel build)'
+    commits:
+    - '767150815'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show new chat CTA for announcements'
+    commits:
+    - 428e55bbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: harden security-sensitive fulfillment and reauth'
+    commits:
+    - ec7f6b011
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add announcement video to deletion reminders'
+    commits:
+    - '320255205'
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide dates for public chat suggestions'
+    commits:
+    - f61184b39
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show new chat button for drafted welcome input'
+    commits:
+    - 8a425abc6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: center mobile welcome content'
+    commits:
+    - 90b3cee36
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add daily inspiration swipe navigation'
+    commits:
+    - 361adf95d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve embed timeline import (Vercel build)'
+    commits:
+    - '767150815'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show new chat CTA for announcements'
+    commits:
+    - 428e55bbf
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ec7f6b0118d556a5c241709d6fc16a76c671ce15
+    short_sha: ec7f6b011
+    authored_at: '2026-05-04T18:42:33+00:00'
+    subject: 'fix: harden security-sensitive fulfillment and reauth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/directus/api_methods.py
+    - backend/core/api/app/services/directus/apple_iap_transaction_methods.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/payment/apple_iap_service.py
+    - backend/core/directus/schemas/apple_iap_transactions.yml
+    - backend/tests/test_security_regressions.py
+    - deployment/dev_server/Caddyfile
+    - frontend/packages/ui/src/components/settings/account/SettingsEmail.svelte
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    - frontend/packages/ui/src/config/api.ts
+    related_feature_ids: []
+  - sha: fd3a912a956a958f1d57df34009b254cd10b685b
+    short_sha: fd3a912a9
+    authored_at: '2026-05-04T17:47:35+00:00'
+    subject: 'fix: restore v0.9 announcement copy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/scripts/backfill_account_contact_emails.py
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    related_feature_ids: []
+  - sha: e368681106f59ed79b262d38c6a858ea9fe790eb
+    short_sha: e36868110
+    authored_at: '2026-05-04T17:35:46+00:00'
+    subject: 'docs: update version references to v0.10'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - backend/newsletters/issues/introducing-openmates-v09.yml
+    - backend/scripts/backfill_account_contact_emails.py
+    - docs/architecture/apps/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - frontend/packages/ui/src/i18n/sources/demo_chats/announcements_introducing_openmates_v09.yml
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    related_feature_ids: []
+  - sha: 320255205ff57794966dafce56c7e768eb3feaf8
+    short_sha: '320255205'
+    authored_at: '2026-05-04T16:45:16+00:00'
+    subject: 'feat: add announcement video to deletion reminders'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/email.py
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/core/api/templates/email/incomplete-signup-deletion-reminder.mjml
+    - backend/scripts/send_incomplete_signup_deletion_email_tests.py
+    related_feature_ids: []
+  - sha: f61184b3941eaf3d8d5298e1751eb7aefa5d9f5e
+    short_sha: f61184b39
+    authored_at: '2026-05-04T14:37:02+00:00'
+    subject: 'fix: hide dates for public chat suggestions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatSearchSuggestions.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    related_feature_ids: []
+  - sha: 8a425abc66e8ecaa678990c876c4ca3e1165e905
+    short_sha: 8a425abc6
+    authored_at: '2026-05-04T13:33:19+00:00'
+    subject: 'fix: show new chat button for drafted welcome input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 7dd06cfe24b0b6f0d7a1a78a029a0d1c05f952fa
+    short_sha: 7dd06cfe2
+    authored_at: '2026-05-04T12:42:29+00:00'
+    subject: 'chore: remove temporary privacy and safety intro pages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/demo_chats/data/privacy.ts
+    - frontend/packages/ui/src/demo_chats/data/safety.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/privacy.yml
+    - frontend/packages/ui/src/i18n/sources/demo_chats/safety.yml
+    related_feature_ids: []
+  - sha: 6a90c31b1a8fde46ec5b79733ca0f4af52346d4e
+    short_sha: 6a90c31b1
+    authored_at: '2026-05-04T12:25:18+00:00'
+    subject: 'test: fix daily inspiration touch event regression'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 90b3cee368d8dfcaecc53478d1b908d8e4b6ad8a
+    short_sha: 90b3cee36
+    authored_at: '2026-05-04T12:16:36+00:00'
+    subject: 'fix: center mobile welcome content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 361adf95dd91f525c1c10e9afdbb37bc3d3c38ef
+    short_sha: 361adf95d
+    authored_at: '2026-05-04T12:15:23+00:00'
+    subject: 'fix: add daily inspiration swipe navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    related_feature_ids: []
+  - sha: a958543e8a177fb9f9de7c25d6cd498ccddf0570
+    short_sha: a958543e8
+    authored_at: '2026-05-04T11:20:31+00:00'
+    subject: 'fix: use chatDB in embed diff store (Vercel build)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/embedDiffStore.ts
+    related_feature_ids: []
+  - sha: 767150815d7c1a68b8f7595df18df9b03897fbc7
+    short_sha: '767150815'
+    authored_at: '2026-05-04T11:13:53+00:00'
+    subject: 'fix: resolve embed timeline import (Vercel build)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+    related_feature_ids: []
+  - sha: 428e55bbf8a706b8f78416d9864fd4809cc32569
+    short_sha: 428e55bbf
+    authored_at: '2026-05-04T11:04:25+00:00'
+    subject: 'fix: show new chat CTA for announcements'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on security hardening for sensitive account actions and refined the chat interface. Key updates
+    include swipe navigation for daily inspiration and the addition of video content to account reminder emails.
+  released_changes:
+  - text: Account deletion reminder emails now include an announcement video.
+    evidence:
+      commits:
+      - '320255205'
+    release_status: released_main
+  - text: The chat interface received several refinements, including centered mobile welcome content and improved visibility
+      for the 'new chat' button during drafts or announcements.
+    evidence:
+      commits:
+      - 90b3cee36
+      - 8a425abc6
+      - 428e55bbf
+    release_status: released_main
+  - text: Public chat suggestions no longer display dates to streamline the interface.
+    evidence:
+      commits:
+      - f61184b39
+    release_status: released_main
+  bug_fixes:
+  - text: Security-sensitive fulfillment and reauthentication processes were hardened to improve account safety.
+    evidence:
+      commits:
+      - ec7f6b011
+    release_status: released_main
+  - text: A build issue affecting the embed version timeline was resolved.
+    evidence:
+      commits:
+      - '767150815'
+    release_status: released_main
+  - text: Swipe navigation was added to the daily inspiration banner.
+    evidence:
+      commits:
+      - 361adf95d
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: Internal documentation and version references were updated to v0.10.
+    evidence:
+      commits:
+      - e36868110
+    release_status: released_main
+  - text: Temporary privacy and safety introduction pages were removed from the web application.
+    evidence:
+      commits:
+      - 7dd06cfe2
+    release_status: released_main
+  - text: Internal fixes were applied to announcement copy, the embed diff store, and touch event testing.
+    evidence:
+      commits:
+      - fd3a912a9
+      - a958543e8
+      - 6a90c31b1
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Hardened security for fulfillment and reauthentication.
+      evidence:
+        commits:
+        - ec7f6b011
+      reason: Significant security improvement for account actions.
+    - text: Added announcement video to account deletion reminders.
+      evidence:
+        commits:
+        - '320255205'
+      reason: Enhances user communication with rich media.
+    - text: New swipe navigation for daily inspiration.
+      evidence:
+        commits:
+        - 361adf95d
+      reason: Improves mobile navigation and discovery.
+    - text: Improved chat welcome screen and navigation buttons.
+      evidence:
+        commits:
+        - 90b3cee36
+        - 8a425abc6
+        - 428e55bbf
+      reason: Refines the core chat entry experience.
+    exclude:
+    - text: Update version references to v0.10.
+      evidence:
+        commits:
+        - e36868110
+      reason: Internal documentation and versioning update.
+    - text: Remove temporary privacy and safety intro pages.
+      evidence:
+        commits:
+        - 7dd06cfe2
+      reason: Cleanup of temporary/internal pages.
+    rationale: The update features a mix of critical security hardening and user-facing UI refinements that improve the onboarding
+      and discovery experience.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the new swipe navigation for daily inspiration and the centered mobile welcome screen.
+    priority: medium
+    reason: These are visual UI improvements that enhance the mobile user experience.
+    evidence:
+      commits:
+      - 361adf95d
+      - 90b3cee36
+  quality_notes:
+  - Security hardening for reauthentication is a high-priority improvement.
+  - UI refinements focus on mobile centering and button visibility during chat initialization.
+  validation_warnings: []

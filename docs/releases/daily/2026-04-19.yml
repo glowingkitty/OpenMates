@@ -1,0 +1,1737 @@
+schema_version: 1
+cadence: daily
+date: '2026-04-19'
+generated_at: '2026-07-09T15:09:37+00:00'
+range:
+  since: '2026-04-19T00:00:00+00:00'
+  until: '2026-04-19T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 27
+  section_counts:
+    features: 17
+    bug_fixes: 7
+    improvements: 0
+    docs: 1
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 2
+  newsletter_ready_items: 13
+  user_facing_items: 23
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(events): add concert_tags guidance to preprocessor_hint'
+    section: features
+    commits:
+    - 220d9bd08
+    authored_at: '2026-04-19T19:52:34+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
+    section: features
+    commits:
+    - 2f6a60234
+    authored_at: '2026-04-19T19:46:19+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/__init__.py
+    - backend/apps/events/providers/berlin_philharmonic.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
+    section: features
+    commits:
+    - db12c95f0
+    authored_at: '2026-04-19T19:46:00+00:00'
+    changed_paths:
+    - backend/apps/events/providers/registry.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
+    section: features
+    commits:
+    - 4af97e411
+    authored_at: '2026-04-19T19:45:45+00:00'
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
+    section: features
+    commits:
+    - 633435f5a
+    authored_at: '2026-04-19T19:38:00+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/CameraView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ExampleChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HighlightNavigationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageHighlightsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/PlaceRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/LegalChatView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatModels.swift
+    - apple/OpenMates/Sources/Shared/Components/Icon.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMates/Sources/Shared/Components/NotificationBanners.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
+    section: features
+    commits:
+    - b4cbbb4df
+    authored_at: '2026-04-19T19:36:43+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): replace all SF Symbols with web SVG icons across chat, embeds, and shared components'
+    section: features
+    commits:
+    - bc720a3a4
+    authored_at: '2026-04-19T19:36:09+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InputActionButtons.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ProcessingDetailsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(web): smooth slide-from-right animation for header signup button'
+    section: features
+    commits:
+    - effa62e4f
+    authored_at: '2026-04-19T16:17:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(seo): semantic URL update for all public chat types in SPA'
+    section: features
+    commits:
+    - 761bb2564
+    authored_at: '2026-04-19T15:06:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/legal/imprint/+server.ts
+    - frontend/apps/web_app/src/routes/legal/privacy/+server.ts
+    - frontend/apps/web_app/src/routes/legal/terms/+server.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/services/chatUrlService.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(seo): semantic URLs for public chats (intro/example/announcements/tips/legal)'
+    section: features
+    commits:
+    - 7366f43d7
+    authored_at: '2026-04-19T15:03:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(web): OPE-447 hide share btn for public chats, fix video aspect ratio on mobile, add signup CTA below banner'
+    section: features
+    commits:
+    - db4bdddab
+    authored_at: '2026-04-19T15:03:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(apple): add web-source blocks to embeds, auth, public chats'
+    section: features
+    commits:
+    - 7188ee42a
+    authored_at: '2026-04-19T10:15:01+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add web-source blocks to remaining chat views'
+    section: features
+    commits:
+    - 1ce216e7d
+    authored_at: '2026-04-19T10:13:55+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ForkProgressBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ProcessingDetailsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add all demo/legal/example chats + fix sidebar + redesign InputActionButtons'
+    section: features
+    commits:
+    - 75a208557
+    authored_at: '2026-04-19T10:12:17+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InputActionButtons.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): web-source blocks, i18n enforcement, chat banner + demo-for-everyone default'
+    section: features
+    commits:
+    - ac12b777a
+    authored_at: '2026-04-19T09:57:52+00:00'
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add web-source block to FollowUpSuggestions'
+    section: features
+    commits:
+    - ba104a8bc
+    authored_at: '2026-04-19T09:46:32+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat(apple): add web-source block + fix OMTextFieldStyle border in OMButtonStyles'
+    section: features
+    commits:
+    - a0eee2d67
+    authored_at: '2026-04-19T09:45:54+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/OMButtonStyles.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  bug_fixes:
+  - title: 'fix(apple): fix deco icon opacity + extract incognito gradient token'
+    section: bug_fixes
+    commits:
+    - 6401e6525
+    authored_at: '2026-04-19T16:34:19+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix(web): OPE-447 signup/login button text + clamp MentionDropdown and Notification to viewport width'
+    section: bug_fixes
+    commits:
+    - 2017a1e1c
+    authored_at: '2026-04-19T16:11:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(seo): relative redirect in SEO pages + skip for-everyone semantic URL'
+    section: bug_fixes
+    commits:
+    - b08034968
+    authored_at: '2026-04-19T15:54:08+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.svelte
+    - frontend/packages/ui/src/services/chatUrlService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(web): OPE-447 fix 16:9 video on mobile + move signup CTA into banner with scroll-based header toggle'
+    section: bug_fixes
+    commits:
+    - ee604605f
+    authored_at: '2026-04-19T15:35:49+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/stores/uiStateStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(deep-link): fix newsletter chat + autoplay-video not loading (page+handler)'
+    section: bug_fixes
+    commits:
+    - 839b0c2d6
+    authored_at: '2026-04-19T01:52:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(deep-link): fix newsletter chat + autoplay-video not loading'
+    section: bug_fixes
+    commits:
+    - 03f008dbb
+    authored_at: '2026-04-19T01:52:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(deep-link): fix newsletter chat not loading via &autoplay-video hash flag'
+    section: bug_fixes
+    commits:
+    - cb80b1dcb
+    authored_at: '2026-04-19T01:51:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'chore(rules): add apple-ui.md — web source of truth rules for Swift UI files'
+    section: docs
+    commits:
+    - ad3fc4fbe
+    authored_at: '2026-04-19T09:44:54+00:00'
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests: []
+  infrastructure: []
+  internal: []
+  other:
+  - title: 'Merge pull request #377 from glowingkitty/dev'
+    section: other
+    commits:
+    - 933577dd9
+    authored_at: '2026-04-19T18:30:43+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'Merge pull request #376 from glowingkitty/dev'
+    section: other
+    commits:
+    - 0c3c4e88c
+    authored_at: '2026-04-19T11:23:44+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat(events): add concert_tags guidance to preprocessor_hint'
+    commits:
+    - 220d9bd08
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
+    commits:
+    - 2f6a60234
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat(events): add concert_tags guidance to preprocessor_hint'
+    commits:
+    - 220d9bd08
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
+    commits:
+    - 2f6a60234
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
+    commits:
+    - db12c95f0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
+    commits:
+    - 4af97e411
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(web): smooth slide-from-right animation for header signup button'
+    commits:
+    - effa62e4f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(web): OPE-447 signup/login button text + clamp MentionDropdown and Notification to viewport width'
+    commits:
+    - 2017a1e1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(seo): relative redirect in SEO pages + skip for-everyone semantic URL'
+    commits:
+    - b08034968
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(web): OPE-447 fix 16:9 video on mobile + move signup CTA into banner with scroll-based header toggle'
+    commits:
+    - ee604605f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(seo): semantic URL update for all public chat types in SPA'
+    commits:
+    - 761bb2564
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(seo): semantic URLs for public chats (intro/example/announcements/tips/legal)'
+    commits:
+    - 7366f43d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat(web): OPE-447 hide share btn for public chats, fix video aspect ratio on mobile, add signup CTA below banner'
+    commits:
+    - db4bdddab
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(deep-link): fix newsletter chat + autoplay-video not loading (page+handler)'
+    commits:
+    - 839b0c2d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(deep-link): fix newsletter chat not loading via &autoplay-video hash flag'
+    commits:
+    - cb80b1dcb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat(events): add concert_tags guidance to preprocessor_hint'
+    commits:
+    - 220d9bd08
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
+    commits:
+    - 2f6a60234
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
+    commits:
+    - db12c95f0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
+    commits:
+    - 4af97e411
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
+    commits:
+    - 633435f5a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
+    commits:
+    - b4cbbb4df
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): replace all SF Symbols with web SVG icons across chat, embeds, and shared components'
+    commits:
+    - bc720a3a4
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(apple): fix deco icon opacity + extract incognito gradient token'
+    commits:
+    - 6401e6525
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(web): smooth slide-from-right animation for header signup button'
+    commits:
+    - effa62e4f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(web): OPE-447 signup/login button text + clamp MentionDropdown and Notification to viewport width'
+    commits:
+    - 2017a1e1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(seo): relative redirect in SEO pages + skip for-everyone semantic URL'
+    commits:
+    - b08034968
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(web): OPE-447 fix 16:9 video on mobile + move signup CTA into banner with scroll-based header toggle'
+    commits:
+    - ee604605f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(seo): semantic URL update for all public chat types in SPA'
+    commits:
+    - 761bb2564
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(seo): semantic URLs for public chats (intro/example/announcements/tips/legal)'
+    commits:
+    - 7366f43d7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(web): OPE-447 hide share btn for public chats, fix video aspect ratio on mobile, add signup CTA below banner'
+    commits:
+    - db4bdddab
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(apple): add web-source blocks to embeds, auth, public chats'
+    commits:
+    - 7188ee42a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): add web-source blocks to remaining chat views'
+    commits:
+    - 1ce216e7d
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): add all demo/legal/example chats + fix sidebar + redesign InputActionButtons'
+    commits:
+    - 75a208557
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): web-source blocks, i18n enforcement, chat banner + demo-for-everyone default'
+    commits:
+    - ac12b777a
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): add web-source block to FollowUpSuggestions'
+    commits:
+    - ba104a8bc
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(apple): add web-source block + fix OMTextFieldStyle border in OMButtonStyles'
+    commits:
+    - a0eee2d67
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(deep-link): fix newsletter chat + autoplay-video not loading (page+handler)'
+    commits:
+    - 839b0c2d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(deep-link): fix newsletter chat not loading via &autoplay-video hash flag'
+    commits:
+    - cb80b1dcb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 220d9bd0816d263e8ae86ca05126dff27bc23b17
+    short_sha: 220d9bd08
+    authored_at: '2026-04-19T19:52:34+00:00'
+    subject: 'feat(events): add concert_tags guidance to preprocessor_hint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    related_feature_ids: []
+  - sha: 2f6a6023414c03b1e03d7a7d5fe239144cbaa610
+    short_sha: 2f6a60234
+    authored_at: '2026-04-19T19:46:19+00:00'
+    subject: 'feat(events): add query param to berlin_philharmonic provider + app.yml + init'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/__init__.py
+    - backend/apps/events/providers/berlin_philharmonic.py
+    related_feature_ids: []
+  - sha: db12c95f06148c4463df769a8c612f6025ac7d0a
+    short_sha: db12c95f0
+    authored_at: '2026-04-19T19:46:00+00:00'
+    subject: 'feat(events): update berlin_philharmonic provider files, registry, and app.yml'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/providers/registry.py
+    related_feature_ids: []
+  - sha: 4af97e4112a65e9847718aeb256fde10adb50b2c
+    short_sha: 4af97e411
+    authored_at: '2026-04-19T19:45:45+00:00'
+    subject: 'feat(events): activate berlin_philharmonic provider with hybrid free-text + concert_tags'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/skills/search_skill.py
+    related_feature_ids: []
+  - sha: 633435f5a02b91749fb6cc2ba7c549d939371569
+    short_sha: 633435f5a
+    authored_at: '2026-04-19T19:38:00+00:00'
+    subject: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/CameraView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatSearchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ExampleChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsListView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HiddenChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HighlightNavigationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageHighlightsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/PlaceRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/LegalChatView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatModels.swift
+    - apple/OpenMates/Sources/Shared/Components/Icon.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMates/Sources/Shared/Components/NotificationBanners.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b4cbbb4dfa8279d4f1766c9e129aa93471691a05
+    short_sha: b4cbbb4df
+    authored_at: '2026-04-19T19:36:43+00:00'
+    subject: 'feat(apple): replace SF Symbols with web SVG icons in embeds, shared, and remaining chat views'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/ToastNotification.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bc720a3a4dbee57bd1f4d636b9bfb09056c3ade1
+    short_sha: bc720a3a4
+    authored_at: '2026-04-19T19:36:09+00:00'
+    subject: 'feat(apple): replace all SF Symbols with web SVG icons across chat, embeds, and shared components'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InputActionButtons.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ProcessingDetailsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6401e652539889a4631cfcb6756be04f492e134f
+    short_sha: 6401e6525
+    authored_at: '2026-04-19T16:34:19+00:00'
+    subject: 'fix(apple): fix deco icon opacity + extract incognito gradient token'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 933577dd95cdaebda694fcca0e46bad70dc09018
+    short_sha: 933577dd9
+    authored_at: '2026-04-19T18:30:43+02:00'
+    subject: 'Merge pull request #377 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: effa62e4f48e98a0636df5f5aef6c4ad7d706856
+    short_sha: effa62e4f
+    authored_at: '2026-04-19T16:17:07+00:00'
+    subject: 'feat(web): smooth slide-from-right animation for header signup button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: 2017a1e1cb1003d152f30d43685ad8c68897b2ab
+    short_sha: 2017a1e1c
+    authored_at: '2026-04-19T16:11:07+00:00'
+    subject: 'fix(web): OPE-447 signup/login button text + clamp MentionDropdown and Notification to viewport width'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/Notification.svelte
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    related_feature_ids: []
+  - sha: b0803496822f006c09b2b65314660104c93c1c5a
+    short_sha: b08034968
+    authored_at: '2026-04-19T15:54:08+00:00'
+    subject: 'fix(seo): relative redirect in SEO pages + skip for-everyone semantic URL'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/announcements/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/intro/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/tips/[slug]/+page.svelte
+    - frontend/packages/ui/src/services/chatUrlService.ts
+    related_feature_ids: []
+  - sha: ee604605f7339db792583c66b12f3128687e0b44
+    short_sha: ee604605f
+    authored_at: '2026-04-19T15:35:49+00:00'
+    subject: 'fix(web): OPE-447 fix 16:9 video on mobile + move signup CTA into banner with scroll-based header toggle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/stores/uiStateStore.ts
+    related_feature_ids: []
+  - sha: 761bb256439e267468d194d98326aed98c8b4b08
+    short_sha: 761bb2564
+    authored_at: '2026-04-19T15:06:08+00:00'
+    subject: 'feat(seo): semantic URL update for all public chat types in SPA'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/legal/[slug]/+page.ts
+    - frontend/apps/web_app/src/routes/legal/imprint/+server.ts
+    - frontend/apps/web_app/src/routes/legal/privacy/+server.ts
+    - frontend/apps/web_app/src/routes/legal/terms/+server.ts
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    - frontend/packages/ui/src/services/chatUrlService.ts
+    - frontend/packages/ui/src/stores/activeChatStore.ts
+    related_feature_ids: []
+  - sha: 7366f43d7a368ebc1143298c92a0f1552dd8f556
+    short_sha: 7366f43d7
+    authored_at: '2026-04-19T15:03:05+00:00'
+    subject: 'feat(seo): semantic URLs for public chats (intro/example/announcements/tips/legal)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/seo-demo-chat.spec.ts
+    related_feature_ids: []
+  - sha: db4bdddabded68f1d580fd24d83389d0fd7140d5
+    short_sha: db4bdddab
+    authored_at: '2026-04-19T15:03:03+00:00'
+    subject: 'feat(web): OPE-447 hide share btn for public chats, fix video aspect ratio on mobile, add signup CTA below banner'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 7188ee42a825094b77444d4f9b93374040af8c52
+    short_sha: 7188ee42a
+    authored_at: '2026-04-19T10:15:01+00:00'
+    subject: 'feat(apple): add web-source blocks to embeds, auth, public chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/PublicChats/Views/PublicChatListView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1ce216e7dea18477a39d7957c1b9479ad4400d9c
+    short_sha: 1ce216e7d
+    authored_at: '2026-04-19T10:13:55+00:00'
+    subject: 'feat(apple): add web-source blocks to remaining chat views'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ForkProgressBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MessageContextMenu.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ProcessingDetailsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ThinkingSectionView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 75a20855796228aec91d8390f7d0f1fb1ac6955c
+    short_sha: 75a208557
+    authored_at: '2026-04-19T10:12:17+00:00'
+    subject: 'feat(apple): add all demo/legal/example chats + fix sidebar + redesign InputActionButtons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InputActionButtons.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/NewChatSuggestionsView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ac12b777afe33a5d577d7d68b06c2a61fbcacaf6
+    short_sha: ac12b777a
+    authored_at: '2026-04-19T09:57:52+00:00'
+    subject: 'feat(apple): web-source blocks, i18n enforcement, chat banner + demo-for-everyone default'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ba104a8bcc035c9c16654d66c8f1f482c3b8fa79
+    short_sha: ba104a8bc
+    authored_at: '2026-04-19T09:46:32+00:00'
+    subject: 'feat(apple): add web-source block to FollowUpSuggestions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a0eee2d67b66b844e6142e3a97abc4d0da956331
+    short_sha: a0eee2d67
+    authored_at: '2026-04-19T09:45:54+00:00'
+    subject: 'feat(apple): add web-source block + fix OMTextFieldStyle border in OMButtonStyles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/OMButtonStyles.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ad3fc4fbe44247ab987416cb59b3f1ee17c91008
+    short_sha: ad3fc4fbe
+    authored_at: '2026-04-19T09:44:54+00:00'
+    subject: 'chore(rules): add apple-ui.md — web source of truth rules for Swift UI files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/apple-ui.md
+    related_feature_ids: []
+  - sha: 0c3c4e88cfc35bfcaebcb678b9e39f405bcef293
+    short_sha: 0c3c4e88c
+    authored_at: '2026-04-19T11:23:44+02:00'
+    subject: 'Merge pull request #376 from glowingkitty/dev'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 839b0c2d60e0c10f095c316ebfb2ad136f5eb30a
+    short_sha: 839b0c2d6
+    authored_at: '2026-04-19T01:52:52+00:00'
+    subject: 'fix(deep-link): fix newsletter chat + autoplay-video not loading (page+handler)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    related_feature_ids: []
+  - sha: 03f008dbb2aa2eed5813fb996d06943a5342f134
+    short_sha: 03f008dbb
+    authored_at: '2026-04-19T01:52:06+00:00'
+    subject: 'fix(deep-link): fix newsletter chat + autoplay-video not loading'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    related_feature_ids: []
+  - sha: cb80b1dcb4b649938049aaafe20bb99a005da01a
+    short_sha: cb80b1dcb
+    authored_at: '2026-04-19T01:51:02+00:00'
+    subject: 'fix(deep-link): fix newsletter chat not loading via &autoplay-video hash flag'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates expanded its event discovery capabilities by activating the Berlin Philharmonic provider and refined
+    the web experience with semantic URLs for public chats and improved signup flows. Significant foundational work also continued
+    for Apple platforms, including a migration to SVG icons and the addition of web-source blocks.
+  released_changes:
+  - text: Activated the Berlin Philharmonic provider within the events system, supporting hybrid free-text searches and concert-specific
+      tagging.
+    evidence:
+      commits:
+      - 2f6a60234
+      - db12c95f0
+      - 4af97e411
+    release_status: released_main
+  - text: Implemented semantic URLs for all public chat types, including introductions, announcements, and legal pages, to
+      improve SEO.
+    evidence:
+      commits:
+      - 761bb2564
+      - 7366f43d7
+    release_status: released_main
+  - text: Enhanced the web interface with a smooth signup button animation, improved mobile video aspect ratios, and more
+      prominent signup calls-to-action.
+    evidence:
+      commits:
+      - effa62e4f
+      - ee604605f
+      - db4bdddab
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved an issue where newsletter chats and autoplay videos failed to load via deep links.
+    evidence:
+      commits:
+      - 839b0c2d6
+      - cb80b1dcb
+    release_status: released_main
+  - text: Fixed relative redirect logic on SEO-optimized pages and refined semantic URL generation for public chats.
+    evidence:
+      commits:
+      - b08034968
+    release_status: released_main
+  - text: Corrected signup and login button text and implemented viewport clamping for mention dropdowns and notifications
+      to prevent layout overflow.
+    evidence:
+      commits:
+      - 2017a1e1c
+    release_status: released_main
+  unreleased_progress:
+  - text: Ongoing migration on Apple platforms from SF Symbols to web-compatible SVG icons across chat and embed views.
+    evidence:
+      commits:
+      - 633435f5a
+      - b4cbbb4df
+      - bc720a3a4
+    release_status: released_main
+  - text: Development of web-source blocks for the iOS and macOS applications to support richer content embedding.
+    evidence:
+      commits:
+      - 7188ee42a
+      - 1ce216e7d
+      - ba104a8bc
+      - a0eee2d67
+    release_status: released_main
+  - text: UI refinements for Apple platforms, including redesigned input buttons, sidebar fixes, and incognito mode visual
+      updates.
+    evidence:
+      commits:
+      - 75a208557
+      - ac12b777a
+      - 6401e6525
+    release_status: released_main
+  - text: Refinement of event preprocessor hints to improve concert tag accuracy.
+    evidence:
+      commits:
+      - 220d9bd08
+    release_status: released_main
+  internal_progress:
+  - text: Established documentation for Apple UI development rules to maintain consistency with web-based sources of truth.
+    evidence:
+      commits:
+      - ad3fc4fbe
+    release_status: released_main
+  - text: Updated test suites for deep link handlers to cover newsletter chat loading scenarios.
+    evidence:
+      commits:
+      - 03f008dbb
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Integration of the Berlin Philharmonic event provider.
+      evidence:
+        commits:
+        - 2f6a60234
+        - db12c95f0
+        - 4af97e411
+      reason: The Berlin Philharmonic integration is a significant new content provider for the events system.
+    - text: Semantic URLs for public chats and legal pages.
+      evidence:
+        commits:
+        - 761bb2564
+        - 7366f43d7
+      reason: Semantic URLs improve the discoverability and shareability of public chats.
+    - text: Web UI refinements including improved signup CTAs and mobile video fixes.
+      evidence:
+        commits:
+        - effa62e4f
+        - ee604605f
+        - db4bdddab
+      reason: These updates refine the landing experience and mobile video playback for new users.
+    exclude:
+    - text: Apple platform (iOS/macOS) UI and feature updates.
+      evidence:
+        commits:
+        - 633435f5a
+        - b4cbbb4df
+        - bc720a3a4
+        - 7188ee42a
+        - 1ce216e7d
+        - 75a208557
+        - ac12b777a
+        - ba104a8bc
+        - a0eee2d67
+        - 6401e6525
+      reason: These changes relate to the iOS and macOS platforms, which are currently listed as disabled or unreleased features.
+    rationale: The focus for public communication should be on the newly activated event providers and the SEO/UX improvements
+      to the web application, as the Apple platforms remain in an unreleased state.
+  social_video_recommendations:
+  - idea: A short clip demonstrating a search for Berlin Philharmonic concerts within the OpenMates event interface.
+    priority: high
+    reason: Concrete new content provider that is easy to visualize.
+    evidence:
+      commits:
+      - 4af97e411
+      - 2f6a60234
+  - idea: A walkthrough of the new semantic URLs and the smoother signup animation on the web app.
+    priority: medium
+    reason: Shows off the polished feel of the web application.
+    evidence:
+      commits:
+      - 761bb2564
+      - effa62e4f
+  quality_notes:
+  - The project is maintaining a high ratio of user-facing features to internal changes.
+  - Consistent application of SEO improvements across the web application indicates a focus on public discoverability.
+  validation_warnings: []

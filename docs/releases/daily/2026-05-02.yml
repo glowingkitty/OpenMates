@@ -1,0 +1,1084 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-02'
+generated_at: '2026-07-09T15:14:54+00:00'
+range:
+  since: '2026-05-02T00:00:00+00:00'
+  until: '2026-05-02T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 18
+  section_counts:
+    features: 3
+    bug_fixes: 11
+    improvements: 0
+    docs: 4
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 4
+  user_facing_items: 11
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(travel): show provider logos instead of hardcoded ''via Google'' in search preview'
+    section: features
+    commits:
+    - 616abde82
+    authored_at: '2026-05-02T22:32:18+00:00'
+    changed_paths:
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat(ios): inline new chat welcome screen matching web app'
+    section: features
+    commits:
+    - '875157440'
+    authored_at: '2026-05-02T17:28:53+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: OCR cache copy for PDF dedup — skip OCR when cache is warm (OPE-485)'
+    section: features
+    commits:
+    - 89a464008
+    authored_at: '2026-05-02T00:44:33+00:00'
+    changed_paths:
+    - backend/apps/pdf/tasks/process_task.py
+    - backend/upload/routes/upload_route.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: clear stale embedCache in multi-tab DUPLICATE path — fixes Loading embeds and re-request loop'
+    section: bug_fixes
+    commits:
+    - d52d31b77
+    authored_at: '2026-05-02T22:32:17+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix(travel): add daytime detection and layover city name for DB train connections'
+    section: bug_fixes
+    commits:
+    - 118296ef7
+    authored_at: '2026-05-02T22:16:28+00:00'
+    changed_paths:
+    - backend/apps/travel/providers/db_provider.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide action buttons in draft preview mode, clamp to 3 lines'
+    section: bug_fixes
+    commits:
+    - d63fab7ef
+    authored_at: '2026-05-02T22:05:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix(ios): remove iOS chrome from settings — flat layout matching web'
+    section: bug_fixes
+    commits:
+    - 4438b6026
+    authored_at: '2026-05-02T13:18:52+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix(ios): match OMSettingsRow icon size and padding to web SettingsItem.svelte'
+    section: bug_fixes
+    commits:
+    - b273cfb3d
+    authored_at: '2026-05-02T13:11:17+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix(ios): redesign settings menu to match web app design'
+    section: bug_fixes
+    commits:
+    - '047224522'
+    authored_at: '2026-05-02T12:47:12+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix(01-02): fix OMToggle gradient, inset shadow, OMDropdown radius, row padding/gap'
+    section: bug_fixes
+    commits:
+    - 90a8bea9a
+    authored_at: '2026-05-01T14:56:47+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - scripts/lint-swift-design-tokens.sh
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix(01-01): use LinearGradient initializer instead of omGradient in DataExtensions'
+    section: bug_fixes
+    commits:
+    - be3db6324
+    authored_at: '2026-05-01T14:52:23+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix(01-01): fix openMatesOfficial gradient hex and add appOpenmates/appChat'
+    section: bug_fixes
+    commits:
+    - 4f5b0ec0b
+    authored_at: '2026-05-01T14:45:58+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    - scripts/lint-swift-design-tokens.sh
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix(01-01): fix Swift font family name in build-tokens.js'
+    section: bug_fixes
+    commits:
+    - 585aeb4bc
+    authored_at: '2026-05-01T14:44:21+02:00'
+    changed_paths:
+    - frontend/packages/ui/scripts/build-tokens.js
+    - frontend/packages/ui/src/tokens/sources/typography.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: always charge credits for PDF uploads including dedup'
+    section: bug_fixes
+    commits:
+    - c7684dad1
+    authored_at: '2026-05-02T01:05:00+00:00'
+    changed_paths:
+    - backend/upload/routes/upload_route.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs(01-02): complete primitive fixes plan — awaiting visual checkpoint'
+    section: docs
+    commits:
+    - dde9e3bf7
+    authored_at: '2026-05-01T14:59:03+02:00'
+    changed_paths:
+    - .planning/ROADMAP.md
+    - .planning/STATE.md
+    - .planning/phases/01-foundation/01-02-SUMMARY.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs(01-01): complete token sync plan — SUMMARY, STATE, ROADMAP'
+    section: docs
+    commits:
+    - 2f9797ecd
+    authored_at: '2026-05-01T14:51:32+02:00'
+    changed_paths:
+    - .planning/REQUIREMENTS.md
+    - .planning/ROADMAP.md
+    - .planning/STATE.md
+    - .planning/phases/01-foundation/01-01-SUMMARY.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs(01-foundation): create phase plan — token verification + primitive fixes'
+    section: docs
+    commits:
+    - 8068c9ed9
+    authored_at: '2026-05-01T14:22:51+02:00'
+    changed_paths:
+    - .planning/ROADMAP.md
+    - .planning/phases/01-foundation/01-01-PLAN.md
+    - .planning/phases/01-foundation/01-02-PLAN.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: initialize project — Apple app web parity'
+    section: docs
+    commits:
+    - dceb080c6
+    authored_at: '2026-05-01T13:44:14+02:00'
+    changed_paths:
+    - .planning/PROJECT.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat(travel): show provider logos instead of hardcoded ''via Google'' in search preview'
+    commits:
+    - 616abde82
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(travel): add daytime detection and layover city name for DB train connections'
+    commits:
+    - 118296ef7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide action buttons in draft preview mode, clamp to 3 lines'
+    commits:
+    - d63fab7ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: OCR cache copy for PDF dedup — skip OCR when cache is warm (OPE-485)'
+    commits:
+    - 89a464008
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat(travel): show provider logos instead of hardcoded ''via Google'' in search preview'
+    commits:
+    - 616abde82
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(travel): add daytime detection and layover city name for DB train connections'
+    commits:
+    - 118296ef7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide action buttons in draft preview mode, clamp to 3 lines'
+    commits:
+    - d63fab7ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(ios): inline new chat welcome screen matching web app'
+    commits:
+    - '875157440'
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(ios): remove iOS chrome from settings — flat layout matching web'
+    commits:
+    - 4438b6026
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(ios): match OMSettingsRow icon size and padding to web SettingsItem.svelte'
+    commits:
+    - b273cfb3d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(ios): redesign settings menu to match web app design'
+    commits:
+    - '047224522'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(01-02): fix OMToggle gradient, inset shadow, OMDropdown radius, row padding/gap'
+    commits:
+    - 90a8bea9a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(01-01): use LinearGradient initializer instead of omGradient in DataExtensions'
+    commits:
+    - be3db6324
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(01-01): fix openMatesOfficial gradient hex and add appOpenmates/appChat'
+    commits:
+    - 4f5b0ec0b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: OCR cache copy for PDF dedup — skip OCR when cache is warm (OPE-485)'
+    commits:
+    - 89a464008
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 616abde82abfa1278c4f8a1850e26ddacfc9f210
+    short_sha: 616abde82
+    authored_at: '2026-05-02T22:32:18+00:00'
+    subject: 'feat(travel): show provider logos instead of hardcoded ''via Google'' in search preview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - backend/apps/travel/providers/serpapi_provider.py
+    - backend/apps/travel/skills/search_connections.py
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    related_feature_ids: []
+  - sha: d52d31b772081eea4665c7b4cea47f2698a30ffd
+    short_sha: d52d31b77
+    authored_at: '2026-05-02T22:32:17+00:00'
+    subject: 'fix: clear stale embedCache in multi-tab DUPLICATE path — fixes Loading embeds and re-request loop'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    related_feature_ids: []
+  - sha: 118296ef7ac754ad9c4def6e7045e37323a8aa99
+    short_sha: 118296ef7
+    authored_at: '2026-05-02T22:16:28+00:00'
+    subject: 'fix(travel): add daytime detection and layover city name for DB train connections'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/providers/db_provider.py
+    related_feature_ids: []
+  - sha: d63fab7ef4789898a450925c2ce0073f3710cec7
+    short_sha: d63fab7ef
+    authored_at: '2026-05-02T22:05:52+00:00'
+    subject: 'fix: hide action buttons in draft preview mode, clamp to 3 lines'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 87515744021a12557ad62035f778f228a8edc1fb
+    short_sha: '875157440'
+    authored_at: '2026-05-02T17:28:53+02:00'
+    subject: 'feat(ios): inline new chat welcome screen matching web app'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4438b6026f8fdfc79b7423362fe26359202a098e
+    short_sha: 4438b6026
+    authored_at: '2026-05-02T13:18:52+02:00'
+    subject: 'fix(ios): remove iOS chrome from settings — flat layout matching web'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b273cfb3d4e89e643db511973cf5fd3b31751f23
+    short_sha: b273cfb3d
+    authored_at: '2026-05-02T13:11:17+02:00'
+    subject: 'fix(ios): match OMSettingsRow icon size and padding to web SettingsItem.svelte'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 047224522acec74ee8c558a112995c934e121ade
+    short_sha: '047224522'
+    authored_at: '2026-05-02T12:47:12+02:00'
+    subject: 'fix(ios): redesign settings menu to match web app design'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: dde9e3bf7d42d7f660574041356768f93ed2e68d
+    short_sha: dde9e3bf7
+    authored_at: '2026-05-01T14:59:03+02:00'
+    subject: 'docs(01-02): complete primitive fixes plan — awaiting visual checkpoint'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .planning/ROADMAP.md
+    - .planning/STATE.md
+    - .planning/phases/01-foundation/01-02-SUMMARY.md
+    related_feature_ids: []
+  - sha: 90a8bea9ae567f731a22718e8888814228940966
+    short_sha: 90a8bea9a
+    authored_at: '2026-05-01T14:56:47+02:00'
+    subject: 'fix(01-02): fix OMToggle gradient, inset shadow, OMDropdown radius, row padding/gap'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - scripts/lint-swift-design-tokens.sh
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: be3db632438a3080003c2c6f363ceff30b7c6b48
+    short_sha: be3db6324
+    authored_at: '2026-05-01T14:52:23+02:00'
+    subject: 'fix(01-01): use LinearGradient initializer instead of omGradient in DataExtensions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2f9797ecd4bbf377817022413a01c322b75d75ec
+    short_sha: 2f9797ecd
+    authored_at: '2026-05-01T14:51:32+02:00'
+    subject: 'docs(01-01): complete token sync plan — SUMMARY, STATE, ROADMAP'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .planning/REQUIREMENTS.md
+    - .planning/ROADMAP.md
+    - .planning/STATE.md
+    - .planning/phases/01-foundation/01-01-SUMMARY.md
+    related_feature_ids: []
+  - sha: 4f5b0ec0bfd1e53e7592b7490dd2e6931a0bff6b
+    short_sha: 4f5b0ec0b
+    authored_at: '2026-05-01T14:45:58+02:00'
+    subject: 'fix(01-01): fix openMatesOfficial gradient hex and add appOpenmates/appChat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+    - scripts/lint-swift-design-tokens.sh
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 585aeb4bcf39bc15543dfdabf2e95af4a42c991e
+    short_sha: 585aeb4bc
+    authored_at: '2026-05-01T14:44:21+02:00'
+    subject: 'fix(01-01): fix Swift font family name in build-tokens.js'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/scripts/build-tokens.js
+    - frontend/packages/ui/src/tokens/sources/typography.yml
+    related_feature_ids: []
+  - sha: 8068c9ed9e8e4d1e115fb893144eccefa4ea7685
+    short_sha: 8068c9ed9
+    authored_at: '2026-05-01T14:22:51+02:00'
+    subject: 'docs(01-foundation): create phase plan — token verification + primitive fixes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .planning/ROADMAP.md
+    - .planning/phases/01-foundation/01-01-PLAN.md
+    - .planning/phases/01-foundation/01-02-PLAN.md
+    related_feature_ids: []
+  - sha: dceb080c6b7662475540b7acaa60cb6bfd558149
+    short_sha: dceb080c6
+    authored_at: '2026-05-01T13:44:14+02:00'
+    subject: 'docs: initialize project — Apple app web parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .planning/PROJECT.md
+    related_feature_ids: []
+  - sha: c7684dad1f4cf910adb35df3d5f802fd33528f89
+    short_sha: c7684dad1
+    authored_at: '2026-05-02T01:05:00+00:00'
+    subject: 'fix: always charge credits for PDF uploads including dedup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/upload/routes/upload_route.py
+    related_feature_ids: []
+  - sha: 89a464008c88c53a9745a3116a4b191e819ac0a7
+    short_sha: 89a464008
+    authored_at: '2026-05-02T00:44:33+00:00'
+    subject: 'feat: OCR cache copy for PDF dedup — skip OCR when cache is warm (OPE-485)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/pdf/tasks/process_task.py
+    - backend/upload/routes/upload_route.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on Travel app refinements, PDF processing efficiency, and foundational UI work for upcoming
+    Apple platform releases. Key updates include provider logos in travel searches and OCR caching for faster PDF handling.
+  released_changes:
+  - text: The travel search preview now displays official provider logos, replacing the previous 'via Google' text.
+    evidence:
+      commits:
+      - 616abde82
+    release_status: released_main
+  - text: A new OCR cache for PDF deduplication allows the system to skip OCR processing when a file has been previously analyzed.
+    evidence:
+      commits:
+      - 89a464008
+    release_status: released_main
+  bug_fixes:
+  - text: Travel search results for DB train connections now include daytime detection and layover city names.
+    evidence:
+      commits:
+      - 118296ef7
+    release_status: released_main
+  - text: The message input draft preview now hides action buttons and clamps text to three lines for a cleaner interface.
+    evidence:
+      commits:
+      - d63fab7ef
+    release_status: released_main
+  unreleased_progress:
+  - text: Extensive UI updates were made to the unreleased iOS and macOS apps, including a new chat welcome screen, a redesigned
+      settings menu, and refined design primitives to match the web application.
+    evidence:
+      commits:
+      - '875157440'
+      - 4438b6026
+      - b273cfb3d
+      - '047224522'
+      - 90a8bea9a
+      - be3db6324
+      - 4f5b0ec0b
+    release_status: released_main
+  internal_progress:
+  - text: Credit charging logic was updated to ensure charges are applied to all PDF uploads, including those using deduplication.
+    evidence:
+      commits:
+      - c7684dad1
+    release_status: released_main
+  - text: Resolved an issue where stale embed caches caused loading loops in multi-tab environments.
+    evidence:
+      commits:
+      - d52d31b77
+    release_status: released_main
+  - text: Fixed font family naming in the design token build scripts.
+    evidence:
+      commits:
+      - 585aeb4bc
+    release_status: released_main
+  - text: Initialized project planning and roadmaps for achieving feature parity between the web app and upcoming Apple platform
+      releases.
+    evidence:
+      commits:
+      - dde9e3bf7
+      - 2f9797ecd
+      - 8068c9ed9
+      - dceb080c6
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Travel search previews now display provider logos instead of generic text.
+      evidence:
+        commits:
+        - 616abde82
+      reason: Visual improvement to travel search results.
+    - text: PDF processing now utilizes an OCR cache to skip redundant analysis for duplicate files.
+      evidence:
+        commits:
+        - 89a464008
+      reason: Performance improvement for PDF processing.
+    - text: Enhanced train connection details with daytime detection and layover information.
+      evidence:
+        commits:
+        - 118296ef7
+      reason: Improved data accuracy for travel connections.
+    - text: Improved draft preview layout in the message input field.
+      evidence:
+        commits:
+        - d63fab7ef
+      reason: UI refinement for message drafting.
+    exclude:
+    - text: Apple platform UI and design token updates.
+      evidence:
+        commits:
+        - '875157440'
+        - 4438b6026
+        - b273cfb3d
+        - '047224522'
+        - 90a8bea9a
+        - be3db6324
+        - 4f5b0ec0b
+      reason: iOS and macOS platforms are currently disabled and unreleased.
+    rationale: The newsletter highlights user-facing improvements to the Travel and PDF applications while excluding significant
+      progress on unreleased mobile platforms.
+  social_video_recommendations:
+  - idea: A quick look at the enhanced travel search experience showing provider logos and detailed train connection data.
+    priority: medium
+    reason: Visual updates to search results provide a good opportunity for a short product demo.
+    evidence:
+      commits:
+      - 616abde82
+      - 118296ef7
+  - idea: Demonstrate the speed of PDF processing when uploading a duplicate file versus a new one.
+    priority: low
+    reason: Shows technical efficiency and performance improvements.
+    evidence:
+      commits:
+      - 89a464008
+  quality_notes:
+  - Significant effort is being directed toward design token synchronization to ensure visual consistency across web and mobile
+    platforms.
+  validation_warnings: []

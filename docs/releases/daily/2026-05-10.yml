@@ -1,0 +1,321 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-10'
+generated_at: '2026-07-09T15:18:32+00:00'
+range:
+  since: '2026-05-10T00:00:00+00:00'
+  until: '2026-05-10T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 3
+  section_counts:
+    features: 1
+    bug_fixes: 2
+    improvements: 0
+    docs: 0
+    tests: 0
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 3
+  user_facing_items: 3
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add source-backed URL safety processing'
+    section: features
+    commits:
+    - 42241a5d4
+    authored_at: '2026-05-10T19:53:02+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/shared/providers/groq/safeguard.py
+    - backend/shared/python_utils/url_normalizer.py
+    - backend/tests/test_url_normalizer.py
+    - docs/architecture/ai/hallucination-mitigation.md
+    - docs/architecture/privacy/prompt-injection.md
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: strip app skill placeholders from final text'
+    section: bug_fixes
+    commits:
+    - a8070a931
+    authored_at: '2026-05-10T10:37:31+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show target chat in reminder details'
+    section: bug_fixes
+    commits:
+    - aa40ba1fb
+    authored_at: '2026-05-10T06:28:26+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/packages/ui/src/components/settings/appSettings/ActiveRemindersList.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/ReminderEntryDetail.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests: []
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add source-backed URL safety processing'
+    commits:
+    - 42241a5d4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: strip app skill placeholders from final text'
+    commits:
+    - a8070a931
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show target chat in reminder details'
+    commits:
+    - aa40ba1fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add source-backed URL safety processing'
+    commits:
+    - 42241a5d4
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: strip app skill placeholders from final text'
+    commits:
+    - a8070a931
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show target chat in reminder details'
+    commits:
+    - aa40ba1fb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 42241a5d4c575a6bc3e8d08f1871aba7e9f3793e
+    short_sha: 42241a5d4
+    authored_at: '2026-05-10T19:53:02+00:00'
+    subject: 'feat: add source-backed URL safety processing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/shared/providers/groq/safeguard.py
+    - backend/shared/python_utils/url_normalizer.py
+    - backend/tests/test_url_normalizer.py
+    - docs/architecture/ai/hallucination-mitigation.md
+    - docs/architecture/privacy/prompt-injection.md
+    related_feature_ids: []
+  - sha: a8070a93141a7c2beb5063ba96e172f130896375
+    short_sha: a8070a931
+    authored_at: '2026-05-10T10:37:31+00:00'
+    subject: 'fix: strip app skill placeholders from final text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    related_feature_ids: []
+  - sha: aa40ba1fb2b4353c457a6b15e6f5935211c11d8e
+    short_sha: aa40ba1fb
+    authored_at: '2026-05-10T06:28:26+00:00'
+    subject: 'fix: show target chat in reminder details'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/packages/ui/src/components/settings/appSettings/ActiveRemindersList.svelte
+    - frontend/packages/ui/src/components/settings/appSettings/ReminderEntryDetail.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced source-backed URL safety processing to the AI pipeline and refined the reminder management
+    interface.
+  released_changes:
+  - text: OpenMates added source-backed URL safety processing to the AI message pipeline, incorporating URL normalization
+      and updated safety documentation.
+    evidence:
+      commits:
+      - 42241a5d4
+    release_status: released_main
+  bug_fixes:
+  - text: Internal app skill placeholders are now stripped from final AI response text to ensure cleaner output.
+    evidence:
+      commits:
+      - a8070a931
+    release_status: released_main
+  - text: The reminder details view now correctly displays the target chat associated with an active reminder.
+    evidence:
+      commits:
+      - aa40ba1fb
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress: []
+  newsletter_recommendation:
+    include:
+    - text: Source-backed URL safety processing for AI interactions.
+      evidence:
+        commits:
+        - 42241a5d4
+      reason: Introduces important AI safety and hallucination mitigation measures.
+    - text: Cleaner AI response text through placeholder stripping.
+      evidence:
+        commits:
+        - a8070a931
+      reason: Improves the visual quality of AI-generated responses.
+    - text: Enhanced reminder detail visibility in settings.
+      evidence:
+        commits:
+        - aa40ba1fb
+      reason: Fixes a visibility issue in the reminder settings UI.
+    exclude: []
+    rationale: The updates focus on improving AI reliability and refining the user interface for managing reminders.
+  social_video_recommendations:
+  - idea: A demonstration of the AI safely handling URLs and providing clean, placeholder-free responses.
+    priority: medium
+    reason: Highlights concrete improvements in AI safety and response quality.
+    evidence:
+      commits:
+      - 42241a5d4
+      - a8070a931
+  quality_notes:
+  - New documentation added for hallucination mitigation and prompt injection prevention.
+  - URL normalization logic is now covered by dedicated tests.
+  validation_warnings: []

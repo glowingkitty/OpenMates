@@ -1,0 +1,2208 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-04'
+generated_at: '2026-07-09T15:33:58+00:00'
+range:
+  since: '2026-06-04T00:00:00+00:00'
+  until: '2026-06-04T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 51
+  section_counts:
+    features: 11
+    bug_fixes: 24
+    improvements: 0
+    docs: 4
+    tests: 8
+    infrastructure: 3
+    internal: 0
+    other: 1
+  newsletter_ready_items: 19
+  user_facing_items: 19
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add weekly accessibility audit email'
+    section: features
+    commits:
+    - 8a7ede09f
+    authored_at: '2026-06-04T20:40:41+00:00'
+    changed_paths:
+    - backend/tests/test_accessibility_audit.py
+    - backend/tests/test_run_accessibility_weekly.py
+    - docs/architecture/accessibility_audit.md
+    - docs/architecture/colors.md
+    - docs/architecture/frontend/accessibility.md
+    - docs/architecture/run_accessibility_weekly.md
+    - frontend/apps/web_app/tests/a11y-helpers.ts
+    - frontend/apps/web_app/tests/a11y-pages.spec.ts
+    - frontend/packages/ui/src/tokens/sources/colors.yml
+    - scripts/accessibility_audit.py
+    - scripts/run_accessibility_weekly.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add weekly contract audit reports'
+    section: features
+    commits:
+    - b53137d14
+    authored_at: '2026-06-04T20:37:33+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/contract_audits.py
+    - scripts/run_contract_audits.py
+    - scripts/weekly-contract-audits.sh
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add deterministic accessibility audit'
+    section: features
+    commits:
+    - ad9335d7c
+    authored_at: '2026-06-04T20:03:29+00:00'
+    changed_paths:
+    - scripts/accessibility_audit.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add newsletter campaign scheduler'
+    section: features
+    commits:
+    - 2c55eb812
+    authored_at: '2026-06-04T16:29:09+00:00'
+    changed_paths:
+    - .agents/skills/create-newsletter/SKILL.md
+    - .claude/skills/create-newsletter/SKILL.md
+    - backend/core/api/app/routes/admin_newsletter_campaigns.py
+    - backend/core/api/app/services/newsletter_campaign_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/newsletter_campaign_task.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/newsletter_campaigns.yml
+    - backend/scripts/send_newsletter.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: expand CLI settings parity'
+    section: features
+    commits:
+    - 76735f92a
+    authored_at: '2026-06-04T11:20:14+00:00'
+    changed_paths:
+    - docs/architecture/apps/cli-feature-parity.md
+    - docs/architecture/apps/cli-package.md
+    - docs/cli/README.md
+    - docs/cli/settings.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add predefined CLI settings commands'
+    section: features
+    commits:
+    - 7343eec58
+    authored_at: '2026-06-04T11:06:41+00:00'
+    changed_paths:
+    - docs/architecture/apps/cli-feature-parity.md
+    - docs/architecture/apps/cli-package.md
+    - docs/cli/README.md
+    - docs/cli/chats.md
+    - docs/cli/settings.md
+    - docs/contributing/standards/cli.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add API test script skill'
+    section: features
+    commits:
+    - d5122d4e0
+    authored_at: '2026-06-04T11:03:37+00:00'
+    changed_paths:
+    - .agents/skills/create-api-test-script/SKILL.md
+    - .claude/skills/create-api-test-script/SKILL.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add right-to-repair example chat'
+    section: features
+    commits:
+    - 9dff01768
+    authored_at: '2026-06-04T10:13:00+00:00'
+    changed_paths:
+    - .agents/skills/add-example-chat/SKILL.md
+    - frontend/packages/ui/src/demo_chats/data/example_chats/right-to-repair-laws-eu-us.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/right_to_repair_laws_eu_us.yml
+    - scripts/create-example-chat-from-share.mjs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: add GPN and Congress schedule search'
+    section: features
+    commits:
+    - 5a68b4abb
+    authored_at: '2026-06-04T06:28:13+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/__init__.py
+    - backend/apps/events/providers/pretalx.py
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    - backend/tests/test_pretalx_events_provider.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add scheduled product review cronjobs'
+    section: features
+    commits:
+    - d36ab64f4
+    authored_at: '2026-06-04T03:12:03+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/_scheduled_review_helper.py
+    - scripts/nightly-apple-parity-review.sh
+    - scripts/nightly-seo-audit.sh
+    - scripts/nightly-ui-design-review.sh
+    - scripts/prompts/apple-parity-review.md
+    - scripts/prompts/seo-audit.md
+    - scripts/prompts/ui-design-review.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: run scheduled maintenance with opencode'
+    section: features
+    commits:
+    - cc8a6fe22
+    authored_at: '2026-06-04T02:50:12+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - pnpm-workspace.yaml
+    - scripts/_audit_helper.py
+    - scripts/_claude_utils.py
+    - scripts/_daily_meeting_helper.py
+    - scripts/_daily_runner_helper.py
+    - scripts/_dead_code_removal_helper.py
+    - scripts/_dependabot_helper.py
+    - scripts/_deploy_checker_helper.py
+    - scripts/_eu_vuln_helper.py
+    - scripts/_issues_checker.py
+    - scripts/_legal_compliance_helper.py
+    - scripts/_nightly_scanner_helper.py
+    - scripts/_opencode_utils.py
+    - scripts/_security_deep_audit_helper.py
+    - scripts/_security_helper.py
+    - scripts/_workflow_review_helper.py
+    - scripts/agent-trigger-watcher.sh
+    - scripts/check-dependabot-daily.sh
+    - scripts/check-deploy-status.sh
+    - scripts/check-eu-vulns-daily.sh
+    - scripts/cron-interactive-wrapper.sh
+    - scripts/dependabot-processed.json
+    - scripts/nightly-dead-code-removal.sh
+    - scripts/nightly-issues-check.sh
+    - scripts/nightly-workflow-review.sh
+    - scripts/prompts/admin-issue-investigation.md
+    - scripts/red-teaming.sh
+    - scripts/run-tests-daily.sh
+    - scripts/security-audit.sh
+    - scripts/weekly-codebase-audit.sh
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: allow conference-only event searches'
+    section: bug_fixes
+    commits:
+    - '151588381'
+    authored_at: '2026-06-04T19:22:38+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore newsletter preview files'
+    section: bug_fixes
+    commits:
+    - 59409d789
+    authored_at: '2026-06-04T16:55:04+00:00'
+    changed_paths:
+    - backend/core/api/app/services/newsletter_campaign_service.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: correct mobile OpenMates header icon'
+    section: bug_fixes
+    commits:
+    - 769758f80
+    authored_at: '2026-06-04T14:39:20+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: store CLI email key for refunds'
+    section: bug_fixes
+    commits:
+    - b195b362f
+    authored_at: '2026-06-04T11:47:41+00:00'
+    changed_paths:
+    - docs/architecture/apps/cli-feature-parity.md
+    - docs/architecture/apps/cli-package.md
+    - docs/cli/settings.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: group image result embeds'
+    section: bug_fixes
+    commits:
+    - 47c7dc345
+    authored_at: '2026-06-04T11:45:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: export recent imports despite stale manifest'
+    section: bug_fixes
+    commits:
+    - 13f5c00db
+    authored_at: '2026-06-04T10:16:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/accountExportService.ts
+    - frontend/packages/ui/src/services/chatImportService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: index imported chats for export'
+    section: bug_fixes
+    commits:
+    - c803769b1
+    authored_at: '2026-06-04T10:07:50+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: include fresh imports in export manifest'
+    section: bug_fixes
+    commits:
+    - 364323bb9
+    authored_at: '2026-06-04T10:01:51+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: export just-imported chat data'
+    section: bug_fixes
+    commits:
+    - 27b0d3ae3
+    authored_at: '2026-06-04T09:48:13+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/accountExportService.ts
+    - frontend/packages/ui/src/services/chatImportService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: cache sanitized imported messages'
+    section: bug_fixes
+    commits:
+    - a83ab7b86
+    authored_at: '2026-06-04T09:39:05+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/packages/ui/src/services/chatImportService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: create local key for accepted imports'
+    section: bug_fixes
+    commits:
+    - aa5d16d30
+    authored_at: '2026-06-04T09:28:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatImportService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: cache accepted imported chats locally'
+    section: bug_fixes
+    commits:
+    - 63aa5907b
+    authored_at: '2026-06-04T09:18:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatImportService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: export normalized code embeds'
+    section: bug_fixes
+    commits:
+    - 01b1bd31c
+    authored_at: '2026-06-04T09:07:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/zipExportService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: refresh imported pure-data embeds'
+    section: bug_fixes
+    commits:
+    - 3ae721600
+    authored_at: '2026-06-04T08:55:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatImportService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: send daily test email before auto-fix'
+    section: bug_fixes
+    commits:
+    - 38447de72
+    authored_at: '2026-06-04T08:16:40+00:00'
+    changed_paths:
+    - scripts/_daily_runner_helper.py
+    - scripts/run-tests-daily.sh
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: auto-fix failed tests g01-49c276da'
+    section: bug_fixes
+    commits:
+    - 819c4f583
+    authored_at: '2026-06-04T04:56:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: wait for Vercel before Playwright specs'
+    section: bug_fixes
+    commits:
+    - 2654412b9
+    authored_at: '2026-06-04T03:21:02+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: harden auth enumeration responses'
+    section: bug_fixes
+    commits:
+    - 59f63f60d
+    authored_at: '2026-06-04T03:13:57+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_email.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/schemas/auth.py
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: protect dev test recordings'
+    section: bug_fixes
+    commits:
+    - d3ebb6d47
+    authored_at: '2026-06-04T02:36:32+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/core/api/main.py
+    - backend/tests/test_test_recordings.py
+    - frontend/apps/web_app/src/routes/tests/testRecordings.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render OpenMates provider logo'
+    section: bug_fixes
+    commits:
+    - e17efd3c7
+    authored_at: '2026-06-04T02:27:26+00:00'
+    changed_paths:
+    - backend/providers/openmates.yml
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: upgrade aiohttp to 3.14.0 (GHSA-hg6j-4rv6-33pg, GHSA-jg22-mg44-37j8)'
+    section: bug_fixes
+    commits:
+    - 337bdc168
+    authored_at: '2026-06-04T02:18:05+00:00'
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/requirements-dev.txt
+    - backend/upload/requirements.txt
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: upgrade @sveltejs/kit to 2.60.1 (GHSA-hgv7-v322-mmgr)'
+    section: bug_fixes
+    commits:
+    - d791fbeb3
+    authored_at: '2026-06-04T02:17:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: upgrade vitest to 4.1.0 (GHSA-5xrq-8626-4rwp)'
+    section: bug_fixes
+    commits:
+    - 33d5d421d
+    authored_at: '2026-06-04T02:16:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - pnpm-lock.yaml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: use consistent provider icon opacity'
+    section: bug_fixes
+    commits:
+    - a8d629c90
+    authored_at: '2026-06-04T02:00:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: update alpha disclaimer'
+    section: docs
+    commits:
+    - daf94566d
+    authored_at: '2026-06-04T13:29:00+00:00'
+    changed_paths:
+    - README.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: restore README and hide workspace tabs'
+    section: docs
+    commits:
+    - aa5147ba2
+    authored_at: '2026-06-04T13:10:18+00:00'
+    changed_paths:
+    - README.md
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: document GitHub issue workflow'
+    section: docs
+    commits:
+    - 77f1acb96
+    authored_at: '2026-06-04T09:43:47+00:00'
+    changed_paths:
+    - .claude/rules/task-management.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: consolidate contribution guide'
+    section: docs
+    commits:
+    - cefb002d7
+    authored_at: '2026-06-04T02:21:39+00:00'
+    changed_paths:
+    - CONTRIBUTING.md
+    - docs/architecture/README.md
+    - docs/contributing/README.md
+    - docs/contributing/contributing.md
+    - docs/self-hosting/setup.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: remove export zip diagnostic log'
+    section: tests
+    commits:
+    - 398ae42a7
+    authored_at: '2026-06-04T10:21:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: log account export zip entries'
+    section: tests
+    commits:
+    - 75875aba5
+    authored_at: '2026-06-04T09:54:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize failed Playwright specs'
+    section: tests
+    commits:
+    - 90f1e4bd6
+    authored_at: '2026-06-04T08:44:52+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/focus_career_2.json
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    - frontend/apps/web_app/tests/console-monitor.ts
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/notifications/SettingsReminders.svelte
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/presignedUrlService.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: limit event settings provider icon check'
+    section: tests
+    commits:
+    - b13b55039
+    authored_at: '2026-06-04T07:22:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align event provider icon assertion'
+    section: tests
+    commits:
+    - 35d4e055d
+    authored_at: '2026-06-04T07:05:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update event provider metadata expectation'
+    section: tests
+    commits:
+    - 57afb88f4
+    authored_at: '2026-06-04T06:54:44+00:00'
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: submit password before backup code prompt'
+    section: tests
+    commits:
+    - 2fdeb15d5
+    authored_at: '2026-06-04T03:37:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: scope backup code done button'
+    section: tests
+    commits:
+    - 8e8b2a336
+    authored_at: '2026-06-04T03:29:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: commit retained workspace updates'
+    section: infrastructure
+    commits:
+    - 468df1113
+    authored_at: '2026-06-04T12:51:58+00:00'
+    changed_paths:
+    - CONTRIBUTING.md
+    - README.md
+    - backend/apps/social_media/search_collection.py
+    - backend/apps/travel/test_adsb_exchange.py
+    - backend/shared/providers/reddit/rss.py
+    - docs/architecture/README.md
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/contributing/README.md
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - scripts/cleanup-opencode-sessions.sh
+    - scripts/linear.py
+    - tasks-backlog.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'chore: enable dependabot version updates'
+    section: infrastructure
+    commits:
+    - f50b5b138
+    authored_at: '2026-06-04T02:51:10+00:00'
+    changed_paths:
+    - .github/dependabot.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'chore: keep dependabot auto PRs disabled'
+    section: infrastructure
+    commits:
+    - ec72f8664
+    authored_at: '2026-06-04T02:50:01+00:00'
+    changed_paths:
+    - .github/dependabot.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Merge pull request #449 from glowingkitty/dev'
+    section: other
+    commits:
+    - 12485ffd2
+    authored_at: '2026-06-04T16:59:26+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: allow conference-only event searches'
+    commits:
+    - '151588381'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'test: stabilize failed Playwright specs'
+    commits:
+    - 90f1e4bd6
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: update event provider metadata expectation'
+    commits:
+    - 57afb88f4
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add GPN and Congress schedule search'
+    commits:
+    - 5a68b4abb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add weekly accessibility audit email'
+    commits:
+    - 8a7ede09f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow conference-only event searches'
+    commits:
+    - '151588381'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add newsletter campaign scheduler'
+    commits:
+    - 2c55eb812
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct mobile OpenMates header icon'
+    commits:
+    - 769758f80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: store CLI email key for refunds'
+    commits:
+    - b195b362f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: group image result embeds'
+    commits:
+    - 47c7dc345
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: expand CLI settings parity'
+    commits:
+    - 76735f92a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add predefined CLI settings commands'
+    commits:
+    - 7343eec58
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: index imported chats for export'
+    commits:
+    - c803769b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: include fresh imports in export manifest'
+    commits:
+    - 364323bb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: cache sanitized imported messages'
+    commits:
+    - a83ab7b86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add GPN and Congress schedule search'
+    commits:
+    - 5a68b4abb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: auto-fix failed tests g01-49c276da'
+    commits:
+    - 819c4f583
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden auth enumeration responses'
+    commits:
+    - 59f63f60d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: protect dev test recordings'
+    commits:
+    - d3ebb6d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render OpenMates provider logo'
+    commits:
+    - e17efd3c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: upgrade @sveltejs/kit to 2.60.1 (GHSA-hgv7-v322-mmgr)'
+    commits:
+    - d791fbeb3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: upgrade vitest to 4.1.0 (GHSA-5xrq-8626-4rwp)'
+    commits:
+    - 33d5d421d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use consistent provider icon opacity'
+    commits:
+    - a8d629c90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add weekly accessibility audit email'
+    commits:
+    - 8a7ede09f
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow conference-only event searches'
+    commits:
+    - '151588381'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add newsletter campaign scheduler'
+    commits:
+    - 2c55eb812
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct mobile OpenMates header icon'
+    commits:
+    - 769758f80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: store CLI email key for refunds'
+    commits:
+    - b195b362f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: group image result embeds'
+    commits:
+    - 47c7dc345
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: expand CLI settings parity'
+    commits:
+    - 76735f92a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add predefined CLI settings commands'
+    commits:
+    - 7343eec58
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: index imported chats for export'
+    commits:
+    - c803769b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: include fresh imports in export manifest'
+    commits:
+    - 364323bb9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: cache sanitized imported messages'
+    commits:
+    - a83ab7b86
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add GPN and Congress schedule search'
+    commits:
+    - 5a68b4abb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: auto-fix failed tests g01-49c276da'
+    commits:
+    - 819c4f583
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden auth enumeration responses'
+    commits:
+    - 59f63f60d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: protect dev test recordings'
+    commits:
+    - d3ebb6d47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render OpenMates provider logo'
+    commits:
+    - e17efd3c7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: upgrade @sveltejs/kit to 2.60.1 (GHSA-hgv7-v322-mmgr)'
+    commits:
+    - d791fbeb3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: upgrade vitest to 4.1.0 (GHSA-5xrq-8626-4rwp)'
+    commits:
+    - 33d5d421d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use consistent provider icon opacity'
+    commits:
+    - a8d629c90
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 8a7ede09fdc10e4d460986aab63082a2a039ed69
+    short_sha: 8a7ede09f
+    authored_at: '2026-06-04T20:40:41+00:00'
+    subject: 'feat: add weekly accessibility audit email'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_accessibility_audit.py
+    - backend/tests/test_run_accessibility_weekly.py
+    - docs/architecture/accessibility_audit.md
+    - docs/architecture/colors.md
+    - docs/architecture/frontend/accessibility.md
+    - docs/architecture/run_accessibility_weekly.md
+    - frontend/apps/web_app/tests/a11y-helpers.ts
+    - frontend/apps/web_app/tests/a11y-pages.spec.ts
+    - frontend/packages/ui/src/tokens/sources/colors.yml
+    - scripts/accessibility_audit.py
+    - scripts/run_accessibility_weekly.py
+    related_feature_ids: []
+  - sha: b53137d14b52f40d0ca80767f35555009723fba2
+    short_sha: b53137d14
+    authored_at: '2026-06-04T20:37:33+00:00'
+    subject: 'feat: add weekly contract audit reports'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/contract_audits.py
+    - scripts/run_contract_audits.py
+    - scripts/weekly-contract-audits.sh
+    related_feature_ids: []
+  - sha: ad9335d7c5171e81be6a3992c6e3adeaf1b11021
+    short_sha: ad9335d7c
+    authored_at: '2026-06-04T20:03:29+00:00'
+    subject: 'feat: add deterministic accessibility audit'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/accessibility_audit.py
+    related_feature_ids: []
+  - sha: 151588381d204dfc5b8bab6348902a5ed07251a1
+    short_sha: '151588381'
+    authored_at: '2026-06-04T19:22:38+00:00'
+    subject: 'fix: allow conference-only event searches'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    related_feature_ids: []
+  - sha: 59409d789bab49ce59f55a239f98b32aa1c2df04
+    short_sha: 59409d789
+    authored_at: '2026-06-04T16:55:04+00:00'
+    subject: 'fix: restore newsletter preview files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/newsletter_campaign_service.py
+    related_feature_ids: []
+  - sha: 2c55eb812d2dcbf52cccd42d5df116f6faebc335
+    short_sha: 2c55eb812
+    authored_at: '2026-06-04T16:29:09+00:00'
+    subject: 'feat: add newsletter campaign scheduler'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-newsletter/SKILL.md
+    - .claude/skills/create-newsletter/SKILL.md
+    - backend/core/api/app/routes/admin_newsletter_campaigns.py
+    - backend/core/api/app/services/newsletter_campaign_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/newsletter_campaign_task.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/newsletter_campaigns.yml
+    - backend/scripts/send_newsletter.py
+    related_feature_ids: []
+  - sha: 12485ffd2769be7f25176aa3fb025129b9f59609
+    short_sha: 12485ffd2
+    authored_at: '2026-06-04T16:59:26+02:00'
+    subject: 'Merge pull request #449 from glowingkitty/dev'
+    in_main: true
+    in_dev: false
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 769758f80a07dfeb49e20dd821f7eb6dbf5b523f
+    short_sha: 769758f80
+    authored_at: '2026-06-04T14:39:20+00:00'
+    subject: 'fix: correct mobile OpenMates header icon'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: daf94566db4ebdc8856f0ab310ee6558f40b690f
+    short_sha: daf94566d
+    authored_at: '2026-06-04T13:29:00+00:00'
+    subject: 'docs: update alpha disclaimer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - README.md
+    related_feature_ids: []
+  - sha: aa5147ba2d81487a697f9f37ca928ba915121e37
+    short_sha: aa5147ba2
+    authored_at: '2026-06-04T13:10:18+00:00'
+    subject: 'docs: restore README and hide workspace tabs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - README.md
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: 468df1113ca694e336c60795c4e67d8e8058a50b
+    short_sha: 468df1113
+    authored_at: '2026-06-04T12:51:58+00:00'
+    subject: 'chore: commit retained workspace updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - CONTRIBUTING.md
+    - README.md
+    - backend/apps/social_media/search_collection.py
+    - backend/apps/travel/test_adsb_exchange.py
+    - backend/shared/providers/reddit/rss.py
+    - docs/architecture/README.md
+    - docs/architecture/compliance/browser-storage.yml
+    - docs/architecture/compliance/cookies.yml
+    - docs/contributing/README.md
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - scripts/cleanup-opencode-sessions.sh
+    - scripts/linear.py
+    - tasks-backlog.json
+    related_feature_ids: []
+  - sha: b195b362f1ce4d586d5966f5bb9751800ae3742d
+    short_sha: b195b362f
+    authored_at: '2026-06-04T11:47:41+00:00'
+    subject: 'fix: store CLI email key for refunds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apps/cli-feature-parity.md
+    - docs/architecture/apps/cli-package.md
+    - docs/cli/settings.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    related_feature_ids: []
+  - sha: 47c7dc34576a45afbda0ad7d3017d9f1e945665b
+    short_sha: 47c7dc345
+    authored_at: '2026-06-04T11:45:13+00:00'
+    subject: 'fix: group image result embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    related_feature_ids: []
+  - sha: 76735f92ab1ef3efa08f0397cb67af41a7ab3da7
+    short_sha: 76735f92a
+    authored_at: '2026-06-04T11:20:14+00:00'
+    subject: 'feat: expand CLI settings parity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apps/cli-feature-parity.md
+    - docs/architecture/apps/cli-package.md
+    - docs/cli/README.md
+    - docs/cli/settings.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 7343eec58e07ae7033e72ce42821b890104a3d01
+    short_sha: 7343eec58
+    authored_at: '2026-06-04T11:06:41+00:00'
+    subject: 'feat: add predefined CLI settings commands'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apps/cli-feature-parity.md
+    - docs/architecture/apps/cli-package.md
+    - docs/cli/README.md
+    - docs/cli/chats.md
+    - docs/cli/settings.md
+    - docs/contributing/standards/cli.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    related_feature_ids: []
+  - sha: d5122d4e0368a0877337338704e504355a3a059c
+    short_sha: d5122d4e0
+    authored_at: '2026-06-04T11:03:37+00:00'
+    subject: 'feat: add API test script skill'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-api-test-script/SKILL.md
+    - .claude/skills/create-api-test-script/SKILL.md
+    related_feature_ids: []
+  - sha: 398ae42a73985896d2dfce8cfa9c7f87afaaa06a
+    short_sha: 398ae42a7
+    authored_at: '2026-06-04T10:21:46+00:00'
+    subject: 'test: remove export zip diagnostic log'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    related_feature_ids: []
+  - sha: 13f5c00dbd5ffdb01d37e415ce8e85cc43ace00f
+    short_sha: 13f5c00db
+    authored_at: '2026-06-04T10:16:06+00:00'
+    subject: 'fix: export recent imports despite stale manifest'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/accountExportService.ts
+    - frontend/packages/ui/src/services/chatImportService.ts
+    related_feature_ids: []
+  - sha: 9dff01768af7fb1b50ab5aaff0d9abe166aa474c
+    short_sha: 9dff01768
+    authored_at: '2026-06-04T10:13:00+00:00'
+    subject: 'feat: add right-to-repair example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-example-chat/SKILL.md
+    - frontend/packages/ui/src/demo_chats/data/example_chats/right-to-repair-laws-eu-us.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/right_to_repair_laws_eu_us.yml
+    - scripts/create-example-chat-from-share.mjs
+    related_feature_ids: []
+  - sha: c803769b17959d49ec53d8b7a7e19e3531221313
+    short_sha: c803769b1
+    authored_at: '2026-06-04T10:07:50+00:00'
+    subject: 'fix: index imported chats for export'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    related_feature_ids: []
+  - sha: 364323bb93f0068fe2cd8441f54d4e4c77210f5c
+    short_sha: 364323bb9
+    authored_at: '2026-06-04T10:01:51+00:00'
+    subject: 'fix: include fresh imports in export manifest'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    related_feature_ids: []
+  - sha: 75875aba5f6c8efd1253a6dcf2907a140e4acad9
+    short_sha: 75875aba5
+    authored_at: '2026-06-04T09:54:39+00:00'
+    subject: 'test: log account export zip entries'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    related_feature_ids: []
+  - sha: 27b0d3ae3ca2efee1173b4ca421a96e2d1bb8e79
+    short_sha: 27b0d3ae3
+    authored_at: '2026-06-04T09:48:13+00:00'
+    subject: 'fix: export just-imported chat data'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/accountExportService.ts
+    - frontend/packages/ui/src/services/chatImportService.ts
+    related_feature_ids: []
+  - sha: 77f1acb9647227243d530884c89e976663371651
+    short_sha: 77f1acb96
+    authored_at: '2026-06-04T09:43:47+00:00'
+    subject: 'docs: document GitHub issue workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/task-management.md
+    related_feature_ids: []
+  - sha: a83ab7b86062089d4d20e145b11f9a0f7e7fcc53
+    short_sha: a83ab7b86
+    authored_at: '2026-06-04T09:39:05+00:00'
+    subject: 'fix: cache sanitized imported messages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - frontend/packages/ui/src/services/chatImportService.ts
+    related_feature_ids: []
+  - sha: aa5d16d30778a247926e7d39648661e5f4c85556
+    short_sha: aa5d16d30
+    authored_at: '2026-06-04T09:28:19+00:00'
+    subject: 'fix: create local key for accepted imports'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatImportService.ts
+    related_feature_ids: []
+  - sha: 63aa5907b94ab47b59dbbec93b4f1e86589d7516
+    short_sha: 63aa5907b
+    authored_at: '2026-06-04T09:18:25+00:00'
+    subject: 'fix: cache accepted imported chats locally'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatImportService.ts
+    related_feature_ids: []
+  - sha: 01b1bd31c567f3c9da53a3a30f77d02c293735db
+    short_sha: 01b1bd31c
+    authored_at: '2026-06-04T09:07:59+00:00'
+    subject: 'fix: export normalized code embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/zipExportService.ts
+    related_feature_ids: []
+  - sha: 3ae7216001e6d11dcf609b200fb74f279ae9d91b
+    short_sha: 3ae721600
+    authored_at: '2026-06-04T08:55:09+00:00'
+    subject: 'fix: refresh imported pure-data embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatImportService.ts
+    related_feature_ids: []
+  - sha: 90f1e4bd68bb8f64d05991da73cb202e583dd7e1
+    short_sha: 90f1e4bd6
+    authored_at: '2026-06-04T08:44:52+00:00'
+    subject: 'test: stabilize failed Playwright specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/focus_career_2.json
+    - frontend/apps/web_app/tests/cli-images.spec.ts
+    - frontend/apps/web_app/tests/console-monitor.ts
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/notifications/SettingsReminders.svelte
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/services/presignedUrlService.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    related_feature_ids: []
+  - sha: 38447de72929473d541a7862a7a58712b57aa371
+    short_sha: 38447de72
+    authored_at: '2026-06-04T08:16:40+00:00'
+    subject: 'fix: send daily test email before auto-fix'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/_daily_runner_helper.py
+    - scripts/run-tests-daily.sh
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: b13b550399be033ada80c9c57bb239633effe832
+    short_sha: b13b55039
+    authored_at: '2026-06-04T07:22:09+00:00'
+    subject: 'test: limit event settings provider icon check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 35d4e055d8668e21db72282cd152ef09e16c306d
+    short_sha: 35d4e055d
+    authored_at: '2026-06-04T07:05:04+00:00'
+    subject: 'test: align event provider icon assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 57afb88f4775e33eaf8d18d51bc0c992bbe80f63
+    short_sha: 57afb88f4
+    authored_at: '2026-06-04T06:54:44+00:00'
+    subject: 'test: update event provider metadata expectation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/skills/search_skill.py
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 5a68b4abbb5e1c3442cfe12d86063455fdf4809b
+    short_sha: 5a68b4abb
+    authored_at: '2026-06-04T06:28:13+00:00'
+    subject: 'feat: add GPN and Congress schedule search'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/events/app.yml
+    - backend/apps/events/providers/__init__.py
+    - backend/apps/events/providers/pretalx.py
+    - backend/apps/events/providers/registry.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/tests/test_events_provider_routing.py
+    - backend/tests/test_pretalx_events_provider.py
+    related_feature_ids: []
+  - sha: 819c4f583834d1370b93b90012a6e78c1f564fe3
+    short_sha: 819c4f583
+    authored_at: '2026-06-04T04:56:42+00:00'
+    subject: 'fix: auto-fix failed tests g01-49c276da'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2fdeb15d575e2252dfaccdc9f835f95b239e1e49
+    short_sha: 2fdeb15d5
+    authored_at: '2026-06-04T03:37:34+00:00'
+    subject: 'test: submit password before backup code prompt'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    related_feature_ids: []
+  - sha: 8e8b2a336f684d10f160fec7ac8d3c16c105d444
+    short_sha: 8e8b2a336
+    authored_at: '2026-06-04T03:29:59+00:00'
+    subject: 'test: scope backup code done button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2654412b9e1d76c00cd572ca9f7574b189bf73ab
+    short_sha: 2654412b9
+    authored_at: '2026-06-04T03:21:02+00:00'
+    subject: 'fix: wait for Vercel before Playwright specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 59f63f60d7158e2434e9bd57771ab2a7684973af
+    short_sha: 59f63f60d
+    authored_at: '2026-06-04T03:13:57+00:00'
+    subject: 'fix: harden auth enumeration responses'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_email.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/schemas/auth.py
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    related_feature_ids: []
+  - sha: d36ab64f4cf7ae32cebea4ab42ce8ff7118f6a9e
+    short_sha: d36ab64f4
+    authored_at: '2026-06-04T03:12:03+00:00'
+    subject: 'feat: add scheduled product review cronjobs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/_scheduled_review_helper.py
+    - scripts/nightly-apple-parity-review.sh
+    - scripts/nightly-seo-audit.sh
+    - scripts/nightly-ui-design-review.sh
+    - scripts/prompts/apple-parity-review.md
+    - scripts/prompts/seo-audit.md
+    - scripts/prompts/ui-design-review.md
+    related_feature_ids: []
+  - sha: f50b5b138dd7a2940dfebea59a73fe10a94deab7
+    short_sha: f50b5b138
+    authored_at: '2026-06-04T02:51:10+00:00'
+    subject: 'chore: enable dependabot version updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/dependabot.yml
+    related_feature_ids: []
+  - sha: cc8a6fe229beb19ed30224e85cebd2212e15c71f
+    short_sha: cc8a6fe22
+    authored_at: '2026-06-04T02:50:12+00:00'
+    subject: 'feat: run scheduled maintenance with opencode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - pnpm-workspace.yaml
+    - scripts/_audit_helper.py
+    - scripts/_claude_utils.py
+    - scripts/_daily_meeting_helper.py
+    - scripts/_daily_runner_helper.py
+    - scripts/_dead_code_removal_helper.py
+    - scripts/_dependabot_helper.py
+    - scripts/_deploy_checker_helper.py
+    - scripts/_eu_vuln_helper.py
+    - scripts/_issues_checker.py
+    - scripts/_legal_compliance_helper.py
+    - scripts/_nightly_scanner_helper.py
+    - scripts/_opencode_utils.py
+    - scripts/_security_deep_audit_helper.py
+    - scripts/_security_helper.py
+    - scripts/_workflow_review_helper.py
+    - scripts/agent-trigger-watcher.sh
+    - scripts/check-dependabot-daily.sh
+    - scripts/check-deploy-status.sh
+    - scripts/check-eu-vulns-daily.sh
+    - scripts/cron-interactive-wrapper.sh
+    - scripts/dependabot-processed.json
+    - scripts/nightly-dead-code-removal.sh
+    - scripts/nightly-issues-check.sh
+    - scripts/nightly-workflow-review.sh
+    - scripts/prompts/admin-issue-investigation.md
+    - scripts/red-teaming.sh
+    - scripts/run-tests-daily.sh
+    - scripts/security-audit.sh
+    - scripts/weekly-codebase-audit.sh
+    related_feature_ids: []
+  - sha: ec72f866405baac171e1e91634bf5522a8edc40a
+    short_sha: ec72f8664
+    authored_at: '2026-06-04T02:50:01+00:00'
+    subject: 'chore: keep dependabot auto PRs disabled'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/dependabot.yml
+    related_feature_ids: []
+  - sha: d3ebb6d470cbb662f95326b20ed88d1d30a5f47f
+    short_sha: d3ebb6d47
+    authored_at: '2026-06-04T02:36:32+00:00'
+    subject: 'fix: protect dev test recordings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/core/api/main.py
+    - backend/tests/test_test_recordings.py
+    - frontend/apps/web_app/src/routes/tests/testRecordings.ts
+    related_feature_ids: []
+  - sha: e17efd3c7cc974221c67ed58eaf5ffd390206814
+    short_sha: e17efd3c7
+    authored_at: '2026-06-04T02:27:26+00:00'
+    subject: 'fix: render OpenMates provider logo'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/providers/openmates.yml
+    - frontend/packages/ui/src/components/settings/ProviderIcon.svelte
+    related_feature_ids: []
+  - sha: cefb002d7c9e4acdf26e1e877add472faebf4e12
+    short_sha: cefb002d7
+    authored_at: '2026-06-04T02:21:39+00:00'
+    subject: 'docs: consolidate contribution guide'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - CONTRIBUTING.md
+    - docs/architecture/README.md
+    - docs/contributing/README.md
+    - docs/contributing/contributing.md
+    - docs/self-hosting/setup.md
+    related_feature_ids: []
+  - sha: 337bdc168d190d236d500dc4aa4aa11aa9e11b85
+    short_sha: 337bdc168
+    authored_at: '2026-06-04T02:18:05+00:00'
+    subject: 'fix: upgrade aiohttp to 3.14.0 (GHSA-hg6j-4rv6-33pg, GHSA-jg22-mg44-37j8)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/requirements.txt
+    - backend/preview/requirements.txt
+    - backend/requirements-dev.txt
+    - backend/upload/requirements.txt
+    related_feature_ids: []
+  - sha: d791fbeb32dc1a0044275467adca8eba065d2c80
+    short_sha: d791fbeb3
+    authored_at: '2026-06-04T02:17:38+00:00'
+    subject: 'fix: upgrade @sveltejs/kit to 2.60.1 (GHSA-hgv7-v322-mmgr)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: 33d5d421de038e6822c61482aeb5135ad73f3f8f
+    short_sha: 33d5d421d
+    authored_at: '2026-06-04T02:16:46+00:00'
+    subject: 'fix: upgrade vitest to 4.1.0 (GHSA-5xrq-8626-4rwp)'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - pnpm-lock.yaml
+    related_feature_ids: []
+  - sha: a8d629c9006da14145cf4ca02d2d85ee67752fe4
+    short_sha: a8d629c90
+    authored_at: '2026-06-04T02:00:38+00:00'
+    subject: 'fix: use consistent provider icon opacity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppStoreCard.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced significant CLI enhancements including settings parity, expanded event search to include
+    GPN and Congress schedules, and improved the reliability of account exports for imported data. The update also includes
+    critical security hardening for authentication and various UI refinements.
+  released_changes:
+  - text: The OpenMates CLI now features expanded settings parity with the web interface and new predefined commands for managing
+      configuration.
+    evidence:
+      commits:
+      - 76735f92a
+      - 7343eec58
+    release_status: released_main
+  - text: A new event search provider was added to support searching schedules for GPN and Congress.
+    evidence:
+      commits:
+      - 5a68b4abb
+    release_status: released_main
+  - text: Automated weekly accessibility audit emails were implemented to track and report on UI compliance.
+    evidence:
+      commits:
+      - 8a7ede09f
+    release_status: released_main
+  - text: A newsletter campaign scheduler was added to the administrative interface to manage outbound communications.
+    evidence:
+      commits:
+      - 2c55eb812
+    release_status: released_main
+  bug_fixes:
+  - text: Authentication responses were hardened to prevent account enumeration.
+    evidence:
+      commits:
+      - 59f63f60d
+    release_status: released_main
+  - text: Data portability was improved by ensuring imported chats are correctly indexed, cached, and included in account
+      export manifests.
+    evidence:
+      commits:
+      - c803769b1
+      - 364323bb9
+      - a83ab7b86
+    release_status: released_main
+  - text: UI refinements corrected the mobile header icon, OpenMates provider logo rendering, and icon opacity consistency.
+    evidence:
+      commits:
+      - 769758f80
+      - e17efd3c7
+      - a8d629c90
+    release_status: released_main
+  - text: Image result embeds are now correctly grouped within the chat interface.
+    evidence:
+      commits:
+      - 47c7dc345
+    release_status: released_main
+  - text: The CLI now correctly stores email keys required for processing refunds.
+    evidence:
+      commits:
+      - b195b362f
+    release_status: released_main
+  - text: Event searches now support conference-only queries.
+    evidence:
+      commits:
+      - '151588381'
+    release_status: released_main
+  - text: Automated fixes were applied to stabilize API key flows in the web application.
+    evidence:
+      commits:
+      - 819c4f583
+    release_status: released_main
+  unreleased_progress:
+  - text: Workspace tabs for projects and tasks have been hidden in the UI as these features remain in development and are
+      currently disabled.
+    evidence:
+      commits:
+      - aa5147ba2
+    release_status: released_main
+  - text: Internal infrastructure work continues on automated nightly audits for SEO, UI design, and security compliance.
+    evidence:
+      commits:
+      - b53137d14
+      - ad9335d7c
+      - d36ab64f4
+      - cc8a6fe22
+    release_status: released_main
+  internal_progress:
+  - text: Core dependencies were updated, including @sveltejs/kit to 2.60.1, vitest to 4.1.0, and aiohttp to 3.14.0 to address
+      security advisories.
+    evidence:
+      commits:
+      - d791fbeb3
+      - 33d5d421d
+      - 337bdc168
+    release_status: released_main
+  - text: CI stability was improved by hardening Playwright test specs and ensuring Vercel deployments are ready before running
+      integration tests.
+    evidence:
+      commits:
+      - 90f1e4bd6
+      - 38447de72
+      - 2654412b9
+    release_status: released_main
+  - text: Dependabot configuration was updated to enable version updates while maintaining manual control over pull request
+      creation.
+    evidence:
+      commits:
+      - f50b5b138
+      - ec72f8664
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: CLI settings parity and predefined commands.
+      evidence:
+        commits:
+        - 76735f92a
+        - 7343eec58
+      reason: Significant expansion of CLI capabilities for power users.
+    - text: GPN and Congress event schedule search.
+      evidence:
+        commits:
+        - 5a68b4abb
+      reason: New user-facing search capability for major tech events.
+    - text: Hardened authentication security.
+      evidence:
+        commits:
+        - 59f63f60d
+      reason: Important security hardening for the authentication flow.
+    - text: Weekly accessibility audit emails.
+      evidence:
+        commits:
+        - 8a7ede09f
+      reason: New automated reporting feature for accessibility compliance.
+    exclude:
+    - text: Hiding workspace tabs for disabled features.
+      evidence:
+        commits:
+        - aa5147ba2
+      reason: This change involves hiding workspace tabs related to projects and tasks, which are currently disabled features.
+    - text: Internal maintenance and audit cronjobs.
+      evidence:
+        commits:
+        - b53137d14
+        - ad9335d7c
+        - d36ab64f4
+        - cc8a6fe22
+      reason: These are internal maintenance scripts and cronjobs not intended for end-user communication.
+    rationale: The update features significant improvements to the CLI and event search capabilities, alongside critical security
+      hardening and data portability fixes that are ready for public announcement.
+  social_video_recommendations:
+  - idea: A short demo of the new CLI settings commands showing how to configure OpenMates from the terminal.
+    priority: medium
+    reason: The CLI is a core tool for the developer community and these updates provide tangible new utility.
+    evidence:
+      commits:
+      - 76735f92a
+      - 7343eec58
+  - idea: A screen recording showing a search for GPN or Congress sessions within the OpenMates interface.
+    priority: low
+    reason: Demonstrates the expanding ecosystem of event providers.
+    evidence:
+      commits:
+      - 5a68b4abb
+  quality_notes:
+  - Security hardening addressed potential account enumeration vulnerabilities (59f63f60d).
+  - Dependency updates resolved multiple security advisories (GHSA-hgv7-v322-mmgr, GHSA-5xrq-8626-4rwp, GHSA-hg6j-4rv6-33pg).
+  - Test suite stability was improved through better synchronization with deployment environments.
+  validation_warnings: []

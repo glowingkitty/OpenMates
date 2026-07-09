@@ -1,0 +1,617 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-08'
+generated_at: '2026-07-09T15:18:00+00:00'
+range:
+  since: '2026-05-08T00:00:00+00:00'
+  until: '2026-05-08T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 11
+  section_counts:
+    features: 2
+    bug_fixes: 2
+    improvements: 0
+    docs: 0
+    tests: 7
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 4
+  user_facing_items: 4
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add calendar downloads to event embeds'
+    section: features
+    commits:
+    - bff6c0589
+    authored_at: '2026-05-08T17:46:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/EntryWithMapTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/utils/calendarDownload.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: show DB train realtime status'
+    section: features
+    commits:
+    - 1347f5710
+    authored_at: '2026-05-08T08:23:34+00:00'
+    changed_paths:
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: make saved embed memory save reliable'
+    section: bug_fixes
+    commits:
+    - 87ed0a7b1
+    authored_at: '2026-05-08T17:38:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedHeaderCtaButton.svelte
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve saved embed reminders'
+    section: bug_fixes
+    commits:
+    - f761ebdd7
+    authored_at: '2026-05-08T13:55:22+00:00'
+    changed_paths:
+    - backend/apps/reminder/app.yml
+    - backend/apps/reminder/skills/set_reminder_skill.py
+    - backend/apps/reminder/tasks.py
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/packages/ui/src/components/embeds/EmbedHeaderCtaButton.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesEntryDetail.svelte
+    - frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/stores/appSettingsMemoriesStore.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: clarify saved memory reminder verification'
+    section: tests
+    commits:
+    - fabf20081
+    authored_at: '2026-05-08T21:30:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify saved memory reminder creation'
+    section: tests
+    commits:
+    - c799e9e94
+    authored_at: '2026-05-08T21:16:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: relax reminder generated text'
+    section: tests
+    commits:
+    - fc944e92a
+    authored_at: '2026-05-08T15:58:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert reminder event payload'
+    section: tests
+    commits:
+    - 8702b9c24
+    authored_at: '2026-05-08T15:46:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: assert reminder text in new chat'
+    section: tests
+    commits:
+    - e91448011
+    authored_at: '2026-05-08T15:30:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize reminder login wait'
+    section: tests
+    commits:
+    - fa8fb9c66
+    authored_at: '2026-05-08T15:17:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize saved embed travel retry'
+    section: tests
+    commits:
+    - 0e180bbde
+    authored_at: '2026-05-08T14:28:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: improve saved embed reminders'
+    commits:
+    - f761ebdd7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add calendar downloads to event embeds'
+    commits:
+    - bff6c0589
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: make saved embed memory save reliable'
+    commits:
+    - 87ed0a7b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve saved embed reminders'
+    commits:
+    - f761ebdd7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: show DB train realtime status'
+    commits:
+    - 1347f5710
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'feat: add calendar downloads to event embeds'
+    commits:
+    - bff6c0589
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make saved embed memory save reliable'
+    commits:
+    - 87ed0a7b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve saved embed reminders'
+    commits:
+    - f761ebdd7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: show DB train realtime status'
+    commits:
+    - 1347f5710
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: fabf20081d4f869901f334414c1af704a4032b11
+    short_sha: fabf20081
+    authored_at: '2026-05-08T21:30:15+00:00'
+    subject: 'test: clarify saved memory reminder verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: c799e9e94f933fbd51f0be564862b81f61083edb
+    short_sha: c799e9e94
+    authored_at: '2026-05-08T21:16:50+00:00'
+    subject: 'test: verify saved memory reminder creation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: bff6c05894b39c78354629e566db0da58ae3acdf
+    short_sha: bff6c0589
+    authored_at: '2026-05-08T17:46:12+00:00'
+    subject: 'feat: add calendar downloads to event embeds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
+    - frontend/packages/ui/src/components/embeds/EntryWithMapTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/utils/calendarDownload.ts
+    related_feature_ids: []
+  - sha: 87ed0a7b10e70f846fd4616f76fddde9232d24ea
+    short_sha: 87ed0a7b1
+    authored_at: '2026-05-08T17:38:54+00:00'
+    subject: 'fix: make saved embed memory save reliable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedHeaderCtaButton.svelte
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    related_feature_ids: []
+  - sha: fc944e92a9720c0e462c31fc1b118f9b7707323d
+    short_sha: fc944e92a
+    authored_at: '2026-05-08T15:58:46+00:00'
+    subject: 'test: relax reminder generated text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    related_feature_ids: []
+  - sha: 8702b9c24e6b066b0193015d8898f90f7b2b757e
+    short_sha: 8702b9c24
+    authored_at: '2026-05-08T15:46:37+00:00'
+    subject: 'test: assert reminder event payload'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    related_feature_ids: []
+  - sha: e9144801115599b84e22ce57b607ffa075a38ec3
+    short_sha: e91448011
+    authored_at: '2026-05-08T15:30:09+00:00'
+    subject: 'test: assert reminder text in new chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    related_feature_ids: []
+  - sha: fa8fb9c66332d0a46eabef6b68b26f4bd043438a
+    short_sha: fa8fb9c66
+    authored_at: '2026-05-08T15:17:39+00:00'
+    subject: 'test: stabilize reminder login wait'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/reminder-new-chat.spec.ts
+    related_feature_ids: []
+  - sha: 0e180bbdedc938cdc659f88f01d9f214cb249cfd
+    short_sha: 0e180bbde
+    authored_at: '2026-05-08T14:28:15+00:00'
+    subject: 'test: stabilize saved embed travel retry'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    related_feature_ids: []
+  - sha: f761ebdd7ad2871d9a93f39fd3eed437486c6f4c
+    short_sha: f761ebdd7
+    authored_at: '2026-05-08T13:55:22+00:00'
+    subject: 'fix: improve saved embed reminders'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/reminder/app.yml
+    - backend/apps/reminder/skills/set_reminder_skill.py
+    - backend/apps/reminder/tasks.py
+    - frontend/apps/web_app/tests/helpers/saved-memory-test-helpers.ts
+    - frontend/packages/ui/src/components/embeds/EmbedHeaderCtaButton.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthAppointmentEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/home/HomeListingEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelStayEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesEntryDetail.svelte
+    - frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/services/savedEmbedMemoryService.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/stores/appSettingsMemoriesStore.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    related_feature_ids: []
+  - sha: 1347f5710375ff9643fe7e50a12c49172a83952e
+    short_sha: 1347f5710
+    authored_at: '2026-05-08T08:23:34+00:00'
+    subject: 'feat: show DB train realtime status'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/travel/providers/base_provider.py
+    - backend/apps/travel/providers/db_provider.py
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced real-time travel updates and calendar integration for events, while significantly improving
+    the reliability of the saved memory and reminder systems.
+  released_changes:
+  - text: Event embeds now support calendar downloads, allowing users to export event details directly to their personal calendars.
+    evidence:
+      commits:
+      - bff6c0589
+    release_status: released_main
+  - text: The travel provider for DB now displays real-time train status within connection and search embeds.
+    evidence:
+      commits:
+      - 1347f5710
+    release_status: released_main
+  bug_fixes:
+  - text: The reliability of saving embed memories was improved to ensure data is consistently captured when using the header
+      call-to-action button.
+    evidence:
+      commits:
+      - 87ed0a7b1
+    release_status: released_main
+  - text: Reminders for saved embeds were refined across multiple categories, including health appointments, travel stays,
+      and home listings, with improved notification synchronization.
+    evidence:
+      commits:
+      - f761ebdd7
+    release_status: released_main
+  unreleased_progress:
+  - text: Internal test coverage was expanded to verify reminder creation logic, login stability, and saved memory retry behaviors.
+    evidence:
+      commits:
+      - fabf20081
+      - c799e9e94
+      - fc944e92a
+      - 8702b9c24
+      - e91448011
+      - fa8fb9c66
+      - 0e180bbde
+    release_status: released_main
+  internal_progress:
+  - text: The reminder system received metadata updates and task handling improvements to support more robust notification
+      delivery.
+    evidence:
+      commits:
+      - f761ebdd7
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Real-time DB train status in travel embeds.
+      evidence:
+        commits:
+        - 1347f5710
+      reason: Introduces real-time utility for travel planning.
+    - text: Calendar download support for event embeds.
+      evidence:
+        commits:
+        - bff6c0589
+      reason: Adds a practical productivity feature for event management.
+    - text: Enhanced reliability for saved memories and reminders.
+      evidence:
+        commits:
+        - 87ed0a7b1
+        - f761ebdd7
+      reason: Improves the core experience of saving and being reminded of content.
+    exclude: []
+    rationale: This update provides significant functional improvements to travel and event workflows, alongside critical
+      reliability fixes for the memory system.
+  social_video_recommendations:
+  - idea: A short clip showing the transition from a static train connection to one displaying live delay and status information.
+    priority: high
+    reason: Real-time data is a high-value feature for travel users and demonstrates backend integration.
+    evidence:
+      commits:
+      - 1347f5710
+  - idea: Demonstrate the ease of finding an event and adding it to a calendar with one click.
+    priority: medium
+    reason: Shows a clear productivity benefit and UI polish.
+    evidence:
+      commits:
+      - bff6c0589
+  quality_notes:
+  - Test suite stabilization focused on reminder verification and travel connection retries.
+  validation_warnings: []

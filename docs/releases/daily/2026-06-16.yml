@@ -1,0 +1,2560 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-16'
+generated_at: '2026-07-09T15:44:09+00:00'
+range:
+  since: '2026-06-16T00:00:00+00:00'
+  until: '2026-06-16T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 60
+  section_counts:
+    features: 11
+    bug_fixes: 26
+    improvements: 0
+    docs: 5
+    tests: 18
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 29
+  user_facing_items: 29
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: enable anonymous CLI inference'
+    section: features
+    commits:
+    - 71c22e25e
+    authored_at: '2026-06-16T15:00:10+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add anonymous free usage upload gates'
+    section: features
+    commits:
+    - b483543ca
+    authored_at: '2026-06-16T14:19:51+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/core/directus/schemas/anonymous_free_usage_identity_daily.yml
+    - backend/core/directus/schemas/anonymous_free_usage_reservations.yml
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_server_status_response.py
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/attachments.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add connected account privacy settings'
+    section: features
+    commits:
+    - 12f3595d6
+    authored_at: '2026-06-16T14:07:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add chat history feedback links'
+    section: features
+    commits:
+    - 7390d998a
+    authored_at: '2026-06-16T12:43:12+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
+    - backend/core/api/app/tasks/linear_issue_task.py
+    - backend/core/directus/schemas/issues.yml
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: improve self-host server updates'
+    section: features
+    commits:
+    - 833b9a9b2
+    authored_at: '2026-06-16T11:57:47+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - docs/self-hosting/setup.md
+    - docs/specs/self-host-ghcr-images/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Calendar cancel receipt UI'
+    section: features
+    commits:
+    - d34ed0fa2
+    authored_at: '2026-06-16T11:39:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: journal Calendar update delete undo snapshots'
+    section: features
+    commits:
+    - c9f3c7b98
+    authored_at: '2026-06-16T11:29:31+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/calendar/skills/delete_event_skill.py
+    - backend/apps/calendar/skills/update_event_skill.py
+    - backend/shared/providers/google_calendar/client.py
+    - backend/shared/providers/google_calendar/models.py
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_connected_account_receipts.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add CLI Calendar action helpers'
+    section: features
+    commits:
+    - 3fb369186
+    authored_at: '2026-06-16T10:28:42+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add Calendar cancel helper'
+    section: features
+    commits:
+    - 609c82a39
+    authored_at: '2026-06-16T10:23:36+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountActionService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountActionService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: cancel Calendar pending actions'
+    section: features
+    commits:
+    - 71c51571c
+    authored_at: '2026-06-16T10:19:43+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_actions.py
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/tests/test_connected_account_actions.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: support Calendar undo snapshots'
+    section: features
+    commits:
+    - dd5f11baf
+    authored_at: '2026-06-16T10:13:30+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_actions.py
+    - backend/tests/test_connected_account_actions.py
+    - backend/tests/test_connected_account_operation_journal.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/__tests__/connectedAccountActionService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountActionService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: keep anonymous send actions visible'
+    section: bug_fixes
+    commits:
+    - 8c5860be5
+    authored_at: '2026-06-16T23:54:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow anonymous action button sends'
+    section: bug_fixes
+    commits:
+    - 79a9c233d
+    authored_at: '2026-06-16T23:37:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render anonymous text send button'
+    section: bug_fixes
+    commits:
+    - 15ab83ce9
+    authored_at: '2026-06-16T23:35:44+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prefer transcript card for video quotes'
+    section: bug_fixes
+    commits:
+    - 09656aa1c
+    authored_at: '2026-06-16T23:18:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: open video source quote fullscreen'
+    section: bug_fixes
+    commits:
+    - 0196ca170
+    authored_at: '2026-06-16T23:02:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve connected account permission directory'
+    section: bug_fixes
+    commits:
+    - 8c2b112c9
+    authored_at: '2026-06-16T23:02:03+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountTokenBrokerService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountTokenBrokerService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: support anonymous web chat persistence'
+    section: bug_fixes
+    commits:
+    - ab8e545ba
+    authored_at: '2026-06-16T23:01:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/main.yml
+    - frontend/packages/ui/src/services/__tests__/anonymousChatPromotionService.test.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatPromotionService.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair video quote refs by id'
+    section: bug_fixes
+    commits:
+    - fa5b299a7
+    authored_at: '2026-06-16T22:40:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: resolve video source quote refs'
+    section: bug_fixes
+    commits:
+    - 2a9febd72
+    authored_at: '2026-06-16T22:30:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: allow token broker connected account sends'
+    section: bug_fixes
+    commits:
+    - 8f621f16c
+    authored_at: '2026-06-16T22:26:55+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve OAuth webapp redirect origin'
+    section: bug_fixes
+    commits:
+    - f75cb3060
+    authored_at: '2026-06-16T19:50:41+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve Google OAuth credentials from Vault'
+    section: bug_fixes
+    commits:
+    - 9b557b3ca
+    authored_at: '2026-06-16T19:26:41+00:00'
+    changed_paths:
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: avoid duplicate consent toggle checkbox'
+    section: bug_fixes
+    commits:
+    - 519ccce05
+    authored_at: '2026-06-16T16:50:43+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/elements/SettingsConsentToggle.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow connected account settings routes'
+    section: bug_fixes
+    commits:
+    - 7bc4f1626
+    authored_at: '2026-06-16T16:35:25+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsConsentToggle.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: enable anonymous text send button'
+    section: bug_fixes
+    commits:
+    - 808d660b2
+    authored_at: '2026-06-16T16:20:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reveal anonymous draft actions after upload gate'
+    section: bug_fixes
+    commits:
+    - f73d462d4
+    authored_at: '2026-06-16T16:08:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: strip composer link marks during draft restore'
+    section: bug_fixes
+    commits:
+    - 6f054768a
+    authored_at: '2026-06-16T15:47:52+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_write_mode.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: make composer focus state synchronous'
+    section: bug_fixes
+    commits:
+    - 86d48c827
+    authored_at: '2026-06-16T15:42:47+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align CLI PII detection with web patterns'
+    section: bug_fixes
+    commits:
+    - 72384e734
+    authored_at: '2026-06-16T15:35:02+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/outputRedactor.test.ts
+    - frontend/packages/secret-scanner/src/patterns.ts
+    - frontend/packages/secret-scanner/src/scanner.ts
+    - frontend/packages/secret-scanner/src/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve connected account route after OAuth'
+    section: bug_fixes
+    commits:
+    - 8b67c88cb
+    authored_at: '2026-06-16T15:24:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore anonymous upload remove focus'
+    section: bug_fixes
+    commits:
+    - bd549044f
+    authored_at: '2026-06-16T15:22:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: finalize pending connected account handoffs'
+    section: bug_fixes
+    commits:
+    - d24ad700b
+    authored_at: '2026-06-16T15:10:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve typed composer during draft restore'
+    section: bug_fixes
+    commits:
+    - bfa5e14f4
+    authored_at: '2026-06-16T15:08:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    - frontend/packages/ui/src/services/drafts/draftCore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: mount connected account route during auth restore'
+    section: bug_fixes
+    commits:
+    - 8c2aedc9b
+    authored_at: '2026-06-16T14:56:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route pending connected account updates'
+    section: bug_fixes
+    commits:
+    - 483fdc48f
+    authored_at: '2026-06-16T14:41:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore composer pii redetection'
+    section: bug_fixes
+    commits:
+    - 2bf59e134
+    authored_at: '2026-06-16T14:30:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: record Calendar connected account evidence'
+    section: docs
+    commits:
+    - 46ca409da
+    authored_at: '2026-06-16T23:31:28+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Calendar CLI evidence'
+    section: docs
+    commits:
+    - 6224164f1
+    authored_at: '2026-06-16T16:00:20+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Calendar backend permission evidence'
+    section: docs
+    commits:
+    - 87cbe816e
+    authored_at: '2026-06-16T15:58:17+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record connected account privacy evidence'
+    section: docs
+    commits:
+    - 0a3cebfd1
+    authored_at: '2026-06-16T15:56:10+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record Calendar permission test evidence'
+    section: docs
+    commits:
+    - e7948a83c
+    authored_at: '2026-06-16T13:37:22+00:00'
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: stabilize anonymous free chat spec'
+    section: tests
+    commits:
+    - 1adc60f3f
+    authored_at: '2026-06-16T23:18:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: lock OAuth webapp domain selection'
+    section: tests
+    commits:
+    - 6bd53b95a
+    authored_at: '2026-06-16T19:52:42+00:00'
+    changed_paths:
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: request deterministic mail draft in pii flow'
+    section: tests
+    commits:
+    - 907d3a437
+    authored_at: '2026-06-16T16:16:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: target mail embed in pii flow'
+    section: tests
+    commits:
+    - 64844f349
+    authored_at: '2026-06-16T16:03:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: reopen connected accounts via settings event'
+    section: tests
+    commits:
+    - ae5802cde
+    authored_at: '2026-06-16T15:45:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: verify connected account update persistence'
+    section: tests
+    commits:
+    - fb06d2c0e
+    authored_at: '2026-06-16T15:34:39+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize draft restore regression test'
+    section: tests
+    commits:
+    - b196bb857
+    authored_at: '2026-06-16T15:15:02+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize anonymous upload gate spec'
+    section: tests
+    commits:
+    - 629e88ae6
+    authored_at: '2026-06-16T15:04:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix Calendar connected account selector'
+    section: tests
+    commits:
+    - 66da8fdec
+    authored_at: '2026-06-16T14:24:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden flaky e2e assertions'
+    section: tests
+    commits:
+    - 4b3801b70
+    authored_at: '2026-06-16T14:00:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover Calendar connected account UI'
+    section: tests
+    commits:
+    - 053133f75
+    authored_at: '2026-06-16T13:20:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden remaining web e2e flows'
+    section: tests
+    commits:
+    - 1a2b4a4b5
+    authored_at: '2026-06-16T13:12:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix pytest daily regressions'
+    section: tests
+    commits:
+    - aa59f518b
+    authored_at: '2026-06-16T12:57:28+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/active_chat_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_security_regressions.py
+    - backend/tests/test_travel_skill_constraints.py
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-activities.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-transport.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-to-watch-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-watched-movies.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-watched-shows.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-videos-to-watch-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-web-bookmarks.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-web-read-later.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden signup OTP step waits'
+    section: tests
+    commits:
+    - d20f6607d
+    authored_at: '2026-06-16T12:26:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: disable live mocks with no-mocks'
+    section: tests
+    commits:
+    - d39db98f2
+    authored_at: '2026-06-16T12:12:15+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: pass Google Calendar secrets to Playwright'
+    section: tests
+    commits:
+    - 64d2a9df5
+    authored_at: '2026-06-16T12:11:16+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix signup flow regressions'
+    section: tests
+    commits:
+    - f00712b9a
+    authored_at: '2026-06-16T12:05:40+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/tests/test_cli_account_delete.py
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/packages/ui/src/components/signup/steps/alpha_disclaimer/AlphaDisclaimerContent.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover live Calendar chat flow'
+    section: tests
+    commits:
+    - 4f5f5d811
+    authored_at: '2026-06-16T12:00:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/connected-account-calendar-live-oauth.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: keep anonymous send actions visible'
+    commits:
+    - 8c5860be5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow anonymous action button sends'
+    commits:
+    - 79a9c233d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: render anonymous text send button'
+    commits:
+    - 15ab83ce9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prefer transcript card for video quotes'
+    commits:
+    - 09656aa1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open video source quote fullscreen'
+    commits:
+    - 0196ca170
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: support anonymous web chat persistence'
+    commits:
+    - ab8e545ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve OAuth webapp redirect origin'
+    commits:
+    - f75cb3060
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: avoid duplicate consent toggle checkbox'
+    commits:
+    - 519ccce05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow connected account settings routes'
+    commits:
+    - 7bc4f1626
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: enable anonymous text send button'
+    commits:
+    - 808d660b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reveal anonymous draft actions after upload gate'
+    commits:
+    - f73d462d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: make composer focus state synchronous'
+    commits:
+    - 86d48c827
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: align CLI PII detection with web patterns'
+    commits:
+    - 72384e734
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve connected account route after OAuth'
+    commits:
+    - 8b67c88cb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore anonymous upload remove focus'
+    commits:
+    - bd549044f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: finalize pending connected account handoffs'
+    commits:
+    - d24ad700b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: enable anonymous CLI inference'
+    commits:
+    - 71c22e25e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: mount connected account route during auth restore'
+    commits:
+    - 8c2aedc9b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: route pending connected account updates'
+    commits:
+    - 483fdc48f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore composer pii redetection'
+    commits:
+    - 2bf59e134
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add anonymous free usage upload gates'
+    commits:
+    - b483543ca
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add connected account privacy settings'
+    commits:
+    - 12f3595d6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add chat history feedback links'
+    commits:
+    - 7390d998a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: improve self-host server updates'
+    commits:
+    - 833b9a9b2
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add Calendar cancel receipt UI'
+    commits:
+    - d34ed0fa2
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: journal Calendar update delete undo snapshots'
+    commits:
+    - c9f3c7b98
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add CLI Calendar action helpers'
+    commits:
+    - 3fb369186
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: cancel Calendar pending actions'
+    commits:
+    - 71c51571c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: support Calendar undo snapshots'
+    commits:
+    - dd5f11baf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: keep anonymous send actions visible'
+    commits:
+    - 8c5860be5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow anonymous action button sends'
+    commits:
+    - 79a9c233d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: render anonymous text send button'
+    commits:
+    - 15ab83ce9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prefer transcript card for video quotes'
+    commits:
+    - 09656aa1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open video source quote fullscreen'
+    commits:
+    - 0196ca170
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: support anonymous web chat persistence'
+    commits:
+    - ab8e545ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve OAuth webapp redirect origin'
+    commits:
+    - f75cb3060
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: avoid duplicate consent toggle checkbox'
+    commits:
+    - 519ccce05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow connected account settings routes'
+    commits:
+    - 7bc4f1626
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: enable anonymous text send button'
+    commits:
+    - 808d660b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reveal anonymous draft actions after upload gate'
+    commits:
+    - f73d462d4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make composer focus state synchronous'
+    commits:
+    - 86d48c827
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: align CLI PII detection with web patterns'
+    commits:
+    - 72384e734
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve connected account route after OAuth'
+    commits:
+    - 8b67c88cb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore anonymous upload remove focus'
+    commits:
+    - bd549044f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: finalize pending connected account handoffs'
+    commits:
+    - d24ad700b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: enable anonymous CLI inference'
+    commits:
+    - 71c22e25e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: mount connected account route during auth restore'
+    commits:
+    - 8c2aedc9b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: route pending connected account updates'
+    commits:
+    - 483fdc48f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore composer pii redetection'
+    commits:
+    - 2bf59e134
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add anonymous free usage upload gates'
+    commits:
+    - b483543ca
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add connected account privacy settings'
+    commits:
+    - 12f3595d6
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add chat history feedback links'
+    commits:
+    - 7390d998a
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: improve self-host server updates'
+    commits:
+    - 833b9a9b2
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add Calendar cancel receipt UI'
+    commits:
+    - d34ed0fa2
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: journal Calendar update delete undo snapshots'
+    commits:
+    - c9f3c7b98
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add CLI Calendar action helpers'
+    commits:
+    - 3fb369186
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: cancel Calendar pending actions'
+    commits:
+    - 71c51571c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: support Calendar undo snapshots'
+    commits:
+    - dd5f11baf
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 8c5860be5d1283b84c371bab24a9166855e1da36
+    short_sha: 8c5860be5
+    authored_at: '2026-06-16T23:54:05+00:00'
+    subject: 'fix: keep anonymous send actions visible'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 79a9c233dd764b3700b030a2cbf1a4c88fdc7eda
+    short_sha: 79a9c233d
+    authored_at: '2026-06-16T23:37:32+00:00'
+    subject: 'fix: allow anonymous action button sends'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    related_feature_ids: []
+  - sha: 15ab83ce9a650849636d76acb156599681908534
+    short_sha: 15ab83ce9
+    authored_at: '2026-06-16T23:35:44+00:00'
+    subject: 'fix: render anonymous text send button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 46ca409da1fe152b491489f7ebe658b48ed069bf
+    short_sha: 46ca409da
+    authored_at: '2026-06-16T23:31:28+00:00'
+    subject: 'docs: record Calendar connected account evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: 09656aa1c6a991b19359478b2ec612232d010af5
+    short_sha: 09656aa1c
+    authored_at: '2026-06-16T23:18:47+00:00'
+    subject: 'fix: prefer transcript card for video quotes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    related_feature_ids: []
+  - sha: 1adc60f3f674e206257a18b23ef8be0147013c51
+    short_sha: 1adc60f3f
+    authored_at: '2026-06-16T23:18:00+00:00'
+    subject: 'test: stabilize anonymous free chat spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: 0196ca17023cc3967f67a0e0a8dd9c82694aad94
+    short_sha: 0196ca170
+    authored_at: '2026-06-16T23:02:30+00:00'
+    subject: 'fix: open video source quote fullscreen'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    related_feature_ids: []
+  - sha: 8c2b112c91f28e7009a63d850f206420002df9ce
+    short_sha: 8c2b112c9
+    authored_at: '2026-06-16T23:02:03+00:00'
+    subject: 'fix: preserve connected account permission directory'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountTokenBrokerService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountTokenBrokerService.ts
+    related_feature_ids: []
+  - sha: ab8e545bab58260a5dfed580656f688f4f3e1108
+    short_sha: ab8e545ba
+    authored_at: '2026-06-16T23:01:53+00:00'
+    subject: 'fix: support anonymous web chat persistence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/enter_message/main.yml
+    - frontend/packages/ui/src/services/__tests__/anonymousChatPromotionService.test.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/packages/ui/src/services/anonymousChatPromotionService.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: fa5b299a7ce861a27817b460a4c5c9e9956e8390
+    short_sha: fa5b299a7
+    authored_at: '2026-06-16T22:40:45+00:00'
+    subject: 'fix: repair video quote refs by id'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 2a9febd72f88bb9d116b30ed13213eec084ce6d7
+    short_sha: 2a9febd72
+    authored_at: '2026-06-16T22:30:08+00:00'
+    subject: 'fix: resolve video source quote refs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids: []
+  - sha: 8f621f16c3902de3372b9770943438c5f7dc6d2e
+    short_sha: 8f621f16c
+    authored_at: '2026-06-16T22:26:55+00:00'
+    subject: 'fix: allow token broker connected account sends'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    related_feature_ids: []
+  - sha: 6bd53b95aafbfa5cb65a69860548a6bf0dcfdcde
+    short_sha: 6bd53b95a
+    authored_at: '2026-06-16T19:52:42+00:00'
+    subject: 'test: lock OAuth webapp domain selection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    related_feature_ids: []
+  - sha: f75cb3060bd22e67b20421017c78ba2c0560d2e7
+    short_sha: f75cb3060
+    authored_at: '2026-06-16T19:50:41+00:00'
+    subject: 'fix: preserve OAuth webapp redirect origin'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    related_feature_ids: []
+  - sha: 9b557b3ca40af663f10e254c294b1d02a536f239
+    short_sha: 9b557b3ca
+    authored_at: '2026-06-16T19:26:41+00:00'
+    subject: 'fix: resolve Google OAuth credentials from Vault'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/google_calendar/oauth.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    related_feature_ids: []
+  - sha: 519ccce05b983305fa36cd4e13d8255d697bdd74
+    short_sha: 519ccce05
+    authored_at: '2026-06-16T16:50:43+00:00'
+    subject: 'fix: avoid duplicate consent toggle checkbox'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/elements/SettingsConsentToggle.svelte
+    related_feature_ids: []
+  - sha: 7bc4f162651800b44d47dccf812aba09ea39ff13
+    short_sha: 7bc4f1626
+    authored_at: '2026-06-16T16:35:25+00:00'
+    subject: 'fix: allow connected account settings routes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsConsentToggle.svelte
+    related_feature_ids: []
+  - sha: 808d660b2d9676b6123b95ae80b360c2694b5c89
+    short_sha: 808d660b2
+    authored_at: '2026-06-16T16:20:58+00:00'
+    subject: 'fix: enable anonymous text send button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    related_feature_ids: []
+  - sha: 907d3a43714a789129eaf2e8b09ccbdbb2e587a7
+    short_sha: 907d3a437
+    authored_at: '2026-06-16T16:16:30+00:00'
+    subject: 'test: request deterministic mail draft in pii flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    related_feature_ids: []
+  - sha: f73d462d4fba870f4c0bf593e38ce6889741b78b
+    short_sha: f73d462d4
+    authored_at: '2026-06-16T16:08:08+00:00'
+    subject: 'fix: reveal anonymous draft actions after upload gate'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 64844f349d20a77bab34ca52d06a5fcaf13fcaf9
+    short_sha: 64844f349
+    authored_at: '2026-06-16T16:03:47+00:00'
+    subject: 'test: target mail embed in pii flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6224164f161011f7a423268eb349a32f26303d68
+    short_sha: 6224164f1
+    authored_at: '2026-06-16T16:00:20+00:00'
+    subject: 'docs: record Calendar CLI evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: 87cbe816e22e13b5dff00e995a3f3dc98260dbff
+    short_sha: 87cbe816e
+    authored_at: '2026-06-16T15:58:17+00:00'
+    subject: 'docs: record Calendar backend permission evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: 0a3cebfd178a856ed661ffd686e00465a3edced4
+    short_sha: 0a3cebfd1
+    authored_at: '2026-06-16T15:56:10+00:00'
+    subject: 'docs: record connected account privacy evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: 6f054768ab9f32ad8ef6018185097fb31f259031
+    short_sha: 6f054768a
+    authored_at: '2026-06-16T15:47:52+00:00'
+    subject: 'fix: strip composer link marks during draft restore'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_write_mode.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: ae5802cde651fd0709d61b1a43c0855224ebb325
+    short_sha: ae5802cde
+    authored_at: '2026-06-16T15:45:27+00:00'
+    subject: 'test: reopen connected accounts via settings event'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    related_feature_ids: []
+  - sha: 86d48c827a379a1f23012eedebc387e9a99b4add
+    short_sha: 86d48c827
+    authored_at: '2026-06-16T15:42:47+00:00'
+    subject: 'fix: make composer focus state synchronous'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 72384e7347625185a95156576804da561c761cea
+    short_sha: 72384e734
+    authored_at: '2026-06-16T15:35:02+00:00'
+    subject: 'fix: align CLI PII detection with web patterns'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/outputRedactor.test.ts
+    - frontend/packages/secret-scanner/src/patterns.ts
+    - frontend/packages/secret-scanner/src/scanner.ts
+    - frontend/packages/secret-scanner/src/types.ts
+    related_feature_ids: []
+  - sha: fb06d2c0e473cd1c64475f0775cd76a3261241ee
+    short_sha: fb06d2c0e
+    authored_at: '2026-06-16T15:34:39+00:00'
+    subject: 'test: verify connected account update persistence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    related_feature_ids: []
+  - sha: 8b67c88cb75f22ca9002c5d7c16afe5b5749d8e1
+    short_sha: 8b67c88cb
+    authored_at: '2026-06-16T15:24:46+00:00'
+    subject: 'fix: preserve connected account route after OAuth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    related_feature_ids: []
+  - sha: bd549044f9f69a2380b159eda1d39938a91ecb58
+    short_sha: bd549044f
+    authored_at: '2026-06-16T15:22:37+00:00'
+    subject: 'fix: restore anonymous upload remove focus'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: b196bb857126c447ef1d2c3222b0042a269cf397
+    short_sha: b196bb857
+    authored_at: '2026-06-16T15:15:02+00:00'
+    subject: 'test: stabilize draft restore regression test'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    related_feature_ids: []
+  - sha: d24ad700bee15e286d53e64a82a93f9ec2d14664
+    short_sha: d24ad700b
+    authored_at: '2026-06-16T15:10:45+00:00'
+    subject: 'fix: finalize pending connected account handoffs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: bfa5e14f4739a3e5477767428a4d5b0ab3fda78b
+    short_sha: bfa5e14f4
+    authored_at: '2026-06-16T15:08:58+00:00'
+    subject: 'fix: preserve typed composer during draft restore'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    - frontend/packages/ui/src/services/drafts/draftCore.ts
+    related_feature_ids: []
+  - sha: 629e88ae6bb8eef676ea47fd01b023bb8fccb366
+    short_sha: 629e88ae6
+    authored_at: '2026-06-16T15:04:58+00:00'
+    subject: 'test: stabilize anonymous upload gate spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 71c22e25e15829b7af11d228dadef2c60b96b2b8
+    short_sha: 71c22e25e
+    authored_at: '2026-06-16T15:00:10+00:00'
+    subject: 'feat: enable anonymous CLI inference'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 8c2aedc9b6bc650e9cafe4b9dcc3d27b9b2ef512
+    short_sha: 8c2aedc9b
+    authored_at: '2026-06-16T14:56:14+00:00'
+    subject: 'fix: mount connected account route during auth restore'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 483fdc48f0a963950763ae956af913396ed9d325
+    short_sha: 483fdc48f
+    authored_at: '2026-06-16T14:41:25+00:00'
+    subject: 'fix: route pending connected account updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    related_feature_ids: []
+  - sha: 2bf59e13467ec8b7a40a1663606409e97e38b17c
+    short_sha: 2bf59e134
+    authored_at: '2026-06-16T14:30:31+00:00'
+    subject: 'fix: restore composer pii redetection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 66da8fdec6d61e211bbbbb92b137f71f22b01c44
+    short_sha: 66da8fdec
+    authored_at: '2026-06-16T14:24:12+00:00'
+    subject: 'test: fix Calendar connected account selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    related_feature_ids: []
+  - sha: b483543ca4b08d95a8d3d42a73ad70d52c68f03c
+    short_sha: b483543ca
+    authored_at: '2026-06-16T14:19:51+00:00'
+    subject: 'feat: add anonymous free usage upload gates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/main.py
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/core/directus/schemas/anonymous_free_usage_identity_daily.yml
+    - backend/core/directus/schemas/anonymous_free_usage_reservations.yml
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_server_status_response.py
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/i18n/sources/enter_message/attachments.yml
+    related_feature_ids: []
+  - sha: 12f3595d600e6629b909fe4b77f53d8b4614a29d
+    short_sha: 12f3595d6
+    authored_at: '2026-06-16T14:07:41+00:00'
+    subject: 'feat: add connected account privacy settings'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+    - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
+    - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    related_feature_ids: []
+  - sha: 4b3801b705e629f69d91157c69f62bbd860fffbd
+    short_sha: 4b3801b70
+    authored_at: '2026-06-16T14:00:43+00:00'
+    subject: 'test: harden flaky e2e assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    related_feature_ids: []
+  - sha: e7948a83c0218eef5460b702049cc42d22532e60
+    short_sha: e7948a83c
+    authored_at: '2026-06-16T13:37:22+00:00'
+    subject: 'docs: record Calendar permission test evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/calendar-permission-management/spec.yml
+    related_feature_ids: []
+  - sha: 053133f7525fbba01a27cea439bc5b2f56f29558
+    short_sha: 053133f75
+    authored_at: '2026-06-16T13:20:50+00:00'
+    subject: 'test: cover Calendar connected account UI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/app_store.yml
+    related_feature_ids: []
+  - sha: 1a2b4a4b51964a985d334d9673b9adcf921b286e
+    short_sha: 1a2b4a4b5
+    authored_at: '2026-06-16T13:12:01+00:00'
+    subject: 'test: harden remaining web e2e flows'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/default-model-settings.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    - frontend/apps/web_app/tests/recent-chats-dedup.spec.ts
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/ImageRenderer.ts
+    related_feature_ids: []
+  - sha: aa59f518be2112212deae9e6ac3a51699c485f34
+    short_sha: aa59f518b
+    authored_at: '2026-06-16T12:57:28+00:00'
+    subject: 'test: fix pytest daily regressions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/active_chat_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_apps_api.py
+    - backend/tests/test_security_regressions.py
+    - backend/tests/test_travel_skill_constraints.py
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-activities.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-travel-preferred-transport.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-to-watch-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-watched-movies.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-tv-watched-shows.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-videos-to-watch-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-web-bookmarks.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/memory-web-read-later.ts
+    related_feature_ids: []
+  - sha: 7390d998a709124dc62f392de0115e870bd8386d
+    short_sha: 7390d998a
+    authored_at: '2026-06-16T12:43:12+00:00'
+    subject: 'feat: add chat history feedback links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/tasks/email_tasks/issue_report_email_task.py
+    - backend/core/api/app/tasks/linear_issue_task.py
+    - backend/core/directus/schemas/issues.yml
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    related_feature_ids: []
+  - sha: d20f6607dc45182dedd0221f00e88a45a1de8090
+    short_sha: d20f6607d
+    authored_at: '2026-06-16T12:26:12+00:00'
+    subject: 'test: harden signup OTP step waits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: d39db98f2c25a6dae0a8adf5a7f9f0df4abc08c3
+    short_sha: d39db98f2
+    authored_at: '2026-06-16T12:12:15+00:00'
+    subject: 'test: disable live mocks with no-mocks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 64d2a9df539f725759f419db8c8b2de6a26ce01d
+    short_sha: 64d2a9df5
+    authored_at: '2026-06-16T12:11:16+00:00'
+    subject: 'test: pass Google Calendar secrets to Playwright'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: f00712b9a94a1c3221eb928675ac242119f22227
+    short_sha: f00712b9a
+    authored_at: '2026-06-16T12:05:40+00:00'
+    subject: 'test: fix signup flow regressions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/tests/test_cli_account_delete.py
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/packages/ui/src/components/signup/steps/alpha_disclaimer/AlphaDisclaimerContent.svelte
+    related_feature_ids: []
+  - sha: 4f5f5d8112844ebfe287199569fc3880583fecea
+    short_sha: 4f5f5d811
+    authored_at: '2026-06-16T12:00:41+00:00'
+    subject: 'test: cover live Calendar chat flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/connected-account-calendar-live-oauth.spec.ts
+    related_feature_ids: []
+  - sha: 833b9a9b2a09cbc4d6d6a80b3c63b9bd75d748f8
+    short_sha: 833b9a9b2
+    authored_at: '2026-06-16T11:57:47+00:00'
+    subject: 'feat: improve self-host server updates'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    - docs/self-hosting/setup.md
+    - docs/specs/self-host-ghcr-images/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: d34ed0fa2c7ffa8904eab69e141173e71a276c1d
+    short_sha: d34ed0fa2
+    authored_at: '2026-06-16T11:39:36+00:00'
+    subject: 'feat: add Calendar cancel receipt UI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    related_feature_ids: []
+  - sha: c9f3c7b98240ebeda27a6edebc569cc4b7e14bcf
+    short_sha: c9f3c7b98
+    authored_at: '2026-06-16T11:29:31+00:00'
+    subject: 'feat: journal Calendar update delete undo snapshots'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/calendar/skills/delete_event_skill.py
+    - backend/apps/calendar/skills/update_event_skill.py
+    - backend/shared/providers/google_calendar/client.py
+    - backend/shared/providers/google_calendar/models.py
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_connected_account_receipts.py
+    related_feature_ids: []
+  - sha: 3fb3691861f792eb03ef9f0318076e265ef7073d
+    short_sha: 3fb369186
+    authored_at: '2026-06-16T10:28:42+00:00'
+    subject: 'feat: add CLI Calendar action helpers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: 609c82a39f547fa74647f4e214882b578cb0cecc
+    short_sha: 609c82a39
+    authored_at: '2026-06-16T10:23:36+00:00'
+    subject: 'feat: add Calendar cancel helper'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/connectedAccountActionService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountActionService.ts
+    related_feature_ids: []
+  - sha: 71c51571c7edb7c6c5e7e7b6ea652cd035246854
+    short_sha: 71c51571c
+    authored_at: '2026-06-16T10:19:43+00:00'
+    subject: 'feat: cancel Calendar pending actions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_actions.py
+    - backend/core/api/app/services/connected_account_operation_journal.py
+    - backend/tests/test_connected_account_actions.py
+    related_feature_ids: []
+  - sha: dd5f11baf4a159e8c9cfd40d7256ff1235c63069
+    short_sha: dd5f11baf
+    authored_at: '2026-06-16T10:13:30+00:00'
+    subject: 'feat: support Calendar undo snapshots'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/connected_account_actions.py
+    - backend/tests/test_connected_account_actions.py
+    - backend/tests/test_connected_account_operation_journal.py
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/__tests__/connectedAccountActionService.test.ts
+    - frontend/packages/ui/src/services/connectedAccountActionService.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced anonymous CLI inference, expanded Calendar integration with new undo and cancellation capabilities,
+    and added granular privacy settings for connected accounts. The update also includes significant UI refinements for anonymous
+    usage and video embeds.
+  released_changes:
+  - text: OpenMates now supports anonymous AI inference via the CLI and introduced upload gates and persistence for anonymous
+      web chat sessions.
+    evidence:
+      commits:
+      - 71c22e25e
+      - b483543ca
+      - ab8e545ba
+    release_status: released_main
+  - text: The Calendar integration now supports undoing snapshots for updates or deletions, canceling pending actions, and
+      includes new CLI action helpers.
+    evidence:
+      commits:
+      - dd5f11baf
+      - 71c51571c
+      - c9f3c7b98
+      - d34ed0fa2
+      - 3fb369186
+    release_status: released_main
+  - text: Added dedicated privacy settings for connected accounts, allowing users to manage permissions more granularly.
+    evidence:
+      commits:
+      - 12f3595d6
+    release_status: released_main
+  - text: Chat history now includes direct feedback links to facilitate issue reporting.
+    evidence:
+      commits:
+      - 7390d998a
+    release_status: released_main
+  - text: Improved the server update process for self-hosted OpenMates instances.
+    evidence:
+      commits:
+      - 833b9a9b2
+    release_status: released_main
+  bug_fixes:
+  - text: Resolved several issues with anonymous chat interactions, ensuring send buttons and action buttons remain visible
+      and functional during the upload gate and draft restoration processes.
+    evidence:
+      commits:
+      - 8c5860be5
+      - 79a9c233d
+      - 15ab83ce9
+      - 808d660b2
+      - f73d462d4
+      - bd549044f
+    release_status: released_main
+  - text: Improved video source quotes by prioritizing transcript cards and enabling fullscreen playback for embedded video
+      quotes.
+    evidence:
+      commits:
+      - 09656aa1c
+      - 0196ca170
+    release_status: released_main
+  - text: Fixed multiple routing and state issues within the connected account and OAuth flows, including preserving redirect
+      origins and ensuring settings routes mount correctly after authentication.
+    evidence:
+      commits:
+      - f75cb3060
+      - 519ccce05
+      - 7bc4f1626
+      - 8b67c88cb
+      - d24ad700b
+      - 8c2aedc9b
+      - 483fdc48f
+    release_status: released_main
+  - text: Aligned CLI PII detection patterns with the web application and restored PII redetection within the message composer.
+    evidence:
+      commits:
+      - 72384e734
+      - 2bf59e134
+    release_status: released_main
+  - text: Made the message composer focus state synchronous to improve input responsiveness.
+    evidence:
+      commits:
+      - 86d48c827
+    release_status: released_main
+  unreleased_progress:
+  - text: Internal helper functions for Calendar action cancellation were added to the connected account service.
+    evidence:
+      commits:
+      - 609c82a39
+    release_status: released_main
+  internal_progress:
+  - text: Updated technical specifications for Calendar permission management and connected account privacy.
+    evidence:
+      commits:
+      - 46ca409da
+      - 6224164f1
+      - 87cbe816e
+      - 0a3cebfd1
+      - e7948a83c
+    release_status: released_main
+  - text: Extensive hardening of the end-to-end test suite, covering signup flows, anonymous usage, and live Calendar OAuth
+      integrations.
+    evidence:
+      commits:
+      - 1adc60f3f
+      - 6bd53b95a
+      - 907d3a437
+      - 64844f349
+      - ae5802cde
+      - fb06d2c0e
+      - b196bb857
+      - 629e88ae6
+      - 66da8fdec
+      - 4b3801b70
+      - 053133f75
+      - 1a2b4a4b5
+      - aa59f518b
+      - d20f6607d
+      - d39db98f2
+      - 64d2a9df5
+      - f00712b9a
+      - 4f5f5d811
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Anonymous CLI inference support.
+      evidence:
+        commits:
+        - 71c22e25e
+      reason: Enables a significant new capability for CLI users to interact with AI without an account.
+    - text: Calendar action undo and cancellation support.
+      evidence:
+        commits:
+        - dd5f11baf
+        - 71c51571c
+        - c9f3c7b98
+        - d34ed0fa2
+      reason: Introduces critical safety and convenience features for Calendar integrations.
+    - text: New privacy settings for connected accounts.
+      evidence:
+        commits:
+        - 12f3595d6
+      reason: Provides users with necessary control over their connected account data.
+    - text: Chat history feedback and issue reporting links.
+      evidence:
+        commits:
+        - 7390d998a
+      reason: Improves the feedback loop between users and the project.
+    exclude:
+    - text: Internal service and state management refinements.
+      evidence:
+        commits:
+        - 8c2b112c9
+        - fa5b299a7
+        - 2a9febd72
+        - 8f621f16c
+        - 9b557b3ca
+        - 6f054768a
+        - bfa5e14f4
+      reason: These items are internal fixes, service-level improvements, or non-user-facing logic changes.
+    rationale: The update focuses on expanding accessibility via anonymous CLI usage and significantly maturing the Calendar
+      integration with robust undo/cancel capabilities and privacy controls.
+  social_video_recommendations:
+  - idea: Demonstrate the new 'Undo' and 'Cancel' UI for Calendar actions in a short clip.
+    priority: High
+    reason: This is a tangible, user-facing safety feature that differentiates the Calendar integration.
+    evidence:
+      commits:
+      - dd5f11baf
+      - 71c51571c
+      - d34ed0fa2
+  - idea: Show a quick terminal recording of anonymous CLI inference in action.
+    priority: Medium
+    reason: Highlights the project's commitment to low-friction access and CLI-first workflows.
+    evidence:
+      commits:
+      - 71c22e25e
+  quality_notes:
+  - Extensive test coverage was added for the new Calendar and anonymous usage flows.
+  - PII detection patterns were synchronized across CLI and Web platforms.
+  - Several race conditions in the message composer and OAuth routing were addressed.
+  validation_warnings: []

@@ -1,0 +1,1481 @@
+schema_version: 1
+cadence: daily
+date: '2026-05-06'
+generated_at: '2026-07-09T15:17:20+00:00'
+range:
+  since: '2026-05-06T00:00:00+00:00'
+  until: '2026-05-06T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 32
+  section_counts:
+    features: 2
+    bug_fixes: 13
+    improvements: 0
+    docs: 0
+    tests: 17
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 10
+  user_facing_items: 12
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: refine Apple app embeds and auth'
+    section: features
+    commits:
+    - ff7639e29
+    authored_at: '2026-05-06T19:09:57+02:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerConnectionView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/project.yml
+    - frontend/packages/ui/src/i18n/sources/common.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'feat: add GitHub repo button to header'
+    section: features
+    commits:
+    - 1b826f503
+    authored_at: '2026-05-06T11:50:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: refetch incomplete login profile cache'
+    section: bug_fixes
+    commits:
+    - 913babd5a
+    authored_at: '2026-05-06T17:20:07+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/schemas/user.py
+    - backend/core/api/app/services/cache_user_mixin.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: detect Apple external display scenes'
+    section: bug_fixes
+    commits:
+    - '280607642'
+    authored_at: '2026-05-06T19:10:51+02:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: allow recovered users without usernames'
+    section: bug_fixes
+    commits:
+    - 106de3d58
+    authored_at: '2026-05-06T16:46:35+00:00'
+    changed_paths:
+    - backend/core/api/app/schemas/user.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: serve Apple app site association'
+    section: bug_fixes
+    commits:
+    - c55b08dde
+    authored_at: '2026-05-06T16:28:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/.well-known/apple-app-site-association
+    - frontend/apps/web_app/vercel.json
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: avoid duplicate delete 2fa verification'
+    section: bug_fixes
+    commits:
+    - 0e30025c2
+    authored_at: '2026-05-06T15:44:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsDeleteAccount.svelte
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: harden invoice backfill and delete cleanup'
+    section: bug_fixes
+    commits:
+    - 29d9a2c18
+    authored_at: '2026-05-06T15:43:21+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: retry cli settings rate limits'
+    section: bug_fixes
+    commits:
+    - 8e6311305
+    authored_at: '2026-05-06T15:41:04+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: avoid cli memory export rate limits'
+    section: bug_fixes
+    commits:
+    - 793011e15
+    authored_at: '2026-05-06T15:35:03+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: complete paid signups and add invoice remediation'
+    section: bug_fixes
+    commits:
+    - 0b495aeeb
+    authored_at: '2026-05-06T15:10:03+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/templates/email/account-deletion-warning-correction.mjml
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/scripts/prepare_deletion_warning_corrections.py
+    - backend/tests/test_security_regressions.py
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reject stale shared chat links'
+    section: bug_fixes
+    commits:
+    - 2911b6461
+    authored_at: '2026-05-06T14:48:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/index.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: recover stale fullscreen chunks'
+    section: bug_fixes
+    commits:
+    - e700a636d
+    authored_at: '2026-05-06T13:29:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/utils/chunkErrorHandler.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: reload when embed fullscreen chunk is stale'
+    section: bug_fixes
+    commits:
+    - e2f8e977b
+    authored_at: '2026-05-06T12:29:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/embedFullscreenResolver.ts
+    - frontend/packages/ui/src/utils/chunkErrorHandler.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: start passkey autofill before focusing login input'
+    section: bug_fixes
+    commits:
+    - 347d120e5
+    authored_at: '2026-05-06T11:51:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    - frontend/packages/ui/src/components/Login.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: use api key device notification for approval'
+    section: tests
+    commits:
+    - dd56ecbf9
+    authored_at: '2026-05-06T18:32:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: scroll api key settings items into view'
+    section: tests
+    commits:
+    - c0d54d486
+    authored_at: '2026-05-06T18:15:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use visible settings back button'
+    section: tests
+    commits:
+    - a7cb784b9
+    authored_at: '2026-05-06T18:10:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: reset settings menu in api key flow'
+    section: tests
+    commits:
+    - e33487f46
+    authored_at: '2026-05-06T17:54:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix account recovery readiness wait'
+    section: tests
+    commits:
+    - 12c3aae63
+    authored_at: '2026-05-06T17:34:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden remaining targeted e2e specs'
+    section: tests
+    commits:
+    - 6caeed77f
+    authored_at: '2026-05-06T16:35:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for signup credit balance'
+    section: tests
+    commits:
+    - c5473fb71
+    authored_at: '2026-05-06T16:10:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow necessary payment cookies'
+    section: tests
+    commits:
+    - 69d65dc93
+    authored_at: '2026-05-06T16:03:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - shared/docs/privacy_promises.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: accept signup deletion redirect'
+    section: tests
+    commits:
+    - cc5faa61d
+    authored_at: '2026-05-06T15:56:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow embed preview auth noise'
+    section: tests
+    commits:
+    - 911a5657c
+    authored_at: '2026-05-06T15:11:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize unauthenticated fullscreen coverage'
+    section: tests
+    commits:
+    - fd0b61ca2
+    authored_at: '2026-05-06T13:47:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden final playwright drift'
+    section: tests
+    commits:
+    - 5a69d3cdb
+    authored_at: '2026-05-06T13:41:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden final e2e flaky specs'
+    section: tests
+    commits:
+    - 9b28ebe83
+    authored_at: '2026-05-06T13:04:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: narrow remaining e2e assertions'
+    section: tests
+    commits:
+    - d93a168ff
+    authored_at: '2026-05-06T12:26:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/apps/web_app/tests/preview-error.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: refresh deterministic e2e expectations'
+    section: tests
+    commits:
+    - 1f9d4fb58
+    authored_at: '2026-05-06T11:48:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    - frontend/apps/web_app/tests/preview-error.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/status-page.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: relax chat readiness helper'
+    section: tests
+    commits:
+    - bd26c485e
+    authored_at: '2026-05-06T10:56:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix e2e chat readiness drift'
+    section: tests
+    commits:
+    - beab095ef
+    authored_at: '2026-05-06T10:04:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+    - frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/newsletter-categories.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-images-generate-safety.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: refetch incomplete login profile cache'
+    commits:
+    - 913babd5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: serve Apple app site association'
+    commits:
+    - c55b08dde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: avoid duplicate delete 2fa verification'
+    commits:
+    - 0e30025c2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: retry cli settings rate limits'
+    commits:
+    - 8e6311305
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: avoid cli memory export rate limits'
+    commits:
+    - 793011e15
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: complete paid signups and add invoice remediation'
+    commits:
+    - 0b495aeeb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: reject stale shared chat links'
+    commits:
+    - 2911b6461
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: recover stale fullscreen chunks'
+    commits:
+    - e700a636d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: start passkey autofill before focusing login input'
+    commits:
+    - 347d120e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add GitHub repo button to header'
+    commits:
+    - 1b826f503
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: refetch incomplete login profile cache'
+    commits:
+    - 913babd5a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: detect Apple external display scenes'
+    commits:
+    - '280607642'
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: refine Apple app embeds and auth'
+    commits:
+    - ff7639e29
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: serve Apple app site association'
+    commits:
+    - c55b08dde
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: avoid duplicate delete 2fa verification'
+    commits:
+    - 0e30025c2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: retry cli settings rate limits'
+    commits:
+    - 8e6311305
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: avoid cli memory export rate limits'
+    commits:
+    - 793011e15
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: complete paid signups and add invoice remediation'
+    commits:
+    - 0b495aeeb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: reject stale shared chat links'
+    commits:
+    - 2911b6461
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: recover stale fullscreen chunks'
+    commits:
+    - e700a636d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: start passkey autofill before focusing login input'
+    commits:
+    - 347d120e5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add GitHub repo button to header'
+    commits:
+    - 1b826f503
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: dd56ecbf92bf67c14862abba7802ae4b31e37226
+    short_sha: dd56ecbf9
+    authored_at: '2026-05-06T18:32:50+00:00'
+    subject: 'test: use api key device notification for approval'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: c0d54d486639c08826c9230f86aadac5140669ef
+    short_sha: c0d54d486
+    authored_at: '2026-05-06T18:15:41+00:00'
+    subject: 'test: scroll api key settings items into view'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: a7cb784b9540df4891ec0fb88c31e72522c6813c
+    short_sha: a7cb784b9
+    authored_at: '2026-05-06T18:10:06+00:00'
+    subject: 'test: use visible settings back button'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: e33487f4609adc1e95e78a4bb0e62ce32ca15158
+    short_sha: e33487f46
+    authored_at: '2026-05-06T17:54:45+00:00'
+    subject: 'test: reset settings menu in api key flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    related_feature_ids: []
+  - sha: 12c3aae636b02d360080fb9fcfaabfddab403a92
+    short_sha: 12c3aae63
+    authored_at: '2026-05-06T17:34:53+00:00'
+    subject: 'test: fix account recovery readiness wait'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    related_feature_ids: []
+  - sha: 913babd5a4762b0bac75c715aae547990092189c
+    short_sha: 913babd5a
+    authored_at: '2026-05-06T17:20:07+00:00'
+    subject: 'fix: refetch incomplete login profile cache'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/schemas/user.py
+    - backend/core/api/app/services/cache_user_mixin.py
+    related_feature_ids: []
+  - sha: 280607642b443fcdcb04574c59bbfd2057c8f54b
+    short_sha: '280607642'
+    authored_at: '2026-05-06T19:10:51+02:00'
+    subject: 'fix: detect Apple external display scenes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ff7639e29382729200d89627334b9c7dbd037ace
+    short_sha: ff7639e29
+    authored_at: '2026-05-06T19:09:57+02:00'
+    subject: 'feat: refine Apple app embeds and auth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/OpenMates.entitlements
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/RootView.swift
+    - apple/OpenMates/Sources/App/SceneDelegate.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Models/AuthModels.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FollowUpSuggestions.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/TravelRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WikiRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerConnectionView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/project.yml
+    - frontend/packages/ui/src/i18n/sources/common.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 106de3d58863984aa326b96872dabb96ea045c49
+    short_sha: 106de3d58
+    authored_at: '2026-05-06T16:46:35+00:00'
+    subject: 'fix: allow recovered users without usernames'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/schemas/user.py
+    related_feature_ids: []
+  - sha: 6caeed77f592e12d04c9f625b3090abe923078f1
+    short_sha: 6caeed77f
+    authored_at: '2026-05-06T16:35:46+00:00'
+    subject: 'test: harden remaining targeted e2e specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    related_feature_ids: []
+  - sha: c55b08dde0fdeaa3c9811e0a7a55d39fc760b573
+    short_sha: c55b08dde
+    authored_at: '2026-05-06T16:28:33+00:00'
+    subject: 'fix: serve Apple app site association'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/.well-known/apple-app-site-association
+    - frontend/apps/web_app/vercel.json
+    related_feature_ids: []
+  - sha: c5473fb71061369b959ab718103d8bd37deaaa40
+    short_sha: c5473fb71
+    authored_at: '2026-05-06T16:10:47+00:00'
+    subject: 'test: wait for signup credit balance'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 69d65dc936504b3a1fa0f650a8e6d2193fdfc13c
+    short_sha: 69d65dc93
+    authored_at: '2026-05-06T16:03:16+00:00'
+    subject: 'test: allow necessary payment cookies'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cookie-audit.ts
+    - shared/docs/privacy_promises.yml
+    related_feature_ids: []
+  - sha: cc5faa61d258073be34e35eb0b6ab27a3168152d
+    short_sha: cc5faa61d
+    authored_at: '2026-05-06T15:56:25+00:00'
+    subject: 'test: accept signup deletion redirect'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: 0e30025c2ffc7b79cd5a85773db632bda539d9b3
+    short_sha: 0e30025c2
+    authored_at: '2026-05-06T15:44:45+00:00'
+    subject: 'fix: avoid duplicate delete 2fa verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/packages/ui/src/components/settings/account/SettingsDeleteAccount.svelte
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    related_feature_ids: []
+  - sha: 29d9a2c18e35cd22b63df97551c716a85bf37ca8
+    short_sha: 29d9a2c18
+    authored_at: '2026-05-06T15:43:21+00:00'
+    subject: 'fix: harden invoice backfill and delete cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    related_feature_ids: []
+  - sha: 8e6311305ab26b9275bb065590dc2abe2a5864d8
+    short_sha: 8e6311305
+    authored_at: '2026-05-06T15:41:04+00:00'
+    subject: 'fix: retry cli settings rate limits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: 793011e15846d4cff19f6e3b954003ad4beda2b5
+    short_sha: 793011e15
+    authored_at: '2026-05-06T15:35:03+00:00'
+    subject: 'fix: avoid cli memory export rate limits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    related_feature_ids: []
+  - sha: 911a5657c0416340cc14ce51e8c520308877b947
+    short_sha: 911a5657c
+    authored_at: '2026-05-06T15:11:06+00:00'
+    subject: 'test: allow embed preview auth noise'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    related_feature_ids: []
+  - sha: 0b495aeebc9bab1cc1bfd2f318e7d482f35f260e
+    short_sha: 0b495aeeb
+    authored_at: '2026-05-06T15:10:03+00:00'
+    subject: 'fix: complete paid signups and add invoice remediation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/templates/email/account-deletion-warning-correction.mjml
+    - backend/scripts/audit_backfill_missing_stripe_invoices.py
+    - backend/scripts/prepare_deletion_warning_corrections.py
+    - backend/tests/test_security_regressions.py
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    related_feature_ids: []
+  - sha: 2911b6461254b34af10de2478cf4027c0fb98972
+    short_sha: 2911b6461
+    authored_at: '2026-05-06T14:48:22+00:00'
+    subject: 'fix: reject stale shared chat links'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/index.ts
+    related_feature_ids: []
+  - sha: fd0b61ca27db3fd053f7fae2590ea7536529c53a
+    short_sha: fd0b61ca2
+    authored_at: '2026-05-06T13:47:32+00:00'
+    subject: 'test: stabilize unauthenticated fullscreen coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    related_feature_ids: []
+  - sha: 5a69d3cdb37bc539481380cb2641a549efb9ccb4
+    short_sha: 5a69d3cdb
+    authored_at: '2026-05-06T13:41:17+00:00'
+    subject: 'test: harden final playwright drift'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: e700a636d3be5c8c12d0f443a87607b8195b05b4
+    short_sha: e700a636d
+    authored_at: '2026-05-06T13:29:20+00:00'
+    subject: 'fix: recover stale fullscreen chunks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/utils/chunkErrorHandler.ts
+    related_feature_ids: []
+  - sha: 9b28ebe839fecac39ad0ee1e079cc753a378a08f
+    short_sha: 9b28ebe83
+    authored_at: '2026-05-06T13:04:18+00:00'
+    subject: 'test: harden final e2e flaky specs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    related_feature_ids: []
+  - sha: e2f8e977ba10e9b43f900b0b343e7ecc69da9ff8
+    short_sha: e2f8e977b
+    authored_at: '2026-05-06T12:29:48+00:00'
+    subject: 'fix: reload when embed fullscreen chunk is stale'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/embedFullscreenResolver.ts
+    - frontend/packages/ui/src/utils/chunkErrorHandler.ts
+    related_feature_ids: []
+  - sha: d93a168ff8363d9ecb47c9158d4847ee6d6e32cc
+    short_sha: d93a168ff
+    authored_at: '2026-05-06T12:26:41+00:00'
+    subject: 'test: narrow remaining e2e assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/cli-skills-pdf.spec.ts
+    - frontend/apps/web_app/tests/preview-error.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    related_feature_ids: []
+  - sha: 347d120e5834ccdce53f9d596a30a0ead2b394ba
+    short_sha: 347d120e5
+    authored_at: '2026-05-06T11:51:12+00:00'
+    subject: 'fix: start passkey autofill before focusing login input'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/EmailLookup.svelte
+    - frontend/packages/ui/src/components/Login.svelte
+    related_feature_ids: []
+  - sha: 1b826f503e4c5b45219c7da39ce1500fdcff5b3b
+    short_sha: 1b826f503
+    authored_at: '2026-05-06T11:50:39+00:00'
+    subject: 'feat: add GitHub repo button to header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    related_feature_ids: []
+  - sha: 1f9d4fb581b93006b23c7bda96edceb7910a108d
+    short_sha: 1f9d4fb58
+    authored_at: '2026-05-06T11:48:15+00:00'
+    subject: 'test: refresh deterministic e2e expectations'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    - frontend/apps/web_app/tests/preview-error.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/status-page.spec.ts
+    related_feature_ids: []
+  - sha: bd26c485e057454c7cbdb3222737faaf1a7153cb
+    short_sha: bd26c485e
+    authored_at: '2026-05-06T10:56:41+00:00'
+    subject: 'test: relax chat readiness helper'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    related_feature_ids: []
+  - sha: beab095eff0501fa91afc9d448e396d8481f7de9
+    short_sha: beab095ef
+    authored_at: '2026-05-06T10:04:05+00:00'
+    subject: 'test: fix e2e chat readiness drift'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+    - frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+    - frontend/apps/web_app/tests/cli-memories.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/newsletter-categories.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/apps/web_app/tests/skill-images-generate-safety.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the web application experience and CLI reliability, alongside foundational work
+    for unreleased Apple platform support. Key updates include a new GitHub link in the header, improved passkey authentication
+    flows, and enhanced rate limit handling for the CLI.
+  released_changes:
+  - text: Added a GitHub repository button to the application header for easier access to the project source.
+    evidence:
+      commits:
+      - 1b826f503
+    release_status: released_main
+  bug_fixes:
+  - text: Passkey autofill now triggers before focusing the login input for a smoother authentication experience.
+    evidence:
+      commits:
+      - 347d120e5
+    release_status: released_main
+  - text: Authentication reliability improved by ensuring incomplete login profile caches are refetched and preventing duplicate
+      2FA verification during account deletion.
+    evidence:
+      commits:
+      - 913babd5a
+      - 0e30025c2
+    release_status: released_main
+  - text: The OpenMates CLI now handles rate limits more gracefully during settings updates and memory exports.
+    evidence:
+      commits:
+      - 8e6311305
+      - 793011e15
+    release_status: released_main
+  - text: Web app stability increased with better handling of stale shared chat links and improved recovery for fullscreen
+      content chunks.
+    evidence:
+      commits:
+      - 2911b6461
+      - e700a636d
+    release_status: released_main
+  - text: Resolved issues affecting paid signups and implemented remediation for missing invoices.
+    evidence:
+      commits:
+      - 0b495aeeb
+    release_status: released_main
+  - text: The web app now correctly serves the Apple app site association file to support deep linking.
+    evidence:
+      commits:
+      - c55b08dde
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on the unreleased iOS and macOS clients, including refinements to embed rendering, authentication
+      views, and external display support.
+    evidence:
+      commits:
+      - ff7639e29
+      - '280607642'
+    release_status: released_main
+  internal_progress:
+  - text: Extensive stabilization of the end-to-end test suite, focusing on chat readiness, API key management, and account
+      recovery flows.
+    evidence:
+      commits:
+      - dd56ecbf9
+      - c0d54d486
+      - a7cb784b9
+      - e33487f46
+      - 12c3aae63
+      - 6caeed77f
+      - c5473fb71
+      - 69d65dc93
+      - cc5faa61d
+      - 911a5657c
+      - fd0b61ca2
+      - 5a69d3cdb
+      - 9b28ebe83
+      - d93a168ff
+      - 1f9d4fb58
+      - bd26c485e
+      - beab095ef
+    release_status: released_main
+  - text: Internal refinements to user recovery schemas, invoice backfill tasks, and embed resolver logic.
+    evidence:
+      commits:
+      - 106de3d58
+      - 29d9a2c18
+      - e2f8e977b
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New GitHub repository link in the application header.
+      evidence:
+        commits:
+        - 1b826f503
+      reason: New user-facing UI element for community engagement.
+    - text: Enhanced passkey autofill behavior during login.
+      evidence:
+        commits:
+        - 347d120e5
+      reason: Improves the login experience for passkey users.
+    - text: CLI rate limit handling and memory export improvements.
+      evidence:
+        commits:
+        - 8e6311305
+        - 793011e15
+      reason: Improves reliability for power users using the CLI.
+    - text: Improved handling of stale shared chat links.
+      evidence:
+        commits:
+        - 2911b6461
+      reason: Fixes a common issue with shared content.
+    - text: Fix for duplicate 2FA prompts during account deletion.
+      evidence:
+        commits:
+        - 0e30025c2
+      reason: Security and UX improvement for account management.
+    exclude:
+    - text: Apple app embed and auth refinements.
+      evidence:
+        commits:
+        - ff7639e29
+      reason: Relates to unreleased iOS and macOS platforms.
+    - text: Apple external display detection fix.
+      evidence:
+        commits:
+        - '280607642'
+      reason: Relates to unreleased iOS and macOS platforms.
+    rationale: The newsletter should highlight the new GitHub integration and significant quality-of-life improvements for
+      authentication and the CLI, while excluding work on platforms that are currently disabled.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the seamless passkey login flow with the new autofill behavior.
+    priority: medium
+    reason: Shows off modern, secure authentication UX.
+    evidence:
+      commits:
+      - 347d120e5
+  quality_notes:
+  - Significant effort was directed toward stabilizing the Playwright E2E test suite to reduce flakiness in chat and auth
+    flows.
+  - Rate limit handling in the CLI was hardened to support larger data exports.
+  validation_warnings: []

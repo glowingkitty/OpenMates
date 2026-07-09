@@ -1,0 +1,3320 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-08'
+generated_at: '2026-07-09T15:37:50+00:00'
+range:
+  since: '2026-06-08T00:00:00+00:00'
+  until: '2026-06-08T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 71
+  section_counts:
+    features: 8
+    bug_fixes: 34
+    improvements: 1
+    docs: 7
+    tests: 19
+    infrastructure: 2
+    internal: 0
+    other: 0
+  newsletter_ready_items: 32
+  user_facing_items: 34
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add audio transcription example chat'
+    section: features
+    commits:
+    - 181284bcd
+    authored_at: '2026-06-08T15:12:23+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/fileEmbed.ts
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-transcribe-voice-note.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/image-vectorize-openmates-header.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-read-secret-word.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-search-encryption.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-view-page-layout.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_transcribe_voice_note.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/image_vectorize_openmates_header.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_read_secret_word.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_search_encryption.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_view_page_layout.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add GHCR self-host image mode'
+    section: features
+    commits:
+    - 84604768d
+    authored_at: '2026-06-08T15:01:39+00:00'
+    changed_paths:
+    - .dockerignore
+    - .github/workflows/publish-selfhost-images.yml
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/api/Dockerfile.docs.selfhost
+    - backend/core/api/Dockerfile.selfhost
+    - backend/core/api/app/routes/settings_software_update.py
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/docker-compose.selfhost.yml
+    - backend/tests/test_software_update_docker_mode.py
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    - docs/specs/self-host-ghcr-images/spec.yml
+    - frontend/apps/web_app/Dockerfile
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add sidebar category show more controls'
+    section: features
+    commits:
+    - c1063710e
+    authored_at: '2026-06-08T15:01:38+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add habit garden application example chat'
+    section: features
+    commits:
+    - fb017df56
+    authored_at: '2026-06-08T14:18:35+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-garden-vite-app.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_garden_vite_app.yml
+    - scripts/create-example-chat-from-share.mjs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: store encrypted application preview thumbnails'
+    section: features
+    commits:
+    - ea7172f71
+    authored_at: '2026-06-08T13:36:37+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    - backend/core/api/app/routes/generated_assets_api.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/specs/application-embeds/spec.yml
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add scalable chat loading'
+    section: features
+    commits:
+    - a6573cbd7
+    authored_at: '2026-06-08T12:59:53+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_share_chat_window_loading.py
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+    - frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: refresh app skill example chats'
+    section: features
+    commits:
+    - 721e2c530
+    authored_at: '2026-06-08T10:55:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/beautiful-single-page-html.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-dermatology-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/cancel-test-reminder.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/fediverse-activitypub-social-search.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gpt-4o-announcement-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-tracker-onboarding-draft.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/lh400-flight-status-check.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mastodon-account-recent-posts.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/nonprofit-event-planning-use-case.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/northstar-metrics-svg-logo.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/openmates-add-app-skill-doc.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/openmates-app-skills-embeds-docs.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-website-hero-background.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/private-workspace-demo-video.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/product-launch-synth-loop.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/python-squares-code-run.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/sqlite-strict-tables-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/upcoming-reminders-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/watercolor-robot-balcony.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_dermatology_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/cancel_test_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/fediverse_activitypub_social_search.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gpt_4o_announcement_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_tracker_onboarding_draft.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/lh400_flight_status_check.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mastodon_account_recent_posts.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/nonprofit_event_planning_use_case.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/northstar_metrics_svg_logo.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_add_app_skill_doc.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_app_skills_embeds_docs.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_website_hero_background.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/private_workspace_demo_video.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/product_launch_synth_loop.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/python_squares_code_run.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/sqlite_strict_tables_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/upcoming_reminders_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/watercolor_robot_balcony.yml
+    - scripts/openmates_cli_test_account.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add app skill example chats'
+    section: features
+    commits:
+    - ee79a7d62
+    authored_at: '2026-06-08T00:32:42+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ai-workshops-meetups-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/artemis-ii-mission.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/balcony-plant-reminder.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-weather-bike-commute.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/eu-chat-control-law-criticisms.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/family-stays-kyoto.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/furnished-apartments-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gigantic-airplanes.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gpt-4o-announcement-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mortgage-payment-calculation.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/organic-groceries-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/quiet-cafes-tempelhofer-feld.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rag-explained-videos.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/right-to-repair-laws-eu-us.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rust-vector-database-repos.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/svelte-runes-docs.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ted-talk-transcript-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/watercolor-robot-balcony.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/ai_workshops_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/balcony_plant_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_weather_bike_commute.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/buck_converters_24v_5v.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/family_stays_kyoto.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/furnished_apartments_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gpt_4o_announcement_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mortgage_payment_calculation.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/organic_groceries_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/quiet_cafes_tempelhofer_feld.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rag_explained_videos.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rust_vector_database_repos.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/svelte_runes_docs.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/ted_talk_transcript_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/watercolor_robot_balcony.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: skip draft-only chats in header navigation'
+    section: bug_fixes
+    commits:
+    - bf15e3791
+    authored_at: '2026-06-08T22:57:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: gate and bill application previews'
+    section: bug_fixes
+    commits:
+    - c69ffe0cc
+    authored_at: '2026-06-08T22:26:40+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/specs/application-embeds/spec.yml
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: hide payment status in self-host edition'
+    section: bug_fixes
+    commits:
+    - 1d9d4e357
+    authored_at: '2026-06-08T22:22:11+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/tests/test_server_status_response.py
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: bound Apple chat opening windows'
+    section: bug_fixes
+    commits:
+    - 9757be514
+    authored_at: '2026-06-08T22:09:11+00:00'
+    changed_paths:
+    - .claude/rules/testing.md
+    - apple/AGENTS.md
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - backend/tests/test_apple_chat_parity_audit.py
+    - backend/tests/test_apple_remote.py
+    - docs/contributing/guides/testing.md
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_remote.py
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: split preview user-content domains by environment'
+    section: bug_fixes
+    commits:
+    - 7b1763cd7
+    authored_at: '2026-06-08T20:36:29+00:00'
+    changed_paths:
+    - .env.example
+    - deployment/dev_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: allow E2B Vite preview hosts'
+    section: bug_fixes
+    commits:
+    - 8bc991165
+    authored_at: '2026-06-08T20:36:16+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    - docs/specs/application-embeds/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: expose application preview user-content gateway'
+    section: bug_fixes
+    commits:
+    - cc38f6c52
+    authored_at: '2026-06-08T20:13:53+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: rewrite application preview asset paths'
+    section: bug_fixes
+    commits:
+    - 31064b5b7
+    authored_at: '2026-06-08T19:35:57+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/application_preview_gateway.py
+    - backend/tests/test_application_preview_gateway.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep example chats newest first'
+    section: bug_fixes
+    commits:
+    - c7d25d6e0
+    authored_at: '2026-06-08T18:58:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: allow local self-host browser API calls'
+    section: bug_fixes
+    commits:
+    - ad8d96839
+    authored_at: '2026-06-08T18:24:20+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: package vault setup image dependencies'
+    section: bug_fixes
+    commits:
+    - 449c26b3e
+    authored_at: '2026-06-08T16:48:02+00:00'
+    changed_paths:
+    - backend/core/vault/setup/Dockerfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep embed previews metadata-only'
+    section: bug_fixes
+    commits:
+    - 9facfbeee
+    authored_at: '2026-06-08T15:25:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore Apple app build verification'
+    section: bug_fixes
+    commits:
+    - a21e9f939
+    authored_at: '2026-06-08T15:05:42+00:00'
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/ios/SKILL.md
+    - apple/AGENTS.md
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: skip empty chats in header navigation'
+    section: bug_fixes
+    commits:
+    - edc4bc0eb
+    authored_at: '2026-06-08T14:55:48+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize CLI file embed skill resolution'
+    section: bug_fixes
+    commits:
+    - 3652d626d
+    authored_at: '2026-06-08T14:37:07+00:00'
+    changed_paths:
+    - backend/apps/pdf/tasks/process_task.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/upload/.env.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/upload_server/upload-cloud-config.yaml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    - frontend/packages/openmates-cli/tests/fileEmbed.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove missing example chat imports'
+    section: bug_fixes
+    commits:
+    - 4bf1199ce
+    authored_at: '2026-06-08T14:22:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: use compound chat window cursors'
+    section: bug_fixes
+    commits:
+    - cc6351179
+    authored_at: '2026-06-08T13:28:12+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_share_chat_window_loading.py
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: tolerate null cache timestamps'
+    section: bug_fixes
+    commits:
+    - d8144e462
+    authored_at: '2026-06-08T12:17:10+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_user_cache_tasks.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: keep example chat structured data valid'
+    section: bug_fixes
+    commits:
+    - 270f8b2cc
+    authored_at: '2026-06-08T11:52:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize mocked stream startup'
+    section: bug_fixes
+    commits:
+    - ff764a7a3
+    authored_at: '2026-06-08T11:38:39+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    - frontend/packages/ui/src/services/db.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: clarify contract audit summary emails'
+    section: bug_fixes
+    commits:
+    - 6dd7b1e3c
+    authored_at: '2026-06-08T11:24:34+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/test_run_summary.mjml
+    - scripts/contract_audits.py
+    - scripts/run_contract_audits.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: configure application preview origin'
+    section: bug_fixes
+    commits:
+    - a3d8432d7
+    authored_at: '2026-06-08T11:01:17+00:00'
+    changed_paths:
+    - .env.example
+    - backend/core/docker-compose.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: open stay-logged-in login from logout toast'
+    section: bug_fixes
+    commits:
+    - 3f0522193
+    authored_at: '2026-06-08T10:47:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    - frontend/packages/ui/src/stores/uiStateStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: route application preview API'
+    section: bug_fixes
+    commits:
+    - 266870f63
+    authored_at: '2026-06-08T10:44:05+00:00'
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: add application artifact builder'
+    section: bug_fixes
+    commits:
+    - 23a56d6ef
+    authored_at: '2026-06-08T08:47:12+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_block_detection.py
+    - docs/specs/application-embeds/spec.yml
+    - scripts/run_tests.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: normalize CLI example embeds and categories'
+    section: bug_fixes
+    commits:
+    - 8698a719e
+    authored_at: '2026-06-08T08:45:37+00:00'
+    changed_paths:
+    - backend/tests/test_example_chat_scaffold.py
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/embedCreator.ts
+    - frontend/packages/openmates-cli/src/urlEmbed.ts
+    - frontend/packages/openmates-cli/tests/urlEmbed.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/balcony-plant-reminder.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/family-stays-kyoto.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gpt-4o-announcement-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mortgage-payment-calculation.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rust-vector-database-repos.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/svelte-runes-docs.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ted-talk-transcript-summary.ts
+    - scripts/create-example-chat-from-share.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: convert raw application bundles'
+    section: bug_fixes
+    commits:
+    - 909b5e0e8
+    authored_at: '2026-06-08T01:33:39+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: split application JSON bundles'
+    section: bug_fixes
+    commits:
+    - f44902f9e
+    authored_at: '2026-06-08T01:19:30+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: infer application files from embed refs'
+    section: bug_fixes
+    commits:
+    - f34e533b9
+    authored_at: '2026-06-08T01:06:35+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: emit application previews earlier'
+    section: bug_fixes
+    commits:
+    - 4f5f5c8fa
+    authored_at: '2026-06-08T00:53:00+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: load CLI websocket dependency via require'
+    section: bug_fixes
+    commits:
+    - 7a5af98a3
+    authored_at: '2026-06-08T00:37:46+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: parse application preview blocks'
+    section: bug_fixes
+    commits:
+    - d45048da1
+    authored_at: '2026-06-08T00:31:41+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: harden application preview test imports'
+    section: bug_fixes
+    commits:
+    - dee79ba99
+    authored_at: '2026-06-08T00:06:35+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: emit application embed parent previews'
+    section: bug_fixes
+    commits:
+    - f5d4cefca
+    authored_at: '2026-06-08T00:05:37+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_block_detection.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements:
+  - title: 'refactor: route app skill helpers through shared facade'
+    section: improvements
+    commits:
+    - 47300c4a1
+    authored_at: '2026-06-08T11:44:09+00:00'
+    changed_paths:
+    - backend/apps/code/skills/get_docs_skill.py
+    - backend/apps/code/skills/search_repos_skill.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/health/skills/search_appointments_skill.py
+    - backend/apps/images/skills/generate_skill.py
+    - backend/apps/images/skills/search_skill.py
+    - backend/apps/images/skills/vectorize_skill.py
+    - backend/apps/mail/skills/search_skill.py
+    - backend/apps/maps/skills/search_skill.py
+    - backend/apps/music/skills/generate_skill.py
+    - backend/apps/news/skills/search_skill.py
+    - backend/apps/nutrition/skills/search_recipes.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/social_media/skills/get_posts.py
+    - backend/apps/social_media/skills/search.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/apps/travel/skills/search_stays.py
+    - backend/apps/videos/skills/generate_skill.py
+    - backend/apps/videos/skills/search_skill.py
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/apps/web/skills/read_skill.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/shared/python_utils/app_skill_helpers.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  docs:
+  - title: 'docs: record Apple chat test evidence'
+    section: docs
+    commits:
+    - ad146188c
+    authored_at: '2026-06-08T23:45:02+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record application preview E2E evidence'
+    section: docs
+    commits:
+    - 08dd1d594
+    authored_at: '2026-06-08T23:32:38+00:00'
+    changed_paths:
+    - docs/specs/application-embeds/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: clarify self-host production origin setup'
+    section: docs
+    commits:
+    - 6fd8ea331
+    authored_at: '2026-06-08T19:28:04+00:00'
+    changed_paths:
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record self-host image CI evidence'
+    section: docs
+    commits:
+    - 4ebe322a0
+    authored_at: '2026-06-08T18:48:57+00:00'
+    changed_paths:
+    - docs/specs/self-host-ghcr-images/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: emphasize deterministic guardrails'
+    section: docs
+    commits:
+    - bd910c8f3
+    authored_at: '2026-06-08T14:36:40+00:00'
+    changed_paths:
+    - .claude/rules/code-quality.md
+    - .claude/rules/testing.md
+    - AGENTS.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record application preview thumbnail evidence'
+    section: docs
+    commits:
+    - ce67751ea
+    authored_at: '2026-06-08T13:55:07+00:00'
+    changed_paths:
+    - docs/specs/application-embeds/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record scalable loading test evidence'
+    section: docs
+    commits:
+    - 51d9e0da6
+    authored_at: '2026-06-08T13:04:28+00:00'
+    changed_paths:
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: add Apple chat opening coverage'
+    section: tests
+    commits:
+    - 6f6ada5c4
+    authored_at: '2026-06-08T23:40:51+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS.xcscheme
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    - apple/OpenMatesTests/Info.plist
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/Info.plist
+    - apple/project.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+  - title: 'test: match persisted preview usage fields'
+    section: tests
+    commits:
+    - eb760e7e0
+    authored_at: '2026-06-08T23:26:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize chat flow sidebar assertion'
+    section: tests
+    commits:
+    - 07074da2c
+    authored_at: '2026-06-08T23:17:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: use API origin for preview usage check'
+    section: tests
+    commits:
+    - 11459cf91
+    authored_at: '2026-06-08T23:13:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize application preview E2E'
+    section: tests
+    commits:
+    - 101e60315
+    authored_at: '2026-06-08T22:56:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: target example sidebar group by key'
+    section: tests
+    commits:
+    - 148a90c0c
+    authored_at: '2026-06-08T19:08:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover example sidebar ordering'
+    section: tests
+    commits:
+    - e2aa4973a
+    authored_at: '2026-06-08T18:51:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stub application preview asset indexing'
+    section: tests
+    commits:
+    - '496551381'
+    authored_at: '2026-06-08T14:36:10+00:00'
+    changed_paths:
+    - backend/tests/test_run_application_preview_task.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stub application preview thumbnail bytes'
+    section: tests
+    commits:
+    - 534d54a08
+    authored_at: '2026-06-08T13:45:58+00:00'
+    changed_paths:
+    - backend/tests/test_run_application_preview_task.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for memories permission race'
+    section: tests
+    commits:
+    - d000f302d
+    authored_at: '2026-06-08T13:34:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: handle memories permission in chat flow'
+    section: tests
+    commits:
+    - 678a7d384
+    authored_at: '2026-06-08T13:19:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/components/AppSettingsMemoriesPermissionDialog.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add deterministic quality audits'
+    section: tests
+    commits:
+    - 7a3afec8c
+    authored_at: '2026-06-08T12:56:32+00:00'
+    changed_paths:
+    - backend/providers/google_maps.yml
+    - backend/providers/moonshot.yml
+    - backend/tests/test_deterministic_quality_audits.py
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - scripts/audit_app_provider_contracts.py
+    - scripts/audit_opencode_automation_budget.py
+    - scripts/audit_playwright_determinism.py
+    - scripts/audit_sensitive_logging.py
+    - scripts/code_quality_guard.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: pace application fixture chunks'
+    section: tests
+    commits:
+    - e002d4a70
+    authored_at: '2026-06-08T10:00:13+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/application_preview.json
+    - backend/apps/ai/testing/mock_replay.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: delay application fixture replay'
+    section: tests
+    commits:
+    - 42f4348b9
+    authored_at: '2026-06-08T09:34:50+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/application_preview.json
+    - backend/apps/ai/testing/mock_replay.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: replay application preview fixture'
+    section: tests
+    commits:
+    - 8be840e09
+    authored_at: '2026-06-08T09:04:02+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/application_preview.json
+    - backend/apps/ai/testing/mock_replay.py
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: reload app skill example settings cases'
+    section: tests
+    commits:
+    - 8fb6993dd
+    authored_at: '2026-06-08T08:13:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover app skill example chat cards'
+    section: tests
+    commits:
+    - 5e778c974
+    authored_at: '2026-06-08T08:01:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: update weather app skill example assertion'
+    section: tests
+    commits:
+    - f82b90913
+    authored_at: '2026-06-08T00:48:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add deeplink-webhook-message E2E spec'
+    section: tests
+    commits:
+    - 8cccaa853
+    authored_at: '2026-06-08T00:23:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deeplink-webhook-message.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'ci: retry self-host smoke image builds'
+    section: infrastructure
+    commits:
+    - b504e2f9f
+    authored_at: '2026-06-08T17:54:48+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  - title: 'ci: run self-host smoke for vault setup changes'
+    section: infrastructure
+    commits:
+    - fa70be979
+    authored_at: '2026-06-08T17:41:16+00:00'
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add habit garden application example chat'
+    commits:
+    - fb017df56
+    section: features
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: skip draft-only chats in header navigation'
+    commits:
+    - bf15e3791
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: gate and bill application previews'
+    commits:
+    - c69ffe0cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide payment status in self-host edition'
+    commits:
+    - 1d9d4e357
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: rewrite application preview asset paths'
+    commits:
+    - 31064b5b7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep example chats newest first'
+    commits:
+    - c7d25d6e0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: allow local self-host browser API calls'
+    commits:
+    - ad8d96839
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep embed previews metadata-only'
+    commits:
+    - 9facfbeee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add audio transcription example chat'
+    commits:
+    - 181284bcd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add GHCR self-host image mode'
+    commits:
+    - 84604768d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add sidebar category show more controls'
+    commits:
+    - c1063710e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: skip empty chats in header navigation'
+    commits:
+    - edc4bc0eb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize CLI file embed skill resolution'
+    commits:
+    - 3652d626d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: store encrypted application preview thumbnails'
+    commits:
+    - ea7172f71
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: use compound chat window cursors'
+    commits:
+    - cc6351179
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add scalable chat loading'
+    commits:
+    - a6573cbd7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep example chat structured data valid'
+    commits:
+    - 270f8b2cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'refactor: route app skill helpers through shared facade'
+    commits:
+    - 47300c4a1
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize mocked stream startup'
+    commits:
+    - ff764a7a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clarify contract audit summary emails'
+    commits:
+    - 6dd7b1e3c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: refresh app skill example chats'
+    commits:
+    - 721e2c530
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: open stay-logged-in login from logout toast'
+    commits:
+    - 3f0522193
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: add application artifact builder'
+    commits:
+    - 23a56d6ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: normalize CLI example embeds and categories'
+    commits:
+    - 8698a719e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: convert raw application bundles'
+    commits:
+    - 909b5e0e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: split application JSON bundles'
+    commits:
+    - f44902f9e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: infer application files from embed refs'
+    commits:
+    - f34e533b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: emit application previews earlier'
+    commits:
+    - 4f5f5c8fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: load CLI websocket dependency via require'
+    commits:
+    - 7a5af98a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add app skill example chats'
+    commits:
+    - ee79a7d62
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: parse application preview blocks'
+    commits:
+    - d45048da1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: harden application preview test imports'
+    commits:
+    - dee79ba99
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: emit application embed parent previews'
+    commits:
+    - f5d4cefca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: skip draft-only chats in header navigation'
+    commits:
+    - bf15e3791
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: gate and bill application previews'
+    commits:
+    - c69ffe0cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide payment status in self-host edition'
+    commits:
+    - 1d9d4e357
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: bound Apple chat opening windows'
+    commits:
+    - 9757be514
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: rewrite application preview asset paths'
+    commits:
+    - 31064b5b7
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep example chats newest first'
+    commits:
+    - c7d25d6e0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: allow local self-host browser API calls'
+    commits:
+    - ad8d96839
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep embed previews metadata-only'
+    commits:
+    - 9facfbeee
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add audio transcription example chat'
+    commits:
+    - 181284bcd
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore Apple app build verification'
+    commits:
+    - a21e9f939
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add GHCR self-host image mode'
+    commits:
+    - 84604768d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add sidebar category show more controls'
+    commits:
+    - c1063710e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: skip empty chats in header navigation'
+    commits:
+    - edc4bc0eb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize CLI file embed skill resolution'
+    commits:
+    - 3652d626d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: store encrypted application preview thumbnails'
+    commits:
+    - ea7172f71
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: use compound chat window cursors'
+    commits:
+    - cc6351179
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add scalable chat loading'
+    commits:
+    - a6573cbd7
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep example chat structured data valid'
+    commits:
+    - 270f8b2cc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'refactor: route app skill helpers through shared facade'
+    commits:
+    - 47300c4a1
+    section: improvements
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize mocked stream startup'
+    commits:
+    - ff764a7a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clarify contract audit summary emails'
+    commits:
+    - 6dd7b1e3c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: refresh app skill example chats'
+    commits:
+    - 721e2c530
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: open stay-logged-in login from logout toast'
+    commits:
+    - 3f0522193
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: add application artifact builder'
+    commits:
+    - 23a56d6ef
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: normalize CLI example embeds and categories'
+    commits:
+    - 8698a719e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: convert raw application bundles'
+    commits:
+    - 909b5e0e8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: split application JSON bundles'
+    commits:
+    - f44902f9e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: infer application files from embed refs'
+    commits:
+    - f34e533b9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: emit application previews earlier'
+    commits:
+    - 4f5f5c8fa
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: load CLI websocket dependency via require'
+    commits:
+    - 7a5af98a3
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add app skill example chats'
+    commits:
+    - ee79a7d62
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: parse application preview blocks'
+    commits:
+    - d45048da1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: harden application preview test imports'
+    commits:
+    - dee79ba99
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: emit application embed parent previews'
+    commits:
+    - f5d4cefca
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ad146188c561cef09057a1835fa2a9d7c8c68803
+    short_sha: ad146188c
+    authored_at: '2026-06-08T23:45:02+00:00'
+    subject: 'docs: record Apple chat test evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    related_feature_ids: []
+  - sha: 6f6ada5c48b4a99ef12ffd28d76ddf2aacb967c4
+    short_sha: 6f6ada5c4
+    authored_at: '2026-06-08T23:40:51+00:00'
+    subject: 'test: add Apple chat opening coverage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates.xcodeproj/xcshareddata/xcschemes/OpenMates_iOS.xcscheme
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    - apple/OpenMatesTests/Info.plist
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/Info.plist
+    - apple/project.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 08dd1d594ca524342d1beaad933bbfc1060f7d9b
+    short_sha: 08dd1d594
+    authored_at: '2026-06-08T23:32:38+00:00'
+    subject: 'docs: record application preview E2E evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/application-embeds/spec.yml
+    related_feature_ids: []
+  - sha: eb760e7e09c89c023cbc6378110ecb1c8501080e
+    short_sha: eb760e7e0
+    authored_at: '2026-06-08T23:26:20+00:00'
+    subject: 'test: match persisted preview usage fields'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    related_feature_ids: []
+  - sha: 07074da2c185678c8ca1267b76f31d8c01dce357
+    short_sha: 07074da2c
+    authored_at: '2026-06-08T23:17:21+00:00'
+    subject: 'test: stabilize chat flow sidebar assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: 11459cf914ce35e9af8204a7185a90aeeddb925a
+    short_sha: 11459cf91
+    authored_at: '2026-06-08T23:13:52+00:00'
+    subject: 'test: use API origin for preview usage check'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    related_feature_ids: []
+  - sha: bf15e3791bdc3f9af93d03848f984dab354a3a27
+    short_sha: bf15e3791
+    authored_at: '2026-06-08T22:57:54+00:00'
+    subject: 'fix: skip draft-only chats in header navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    related_feature_ids: []
+  - sha: 101e6031501329a885052dde004f6cb930927fc5
+    short_sha: 101e60315
+    authored_at: '2026-06-08T22:56:43+00:00'
+    subject: 'test: stabilize application preview E2E'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    related_feature_ids: []
+  - sha: c69ffe0cc4ab2666580dbeed9c26f2596445164c
+    short_sha: c69ffe0cc
+    authored_at: '2026-06-08T22:26:40+00:00'
+    subject: 'fix: gate and bill application previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/specs/application-embeds/spec.yml
+    - frontend/apps/web_app/tests/example-application-preview.spec.ts
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    related_feature_ids: []
+  - sha: 1d9d4e35780757981de3dfe72f75884f0b5a167f
+    short_sha: 1d9d4e357
+    authored_at: '2026-06-08T22:22:11+00:00'
+    subject: 'fix: hide payment status in self-host edition'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/settings.py
+    - backend/tests/test_server_status_response.py
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    related_feature_ids: []
+  - sha: 9757be5140e941cbdc6b7d7ab23259c0e78f681b
+    short_sha: 9757be514
+    authored_at: '2026-06-08T22:09:11+00:00'
+    subject: 'fix: bound Apple chat opening windows'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/testing.md
+    - apple/AGENTS.md
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - backend/tests/test_apple_chat_parity_audit.py
+    - backend/tests/test_apple_remote.py
+    - docs/contributing/guides/testing.md
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_remote.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 7b1763cd77d6569a2cbb715ddce07ba6f595298d
+    short_sha: 7b1763cd7
+    authored_at: '2026-06-08T20:36:29+00:00'
+    subject: 'fix: split preview user-content domains by environment'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - deployment/dev_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    related_feature_ids: []
+  - sha: 8bc9911658a5ddeab8338de01386c4338775dc60
+    short_sha: 8bc991165
+    authored_at: '2026-06-08T20:36:16+00:00'
+    subject: 'fix: allow E2B Vite preview hosts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    - docs/specs/application-embeds/spec.yml
+    related_feature_ids: []
+  - sha: cc38f6c52521cb5272c541d0d4af9f7e923a7611
+    short_sha: cc38f6c52
+    authored_at: '2026-06-08T20:13:53+00:00'
+    subject: 'fix: expose application preview user-content gateway'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/verify-caddyfile.py
+    related_feature_ids: []
+  - sha: 31064b5b7175cfffd920e8d040e967d3b5230d0d
+    short_sha: 31064b5b7
+    authored_at: '2026-06-08T19:35:57+00:00'
+    subject: 'fix: rewrite application preview asset paths'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/application_preview_gateway.py
+    - backend/tests/test_application_preview_gateway.py
+    related_feature_ids: []
+  - sha: 6fd8ea33184d37be406a228afd5e3943b4cb9549
+    short_sha: 6fd8ea331
+    authored_at: '2026-06-08T19:28:04+00:00'
+    subject: 'docs: clarify self-host production origin setup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    related_feature_ids: []
+  - sha: 148a90c0c740faceb5b3f91db5d44ad3693d1fd0
+    short_sha: 148a90c0c
+    authored_at: '2026-06-08T19:08:15+00:00'
+    subject: 'test: target example sidebar group by key'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: c7d25d6e0b3addcddff45ee6316603e27d1325d3
+    short_sha: c7d25d6e0
+    authored_at: '2026-06-08T18:58:55+00:00'
+    subject: 'fix: keep example chats newest first'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    related_feature_ids: []
+  - sha: e2aa4973aaa01ac51b0c614499b5657e69aabc14
+    short_sha: e2aa4973a
+    authored_at: '2026-06-08T18:51:14+00:00'
+    subject: 'test: cover example sidebar ordering'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    related_feature_ids: []
+  - sha: 4ebe322a0896573e641cb0dd8d354afa3151b46e
+    short_sha: 4ebe322a0
+    authored_at: '2026-06-08T18:48:57+00:00'
+    subject: 'docs: record self-host image CI evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/self-host-ghcr-images/spec.yml
+    related_feature_ids: []
+  - sha: ad8d96839150ec3bbe3867ce4231c8225af94169
+    short_sha: ad8d96839
+    authored_at: '2026-06-08T18:24:20+00:00'
+    subject: 'fix: allow local self-host browser API calls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    related_feature_ids: []
+  - sha: b504e2f9f3a35e9de91f4e34616c65e80deb45a1
+    short_sha: b504e2f9f
+    authored_at: '2026-06-08T17:54:48+00:00'
+    subject: 'ci: retry self-host smoke image builds'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    related_feature_ids: []
+  - sha: fa70be9795e41000be32c2d67217cad8e6204223
+    short_sha: fa70be979
+    authored_at: '2026-06-08T17:41:16+00:00'
+    subject: 'ci: run self-host smoke for vault setup changes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/selfhost-smoke.yml
+    related_feature_ids: []
+  - sha: 449c26b3eb5077abb0566e7a562859be358af19e
+    short_sha: 449c26b3e
+    authored_at: '2026-06-08T16:48:02+00:00'
+    subject: 'fix: package vault setup image dependencies'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/vault/setup/Dockerfile
+    related_feature_ids: []
+  - sha: 9facfbeee309b5869eb416d32ad7b96b031e19ec
+    short_sha: 9facfbeee
+    authored_at: '2026-06-08T15:25:22+00:00'
+    subject: 'fix: keep embed previews metadata-only'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    related_feature_ids: []
+  - sha: 181284bcd1ad90505e599724726b3f6adb5ffea4
+    short_sha: 181284bcd
+    authored_at: '2026-06-08T15:12:23+00:00'
+    subject: 'feat: add audio transcription example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/fileEmbed.ts
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-transcribe-voice-note.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/image-vectorize-openmates-header.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-read-secret-word.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-search-encryption.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/pdf-view-page-layout.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_transcribe_voice_note.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/image_vectorize_openmates_header.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_read_secret_word.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_search_encryption.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/pdf_view_page_layout.yml
+    related_feature_ids: []
+  - sha: a21e9f939fb097e6d78f92f75cacd38a58cd03a9
+    short_sha: a21e9f939
+    authored_at: '2026-06-08T15:05:42+00:00'
+    subject: 'fix: restore Apple app build verification'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/ios/SKILL.md
+    - .claude/rules/testing.md
+    - .claude/skills/ios/SKILL.md
+    - apple/AGENTS.md
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 84604768db58f0c12b4412c5761e5c6cbdca7d2b
+    short_sha: 84604768d
+    authored_at: '2026-06-08T15:01:39+00:00'
+    subject: 'feat: add GHCR self-host image mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .dockerignore
+    - .github/workflows/publish-selfhost-images.yml
+    - .github/workflows/selfhost-smoke.yml
+    - backend/core/api/Dockerfile.docs.selfhost
+    - backend/core/api/Dockerfile.selfhost
+    - backend/core/api/app/routes/settings_software_update.py
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/docker-compose.selfhost.yml
+    - backend/tests/test_software_update_docker_mode.py
+    - docs/cli/server-management.md
+    - docs/self-hosting/setup.md
+    - docs/specs/self-host-ghcr-images/spec.yml
+    - frontend/apps/web_app/Dockerfile
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: c1063710eb951ea4a379e385e50c66507bb0cd25
+    short_sha: c1063710e
+    authored_at: '2026-06-08T15:01:38+00:00'
+    subject: 'feat: add sidebar category show more controls'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: edc4bc0eb112eab41826104aa07462ff5f9cd052
+    short_sha: edc4bc0eb
+    authored_at: '2026-06-08T14:55:48+00:00'
+    subject: 'fix: skip empty chats in header navigation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts
+    related_feature_ids: []
+  - sha: 3652d626d04797f51a3fddc95fceb07831384500
+    short_sha: 3652d626d
+    authored_at: '2026-06-08T14:37:07+00:00'
+    subject: 'fix: stabilize CLI file embed skill resolution'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/pdf/tasks/process_task.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/upload/.env.example
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    - deployment/upload_server/upload-cloud-config.yaml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/uploadService.ts
+    - frontend/packages/openmates-cli/tests/fileEmbed.test.ts
+    related_feature_ids: []
+  - sha: bd910c8f34a2ab272a5e02575c3619c2894b0dc6
+    short_sha: bd910c8f3
+    authored_at: '2026-06-08T14:36:40+00:00'
+    subject: 'docs: emphasize deterministic guardrails'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/rules/code-quality.md
+    - .claude/rules/testing.md
+    - AGENTS.md
+    related_feature_ids: []
+  - sha: 496551381209c49391e37d0901bdfbd3d4401d33
+    short_sha: '496551381'
+    authored_at: '2026-06-08T14:36:10+00:00'
+    subject: 'test: stub application preview asset indexing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_run_application_preview_task.py
+    related_feature_ids: []
+  - sha: 4bf1199ce992a15665947175b09a5045a238d932
+    short_sha: 4bf1199ce
+    authored_at: '2026-06-08T14:22:16+00:00'
+    subject: 'fix: remove missing example chat imports'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    related_feature_ids: []
+  - sha: fb017df561e3b15b24f2e44bb099b164f735bd47
+    short_sha: fb017df56
+    authored_at: '2026-06-08T14:18:35+00:00'
+    subject: 'feat: add habit garden application example chat'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-garden-vite-app.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_garden_vite_app.yml
+    - scripts/create-example-chat-from-share.mjs
+    related_feature_ids: []
+  - sha: ce67751eac6a0ade00e27fec3362c3cdb9e3718a
+    short_sha: ce67751ea
+    authored_at: '2026-06-08T13:55:07+00:00'
+    subject: 'docs: record application preview thumbnail evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/application-embeds/spec.yml
+    related_feature_ids: []
+  - sha: 534d54a08080101d0671bb1e4e4527a6d823bf55
+    short_sha: 534d54a08
+    authored_at: '2026-06-08T13:45:58+00:00'
+    subject: 'test: stub application preview thumbnail bytes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_run_application_preview_task.py
+    related_feature_ids: []
+  - sha: ea7172f71d4569f7ad70770f1907d75d09baf919
+    short_sha: ea7172f71
+    authored_at: '2026-06-08T13:36:37+00:00'
+    subject: 'feat: store encrypted application preview thumbnails'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    - backend/core/api/app/routes/generated_assets_api.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_run_application_preview_task.py
+    - docs/specs/application-embeds/spec.yml
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    related_feature_ids: []
+  - sha: d000f302da4576598225313b1a5550536a97916e
+    short_sha: d000f302d
+    authored_at: '2026-06-08T13:34:44+00:00'
+    subject: 'test: wait for memories permission race'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    related_feature_ids: []
+  - sha: cc6351179247cf619da3a4a38a9cb97f0eeb6e82
+    short_sha: cc6351179
+    authored_at: '2026-06-08T13:28:12+00:00'
+    subject: 'fix: use compound chat window cursors'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_share_chat_window_loading.py
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 678a7d384c977cfd9b990d2326b3a5191fba1587
+    short_sha: 678a7d384
+    authored_at: '2026-06-08T13:19:19+00:00'
+    subject: 'test: handle memories permission in chat flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/components/AppSettingsMemoriesPermissionDialog.svelte
+    related_feature_ids: []
+  - sha: 51d9e0da690f8112ad481adae2d53f87cf8a7bef
+    short_sha: 51d9e0da6
+    authored_at: '2026-06-08T13:04:28+00:00'
+    subject: 'docs: record scalable loading test evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    related_feature_ids: []
+  - sha: a6573cbd7cc6dcd9a24df78783df6ce242833ba0
+    short_sha: a6573cbd7
+    authored_at: '2026-06-08T12:59:53+00:00'
+    subject: 'feat: add scalable chat loading'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_share_chat_window_loading.py
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+    - frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 7a3afec8cdafbbe0b441435757df92f27f8bd2e0
+    short_sha: 7a3afec8c
+    authored_at: '2026-06-08T12:56:32+00:00'
+    subject: 'test: add deterministic quality audits'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/providers/google_maps.yml
+    - backend/providers/moonshot.yml
+    - backend/tests/test_deterministic_quality_audits.py
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - scripts/audit_app_provider_contracts.py
+    - scripts/audit_opencode_automation_budget.py
+    - scripts/audit_playwright_determinism.py
+    - scripts/audit_sensitive_logging.py
+    - scripts/code_quality_guard.py
+    related_feature_ids: []
+  - sha: d8144e462550f6ce3f6be8b70e5f2beba717cbfa
+    short_sha: d8144e462
+    authored_at: '2026-06-08T12:17:10+00:00'
+    subject: 'fix: tolerate null cache timestamps'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/tests/test_user_cache_tasks.py
+    related_feature_ids: []
+  - sha: 270f8b2ccf3da7020a4b203ceeaa3d7a33d4ccb7
+    short_sha: 270f8b2cc
+    authored_at: '2026-06-08T11:52:15+00:00'
+    subject: 'fix: keep example chat structured data valid'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/example/[slug]/+page.server.ts
+    related_feature_ids: []
+  - sha: 47300c4a1740aea51b892f1f5fb1d519a5a6d9a1
+    short_sha: 47300c4a1
+    authored_at: '2026-06-08T11:44:09+00:00'
+    subject: 'refactor: route app skill helpers through shared facade'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/skills/get_docs_skill.py
+    - backend/apps/code/skills/search_repos_skill.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/apps/health/skills/search_appointments_skill.py
+    - backend/apps/images/skills/generate_skill.py
+    - backend/apps/images/skills/search_skill.py
+    - backend/apps/images/skills/vectorize_skill.py
+    - backend/apps/mail/skills/search_skill.py
+    - backend/apps/maps/skills/search_skill.py
+    - backend/apps/music/skills/generate_skill.py
+    - backend/apps/news/skills/search_skill.py
+    - backend/apps/nutrition/skills/search_recipes.py
+    - backend/apps/shopping/skills/search_products.py
+    - backend/apps/social_media/skills/get_posts.py
+    - backend/apps/social_media/skills/search.py
+    - backend/apps/social_media/tasks/get_posts_task.py
+    - backend/apps/social_media/tasks/search_task.py
+    - backend/apps/travel/skills/search_connections.py
+    - backend/apps/travel/skills/search_stays.py
+    - backend/apps/videos/skills/generate_skill.py
+    - backend/apps/videos/skills/search_skill.py
+    - backend/apps/videos/skills/transcript_skill.py
+    - backend/apps/web/skills/read_skill.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/shared/python_utils/app_skill_helpers.py
+    related_feature_ids: []
+  - sha: ff764a7a3ae5a632df70d5ab5b9ab35a154b8896
+    short_sha: ff764a7a3
+    authored_at: '2026-06-08T11:38:39+00:00'
+    subject: 'fix: stabilize mocked stream startup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/mock_replay.py
+    - backend/tests/test_mock_replay.py
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 6dd7b1e3c90d979c3b88f73bf28e71bfe5aa07d0
+    short_sha: 6dd7b1e3c
+    authored_at: '2026-06-08T11:24:34+00:00'
+    subject: 'fix: clarify contract audit summary emails'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/tasks/email_tasks/test_run_summary_email_task.py
+    - backend/core/api/templates/email/test_run_summary.mjml
+    - scripts/contract_audits.py
+    - scripts/run_contract_audits.py
+    related_feature_ids: []
+  - sha: a3d8432d7578c5b7ec3bfb9f28f56404d9f2380d
+    short_sha: a3d8432d7
+    authored_at: '2026-06-08T11:01:17+00:00'
+    subject: 'fix: configure application preview origin'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .env.example
+    - backend/core/docker-compose.yml
+    related_feature_ids: []
+  - sha: 721e2c5306a494f9c3e1286af312ffe0cca88baa
+    short_sha: 721e2c530
+    authored_at: '2026-06-08T10:55:46+00:00'
+    subject: 'feat: refresh app skill example chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/demo_chats/data/example_chats/beautiful-single-page-html.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-dermatology-appointments.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/cancel-test-reminder.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/fediverse-activitypub-social-search.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gpt-4o-announcement-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-tracker-onboarding-draft.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/lh400-flight-status-check.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mastodon-account-recent-posts.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/nonprofit-event-planning-use-case.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/northstar-metrics-svg-logo.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/openmates-add-app-skill-doc.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/openmates-app-skills-embeds-docs.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/privacy-website-hero-background.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/private-workspace-demo-video.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/product-launch-synth-loop.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/python-squares-code-run.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/sqlite-strict-tables-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/upcoming-reminders-list.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/watercolor-robot-balcony.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/index.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_dermatology_appointments.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/cancel_test_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/chickpea_spinach_protein_dinners.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/fediverse_activitypub_social_search.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gpt_4o_announcement_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/habit_tracker_onboarding_draft.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/lh400_flight_status_check.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mastodon_account_recent_posts.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/nonprofit_event_planning_use_case.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/northstar_metrics_svg_logo.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_add_app_skill_doc.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/openmates_app_skills_embeds_docs.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/privacy_website_hero_background.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/private_workspace_demo_video.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/product_launch_synth_loop.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/python_squares_code_run.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/sqlite_strict_tables_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/upcoming_reminders_list.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/watercolor_robot_balcony.yml
+    - scripts/openmates_cli_test_account.mjs
+    related_feature_ids: []
+  - sha: 3f0522193bfd6c0dbab06d9e3a4f6349755d2d48
+    short_sha: 3f0522193
+    authored_at: '2026-06-08T10:47:53+00:00'
+    subject: 'fix: open stay-logged-in login from logout toast'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/i18n/sources/login/main.yml
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    - frontend/packages/ui/src/stores/uiStateStore.ts
+    related_feature_ids: []
+  - sha: 266870f63fbd383b00c2c2d73ecc746cb252bd33
+    short_sha: 266870f63
+    authored_at: '2026-06-08T10:44:05+00:00'
+    subject: 'fix: route application preview API'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - deployment/dev_server/Caddyfile
+    - deployment/prod_server/Caddyfile
+    related_feature_ids: []
+  - sha: e002d4a70874ac9c600da5ce33b85a2cd44b300f
+    short_sha: e002d4a70
+    authored_at: '2026-06-08T10:00:13+00:00'
+    subject: 'test: pace application fixture chunks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/application_preview.json
+    - backend/apps/ai/testing/mock_replay.py
+    related_feature_ids: []
+  - sha: 42f4348b972697ad6b840fdf0db615a1a8236dfd
+    short_sha: 42f4348b9
+    authored_at: '2026-06-08T09:34:50+00:00'
+    subject: 'test: delay application fixture replay'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/application_preview.json
+    - backend/apps/ai/testing/mock_replay.py
+    related_feature_ids: []
+  - sha: 8be840e09a8329a3f64ef8c12df175252de338aa
+    short_sha: 8be840e09
+    authored_at: '2026-06-08T09:04:02+00:00'
+    subject: 'test: replay application preview fixture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/fixtures/application_preview.json
+    - backend/apps/ai/testing/mock_replay.py
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    related_feature_ids: []
+  - sha: 23a56d6efec62ce7fd2b8a1c3e98f4ef3aea1aa7
+    short_sha: 23a56d6ef
+    authored_at: '2026-06-08T08:47:12+00:00'
+    subject: 'fix: add application artifact builder'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_block_detection.py
+    - docs/specs/application-embeds/spec.yml
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 8698a719e8f1b485d4ddb358b86ce501fb44c801
+    short_sha: 8698a719e
+    authored_at: '2026-06-08T08:45:37+00:00'
+    subject: 'fix: normalize CLI example embeds and categories'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_example_chat_scaffold.py
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/embedCreator.ts
+    - frontend/packages/openmates-cli/src/urlEmbed.ts
+    - frontend/packages/openmates-cli/tests/urlEmbed.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/balcony-plant-reminder.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/family-stays-kyoto.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gpt-4o-announcement-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mortgage-payment-calculation.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rust-vector-database-repos.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/svelte-runes-docs.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ted-talk-transcript-summary.ts
+    - scripts/create-example-chat-from-share.mjs
+    related_feature_ids: []
+  - sha: 8fb6993dd098003fd511f9bcf59ce5d26ba492a2
+    short_sha: 8fb6993dd
+    authored_at: '2026-06-08T08:13:47+00:00'
+    subject: 'test: reload app skill example settings cases'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 5e778c9743a27628d7eab8329cbe7e393a7e9a17
+    short_sha: 5e778c974
+    authored_at: '2026-06-08T08:01:09+00:00'
+    subject: 'test: cover app skill example chat cards'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 909b5e0e8e3dfcd851207732f9401ad2f25aad02
+    short_sha: 909b5e0e8
+    authored_at: '2026-06-08T01:33:39+00:00'
+    subject: 'fix: convert raw application bundles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    related_feature_ids: []
+  - sha: f44902f9e69e8dc98848038ff33af198b5759c07
+    short_sha: f44902f9e
+    authored_at: '2026-06-08T01:19:30+00:00'
+    subject: 'fix: split application JSON bundles'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    related_feature_ids: []
+  - sha: f34e533b9b4e8a275750c1ff830e724c688086a4
+    short_sha: f34e533b9
+    authored_at: '2026-06-08T01:06:35+00:00'
+    subject: 'fix: infer application files from embed refs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    related_feature_ids: []
+  - sha: 4f5f5c8faf44d2c150a1ddd8fff48821f432d1cb
+    short_sha: 4f5f5c8fa
+    authored_at: '2026-06-08T00:53:00+00:00'
+    subject: 'fix: emit application previews earlier'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids: []
+  - sha: f82b9091367f0956e389706a8882fd49acf98f40
+    short_sha: f82b90913
+    authored_at: '2026-06-08T00:48:20+00:00'
+    subject: 'test: update weather app skill example assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+    related_feature_ids: []
+  - sha: 7a5af98a37378172e23fc49ee451b7e91b075773
+    short_sha: 7a5af98a3
+    authored_at: '2026-06-08T00:37:46+00:00'
+    subject: 'fix: load CLI websocket dependency via require'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    related_feature_ids: []
+  - sha: ee79a7d6287699ffe535885e76ae0613871059c6
+    short_sha: ee79a7d62
+    authored_at: '2026-06-08T00:32:42+00:00'
+    subject: 'feat: add app skill example chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ai-workshops-meetups-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/artemis-ii-mission.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/balcony-plant-reminder.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/berlin-weather-bike-commute.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/buck-converters-24v-5v.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/eu-chat-control-law-criticisms.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/family-stays-kyoto.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/furnished-apartments-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gigantic-airplanes.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/gpt-4o-announcement-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/mortgage-payment-calculation.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/organic-groceries-berlin.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/quiet-cafes-tempelhofer-feld.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rag-explained-videos.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/right-to-repair-laws-eu-us.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/rust-vector-database-repos.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/svelte-runes-docs.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/ted-talk-transcript-summary.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/watercolor-robot-balcony.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/ai_workshops_meetups_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/balcony_plant_reminder.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/berlin_weather_bike_commute.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/buck_converters_24v_5v.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/family_stays_kyoto.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/furnished_apartments_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/gpt_4o_announcement_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/mortgage_payment_calculation.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/organic_groceries_berlin.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/quiet_cafes_tempelhofer_feld.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rag_explained_videos.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/rust_vector_database_repos.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/svelte_runes_docs.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/ted_talk_transcript_summary.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/watercolor_robot_balcony.yml
+    related_feature_ids: []
+  - sha: d45048da144372ad9a186bf155a89a707deff1be
+    short_sha: d45048da1
+    authored_at: '2026-06-08T00:31:41+00:00'
+    subject: 'fix: parse application preview blocks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_block_detection.py
+    related_feature_ids: []
+  - sha: 8cccaa853563d7310cab1232717b345319bec743
+    short_sha: 8cccaa853
+    authored_at: '2026-06-08T00:23:49+00:00'
+    subject: 'test: add deeplink-webhook-message E2E spec'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deeplink-webhook-message.spec.ts
+    related_feature_ids: []
+  - sha: dee79ba99cd75f6c1176d8a490da9b86e20cf7e6
+    short_sha: dee79ba99
+    authored_at: '2026-06-08T00:06:35+00:00'
+    subject: 'fix: harden application preview test imports'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview.py
+    related_feature_ids: []
+  - sha: f5d4cefcafd05133ad31507b32a0b9b9e3df6614
+    short_sha: f5d4cefca
+    authored_at: '2026-06-08T00:05:37+00:00'
+    subject: 'fix: emit application embed parent previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_code_block_detection.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on chat scalability, application preview refinements, and self-hosting improvements. Key updates
+    include the introduction of scalable chat loading, encrypted thumbnails for application previews, and a new GHCR-based
+    self-hosting mode. The project also refreshed its library of example chats to include audio transcription and new app
+    skill demonstrations.
+  released_changes:
+  - text: OpenMates implemented scalable chat loading and compound window cursors to improve performance when opening large
+      conversations.
+    evidence:
+      commits:
+      - a6573cbd7
+      - cc6351179
+    release_status: released_main
+  - text: The application preview system now supports encrypted thumbnails, earlier preview emission during streaming, and
+      improved asset path rewriting for better reliability.
+    evidence:
+      commits:
+      - ea7172f71
+      - c69ffe0cc
+      - 31064b5b7
+      - 23a56d6ef
+      - f44902f9e
+      - f34e533b9
+      - 4f5f5c8fa
+      - d45048da1
+      - f5d4cefca
+    release_status: released_main
+  - text: A new GHCR self-host image mode was added, and the self-host edition now correctly hides payment status and allows
+      local browser API calls.
+    evidence:
+      commits:
+      - 84604768d
+      - 1d9d4e357
+      - ad8d96839
+    release_status: released_main
+  - text: The sidebar now includes 'show more' controls for chat categories, providing better management of conversation history.
+    evidence:
+      commits:
+      - c1063710e
+    release_status: released_main
+  - text: The example chat library was expanded with audio transcription and new app skill cases, supported by a refactored
+      shared facade for skill helpers.
+    evidence:
+      commits:
+      - 181284bcd
+      - 721e2c530
+      - ee79a7d62
+      - 47300c4a1
+    release_status: released_main
+  bug_fixes:
+  - text: The header navigation now correctly skips empty or draft-only chats when cycling through active conversations.
+    evidence:
+      commits:
+      - bf15e3791
+      - edc4bc0eb
+    release_status: released_main
+  - text: The logout notification toast now includes a functional link to re-open the login dialog for users wishing to stay
+      logged in.
+    evidence:
+      commits:
+      - 3f0522193
+    release_status: released_main
+  - text: OpenMates CLI received several stability fixes, including improved file embed skill resolution and normalized example
+      chat categories.
+    evidence:
+      commits:
+      - 3652d626d
+      - 7a5af98a3
+      - 8698a719e
+    release_status: released_main
+  - text: Embed previews for events and images were updated to ensure they remain metadata-only for improved performance.
+    evidence:
+      commits:
+      - 9facfbeee
+    release_status: released_main
+  - text: Resolved a race condition in mocked stream startup to ensure more reliable local development and testing.
+    evidence:
+      commits:
+      - ff764a7a3
+    release_status: released_main
+  unreleased_progress:
+  - text: Development continued on Apple platform parity, including fixes for chat opening windows and build verification
+      for iOS and macOS.
+    evidence:
+      commits:
+      - 9757be514
+      - a21e9f939
+      - 6f6ada5c4
+      - ad146188c
+    release_status: released_main
+  - text: A new habit garden application example chat was added but is currently not enabled for public use.
+    evidence:
+      commits:
+      - fb017df56
+    release_status: released_main
+  internal_progress:
+  - text: Deterministic quality audits and guardrails were added to the CI pipeline to enforce code quality and prevent sensitive
+      logging.
+    evidence:
+      commits:
+      - 7a3afec8c
+      - bd910c8f3
+    release_status: released_main
+  - text: Contract audit summary emails were clarified to provide better internal reporting on automated test runs.
+    evidence:
+      commits:
+      - 6dd7b1e3c
+    release_status: released_main
+  - text: Self-host smoke tests were updated to retry on build failures and trigger automatically for vault setup changes.
+    evidence:
+      commits:
+      - b504e2f9f
+      - fa70be979
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: Scalable chat loading and compound window cursors for faster conversation retrieval.
+      evidence:
+        commits:
+        - a6573cbd7
+        - cc6351179
+      reason: Significant performance improvement for chat loading and navigation.
+    - text: Enhanced application previews with encrypted thumbnails, improved asset path rewriting, and integrated billing
+        gating.
+      evidence:
+        commits:
+        - ea7172f71
+        - c69ffe0cc
+        - 31064b5b7
+        - 23a56d6ef
+      reason: Major functional update to the code application preview system.
+    - text: New GHCR self-host image mode and improved local browser API support for private instances.
+      evidence:
+        commits:
+        - 84604768d
+        - 1d9d4e357
+        - ad8d96839
+      reason: Key updates for the self-hosting community.
+    - text: New sidebar category controls allowing users to expand or collapse chat groups.
+      evidence:
+        commits:
+        - c1063710e
+      reason: User-facing UI improvement for sidebar management.
+    - text: Expanded library of example chats, including new audio transcription and app skill demonstrations.
+      evidence:
+        commits:
+        - 181284bcd
+        - 721e2c530
+        - ee79a7d62
+      reason: New content to demonstrate platform capabilities.
+    exclude:
+    - text: Apple platform parity and build verification updates.
+      evidence:
+        commits:
+        - 9757be514
+        - a21e9f939
+        - 6f6ada5c4
+        - ad146188c
+      reason: iOS and macOS platforms are currently listed as disabled features.
+    - text: Habit garden application example chat.
+      evidence:
+        commits:
+        - fb017df56
+      reason: This feature is marked as not user-facing.
+    rationale: The update introduces significant performance enhancements for chat loading and major refinements to the application
+      preview system. Self-hosting capabilities were also expanded with a new image mode. Work on Apple platforms remains
+      excluded as those features are currently disabled.
+  social_video_recommendations:
+  - idea: Demonstrate the new application preview system.
+    priority: high
+    reason: The application preview system is a core differentiator for OpenMates, and the new encrypted thumbnails and faster
+      emission provide a smooth visual experience.
+    evidence:
+      commits:
+      - ea7172f71
+      - c69ffe0cc
+  - idea: Showcase the new sidebar category controls.
+    priority: medium
+    reason: A quick UI-focused clip showing how users can now organize and expand their chat categories in the sidebar.
+    evidence:
+      commits:
+      - c1063710e
+  quality_notes:
+  - Build stability for self-hosted images was improved with automated retries in CI.
+  - Deterministic quality audits were introduced to enforce stricter code quality standards.
+  - Application preview reliability was hardened through extensive E2E test coverage and asset path fixes.
+  validation_warnings: []

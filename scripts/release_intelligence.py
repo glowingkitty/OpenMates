@@ -430,9 +430,9 @@ def collect_commits(
 ) -> list[CommitChange]:
     range_args = [f"{from_ref}..{to_ref}"] if from_ref else [to_ref]
     command = ["log", "--format=%x1e%H%x1f%h%x1f%aI%x1f%s%x1f%b"]
-    if since and not from_ref:
+    if since:
         command.append(f"--since={since}")
-    if until and not from_ref:
+    if until:
         command.append(f"--until={until}")
     command.extend(range_args)
 
@@ -1534,8 +1534,8 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     daily = subparsers.add_parser("daily", help="Generate a deterministic daily changelog YAML artifact.")
-    daily.add_argument("--since", default="24 hours ago", help="git log --since window used when --from-ref is absent.")
-    daily.add_argument("--until", default=None, help="Optional git log --until bound used when --from-ref is absent.")
+    daily.add_argument("--since", default="24 hours ago", help="git log --since window for the selected ref range.")
+    daily.add_argument("--until", default=None, help="Optional git log --until bound for the selected ref range.")
     daily.add_argument("--from-ref", default=None, help="Optional lower git range bound, e.g. origin/main.")
     daily.add_argument("--to-ref", default="HEAD", help="Upper git range bound; defaults to HEAD.")
     daily.add_argument("--main-ref", default=DEFAULT_MAIN_REF, help="Ref used to decide public release reachability.")

@@ -1,0 +1,1759 @@
+schema_version: 1
+cadence: daily
+date: '2026-06-19'
+generated_at: '2026-07-09T15:46:41+00:00'
+range:
+  since: '2026-06-19T00:00:00+00:00'
+  until: '2026-06-19T23:59:59+00:00'
+  from_ref: v0.9.0-alpha
+  to_ref: origin/main
+  assume_released: false
+summary:
+  total_commits: 34
+  section_counts:
+    features: 4
+    bug_fixes: 23
+    improvements: 0
+    docs: 2
+    tests: 5
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 18
+  user_facing_items: 19
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:3d
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/3d/app.yml
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: embed:code:application
+    kind: embed
+    default_enabled: false
+    override: null
+    parent_id: app:code
+    source: backend/apps/code/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add reported issue workflow CLI'
+    section: features
+    commits:
+    - bcb573b8b
+    authored_at: '2026-06-19T22:21:09+00:00'
+    changed_paths:
+    - .agents/skills/debug-issue/SKILL.md
+    - .claude/skills/debug-issue/SKILL.md
+    - AGENTS.md
+    - docs/findings/issues/README.md
+    - scripts/issues.py
+    - scripts/prompts/issues-investigation.md
+    - scripts/tests/test_issues_cli.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  - title: 'feat: extend CLI model benchmarks'
+    section: features
+    commits:
+    - 3d3a582e5
+    authored_at: '2026-06-19T13:58:20+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - docs/specs/cli-model-benchmarks/spec.yml
+    - frontend/packages/openmates-cli/fixtures/brandenburger-tor.png
+    - frontend/packages/openmates-cli/fixtures/brandenburger-tor.svg
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+    - frontend/packages/openmates-cli/src/benchmark.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add CLI model benchmark command'
+    section: features
+    commits:
+    - 808e1f7e0
+    authored_at: '2026-06-19T11:36:29+00:00'
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/directus/schemas/usage.yml
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_usage_entries.py
+    - frontend/packages/openmates-cli/src/benchmark.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add unified test control plane'
+    section: features
+    commits:
+    - 7f13cd908
+    authored_at: '2026-06-19T07:12:55+00:00'
+    changed_paths:
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .claude/skills/fix-next-test/SKILL.md
+    - .claude/skills/fix-tests/SKILL.md
+    - docs/architecture/test-orchestration.md
+    - scripts/auto_fix_failed_tests.py
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: flush anonymous sse lifecycle before budget accounting'
+    section: bug_fixes
+    commits:
+    - 4af0a3d5e
+    authored_at: '2026-06-19T23:42:55+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: complete anonymous chat lifecycle'
+    section: bug_fixes
+    commits:
+    - 15e35d787
+    authored_at: '2026-06-19T23:23:49+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: preserve anonymous SSE streaming'
+    section: bug_fixes
+    commits:
+    - 6bbe4ae74
+    authored_at: '2026-06-19T23:16:01+00:00'
+    changed_paths:
+    - backend/core/api/app/middleware/logging_middleware.py
+    - backend/tests/test_logging_middleware_streaming.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: disable application embeds temporarily'
+    section: bug_fixes
+    commits:
+    - f2bc07f56
+    authored_at: '2026-06-19T23:07:59+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/apps/code/app.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_example_chat_scaffold.py
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-garden-vite-app.ts
+    - scripts/audit_example_chats.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: remove partial learning mode sender dependency'
+    section: bug_fixes
+    commits:
+    - '346455147'
+    authored_at: '2026-06-19T23:06:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore CLI build after interactive answer deploy'
+    section: bug_fixes
+    commits:
+    - 8f53d53d0
+    authored_at: '2026-06-19T23:01:58+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize interactive question answers'
+    section: bug_fixes
+    commits:
+    - ffe31b215
+    authored_at: '2026-06-19T22:57:15+00:00'
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/preprocessing_history.py
+    - backend/tests/test_preprocessing_history_guard.py
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/interactiveQuestions.ts
+    - frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: support custom interactive question answers'
+    section: bug_fixes
+    commits:
+    - a76e91882
+    authored_at: '2026-06-19T22:35:09+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/openmates-cli/src/interactiveQuestions.ts
+    - frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/types.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    release_status: released_main
+    communication_status: unreleased_feature
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
+  - title: 'fix: resolve CLI benchmark image attachments'
+    section: bug_fixes
+    commits:
+    - e5f1d4bdb
+    authored_at: '2026-06-19T14:57:16+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+    - frontend/packages/openmates-cli/src/benchmark.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: localize code download notifications'
+    section: bug_fixes
+    commits:
+    - 63cabfd0e
+    authored_at: '2026-06-19T12:39:16+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: make share URL text visible in light mode'
+    section: bug_fixes
+    commits:
+    - fb90ce081
+    authored_at: '2026-06-19T11:26:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: require stable application preview readiness'
+    section: bug_fixes
+    commits:
+    - a3d94c888
+    authored_at: '2026-06-19T10:21:28+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: wait for conditional passkey cancellation'
+    section: bug_fixes
+    commits:
+    - 2167660fd
+    authored_at: '2026-06-19T10:14:27+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show report issue id as plain text'
+    section: bug_fixes
+    commits:
+    - c226c3c5e
+    authored_at: '2026-06-19T09:51:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.svelte
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: load generated svelte app previews'
+    section: bug_fixes
+    commits:
+    - e8fa4b952
+    authored_at: '2026-06-19T09:34:07+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve stay logged in during security reauth'
+    section: bug_fixes
+    commits:
+    - e3ed90108
+    authored_at: '2026-06-19T09:21:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/cli-created-account-login.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: improve application embed previews'
+    section: bug_fixes
+    commits:
+    - 8ee43b853
+    authored_at: '2026-06-19T09:13:07+00:00'
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview_gateway.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/__tests__/applicationProjectZip.test.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore anonymous app access'
+    section: bug_fixes
+    commits:
+    - eec336499
+    authored_at: '2026-06-19T08:34:23+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep anonymous chat on fast ai path'
+    section: bug_fixes
+    commits:
+    - 9bf86065f
+    authored_at: '2026-06-19T08:20:36+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep anonymous native chat JSON response'
+    section: bug_fixes
+    commits:
+    - 4000d279d
+    authored_at: '2026-06-19T07:44:10+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep completed code embeds renderable'
+    section: bug_fixes
+    commits:
+    - f6963d76a
+    authored_at: '2026-06-19T07:17:26+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: show anonymous new chat header'
+    section: bug_fixes
+    commits:
+    - 8bab59e9c
+    authored_at: '2026-06-19T07:16:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: stream anonymous chat through shared lifecycle'
+    section: bug_fixes
+    commits:
+    - 4c564147e
+    authored_at: '2026-06-19T06:57:02+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: document CLI benchmark commands'
+    section: docs
+    commits:
+    - effad0f1a
+    authored_at: '2026-06-19T18:43:21+00:00'
+    changed_paths:
+    - docs/architecture/platforms/cli-package.md
+    - docs/user-guide/cli/README.md
+    - docs/user-guide/cli/benchmarks.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: route test instructions through tests control plane'
+    section: docs
+    commits:
+    - 262a963fc
+    authored_at: '2026-06-19T08:37:39+00:00'
+    changed_paths:
+    - .agents/skills/add-example-chat/SKILL.md
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/triage-recent-bugs/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/agents/e2e-test-investigator.md
+    - .claude/agents/main-processor-guru.md
+    - .claude/agents/skill-integration-doctor.md
+    - .claude/agents/test-failure-triager.md
+    - .claude/rules/testing.md
+    - .claude/skills/add-example-chat/SKILL.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/triage-recent-bugs/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/main-processor-guru.toml
+    - .codex/agents/skill-integration-doctor.toml
+    - .codex/agents/test-failure-triager.toml
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/main-processor-guru.md
+    - .opencode/agents/skill-integration-doctor.md
+    - .opencode/agents/test-failure-triager.md
+    - backend/tests/test_auto_fix_failed_tests_controller.py
+    - backend/tests/test_privacy_promises.py
+    - docs/architecture/infrastructure/auto-deploy.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/contributing/standards/cli.md
+    - frontend/apps/web_app/tests/dev-smoke/README.md
+    - scripts/run_provider_contracts.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: audit CSS foreground primary token usage'
+    section: tests
+    commits:
+    - beaf3e222
+    authored_at: '2026-06-19T11:40:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    - scripts/audit_css_color_tokens.py
+    - scripts/tests/test_audit_css_color_tokens.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: scope application preview leak assertions'
+    section: tests
+    commits:
+    - 0ae3dc6f9
+    authored_at: '2026-06-19T10:08:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: make application preview e2e deterministic'
+    section: tests
+    commits:
+    - 1dccd36ef
+    authored_at: '2026-06-19T09:54:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expect anonymous mate typing label'
+    section: tests
+    commits:
+    - d72e42914
+    authored_at: '2026-06-19T07:30:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover anonymous chat parity gaps'
+    section: tests
+    commits:
+    - 8aafece0f
+    authored_at: '2026-06-19T06:31:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: disable application embeds temporarily'
+    commits:
+    - f2bc07f56
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve application embed previews'
+    commits:
+    - 8ee43b853
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: flush anonymous sse lifecycle before budget accounting'
+    commits:
+    - 4af0a3d5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: complete anonymous chat lifecycle'
+    commits:
+    - 15e35d787
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: disable application embeds temporarily'
+    commits:
+    - f2bc07f56
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore CLI build after interactive answer deploy'
+    commits:
+    - 8f53d53d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize interactive question answers'
+    commits:
+    - ffe31b215
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve CLI benchmark image attachments'
+    commits:
+    - e5f1d4bdb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: extend CLI model benchmarks'
+    commits:
+    - 3d3a582e5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: localize code download notifications'
+    commits:
+    - 63cabfd0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add CLI model benchmark command'
+    commits:
+    - 808e1f7e0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: make share URL text visible in light mode'
+    commits:
+    - fb90ce081
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: wait for conditional passkey cancellation'
+    commits:
+    - 2167660fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: show report issue id as plain text'
+    commits:
+    - c226c3c5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve stay logged in during security reauth'
+    commits:
+    - e3ed90108
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: improve application embed previews'
+    commits:
+    - 8ee43b853
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore anonymous app access'
+    commits:
+    - eec336499
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep anonymous chat on fast ai path'
+    commits:
+    - 9bf86065f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep anonymous native chat JSON response'
+    commits:
+    - 4000d279d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stream anonymous chat through shared lifecycle'
+    commits:
+    - 4c564147e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: flush anonymous sse lifecycle before budget accounting'
+    commits:
+    - 4af0a3d5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: complete anonymous chat lifecycle'
+    commits:
+    - 15e35d787
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: disable application embeds temporarily'
+    commits:
+    - f2bc07f56
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore CLI build after interactive answer deploy'
+    commits:
+    - 8f53d53d0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize interactive question answers'
+    commits:
+    - ffe31b215
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: support custom interactive question answers'
+    commits:
+    - a76e91882
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: resolve CLI benchmark image attachments'
+    commits:
+    - e5f1d4bdb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: extend CLI model benchmarks'
+    commits:
+    - 3d3a582e5
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: localize code download notifications'
+    commits:
+    - 63cabfd0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add CLI model benchmark command'
+    commits:
+    - 808e1f7e0
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: make share URL text visible in light mode'
+    commits:
+    - fb90ce081
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: wait for conditional passkey cancellation'
+    commits:
+    - 2167660fd
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: show report issue id as plain text'
+    commits:
+    - c226c3c5e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve stay logged in during security reauth'
+    commits:
+    - e3ed90108
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: improve application embed previews'
+    commits:
+    - 8ee43b853
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore anonymous app access'
+    commits:
+    - eec336499
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep anonymous chat on fast ai path'
+    commits:
+    - 9bf86065f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep anonymous native chat JSON response'
+    commits:
+    - 4000d279d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stream anonymous chat through shared lifecycle'
+    commits:
+    - 4c564147e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 4af0a3d5e0083d1a0620ef121cdab616e79a2b9d
+    short_sha: 4af0a3d5e
+    authored_at: '2026-06-19T23:42:55+00:00'
+    subject: 'fix: flush anonymous sse lifecycle before budget accounting'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    related_feature_ids: []
+  - sha: 15e35d7878594f76bb610c99777686d25f8dd693
+    short_sha: 15e35d787
+    authored_at: '2026-06-19T23:23:49+00:00'
+    subject: 'fix: complete anonymous chat lifecycle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 6bbe4ae74b41c4d02676b11385e0fb997c07ed46
+    short_sha: 6bbe4ae74
+    authored_at: '2026-06-19T23:16:01+00:00'
+    subject: 'fix: preserve anonymous SSE streaming'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/middleware/logging_middleware.py
+    - backend/tests/test_logging_middleware_streaming.py
+    related_feature_ids: []
+  - sha: f2bc07f5652c13684f0f6394448f2c883725b41f
+    short_sha: f2bc07f56
+    authored_at: '2026-06-19T23:07:59+00:00'
+    subject: 'fix: disable application embeds temporarily'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/base_code_block_instruction.md
+    - backend/apps/code/app.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_ai_instruction_contracts.py
+    - backend/tests/test_example_chat_scaffold.py
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/habit-garden-vite-app.ts
+    - scripts/audit_example_chats.py
+    related_feature_ids: []
+  - sha: 3464551471f29a6df2b844a42fa4ec0954e2dd87
+    short_sha: '346455147'
+    authored_at: '2026-06-19T23:06:16+00:00'
+    subject: 'fix: remove partial learning mode sender dependency'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: 8f53d53d0bf6845627a8bc129380e00ea0ad9cbd
+    short_sha: 8f53d53d0
+    authored_at: '2026-06-19T23:01:58+00:00'
+    subject: 'fix: restore CLI build after interactive answer deploy'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    related_feature_ids: []
+  - sha: ffe31b215b97abfd6556a62c9027739df839cf34
+    short_sha: ffe31b215
+    authored_at: '2026-06-19T22:57:15+00:00'
+    subject: 'fix: stabilize interactive question answers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/utils/preprocessing_history.py
+    - backend/tests/test_preprocessing_history_guard.py
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/interactiveQuestions.ts
+    - frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: a76e918828b8fafe577bf7aa0564b4e84520ca71
+    short_sha: a76e91882
+    authored_at: '2026-06-19T22:35:09+00:00'
+    subject: 'fix: support custom interactive question answers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_interactive_questions_streaming.py
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/openmates-cli/src/interactiveQuestions.ts
+    - frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.preview.ts
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+    - frontend/packages/ui/src/components/interactive_questions/renderers/ChoiceQuestion.svelte
+    - frontend/packages/ui/src/components/interactive_questions/types.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bcb573b8bc1175661be09f290e8128e47492b622
+    short_sha: bcb573b8b
+    authored_at: '2026-06-19T22:21:09+00:00'
+    subject: 'feat: add reported issue workflow CLI'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/debug-issue/SKILL.md
+    - .claude/skills/debug-issue/SKILL.md
+    - AGENTS.md
+    - docs/findings/issues/README.md
+    - scripts/issues.py
+    - scripts/prompts/issues-investigation.md
+    - scripts/tests/test_issues_cli.py
+    related_feature_ids: []
+  - sha: effad0f1a08b0ece8fb71c0fea7bbc17a65ae9b1
+    short_sha: effad0f1a
+    authored_at: '2026-06-19T18:43:21+00:00'
+    subject: 'docs: document CLI benchmark commands'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/architecture/platforms/cli-package.md
+    - docs/user-guide/cli/README.md
+    - docs/user-guide/cli/benchmarks.md
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: e5f1d4bdbdc171dfb3551e95be1dbe8c7ce08d37
+    short_sha: e5f1d4bdb
+    authored_at: '2026-06-19T14:57:16+00:00'
+    subject: 'fix: resolve CLI benchmark image attachments'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+    - frontend/packages/openmates-cli/src/benchmark.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 3d3a582e5b238ddf44aa74d1f7f61fd1434eb0d4
+    short_sha: 3d3a582e5
+    authored_at: '2026-06-19T13:58:20+00:00'
+    subject: 'feat: extend CLI model benchmarks'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - docs/specs/cli-model-benchmarks/spec.yml
+    - frontend/packages/openmates-cli/fixtures/brandenburger-tor.png
+    - frontend/packages/openmates-cli/fixtures/brandenburger-tor.svg
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+    - frontend/packages/openmates-cli/src/benchmark.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: 63cabfd0ed747bd3cf23310d43edc70607b26a6f
+    short_sha: 63cabfd0e
+    authored_at: '2026-06-19T12:39:16+00:00'
+    subject: 'fix: localize code download notifications'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    related_feature_ids: []
+  - sha: beaf3e22241362deff1181593b19343a1c9a0745
+    short_sha: beaf3e222
+    authored_at: '2026-06-19T11:40:45+00:00'
+    subject: 'test: audit CSS foreground primary token usage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    - scripts/audit_css_color_tokens.py
+    - scripts/tests/test_audit_css_color_tokens.py
+    related_feature_ids: []
+  - sha: 808e1f7e0d9f6ebf1c40c9545b78d5fd8e7bcb05
+    short_sha: 808e1f7e0
+    authored_at: '2026-06-19T11:36:29+00:00'
+    subject: 'feat: add CLI model benchmark command'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/directus/schemas/usage.yml
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_usage_entries.py
+    - frontend/packages/openmates-cli/src/benchmark.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    related_feature_ids: []
+  - sha: fb90ce081e542565948bb1d2e4d89a4f06d970c6
+    short_sha: fb90ce081
+    authored_at: '2026-06-19T11:26:00+00:00'
+    subject: 'fix: make share URL text visible in light mode'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    - frontend/packages/ui/src/components/chats/ChatContextMenu.svelte
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    related_feature_ids: []
+  - sha: a3d94c888754645d3f9ffce0b828538b5daf57e4
+    short_sha: a3d94c888
+    authored_at: '2026-06-19T10:21:28+00:00'
+    subject: 'fix: require stable application preview readiness'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    related_feature_ids: []
+  - sha: 2167660fd32582c4bf51f8f85f391bf3bc98dd37
+    short_sha: 2167660fd
+    authored_at: '2026-06-19T10:14:27+00:00'
+    subject: 'fix: wait for conditional passkey cancellation'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Login.svelte
+    related_feature_ids: []
+  - sha: 0ae3dc6f9feba5f09592d8dfae8acc5e5d2b7585
+    short_sha: 0ae3dc6f9
+    authored_at: '2026-06-19T10:08:31+00:00'
+    subject: 'test: scope application preview leak assertions'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    related_feature_ids: []
+  - sha: 1dccd36ef366c8d37e168d00b57c070461cbae3b
+    short_sha: 1dccd36ef
+    authored_at: '2026-06-19T09:54:28+00:00'
+    subject: 'test: make application preview e2e deterministic'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview.spec.ts
+    related_feature_ids: []
+  - sha: c226c3c5ee83cda0900889a16df714ffcd29ebb1
+    short_sha: c226c3c5e
+    authored_at: '2026-06-19T09:51:27+00:00'
+    subject: 'fix: show report issue id as plain text'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.svelte
+    - frontend/packages/ui/src/stores/reportIssueStore.ts
+    related_feature_ids: []
+  - sha: e8fa4b95249453f93c158936f31cf29e9bc942b1
+    short_sha: e8fa4b952
+    authored_at: '2026-06-19T09:34:07+00:00'
+    subject: 'fix: load generated svelte app previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    related_feature_ids: []
+  - sha: e3ed90108a1b9fcf9a782c21e1ae722f8f38d026
+    short_sha: e3ed90108
+    authored_at: '2026-06-19T09:21:40+00:00'
+    subject: 'fix: preserve stay logged in during security reauth'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/cli-created-account-login.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte
+    related_feature_ids: []
+  - sha: 8ee43b853e76d8c64b0688c00adebd64c194f06a
+    short_sha: 8ee43b853
+    authored_at: '2026-06-19T09:13:07+00:00'
+    subject: 'fix: improve application embed previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/app.yml
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/routes/application_preview_gateway.py
+    - backend/shared/providers/e2b_application_preview.py
+    - backend/tests/test_e2b_application_preview.py
+    - backend/tests/test_run_application_preview_task.py
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedFullscreen.svelte
+    - frontend/packages/ui/src/services/__tests__/applicationProjectZip.test.ts
+    - frontend/packages/ui/src/services/zipExportService.ts
+    related_feature_ids: []
+  - sha: 262a963fc89cc12ef246d8cbf56f1feb4972a59a
+    short_sha: 262a963fc
+    authored_at: '2026-06-19T08:37:39+00:00'
+    subject: 'docs: route test instructions through tests control plane'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/add-example-chat/SKILL.md
+    - .agents/skills/add-focus-mode/SKILL.md
+    - .agents/skills/add-memory-type/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .agents/skills/triage-recent-bugs/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .claude/agents/e2e-test-investigator.md
+    - .claude/agents/main-processor-guru.md
+    - .claude/agents/skill-integration-doctor.md
+    - .claude/agents/test-failure-triager.md
+    - .claude/rules/testing.md
+    - .claude/skills/add-example-chat/SKILL.md
+    - .claude/skills/add-focus-mode/SKILL.md
+    - .claude/skills/add-memory-type/SKILL.md
+    - .claude/skills/reproduce-first/SKILL.md
+    - .claude/skills/triage-recent-bugs/SKILL.md
+    - .claude/skills/verify-spec/SKILL.md
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/main-processor-guru.toml
+    - .codex/agents/skill-integration-doctor.toml
+    - .codex/agents/test-failure-triager.toml
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/main-processor-guru.md
+    - .opencode/agents/skill-integration-doctor.md
+    - .opencode/agents/test-failure-triager.md
+    - backend/tests/test_auto_fix_failed_tests_controller.py
+    - backend/tests/test_privacy_promises.py
+    - docs/architecture/infrastructure/auto-deploy.md
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/contributing/standards/cli.md
+    - frontend/apps/web_app/tests/dev-smoke/README.md
+    - scripts/run_provider_contracts.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: eec336499fb6090198886569cc9a06e8f53a2d52
+    short_sha: eec336499
+    authored_at: '2026-06-19T08:34:23+00:00'
+    subject: 'fix: restore anonymous app access'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    related_feature_ids: []
+  - sha: 9bf86065f8bdbf51a0fa070892e39e12f96c6e9f
+    short_sha: 9bf86065f
+    authored_at: '2026-06-19T08:20:36+00:00'
+    subject: 'fix: keep anonymous chat on fast ai path'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    related_feature_ids: []
+  - sha: 4000d279d683116c69f14bb86e77b0c529f0d5c3
+    short_sha: 4000d279d
+    authored_at: '2026-06-19T07:44:10+00:00'
+    subject: 'fix: keep anonymous native chat JSON response'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: d72e42914ad0da8113d1bbf53f7248e5a39a1173
+    short_sha: d72e42914
+    authored_at: '2026-06-19T07:30:31+00:00'
+    subject: 'test: expect anonymous mate typing label'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+  - sha: f6963d76a06acc2af6af7b621bdeaaca5706c15c
+    short_sha: f6963d76a
+    authored_at: '2026-06-19T07:17:26+00:00'
+    subject: 'fix: keep completed code embeds renderable'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    related_feature_ids: []
+  - sha: 8bab59e9caad25b30db39357c8c8a0724b5c3bc7
+    short_sha: 8bab59e9c
+    authored_at: '2026-06-19T07:16:59+00:00'
+    subject: 'fix: show anonymous new chat header'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 7f13cd9085582b96872c76ef9a03989aca7a6d01
+    short_sha: 7f13cd908
+    authored_at: '2026-06-19T07:12:55+00:00'
+    subject: 'feat: add unified test control plane'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .claude/skills/fix-next-test/SKILL.md
+    - .claude/skills/fix-tests/SKILL.md
+    - docs/architecture/test-orchestration.md
+    - scripts/auto_fix_failed_tests.py
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 4c564147efeb9d844e813ed21c29c4a82e40fe03
+    short_sha: 4c564147e
+    authored_at: '2026-06-19T06:57:02+00:00'
+    subject: 'fix: stream anonymous chat through shared lifecycle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/anonymous.py
+    - backend/tests/test_anonymous_skill_access.py
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    related_feature_ids: []
+  - sha: 8aafece0f3793bafdd0d1ae2bf1b2147c086e02d
+    short_sha: 8aafece0f
+    authored_at: '2026-06-19T06:31:48+00:00'
+    subject: 'test: cover anonymous chat parity gaps'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on enhancing the anonymous chat experience, introducing model benchmarking to the CLI, and refining
+    several UI and security components.
+  released_changes:
+  - text: OpenMates added a CLI model benchmark command with support for image attachments and extended evaluation metrics.
+    evidence:
+      commits:
+      - 808e1f7e0
+      - 3d3a582e5
+      - e5f1d4bdb
+    release_status: released_main
+  - text: The anonymous chat experience was overhauled to ensure stable SSE streaming, correct budget accounting, and full
+      lifecycle parity with authenticated sessions.
+    evidence:
+      commits:
+      - 4af0a3d5e
+      - 15e35d787
+      - eec336499
+      - 9bf86065f
+      - 4000d279d
+      - 4c564147e
+    release_status: released_main
+  - text: Code download notifications are now localized.
+    evidence:
+      commits:
+      - 63cabfd0e
+    release_status: released_main
+  bug_fixes:
+  - text: The login process now correctly handles conditional passkey cancellations.
+    evidence:
+      commits:
+      - 2167660fd
+    release_status: released_main
+  - text: Share URL text visibility was improved for users in light mode.
+    evidence:
+      commits:
+      - fb90ce081
+    release_status: released_main
+  - text: The 'stay logged in' preference is now preserved during security re-authentication flows.
+    evidence:
+      commits:
+      - e3ed90108
+    release_status: released_main
+  - text: Reported issue IDs are now displayed as plain text for easier reference.
+    evidence:
+      commits:
+      - c226c3c5e
+    release_status: released_main
+  - text: Interactive question answers were stabilized, and a CLI build regression was resolved.
+    evidence:
+      commits:
+      - 8f53d53d0
+      - ffe31b215
+    release_status: released_main
+  unreleased_progress:
+  - text: Application embeds have been temporarily disabled while underlying infrastructure is refined.
+    evidence:
+      commits:
+      - f2bc07f56
+    release_status: released_main
+  - text: Work continues on improving application preview stability and Svelte-specific rendering.
+    evidence:
+      commits:
+      - 8ee43b853
+      - a3d94c888
+      - e8fa4b952
+    release_status: released_main
+  - text: Support for custom interactive question answers is being developed for the unreleased iOS and macOS platforms.
+    evidence:
+      commits:
+      - a76e91882
+    release_status: released_main
+  internal_progress:
+  - text: A unified test control plane was added to orchestrate automated testing and fixes.
+    evidence:
+      commits:
+      - 7f13cd908
+      - 262a963fc
+    release_status: released_main
+  - text: A new CLI workflow was introduced to assist in debugging reported issues.
+    evidence:
+      commits:
+      - bcb573b8b
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: New CLI model benchmarking commands and extensions.
+      evidence:
+        commits:
+        - 808e1f7e0
+        - 3d3a582e5
+      reason: New functionality for CLI users to evaluate model performance.
+    - text: Enhanced anonymous chat experience with improved streaming and lifecycle management.
+      evidence:
+        commits:
+        - 4af0a3d5e
+        - 15e35d787
+        - eec336499
+        - 9bf86065f
+        - 4000d279d
+        - 4c564147e
+      reason: Significant stability and parity improvements for the guest user experience.
+    - text: Refinements to passkey handling, light mode visibility, and session persistence.
+      evidence:
+        commits:
+        - 2167660fd
+        - fb90ce081
+        - e3ed90108
+      reason: Polishes core UI and security interactions.
+    exclude:
+    - text: Custom interactive question answers for Apple platforms.
+      evidence:
+        commits:
+        - a76e91882
+      reason: Relates to disabled iOS and macOS platforms.
+    - text: Reported issue debugging CLI.
+      evidence:
+        commits:
+        - bcb573b8b
+      reason: Internal developer tool not intended for general users.
+    rationale: This update provides significant value to CLI power users through new benchmarking tools and ensures the anonymous
+      chat experience is as stable as the authenticated experience.
+  social_video_recommendations:
+  - idea: Demonstrate the new CLI benchmark command comparing different model responses directly in the terminal.
+    priority: high
+    reason: Provides a concrete technical story for the developer community.
+    evidence:
+      commits:
+      - 808e1f7e0
+      - 3d3a582e5
+  - idea: A short clip showing the seamless 'no-login' chat experience with real-time streaming.
+    priority: medium
+    reason: Highlights the accessibility of the platform for new users.
+    evidence:
+      commits:
+      - 4c564147e
+  quality_notes:
+  - Significant effort was directed toward ensuring parity between anonymous and authenticated chat lifecycles.
+  - CLI tooling is expanding beyond basic interaction into performance evaluation.
+  validation_warnings: []
