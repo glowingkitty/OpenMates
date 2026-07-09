@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "text-embed-text",
+      "canonical_markdown": "Before image\n\n```json\n{\n  \"type\": \"image\",\n  \"embed_id\": \"fixture-image-1\"\n}\n```\n\nAfter image",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "text-0",
+            "source": "Before image\n\n"
+          },
+          {
+            "kind": "embed",
+            "id": "fixture-image-1",
+            "embedType": "image",
+            "status": "finished",
+            "contentRef": "embed:fixture-image-1",
+            "referenceOnly": false,
+            "display": {
+              "title": "Image",
+              "mediaKind": "image"
+            }
+          },
+          {
+            "kind": "text",
+            "id": "text-1",
+            "source": "\n\nAfter image"
+          }
+        ]
+      },
+      "selection_fixtures": [
+        {
+          "label": "after-emoji-safe-prefix",
+          "source": "A\ud83d\udc4d\ud83c\udffdB",
+          "utf16_offset": 5
+        }
+      ]
+    },
+    {
+      "id": "unicode-mention-and-break",
+      "canonical_markdown": "Hello @mate:sophia \ud83d\udc4b\n\u0645\u0631\u062d\u0628\u0627 e\u0301",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "text-0",
+            "source": "Hello "
+          },
+          {
+            "kind": "mention",
+            "id": "mention-0",
+            "mentionKind": "mate",
+            "targetId": "sophia",
+            "canonicalSyntax": "@mate:sophia",
+            "displayLabel": "@Sophia"
+          },
+          {
+            "kind": "text",
+            "id": "text-1",
+            "source": " \ud83d\udc4b"
+          },
+          {
+            "kind": "hardBreak",
+            "id": "break-0"
+          },
+          {
+            "kind": "text",
+            "id": "text-2",
+            "source": "\u0645\u0631\u062d\u0628\u0627 e\u0301"
+          }
+        ]
+      },
+      "selection_fixtures": [
+        {
+          "label": "after-wave",
+          "source": " \ud83d\udc4b",
+          "utf16_offset": 3
+        },
+        {
+          "label": "after-combining-mark",
+          "source": "e\u0301",
+          "utf16_offset": 2
+        }
+      ]
+    },
+    {
+      "id": "unknown-markdown-lossless",
+      "canonical_markdown": ":::future-directive\nvalue = 1\n:::",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "text-0",
+            "source": ":::future-directive\nvalue = 1\n:::"
+          }
+        ]
+      },
+      "selection_fixtures": []
+    }
+  ]
+}

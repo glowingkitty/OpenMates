@@ -1,0 +1,1653 @@
+id: apple-native-message-composer
+title: Apple Native Message Composer
+status: implementing
+
+goal: >
+  Replace the Apple app's WKWebView-backed editable message surface and external
+  pending-embed strip with one fully native Swift composer built on Apple text
+  frameworks. The composer must match the rendered web MessageInput behavior and
+  appearance, including document-ordered inline embed previews, while preserving
+  existing canonical markdown and embed-reference storage without migrating
+  existing chats or drafts.
+
+scope:
+  in:
+    - One native composer document and editing contract used by main chat, new chat, macOS quick capture, and iOS/macOS share extensions.
+    - UIKit/TextKit 2 and AppKit/TextKit 2 editable-surface adapters wrapped for SwiftUI and extension hosts, with no WebView or third-party editor runtime.
+    - A versioned cross-platform ComposerDocument in-memory schema implemented by web Tiptap and Apple native adapters.
+    - Existing canonical markdown, mention syntax, and fenced JSON embed references remaining the durable message and encrypted-draft format.
+    - The web encryption implementation and documented encryption formats remaining authoritative for message, draft, chat-key, and embed-key compatibility.
+    - Atomic migration of legacy Apple plaintext UserDefaults drafts into approved master-key-encrypted draft storage before the native composer uses draft persistence.
+    - Native document-ordered text, mention atoms, hard breaks, and embed atoms with stable identity and selection positions.
+    - Native inline/full-width composer previews for every embed type currently supported by the web write-mode composer, including image, PDF, file, code, document, sheet, website, map/location, recording/audio, video where enabled, app-skill-use, focus activation, math/plot, and registered groups.
+    - Native upload, transcription, processing, error, retry, cancel, remove, and finished states reflected in the same embed node rather than an external pending strip.
+    - Web-equivalent typing, paste/drop normalization, URL conversion, code/document/table conversion, mentions, PII decorations, draft restoration, edit mode, grouping, deletion, and deferred-send semantics.
+    - Existing Apple-native pickers, camera, microphone, MapKit, PencilKit, upload, encryption, and send services connected through typed composer commands.
+    - Full parity verification before a single production cutover across all Apple hosts.
+    - iOS, iPadOS, and macOS keyboard, pointer, accessibility, localization, cold-boot, offline-draft, and performance verification.
+  out:
+    - Migrating existing message or draft database records to ComposerDocument JSON.
+    - Persisting TextKit attributed strings, Tiptap JSON, UIKit objects, AppKit objects, or local file URLs as the durable message format.
+    - Replacing native chat transcript rendering, message bubbles, or read-only embed rendering with WebView content.
+    - Replacing OS-owned file, photo, camera, microphone, share, permission, or document-picker interfaces.
+    - Changing backend upload, encryption, WebSocket, Directus, or message APIs unless a separately approved contract defect is discovered.
+    - Designing new cryptographic algorithms, key formats, wrapping formats, or plaintext persistence exceptions.
+    - Shipping a partially native composer to users or maintaining permanent WebView/native runtime variants after cutover.
+    - Adopting STTextView, TenTap, React Native, or another third-party editor runtime.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'Apple native composer OR iOS message composer OR inline embed composer OR TextKit composer' --state all returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/core/encryption-architecture.md
+    - docs/architecture/core/encryption-formats.md
+    - docs/architecture/core/chat-encryption-implementation.md
+    - docs/architecture/core/client-side-encryption.md
+    - docs/specs/apple-unified-message-composer/spec.yml
+    - docs/specs/apple-tiptap-webview-composer/spec.yml
+    - docs/specs/apple-welcome-composer-action-parity/spec.yml
+    - apple/AGENTS.md
+    - .claude/rules/apple-ui.md
+  online_research:
+    - "Tiptap maintainer guidance states that ProseMirror depends heavily on the browser DOM and recommends WebView for direct Tiptap reuse; a native implementation must therefore reproduce semantics through an adapter rather than embed Tiptap itself."
+    - "Apple TextKit 2 documentation supports custom text elements, selection management, viewport layout, and attachment-view reuse on supported Apple platforms."
+    - "Current TextKit 2 editor projects demonstrate native performance and platform integration but also document selection, layout, IME, and attachment bugs that require focused regression tests."
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte owns the web editor lifecycle, parsing triggers, paste/drop handling, overlays, PII, drafts, mentions, and send coordination.
+    - frontend/packages/ui/src/components/enter_message/editorConfig.ts configures raw-markdown write mode plus Embed and mention atom nodes.
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts owns web embed attributes, NodeView rendering, grouping, removal cleanup, and renderer updates.
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts routes generated embed types to web preview renderers.
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts owns web insertion and upload/transcription lifecycle updates.
+    - frontend/packages/ui/src/message_parsing/parse_message.ts and serializers.ts convert canonical markdown to editor state and back.
+    - frontend/packages/ui/src/services/drafts/draftSave.ts stores encrypted canonical markdown and reconstructs Tiptap JSON for editing; persisted drafts do not require Tiptap JSON compatibility.
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts encrypts persistent message fields with the existing chat key and removes plaintext fields before storage.
+    - frontend/packages/ui/src/services/sendersChatMessages.ts allows request-scoped plaintext for AI processing but encrypts persistent message/embed storage and wraps deterministic embed keys for master/chat access.
+    - frontend/packages/ui/src/services/drafts/draftSave.ts encrypts canonical draft markdown and preview with the master key before database/server persistence.
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift already provides one native shell across Apple hosts.
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift currently supplies the editable WebView surface and must be removed from production composer paths.
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift currently renders pending previews outside the editable document.
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift currently owns pendingComposerEmbeds and appends references after text at send time.
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift implements web-compatible message/chat-key/master-key formats A, C, and D.
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift manages wrapped per-chat keys and must not silently replace an existing chat key.
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift currently contains an unused plaintext UserDefaults draft implementation that must be migrated or removed before native draft persistence is enabled.
+  tests:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    - scripts/apple_composer_audit.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Shared/Composer/**
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesTests/**Composer**.swift
+    - apple/OpenMatesUITests/**Composer**.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - scripts/apple_composer_audit.py
+  parity_expectations:
+    - The rendered web composer is the visual and behavioral source of truth, while ComposerDocument and canonical markdown fixtures are the semantic source of truth shared across platforms.
+    - The web message/draft/embed encryption implementation and documented formats are the security source of truth; native composer code may call approved encryption boundaries but must not reproduce or alter cryptography in editor/view code.
+    - Native embed previews appear at their document positions inside the editable field and use the same product information hierarchy, dimensions, statuses, actions, and responsive states as their web counterparts.
+    - Text selection, cursor movement, deletion, undo/redo, dictation, IME composition, paste, keyboard shortcuts, and accessibility use native Apple behavior unless the web contract requires a product-specific override.
+    - All Apple hosts use one document/controller contract and differ only by declared capabilities and host-owned destination/send plumbing.
+  verification:
+    - python3 scripts/spec_validate.py docs/specs/apple-native-message-composer/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/apple-native-message-composer/spec.yml --phase red
+    - python3 scripts/apple_composer_audit.py --require-native-document
+    - python3 scripts/tests.py run --suite vitest --filter composerDocument
+    - python3 scripts/tests.py run --spec file-attachment-flow.spec.ts
+    - python3 scripts/tests.py run --spec audio-recording.spec.ts
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerDocumentTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/NativeComposerInlineEmbedUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    - macOS build and native composer tests through the remote Mac wrapper.
+  intentional_native_differences:
+    - Apple uses native selection handles, keyboard services, dictation, spell checking, undo manager, pointer interactions, and accessibility APIs.
+    - Apple uses OS-owned picker/capture/permission interfaces and native MapKit/PencilKit surfaces.
+    - Native preview implementation code may differ from Svelte, but rendered states, actions, document order, and serialization outcomes must match.
+
+clarification:
+  rounds:
+    - question: Should the native composer replace the editor across all Apple hosts or only in-app surfaces?
+      answer: All Apple hosts, including main chat, new chat, macOS quick capture, and iOS/macOS share extensions.
+    - question: May parity roll out in phases behind a production flag, or is one complete replacement required?
+      answer: A single full replacement is required; partial native behavior must not ship.
+    - question: May the editable surface use a third-party native editor dependency?
+      answer: No. Use Apple frameworks only.
+    - question: Should the in-memory document mirror Tiptap JSON or use a shared product schema?
+      answer: Use a shared product schema while preserving compatibility with existing chats.
+    - question: Should the shared schema require database conversion?
+      answer: No. ComposerDocument is an in-memory contract; canonical markdown and embed references remain persisted.
+  vision_summary: >
+    Build one Apple-framework-only native composer for every Apple host and cut
+    over only after full web behavior and visual parity are proven. A shared,
+    versioned ComposerDocument defines editing semantics for both web and Apple,
+    while canonical markdown remains the durable format so existing chats and
+    drafts continue to work without migration.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Native editor owns text, selection, and document state
+    given:
+      - Any Apple composer host is visible.
+      - Existing canonical markdown has been parsed into ComposerDocument.
+    when:
+      - The user types, inserts line breaks, selects text, moves the cursor, uses undo/redo, dictation, an IME, or hardware-keyboard shortcuts.
+    then:
+      - A native UITextView/TextKit 2 or NSTextView/TextKit 2 adapter owns editing; no WKWebView participates.
+      - ComposerDocument updates atomically with stable node identity and selection mapping.
+      - Raw markdown characters remain editable and receive web-equivalent write-mode decoration without being replaced by rendered formatting.
+      - Empty, focused, compact, expanded, scrolled, and fullscreen states match the rendered web composer.
+
+  - id: S-2
+    title: Existing content round-trips without migration
+    given:
+      - An existing sent message, encrypted draft, edit-message source, notification reply, or imported canonical markdown contains text, mentions, and embed references.
+    when:
+      - Apple opens the content in the native composer and serializes it without user edits.
+    then:
+      - The parsed ComposerDocument preserves semantic content and document order.
+      - Serialization produces canonically equivalent markdown and embed references.
+      - No database record is rewritten merely because it was opened.
+      - Unknown but valid markdown remains lossless text rather than being discarded.
+
+  - id: S-3
+    title: Native attachment appears as a real inline preview
+    given:
+      - The cursor is between text before and text after the insertion point.
+    when:
+      - The user selects an image, PDF, file, camera photo, sketch, location, or other supported attachment.
+    then:
+      - One embed atom is inserted at the current document position with a stable id.
+      - A native preview matching the corresponding web write-mode preview renders inside the editable document, not in an external pending strip.
+      - Text before and after remains editable and preserves ordering.
+      - The preview exposes web-equivalent status, progress, error, retry, cancel/remove, and completed actions where applicable.
+      - No raw JSON, encryption key, private URL, or local file path is visible.
+
+  - id: S-4
+    title: Upload and transcription lifecycle updates one embed atom
+    given:
+      - An image/file upload or audio recording/transcription is in progress.
+    when:
+      - Progress, upload completion, transcription completion, failure, retry, cancellation, or server reconciliation occurs.
+    then:
+      - The existing embed atom is updated by id without moving the selection or recreating unrelated content.
+      - Send is deferred or blocked while required embeds are uploading/transcribing, matching the web pending-upload contract.
+      - Completion resumes a queued send exactly once.
+      - Failure remains visible and recoverable; cancellation/removal excludes the embed from serialization and cleans up draft storage where required.
+
+  - id: S-5
+    title: Paste and typing conversions match web write mode
+    given:
+      - The user types or pastes URLs, fenced code, multi-line code/text, tables, documents, spreadsheets, images, or supported clipboard embed data.
+    when:
+      - Web write mode would convert or preview that content.
+    then:
+      - The native adapter produces the equivalent ComposerDocument text or embed nodes.
+      - Open/incomplete markdown constructs remain editable text with processing decoration until the web completion boundary is reached.
+      - Async URL/code/document conversion preserves cursor position and defers send while conversion is pending.
+      - Unsupported clipboard data falls back visibly to lossless text or a supported file attachment.
+
+  - id: S-6
+    title: Mentions and PII decorations remain editable and serializable
+    given:
+      - The user types an at-sign query or content containing enabled PII categories.
+    when:
+      - Mention results or PII matches update.
+    then:
+      - Mate, model, best-model, skill, focus, project, and memory mentions use native atom attachments with localized display labels and canonical mention syntax.
+      - Mention insertion replaces only the active query and preserves surrounding content and selection.
+      - PII highlights and warnings match web category/settings behavior without changing serialized content until the user approves anonymization.
+      - Embed references and machine-generated ids are excluded from PII replacement.
+
+  - id: S-7
+    title: Embed deletion, grouping, and ordering match web
+    given:
+      - The document contains individual and grouped embeds between text segments.
+    when:
+      - The user uses backspace/delete, remove, retry, group actions, cut, or undo/redo at embed boundaries.
+    then:
+      - Selection cannot become trapped inside atomic embed content.
+      - Deletion and conversion-to-source behavior match web fixtures for individual and grouped embeds.
+      - Removing an uploaded draft embed triggers the same cancellation/storage cleanup contract as web.
+      - Undo/redo restores document order and visible state without duplicating uploads or cleanup calls.
+
+  - id: S-8
+    title: Drafts, edit mode, offline use, and cross-device restoration are lossless
+    given:
+      - The user has an unsent draft or edits an existing message with text, mentions, and embeds.
+    when:
+      - The app backgrounds, restarts cold, switches chats, loses connectivity, reconnects, or receives a newer encrypted draft.
+    then:
+      - Canonical markdown and required embed draft metadata are saved through existing encrypted storage/sync paths.
+      - The native composer restores identical document order and visible embed states.
+      - Draft conflict/version behavior matches the current web contract.
+      - Edit cancel restores the original message; edit save serializes only the edited document.
+
+  - id: S-9
+    title: Every Apple host uses the same native composer contract
+    given:
+      - Main chat, new chat, macOS quick capture, or an iOS/macOS share extension is opened.
+    when:
+      - The host configures its available actions and destination/send callbacks.
+    then:
+      - The editable surface, document controller, inline previews, identifiers, and serialization are shared.
+      - Unsupported actions are hidden declaratively without forking editor logic.
+      - Extension-provided items are normalized into ComposerDocument embed atoms.
+      - Host-specific destination controls and status lists remain outside the composer.
+
+  - id: S-10
+    title: Native composer is accessible, localized, and responsive
+    given:
+      - VoiceOver, Dynamic Type, reduced motion, RTL, hardware keyboard, pointer, or narrow/wide layout is active.
+    when:
+      - The user traverses, edits, activates, or removes text, mentions, embeds, and action controls.
+    then:
+      - Reading and focus order follows document order.
+      - Embed atoms expose localized type, filename/title, status, and available actions.
+      - Every visible control is hittable and all text comes through AppStrings/localization sources.
+      - Layout matches web responsive states without clipping the caret, previews, or action row.
+
+  - id: S-11
+    title: Native composer failure never silently loses content
+    given:
+      - Parsing, serialization, attachment rendering, upload reconciliation, or TextKit layout fails.
+    when:
+      - The failure reaches a composer boundary.
+    then:
+      - The error is logged through privacy-safe NativeDiagnostics and shown as an explicit recoverable state.
+      - Existing canonical markdown and pending embed metadata remain available for retry/export.
+      - Send is blocked when serialization cannot be proven safe rather than sending incomplete content.
+      - No hidden fallback to WKWebView or a second editor state occurs.
+
+  - id: S-12
+    title: Candidate, TestFlight, and production cutover gates are explicit
+    given:
+      - Native implementation work is complete on a non-production development path.
+    when:
+      - The cutover gate is evaluated.
+    then:
+      - Candidate-ready requires shared schema, Apple unit/UI, web regression, visual, accessibility, cold-boot, performance, iOS, and macOS evidence to be green.
+      - The candidate build already switches every Apple host and removes production WKWebView composer resources and bridge code together.
+      - Candidate-ready permits TestFlight upload; TestFlight validation is then required for production-cutover-ready.
+      - Rollback means reverting/releasing the prior app build, never activating a hidden second editor implementation at runtime.
+
+  - id: S-13
+    title: Submit and newline behavior matches web without duplicate sends
+    given:
+      - The native composer is focused with empty, whitespace-only, normal, IME-marked, converting, uploading, editing, or sendable content.
+    when:
+      - The user presses Return, Shift/Option-Return where supported, the send button, or repeats submit while a send is starting.
+    then:
+      - Return submits only under the same completion/modifier rules as web; the newline command inserts a hard break at selection.
+      - Empty or whitespace-only documents do not send unless a sendable embed atom exists.
+      - IME marked text commits before submit and is never sent partially.
+      - Pending conversion/upload/transcription defers or blocks submit according to the lifecycle contract.
+      - One user submit produces at most one message across main chat, new chat, quick capture, share extension, and edit mode.
+
+  - id: S-14
+    title: Generated renderer coverage prevents silent native fallback cards
+    given:
+      - App metadata registers a web write-mode embed renderer type.
+    when:
+      - The generated composer renderer coverage audit runs.
+    then:
+      - The type has an explicit native preview implementation, shared fixture, supported lifecycle-state matrix, and visual artifact case.
+      - Missing native coverage fails the cutover gate.
+      - Unknown future types may render a safe removable fallback only for forward-compatible received content, never to claim write-mode parity for a registered type.
+
+  - id: S-15
+    title: Native composition preserves the authoritative web encryption boundary
+    given:
+      - The native composer contains canonical text, mentions, PII mappings, and embed references or restores a legacy Apple plaintext local draft.
+    when:
+      - A draft is saved, a message is sent, embed contents are persisted, another client decrypts the result, or legacy drafts are migrated.
+    then:
+      - ComposerDocument and TextKit own no encryption keys and persist no editor-native representation.
+      - Canonical markdown enters the existing approved encryption/send pipeline; request-scoped plaintext for AI processing never becomes durable storage.
+      - Persistent message fields use the existing chat key, draft markdown/preview use master-key Format D, and embed contents use the existing deterministic per-embed key plus master/chat wrapping contract.
+      - An existing chat key is loaded and validated; failure never silently generates a replacement key for an existing chat.
+      - Legacy Apple plaintext UserDefaults drafts are read only after unlock, encrypted and decrypt-verified in the approved store, then removed atomically; failed migration preserves recoverability and blocks new plaintext writes.
+      - Web-created encrypted fixtures decrypt on Apple and Apple-created fixtures decrypt through the web test implementation without exposing secrets in logs or artifacts.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Every Apple composer editable surface uses Apple TextKit-backed native adapters with no production WKWebView editor path.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-STATIC, T-APPLE-NATIVE-EDITOR, T-APPLE-IOS-BUILD, T-APPLE-MACOS-BUILD]
+  - id: AC-2
+    scenario: S-2
+    text: Existing canonical messages and encrypted drafts round-trip through ComposerDocument without database migration or semantic/order loss.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WEB-DOCUMENT-CONTRACT, T-APPLE-DOCUMENT-CONTRACT]
+  - id: AC-3
+    scenario: S-3
+    text: Supported native attachments render as real web-matched inline previews at their document positions, with editable text before and after and no external pending strip.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-INLINE-EMBED-UI, T-APPLE-VISUAL-PARITY, V-WEB-RENDERED-COMPARISON]
+  - id: AC-4
+    scenario: S-4
+    text: Uploading, transcribing, error, retry, cancellation, removal, finished, deferred-send, and exactly-once resume states update one stable embed atom and match web behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-EMBED-LIFECYCLE, T-APPLE-UPLOAD-AUDIO-UI, T-WEB-COMPOSER-REGRESSION]
+  - id: AC-5
+    scenario: S-5
+    text: Native typing/paste conversion covers the current web URL, code, document, table, clipboard embed, and attachment classification behaviors without cursor/order loss.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WEB-DOCUMENT-CONTRACT, T-APPLE-PARSE-PASTE]
+  - id: AC-6
+    scenario: S-6
+    text: Native mention atoms and PII decorations match web insertion, display, settings, exclusion, and canonical serialization behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-MENTION-PII, T-WEB-DOCUMENT-CONTRACT]
+  - id: AC-7
+    scenario: S-7
+    text: Native embed selection, boundary deletion, conversion, grouping, cleanup, cut, and undo/redo outcomes match shared web fixtures.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-NATIVE-EDITOR, T-APPLE-DOCUMENT-CONTRACT]
+  - id: AC-8
+    scenario: S-8
+    text: Draft save/restore, cold boot, offline reconnect, conflict handling, and edit-message flows preserve document order, mentions, and embed state using existing encrypted markdown storage.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-DRAFT-EDIT-UI, T-APPLE-DOCUMENT-CONTRACT]
+  - id: AC-9
+    scenario: S-9
+    text: Main chat, new chat, macOS quick capture, and iOS/macOS share extensions use one native document/controller contract with capability-driven host differences.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-ALL-HOSTS-UI, T-APPLE-MACOS-HOSTS-UI, T-APPLE-SHARE-HOSTS-UI, T-APPLE-STATIC]
+  - id: AC-10
+    scenario: S-10
+    text: Native composer text, mentions, embeds, previews, and actions are localized, VoiceOver-operable, keyboard/pointer-operable, RTL-safe, and responsive without clipping.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-ACCESSIBILITY, T-APPLE-VISUAL-PARITY]
+  - id: AC-11
+    scenario: S-11
+    text: Composer boundary failures are visible, privacy-safe, recoverable, and cannot silently discard or send incomplete content.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-FAILURE-RECOVERY, T-APPLE-DOCUMENT-CONTRACT]
+  - id: AC-12
+    scenario: S-12
+    text: A WebView-free all-host candidate reaches TestFlight only after candidate evidence is green, and reaches production-cutover-ready only after TestFlight validation passes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-PERFORMANCE, T-APPLE-IOS-BUILD, T-APPLE-MACOS-BUILD, V-WEB-RENDERED-COMPARISON, V-CANDIDATE-READY, V-TESTFLIGHT, V-PRODUCTION-CUTOVER-READY]
+  - id: AC-13
+    scenario: S-13
+    text: Native submit, newline, empty-content, IME, blocking conversion/upload, repeated-submit, and edit-mode behavior matches web and emits at most one message per user submit.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-SUBMIT, T-WEB-DOCUMENT-CONTRACT]
+  - id: AC-14
+    scenario: S-14
+    text: Every registered web write-mode embed type has explicit native preview, fixture, lifecycle, and visual coverage; missing coverage blocks cutover.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-RENDERER-COVERAGE, T-APPLE-INLINE-EMBED-UI, V-WEB-RENDERED-COMPARISON]
+  - id: AC-15
+    scenario: S-15
+    text: Native composition preserves web-compatible message, chat-key, master-key draft, and embed-key encryption; migrates legacy Apple plaintext drafts atomically; and leaves no plaintext durable composer data.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WEB-ENCRYPTION-CONTRACT, T-APPLE-CRYPTO-COMPAT, T-APPLE-DRAFT-ENCRYPTION-MIGRATION, T-APPLE-STATIC, V-SECURITY-REVIEW]
+
+assumptions:
+  - id: A-1
+    text: Canonical markdown and fenced embed references remain the durable source for existing messages and drafts, so ComposerDocument requires no message/database migration.
+    category: data
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/services/drafts/draftSave.ts
+        summary: Web drafts serialize Tiptap JSON to canonical markdown before encrypted persistence.
+      - source: frontend/packages/ui/src/services/drafts/draftWebsocket.ts
+        summary: Encrypted markdown is parsed back into write-mode editor state on restore.
+      - source: apple/OpenMates/Sources/Core/Services/DraftService.swift
+        summary: Apple currently persists local per-chat draft strings as markdown in UserDefaults; native ComposerDocument must parse those strings without rewriting them on open.
+  - id: A-2
+    text: Apple TextKit 2 attachment providers can host reusable interactive native preview views without corrupting selection or viewport layout on supported iOS and macOS versions.
+    category: apple
+    required_before: implementation
+    status: checking
+    evidence:
+      - source: Apple TextKit 2 documentation
+        summary: Apple documents custom text elements and attachment-view reuse, but OpenMates-specific interactive preview behavior needs a focused prototype and red tests.
+  - id: A-3
+    text: The current web write-mode registry contains native routing gaps and generic fallbacks; every gap can receive a specific native preview without changing backend data contracts, but missing implementations block cutover.
+    category: architecture
+    required_before: task_execution
+    status: corrected
+    evidence:
+      - source: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts
+        summary: Generated web registry defines the renderer coverage that native parity must inventory against Apple renderers.
+      - source: frontend/packages/ui/src/data/embedRegistry.generated.ts and apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+        summary: Research found 54 write-mode renderer entries and multiple missing/fallback-only Apple types, including fitness, weather radar, PCB schematic, social/weather/code-repo fallback categories, and composer previews beyond upload-derived image/audio/PDF/file.
+  - id: A-4
+    text: Existing Apple upload, transcription, draft, encryption, and send services can be adapted to stable ComposerDocument node ids without changing their remote APIs.
+    category: architecture
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+        summary: Existing pending embed records already have stable ids and canonical references, but lifecycle ownership currently sits outside the editor.
+      - source: apple/OpenMatesShared/BackgroundChatSender.swift and apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+        summary: Existing upload/transcription/send/delete contracts are sufficient; client adapters must add stable node id plus generation, immutable send snapshots, and exactly-once coordination.
+  - id: A-5
+    text: The remote Mac can run required iOS and macOS build/UI evidence and TestFlight deployment after implementation.
+    category: deployment
+    required_before: completion
+    status: confirmed
+    evidence:
+      - source: scripts/apple_remote.py
+        summary: Current remote wrapper has successfully built iOS and uploaded iOS/macOS TestFlight artifacts in prior sessions.
+  - id: A-6
+    text: Existing Apple CryptoManager, ChatKeyManager, send pipeline, and embed encryption can remain the sole native cryptographic implementation while matching authoritative web formats and storage invariants.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+        summary: Apple implements message Format A, chat-key wrapping Format C, and master-key Format D compatible with web, but cross-client fixtures must prove the exact boundary before composer integration.
+      - source: frontend/packages/ui/src/services/sendersChatMessages.ts
+        summary: Web defines transient plaintext AI processing versus encrypted persistent message/embed storage and deterministic wrapped embed-key behavior.
+      - source: docs/architecture/core/encryption-formats.md
+        summary: Formats A/B/C/D and their durable fields are documented and compatible with current Apple CryptoManager behavior; cross-client fixtures remain mandatory before integration.
+
+contracts:
+  api:
+    - No new product API route is expected.
+    - Existing upload, transcription, embed deletion, draft sync, and send APIs remain authoritative.
+    - Any discovered remote contract change requires an explicit spec update before implementation.
+    - CLI, npm SDK, and pip SDK public APIs are not changed by the native editor; their existing encrypted send/decrypt contracts are regression dependencies and must be marked not-applicable only after parity audit evidence.
+  data:
+    - "ComposerDocumentV1: { version: 1, nodes: ComposerNodeV1[] }."
+    - "TextNodeV1: { kind: text, id: string, source: string }. Source retains raw markdown, LF line endings, and original Unicode scalar content without normalization."
+    - "HardBreakNodeV1: { kind: hardBreak, id: string }."
+    - "MentionNodeV1: { kind: mention, id: string, mentionKind: mate|aiModel|bestModel|skill|focus|project|memory, targetId: string, canonicalSyntax: string, displayLabel: string }."
+    - "EmbedNodeV1: { kind: embed, id: string, embedType: string, status: draft|uploading|processing|transcribing|finished|error|cancelled, contentRef?: string, referenceOnly: boolean, display: ComposerEmbedDisplayV1, transient?: ComposerEmbedTransientV1 }."
+    - Display metadata contains only reconstructible title, filename, media kind, dimensions/duration, and sanitized status/error category; it is not authoritative persisted content.
+    - Transient metadata may contain in-memory upload/recording handles but is excluded from Codable fixture persistence, canonical markdown, logs, and cross-process messages.
+    - ComposerDocument decoders reject unsupported future versions with a typed recoverable error; they do not best-effort mutate unknown versions.
+    - Document/controller positions use zero-based UTF-16 code-unit offsets to match NSRange/TextKit and JavaScript fixtures; shared fixtures include emoji, combining marks, RTL, CJK, and multiline selections.
+    - Node ids remain stable for the lifetime of an editor document. Stored embed ids/contentRefs remain durable; text, break, and mention ids may be deterministically regenerated when canonical markdown is reparsed and must not be relied on across sessions.
+    - Selection is non-persisted controller state expressed as UTF-16 anchor/head offsets plus affinity and marked-text range.
+    - Canonical markdown parsing and serialization must be deterministic and idempotent for shared fixtures.
+    - Canonical equivalence normalizes line endings to LF and permits only serializer-defined insignificant outer blank-line differences; whitespace inside text, code, unknown fences, and embed JSON is preserved or canonicalized by explicit fixtures.
+    - Unknown canonical markdown remains lossless text; unknown embed types remain removable/serializable fallback atoms.
+    - Existing messages, encrypted web drafts, and local Apple markdown drafts remain markdown; no ComposerDocument database column, attributed-string archive, or message migration is introduced.
+    - Opening existing content without an edit performs zero persistence writes.
+    - Durable embed restoration uses existing embed records keyed by canonical embed id/contentRef. Lifecycle sidecar state is reconstructible from existing upload/embed services; any missing sidecar contract blocks implementation under A-4.
+    - ComposerDocument, attributed strings, attachment providers, selection state, local preview URLs, and transient upload objects are never durable message/draft fields.
+  embed_lifecycle:
+    - "draft -> uploading|processing|finished|cancelled|error"
+    - "uploading -> processing|transcribing|finished|cancelled|error"
+    - "processing -> transcribing|finished|cancelled|error"
+    - "transcribing -> finished|cancelled|error"
+    - "error -> uploading|processing|transcribing|cancelled via explicit retry/remove"
+    - finished and cancelled are terminal for a node generation; retry creates a new generation token while preserving the visible node id.
+    - Every async callback carries node id plus generation token; stale, duplicate, or remove-then-complete callbacks are ignored without side effects.
+    - Queued send captures a document revision and resumes once only when every blocking node in that revision is finished; removal, edit, app termination, or retry invalidates/recomputes the queued revision explicitly.
+  editor_commands:
+    - replaceDocument
+    - insertText
+    - replaceSelection
+    - insertMention
+    - insertEmbed
+    - updateEmbed
+    - removeEmbed
+    - convertEmbedToSource
+    - setSelection
+    - undo
+    - redo
+    - serializeCanonicalMarkdown
+  editor_events:
+    - documentChanged
+    - selectionChanged
+    - focusChanged
+    - contentHeightChanged
+    - embedActionRequested
+    - blockingStateChanged
+    - submitRequested
+    - recoverableError
+  submit:
+    - Return submits when the web keyboard contract permits and no marked-text composition is active.
+    - Shift/Option-Return behavior is platform-mapped to the shared hard-break command and covered by fixtures.
+    - Empty/whitespace-only documents do not submit unless they contain a sendable embed.
+    - Conversion/upload/transcription blockers defer or reject submit visibly; repeated submit is idempotent by document revision and request id.
+  ui_states:
+    - Empty, focused empty, compact, expanded, multiline, scrolled, and fullscreen composer.
+    - Raw markdown processing and completed decoration states.
+    - Mention query, results, inserted mention, and deleted mention.
+    - Individual and grouped embed previews in uploading, processing, transcribing, finished, cancelled, and error states.
+    - Deferred send, queued send, resumed send, and failed queued send.
+    - PII highlight, warning, anonymized, dismissed, and disabled states.
+    - Draft restored, edit mode, offline, conflict, and recoverable parse/render failure states.
+  privacy_security:
+    - Never log message plaintext, clipboard content, transcripts, encryption keys, tokens, cookies, raw attachment bytes, private file paths, private URLs, or full share fragments.
+    - Diagnostics are limited to node counts, sanitized type/status categories, durations, and hashed/prefixed identifiers.
+    - Temporary local previews and decrypted attachment data remain memory/file-protection scoped and are released when nodes are removed or the composer closes.
+    - PII replacement never mutates embed ids, canonical references, or hidden machine metadata.
+    - Share-extension and quick-capture boundaries receive only the minimum content required for their declared capabilities.
+    - The web encryption implementation and docs are authoritative for formats A/C/D, chat-key validation, request-scoped plaintext, encrypted persistent message fields, master-key-encrypted drafts, deterministic embed-key derivation, and master/chat key wrapping.
+    - Plaintext is permitted only in active editor memory, decrypted render memory, and request-scoped AI processing; no UserDefaults, IndexedDB-equivalent native store, offline queue, file, log, crash attachment, analytics event, or persistent model may contain plaintext composer content.
+    - Native editor/view code receives no raw master key, chat key, or embed key. It hands canonical markdown and typed PII/embed references to existing audited service boundaries.
+    - Legacy `openmates.drafts` plaintext UserDefaults entries accept no new writes after native composer work begins. Migration runs only after user unlock provides the master key, verifies encrypted read-back, and then atomically removes plaintext.
+    - Existing-chat encryption failures are terminal and visible; code must not call a generate-new-key path when an expected wrapped chat key is missing or mismatched.
+    - Test fixtures use deterministic non-production keys and synthetic content; committed artifacts contain no real ciphertext tied to users, credentials, or private identifiers.
+  accessibility:
+    - Shared concepts retain web-matched identifiers such as message-composer, message-field, message-editor, embed-full-width-wrapper, embed-unified-container, and send-button.
+    - Inline atoms expose document-order accessibility elements and localized custom actions.
+    - The text editor remains a valid native multiline text input with dictation, Voice Control, selection, and keyboard navigation.
+  visual_parity_matrix:
+    - Web source routes are the authenticated normal chat and new-chat composer at phone 393x852, tablet 1024x1366, and desktop 1440x1000 viewports with recorded composer container width.
+    - Required paired states are empty, focused empty, multiline, fullscreen, mention, PII warning, each registered embed type in every supported lifecycle state, grouped embeds, error/retry, and deferred send.
+    - Recorded properties include frame, padding, gap, radius, shadow, colors, typography, icon size, status placement, remove/retry hit area, overflow, and responsive mode.
+    - Geometry tolerance is 2 points unless a generated token or platform text metric documents a different tolerance; color and screenshot thresholds are set from approved baseline artifacts before implementation.
+    - Paired web/native screenshots and computed-contract JSON are retained as test artifacts with generic paths and no private content.
+  performance:
+    - Typing and selection updates must not rebuild all embed previews or parse the full document synchronously on each keystroke.
+    - Stable node ids and attachment-view reuse prevent unrelated preview recreation.
+    - Performance evidence covers a long draft, multiple image/PDF/audio embeds, active upload updates, and rapid typing on a supported phone simulator/device class.
+    - Exact thresholds must be established from the current web and Apple baselines before implementation and recorded in the implementation plan.
+
+tests:
+  - id: T-WEB-DOCUMENT-CONTRACT
+    type: vitest
+    file: frontend/packages/ui/src/components/enter_message/bridge/__tests__/composerDocument.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter composerDocument
+    covers: [AC-2, AC-5, AC-6, AC-13]
+    assertions:
+      - shared fixture markdown parses into ComposerDocumentV1 in document order
+      - ComposerDocumentV1 serializes to canonically equivalent markdown
+      - mentions, individual/grouped embeds, unknown markdown, and unknown embed types are lossless
+      - fixture outputs are consumable by Swift Codable tests
+      - UTF-16 offsets and selections match Swift for emoji, combining marks, RTL, CJK, and multiline content
+      - submit/newline/empty/marked-text fixture outcomes are platform-independent
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-DOCUMENT-CONTRACT
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerDocumentTests
+    covers: [AC-2, AC-7, AC-8, AC-11]
+    assertions:
+      - Swift decodes the same shared ComposerDocument fixtures as web
+      - canonical markdown parse/serialize is idempotent and preserves node order
+      - existing draft/message fixtures require no migration
+      - invalid content returns a typed recoverable error without partial serialization
+      - opening an existing message or draft without edits performs zero persistence writes
+      - unsupported ComposerDocument versions fail visibly without mutating source markdown
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-NATIVE-EDITOR
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerControllerTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerControllerTests
+    covers: [AC-1, AC-7]
+    assertions:
+      - insert/update/remove commands preserve stable ids and selection
+      - boundary backspace/delete, cut, grouping, undo, and redo match shared fixtures
+      - IME marked text is not parsed or converted before composition commits
+      - unrelated embed updates do not recreate the document/controller
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-INLINE-EMBED-UI
+    type: unit
+    file: apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/NativeComposerInlineEmbedUITests
+    covers: [AC-3, AC-14]
+    assertions:
+      - every type in the generated registered renderer manifest renders its native fixture inside message-editor
+      - text before and after each preview remains editable in order
+      - preview controls are visible and hittable, not accessibility-only diagnostics
+      - external pending-composer-embed strip and WKWebView are absent
+      - canonical send output preserves visual document order
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-UPLOAD-AUDIO-UI
+    type: unit
+    file: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    covers: [AC-4]
+    assertions:
+      - upload/transcription status updates the same inline atom
+      - send defers during blocking states and resumes exactly once
+      - cancel/remove excludes the atom and retry recovers the visible state
+      - no raw references, keys, paths, or transcripts appear in diagnostics
+      - stale, duplicate, remove-then-complete, retry-old-completion, and termination/reconnect callbacks produce no duplicate side effects
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-EMBED-LIFECYCLE
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerEmbedLifecycleTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerEmbedLifecycleTests
+    covers: [AC-4]
+    assertions:
+      - every allowed lifecycle transition produces the expected node state and service side effects
+      - forbidden transitions, stale generations, duplicate callbacks, and remove-then-complete callbacks are ignored visibly and safely
+      - retry preserves visible node identity but advances generation
+      - queued document revisions resume once or invalidate deterministically after edit, removal, retry, termination, and reconnect
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-PARSE-PASTE
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerPasteTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerPasteTests
+    covers: [AC-5]
+    assertions:
+      - URL, code, table, document, image, and supported clipboard fixtures match web ComposerDocument output
+      - incomplete constructs remain text until completion boundaries
+      - async conversion preserves selection and pending-send behavior
+      - unsupported clipboard content falls back losslessly
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-MENTION-PII
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerMentionPIITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerMentionPIITests
+    covers: [AC-6]
+    assertions:
+      - all registered mention kinds insert/display/serialize correctly
+      - mention replacement preserves surrounding selection and document order
+      - PII categories/settings match web fixtures
+      - embed references and machine ids are protected from PII mutation
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-DRAFT-EDIT-UI
+    type: unit
+    file: apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/NativeComposerDraftEditUITests
+    covers: [AC-8]
+    assertions:
+      - cold boot and chat switching restore text/mention/embed order
+      - offline edits save and reconcile without duplicate embeds
+      - edit cancel restores original content and edit save emits only edited content
+      - draft conflict/version handling matches web fixtures
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-ALL-HOSTS-UI
+    type: unit
+    file: apple/OpenMatesUITests/NativeComposerHostParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/NativeComposerHostParityUITests
+    covers: [AC-9]
+    assertions:
+      - main chat and new chat use the same native editor/controller identifiers
+      - phone and iPad layouts use the same document semantics and preserve inline previews
+      - capabilities hide unsupported actions without forking editor code
+      - notification reply content opens in the same native document contract
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-MACOS-HOSTS-UI
+    type: unit
+    file: apple/OpenMatesUITests/NativeComposerMacHostParityUITests.swift
+    command: python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS test
+    covers: [AC-9]
+    assertions:
+      - macOS main/new chat and menu bar quick capture use the AppKit TextKit adapter and shared ComposerDocument
+      - native inline previews are visible, editable around, removable, and serializable in document order
+      - pointer, hardware keyboard, undo/redo, and capability configuration work without a WebView
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-SHARE-HOSTS-UI
+    type: unit
+    file: apple/OpenMatesUITests/NativeComposerShareExtensionParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/NativeComposerShareExtensionParityUITests
+    covers: [AC-9]
+    assertions:
+      - iOS share-extension items become native inline ComposerDocument atoms
+      - macOS share-extension fixture uses the same AppKit adapter and serialization contract
+      - optional instruction text remains editable before/after shared items and host destination controls remain external
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-VISUAL-PARITY
+    type: unit
+    file: apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
+    covers: [AC-3, AC-10]
+    assertions:
+      - empty, focused, multiline, fullscreen, and embed states attach screenshots
+      - preview dimensions, hierarchy, status, and controls match recorded web computed contracts
+      - phone and wide layouts do not clip editor, caret, previews, or actions
+      - screenshot assertions inspect rendered pixels/frames, not only accessibility labels
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-ACCESSIBILITY
+    type: unit
+    file: apple/OpenMatesUITests/NativeComposerAccessibilityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/NativeComposerAccessibilityUITests
+    covers: [AC-10]
+    assertions:
+      - document-order traversal includes text, mentions, embeds, and actions
+      - embed custom actions are localized and hittable
+      - Dynamic Type, RTL, Voice Control identifiers, and hardware keyboard navigation remain usable
+      - hidden capabilities leave no dead focusable elements
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-FAILURE-RECOVERY
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerFailureRecoveryTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerFailureRecoveryTests
+    covers: [AC-11]
+    assertions:
+      - parser, serializer, renderer, and reconciliation failures return typed visible states
+      - original markdown and pending metadata remain recoverable
+      - unsafe serialization blocks send
+      - diagnostics contain no plaintext or sensitive metadata
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-SUBMIT
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerSubmitTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerSubmitTests
+    covers: [AC-13]
+    assertions:
+      - Return and modified-Return outcomes match shared fixtures on iOS and macOS adapters
+      - empty/whitespace content, sendable embeds, marked text, and edit mode produce the expected submit eligibility
+      - conversion/upload/transcription blockers defer or reject visibly
+      - repeated button/key submit produces one request id and at most one message
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-RENDERER-COVERAGE
+    type: lint
+    file: scripts/apple_composer_renderer_audit.py
+    command: python3 scripts/apple_composer_renderer_audit.py
+    covers: [AC-14]
+    assertions:
+      - generated web write-mode renderer manifest and native composer registry have identical registered type coverage
+      - every registered type has shared data fixture, supported lifecycle matrix, native preview mapping, and visual case
+      - newly registered web renderer types fail the audit until native composer coverage is added
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-WEB-ENCRYPTION-CONTRACT
+    type: vitest
+    file: frontend/packages/ui/src/services/encryption/__tests__/appleComposerCompatibility.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter appleComposerCompatibility
+    covers: [AC-15]
+    assertions:
+      - deterministic synthetic Format A/C/D fixtures encrypt/decrypt according to the authoritative web implementation
+      - canonical markdown, PII mappings, and embed-reference fixtures remain unchanged before encryption and after decryption
+      - deterministic embed-key derivation and master/chat wrapping fixtures match documented web behavior
+      - fixture output contains no production keys, credentials, or user data
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-CRYPTO-COMPAT
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerEncryptionCompatibilityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerEncryptionCompatibilityTests
+    covers: [AC-15]
+    assertions:
+      - Apple decrypts the synthetic web Format A/C/D and embed-key fixtures
+      - web tests can decrypt Apple-produced synthetic fixtures with identical canonical markdown and PII/embed references
+      - existing-chat key mismatch/missing-key paths fail without generating a replacement key
+      - persistent package fixtures contain encrypted fields and omit plaintext content
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-DRAFT-ENCRYPTION-MIGRATION
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerDraftEncryptionTests
+    covers: [AC-15]
+    assertions:
+      - new drafts are canonical markdown encrypted with master-key Format D before durable write or sync
+      - legacy openmates.drafts plaintext entries migrate after unlock, decrypt-verify, and are then removed atomically
+      - unavailable keys or failed encrypted writes preserve recoverability, block new plaintext writes, and surface a typed error
+      - update, clear, logout, offline queue, logs, and crash diagnostics leave no plaintext draft in persistent storage
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-PERFORMANCE
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerPerformanceTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerPerformanceTests
+    covers: [AC-12]
+    assertions:
+      - baseline thresholds from the approved implementation plan pass for typing, selection, parsing, and embed updates
+      - long drafts and multiple media embeds do not trigger full preview recreation per keystroke
+      - attachment view reuse and controller identity remain stable during scrolling and progress updates
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-STATIC
+    type: lint
+    file: scripts/apple_composer_audit.py
+    command: python3 scripts/apple_composer_audit.py --require-native-document
+    covers: [AC-1, AC-2, AC-9, AC-15]
+    assertions:
+      - all product hosts use the approved native composer adapters
+      - production composer paths contain no WKWebView/Tiptap bridge
+      - pending embed strips are not used as the normal editable composer model
+      - no third-party editor runtime is introduced
+      - no ComposerDocument database column, message migration, attributed-string archive, or new durable editor-format persistence is introduced
+      - no production composer or draft path writes plaintext content to UserDefaults, files, offline queues, logs, or persistent models
+      - editor/view code does not import or implement cryptographic primitives outside approved service boundaries
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-WEB-COMPOSER-REGRESSION
+    type: playwright
+    file: frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    command: python3 scripts/tests.py run --spec file-attachment-flow.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-4]
+    assertions:
+      - shared schema adapter preserves existing web attachment/upload/deferred-send behavior
+      - web inline previews, ordering, removal, and serialization do not regress
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-IOS-BUILD
+    type: build
+    file: apple/OpenMates.xcodeproj/project.pbxproj
+    command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    covers: [AC-1, AC-12]
+    assertions:
+      - OpenMates_iOS and its embedded extensions compile with the native composer sources and resources
+      - no production composer target requires the removed WebView editor bundle
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: { status: not_applicable, run_id: "build-only", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-MACOS-BUILD
+    type: build
+    file: apple/OpenMates.xcodeproj/project.pbxproj
+    command: python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS build
+    covers: [AC-1, AC-12]
+    assertions:
+      - OpenMates_macOS and the macOS share extension compile with the native TextKit adapter
+      - shared ComposerDocument code compiles for both UIKit and AppKit hosts
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: { status: not_applicable, run_id: "build-only", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+verifications:
+  - id: V-WEB-RENDERED-COMPARISON
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-3, AC-12]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+  - id: V-CANDIDATE-READY
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-12]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+  - id: V-TESTFLIGHT
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-12]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+  - id: V-PRODUCTION-CUTOVER-READY
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-12]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+  - id: V-SECURITY-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-15]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+
+implementation_plan:
+  spec: docs/specs/apple-native-message-composer/spec.yml
+  first_slice:
+    title: Prove TextKit attachment, selection, IME, and undo semantics in an isolated dev preview
+    scenarios: [S-1, S-3, S-7]
+    acceptance_criteria: [AC-1, AC-3, AC-7]
+    boundary: >
+      Add ComposerDocumentV1, UTF-16 position mapping, a long-lived UIKit/AppKit
+      TextKit 2 adapter, and one interactive text-embed-text attachment fixture in
+      a dev-preview host. Do not connect production chat, uploads, drafts, send,
+      share extensions, or remove the WebView until iOS and macOS red/green tests
+      prove view-provider reuse, selection, marked text, and undo behavior.
+  existing_patterns:
+    - frontend/packages/ui/src/message_parsing/serializers.ts for canonical markdown and embed-reference output.
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts for atom identity, boundary deletion, grouping, and lifecycle behavior.
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts for authoritative registered write-mode renderer coverage.
+    - frontend/packages/ui/src/services/encryption/MessageEncryptor.ts and MetadataEncryptor.ts for authoritative formats A/C/D.
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift for the shared host shell and capabilities.
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift for the first prototype attachment content only; it is not the final renderer registry.
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift and EmbedPreviewCard.swift for existing native read-only renderer patterns.
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift and apple/OpenMatesShared/BackgroundChatSender.swift for existing upload/send/encryption service boundaries.
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift for ciphertext-only local SwiftData persistence.
+  architecture: >
+    ComposerDocumentV1 is the platform-neutral in-memory semantic model. Web
+    Tiptap and Apple TextKit adapt to it; neither framework representation is
+    persisted. NativeComposerController owns document revision, UTF-16 selection,
+    commands, lifecycle reducer, undo grouping, and canonical serialization.
+    NativeComposerTextView provides thin long-lived UIKit and AppKit adapters.
+    Embed atoms are one semantic U+FFFC position backed by
+    ComposerTextAttachment/NSTextAttachmentViewProvider, with any synthetic
+    layout separators hidden by ComposerPositionMap. Preview providers recover
+    state from stable node ids and never own upload or encryption services.
+  module_boundaries:
+    - module: Shared Composer Core
+      owns: ComposerDocumentV1, node schemas, UTF-16 position map, revisions, selection, commands, events, parser/serializer adapters, lifecycle reducer, immutable send snapshots.
+      must_not_own: SwiftUI host layout, network clients, encryption keys, persistence implementation, app-specific navigation.
+    - module: TextKit Adapters
+      owns: UITextView/NSTextView setup, delegates, marked-text guard, attachment providers, viewport reuse, native undo integration, accessibility bridge.
+      must_not_own: canonical persistence, upload/transcription work, encryption, chat selection.
+    - module: Native Composer Renderer Registry
+      owns: generated type-to-preview mapping, composer presentation state, lifecycle-specific native views, fallback policy for unknown received types.
+      must_not_own: backend type discovery at runtime or generic fallback claims for registered write-mode types.
+    - module: Composer Services
+      owns: attachment upload/transcription adapter, cleanup, pending-send coordinator, encrypted draft repository, canonical send handoff.
+      must_not_own: TextKit ranges or view-provider identity.
+    - module: Host Adapters
+      owns: capabilities, destination/chat id, picker/capture presentation, host send callbacks, extension normalization.
+      must_not_own: a separate document model or editor implementation.
+  data_flow:
+    - "Example insertion: document revision 12 contains text node 'Explain ', cursor UTF-16 offset 8. Native picker returns photo.jpg; controller inserts embed node node-42 at offset 8 with generation 1/status draft, followed by existing text."
+    - ComposerAttachmentService starts upload with node-42/generation-1/chat-7 while the attachment provider immediately renders a local image preview inside TextKit.
+    - Upload completion returns durable embed id emb-9. The lifecycle reducer accepts node-42/generation-1, updates contentRef to embed:emb-9/status finished, and invalidates only that attachment range.
+    - Submit creates immutable request req-3 for document revision 13, serializes ordered canonical markdown, and resolves ordered embed send materials by durable embed id.
+    - ChatSendPipeline receives canonical markdown and existing embed materials, applies the authoritative chat/embed encryption path, and sends request-scoped plaintext only to the existing AI-processing boundary.
+    - Draft save serializes revision 13 to canonical markdown, encrypts markdown and preview with master-key Format D, writes ciphertext to local SwiftData and existing draft sync fields, and never persists ComposerDocument or attributed strings.
+  migration_and_compatibility:
+    - No message, Directus, or canonical markdown migration.
+    - Add a lightweight local SwiftData model/schema update for encrypted draft ciphertext, preview ciphertext, revision, and draft version only.
+    - On unlocked startup, migrate legacy UserDefaults `openmates.drafts` entries one at a time: read markdown, encrypt Format D, write and decrypt-verify ciphertext, then remove that plaintext entry.
+    - If migration cannot access the master key or verification fails, preserve the legacy entry for retry, block new plaintext writes, and surface a privacy-safe recoverable error.
+    - Existing web encrypted drafts and existing message/embed references parse into ComposerDocument on demand without write-back.
+  renderer_coverage:
+    - Generate a manifest from embedRegistry.generated.ts plus app.yml/shared embed metadata.
+    - Classify every Apple route as specific_native, generic_search, generic_fallback, structural_group_only, missing, or not_applicable_to_composer.
+    - Registered write-mode types require specific native composer preview, shared fixture, lifecycle matrix, and visual case before cutover.
+    - Initial known gaps include PCB schematic, fitness location/class/search, weather radar, and several generic fallback categories; task planning must expand from the generated manifest rather than this static list.
+  async_and_send:
+    - Introduce ComposerAttachmentService events keyed by nodeId plus generation; durable embedId remains separate.
+    - Introduce ComposerPendingSendCoordinator with FIFO immutable ComposerSendSnapshot values keyed by request id/document revision.
+    - Errors remain blocking; stale/duplicate callbacks are ignored; retry advances generation; removal cancels and invokes existing draft-embed cleanup.
+    - Replace active-view NotificationCenter deferred-send ownership only after reducer tests pass.
+  encryption_security:
+    - Editor, document, renderer, and host layers never receive raw master/chat/embed keys.
+    - Existing CryptoManager/ChatKeyManager/ChatSendPipeline remain the only native crypto boundaries and must pass shared web Format A/C/D/embed-key fixtures.
+    - Existing chats must load/validate wrapped chat keys; missing or mismatched expected keys fail without replacement generation.
+    - Persistent messages, embeds, drafts, local queues, logs, and crash artifacts contain no plaintext composer content.
+    - Security review compares implementation to web MessageEncryptor, MetadataEncryptor, sendersChatMessages, draftSave, chatKeyManagement, and encryption-format docs.
+  ui_and_accessibility:
+    - Keep MessageComposerView as the common shell; replace its editable leaf only at final all-host cutover.
+    - Attachment providers host native SwiftUI previews through UIHostingController/NSHostingController and expose localized remove/retry/cancel/open actions.
+    - TextKit attachment semantic length is one UTF-16 unit; focus and VoiceOver traversal follow document order.
+    - Browser-computed web contracts are captured for required viewports/states before implementing each renderer category.
+  observability:
+    - Use NativeDiagnostics and NativeSyncPerfLog only with node counts, lifecycle categories, durations, document revision, and hashed/prefixed ids.
+    - Record parse, position-map, attachment-load/reuse, lifecycle transition, draft encrypt/write, submit queue, and send handoff timings.
+    - Never log plaintext, canonical markdown, transcript, file path, URL, clipboard data, encryption material, or payload bodies.
+  affected_files:
+    - path: shared/composer/fixtures/**
+      reason: Versioned synthetic canonical markdown and ComposerDocument cross-client fixtures.
+    - path: frontend/packages/ui/src/components/enter_message/bridge/**
+      reason: Web ComposerDocument adapter and contract tests without changing persisted format.
+    - path: frontend/packages/ui/src/message_parsing/serializers.ts
+      reason: Reuse/adapt canonical serializer behind shared contract fixtures; preserve web source-of-truth behavior.
+    - path: apple/OpenMates/Sources/Shared/Composer/**
+      reason: New ComposerDocument, controller, position map, lifecycle reducer, parser/serializer, TextKit adapters, attachments, and registry.
+    - path: apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+      reason: Bind shared native controller/document instead of String-only editable state at cutover.
+    - path: apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+      reason: Replace TiptapComposerWebView editable leaf and external inlineFieldContent seam.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+      reason: Reuse preview content in attachment providers, then retire external pending list.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      reason: Host document/controller and immutable send snapshots instead of text plus parallel pending array.
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Adapt upload/send services to stable node/generation and ordered durable embed materials.
+    - path: apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+      reason: Replace active-view notification readiness with exactly-once pending-send coordinator.
+    - path: apple/OpenMates/Sources/Core/Services/DraftService.swift
+      reason: Replace unused plaintext UserDefaults writes with encrypted ComposerDraftRepository and migration.
+    - path: apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      reason: Add ciphertext-only local draft persistence fields/model.
+    - path: apple/OpenMatesShared/BackgroundChatSender.swift
+      reason: Consume ordered ComposerSendSnapshot/embed materials for quick capture/share extensions.
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Migrate new-chat host and remove parallel pending/deferred implementation.
+    - path: apple/OpenMates/Sources/App/OpenMatesApp.swift
+      reason: Migrate macOS quick capture to shared AppKit adapter and controller.
+    - path: apple/OpenMatesShareExtension/ShareViewController.swift
+      reason: Embed shared UIKit native editor and normalize shared items into document atoms.
+    - path: apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+      reason: Embed shared AppKit native editor and normalize shared items into document atoms.
+    - path: scripts/apple_composer_audit.py
+      reason: Enforce no production WebView/plaintext persistence/editor forks after cutover.
+    - path: scripts/apple_composer_renderer_audit.py
+      reason: Deterministically enforce generated renderer/fixture/lifecycle/visual coverage.
+  assumption_checks:
+    - assumption: A-2
+      owner: TASK-1
+      method: Implement tests first, then a dev-preview-only TextKit attachment prototype on iOS and macOS; confirm dynamic width, interaction, provider reuse, UTF-16 mapping, IME, and undo before production integration.
+    - assumption: A-3
+      owner: renderer coverage task
+      method: Generate registry audit and turn every missing/fallback-only write-mode type into an explicit implementation blocker.
+    - assumption: A-4
+      owner: lifecycle/service task
+      method: Reducer tests validate nodeId/generation to durable embedId mapping and existing API sufficiency before adapting ChatViewModel/BackgroundChatSender.
+    - assumption: A-6
+      owner: encryption task
+      method: Shared synthetic web/Apple Format A/C/D/embed-key fixtures and zero-plaintext storage tests pass before draft/send integration.
+  rollout:
+    - Internal dev preview and tests may exercise native slices, but production hosts remain on the current editor during implementation.
+    - Candidate-ready is one commit/release state where all Apple hosts use native adapters and production WebView resources/bridge code are removed together.
+    - Upload candidate to TestFlight only after all candidate tests and artifact reviews pass.
+    - Production-cutover-ready requires TestFlight validation and explicit user confirmation; rollback is release rollback, not a runtime dual-editor flag.
+  verification_strategy:
+    - Run shared web ComposerDocument and encryption fixtures first through scripts/tests.py Vitest dispatch.
+    - Run Apple document/controller/lifecycle/encryption unit tests second through apple_remote.py.
+    - Run web Playwright regressions after any shared web adapter deployment to app.dev.openmates.org.
+    - Run Apple inline embed, host, draft, accessibility, visual, and performance UI evidence after unit contracts pass.
+    - Run iOS and macOS builds/runtime tests, paired artifact review, security review, candidate gate, TestFlight, and production confirmation last.
+    - CLI/npm/pip surfaces have no new API; run python3 scripts/audit_sdk_cli_parity.py at integration and record explicit not-affected evidence before web/Apple final gates.
+  verification_order:
+    - Shared schema/serializer and web encryption fixtures.
+    - Native document/position/IME/undo feasibility tests.
+    - Native renderer coverage audit and lifecycle reducer.
+    - Native encryption/draft migration and service adapters.
+    - Main/new chat integration.
+    - iOS/macOS quick capture and share-extension integration.
+    - Web regression, Apple visual/accessibility/performance, builds, security review, candidate, TestFlight, production confirmation.
+  acceptance_criteria_mapping:
+    - "AC-1: T-APPLE-STATIC, T-APPLE-NATIVE-EDITOR, T-APPLE-IOS-BUILD, T-APPLE-MACOS-BUILD"
+    - "AC-2: T-WEB-DOCUMENT-CONTRACT, T-APPLE-DOCUMENT-CONTRACT"
+    - "AC-3: T-APPLE-INLINE-EMBED-UI, T-APPLE-VISUAL-PARITY, V-WEB-RENDERED-COMPARISON"
+    - "AC-4: T-APPLE-EMBED-LIFECYCLE, T-APPLE-UPLOAD-AUDIO-UI, T-WEB-COMPOSER-REGRESSION"
+    - "AC-5: T-WEB-DOCUMENT-CONTRACT, T-APPLE-PARSE-PASTE"
+    - "AC-6: T-APPLE-MENTION-PII, T-WEB-DOCUMENT-CONTRACT"
+    - "AC-7: T-APPLE-NATIVE-EDITOR, T-APPLE-DOCUMENT-CONTRACT"
+    - "AC-8: T-APPLE-DRAFT-EDIT-UI, T-APPLE-DOCUMENT-CONTRACT"
+    - "AC-9: T-APPLE-ALL-HOSTS-UI, T-APPLE-MACOS-HOSTS-UI, T-APPLE-SHARE-HOSTS-UI, T-APPLE-STATIC"
+    - "AC-10: T-APPLE-ACCESSIBILITY, T-APPLE-VISUAL-PARITY"
+    - "AC-11: T-APPLE-FAILURE-RECOVERY, T-APPLE-DOCUMENT-CONTRACT"
+    - "AC-12: T-APPLE-PERFORMANCE, builds, paired artifacts, candidate/TestFlight/production gates"
+    - "AC-13: T-APPLE-SUBMIT, T-WEB-DOCUMENT-CONTRACT"
+    - "AC-14: T-APPLE-RENDERER-COVERAGE, T-APPLE-INLINE-EMBED-UI, paired artifacts"
+    - "AC-15: web/Apple encryption fixtures, draft migration, static audit, security review"
+  open_questions_and_resolution:
+    - Q-1 performance thresholds are resolved by a baseline task before production integration; thresholds are written into this plan and tests before AC-12 can pass.
+    - Q-2 renderer gaps are resolved by generated inventory; missing/fallback-only categories are explicit implementation tasks and blockers.
+    - Q-3 draft storage direction is ciphertext-only SwiftData plus existing encrypted draft sync fields using Format D; exact model fields and migration are proven by red tests before wiring any save call.
+tasks:
+  - id: TASK-1
+    title: Add shared ComposerDocument fixtures and red contract tests
+    status: in_progress
+    phase: checking_assumptions
+    covers:
+      scenarios: [S-2, S-5, S-6, S-13]
+      acceptance_criteria: [AC-2, AC-5, AC-6, AC-13]
+    expected_files:
+      - shared/composer/fixtures/**
+      - frontend/packages/ui/src/components/enter_message/bridge/__tests__/composerDocument.test.ts
+      - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    verification_ids: [T-WEB-DOCUMENT-CONTRACT, T-APPLE-DOCUMENT-CONTRACT]
+    blockers: []
+    dependencies: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Prove TextKit attachment and selection feasibility
+    status: pending
+    phase: checking_assumptions
+    covers:
+      scenarios: [S-1, S-3, S-7]
+      acceptance_criteria: [AC-1, AC-3, AC-7]
+    expected_files:
+      - apple/OpenMatesTests/NativeComposerControllerTests.swift
+      - apple/OpenMates/Sources/Shared/Composer/NativeComposerPrototype/**
+      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    verification_ids: [T-APPLE-NATIVE-EDITOR, T-APPLE-INLINE-EMBED-UI]
+    blockers: [A-2]
+    dependencies: [TASK-1]
+    follow_up_tasks: [TASK-6]
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Generate native composer renderer coverage audit
+    status: pending
+    phase: checking_assumptions
+    covers:
+      scenarios: [S-3, S-14]
+      acceptance_criteria: [AC-3, AC-14]
+    expected_files:
+      - scripts/apple_composer_renderer_audit.py
+      - scripts/tests/test_apple_composer_renderer_audit.py
+      - shared/composer/fixtures/renderer-coverage.yml
+    verification_ids: [T-APPLE-RENDERER-COVERAGE]
+    blockers: [A-3]
+    dependencies: []
+    follow_up_tasks: [TASK-7]
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Add cross-client encryption and encrypted-draft red tests
+    status: pending
+    phase: checking_assumptions
+    covers:
+      scenarios: [S-11, S-15]
+      acceptance_criteria: [AC-11, AC-15]
+    expected_files:
+      - shared/composer/fixtures/encryption/**
+      - frontend/packages/ui/src/services/encryption/__tests__/appleComposerCompatibility.test.ts
+      - apple/OpenMatesTests/NativeComposerEncryptionCompatibilityTests.swift
+      - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+    verification_ids: [T-WEB-ENCRYPTION-CONTRACT, T-APPLE-CRYPTO-COMPAT, T-APPLE-DRAFT-ENCRYPTION-MIGRATION]
+    blockers: [A-6]
+    dependencies: []
+    follow_up_tasks: [TASK-10]
+    independently_deployable: true
+
+  - id: TASK-5
+    title: Implement shared ComposerDocument and canonical adapters
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-5, S-6]
+      acceptance_criteria: [AC-2, AC-5, AC-6]
+    expected_files:
+      - frontend/packages/ui/src/components/enter_message/bridge/**
+      - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerPositionMap.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerMarkdownAdapter.swift
+    verification_ids: [T-WEB-DOCUMENT-CONTRACT, T-APPLE-DOCUMENT-CONTRACT]
+    blockers: [TASK-1]
+    dependencies: [TASK-1]
+    follow_up_tasks: [TASK-6, TASK-9]
+    independently_deployable: true
+
+  - id: TASK-6
+    title: Implement native UIKit and AppKit editor adapters
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3, S-7, S-10]
+      acceptance_criteria: [AC-1, AC-3, AC-7, AC-10]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+      - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerTextAttachment.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentViewProvider.swift
+    verification_ids: [T-APPLE-NATIVE-EDITOR, T-APPLE-INLINE-EMBED-UI, T-APPLE-ACCESSIBILITY]
+    blockers: [TASK-2, TASK-5]
+    dependencies: [TASK-2, TASK-5]
+    follow_up_tasks: [TASK-7, TASK-11]
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Implement complete native composer renderer registry
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-10, S-14]
+      acceptance_criteria: [AC-3, AC-10, AC-14]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Composer/ComposerEmbedRendererRegistry.swift
+      - apple/OpenMates/Sources/Shared/Composer/Previews/**
+      - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+      - shared/composer/fixtures/renderer-coverage.yml
+    verification_ids: [T-APPLE-RENDERER-COVERAGE, T-APPLE-INLINE-EMBED-UI, T-APPLE-VISUAL-PARITY]
+    blockers: [TASK-3, TASK-6]
+    dependencies: [TASK-3, TASK-6]
+    follow_up_tasks: [TASK-11, TASK-14]
+    independently_deployable: false
+
+  - id: TASK-8
+    title: Implement embed lifecycle and exactly-once send coordination
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-4, S-7, S-11, S-13]
+      acceptance_criteria: [AC-4, AC-7, AC-11, AC-13]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Composer/ComposerEmbedLifecycle.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentService.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerPendingSendCoordinator.swift
+      - apple/OpenMates/Sources/Core/Services/PendingUploadStore.swift
+      - apple/OpenMatesTests/NativeComposerEmbedLifecycleTests.swift
+    verification_ids: [T-APPLE-EMBED-LIFECYCLE, T-APPLE-UPLOAD-AUDIO-UI, T-APPLE-SUBMIT]
+    blockers: [A-4, TASK-5]
+    dependencies: [TASK-5]
+    follow_up_tasks: [TASK-11, TASK-12, TASK-13]
+    independently_deployable: false
+
+  - id: TASK-9
+    title: Implement submit, paste, mentions, and PII behavior
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-5, S-6, S-13]
+      acceptance_criteria: [AC-5, AC-6, AC-13]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Composer/ComposerPasteService.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerMentionService.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift
+      - apple/OpenMatesTests/NativeComposerPasteTests.swift
+      - apple/OpenMatesTests/NativeComposerMentionPIITests.swift
+      - apple/OpenMatesTests/NativeComposerSubmitTests.swift
+    verification_ids: [T-APPLE-PARSE-PASTE, T-APPLE-MENTION-PII, T-APPLE-SUBMIT]
+    blockers: [TASK-5]
+    dependencies: [TASK-5]
+    follow_up_tasks: [TASK-11]
+    independently_deployable: false
+
+  - id: TASK-10
+    title: Implement encrypted draft repository and plaintext migration
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-8, S-11, S-15]
+      acceptance_criteria: [AC-8, AC-11, AC-15]
+    expected_files:
+      - apple/OpenMates/Sources/Core/Services/DraftService.swift
+      - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerDraftRepository.swift
+      - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
+      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift
+    verification_ids: [T-APPLE-DRAFT-ENCRYPTION-MIGRATION, T-APPLE-DRAFT-EDIT-UI, T-APPLE-CRYPTO-COMPAT]
+    blockers: [TASK-4, TASK-5]
+    dependencies: [TASK-4, TASK-5]
+    follow_up_tasks: [TASK-11]
+    independently_deployable: false
+
+  - id: TASK-11
+    title: Integrate native composer into main and new chat
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3, S-4, S-8, S-9, S-13, S-15]
+      acceptance_criteria: [AC-1, AC-3, AC-4, AC-8, AC-9, AC-13, AC-15]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+      - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMates/Sources/App/MainAppView.swift
+    verification_ids: [T-APPLE-INLINE-EMBED-UI, T-APPLE-UPLOAD-AUDIO-UI, T-APPLE-DRAFT-EDIT-UI, T-APPLE-ALL-HOSTS-UI]
+    blockers: [TASK-6, TASK-7, TASK-8, TASK-9, TASK-10]
+    dependencies: [TASK-6, TASK-7, TASK-8, TASK-9, TASK-10]
+    follow_up_tasks: [TASK-12, TASK-13, TASK-14]
+    independently_deployable: false
+
+  - id: TASK-12
+    title: Integrate native composer into macOS quick capture
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-4, S-9, S-13, S-15]
+      acceptance_criteria: [AC-4, AC-9, AC-13, AC-15]
+    expected_files:
+      - apple/OpenMates/Sources/App/OpenMatesApp.swift
+      - apple/OpenMatesShared/BackgroundChatSender.swift
+      - apple/OpenMatesUITests/NativeComposerMacHostParityUITests.swift
+    verification_ids: [T-APPLE-MACOS-HOSTS-UI, T-APPLE-SUBMIT, T-APPLE-CRYPTO-COMPAT]
+    blockers: [TASK-8, TASK-11]
+    dependencies: [TASK-8, TASK-11]
+    follow_up_tasks: [TASK-15]
+    independently_deployable: false
+
+  - id: TASK-13
+    title: Integrate native composer into iOS and macOS share extensions
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-9, S-13, S-15]
+      acceptance_criteria: [AC-3, AC-9, AC-13, AC-15]
+    expected_files:
+      - apple/OpenMatesShareExtension/ShareViewController.swift
+      - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+      - apple/OpenMatesShared/BackgroundChatSender.swift
+      - apple/OpenMatesUITests/NativeComposerShareExtensionParityUITests.swift
+    verification_ids: [T-APPLE-SHARE-HOSTS-UI, T-APPLE-SUBMIT, T-APPLE-CRYPTO-COMPAT]
+    blockers: [TASK-8, TASK-11]
+    dependencies: [TASK-8, TASK-11]
+    follow_up_tasks: [TASK-15]
+    independently_deployable: false
+
+  - id: TASK-14
+    title: Complete visual, accessibility, failure, and performance parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-10, S-11, S-12, S-14]
+      acceptance_criteria: [AC-10, AC-11, AC-12, AC-14]
+    expected_files:
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+      - apple/OpenMatesUITests/NativeComposerAccessibilityUITests.swift
+      - apple/OpenMatesTests/NativeComposerFailureRecoveryTests.swift
+      - apple/OpenMatesTests/NativeComposerPerformanceTests.swift
+      - docs/specs/apple-native-message-composer/spec.yml
+    verification_ids: [T-APPLE-VISUAL-PARITY, T-APPLE-ACCESSIBILITY, T-APPLE-FAILURE-RECOVERY, T-APPLE-PERFORMANCE, V-WEB-RENDERED-COMPARISON]
+    blockers: [Q-1, TASK-7, TASK-11]
+    dependencies: [TASK-7, TASK-11]
+    follow_up_tasks: [TASK-15]
+    independently_deployable: false
+
+  - id: TASK-15
+    title: Cut over every host and remove production WebView composer
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-9, S-12]
+      acceptance_criteria: [AC-1, AC-9, AC-12]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+      - apple/OpenMates/Resources/TiptapComposer/**
+      - apple/OpenMates.xcodeproj/project.pbxproj
+      - scripts/apple_composer_audit.py
+    verification_ids: [T-APPLE-STATIC, T-APPLE-IOS-BUILD, T-APPLE-MACOS-BUILD, T-APPLE-ALL-HOSTS-UI, T-APPLE-MACOS-HOSTS-UI, T-APPLE-SHARE-HOSTS-UI]
+    blockers: [TASK-12, TASK-13, TASK-14]
+    dependencies: [TASK-12, TASK-13, TASK-14]
+    follow_up_tasks: [TASK-16]
+    independently_deployable: false
+
+  - id: TASK-16
+    title: Run cross-client regressions and candidate security gate
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-2, S-4, S-11, S-12, S-15]
+      acceptance_criteria: [AC-2, AC-4, AC-11, AC-12, AC-15]
+    expected_files:
+      - docs/specs/apple-native-message-composer/spec.yml
+    verification_ids: [T-WEB-COMPOSER-REGRESSION, T-WEB-ENCRYPTION-CONTRACT, T-APPLE-CRYPTO-COMPAT, V-SECURITY-REVIEW, V-CANDIDATE-READY]
+    blockers: [TASK-15]
+    dependencies: [TASK-15]
+    follow_up_tasks: [TASK-17]
+    independently_deployable: false
+
+  - id: TASK-17
+    title: Validate TestFlight candidate and approve production cutover
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-12]
+      acceptance_criteria: [AC-12]
+    expected_files:
+      - docs/specs/apple-native-message-composer/spec.yml
+    verification_ids: [V-TESTFLIGHT, V-PRODUCTION-CUTOVER-READY]
+    blockers: [TASK-16]
+    dependencies: [TASK-16]
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    description: TextKit attachment views and selection boundaries can behave differently across iOS and macOS, especially with IME, undo, and viewport reuse.
+    mitigation: Require a focused attachment/selection prototype and red tests before broader implementation tasks begin.
+  - id: R-2
+    description: Reimplementing web parsing and conversion independently could create permanent semantic drift.
+    mitigation: Make ComposerDocument fixtures and canonical markdown outputs shared, versioned, and mandatory for both TypeScript and Swift adapters.
+  - id: R-3
+    description: Native preview duplication can drift visually as web embed components evolve.
+    mitigation: Generate a renderer coverage manifest from app metadata and require rendered-web artifact comparisons for changed preview contracts.
+  - id: R-4
+    description: Moving upload lifecycle ownership into document nodes can duplicate uploads, cleanup, or queued sends.
+    mitigation: Use stable node ids, idempotent service commands, and exactly-once deferred-send tests before cutover.
+  - id: R-5
+    description: A single full replacement creates a large integration branch and delayed user feedback.
+    mitigation: Implement and verify internal independently testable slices, but keep production on the existing editor until the complete cutover gate passes.
+  - id: R-6
+    description: Full native parity across every registered web embed type is larger than the current Apple renderer inventory.
+    mitigation: Inventory generated renderer coverage before task planning; missing native renderers are blockers, not generic fallback cards.
+  - id: R-7
+    description: Composer integration could bypass the authoritative web encryption boundary, persist plaintext drafts, or silently replace a mismatched chat key.
+    mitigation: Keep cryptography outside editor/view code, use cross-client Format A/C/D and embed-key fixtures, atomically migrate legacy plaintext drafts, audit durable stores for plaintext, and require security review before candidate-ready.
+
+open_questions:
+  - id: Q-1
+    question: What measured typing, selection, parsing, and embed-update performance thresholds should gate cutover on supported iPhone, iPad, and Mac classes?
+    required_before: task_execution
+    status: open
+  - id: Q-2
+    question: Which current web renderer types lack native composer/read-only counterparts after running the generated registry inventory?
+    required_before: task_execution
+    status: answered
+    answer: Generated inventory found explicit missing and fallback-only Apple categories; the renderer coverage task must use the generated manifest and treat each as a cutover blocker.
+  - id: Q-3
+    question: Which approved encrypted local store and offline-sync representation will replace the unused plaintext Apple UserDefaults DraftService while preserving web Format D compatibility?
+    required_before: implementation
+    status: answered
+    answer: Store only Format D ciphertext, encrypted preview, revision, and draft version in local SwiftData and existing encrypted draft sync fields; atomically migrate legacy plaintext UserDefaults after unlock and decrypt verification.
