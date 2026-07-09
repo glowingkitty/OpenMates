@@ -22,7 +22,7 @@ const {
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const CREATE_ACCOUNT_SLOT = process.env.CREATE_ACCOUNT_SLOT;
 const DEV_API_URL = 'https://api.dev.openmates.org';
-const RESERVED_AUTH_ACCOUNT_SLOTS = new Set([15, 16, 17, 18, 19, 20]);
+const RESERVED_AUTH_ACCOUNT_SLOTS = new Set([14, 15, 16, 17, 18, 19, 20]);
 
 test.describe('CLI E2E auth account provisioning', () => {
 	test('creates a reserved account artifact through CLI signup', async () => {

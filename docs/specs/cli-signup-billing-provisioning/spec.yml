@@ -7,7 +7,7 @@ goal: >
   weakening the web app's client-side encrypted signup model. Add CLI-safe bank
   transfer billing flows for buying credits and gift cards, improve no-credit
   guidance, and provide a gated local E2E provisioning tool that creates the
-  reserved recovery-key and backup-code test account artifacts needed by CI.
+  reserved auth test account artifacts needed by CI.
 
 scope:
   in:
@@ -19,7 +19,7 @@ scope:
     - CLI bank-transfer gift-card purchases that create a pending order and expose the gift-card code later through status/list after the transfer is matched.
     - End-to-end validation that a CLI-created account can buy credits through CLI bank transfer, send a CLI chat after credits arrive, and later log in through the web app.
     - CLI account deletion with a stricter terminal-only verification contract, requiring a verified email code for every deletion and a 2FA code when 2FA is configured.
-    - Test-only E2E provisioning command that creates or refreshes reserved test-account artifacts for recovery-key and backup-code Playwright specs without updating GitHub secrets.
+    - Test-only E2E provisioning command that creates or refreshes reserved test-account artifacts for destructive auth Playwright specs without updating GitHub secrets.
     - Backend, CLI, docs, and test coverage for the new auth/security/billing contracts.
   out:
     - CLI card checkout for buying credits.
@@ -229,9 +229,9 @@ scenarios:
     title: Operator provisions reserved E2E account artifacts locally
     given:
       - An operator has test-only API access and runs the provisioning command against dev.
-      - Reserved slots 15 and 17 are missing credentials or need refresh.
+      - A reserved auth-test slot in the 14-20 range is missing credentials or needs refresh.
     when:
-      - The operator runs a gated command such as `openmates e2e provision-auth-accounts --slot 15 --artifact ./test-results/credential-updates/backup-code-login-flow.env`.
+      - The operator runs a gated command such as `openmates e2e provision-auth-accounts --slot 14 --artifact ./test-results/credential-updates/account-recovery-flow.env`.
     then:
       - The command creates or refreshes the account using CLI signup crypto, 2FA, backup codes, and recovery key setup.
       - It writes only local ignored artifact files containing email, password, OTP secret, recovery key, and a backup code needed by tests.
@@ -283,10 +283,10 @@ acceptance_criteria:
     text: Successful CLI account deletion clears local CLI session/cache state and does not expose raw secrets in output.
   - id: AC-15
     scenario: S-10
-    text: Gated E2E provisioning writes local artifacts for reserved recovery-key and backup-code accounts without committing or uploading secrets.
+    text: Gated E2E provisioning writes local artifacts for reserved auth-test accounts without committing or uploading secrets.
   - id: AC-16
     scenario: S-10
-    text: Existing recovery-key and backup-code Playwright specs can run green after their reserved account artifacts are provisioned and CI secrets are updated by a human/trusted process.
+    text: Existing reserved-auth Playwright specs can run green after their account artifacts are provisioned and CI secrets are updated by a human/trusted process.
 
 contracts:
   api:
@@ -434,7 +434,7 @@ contracts:
     - command: openmates e2e provision-auth-accounts
       visibility: test-only/gated
       options:
-        - --slot <15|17>
+        - --slot <14-20>
         - --artifact <path>
         - --api-url <dev-api-url>
         - --yes
