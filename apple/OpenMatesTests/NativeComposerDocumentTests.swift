@@ -15,8 +15,7 @@ final class NativeComposerDocumentTests: XCTestCase {
         for testCase in fixture.cases {
             let document = try ComposerMarkdownAdapter.parse(testCase.canonicalMarkdown)
 
-            XCTAssertEqual(document.version, fixture.schemaVersion, testCase.id)
-            XCTAssertEqual(document.nodes.count, testCase.document.nodes.count, testCase.id)
+            XCTAssertEqual(document, testCase.document, testCase.id)
             XCTAssertEqual(
                 try ComposerMarkdownAdapter.serialize(document),
                 testCase.canonicalMarkdown,
@@ -61,7 +60,7 @@ private struct ComposerFixture: Decodable {
 private struct ComposerFixtureCase: Decodable {
     let id: String
     let canonicalMarkdown: String
-    let document: ExpectedDocument
+    let document: ComposerDocumentV1
     let selectionFixtures: [SelectionFixture]
 
     enum CodingKeys: String, CodingKey {
@@ -70,14 +69,6 @@ private struct ComposerFixtureCase: Decodable {
         case document
         case selectionFixtures = "selection_fixtures"
     }
-}
-
-private struct ExpectedDocument: Decodable {
-    let nodes: [ExpectedNode]
-}
-
-private struct ExpectedNode: Decodable {
-    let kind: String
 }
 
 private struct SelectionFixture: Decodable {

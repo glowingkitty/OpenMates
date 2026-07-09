@@ -636,7 +636,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        run_id: "github-actions-29056768317"
+        timestamp: "2026-07-09T23:13:03Z"
+        summary: Three fixture cases failed at the typed ComposerDocument parser-not-implemented boundary; all UTF-16 assertions passed.
     green_phase:
       required: true
       expected: pass
@@ -657,7 +661,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        run_id: "apple-remote-d1c2001"
+        timestamp: "2026-07-09T23:13:43Z"
+        summary: NativeComposerDocumentTests executed two tests; parsing failed at ComposerDocumentError.notImplemented and the UTF-16 fixture test passed.
     green_phase:
       required: true
       expected: pass
