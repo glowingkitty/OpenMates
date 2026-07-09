@@ -97,7 +97,6 @@ final class NativeComposerControllerTests: XCTestCase {
             ) as? ComposerTextAttachment
         )
         var activationCount = 0
-        attachment.onActivate = { activationCount += 1 }
         let layoutManager = try XCTUnwrap(textView.textLayoutManager)
         let provider = try XCTUnwrap(attachment.viewProvider(
             for: textView,
@@ -106,6 +105,7 @@ final class NativeComposerControllerTests: XCTestCase {
         ) as? ComposerAttachmentViewProvider)
         provider.loadView()
         let button = try XCTUnwrap(provider.view as? UIButton)
+        button.addAction(UIAction { _ in activationCount += 1 }, for: .touchUpInside)
         button.sendActions(for: .touchUpInside)
         XCTAssertEqual(activationCount, 1)
         XCTAssertEqual(

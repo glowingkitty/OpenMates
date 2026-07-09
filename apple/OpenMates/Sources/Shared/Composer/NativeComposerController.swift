@@ -21,11 +21,9 @@ enum NativeComposerControllerError: Error, Equatable {
 
 final class ComposerTextAttachment: NSTextAttachment, @unchecked Sendable {
     let nodeID: String
-    var onActivate: (() -> Void)?
 
-    init(nodeID: String, onActivate: (() -> Void)? = nil) {
+    init(nodeID: String) {
         self.nodeID = nodeID
-        self.onActivate = onActivate
         super.init(data: nil, ofType: nil)
         allowsTextAttachmentView = true
     }
@@ -35,7 +33,6 @@ final class ComposerTextAttachment: NSTextAttachment, @unchecked Sendable {
             return nil
         }
         self.nodeID = nodeID
-        self.onActivate = nil
         super.init(coder: coder)
     }
 
@@ -95,13 +92,9 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     }
 
     override func loadView() {
-        let attachment = textAttachment as? ComposerTextAttachment
         let button = MainActor.assumeIsolated {
             let button = UIButton(type: .custom)
             button.accessibilityIdentifier = "native-composer-embed-prototype"
-            button.addAction(UIAction { _ in
-                attachment?.onActivate?()
-            }, for: .touchUpInside)
             return button
         }
         view = button
@@ -142,12 +135,8 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     }
 
     override func loadView() {
-        let attachment = textAttachment as? ComposerTextAttachment
         let button = MainActor.assumeIsolated {
-            let button = ComposerAttachmentButton()
-            button.onActivate = {
-                attachment?.onActivate?()
-            }
+            let button = NSButton(frame: .zero)
             button.identifier = NSUserInterfaceItemIdentifier("native-composer-embed-prototype")
             return button
         }
@@ -167,15 +156,6 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             width: proposedLineFragment.width,
             height: Self.prototypeHeight
         )
-    }
-}
-
-private final class ComposerAttachmentButton: NSButton {
-    var onActivate: (() -> Void)?
-
-    override func mouseUp(with event: NSEvent) {
-        super.mouseUp(with: event)
-        onActivate?()
     }
 }
 #endif
