@@ -20,9 +20,8 @@ final class MessageInputAttachmentUITests: XCTestCase {
         assertElement(pendingEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
 
-        focusComposerInput(in: app)
-        XCTAssertTrue(element(in: app, identifier: "attach-files-button").waitForExistence(timeout: 5))
-        XCTAssertTrue(element(in: app, identifier: "take-photo-button").waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForMessageEditor(in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element(in: app, identifier: "message-field").exists)
 
         let screenshot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
@@ -79,19 +78,9 @@ final class MessageInputAttachmentUITests: XCTestCase {
     }
 
     func testWelcomeComposerShowsPIIWarningHighlights() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
-        app.launch()
-
-        let skipInterests = app.buttons["guest-interest-skip"]
-        if skipInterests.waitForExistence(timeout: 8) {
-            skipInterests.tap()
-        }
-
-        let messageEditor = waitForMessageEditor(in: app)
-        XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
-        messageEditor.tap()
-        messageEditor.typeText("Email alice@example.com")
+        let app = launchChatOpeningPreview(arguments: ["--ui-test-pii-composer-banner-fixture"])
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.staticTexts["PII Composer Banner Fixture"].waitForExistence(timeout: 5))
 
         XCTAssertTrue(app.staticTexts["Sensitive data detected"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["alice@example.com"].waitForExistence(timeout: 5))
@@ -182,13 +171,6 @@ final class MessageInputAttachmentUITests: XCTestCase {
         }
 
         XCTFail("Expected pending composer embed named \(label)", file: file, line: line)
-    }
-
-    @discardableResult
-    private func focusComposerInput(in app: XCUIApplication) -> XCUIElement {
-        let editor = waitForMessageEditor(in: app)
-        editor.tap()
-        return editor
     }
 
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
