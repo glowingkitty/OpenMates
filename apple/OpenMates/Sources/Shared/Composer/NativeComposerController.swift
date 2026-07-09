@@ -19,7 +19,7 @@ enum NativeComposerControllerError: Error, Equatable {
     case expectedEmbed(String)
 }
 
-final class ComposerTextAttachment: NSTextAttachment {
+final class ComposerTextAttachment: NSTextAttachment, @unchecked Sendable {
     let nodeID: String
     var onActivate: (() -> Void)?
 
@@ -95,14 +95,16 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     }
 
     override func loadView() {
-        MainActor.assumeIsolated {
+        let attachment = textAttachment as? ComposerTextAttachment
+        let button = MainActor.assumeIsolated {
             let button = UIButton(type: .custom)
             button.accessibilityIdentifier = "native-composer-embed-prototype"
-            button.addAction(UIAction { [weak self] _ in
-                (self?.textAttachment as? ComposerTextAttachment)?.onActivate?()
+            button.addAction(UIAction { _ in
+                attachment?.onActivate?()
             }, for: .touchUpInside)
-            view = button
+            return button
         }
+        view = button
     }
 
     override func attachmentBounds(
@@ -140,14 +142,16 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     }
 
     override func loadView() {
-        MainActor.assumeIsolated {
+        let attachment = textAttachment as? ComposerTextAttachment
+        let button = MainActor.assumeIsolated {
             let button = ComposerAttachmentButton()
-            button.onActivate = { [weak self] in
-                (self?.textAttachment as? ComposerTextAttachment)?.onActivate?()
+            button.onActivate = {
+                attachment?.onActivate?()
             }
             button.identifier = NSUserInterfaceItemIdentifier("native-composer-embed-prototype")
-            view = button
+            return button
         }
+        view = button
     }
 
     override func attachmentBounds(
