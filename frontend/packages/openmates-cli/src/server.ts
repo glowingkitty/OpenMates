@@ -10,7 +10,7 @@
 
 import { execFileSync, execSync, spawn as nodeSpawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
 import { homedir } from "node:os";
@@ -68,6 +68,7 @@ const DEFAULT_IMAGE_REGISTRY = "ghcr.io/glowingkitty";
 const UPDATE_HEALTH_TIMEOUT_MS = 120_000;
 const UPDATE_HEALTH_INTERVAL_MS = 5_000;
 const HEALTH_REQUEST_TIMEOUT_MS = 5_000;
+const CHECKSUM_BUFFER_BYTES = 1024 * 1024;
 const IMAGE_CHANNEL_TAGS = {
   stable: MAIN_BRANCH,
   main: MAIN_BRANCH,
@@ -947,6 +948,22 @@ function formatSecretPreflight(preflight: RuntimeSecretPreflight): string {
   return parts.join("; ");
 }
 
+function hashFile(path: string): string {
+  const hash = createHash("sha256");
+  const fd = openSync(path, "r");
+  const buffer = Buffer.allocUnsafe(CHECKSUM_BUFFER_BYTES);
+  try {
+    while (true) {
+      const bytesRead = readSync(fd, buffer, 0, buffer.length, null);
+      if (bytesRead === 0) break;
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+  } finally {
+    closeSync(fd);
+  }
+  return hash.digest("hex");
+}
+
 function writeChecksums(rootDir: string): void {
   const lines: string[] = [];
   const walk = (dir: string) => {
@@ -958,8 +975,7 @@ function writeChecksums(rootDir: string): void {
       }
       if (entry.name === "checksums.sha256") continue;
       const relative = path.slice(rootDir.length + 1);
-      const hash = createHash("sha256").update(readFileSync(path)).digest("hex");
-      lines.push(`${hash}  ${relative}`);
+      lines.push(`${hashFile(path)}  ${relative}`);
     }
   };
   walk(rootDir);
@@ -981,7 +997,7 @@ function verifyChecksums(rootDir: string): void {
     }
     const filePath = join(rootDir, relative);
     if (!existsSync(filePath)) throw new Error(`Backup archive is missing checksummed file: ${relative}`);
-    const actual = createHash("sha256").update(readFileSync(filePath)).digest("hex");
+    const actual = hashFile(filePath);
     if (actual !== match[1]) throw new Error(`Backup checksum mismatch for ${relative}.`);
   }
 }
