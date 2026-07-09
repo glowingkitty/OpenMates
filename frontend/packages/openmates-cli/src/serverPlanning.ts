@@ -234,7 +234,7 @@ export function planUpdate(input: {
   const missingRequiredSecrets = input.missingRequiredSecrets ?? [];
   const blocked = input.continuous === true && missingRequiredSecrets.length > 0;
   const steps = ["preflight"];
-  const backupName = runtime.dataBearing && input.skipBackup !== true ? `latest-pre-update-${runtime.role}.tar.zst` : null;
+  const backupName = runtime.dataBearing && input.skipBackup !== true ? `latest-pre-update-${runtime.role}.tar.gz` : null;
   if (backupName) steps.push("backup:latest-pre-update");
   steps.push("pull", "up", "health-check");
 

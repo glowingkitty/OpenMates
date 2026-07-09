@@ -573,7 +573,24 @@ describe("role-based server planning", () => {
     const plan = planUpdate({ role: "core", selectedServices: ["api"], dryRun: true });
     assert.deepEqual(plan.steps, ["preflight", "backup:latest-pre-update", "pull", "up", "health-check"]);
     assert.equal(plan.commands.some((command) => command.includes("git pull")), false);
-    assert.equal(plan.backupName, "latest-pre-update-core.tar.zst");
+    assert.equal(plan.backupName, "latest-pre-update-core.tar.gz");
+  });
+
+  it("keeps packaged core compose aligned with planned image-mode services", () => {
+    const template = readFileSync(new URL("../templates/core/docker-compose.selfhost.yml", import.meta.url), "utf-8");
+    const plan = planServerRuntime({ role: "core", profile: "production" });
+
+    for (const service of plan.defaultServices) {
+      assert.ok(template.includes(`\n  ${service}:`), `missing ${service} in packaged core compose template`);
+    }
+  });
+
+  it("streams Postgres backups instead of buffering pg_dump in memory", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+
+    assert.match(source, /spawnSync\(\s*"docker"/);
+    assert.match(source, /stdio: \["ignore", dumpFile, "pipe"\]/);
+    assert.doesNotMatch(source, /const dump = execSync\(\s*`docker exec cms-database pg_dump/);
   });
 
   it("plans backup and restore content safely", () => {
@@ -582,7 +599,7 @@ describe("role-based server planning", () => {
     assert.ok(backup.contents.includes("vault-data"));
     assert.ok(backup.contents.includes("openobserve-data"));
 
-    const restore = planRestore({ role: "core", file: "/tmp/backup.tar.zst", yes: false });
+    const restore = planRestore({ role: "core", file: "/tmp/backup.tar.gz", yes: false });
     assert.equal(restore.requiresConfirmation, true);
     assert.deepEqual(restore.steps, ["confirm", "stop", "restore", "start", "health-check"]);
   });
