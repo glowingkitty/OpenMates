@@ -108,38 +108,20 @@ struct OMMessageInputField<ActionButtons: View>: View {
                         .padding(.top, compact ? .spacing2 : .spacing4)
                 }
 
-                TextField("", text: $text, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.omP)
-                    .lineLimit(compact ? 1...1 : 1...6)
-                    .tint(Color.buttonPrimary)
-                    .focused(isFocused)
-                    .onSubmit(onSubmit)
-                    .accessibilityLabel(AppStrings.chatMessageInput)
-                    .accessibilityHint(accessibilityHint)
-                    .accessibilityIdentifier("message-editor")
-                    .padding(.horizontal, compact ? .spacing6 : expandedHorizontalPadding)
-                    .padding(.top, compact ? 0 : (inlineFieldContent == nil ? expandedTopPadding : .spacing2))
-                    .padding(.bottom, compact ? 0 : expandedBottomPadding)
-                    .fontWeight(compact ? .semibold : .regular)
-                    .multilineTextAlignment(compact ? .center : .leading)
-                    .frame(maxWidth: .infinity, minHeight: textEditorMinHeight, alignment: compact ? .center : .topLeading)
+                TiptapComposerWebView(
+                    text: $text,
+                    isFocused: isFocused,
+                    compact: compact,
+                    placeholder: placeholder,
+                    minHeight: textEditorMinHeight,
+                    accessibilityHint: accessibilityHint,
+                    onSubmit: onSubmit
+                )
+                .padding(.top, inlineFieldContent == nil ? 0 : .spacing2)
+                .frame(maxWidth: .infinity, minHeight: textEditorMinHeight, alignment: compact ? .center : .topLeading)
             }
             .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
             .zIndex(1)
-
-            if text.isEmpty && !isFocused.wrappedValue && inlineFieldContent == nil {
-                Text(placeholder)
-                    .font(.omP)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Color.fontTertiary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .allowsHitTesting(false)
-                    .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: fieldHeight, alignment: .center)
-                    .padding(.horizontal, .spacing8)
-            }
 
             if shouldShowActionButtons {
                 actionButtons()

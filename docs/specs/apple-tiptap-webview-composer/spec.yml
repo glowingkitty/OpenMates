@@ -1,0 +1,672 @@
+id: apple-tiptap-webview-composer
+title: Apple Tiptap WebView Composer
+status: implementing
+
+goal: >
+  Replace the Apple app's native SwiftUI text-field based message composer editor
+  with a local WKWebView running the same Tiptap write-mode editor contract used
+  by the web app, while keeping chat history native until a concrete read-only
+  rendering gap justifies a separate transcript WebView decision.
+
+scope:
+  in:
+    - A composer-only WKWebView bridge for the Apple main chat and new-chat composer surfaces.
+    - A local, bundled Tiptap composer asset or generated bundle that does not load remote web app UI at runtime.
+    - Swift-to-JavaScript and JavaScript-to-Swift messaging for editor readiness, content changes, focus, blur, submit, height changes, clear, set content, theme, disabled state, and test diagnostics.
+    - Preservation of native host-owned controls around the editor, including attachment picker, maps, sketch, camera, audio recording, queued message indicator, focus/incognito pills, and send pipeline callbacks.
+    - Apple tests that target the WebView-backed composer through stable accessibility identifiers and bridge diagnostics.
+    - Remote Mac build/test verification and TestFlight deployment after implementation is green.
+  out:
+    - Moving chat history/transcript rendering to WebView in this slice.
+    - Rewriting chat sending, encryption, WebSocket sync, background send, draft storage, or upload APIs beyond the adapter needed to send canonical markdown from the WebView editor.
+    - Embedding a React Native runtime or adopting TenTap directly.
+    - Loading the production web app route inside the native app composer.
+    - Replacing OS-owned file, photo, camera, microphone, or share controllers.
+    - TestFlight deployment before remote Mac build and targeted Apple tests pass or have accepted blockers.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me and issue search returned 401 Bad credentials."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'apple message input tiptap webview composer' --state all returned no matching issues."
+  docs:
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/messaging/message-parsing.md
+    - docs/architecture/frontend/virtual-scrolling-chat-history.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/specs/apple-unified-message-composer/spec.yml
+    - docs/specs/apple-ui-contracts/spec.yml
+    - apple/SVELTE_SWIFT_COUNTERPARTS.md
+    - apple/AGENTS.md
+  online_research:
+    - "Tiptap official docs position the editor as a JavaScript/web editor with React, Vue, Svelte, and vanilla JS integrations."
+    - "Tiptap maintainer answer in ueberdosis/tiptap discussion #3113 says native React Native support is not planned soon because ProseMirror depends heavily on the browser DOM and recommends embedding a WebView."
+    - "ProseMirror forum guidance says ProseMirror can be put in a WebView for native mobile applications."
+    - "TenTap is a React Native package based on Tiptap/ProseMirror plus react-native-webview; it is useful as architecture inspiration but not directly usable in the SwiftUI Apple app."
+    - "Apple WKScriptMessageHandler is the supported bridge for receiving JavaScript messages from WKWebView content."
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte initializes a Tiptap Editor and owns write-mode parsing, paste handling, mentions, PII decorations, draft state, and send serialization.
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css defines the rendered composer field, ProseMirror base styles, compact states, action row spacing, and decoration styles.
+    - frontend/packages/ui/src/message_parsing/parse_message.ts and serializers.ts convert markdown to Tiptap JSON and back to canonical markdown.
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte uses Tiptap for read-only chat history, but docs flag accumulated editor instances as a web performance cost.
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift provides one native SwiftUI composer shell but delegates the editable area to OMMessageInputField.
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift implements OMMessageInputField with SwiftUI TextField, so it cannot match Tiptap contenteditable behavior.
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift hosts MessageComposerView and currently passes native text through messageText/sendMessage.
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift and native embed renderers support read-only chat history without a WebView transcript.
+  tests:
+    - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - scripts/apple_composer_audit.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - scripts/apple_composer_audit.py
+    - scripts/apple_remote.py
+  parity_expectations:
+    - The editable composer area uses the same Tiptap/ProseMirror write-mode behavior as web instead of a SwiftUI TextField approximation.
+    - The surrounding Apple composer host remains native and keeps the already unified field shape, action row, pending embed strip, PII banners, recording overlay, and app-owned buttons aligned with the web contract.
+    - Chat history remains native in this slice because it is read-only, has native markdown/embed counterparts, and moving the transcript to WebView would add scroll/streaming/accessibility risk without fixing the write-mode composer problem.
+  verification:
+    - python3 scripts/spec_validate.py docs/specs/apple-tiptap-webview-composer/spec.yml
+    - python3 scripts/apple_composer_audit.py
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/MessageComposerConfigurationTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    - TestFlight upload through the repo's Apple deployment flow after green native verification.
+  intentional_native_differences:
+    - Attachment, camera, map, sketch, audio recording, auth/signup, and OS permission flows remain native and call into or receive content from the composer bridge.
+    - Chat history, message bubbles, avatars, markdown rendering, and embed cards remain native for this slice.
+    - Apple can expose a native fallback error state if the local WebView asset fails to load, but it must be visible and logged rather than silently falling back to TextField behavior.
+
+clarification:
+  rounds:
+    - question: Should the WebView/Tiptap bridge be scoped to the composer only while keeping chat history native unless a later parity audit proves a transcript gap?
+      answer: Composer only.
+  vision_summary: >
+    The Apple app should stop approximating the web message editor with SwiftUI
+    TextField and instead run the same Tiptap write-mode editor contract in a
+    local WKWebView. Chat history should stay native in this first slice because
+    the researched gap is write-mode composer behavior, not read-only transcript
+    rendering.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Normal chat composer edits through Tiptap WebView
+    given:
+      - The Apple app shows a normal chat where the current composer host is visible.
+      - The local Tiptap composer asset is bundled with the app.
+    when:
+      - The user focuses the message editor and types multiple lines, markdown, a URL, or a code fence.
+    then:
+      - The editable surface is a WKWebView-backed Tiptap editor, not a SwiftUI TextField or TextEditor.
+      - Swift receives canonical markdown content changes from the bridge.
+      - The send button enables from bridge content state and sends the canonical markdown through the existing send pipeline.
+      - The native action row and pending upload UI remain outside the WebView.
+
+  - id: S-2
+    title: New-chat composer uses the same Tiptap bridge
+    given:
+      - The Apple app opens the signed-out or signed-in new-chat welcome composer.
+    when:
+      - The user focuses the editor, types text, and sends or records/attaches content.
+    then:
+      - The same Tiptap WebView composer bridge is used as normal chat.
+      - Suggestions and welcome content remain host-owned native UI outside the composer.
+      - Anonymous/signup send policy remains host-owned and visible.
+
+  - id: S-3
+    title: Bridge supports native-to-editor and editor-to-native commands
+    given:
+      - The WKWebView editor has finished loading.
+    when:
+      - Swift sends focus, blur, clear, setContent, setPlaceholder, setTheme, setDisabled, or test diagnostics commands.
+    then:
+      - The editor applies the command without reloading the WebView.
+      - JavaScript posts ready, contentChanged, submit, heightChanged, focus, blur, and error events through WKScriptMessageHandler.
+      - Bridge errors are logged with sanitized metadata and shown through an explicit native error state.
+
+  - id: S-4
+    title: Attachments and recording remain native while content stays canonical
+    given:
+      - The user adds native attachments, maps, sketches, images, files, or recordings from the Apple composer action row.
+    when:
+      - The native host receives upload results or pending embed state.
+    then:
+      - Native pending embed strips and upload progress remain visible around the editor.
+      - The Tiptap editor can receive inserted markdown/embed references where needed.
+      - Sending does not leak raw JSON or local file paths into visible text.
+
+  - id: S-5
+    title: Chat history remains native
+    given:
+      - The chat transcript contains user, assistant, streaming, markdown, and embed messages.
+    when:
+      - The composer WebView implementation is enabled.
+    then:
+      - Existing native MessageBubble, RichMarkdownRenderer, and embed renderer paths still render chat history.
+      - Transcript scrolling and streaming behavior are not routed through a WebView.
+      - Any future transcript WebView proposal requires a separate spec with profiling and accessibility evidence.
+
+  - id: S-6
+    title: App is verified and deployed to TestFlight
+    given:
+      - The composer bridge implementation and tests are complete.
+    when:
+      - The remote Mac verification and Apple deployment flow run.
+    then:
+      - The iOS app builds on the remote Mac.
+      - Targeted composer UI/unit tests pass or have accepted external blockers.
+      - A TestFlight build is uploaded only after green native verification.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Normal chat composer editing is backed by a local WKWebView Tiptap editor and no longer uses SwiftUI TextField/TextEditor for the editable product message field.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-COMPOSER-STATIC
+      - T-APPLE-COMPOSER-UI
+  - id: AC-2
+    scenario: S-1
+    text: The WebView bridge serializes editor content to canonical markdown and sends through the existing Apple chat send pipeline without API, encryption, or WebSocket changes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-BRIDGE-UNIT
+      - T-APPLE-COMPOSER-UI
+  - id: AC-3
+    scenario: S-2
+    text: Normal chat and new-chat welcome surfaces host the same Tiptap composer bridge while keeping suggestions and signup policy native.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-COMPOSER-UI
+      - T-APPLE-CHAT-FLOW
+  - id: AC-4
+    scenario: S-3
+    text: The bridge supports ready, contentChanged, submit, heightChanged, focus, blur, error, and native command handling without remote runtime loading.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-BRIDGE-UNIT
+      - T-APPLE-BUILD
+  - id: AC-5
+    scenario: S-4
+    text: Native attachments, recording, upload progress, and pending embed display remain outside the WebView and can insert or send canonical content without raw JSON/path leakage.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-ATTACHMENTS
+      - T-APPLE-AUDIO
+  - id: AC-6
+    scenario: S-5
+    text: Chat history remains native and no transcript WebView is introduced in this slice.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-COMPOSER-STATIC
+      - T-APPLE-CHAT-FLOW
+  - id: AC-7
+    scenario: S-6
+    text: Remote Mac build and targeted composer tests pass before TestFlight upload is attempted.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-BUILD
+      - T-APPLE-COMPOSER-UI
+      - V-TESTFLIGHT-UPLOAD
+
+assumptions:
+  - id: A-1
+    text: The web Tiptap write-mode editor can be bundled as a local asset for WKWebView without loading the production web route or private server data.
+    category: architecture
+    required_before: implementation
+    status: checking
+    evidence:
+      - source: frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+        summary: The existing web editor is a component with many store dependencies; implementation must confirm whether to reuse it through a generated minimal bundle or extract a smaller bridge editor module.
+  - id: A-2
+    text: Keeping chat history native is the correct first-slice boundary.
+    category: product_scope
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user clarification
+        summary: User selected composer-only scope.
+      - source: docs/architecture/frontend/virtual-scrolling-chat-history.md
+        summary: Web transcript Tiptap instances are already a performance concern, so introducing a transcript WebView requires separate evidence.
+  - id: A-3
+    text: TestFlight upload credentials and remote Mac signing/export setup are available through existing repo scripts or operator-provided local configuration.
+    category: deployment
+    required_before: completion
+    status: unchecked
+    evidence:
+      - source: pending verification
+        summary: Implementation must discover the current Apple deployment/TestFlight flow before attempting upload.
+
+contracts:
+  api:
+    - No product API route changes are required.
+    - Existing Apple send APIs receive canonical markdown from the WebView bridge.
+  data:
+    - Swift host state owns chat id, pending uploads, pending composer embeds, PII warnings, focus/incognito state, auth policy, recording state, and send lifecycle.
+    - WebView editor state owns editable Tiptap document state, selection, paste normalization, markdown decorations, and canonical markdown serialization.
+    - Bridge event payloads contain only sanitized fields: event type, content markdown when needed, hasContent, height, focus state, and error category/message without secrets.
+  ui_states:
+    - Default empty composer.
+    - Focused empty composer.
+    - Multiline typed composer with height changes.
+    - Markdown/code/URL typed composer.
+    - Pending attachment and upload progress around composer.
+    - Recording short-tap hint and active overlay around composer.
+    - New-chat welcome composer.
+    - Explicit WebView load/bridge error state.
+  privacy_security:
+    - The bundled WebView composer must not fetch remote scripts, remote HTML, analytics, or the app web route at runtime.
+    - Bridge logs must not include message plaintext, encryption keys, auth/session tokens, cookies, private file paths, full share URL fragments, or raw attachment contents.
+    - WKWebView configuration must disable unnecessary navigation and constrain loaded content to local bundle assets.
+  accessibility:
+    - The native wrapper exposes `message-composer`, `message-field`, and `message-editor` identifiers for XCUITest.
+    - Bridge diagnostics expose editor readiness and content state to UI tests without requiring private message content.
+    - Native controls remain accessible and localized through AppStrings.
+
+tests:
+  - id: T-APPLE-COMPOSER-STATIC
+    type: lint
+    file: scripts/apple_composer_audit.py
+    command: python3 scripts/apple_composer_audit.py
+    covers:
+      - AC-1
+      - AC-6
+    assertions:
+      - product composer surfaces reference the Tiptap WebView composer bridge or approved wrapper
+      - product composer editable fields do not use SwiftUI TextField/TextEditor as the main message editor
+      - ChatView messageList, MessageBubble, and RichMarkdownRenderer remain native and are not replaced by a transcript WebView
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local:python3 scripts/apple_composer_audit.py"
+        timestamp: "2026-07-08T00:00:00Z"
+        summary: "Audit failed before implementation because MessageComposerView did not host TiptapComposerWebView, the bridge component was missing, ChatView lacked the bridge reference, and the share extension adapter still lacked message-editor coverage."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:python3 scripts/apple_composer_audit.py"
+        timestamp: "2026-07-08T00:00:00Z"
+        summary: "Audit passed after the shared composer stack hosted TiptapComposerWebView, the local WKWebView resource instantiated real vendored @tiptap/core + StarterKit modules, app and share-extension composer adapters exposed message-editor, native TextField/TextEditor/TextView forks were removed from guarded surfaces, and chat history remained native."
+
+  - id: T-APPLE-BRIDGE-UNIT
+    type: unit
+    file: apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/TiptapComposerBridgeTests
+    covers:
+      - AC-2
+      - AC-4
+    assertions:
+      - bridge event decoding accepts ready, contentChanged, submit, heightChanged, focus, blur, and error payloads
+      - bridge command encoding emits focus, blur, clear, setContent, setPlaceholder, setTheme, and setDisabled commands
+      - unsafe or unknown bridge messages fail visibly with sanitized errors
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-COMPOSER-UI
+    type: manual
+    file: apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-7
+    assertions:
+      - "`message-editor` exists as the WebView-backed editor wrapper and reports bridge ready"
+      - typing multiline text updates bridge content state and composer height
+      - pressing send submits canonical markdown through the native host
+      - normal chat and new-chat welcome expose the same composer bridge identifiers
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-ATTACHMENTS
+    type: manual
+    file: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    covers:
+      - AC-5
+    assertions:
+      - pending attachment strips remain native and visually inside the message field wrapper
+      - attachment actions remain outside the WebView and keep stable identifiers
+      - sent or pending composer content does not expose raw JSON, embed ids, or private local paths as visible text
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-AUDIO
+    type: manual
+    file: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    covers:
+      - AC-5
+    assertions:
+      - record button and recording overlay remain native and outside the WebView editor
+      - recording completion inserts a pending preview or canonical content without raw JSON leakage
+      - short tap hint and cancel states still work with the WebView composer focused
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-CHAT-FLOW
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    covers:
+      - AC-3
+      - AC-6
+    assertions:
+      - native chat history still renders through message bubbles and RichMarkdownRenderer
+      - normal chat and new-chat composer flows still expose shared composer identifiers
+      - product chat UI does not render stock table/list chrome
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-BUILD
+    type: build
+    file: apple/OpenMates.xcodeproj
+    command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    covers:
+      - AC-4
+      - AC-7
+    assertions:
+      - OpenMates_iOS builds with the bundled local composer WebView asset
+      - WKWebView bridge files are included in the app target
+      - native transcript files still compile unchanged or with host-only integration updates
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-TESTFLIGHT-UPLOAD
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-7
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/editorConfig.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+  architecture: >
+    Add a TiptapComposerWebView Swift component and bridge model that can be
+    hosted inside the existing MessageComposerView field area. Bundle a minimal
+    local Tiptap composer asset and use WKScriptMessageHandler plus
+    evaluateJavaScript for event and command flow. Preserve the current native
+    composer shell and transcript renderers.
+  data_flow:
+    - Swift creates the composer host and loads the bundled editor asset.
+    - JavaScript posts `ready` when the Tiptap editor is initialized.
+    - User edits update Tiptap state and post canonical markdown, hasContent, and height to Swift.
+    - Swift updates send button state and host diagnostics without logging private plaintext.
+    - Native actions insert pending embed state or editor markdown through bridge commands as needed.
+    - Send calls the existing native send pipeline with canonical markdown and clears the WebView editor on success.
+  affected_files:
+    - path: apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+      reason: New WKWebView wrapper and bridge coordinator.
+    - path: apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+      reason: Host WebView editor in place of SwiftUI TextField while preserving native shell.
+    - path: apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+      reason: Remove or bypass TextField editor responsibility from product composer field.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      reason: Connect bridge content to messageText/sendMessage and native action callbacks.
+    - path: apple/OpenMates.xcodeproj/project.pbxproj
+      reason: Add new Swift files and local WebView editor asset bundle to app/test targets.
+    - path: apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+      reason: Unit-test bridge event/command contracts.
+    - path: apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+      reason: Verify WebView-backed composer readiness, typing, height, and send behavior.
+    - path: scripts/apple_composer_audit.py
+      reason: Guard against returning to native TextField product composer and against accidental transcript WebView scope creep.
+  verification_strategy:
+    - Validate this spec before implementation.
+    - Confirm local bundling approach for the minimal Tiptap editor asset.
+    - Add red static/unit/UI checks before source implementation where practical.
+    - Implement bridge and host migration in the main chat/new-chat composer only.
+    - Run remote Mac status, build, targeted unit/UI tests, then TestFlight upload.
+  verification_order:
+    - python3 scripts/spec_validate.py docs/specs/apple-tiptap-webview-composer/spec.yml
+    - python3 scripts/apple_composer_audit.py red
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/TiptapComposerBridgeTests red
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests red
+    - implementation
+    - python3 scripts/apple_composer_audit.py green
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - targeted Apple unit/UI tests green
+    - TestFlight upload
+  risks:
+    - Reusing the full Svelte MessageInput component may pull in web app stores and runtime dependencies that are too heavy for a local WKWebView asset; a minimal Tiptap bridge bundle may be safer.
+    - WKWebView focus and keyboard behavior can differ from SwiftUI TextField and may require explicit first-responder handling.
+    - UI tests cannot type into a WebView exactly like native text fields unless the wrapper exposes stable focus and diagnostics hooks.
+    - WebView content height and native layout can loop if both sides update too aggressively; height changes need throttling.
+    - TestFlight upload may be blocked by signing, credentials, App Store Connect, or remote Mac availability.
+
+tasks:
+  - id: TASK-1
+    title: Confirm local Tiptap bundle strategy and add bridge guardrails
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+        - AC-6
+    expected_files:
+      - scripts/apple_composer_audit.py
+      - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    verification:
+      - T-APPLE-COMPOSER-STATIC
+      - T-APPLE-BRIDGE-UNIT
+    verification_ids:
+      - T-APPLE-COMPOSER-STATIC
+      - T-APPLE-BRIDGE-UNIT
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement WKWebView Tiptap composer bridge and host it in MessageComposerView
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+      - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+      - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates.xcodeproj/project.pbxproj
+    verification:
+      - T-APPLE-BRIDGE-UNIT
+      - T-APPLE-COMPOSER-UI
+      - T-APPLE-BUILD
+    verification_ids:
+      - T-APPLE-BRIDGE-UNIT
+      - T-APPLE-COMPOSER-UI
+      - T-APPLE-BUILD
+    blockers:
+      - A-1
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Preserve native action/attachment/audio flows around the WebView editor
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+      - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    verification:
+      - T-APPLE-ATTACHMENTS
+      - T-APPLE-AUDIO
+    verification_ids:
+      - T-APPLE-ATTACHMENTS
+      - T-APPLE-AUDIO
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Run remote Apple verification and deploy to TestFlight
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-7
+    expected_files:
+      - docs/specs/apple-tiptap-webview-composer/spec.yml
+    verification:
+      - T-APPLE-BUILD
+      - T-APPLE-COMPOSER-UI
+      - V-TESTFLIGHT-UPLOAD
+    verification_ids:
+      - T-APPLE-BUILD
+      - T-APPLE-COMPOSER-UI
+      - V-TESTFLIGHT-UPLOAD
+    blockers:
+      - A-3
+    follow_up_tasks: []
+    independently_deployable: false

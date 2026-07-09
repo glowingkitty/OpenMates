@@ -15,6 +15,7 @@
 //
 // inputBar:
 //   Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+//   Swift:   MessageComposerView -> TiptapComposerWebView editable surface
 //   CSS:     frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
 //            .message-field { background-color:var(--color-grey-blue); border-radius:24px;
 //              min-height:100px; padding:0 0 60px 0;
