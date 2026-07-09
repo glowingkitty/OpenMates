@@ -161,6 +161,7 @@ struct TiptapComposerWebView: View {
     var onSubmit: () -> Void
 
     @State private var measuredHeight: CGFloat = 40
+    @State private var diagnosticEmbedCount: Int?
 
     private var editorHeight: CGFloat {
         compact ? minHeight : max(minHeight, measuredHeight)
@@ -173,6 +174,7 @@ struct TiptapComposerWebView: View {
             compact: compact,
             placeholder: placeholder,
             accessibilityHint: accessibilityHint,
+            embedCount: $diagnosticEmbedCount,
             measuredHeight: $measuredHeight,
             onSubmit: onSubmit
         )
@@ -180,11 +182,17 @@ struct TiptapComposerWebView: View {
         .accessibilityLabel(AppStrings.chatMessageInput)
         .accessibilityHint(accessibilityHint)
         .accessibilityIdentifier("message-editor")
+        .accessibilityValue(accessibilityValue)
         .simultaneousGesture(
             TapGesture().onEnded {
                 isFocused.wrappedValue = true
             }
         )
+    }
+
+    private var accessibilityValue: String {
+        guard let diagnosticEmbedCount else { return text }
+        return "\(text)\nembedCount=\(diagnosticEmbedCount)"
     }
 }
 
@@ -202,6 +210,7 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
     var compact: Bool
     var placeholder: String
     var accessibilityHint: String
+    @Binding var embedCount: Int?
     @Binding var measuredHeight: CGFloat
     var onSubmit: () -> Void
 
@@ -334,6 +343,7 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
         func updateAccessibilityValue(text: String, embedCount: Int? = nil) {
             if let embedCount {
                 lastEmbedCount = embedCount
+                parent.embedCount = embedCount
             }
             let value = accessibilityValue(text: text, embedCount: lastEmbedCount)
             #if os(iOS)
