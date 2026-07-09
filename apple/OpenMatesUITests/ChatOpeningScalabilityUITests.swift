@@ -117,14 +117,12 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
     private func waitForMessageEditor(in app: XCUIApplication, timeout: TimeInterval) throws -> XCUIElement {
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            let textField = app.textFields["message-editor"]
-            if textField.exists { return textField }
-            let textView = app.textViews["message-editor"]
-            if textView.exists { return textView }
+            let editor = app.descendants(matching: .any)["message-editor"]
+            if editor.exists { return editor }
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         } while Date() < deadline
         XCTFail("Expected message editor to appear")
-        return app.textViews["message-editor"]
+        return app.descendants(matching: .any)["message-editor"]
     }
 
     @MainActor

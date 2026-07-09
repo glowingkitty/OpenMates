@@ -154,23 +154,12 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
     }
 
     private func focusComposerInput(in app: XCUIApplication) {
-        let textView = app.textViews.firstMatch
-        let textField = app.textFields.firstMatch
-        XCTAssertTrue(textView.exists || textField.exists)
-        if textView.exists {
-            textView.tap()
-        } else {
-            textField.tap()
-        }
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
     }
 
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
-        let candidates = [
-            app.textFields.matching(identifier: "message-editor").firstMatch,
-            app.textViews.matching(identifier: "message-editor").firstMatch,
-            element(in: app, identifier: "message-editor"),
-            element(in: app, identifier: "message-field"),
-        ]
+        let candidates = [element(in: app, identifier: "message-editor")]
 
         for candidate in candidates where candidate.waitForExistence(timeout: 5) {
             return candidate

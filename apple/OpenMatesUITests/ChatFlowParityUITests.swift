@@ -103,7 +103,7 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(userMessage.waitForExistence(timeout: 5))
         XCTAssertTrue(assistantMessage.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Latest assistant response visible after bounded open"].exists)
-        XCTAssertTrue(app.textViews.firstMatch.exists || app.textFields.firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any)["message-editor"].exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Seeded chat-flow parity hierarchy")

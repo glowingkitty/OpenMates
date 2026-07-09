@@ -88,7 +88,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
             skipInterests.tap()
         }
 
-        let messageEditor = app.textFields["message-editor"]
+        let messageEditor = waitForMessageEditor(in: app)
         XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
         messageEditor.tap()
         messageEditor.typeText("Email alice@example.com")
@@ -186,25 +186,13 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
     @discardableResult
     private func focusComposerInput(in app: XCUIApplication) -> XCUIElement {
-        let textView = app.textViews.firstMatch
-        let textField = app.textFields.firstMatch
-        XCTAssertTrue(textView.exists || textField.exists)
-        if textView.exists {
-            textView.tap()
-            return textView
-        } else {
-            textField.tap()
-            return textField
-        }
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        return editor
     }
 
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
-        let candidates = [
-            app.textFields.matching(identifier: "message-editor").firstMatch,
-            app.textViews.matching(identifier: "message-editor").firstMatch,
-            element(in: app, identifier: "message-editor"),
-            element(in: app, identifier: "message-field"),
-        ]
+        let candidates = [element(in: app, identifier: "message-editor")]
 
         for candidate in candidates where candidate.waitForExistence(timeout: 5) {
             return candidate
