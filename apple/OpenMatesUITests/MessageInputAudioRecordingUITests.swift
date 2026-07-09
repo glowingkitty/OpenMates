@@ -74,17 +74,11 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
     }
 
     func testRecordButtonAndForcedOverlayMatchContractStructure() throws {
+        let welcomeApp = launchFocusedWelcomeComposer(extraArguments: ["--ui-test-welcome-mic-granted"])
+        XCTAssertTrue(element(in: welcomeApp, identifier: "record-audio-button").waitForExistence(timeout: 5))
+        welcomeApp.terminate()
+
         let app = XCUIApplication()
-
-        app.launchArguments = ["--dev-preview", "chat-opening"]
-        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
-        app.launch()
-
-        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        focusComposerInput(in: app)
-        XCTAssertTrue(element(in: app, identifier: "record-audio-button").waitForExistence(timeout: 10))
-
-        app.terminate()
 
         app.launchArguments = ["--dev-preview", "chat-opening-recording"]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening-recording"
@@ -151,11 +145,6 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         }
         XCTAssertTrue(element(in: app, identifier: "record-audio-button").waitForExistence(timeout: 5))
         return app
-    }
-
-    private func focusComposerInput(in app: XCUIApplication) {
-        let editor = waitForMessageEditor(in: app)
-        editor.tap()
     }
 
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
