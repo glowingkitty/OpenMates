@@ -23,6 +23,14 @@ apple_remote = importlib.util.module_from_spec(spec)
 sys.modules["apple_remote"] = apple_remote
 spec.loader.exec_module(apple_remote)
 
+VALID_WHATS_NEW = "\n".join([
+    "Improves login reliability for beta users.",
+    "Adds safer diagnostics for Apple builds.",
+    "Fixes sync state reporting during startup.",
+    "Updates TestFlight deployment guardrails.",
+    "Documents verification evidence for releases.",
+])
+
 
 def completed(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
@@ -189,8 +197,8 @@ def test_install_ios_device_command_can_enable_associated_domains_for_passkeys()
 
 
 def test_upload_testflight_ios_command_uses_app_store_connect_upload() -> None:
-    command = apple_remote.upload_testflight_ios_command(internal_only=True, whats_new="Release notes")
-    encoded = base64.b64encode(b"Release notes").decode("ascii")
+    command = apple_remote.upload_testflight_ios_command(internal_only=True, whats_new=VALID_WHATS_NEW)
+    encoded = base64.b64encode(VALID_WHATS_NEW.encode("utf-8")).decode("ascii")
 
     assert "OpenMates_iOS" in command
     assert "app-store-connect" in command
@@ -203,8 +211,8 @@ def test_upload_testflight_ios_command_uses_app_store_connect_upload() -> None:
 
 
 def test_upload_testflight_ios_command_can_allow_external_testing() -> None:
-    command = apple_remote.upload_testflight_ios_command(internal_only=False, whats_new="Release notes")
-    encoded = base64.b64encode(b"Release notes").decode("ascii")
+    command = apple_remote.upload_testflight_ios_command(internal_only=False, whats_new=VALID_WHATS_NEW)
+    encoded = base64.b64encode(VALID_WHATS_NEW.encode("utf-8")).decode("ascii")
 
     assert "testFlightInternalTestingOnly" in command
     assert command.endswith(f"0 ios {encoded} en-US")
@@ -216,7 +224,7 @@ def test_upload_testflight_ios_command_can_inject_api_key_args() -> None:
         api_key_path="~/AuthKey_TEST.p8",
         api_key_id="KEYID",
         api_issuer_id="ISSUERID",
-        whats_new="Release notes",
+        whats_new=VALID_WHATS_NEW,
     )
 
     assert "APP_STORE_CONNECT_API_KEY_PATH='~/AuthKey_TEST.p8'" in command
@@ -225,8 +233,8 @@ def test_upload_testflight_ios_command_can_inject_api_key_args() -> None:
 
 
 def test_upload_testflight_macos_command_uses_mac_app_store_export() -> None:
-    command = apple_remote.upload_testflight_macos_command(internal_only=True, whats_new="Release notes")
-    encoded = base64.b64encode(b"Release notes").decode("ascii")
+    command = apple_remote.upload_testflight_macos_command(internal_only=True, whats_new=VALID_WHATS_NEW)
+    encoded = base64.b64encode(VALID_WHATS_NEW.encode("utf-8")).decode("ascii")
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
     assert "OpenMates_macOS" in script
@@ -407,6 +415,34 @@ def test_app_store_builds_command_queries_builds_for_bundle_id() -> None:
     assert "org.openmates.app" in command
     assert "preReleaseVersion" in command
     assert "processingState" in command
+
+
+def test_app_store_builds_command_can_audit_testflight_changelogs() -> None:
+    command = apple_remote.app_store_builds_command(
+        "org.openmates.app",
+        limit=3,
+        require_changelogs=True,
+        whats_new_locale="en-US",
+        api_key_path="~/AuthKey_TEST.p8",
+        api_key_id="KEYID",
+        api_issuer_id="ISSUERID",
+    )
+    script = apple_remote.APP_STORE_BUILDS_SCRIPT
+
+    assert command.endswith(" org.openmates.app 3 1 en-US")
+    assert "betaBuildLocalizations" in script
+    assert "MIN_TESTFLIGHT_WHATS_NEW_LINES = 5" in script
+    assert "changelog_status=failed" in script
+    assert "changelog_status=passed" in script
+
+
+def test_app_store_builds_command_rejects_invalid_limit() -> None:
+    try:
+        apple_remote.app_store_builds_command("org.openmates.app", limit=0)
+    except apple_remote.AppleRemoteError as exc:
+        assert "between 1 and 50" in str(exc)
+    else:
+        raise AssertionError("Expected AppleRemoteError")
 
 
 def test_install_ios_device_script_reports_paid_team_hint() -> None:

@@ -27,6 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 LOCAL_CONFIG_PATH = Path.home() / ".config" / "openmates" / "apple-remote.json"
 REMOTE_LABEL = "macos-peer"
 DEFAULT_CONNECT_TIMEOUT_SECONDS = 10
+MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
 DESTRUCTIVE_TOKENS = {
     "rm",
     "shutdown",
@@ -460,12 +461,17 @@ import urllib.request
 
 internal_only = sys.argv[1] == "1"
 target_platform = sys.argv[2] if len(sys.argv) > 2 else "ios"
+MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
 testflight_whats_new = ""
 testflight_whats_new_locale = "en-US"
 if len(sys.argv) > 3 and sys.argv[3]:
     testflight_whats_new = base64.b64decode(sys.argv[3]).decode("utf-8").strip()
 if len(sys.argv) > 4 and sys.argv[4]:
     testflight_whats_new_locale = sys.argv[4]
+if len([line for line in testflight_whats_new.splitlines() if line.strip()]) < MIN_TESTFLIGHT_WHATS_NEW_LINES:
+    print("whats_new_status=too_short")
+    print(f"hint=App Store Connect TestFlight What to Test text must contain at least {MIN_TESTFLIGHT_WHATS_NEW_LINES} non-empty lines.")
+    sys.exit(2)
 if len(testflight_whats_new) > 4000:
     print("whats_new_status=too_long")
     print("hint=App Store Connect TestFlight What to Test text must be 4000 characters or less.")
@@ -1990,6 +1996,10 @@ import urllib.parse
 import urllib.request
 
 bundle_id = sys.argv[1]
+build_limit = sys.argv[2] if len(sys.argv) > 2 else "10"
+require_changelogs = len(sys.argv) > 3 and sys.argv[3] == "1"
+whats_new_locale = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else "en-US"
+MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
 
 
 def require_env(name):
@@ -2046,6 +2056,10 @@ def asc_get(path):
         return json.loads(response.read().decode("utf-8"))
 
 
+def whats_new_line_count(text):
+    return len([line for line in text.splitlines() if line.strip()])
+
+
 apps_query = urllib.parse.urlencode({"filter[bundleId]": bundle_id, "limit": "1"})
 apps = asc_get(f"apps?{apps_query}").get("data", [])
 print(f"apps={len(apps)}")
@@ -2057,14 +2071,14 @@ print(f"app_id={app_id}")
 builds_query = urllib.parse.urlencode({
     "filter[app]": app_id,
     "include": "preReleaseVersion",
-    "limit": "10",
+    "limit": build_limit,
     "sort": "-uploadedDate",
 })
 response = asc_get(f"builds?{builds_query}")
 if not response.get("data"):
     relationship_query = urllib.parse.urlencode({
         "include": "preReleaseVersion",
-        "limit": "10",
+        "limit": build_limit,
         "sort": "-uploadedDate",
     })
     response = asc_get(f"apps/{app_id}/builds?{relationship_query}")
@@ -2076,20 +2090,46 @@ pre_release_versions = {
 }
 builds = response.get("data", [])
 print(f"builds={len(builds)}")
+changelog_failures = []
 for build in builds:
     attributes = build.get("attributes", {})
+    build_id = build.get("id")
     pre_release_id = build.get("relationships", {}).get("preReleaseVersion", {}).get("data", {}).get("id")
     pre_release = pre_release_versions.get(pre_release_id, {})
     print(
         "build="
-        f"{build.get('id')} "
-        f"version={attributes.get('version')} "
-        f"buildNumber={attributes.get('buildNumber')} "
+        f"{build_id} "
+        f"appVersion={pre_release.get('version')} "
+        f"buildNumber={attributes.get('version')} "
         f"processingState={attributes.get('processingState')} "
         f"uploadedDate={attributes.get('uploadedDate')} "
         f"platform={pre_release.get('platform')} "
         f"train={pre_release.get('version')}"
     )
+    if require_changelogs and build_id:
+        localizations = asc_get(f"builds/{build_id}/betaBuildLocalizations?limit=200").get("data", [])
+        matching = next(
+            (
+                item for item in localizations
+                if item.get("attributes", {}).get("locale") == whats_new_locale
+            ),
+            None,
+        )
+        whats_new = (matching or {}).get("attributes", {}).get("whatsNew") or ""
+        line_count = whats_new_line_count(whats_new)
+        print(f"build_changelog_lines={build_id}:{line_count}:{whats_new_locale}")
+        if line_count < MIN_TESTFLIGHT_WHATS_NEW_LINES:
+            changelog_failures.append(
+                f"{pre_release.get('version')}({attributes.get('version')}) lines={line_count} locale={whats_new_locale}"
+            )
+
+if require_changelogs:
+    if changelog_failures:
+        print("changelog_status=failed")
+        for failure in changelog_failures:
+            print(f"changelog_failure={failure}")
+        sys.exit(1)
+    print("changelog_status=passed")
 '''
 
 
@@ -2414,9 +2454,39 @@ def add_app_store_connect_api_args(parser: argparse.ArgumentParser) -> None:
 
 
 def add_testflight_notes_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--whats-new", help="Required TestFlight What to Test text to attach to the uploaded build")
-    parser.add_argument("--whats-new-file", help="Required local file containing TestFlight What to Test text")
+    parser.add_argument(
+        "--whats-new",
+        help=(
+            "Required TestFlight What to Test text to attach to the uploaded build; "
+            f"must contain at least {MIN_TESTFLIGHT_WHATS_NEW_LINES} non-empty lines"
+        ),
+    )
+    parser.add_argument(
+        "--whats-new-file",
+        help=(
+            "Required local file containing TestFlight What to Test text; "
+            f"must contain at least {MIN_TESTFLIGHT_WHATS_NEW_LINES} non-empty lines"
+        ),
+    )
     parser.add_argument("--whats-new-locale", default="en-US", help="Locale for TestFlight What to Test text, default: en-US")
+
+
+def testflight_whats_new_line_count(whats_new: str) -> int:
+    return len([line for line in whats_new.splitlines() if line.strip()])
+
+
+def validate_testflight_whats_new(whats_new: str | None) -> str:
+    if not whats_new or not whats_new.strip():
+        raise AppleRemoteError("TestFlight uploads require --whats-new or --whats-new-file")
+    whats_new = whats_new.strip()
+    if testflight_whats_new_line_count(whats_new) < MIN_TESTFLIGHT_WHATS_NEW_LINES:
+        raise AppleRemoteError(
+            "TestFlight What to Test text must contain at least "
+            f"{MIN_TESTFLIGHT_WHATS_NEW_LINES} non-empty lines"
+        )
+    if len(whats_new) > 4000:
+        raise AppleRemoteError("TestFlight What to Test text must be 4000 characters or less")
+    return whats_new
 
 
 def testflight_notes_options(args: argparse.Namespace) -> dict[str, str | None]:
@@ -2426,14 +2496,9 @@ def testflight_notes_options(args: argparse.Namespace) -> dict[str, str | None]:
         raise AppleRemoteError("Pass either --whats-new or --whats-new-file, not both")
     if whats_new_file:
         whats_new = Path(whats_new_file).read_text(encoding="utf-8")
-    if whats_new is not None:
-        whats_new = whats_new.strip()
-    if not whats_new:
-        raise AppleRemoteError("TestFlight uploads require --whats-new or --whats-new-file")
-    if whats_new and len(whats_new) > 4000:
-        raise AppleRemoteError("TestFlight What to Test text must be 4000 characters or less")
+    whats_new = validate_testflight_whats_new(whats_new)
     return {
-        "whats_new": whats_new or None,
+        "whats_new": whats_new,
         "whats_new_locale": getattr(args, "whats_new_locale", "en-US") or "en-US",
     }
 
@@ -2492,9 +2557,7 @@ def require_app_store_connect_api_options(options: dict[str, str | None], comman
 
 
 def encoded_testflight_whats_new(whats_new: str | None) -> str:
-    if not whats_new or not whats_new.strip():
-        raise AppleRemoteError("TestFlight uploads require --whats-new or --whats-new-file")
-    return base64.b64encode(whats_new.strip().encode("utf-8")).decode("ascii")
+    return base64.b64encode(validate_testflight_whats_new(whats_new).encode("utf-8")).decode("ascii")
 
 
 def repo_command(config: RemoteConfig, parts: Sequence[str]) -> str:
@@ -2787,16 +2850,24 @@ def revoke_apple_certificate_command(
 
 def app_store_builds_command(
     bundle_id: str,
+    limit: int = 10,
+    require_changelogs: bool = False,
+    whats_new_locale: str = "en-US",
     *,
     api_key_path: str | None = None,
     api_key_id: str | None = None,
     api_issuer_id: str | None = None,
 ) -> str:
+    if limit < 1 or limit > 50:
+        raise AppleRemoteError("app-store-builds limit must be between 1 and 50")
     command = shell_join([
         "python3",
         "-c",
         APP_STORE_BUILDS_SCRIPT,
         bundle_id,
+        str(limit),
+        "1" if require_changelogs else "0",
+        whats_new_locale,
     ])
     return app_store_connect_env_prefix(
         command,
@@ -3000,6 +3071,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="List recent App Store Connect builds and processing state for a bundle ID",
     )
     app_store_builds_parser.add_argument("--bundle-id", default="org.openmates.app")
+    app_store_builds_parser.add_argument("--limit", type=int, default=10, help="Number of recent builds to inspect, 1-50")
+    app_store_builds_parser.add_argument(
+        "--require-changelogs",
+        action="store_true",
+        help="Fail if any inspected build lacks TestFlight What to Test text with at least 5 non-empty lines",
+    )
+    app_store_builds_parser.add_argument("--whats-new-locale", default="en-US", help="Locale to audit, default: en-US")
     add_app_store_connect_api_args(app_store_builds_parser)
 
     testflight_crashes_parser = subparsers.add_parser(
@@ -3206,6 +3284,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ]),
             )
         if args.command == "app-store-builds":
+            if args.require_changelogs:
+                require_app_store_connect_api_options(api_options, "app-store-builds --require-changelogs")
             return run_remote(
                 config,
                 repo_command(config, [
@@ -3213,6 +3293,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     app_store_builds_command(
                         args.bundle_id,
+                        args.limit,
+                        args.require_changelogs,
+                        args.whats_new_locale,
                         **api_options,
                     ),
                 ]),
