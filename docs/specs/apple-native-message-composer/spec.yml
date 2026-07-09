@@ -533,7 +533,8 @@ contracts:
     - "TextNodeV1: { kind: text, id: string, source: string }. Source retains raw markdown, LF line endings, and original Unicode scalar content without normalization."
     - "HardBreakNodeV1: { kind: hardBreak, id: string }."
     - "MentionNodeV1: { kind: mention, id: string, mentionKind: mate|aiModel|bestModel|skill|focus|project|memory, targetId: string, canonicalSyntax: string, displayLabel: string }."
-    - "EmbedNodeV1: { kind: embed, id: string, embedType: string, status: draft|uploading|processing|transcribing|finished|error|cancelled, contentRef?: string, referenceOnly: boolean, display: ComposerEmbedDisplayV1, transient?: ComposerEmbedTransientV1 }."
+    - "EmbedNodeV1: { kind: embed, id: string, embedType: string, status: draft|uploading|processing|transcribing|finished|error|cancelled, contentRef?: string, referenceOnly: boolean, canonicalSource: string, display: ComposerEmbedDisplayV1, transient?: ComposerEmbedTransientV1 }."
+    - canonicalSource is the exact canonical fenced embed reference used for lossless round-trip; it is in-memory plaintext governed by the same composer boundary as TextNode source and is never a separate durable field or log value.
     - Display metadata contains only reconstructible title, filename, media kind, dimensions/duration, and sanitized status/error category; it is not authoritative persisted content.
     - Transient metadata may contain in-memory upload/recording handles but is excluded from Codable fixture persistence, canonical markdown, logs, and cross-process messages.
     - ComposerDocument decoders reject unsupported future versions with a typed recoverable error; they do not best-effort mutate unknown versions.

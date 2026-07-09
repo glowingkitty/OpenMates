@@ -19,6 +19,7 @@
             "status": "finished",
             "contentRef": "embed:fixture-image-1",
             "referenceOnly": false,
+            "canonicalSource": "```json\n{\n  \"type\": \"image\",\n  \"embed_id\": \"fixture-image-1\"\n}\n```",
             "display": {
               "title": "Image",
               "mediaKind": "image"
@@ -34,7 +35,7 @@
       "selection_fixtures": [
         {
           "label": "after-emoji-safe-prefix",
-          "source": "A\ud83d\udc4d\ud83c\udffdB",
+          "source": "A\ud83d\udc4d\ud83c\udffd",
           "utf16_offset": 5
         }
       ]
@@ -61,16 +62,7 @@
           {
             "kind": "text",
             "id": "text-1",
-            "source": " \ud83d\udc4b"
-          },
-          {
-            "kind": "hardBreak",
-            "id": "break-0"
-          },
-          {
-            "kind": "text",
-            "id": "text-2",
-            "source": "\u0645\u0631\u062d\u0628\u0627 e\u0301"
+            "source": " \ud83d\udc4b\n\u0645\u0631\u062d\u0628\u0627 e\u0301"
           }
         ]
       },
