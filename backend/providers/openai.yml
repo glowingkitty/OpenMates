@@ -93,6 +93,150 @@ models:
       tool_use: true
       streaming: true
 
+  - id: "gpt-5.6-sol"
+    name: "GPT-5.6 Sol"
+    description: "OpenAI's flagship GPT-5.6 model for complex production workflows and advanced reasoning."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-07-09"
+    allow_auto_select: true
+    external_ids:
+      openrouter: "openai/gpt-5.6-sol"
+    input_types:
+      - text
+      - image
+      - file
+    output_types:
+      - text
+    default_server: "openrouter"
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "openai/gpt-5.6-sol"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 65
+        output:
+          per_credit_unit: 10
+    costs:
+      input_per_million_token:
+        price: 5.00
+        currency: USD
+        max_context: 1050000
+      output_per_million_token:
+        price: 30.00
+        currency: USD
+        max_context: 1050000
+      cache_read_per_million_token:
+        price: 0.50
+        currency: USD
+      cache_write_per_million_token:
+        price: 6.25
+        currency: USD
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  - id: "gpt-5.6-terra"
+    name: "GPT-5.6 Terra"
+    description: "OpenAI's balanced GPT-5.6 model for strong capability at a lower cost than Sol."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-07-09"
+    allow_auto_select: true
+    external_ids:
+      openrouter: "openai/gpt-5.6-terra"
+    input_types:
+      - text
+      - image
+      - file
+    output_types:
+      - text
+    default_server: "openrouter"
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "openai/gpt-5.6-terra"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 130
+        output:
+          per_credit_unit: 20
+    costs:
+      input_per_million_token:
+        price: 2.50
+        currency: USD
+        max_context: 1050000
+      output_per_million_token:
+        price: 15.00
+        currency: USD
+        max_context: 1050000
+      cache_read_per_million_token:
+        price: 0.25
+        currency: USD
+      cache_write_per_million_token:
+        price: 3.125
+        currency: USD
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  - id: "gpt-5.6-luna"
+    name: "GPT-5.6 Luna"
+    description: "OpenAI's efficient GPT-5.6 model for high-volume and latency-sensitive workloads."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-07-09"
+    allow_auto_select: true
+    external_ids:
+      openrouter: "openai/gpt-5.6-luna"
+    input_types:
+      - text
+      - image
+      - file
+    output_types:
+      - text
+    default_server: "openrouter"
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "openai/gpt-5.6-luna"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 333
+        output:
+          per_credit_unit: 55
+    costs:
+      input_per_million_token:
+        price: 1.00
+        currency: USD
+        max_context: 1050000
+      output_per_million_token:
+        price: 6.00
+        currency: USD
+        max_context: 1050000
+      cache_read_per_million_token:
+        price: 0.10
+        currency: USD
+      cache_write_per_million_token:
+        price: 1.25
+        currency: USD
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
   - id: "gpt-5.4" # Model ID without provider prefix
     name: "GPT-5.4"
     description: "OpenAI's latest flagship model optimized for professional work, coding, and agentic tool use."
