@@ -644,7 +644,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "github-actions-29057487647"
+        timestamp: "2026-07-09T23:29:16Z"
+        summary: Full Vitest suite passed 520/520, including valid, legacy, grouped, unknown, invalid-fence, UTF-16, and negative ComposerDocument fixtures.
 
   - id: T-APPLE-DOCUMENT-CONTRACT
     type: unit
@@ -669,7 +673,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-712358f"
+        timestamp: "2026-07-09T23:30:02Z"
+        summary: NativeComposerDocumentTests passed 3/3 on iPhone simulator, including exact shared documents, UTF-16 offsets, and typed failure fixtures.
 
   - id: T-APPLE-NATIVE-EDITOR
     type: unit
@@ -1322,7 +1330,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add shared ComposerDocument fixtures and red contract tests
-    status: in_progress
+    status: done
     phase: checking_assumptions
     covers:
       scenarios: [S-2, S-5, S-6, S-13]
@@ -1339,7 +1347,7 @@ tasks:
 
   - id: TASK-2
     title: Prove TextKit attachment and selection feasibility
-    status: pending
+    status: in_progress
     phase: checking_assumptions
     covers:
       scenarios: [S-1, S-3, S-7]
@@ -1391,7 +1399,7 @@ tasks:
 
   - id: TASK-5
     title: Implement shared ComposerDocument and canonical adapters
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-5, S-6]
