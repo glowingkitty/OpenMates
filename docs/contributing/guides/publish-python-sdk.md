@@ -33,17 +33,21 @@ key:
 {
   "python": {
     "stableBase": "0.14.0",
+    "stableFloor": "0.14.5",
     "prereleaseLabel": "a"
   }
 }
 ```
 
 The checked-in `packages/openmates-python/pyproject.toml` version should match
-`python.stableBase`. The publish workflow rewrites that version in CI only when
-publishing from `main`:
+`python.stableBase`. `python.stableFloor` is the highest stable patch already
+shipped in the product line by canonical release artifacts; it prevents PyPI from
+backfilling old patch numbers if PyPI publishing lagged behind npm or app
+releases. The publish workflow rewrites that version in CI when publishing:
 
 - Pull requests validate tests and package builds only. They never publish to PyPI.
-- `main` publishes the stable version for the latest prerelease patch slot if one exists; otherwise it publishes the next unused stable patch. For example, after `0.14.1a0`, main publishes `0.14.1`.
+- `dev` publishes the next alpha inside the next stable patch slot. For example, after stable `0.14.5`, dev publishes `0.14.6a0`, then `0.14.6a1`.
+- `main` publishes the stable version for the latest prerelease patch slot if one exists; otherwise it publishes the next stable patch. For example, after `0.14.6a1`, main publishes `0.14.6`.
 
 Use prerelease installs only when a prerelease has been published manually or by
 a historical workflow run:
@@ -77,11 +81,10 @@ python3 scripts/prepare_python_publish_version.py --channel=main --dry-run
 
 ## Automated Publish Flow
 
-The `.github/workflows/publish-python-sdk.yml` workflow validates pull requests
-that touch Python SDK package files, version config, tests, or the publish
-workflow. It publishes stable artifacts only after changes are merged and pushed
-to `main`. Manual `workflow_dispatch` runs validate the package without
-publishing.
+The `.github/workflows/publish-python-sdk.yml` workflow validates pull requests,
+publishes alpha artifacts from every `dev` push, and publishes stable artifacts
+after pushes to `main`. Manual `workflow_dispatch` runs validate the package
+without publishing.
 
 1. Merge SDK changes into `dev`.
 2. Open or update the `dev` to `main` pull request and wait for `Publish Python SDK` validation to pass.

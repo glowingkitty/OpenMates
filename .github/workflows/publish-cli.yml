@@ -1,6 +1,7 @@
 # Publish openmates CLI to npm.
-# - main branch → publishes the next stable patch in the configured release line
-#   to npm `latest`
+# - dev branch → publishes the next prerelease in the next stable patch slot
+#   to npm `alpha`, e.g. 0.14.6-alpha.4
+# - main branch → publishes that next stable patch to npm `latest`, e.g. 0.14.6
 # - pull requests → validate build/tests only, never publish
 #
 # Uses npm Trusted Publishing (OIDC) — no NPM_TOKEN secret needed.
@@ -10,23 +11,13 @@ name: Publish CLI
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'frontend/packages/openmates-cli/**'
-      - 'scripts/prepare_cli_publish_version.mjs'
-      - 'shared/config/product_version.json'
-      - '.github/workflows/publish-cli.yml'
   push:
-    branches: [main]
-    paths:
-      - 'frontend/packages/openmates-cli/**'
-      - 'scripts/prepare_cli_publish_version.mjs'
-      - 'shared/config/product_version.json'
-      - '.github/workflows/publish-cli.yml'
+    branches: [main, dev]
   workflow_dispatch: {}
 
 concurrency:
   group: publish-cli-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-test:
@@ -51,6 +42,9 @@ jobs:
       - name: Run CLI tests
         run: pnpm --filter openmates test
 
+      - name: Run CLI versioning tests
+        run: node --test scripts/tests/test_prepare_cli_publish_version.mjs
+
       - name: Check product/CLI version alignment
         run: node scripts/prepare_cli_publish_version.mjs --channel=check
 
@@ -63,11 +57,11 @@ jobs:
 
   publish:
     needs: build-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     outputs:
       published: ${{ steps.stable-published.outputs.published != 'true' }}
-      version: ${{ steps.stable-version.outputs.version }}
+      version: ${{ steps.stable-version.outputs.version || steps.dev-version.outputs.version }}
     permissions:
       contents: read
       id-token: write  # Required for npm Trusted Publishing (OIDC)
@@ -84,12 +78,19 @@ jobs:
           name: openmates-cli-dist
           path: frontend/packages/openmates-cli/dist
 
+      - name: Bump prerelease version
+        id: dev-version
+        if: github.ref == 'refs/heads/dev'
+        run: node scripts/prepare_cli_publish_version.mjs --channel=dev
+
       - name: Bump to stable version
         id: stable-version
+        if: github.ref == 'refs/heads/main'
         run: node scripts/prepare_cli_publish_version.mjs --channel=main
 
       - name: Check whether stable version is already published
         id: stable-published
+        if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           version="${{ steps.stable-version.outputs.version }}"
@@ -101,13 +102,18 @@ jobs:
           fi
 
       - name: Publish to npm (stable)
-        if: steps.stable-published.outputs.published != 'true'
+        if: github.ref == 'refs/heads/main' && steps.stable-published.outputs.published != 'true'
         working-directory: frontend/packages/openmates-cli
         run: npm publish --provenance --access public
 
+      - name: Publish to npm (alpha)
+        if: github.ref == 'refs/heads/dev'
+        working-directory: frontend/packages/openmates-cli
+        run: npm publish --provenance --access public --tag alpha
+
   notify:
     needs: publish
-    if: needs.publish.outputs.published == 'true'
+    if: github.ref == 'refs/heads/main' && needs.publish.outputs.published == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

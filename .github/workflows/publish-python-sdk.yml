@@ -1,5 +1,6 @@
 # Publish the OpenMates Python SDK to PyPI.
-# - main branch → next stable patch in the configured release line
+# - dev branch → next alpha in the next stable patch slot, e.g. 0.14.6a4
+# - main branch → next stable patch in the configured release line, e.g. 0.14.6
 # - pull requests → validate build/tests only, never publish
 #
 # Uses PyPI Trusted Publishing (OIDC) — no PYPI_API_TOKEN secret needed.
@@ -9,25 +10,13 @@ name: Publish Python SDK
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'packages/openmates-python/**'
-      - 'scripts/prepare_python_publish_version.py'
-      - 'scripts/tests/test_prepare_python_publish_version.py'
-      - 'shared/config/product_version.json'
-      - '.github/workflows/publish-python-sdk.yml'
   push:
-    branches: [main]
-    paths:
-      - 'packages/openmates-python/**'
-      - 'scripts/prepare_python_publish_version.py'
-      - 'scripts/tests/test_prepare_python_publish_version.py'
-      - 'shared/config/product_version.json'
-      - '.github/workflows/publish-python-sdk.yml'
+    branches: [main, dev]
   workflow_dispatch: {}
 
 concurrency:
   group: publish-python-sdk-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-test:
@@ -56,10 +45,10 @@ jobs:
 
   publish:
     needs: build-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.stable-version.outputs.version }}
+      version: ${{ steps.stable-version.outputs.version || steps.dev-version.outputs.version }}
     permissions:
       contents: read
       id-token: write
@@ -73,8 +62,16 @@ jobs:
       - name: Install build tools
         run: python -m pip install --upgrade pip build
 
+      - name: Bump prerelease version
+        id: dev-version
+        if: github.ref == 'refs/heads/dev'
+        run: |
+          version="$(python scripts/prepare_python_publish_version.py --channel=dev)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
       - name: Bump to stable version
         id: stable-version
+        if: github.ref == 'refs/heads/main'
         run: |
           version="$(python scripts/prepare_python_publish_version.py --channel=main)"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
@@ -90,7 +87,7 @@ jobs:
 
   notify:
     needs: publish
-    if: needs.publish.result == 'success'
+    if: github.ref == 'refs/heads/main' && needs.publish.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

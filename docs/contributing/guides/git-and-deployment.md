@@ -291,7 +291,7 @@ OpenMates separates the **user-facing product line** from exact artifact version
 
 - Product UI and marketing copy show `vMAJOR.MINOR`, for example `v0.14`.
 - npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 patch versions, for example `0.14.0`, `0.14.1`, or `v0.14.1`.
-- `shared/config/product_version.json` is the source of truth: `userFacing` stores the product line, while `cli.stableBase` and `python.stableBase` store the first patch in the artifact release line.
+- `shared/config/product_version.json` is the source of truth: `userFacing` stores the product line, `cli.stableBase` and `python.stableBase` store the first patch in the artifact release line, and `stableFloor` stores the highest stable patch already shipped by canonical release artifacts so lagging registries do not backfill old patch numbers.
 
 Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH-phase`:
 
@@ -325,7 +325,7 @@ Inspect the commits going into the PR and decide:
 - Any `feat:` commits → consider a new minor product line (e.g. `v0.14` → `v0.15`)
 - Major milestone reached → consult the user before bumping major or changing phase
 
-**Note:** Also update `shared/config/product_version.json` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.14`, while `cli.stableBase` / `python.stableBase` define the artifact line start, e.g. `0.14.0`. Pull requests validate npm, PyPI, and self-host Docker artifacts without publishing them. Stable artifacts publish as `0.14.N` only after merge to `main`; historical or manually published prereleases may still occupy the next patch slot as `0.14.N-alpha.0` for npm and `0.14.Na0` for PyPI, and `main` promotes that slot to stable when applicable. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
+**Note:** Also update `shared/config/product_version.json` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.14`, while `cli.stableBase` / `python.stableBase` define the artifact line start, e.g. `0.14.0`. Dev publishes prereleases for the next stable patch slot (`0.14.6-alpha.0`, then `0.14.6-alpha.1` for npm; `0.14.6a0`, then `0.14.6a1` for PyPI). Main publishes that stable slot (`0.14.6`) and the next dev push moves to `0.14.7-alpha.0` / `0.14.7a0`. Keep `stableFloor` at the highest stable patch already shipped in the line when a registry has lagged behind. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
 
 ### Release Workflow
 
