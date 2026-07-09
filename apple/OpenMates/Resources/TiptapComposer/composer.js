@@ -128,6 +128,10 @@ import Placeholder from './vendor/tiptap-placeholder.mjs';
     reportHeight();
   }
 
+  function focusEditor() {
+    if (!disabled && editor) editor.commands.focus('end');
+  }
+
   function applyTheme(theme) {
     if (!theme) return;
     const root = document.documentElement.style;
@@ -229,6 +233,10 @@ import Placeholder from './vendor/tiptap-placeholder.mjs';
     },
   });
 
+  editorElement.addEventListener('click', focusEditor);
+  editorElement.addEventListener('touchend', focusEditor);
+  editorElement.addEventListener('input', reportContentChanged, true);
+  editorElement.addEventListener('keyup', reportContentChanged, true);
   document.addEventListener('selectionchange', reportHeight);
   setDisabled(false);
   applyPlaceholder();

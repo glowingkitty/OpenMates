@@ -124,6 +124,11 @@ struct TiptapComposerWebView: View {
         .accessibilityLabel(AppStrings.chatMessageInput)
         .accessibilityHint(accessibilityHint)
         .accessibilityIdentifier("message-editor")
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                isFocused.wrappedValue = true
+            }
+        )
     }
 }
 
