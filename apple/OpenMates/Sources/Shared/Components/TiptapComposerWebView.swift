@@ -269,11 +269,10 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
         context.coordinator.parent = self
         #if os(iOS)
         webView.accessibilityHint = accessibilityHint
-        webView.accessibilityValue = text
         #elseif os(macOS)
         webView.setAccessibilityHelp(accessibilityHint)
-        webView.setAccessibilityValue(text)
         #endif
+        context.coordinator.updateAccessibilityValue(text: text)
         context.coordinator.sync(webView: webView)
     }
 
@@ -287,6 +286,7 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
         private var lastSentPlaceholder = ""
         private var lastSentCompact: Bool?
         private var lastFocusRequest: Bool?
+        private var lastEmbedCount: Int?
 
         init(parent: PlatformTiptapComposerWebView) {
             self.parent = parent
@@ -305,11 +305,7 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
                 if parent.text != text {
                     parent.text = text
                 }
-                #if os(iOS)
-                webView?.accessibilityValue = accessibilityValue(text: text, embedCount: bridgeMessage.embedCount)
-                #elseif os(macOS)
-                webView?.setAccessibilityValue(accessibilityValue(text: text, embedCount: bridgeMessage.embedCount))
-                #endif
+                updateAccessibilityValue(text: text, embedCount: bridgeMessage.embedCount)
             case "submit":
                 parent.onSubmit()
             case "heightChanged":
@@ -328,15 +324,23 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
                 NativeDiagnostics.warning("Tiptap composer bridge error", category: "apple_composer")
             case "diagnostics", "serializedMarkdown", "embedInserted", "embedUpdated", "embedRemoved", "blockingEmbedsChanged":
                 if let text = bridgeMessage.text {
-                    #if os(iOS)
-                    webView?.accessibilityValue = accessibilityValue(text: text, embedCount: bridgeMessage.embedCount)
-                    #elseif os(macOS)
-                    webView?.setAccessibilityValue(accessibilityValue(text: text, embedCount: bridgeMessage.embedCount))
-                    #endif
+                    updateAccessibilityValue(text: text, embedCount: bridgeMessage.embedCount)
                 }
             default:
                 break
             }
+        }
+
+        func updateAccessibilityValue(text: String, embedCount: Int? = nil) {
+            if let embedCount {
+                lastEmbedCount = embedCount
+            }
+            let value = accessibilityValue(text: text, embedCount: lastEmbedCount)
+            #if os(iOS)
+            webView?.accessibilityValue = value
+            #elseif os(macOS)
+            webView?.setAccessibilityValue(value)
+            #endif
         }
 
         private func accessibilityValue(text: String, embedCount: Int?) -> String {
