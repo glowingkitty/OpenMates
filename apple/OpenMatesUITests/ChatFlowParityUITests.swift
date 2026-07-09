@@ -173,7 +173,14 @@ final class ChatFlowParityUITests: XCTestCase {
         continueButton.tap()
 
         XCTAssertTrue(app.buttons["guest-interest-select-interests"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["welcome-chat-card-demo-for-everyone"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            waitForAnyButton(
+                ["welcome-chat-card-demo-for-everyone", "welcome-chat-compact-card-demo-for-everyone"],
+                in: app,
+                timeout: 10
+            ),
+            "Expected either the regular or compact demo-for-everyone card to exist"
+        )
 
         let codingSuggestion = app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.learn_coding"]
         XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 10))
@@ -340,6 +347,17 @@ final class ChatFlowParityUITests: XCTestCase {
 
         XCTFail("Expected message composer input to exist as an editor or composer wrapper")
         return candidates[0]
+    }
+
+    private func waitForAnyButton(_ identifiers: [String], in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if identifiers.contains(where: { app.buttons[$0].exists }) {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return identifiers.contains(where: { app.buttons[$0].exists })
     }
 
     private func waitForFrameHeight(atLeast minimumHeight: CGFloat, element: XCUIElement, timeout: TimeInterval) {
