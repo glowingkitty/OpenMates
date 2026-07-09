@@ -34,10 +34,8 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(recordButton.waitForExistence(timeout: 5))
         recordButton.press(forDuration: 0.45)
 
-        let editor = waitForMessageEditor(in: app)
-        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(in: app, editor: editor, expectedCount: 1), "Expected editor-owned recording embed diagnostics")
-        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists, "Recording must render as an editor-owned embed, not a native pending strip")
-        XCTAssertTrue(waitForEditorOwnedText("recording", in: app, editor: editor), "Expected editor-owned recording title")
+        XCTAssertTrue(element(in: app, identifier: "pending-composer-embed").waitForExistence(timeout: 5))
+        XCTAssertTrue(textContaining("recording", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(textContaining("```json", in: app).exists)
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
     }
@@ -163,40 +161,5 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
         XCTFail("Expected welcome message editor to exist. Visible UI: \(app.debugDescription)")
         return candidates[0]
-    }
-
-    private func waitForEditorOwnedEmbedDiagnostics(in app: XCUIApplication, editor: XCUIElement, expectedCount: Int, timeout: TimeInterval = 8) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        let diagnostics = element(in: app, identifier: "message-editor-diagnostics")
-        while Date() < deadline {
-            if diagnostics.exists,
-               diagnostics.label.contains("embedCount=\(expectedCount)") {
-                return true
-            }
-            if let value = editor.value as? String,
-               value.contains("embedCount=\(expectedCount)") {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        return false
-    }
-
-    private func waitForEditorOwnedText(_ text: String, in app: XCUIApplication, editor: XCUIElement, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        let diagnostics = element(in: app, identifier: "message-editor-diagnostics")
-        while Date() < deadline {
-            if textContaining(text, in: app).exists { return true }
-            if diagnostics.exists,
-               diagnostics.label.localizedCaseInsensitiveContains(text) {
-                return true
-            }
-            if let value = editor.value as? String,
-               value.localizedCaseInsensitiveContains(text) {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-        return false
     }
 }

@@ -584,13 +584,11 @@ extension MacShareViewController: WKScriptMessageHandler, WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
     ) {
-        MainActor.assumeIsolated {
-            guard let url = navigationAction.request.url else {
-                decisionHandler(.cancel)
-                return
-            }
-            decisionHandler((url.isFileURL || url.scheme == "about") ? .allow : .cancel)
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.cancel)
+            return
         }
+        decisionHandler((url.isFileURL || url.scheme == "about") ? .allow : .cancel)
     }
 }
 
