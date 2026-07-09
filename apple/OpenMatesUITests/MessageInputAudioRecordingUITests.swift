@@ -48,8 +48,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         ])
 
         XCTAssertTrue(element(in: app, identifier: "record-overlay").waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Press ESC to cancel"].waitForExistence(timeout: 2))
-        XCTAssertFalse(app.staticTexts["Slide left to cancel"].exists)
+        assertCancelHint(in: app, contains: "Press ESC to cancel", excludes: "Slide left to cancel")
 
         element(in: app, identifier: "cancel-hint").tap()
 
@@ -74,17 +73,11 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
     }
 
     func testRecordButtonAndForcedOverlayMatchContractStructure() throws {
+        let welcomeApp = launchFocusedWelcomeComposer(extraArguments: ["--ui-test-welcome-mic-granted"])
+        XCTAssertTrue(element(in: welcomeApp, identifier: "record-audio-button").waitForExistence(timeout: 5))
+        welcomeApp.terminate()
+
         let app = XCUIApplication()
-
-        app.launchArguments = ["--dev-preview", "chat-opening"]
-        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
-        app.launch()
-
-        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        focusComposerInput(in: app)
-        XCTAssertTrue(element(in: app, identifier: "record-audio-button").waitForExistence(timeout: 10))
-
-        app.terminate()
 
         app.launchArguments = ["--dev-preview", "chat-opening-recording"]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening-recording"
@@ -94,8 +87,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "release-text").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "timer-pill").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Slide left to cancel"].waitForExistence(timeout: 2))
-        XCTAssertFalse(app.staticTexts["Press ESC to cancel"].exists)
+        assertCancelHint(in: app, contains: "Slide left to cancel", excludes: "Press ESC to cancel")
         XCTAssertTrue(element(in: app, identifier: "mic-button").waitForExistence(timeout: 2))
 
         let screenshot = XCUIScreen.main.screenshot()
@@ -113,8 +105,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["Press ESC to cancel"].waitForExistence(timeout: 2))
-        XCTAssertFalse(app.staticTexts["Slide left to cancel"].exists)
+        assertCancelHint(in: app, contains: "Press ESC to cancel", excludes: "Slide left to cancel")
     }
 
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
@@ -127,6 +118,14 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         app.staticTexts
             .matching(NSPredicate(format: "label CONTAINS[c] %@", text))
             .firstMatch
+    }
+
+    private func assertCancelHint(in app: XCUIApplication, contains expected: String, excludes unexpected: String) {
+        let hint = element(in: app, identifier: "cancel-hint")
+        XCTAssertTrue(hint.waitForExistence(timeout: 2))
+        let label = hint.label
+        XCTAssertTrue(label.localizedCaseInsensitiveContains(expected), "Expected cancel hint label to contain \(expected); label=\(label)")
+        XCTAssertFalse(label.localizedCaseInsensitiveContains(unexpected), "Expected cancel hint label to exclude \(unexpected); label=\(label)")
     }
 
     private func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
@@ -153,24 +152,8 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         return app
     }
 
-    private func focusComposerInput(in app: XCUIApplication) {
-        let textView = app.textViews.firstMatch
-        let textField = app.textFields.firstMatch
-        XCTAssertTrue(textView.exists || textField.exists)
-        if textView.exists {
-            textView.tap()
-        } else {
-            textField.tap()
-        }
-    }
-
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
-        let candidates = [
-            app.textFields.matching(identifier: "message-editor").firstMatch,
-            app.textViews.matching(identifier: "message-editor").firstMatch,
-            element(in: app, identifier: "message-editor"),
-            element(in: app, identifier: "message-field"),
-        ]
+        let candidates = [element(in: app, identifier: "message-editor")]
 
         for candidate in candidates where candidate.waitForExistence(timeout: 5) {
             return candidate

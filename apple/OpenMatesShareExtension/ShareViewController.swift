@@ -13,6 +13,7 @@
 
 import UIKit
 import UniformTypeIdentifiers
+import WebKit
 
 final class ShareViewController: UIViewController {
     fileprivate enum Layout {
@@ -49,12 +50,28 @@ final class ShareViewController: UIViewController {
     private let previewLabel = UILabel()
     private let messageComposerView = UIView()
     private let messageFieldView = UIView()
-    private let messageTextView = UITextView()
+    private lazy var messageEditorWebView: WKWebView = {
+        let contentController = WKUserContentController()
+        contentController.add(self, name: "openmatesComposer")
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = contentController
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = self
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
+        webView.accessibilityIdentifier = "message-editor"
+        webView.accessibilityLabel = "Message editor"
+        return webView
+    }()
     private let newChatButton = UIButton(type: .system)
     private let chatTableView = UITableView(frame: .zero, style: .plain)
     private let statusLabel = UILabel()
     private let spinner = UIActivityIndicatorView(style: .medium)
     private var tableHeightConstraint: NSLayoutConstraint?
+    private var messageText = ""
+    private var isMessageEditorReady = false
 
     private struct SharedPart {
         let text: String
@@ -245,26 +262,14 @@ final class ShareViewController: UIViewController {
         messageFieldView.layer.shadowOpacity = 0.08
         messageFieldView.layer.shadowRadius = 12
         messageFieldView.layer.shadowOffset = CGSize(width: 0, height: 4)
-        messageTextView.font = UIFont(name: "LexendDeca-Regular", size: 16) ?? .systemFont(ofSize: 16)
-        messageTextView.accessibilityIdentifier = "share-extension-message-input"
-        messageTextView.backgroundColor = .clear
-        messageTextView.textColor = .omFontPrimary
-        messageTextView.tintColor = .omButtonPrimary
-        messageTextView.delegate = self
-        messageTextView.textContainerInset = UIEdgeInsets(
-            top: Layout.composerTopInset,
-            left: Layout.composerHorizontalInset - 5,
-            bottom: Layout.composerBottomInset,
-            right: 90
-        )
-        messageTextView.translatesAutoresizingMaskIntoConstraints = false
+        messageEditorWebView.translatesAutoresizingMaskIntoConstraints = false
         messageFieldView.translatesAutoresizingMaskIntoConstraints = false
         sendButton.backgroundColor = .omButtonPrimary
         sendButton.tintColor = .white
         sendButton.layer.cornerRadius = 20
         sendButton.contentEdgeInsets = UIEdgeInsets(top: 6, left: 16, bottom: 6, right: 16)
         sendButton.translatesAutoresizingMaskIntoConstraints = false
-        messageFieldView.addSubview(messageTextView)
+        messageFieldView.addSubview(messageEditorWebView)
         messageFieldView.addSubview(sendButton)
         messageComposerView.addSubview(messageFieldView)
         stackView.addArrangedSubview(messageComposerView)
@@ -323,10 +328,10 @@ final class ShareViewController: UIViewController {
             messageFieldView.trailingAnchor.constraint(equalTo: messageComposerView.trailingAnchor),
             messageFieldView.bottomAnchor.constraint(equalTo: messageComposerView.bottomAnchor),
             messageFieldView.heightAnchor.constraint(equalToConstant: Layout.composerHeight),
-            messageTextView.topAnchor.constraint(equalTo: messageFieldView.topAnchor),
-            messageTextView.leadingAnchor.constraint(equalTo: messageFieldView.leadingAnchor),
-            messageTextView.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor),
-            messageTextView.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor),
+            messageEditorWebView.topAnchor.constraint(equalTo: messageFieldView.topAnchor),
+            messageEditorWebView.leadingAnchor.constraint(equalTo: messageFieldView.leadingAnchor),
+            messageEditorWebView.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor),
+            messageEditorWebView.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor),
             sendButton.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor, constant: -Layout.composerSendTrailing),
             sendButton.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor, constant: -Layout.composerSendBottom),
             sendButton.heightAnchor.constraint(equalToConstant: Layout.composerSendHeight),
@@ -335,6 +340,7 @@ final class ShareViewController: UIViewController {
         sendButton.accessibilityIdentifier = "share-extension-send"
         cancelButton.accessibilityIdentifier = "share-extension-cancel"
         view.accessibilityIdentifier = "share-extension-root"
+        loadMessageEditorResource()
     }
 
     private func extractSharedContent() {
@@ -418,7 +424,8 @@ final class ShareViewController: UIViewController {
             previewLines.append("Unsupported: \(unsupportedAttachments.joined(separator: ", "))")
         }
         previewLabel.text = previewLines.isEmpty ? "No supported URL, text, or file was found." : previewLines.joined(separator: "\n")
-        messageTextView.text = sharedText
+        messageText = sharedText
+        syncMessageEditorText()
         updateSendButtonState()
     }
 
@@ -491,7 +498,7 @@ final class ShareViewController: UIViewController {
     }
 
     private func buildFinalMessage() throws -> String {
-        let userText = messageTextView.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userText = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         let sharedText = sharedParts.map(\.text).joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         let message = userText.isEmpty ? sharedText : userText
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !sharedAttachments.isEmpty else {
@@ -541,9 +548,32 @@ final class ShareViewController: UIViewController {
     }
 
     private func updateSendButtonState() {
-        let hasText = !messageTextView.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasText = !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         sendButton.isEnabled = !isSubmitting && (hasText || !sharedAttachments.isEmpty)
         sendButton.alpha = sendButton.isEnabled ? 1 : 0.6
+    }
+
+    private func syncMessageEditorText() {
+        guard isMessageEditorReady else { return }
+        messageEditorWebView.accessibilityValue = messageText
+        sendMessageEditorCommand(["type": "setPlaceholder", "placeholder": "Add a message"])
+        sendMessageEditorCommand(["type": "setContent", "text": messageText])
+    }
+
+    private func loadMessageEditorResource() {
+        guard let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "TiptapComposer") else {
+            showFailure("Message editor failed to load.")
+            return
+        }
+        messageEditorWebView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+    }
+
+    private func sendMessageEditorCommand(_ command: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: command),
+              let json = String(data: data, encoding: .utf8) else {
+            return
+        }
+        messageEditorWebView.evaluateJavaScript("window.OpenMatesComposer && window.OpenMatesComposer.receive(\(json));")
     }
 
     private func showFailure(_ message: String) {
@@ -552,9 +582,34 @@ final class ShareViewController: UIViewController {
     }
 }
 
-extension ShareViewController: UITextViewDelegate {
-    func textViewDidChange(_ textView: UITextView) {
-        updateSendButtonState()
+extension ShareViewController: WKScriptMessageHandler, WKNavigationDelegate {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
+        switch type {
+        case "ready":
+            isMessageEditorReady = true
+            syncMessageEditorText()
+        case "contentChanged":
+            messageText = body["text"] as? String ?? ""
+            messageEditorWebView.accessibilityValue = messageText
+            updateSendButtonState()
+        case "submit":
+            sendTapped()
+        default:
+            break
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler((url.isFileURL || url.scheme == "about") ? .allow : .cancel)
     }
 }
 

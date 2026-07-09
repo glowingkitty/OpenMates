@@ -7,6 +7,7 @@
 
 import AppKit
 import UniformTypeIdentifiers
+import WebKit
 
 @MainActor
 final class MacShareViewController: NSViewController {
@@ -162,14 +163,27 @@ final class MacShareViewController: NSViewController {
     private let sendButton = NSButton(title: "Send", target: nil, action: nil)
     private let previewLabel = NSTextField(labelWithString: "")
     private let messageComposerView = NSView()
-    private let messageScrollView = NSScrollView()
-    private let messageTextView = NSTextView()
+    private let messageFieldView = NSView()
+    private lazy var messageEditorWebView: WKWebView = {
+        let contentController = WKUserContentController()
+        contentController.add(self, name: "openmatesComposer")
+        let configuration = WKWebViewConfiguration()
+        configuration.userContentController = contentController
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = self
+        webView.setValue(false, forKey: "drawsBackground")
+        webView.setAccessibilityIdentifier("message-editor")
+        webView.setAccessibilityLabel("Message editor")
+        return webView
+    }()
     private let newChatButton = NSButton(title: "New Chat", target: nil, action: nil)
     private let tableView = NSTableView()
     private let tableScrollView = NSScrollView()
     private let statusLabel = NSTextField(labelWithString: "")
     private let progressIndicator = NSProgressIndicator()
     private var tableHeightConstraint: NSLayoutConstraint?
+    private var messageText = ""
+    private var isMessageEditorReady = false
 
     override func loadView() {
         view = NSView()
@@ -228,23 +242,16 @@ final class MacShareViewController: NSViewController {
 
         messageComposerView.identifier = NSUserInterfaceItemIdentifier("message-composer")
         messageComposerView.translatesAutoresizingMaskIntoConstraints = false
-        messageScrollView.hasVerticalScroller = true
-        messageScrollView.borderType = .noBorder
-        messageScrollView.documentView = messageTextView
-        messageScrollView.wantsLayer = true
-        messageScrollView.layer?.cornerRadius = Layout.composerCornerRadius
-        messageScrollView.layer?.borderWidth = Layout.composerBorderWidth
-        messageScrollView.layer?.borderColor = NSColor.separatorColor.cgColor
-        messageScrollView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-        messageScrollView.identifier = NSUserInterfaceItemIdentifier("message-field")
-        messageScrollView.translatesAutoresizingMaskIntoConstraints = false
-        messageTextView.font = .systemFont(ofSize: 15)
-        messageTextView.isRichText = false
-        messageTextView.allowsUndo = true
-        messageTextView.drawsBackground = false
-        messageTextView.textContainerInset = NSSize(width: 10, height: 12)
-        messageTextView.identifier = NSUserInterfaceItemIdentifier("message-editor")
-        messageComposerView.addSubview(messageScrollView)
+        messageFieldView.wantsLayer = true
+        messageFieldView.layer?.cornerRadius = Layout.composerCornerRadius
+        messageFieldView.layer?.borderWidth = Layout.composerBorderWidth
+        messageFieldView.layer?.borderColor = NSColor.separatorColor.cgColor
+        messageFieldView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+        messageFieldView.identifier = NSUserInterfaceItemIdentifier("message-field")
+        messageFieldView.translatesAutoresizingMaskIntoConstraints = false
+        messageEditorWebView.translatesAutoresizingMaskIntoConstraints = false
+        messageFieldView.addSubview(messageEditorWebView)
+        messageComposerView.addSubview(messageFieldView)
         rootStack.addArrangedSubview(messageComposerView)
 
         newChatButton.target = self
@@ -291,14 +298,19 @@ final class MacShareViewController: NSViewController {
             previewLabel.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
             messageComposerView.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
             messageComposerView.heightAnchor.constraint(equalToConstant: Layout.messageHeight),
-            messageScrollView.topAnchor.constraint(equalTo: messageComposerView.topAnchor),
-            messageScrollView.leadingAnchor.constraint(equalTo: messageComposerView.leadingAnchor),
-            messageScrollView.trailingAnchor.constraint(equalTo: messageComposerView.trailingAnchor),
-            messageScrollView.bottomAnchor.constraint(equalTo: messageComposerView.bottomAnchor),
+            messageFieldView.topAnchor.constraint(equalTo: messageComposerView.topAnchor),
+            messageFieldView.leadingAnchor.constraint(equalTo: messageComposerView.leadingAnchor),
+            messageFieldView.trailingAnchor.constraint(equalTo: messageComposerView.trailingAnchor),
+            messageFieldView.bottomAnchor.constraint(equalTo: messageComposerView.bottomAnchor),
+            messageEditorWebView.topAnchor.constraint(equalTo: messageFieldView.topAnchor),
+            messageEditorWebView.leadingAnchor.constraint(equalTo: messageFieldView.leadingAnchor),
+            messageEditorWebView.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor),
+            messageEditorWebView.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor),
             newChatButton.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
             tableScrollView.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
             statusLabel.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
         ])
+        loadMessageEditorResource()
     }
 
     private func extractSharedContent() {
@@ -390,7 +402,8 @@ final class MacShareViewController: NSViewController {
             previewLines.append("Unsupported: \(unsupportedAttachments.joined(separator: ", "))")
         }
         previewLabel.stringValue = previewLines.isEmpty ? "No supported URL, text, or file was found." : previewLines.joined(separator: "\n")
-        messageTextView.string = ""
+        messageText = ""
+        syncMessageEditorText()
         sendButton.isEnabled = !sharedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !sharedAttachments.isEmpty
     }
 
@@ -451,7 +464,7 @@ final class MacShareViewController: NSViewController {
     }
 
     private func buildFinalMessage() throws -> String {
-        let userText = messageTextView.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userText = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         let sharedText = sharedParts.map(\.text).joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         let message: String
         if userText.isEmpty {
@@ -514,6 +527,68 @@ final class MacShareViewController: NSViewController {
     private func showFailure(_ message: String) {
         statusLabel.textColor = .systemRed
         statusLabel.stringValue = message
+    }
+
+    private func updateSendButtonState() {
+        let sharedText = sharedParts.map(\.text).joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasUserText = !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        sendButton.isEnabled = !isSubmitting && (hasUserText || !sharedText.isEmpty || !sharedAttachments.isEmpty)
+    }
+
+    private func syncMessageEditorText() {
+        guard isMessageEditorReady else { return }
+        messageEditorWebView.setAccessibilityValue(messageText)
+        sendMessageEditorCommand(["type": "setPlaceholder", "placeholder": "Add a message"])
+        sendMessageEditorCommand(["type": "setContent", "text": messageText])
+    }
+
+    private func loadMessageEditorResource() {
+        guard let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "TiptapComposer") else {
+            showFailure("Message editor failed to load.")
+            return
+        }
+        messageEditorWebView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+    }
+
+    private func sendMessageEditorCommand(_ command: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: command),
+              let json = String(data: data, encoding: .utf8) else {
+            return
+        }
+        messageEditorWebView.evaluateJavaScript("window.OpenMatesComposer && window.OpenMatesComposer.receive(\(json));")
+    }
+}
+
+extension MacShareViewController: WKScriptMessageHandler, WKNavigationDelegate {
+    nonisolated func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        MainActor.assumeIsolated {
+            guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
+            switch type {
+            case "ready":
+                isMessageEditorReady = true
+                syncMessageEditorText()
+            case "contentChanged":
+                messageText = body["text"] as? String ?? ""
+                messageEditorWebView.setAccessibilityValue(messageText)
+                updateSendButtonState()
+            case "submit":
+                sendTapped()
+            default:
+                break
+            }
+        }
+    }
+
+    nonisolated func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler((url.isFileURL || url.scheme == "about") ? .allow : .cancel)
     }
 }
 

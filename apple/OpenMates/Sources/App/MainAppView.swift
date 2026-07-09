@@ -3689,19 +3689,17 @@ private struct OpenMatesWebHeader: View {
                 Spacer(minLength: .spacing4)
 
                 if !isAuthenticated {
-                    if !isCompact {
-                        Button {
-                            openURL(Self.githubURL)
-                        } label: {
-                            Icon("github", size: 20)
-                                .foregroundStyle(Color.grey60)
-                                .frame(width: 36, height: 36)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("github-repo-button")
-                        .help(Text(LocalizationManager.shared.text("signup.view_on_github")))
-                        .accessibilityLabel(LocalizationManager.shared.text("signup.view_on_github"))
+                    Button {
+                        openURL(Self.githubURL)
+                    } label: {
+                        Icon("github", size: 22)
+                            .foregroundStyle(LinearGradient.primary)
+                            .frame(width: 42, height: 42)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("github-repo-button")
+                    .help(Text(LocalizationManager.shared.text("signup.view_on_github")))
+                    .accessibilityLabel(LocalizationManager.shared.text("signup.view_on_github"))
 
                     Button(action: onOpenAuth) {
                         Text(isCompact ? AppStrings.login : AppStrings.loginSignup)

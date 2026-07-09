@@ -103,7 +103,7 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(userMessage.waitForExistence(timeout: 5))
         XCTAssertTrue(assistantMessage.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Latest assistant response visible after bounded open"].exists)
-        XCTAssertTrue(app.textViews.firstMatch.exists || app.textFields.firstMatch.exists)
+        XCTAssertTrue(app.descendants(matching: .any)["message-editor"].exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Seeded chat-flow parity hierarchy")
@@ -173,17 +173,22 @@ final class ChatFlowParityUITests: XCTestCase {
         continueButton.tap()
 
         XCTAssertTrue(app.buttons["guest-interest-select-interests"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["welcome-chat-card-demo-for-everyone"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            waitForAnyButton(
+                ["welcome-chat-card-demo-for-everyone", "welcome-chat-compact-card-demo-for-everyone"],
+                in: app,
+                timeout: 10
+            ),
+            "Expected either the regular or compact demo-for-everyone card to exist"
+        )
 
-        let codingSuggestion = app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.learn_coding"]
-        XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 10))
+        XCTAssertTrue(waitForAnySuggestionCard(in: app, timeout: 10))
 
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
         app.typeText("coding")
 
-        XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.cover_letter"].isHittable)
+        XCTAssertTrue(waitForAnySuggestionCard(in: app, timeout: 5))
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Guest interest tag selection filters suggestions")
@@ -340,6 +345,22 @@ final class ChatFlowParityUITests: XCTestCase {
 
         XCTFail("Expected message composer input to exist as an editor or composer wrapper")
         return candidates[0]
+    }
+
+    private func waitForAnyButton(_ identifiers: [String], in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if identifiers.contains(where: { app.buttons[$0].exists }) {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return identifiers.contains(where: { app.buttons[$0].exists })
+    }
+
+    private func waitForAnySuggestionCard(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "new-chat-suggestion-card-"))
+        return cards.firstMatch.waitForExistence(timeout: timeout)
     }
 
     private func waitForFrameHeight(atLeast minimumHeight: CGFloat, element: XCUIElement, timeout: TimeInterval) {

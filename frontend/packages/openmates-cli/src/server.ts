@@ -8,9 +8,9 @@
  * Tests: frontend/packages/openmates-cli/tests/server.test.ts
  */
 
-import { execFileSync, execSync, spawn as nodeSpawn } from "node:child_process";
+import { execFileSync, execSync, spawn as nodeSpawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
 import { homedir } from "node:os";
@@ -23,6 +23,7 @@ import {
   resolveServerPath,
   saveServerConfig,
 } from "./serverConfig.js";
+import { renderSupportStartReminder } from "./support.js";
 import {
   type CaddyAction,
   type CoreProfile,
@@ -1011,14 +1012,19 @@ function createServerBackup(installPath: string, role: ServerRole, options: { ou
     if (role === "core") {
       const databaseUser = env.DATABASE_USERNAME || "directus";
       const databaseName = env.DATABASE_NAME || "directus";
+      const dumpFile = openSync(join(tempDir, "postgres.sql"), "w");
       try {
-        const dump = execSync(
-          `docker exec cms-database pg_dump --clean --if-exists --no-owner --no-privileges -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`,
-          { encoding: "utf-8", maxBuffer: 256 * 1024 * 1024 },
+        const result = spawnSync(
+          "docker",
+          ["exec", "cms-database", "pg_dump", "--clean", "--if-exists", "--no-owner", "--no-privileges", "-U", databaseUser, databaseName],
+          { encoding: "utf-8", stdio: ["ignore", dumpFile, "pipe"] },
         );
-        writeFileSync(join(tempDir, "postgres.sql"), dump);
+        if (result.error) throw result.error;
+        if (result.status !== 0) throw new Error(result.stderr || `pg_dump exited with status ${result.status}`);
       } catch (error) {
         throw new Error(`Postgres backup failed. Is cms-database running? ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        closeSync(dumpFile);
       }
     }
 
@@ -1248,6 +1254,7 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
       console.log("Directus CMS: http://localhost:8055");
       console.log("Grafana:      http://localhost:3000");
     }
+    console.log(renderSupportStartReminder());
   }
 }
 

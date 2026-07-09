@@ -30,9 +30,8 @@ final class ComposerVisualParityUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
 
-        let editor = app.textViews.firstMatch.exists ? app.textViews.firstMatch : app.textFields.firstMatch
+        let editor = waitForMessageEditor(in: app)
 
-        XCTAssertTrue(editor.waitForExistence(timeout: 8), "Expected visible composer editor. Visible UI: \(app.debugDescription)")
         XCTAssertLessThanOrEqual(editor.frame.width, maxComposerWidth + widthTolerance)
 
         editor.tap()
@@ -129,8 +128,6 @@ final class ComposerVisualParityUITests: XCTestCase {
 
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
         let candidates = [
-            app.textFields.matching(identifier: "message-editor").firstMatch,
-            app.textViews.matching(identifier: "message-editor").firstMatch,
             app.descendants(matching: .any).matching(NSPredicate(format: "identifier == %@", "message-editor")).firstMatch,
         ]
         let deadline = Date().addingTimeInterval(10)

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <title>OpenMates Composer</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --font-primary: #1f2933;
+      --font-tertiary: rgba(31, 41, 51, 0.58);
+      --button-primary: #ff553b;
+      --selection: rgba(255, 85, 59, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: transparent;
+      color: var(--font-primary);
+      font-family: "Lexend Deca", "LexendDeca", -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    body[contenteditable="false"] {
+      opacity: 0.72;
+    }
+
+    #message-editor {
+      width: 100%;
+      min-height: 40px;
+      padding: 16px 16px 60px;
+      outline: none;
+      caret-color: var(--button-primary);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    #message-editor .ProseMirror {
+      min-height: inherit;
+      outline: none;
+    }
+
+    #message-editor p {
+      margin: 0;
+    }
+
+    #message-editor p + p {
+      margin-top: 0.35em;
+    }
+
+    #message-editor.inline-compact {
+      min-height: 48px;
+      padding: 12px 24px;
+      text-align: center;
+      font-weight: 600;
+      line-height: 24px;
+    }
+
+    #message-editor .is-editor-empty:first-child::before,
+    #message-editor p.is-empty:first-child::before {
+      content: attr(data-placeholder);
+      color: var(--font-tertiary);
+      font-weight: 500;
+      pointer-events: none;
+      float: left;
+      height: 0;
+    }
+
+    #message-editor.inline-compact .is-editor-empty:first-child::before,
+    #message-editor.inline-compact p.is-empty:first-child::before {
+      display: block;
+      text-align: center;
+      width: 100%;
+    }
+
+    ::selection {
+      background: var(--selection);
+    }
+  </style>
+</head>
+<body>
+  <div id="message-editor" role="textbox" aria-multiline="true" data-testid="message-editor" data-placeholder="" contenteditable="true"></div>
+  <script type="importmap">
+    {
+      "imports": {
+        "/@tiptap/": "./vendor/@tiptap/"
+      }
+    }
+  </script>
+  <script type="module" src="composer.js"></script>
+</body>
+</html>
