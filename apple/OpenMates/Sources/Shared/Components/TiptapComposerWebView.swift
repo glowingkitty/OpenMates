@@ -168,16 +168,25 @@ struct TiptapComposerWebView: View {
     }
 
     var body: some View {
-        PlatformTiptapComposerWebView(
-            text: $text,
-            isFocused: isFocused,
-            compact: compact,
-            placeholder: placeholder,
-            accessibilityHint: accessibilityHint,
-            embedCount: $diagnosticEmbedCount,
-            measuredHeight: $measuredHeight,
-            onSubmit: onSubmit
-        )
+        ZStack(alignment: .topLeading) {
+            PlatformTiptapComposerWebView(
+                text: $text,
+                isFocused: isFocused,
+                compact: compact,
+                placeholder: placeholder,
+                accessibilityHint: accessibilityHint,
+                embedCount: $diagnosticEmbedCount,
+                measuredHeight: $measuredHeight,
+                onSubmit: onSubmit
+            )
+
+            if effectiveEmbedCount > 0 {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityIdentifier("message-editor-diagnostics")
+                    .accessibilityLabel("embedCount=\(effectiveEmbedCount)")
+            }
+        }
         .frame(maxWidth: .infinity, minHeight: editorHeight, maxHeight: compact ? minHeight : nil)
         .accessibilityLabel(AppStrings.chatMessageInput)
         .accessibilityHint(accessibilityHint)
@@ -191,8 +200,12 @@ struct TiptapComposerWebView: View {
     }
 
     private var accessibilityValue: String {
-        guard let diagnosticEmbedCount else { return text }
-        return "\(text)\nembedCount=\(diagnosticEmbedCount)"
+        guard effectiveEmbedCount > 0 else { return text }
+        return "\(text)\nembedCount=\(effectiveEmbedCount)"
+    }
+
+    private var effectiveEmbedCount: Int {
+        diagnosticEmbedCount ?? text.components(separatedBy: "\"embed_id\"").count - 1
     }
 }
 

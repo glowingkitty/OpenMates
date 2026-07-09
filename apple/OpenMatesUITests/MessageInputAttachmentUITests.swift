@@ -16,8 +16,9 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         let editor = waitForMessageEditor(in: app)
-        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(editor, expectedCount: 1), "Expected editor-owned embed diagnostics after seeded attachment")
+        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(in: app, editor: editor, expectedCount: 1), "Expected editor-owned embed diagnostics after seeded attachment")
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists, "Editor-owned embeds must replace the native pending strip")
+        XCTAssertTrue(textContaining("ui-test-image.png", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
 
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
@@ -105,7 +106,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
-        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(messageEditor, expectedCount: 3), "Expected welcome seeded content to become editor-owned embeds")
+        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(in: app, editor: messageEditor, expectedCount: 3), "Expected welcome seeded content to become editor-owned embeds")
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists, "Welcome composer must not use native pending strips for seeded embeds")
         XCTAssertTrue(textContaining("welcome-file.pdf", in: app).waitForExistence(timeout: 5))
         XCTAssertTrue(textContaining("welcome-sketch.png", in: app).waitForExistence(timeout: 5))
@@ -183,9 +184,14 @@ final class MessageInputAttachmentUITests: XCTestCase {
         return candidates[0]
     }
 
-    private func waitForEditorOwnedEmbedDiagnostics(_ editor: XCUIElement, expectedCount: Int, timeout: TimeInterval = 8) -> Bool {
+    private func waitForEditorOwnedEmbedDiagnostics(in app: XCUIApplication, editor: XCUIElement, expectedCount: Int, timeout: TimeInterval = 8) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
+        let diagnostics = element(in: app, identifier: "message-editor-diagnostics")
         while Date() < deadline {
+            if diagnostics.exists,
+               diagnostics.label.contains("embedCount=\(expectedCount)") {
+                return true
+            }
             if let value = editor.value as? String,
                value.contains("embedCount=\(expectedCount)") {
                 return true
