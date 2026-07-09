@@ -28,6 +28,8 @@ key_files:
 - scripts/_opencode_daily_meeting.py
 - scripts/_daily_meeting_helper.py
 - scripts/_opencode_utils.py
+- scripts/release-intelligence-cron.sh
+- scripts/release_intelligence.py
 claims:
 - id: arch-infrastructure-cronjobs-behavior
   type: unit
@@ -90,6 +92,9 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `02:35 Mon-Fri`               | `nightly-pattern-consistency.sh`       | Pattern consistency scan (Haiku, plan only)|
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
 | `03:00 Mon-Fri`               | `tests.py run --daily`                 | Full test suite (Playwright + pytest)     |
+| `00:20 daily`                 | `release-intelligence-cron.sh daily`   | Generate yesterday's daily release-intelligence changelog |
+| `00:45 Mon`                   | `release-intelligence-cron.sh weekly`  | Generate last-7-days weekly rollup + Discord summary |
+| `01:10 1st day`               | `release-intelligence-cron.sh monthly` | Generate previous-month monthly rollup    |
 | `04:10 Tue+Fri`               | `nightly-ui-design-review.sh`          | UI design system/code review (plan only)  |
 | `04:30 Mon+Thu`               | `nightly-apple-parity-review.sh`       | Apple/web parity review (plan only)       |
 | `04:50 Sun`                   | `nightly-seo-audit.sh`                 | Deep SEO optimization review (plan only)  |
@@ -116,6 +121,8 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 **Codebase audit** (Mon+Thu 02:00): Uses 2 weeks of git history to find top 5 improvements (security, performance, reliability, quality). Plan mode only -- no implementation. State: `scripts/.audit-state.json`.
 
 **Daily test run** (03:00): Full Playwright E2E + pytest suite. Sends summary email on completion + Discord fallback post (OPE-76), writes `last-passed-tests.json` / `last-failed-tests.json`, pushes one OpenObserve summary, and archives to `test-results/daily-run-YYYY-MM-DD.json`. The scheduled runner is notification-only: it does not start OpenCode auto-fix, so failed-test remediation can never hold the daily lock and block the next scheduled run. Manual follow-up can still use `scripts/auto_fix_failed_tests.py --from-daily-run` when an operator intentionally wants controller-owned fixes. Env: `E2E_DAILY_RUN_ENABLED=true`, `ADMIN_NOTIFY_EMAIL`, `INTERNAL_API_SHARED_TOKEN`, `OPENCODE_WEB_BASE_URL`, `DISCORD_WEBHOOK_DEV_NIGHTLY` (optional), `DISCORD_WEBHOOK_TEST_FIXES` (optional dedicated manual auto-fix channel).
+
+**Release intelligence** (`00:20 daily`, `00:45 Mon`, `01:10 first day`): `scripts/release-intelligence-cron.sh` creates LLM-backed changelog artifacts from git history and prior rollups. Daily mode writes `docs/releases/daily/YYYY-MM-DD.yml` for the previous UTC day. Weekly mode reads the last seven daily artifacts, writes `docs/releases/weekly/YYYY-Www.yml`, and posts a compact Discord summary. Monthly mode reads weekly artifacts for the previous month and writes `docs/releases/monthly/YYYY-MM.yml`. Artifacts include deterministic release readiness, feature availability gates, newsletter include/exclude candidates, and LLM summaries. Env: `GEMINI_API_KEY` or `SECRET__GOOGLE_AI_STUDIO__API_KEY`; optional `DISCORD_WEBHOOK_RELEASE_INTELLIGENCE` with fallback to `DISCORD_WEBHOOK_DEV_NIGHTLY` for weekly summaries. Manual: `scripts/release-intelligence-cron.sh daily|weekly|monthly`.
 
 **Obsidian daily note updater** (every minute): Refreshes today's local daily note under `vaults/memory/Daily Notes/` with changed note links, same-day git commits, and cached server stats. Preserves manual content outside `<!-- AUTO:* -->` sections. Log: `logs/obsidian-daily-note.log`. State: `vaults/memory/.obsidian-auto/daily-note-state/`.
 
