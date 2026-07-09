@@ -119,9 +119,9 @@ apple_impact:
     - python3 scripts/spec_validate.py docs/specs/apple-native-message-composer/spec.yml
     - python3 scripts/spec_verify.py docs/specs/apple-native-message-composer/spec.yml --phase red
     - python3 scripts/apple_composer_audit.py --require-native-document
-    - python3 scripts/tests.py run --suite vitest --filter composerDocument
-    - python3 scripts/tests.py run --spec file-attachment-flow.spec.ts
-    - python3 scripts/tests.py run --spec audio-recording.spec.ts
+    - python3 scripts/tests.py run -- --suite vitest
+    - python3 scripts/tests.py run -- --spec file-attachment-flow.spec.ts
+    - python3 scripts/tests.py run -- --spec audio-recording.spec.ts
     - python3 scripts/apple_remote.py status
     - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
     - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerDocumentTests
@@ -623,7 +623,7 @@ tests:
   - id: T-WEB-DOCUMENT-CONTRACT
     type: vitest
     file: frontend/packages/ui/src/components/enter_message/bridge/__tests__/composerDocument.test.ts
-    command: python3 scripts/tests.py run --suite vitest --filter composerDocument
+    command: python3 scripts/tests.py run -- --suite vitest
     covers: [AC-2, AC-5, AC-6, AC-13]
     assertions:
       - shared fixture markdown parses into ComposerDocumentV1 in document order
@@ -949,7 +949,7 @@ tests:
   - id: T-WEB-ENCRYPTION-CONTRACT
     type: vitest
     file: frontend/packages/ui/src/services/encryption/__tests__/appleComposerCompatibility.test.ts
-    command: python3 scripts/tests.py run --suite vitest --filter appleComposerCompatibility
+    command: python3 scripts/tests.py run -- --suite vitest
     covers: [AC-15]
     assertions:
       - deterministic synthetic Format A/C/D fixtures encrypt/decrypt according to the authoritative web implementation
@@ -1046,7 +1046,7 @@ tests:
   - id: T-WEB-COMPOSER-REGRESSION
     type: playwright
     file: frontend/apps/web_app/tests/file-attachment-flow.spec.ts
-    command: python3 scripts/tests.py run --spec file-attachment-flow.spec.ts
+    command: python3 scripts/tests.py run -- --spec file-attachment-flow.spec.ts
     target: app.dev.openmates.org
     covers: [AC-4]
     assertions:
