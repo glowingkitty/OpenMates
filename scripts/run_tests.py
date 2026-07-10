@@ -400,22 +400,22 @@ def _latest_vercel_deployment_for_sha(
     return None
 
 
-def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> Optional[str]:
-    """Return the immutable URL after Vercel deploys the current dev commit."""
+def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> bool:
+    """Block Playwright dispatch until Vercel has deployed the current dev commit."""
     if _get_env("OPENMATES_SKIP_VERCEL_WAIT", dot_env).lower() == "true":
         _log("OPENMATES_SKIP_VERCEL_WAIT=true — skipping Vercel wait", "WARN")
-        return ""
+        return True
 
     token = _get_env("VERCEL_TOKEN", dot_env)
     if not token:
         _log("VERCEL_TOKEN is required before running development Playwright specs", "ERROR")
-        return None
+        return False
 
     try:
         team_id, project_id = _vercel_project_config()
     except RuntimeError as exc:
         _log(str(exc), "ERROR")
-        return None
+        return False
 
     timeout = int(_get_env("OPENMATES_VERCEL_WAIT_TIMEOUT", dot_env, str(VERCEL_WAIT_TIMEOUT)))
     poll_interval = int(
@@ -448,19 +448,14 @@ def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> Option
             last_status = state
 
         if state == "READY":
-            deployment_url = str(deployment.get("url", "")).strip()
-            if not deployment_url:
-                _log(f"Vercel deployment {deploy_id} has no immutable URL", "ERROR")
-                return None
-            immutable_url = f"https://{deployment_url}"
             _log("Vercel deployment is Ready — dispatching Playwright specs", "OK")
-            return immutable_url
+            return True
         if state in {"ERROR", "CANCELED"}:
             _log(
                 f"Vercel deployment {deploy_id} is {state}; fix the deployment before running specs",
                 "ERROR",
             )
-            return None
+            return False
 
         time.sleep(poll_interval)
 
@@ -468,7 +463,7 @@ def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> Option
         f"Timed out after {timeout}s waiting for Vercel deployment for {git_sha} (last status: {last_status})",
         "ERROR",
     )
-    return None
+    return False
 
 
 def _safe_write_json(path: Path, data: dict) -> None:
@@ -749,9 +744,8 @@ def _configured_preflight_accounts(results: list[SpecResult]) -> list[dict]:
 class GitHubActionsClient:
     """Wraps the `gh` CLI for workflow dispatch and status polling."""
 
-    def __init__(self, playwright_base_url: Optional[str] = None, git_sha: Optional[str] = None) -> None:
+    def __init__(self, git_sha: Optional[str] = None) -> None:
         self.last_dispatch_error: Optional[str] = None
-        self.playwright_base_url = playwright_base_url
         self.git_sha = git_sha
         self._check_gh()
 
@@ -787,8 +781,6 @@ class GitHubActionsClient:
             "-f", "record_live_fixtures=false",
             "-f", f"dispatch_token={dispatch_token}",
         ]
-        if self.playwright_base_url:
-            command.extend(["-f", f"playwright_base_url={self.playwright_base_url}"])
         if self.git_sha:
             command.extend(["-f", f"checkout_ref={self.git_sha}"])
 
@@ -5105,23 +5097,19 @@ class TestOrchestrator:
                 print(f"    account {account:02d}{reserved}  {spec}")
             return SuiteResult(status="skipped", reason="dry run")
 
-        playwright_base_url: Optional[str] = None
-        if self.environment == "development":
-            playwright_base_url = _wait_for_vercel_deployment(self.git_sha, self.dot_env)
-            if playwright_base_url is None:
-                return SuiteResult(
-                    status="failed",
-                    tests=[{
-                        "name": "vercel-deployment-gate",
-                        "status": "failed",
-                        "duration_seconds": 0,
-                        "error": "Vercel deployment was not ready for the current dev commit before Playwright dispatch",
-                    }],
-                    reason="vercel deployment not ready",
-                )
+        if self.environment == "development" and not _wait_for_vercel_deployment(self.git_sha, self.dot_env):
+            return SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": "vercel-deployment-gate",
+                    "status": "failed",
+                    "duration_seconds": 0,
+                    "error": "Vercel deployment was not ready for the current dev commit before Playwright dispatch",
+                }],
+                reason="vercel deployment not ready",
+            )
 
         client = GitHubActionsClient(
-            playwright_base_url=playwright_base_url,
             git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
         )
 

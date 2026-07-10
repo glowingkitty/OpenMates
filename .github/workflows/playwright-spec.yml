@@ -48,10 +48,6 @@ on:
         description: "Unique token from scripts/run_tests.py used to identify this dispatch."
         type: string
         default: ""
-      playwright_base_url:
-        description: "Immutable Vercel deployment URL selected by scripts/run_tests.py."
-        type: string
-        default: ""
       checkout_ref:
         description: "Commit SHA selected by scripts/run_tests.py."
         type: string
@@ -88,7 +84,7 @@ jobs:
         env:
           OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
           OPENMATES_CLI_TEST_API_URL: ${{ secrets.E2E_DEV_API_URL }}
-          PLAYWRIGHT_TEST_BASE_URL: ${{ github.event.inputs.playwright_base_url || secrets.E2E_DEV_TEST_BASE_URL }}
+          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
       - name: Install Playwright browsers
         if: github.event.inputs.spec != '__cli_integration_code_docs__'
         run: npx playwright install --with-deps chromium
@@ -131,7 +127,7 @@ jobs:
           fi
           exit "$pw_status"
         env:
-          PLAYWRIGHT_TEST_BASE_URL: ${{ github.event.inputs.playwright_base_url || secrets.E2E_DEV_TEST_BASE_URL }}
+          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
           OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', github.event.inputs.account)] }}
           OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', github.event.inputs.account)] }}
           OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', github.event.inputs.account)] }}

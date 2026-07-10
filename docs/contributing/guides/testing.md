@@ -226,7 +226,7 @@ Hourly archives: `test-results/hourly-dev/run-*.json` and `test-results/hourly-p
 
 Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
 
-Development dispatches pin both the checked-out commit and `PLAYWRIGHT_TEST_BASE_URL` to the immutable Vercel deployment selected by `scripts/run_tests.py`. This prevents a newer `dev` deployment from replacing the shared alias and invalidating hashed JavaScript assets during a running spec.
+Development dispatches pin the checked-out source to the commit whose Vercel deployment passed the readiness gate, so a moving `dev` branch cannot change the test implementation after dispatch.
 
 ### Reserved E2E Credential Accounts
 
