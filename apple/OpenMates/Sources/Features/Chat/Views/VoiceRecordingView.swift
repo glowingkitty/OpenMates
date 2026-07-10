@@ -37,13 +37,13 @@ final class VoiceRecorder: ObservableObject {
     )
 
     private var audioRecorder: AVAudioRecorder?
-    private var durationTimer: Timer?
-    private var waveformTimer: Timer?
+    private var durationTask: Task<Void, Never>?
+    private var waveformTask: Task<Void, Never>?
     private var recordingURL: URL?
 
     deinit {
-        durationTimer?.invalidate()
-        waveformTimer?.invalidate()
+        durationTask?.cancel()
+        waveformTask?.cancel()
     }
 
     func requestPermission() async -> Bool {
@@ -97,25 +97,21 @@ final class VoiceRecorder: ObservableObject {
             isRecording = true
             duration = 0
 
-            let durationTimer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
-                Task { @MainActor in
-                    guard let self, self.isRecording else { return }
+            durationTask = Task { @MainActor [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(100))
+                    guard let self, self.isRecording, !Task.isCancelled else { return }
                     self.duration += 0.1
                 }
             }
-            self.durationTimer = durationTimer
-            RunLoop.main.add(durationTimer, forMode: .common)
 
-            let waveformTimer = Timer(
-                timeInterval: Self.waveformSampleInterval,
-                repeats: true
-            ) { [weak self] _ in
-                Task { @MainActor in
-                    self?.sampleWaveform()
+            waveformTask = Task { @MainActor [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(50))
+                    guard let self, self.isRecording, !Task.isCancelled else { return }
+                    self.sampleWaveform()
                 }
             }
-            self.waveformTimer = waveformTimer
-            RunLoop.main.add(waveformTimer, forMode: .common)
         } catch {
             stopTimersAndWaveform()
             self.error = error.localizedDescription
@@ -169,10 +165,10 @@ final class VoiceRecorder: ObservableObject {
     }
 
     private func stopTimersAndWaveform() {
-        durationTimer?.invalidate()
-        durationTimer = nil
-        waveformTimer?.invalidate()
-        waveformTimer = nil
+        durationTask?.cancel()
+        durationTask = nil
+        waveformTask?.cancel()
+        waveformTask = nil
         audioRecorder?.isMeteringEnabled = false
         resetWaveform()
     }
