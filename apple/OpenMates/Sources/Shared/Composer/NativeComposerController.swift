@@ -183,6 +183,13 @@ final class NativeComposerController {
         )
     }
 
+    func configureEmbedActions(id: String, actions: AppleComposerEmbedActions) throws {
+        guard let attachment = attachments[id] else {
+            throw NativeComposerControllerError.nodeNotFound(id)
+        }
+        attachment.embedActions = actions
+    }
+
     func removeEmbed(id: String) throws {
         guard let index = document.nodes.firstIndex(where: { $0.id == id }) else {
             throw NativeComposerControllerError.nodeNotFound(id)

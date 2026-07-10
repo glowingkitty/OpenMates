@@ -20,6 +20,11 @@ import AppKit
 final class ComposerTextAttachment: NSTextAttachment {
     let nodeID: String
     private(set) var nodeSnapshot: ComposerNodeV1?
+    var embedActions = AppleComposerEmbedActions(
+        onOpen: { _ in },
+        onRetry: { _ in },
+        onRemove: { _ in }
+    )
 
     init(node: ComposerNodeV1) {
         self.nodeID = node.id

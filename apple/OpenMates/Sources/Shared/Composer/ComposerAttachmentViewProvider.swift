@@ -46,7 +46,9 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             return
         }
         let hosted = MainActor.assumeIsolated {
-            let controller = UIHostingController(rootView: ComposerAttachmentContent(node: node))
+            let controller = UIHostingController(
+                rootView: ComposerAttachmentContent(node: node, actions: attachment.embedActions)
+            )
             controller.view.backgroundColor = .clear
             controller.view.accessibilityIdentifier = platformIdentifier(for: node)
             objc_setAssociatedObject(
@@ -115,7 +117,9 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             return
         }
         let hosted = MainActor.assumeIsolated {
-            let hosted = NSHostingView(rootView: ComposerAttachmentContent(node: node))
+            let hosted = NSHostingView(
+                rootView: ComposerAttachmentContent(node: node, actions: attachment.embedActions)
+            )
             hosted.identifier = NSUserInterfaceItemIdentifier(platformIdentifier(for: node))
             return hosted
         }
@@ -153,6 +157,7 @@ private func platformIdentifier(for node: ComposerNodeV1) -> String {
 
 private struct ComposerAttachmentContent: View {
     let node: ComposerNodeV1
+    let actions: AppleComposerEmbedActions
 
     @ViewBuilder
     var body: some View {
@@ -173,11 +178,7 @@ private struct ComposerAttachmentContent: View {
                 lifecycle: lifecycle,
                 embedRecord: nil,
                 allEmbedRecords: [:],
-                actions: AppleComposerEmbedActions(
-                    onOpen: { _ in },
-                    onRetry: { _ in },
-                    onRemove: { _ in }
-                )
+                actions: actions
             )
         } else {
             Text(node.display?.title ?? node.embedType ?? "")

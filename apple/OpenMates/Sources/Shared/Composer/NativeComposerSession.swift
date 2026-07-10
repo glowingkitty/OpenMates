@@ -84,6 +84,32 @@ final class NativeComposerSession: ObservableObject {
         publishControllerState()
     }
 
+    func configureEmbedActions(
+        nodeID: String,
+        onOpen: @escaping (String) -> Void,
+        onRetry: @escaping (String) -> Void,
+        onRemove: @escaping (String) -> Void
+    ) throws {
+        try controller.configureEmbedActions(
+            id: nodeID,
+            actions: AppleComposerEmbedActions(
+                onOpen: onOpen,
+                onRetry: onRetry,
+                onRemove: { [weak self] id in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        let durableID = self.controller.document.nodes
+                            .first(where: { $0.id == id })?
+                            .contentRef?
+                            .replacingOccurrences(of: "embed:", with: "")
+                        try? self.removeEmbed(nodeID: id)
+                        onRemove(durableID ?? id)
+                    }
+                }
+            )
+        )
+    }
+
     func removeEmbed(nodeID: String) throws {
         try controller.removeEmbed(id: nodeID)
         publishControllerState()

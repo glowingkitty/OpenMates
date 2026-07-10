@@ -699,7 +699,7 @@ final class ChatViewModel: ObservableObject {
                 composerEmbeds: composerEmbeds
             )
             let result = try await sendPipeline.sendUserMessage(
-                content: contentWithComposerEmbedReferences(content, embeds: composerEmbeds),
+                content: content,
                 in: currentChat,
                 existingMessages: allMessages,
                 wsManager: wsManager,
@@ -1708,7 +1708,7 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Attachment upload
 
     @discardableResult
-    func uploadAttachment(data: Data, filename: String) async -> UploadFileResponse? {
+    func uploadAttachment(data: Data, filename: String) async -> ComposerPendingEmbed? {
         guard let chatId = chat?.id else { return nil }
         guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
@@ -1716,10 +1716,9 @@ final class ChatViewModel: ObservableObject {
         }
         let safeUpload = redactedUploadContentIfNeeded(data, filename: filename)
         if let textContent = safeUpload.redactedText ?? String(data: data, encoding: .utf8), isSupportedPIIRedactableTextFile(filename) {
-            registerPendingComposerEmbed(
+            return registerPendingComposerEmbed(
                 .document(filename: filename, textContent: textContent, piiMappings: safeUpload.piiMappings)
             )
-            return nil
         }
         let uploadId = UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
@@ -1731,7 +1730,7 @@ final class ChatViewModel: ObservableObject {
             contentType: Self.contentType(for: filename, fallback: "application/octet-stream"),
             markFinishedOnSuccess: false
         ) else { return nil }
-        registerPendingComposerEmbed(
+        let embed = registerPendingComposerEmbed(
             upload,
             localData: safeUpload.data,
             transcription: nil,
@@ -1740,7 +1739,7 @@ final class ChatViewModel: ObservableObject {
             textContent: safeUpload.redactedText
         )
         PendingUploadStore.shared.markFinished(id: uploadId)
-        return upload
+        return embed
     }
 
     private struct RedactedUploadContent {
@@ -1782,7 +1781,7 @@ final class ChatViewModel: ObservableObject {
         return supportedExtensions.contains(ext)
     }
 
-    func uploadRecording(url: URL, duration: TimeInterval) async -> String? {
+    func uploadRecording(url: URL, duration: TimeInterval) async -> ComposerPendingEmbed? {
         guard let chatId = chat?.id else { return nil }
         guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
@@ -1833,7 +1832,7 @@ final class ChatViewModel: ObservableObject {
                 body: request
             )
             let transcription = response.data.results.first?.results.first
-            registerPendingComposerEmbed(
+            let embed = registerPendingComposerEmbed(
                 upload,
                 localData: data,
                 transcription: transcription,
@@ -1842,7 +1841,7 @@ final class ChatViewModel: ObservableObject {
                 textContent: nil
             )
             PendingUploadStore.shared.markFinished(id: uploadId)
-            return transcription?.displayTranscript
+            return embed
         } catch {
             print("[Chat] Recording transcription error: \(error)")
             PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
@@ -1881,21 +1880,21 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    func uploadFile(url: URL) async {
+    func uploadFile(url: URL) async -> ComposerPendingEmbed? {
         if let chatId = chat?.id, AnonymousFreeUsageService.shared.isAnonymousChat(chatId) {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
-            return
+            return nil
         }
-        guard let data = try? Data(contentsOf: url) else { return }
-        await uploadAttachment(data: data, filename: url.lastPathComponent)
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return await uploadAttachment(data: data, filename: url.lastPathComponent)
     }
 
-    func uploadFile(data: Data, filename: String) async {
+    func uploadFile(data: Data, filename: String) async -> ComposerPendingEmbed? {
         if let chatId = chat?.id, AnonymousFreeUsageService.shared.isAnonymousChat(chatId) {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
-            return
+            return nil
         }
-        await uploadAttachment(data: data, filename: filename)
+        return await uploadAttachment(data: data, filename: filename)
     }
 
     func removePendingComposerEmbed(id: String) {
@@ -1903,8 +1902,8 @@ final class ChatViewModel: ObservableObject {
     }
 
     #if DEBUG
-    func seedUITestPendingComposerEmbed() {
-        guard pendingComposerEmbeds.isEmpty else { return }
+    func seedUITestPendingComposerEmbed() -> ComposerPendingEmbed? {
+        guard pendingComposerEmbeds.isEmpty else { return pendingComposerEmbeds.first }
         let upload = UploadFileResponse(
             embedId: "ui-test-pending-image",
             filename: "ui-test-image.png",
@@ -1926,7 +1925,7 @@ final class ChatViewModel: ObservableObject {
             pageCount: nil,
             deduplicated: true
         )
-        registerPendingComposerEmbed(
+        return registerPendingComposerEmbed(
             upload,
             localData: Data(repeating: 0, count: 128),
             transcription: nil,
@@ -1944,7 +1943,7 @@ final class ChatViewModel: ObservableObject {
         duration: TimeInterval?,
         piiMappings: [PIIMapping],
         textContent: String?
-    ) {
+    ) -> ComposerPendingEmbed {
         let embed = ComposerPendingEmbed.from(
             upload: upload,
             localData: localData,
@@ -1953,23 +1952,18 @@ final class ChatViewModel: ObservableObject {
             piiMappings: piiMappings,
             textContent: textContent
         )
-        registerPendingComposerEmbed(embed)
+        return registerPendingComposerEmbed(embed)
     }
 
-    private func registerPendingComposerEmbed(_ embed: ComposerPendingEmbed) {
+    @discardableResult
+    private func registerPendingComposerEmbed(_ embed: ComposerPendingEmbed) -> ComposerPendingEmbed {
         pendingComposerEmbeds.removeAll { $0.id == embed.id }
         pendingComposerEmbeds.append(embed)
         embedRecords[embed.record.id] = embed.record
         if let chatId = chat?.id {
             chatStore?.upsertEmbeds([embed.record], for: chatId)
         }
-    }
-
-    private func contentWithComposerEmbedReferences(_ content: String, embeds: [ComposerPendingEmbed]) -> String {
-        guard !embeds.isEmpty else { return content }
-        let references = embeds.map(\.markdownReference).joined(separator: "\n")
-        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? references : "\(trimmed)\n\n\(references)"
+        return embed
     }
 
     private static func contentType(for filename: String, fallback: String) -> String {

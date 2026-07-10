@@ -301,7 +301,7 @@ struct ChatView: View {
             CameraCaptureView(
                 onCapture: { data, filename in
                     showCameraCapture = false
-                    Task { await viewModel.uploadAttachment(data: data, filename: filename) }
+                    enqueueAttachmentUpload(data: data, filename: filename)
                 },
                 onCancel: { showCameraCapture = false }
             )
@@ -326,7 +326,9 @@ struct ChatView: View {
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed") {
-                viewModel.seedUITestPendingComposerEmbed()
+                if let embed = viewModel.seedUITestPendingComposerEmbed() {
+                    insertResolvedUITestEmbed(embed)
+                }
             }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay") {
                 micPermissionState = .granted
@@ -1305,7 +1307,7 @@ struct ChatView: View {
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: sendMessage,
-                inlineFieldContent: pendingComposerInlineFieldContent
+                inlineFieldContent: nil
             ) {
                 PIIWarningBanner(matches: activePIIMatches) {
                     piiExclusions.formUnion(detectedPIIMatches.map(\.id))
@@ -1348,10 +1350,10 @@ struct ChatView: View {
                 AttachmentPicker(
                     isPresented: $showAttachmentMenu,
                     onImageSelected: { data, filename in
-                        Task { await viewModel.uploadAttachment(data: data, filename: filename) }
+                        enqueueAttachmentUpload(data: data, filename: filename)
                     },
                     onFileSelected: { data, filename in
-                        Task { await viewModel.uploadFile(data: data, filename: filename) }
+                        enqueueAttachmentUpload(data: data, filename: filename)
                     }
                 )
                 .help(Text(AppStrings.attachFiles))
@@ -1384,12 +1386,12 @@ struct ChatView: View {
                 }
                 #endif
 
-                if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !viewModel.isStreaming {
+                if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerSession.hasBlockingEmbeds && !viewModel.isStreaming {
                     recordActionControls
                 } else {
                     MessageComposerSendButton(
                         title: AppStrings.sendAction,
-                        disabled: messageText.isEmpty && !viewModel.hasPendingComposerEmbeds,
+                        disabled: composerSession.hasBlockingEmbeds || (messageText.isEmpty && !viewModel.hasPendingComposerEmbeds),
                         accessibilityLabel: AppStrings.sendMessage,
                         action: sendMessage
                     )
@@ -1429,22 +1431,6 @@ struct ChatView: View {
         .frame(maxWidth: MessageComposerMetric.mainAppMaxWidth)
     }
 
-    private var pendingComposerInlineFieldContent: AnyView? {
-        if viewModel.hasPendingComposerEmbeds {
-            return AnyView(PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
-                viewModel.removePendingComposerEmbed(id: embed.id)
-            })
-        }
-
-        #if DEBUG
-        if shouldShowUITestPendingComposerEmbedFallback {
-            return AnyView(PendingComposerEmbedsList(embeds: [.uiTestFixture]) { _ in })
-        }
-        #endif
-
-        return nil
-    }
-
     private func composerOverlayView() -> AnyView? {
         #if DEBUG
         if composerOverlay == nil, isUITestRecordingOverlayForced {
@@ -1470,7 +1456,7 @@ struct ChatView: View {
                 SketchComposerOverlay(
                     onSave: { data, filename in
                         self.composerOverlay = nil
-                        Task { await viewModel.uploadAttachment(data: data, filename: filename) }
+                        enqueueAttachmentUpload(data: data, filename: filename)
                     },
                     onCancel: { self.composerOverlay = nil }
                 )
@@ -1495,7 +1481,7 @@ struct ChatView: View {
                     self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
                     Task {
-                        await viewModel.uploadRecording(url: url, duration: composerRecorder.duration)
+                        await enqueueRecordingUpload(url: url, duration: composerRecorder.duration)
                     }
                 },
                 onCancel: {
@@ -1539,12 +1525,6 @@ struct ChatView: View {
         #endif
     }
 
-    #if DEBUG
-    private var shouldShowUITestPendingComposerEmbedFallback: Bool {
-        ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed")
-    }
-    #endif
-
     private var newChatInlineButton: some View {
         Button {
             openNewChat()
@@ -1569,6 +1549,122 @@ struct ChatView: View {
         .help(Text(AppStrings.newChat))
         .accessibilityLabel(AppStrings.newChat)
         .accessibilityIdentifier("new-chat-button")
+    }
+
+    private func enqueueAttachmentUpload(data: Data, filename: String) {
+        let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: composerEmbedType(for: filename),
+                title: filename
+            )
+            try composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.uploading.rawValue)
+            try composerSession.configureEmbedActions(
+                nodeID: nodeID,
+                onOpen: { _ in },
+                onRetry: { _ in
+                    Task { @MainActor in retryAttachmentUpload(nodeID: nodeID, data: data, filename: filename) }
+                },
+                onRemove: { durableID in viewModel.removePendingComposerEmbed(id: durableID) }
+            )
+        } catch {
+            NativeDiagnostics.error("Composer attachment insertion failed: \(type(of: error))", category: "apple_composer")
+            return
+        }
+
+        Task {
+            guard let embed = await viewModel.uploadAttachment(data: data, filename: filename) else {
+                try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+                return
+            }
+            resolveComposerEmbed(nodeID: nodeID, embed: embed)
+        }
+    }
+
+    private func retryAttachmentUpload(nodeID: String, data: Data, filename: String) {
+        try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.uploading.rawValue)
+        Task {
+            guard let embed = await viewModel.uploadAttachment(data: data, filename: filename) else {
+                try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+                return
+            }
+            resolveComposerEmbed(nodeID: nodeID, embed: embed)
+        }
+    }
+
+    private func enqueueRecordingUpload(url: URL, duration: TimeInterval) async {
+        let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: "recording",
+                title: url.lastPathComponent
+            )
+            try composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.transcribing.rawValue)
+            try composerSession.configureEmbedActions(
+                nodeID: nodeID,
+                onOpen: { _ in },
+                onRetry: { _ in
+                    Task { @MainActor in await retryRecordingUpload(nodeID: nodeID, url: url, duration: duration) }
+                },
+                onRemove: { durableID in viewModel.removePendingComposerEmbed(id: durableID) }
+            )
+        } catch {
+            NativeDiagnostics.error("Composer recording insertion failed: \(type(of: error))", category: "apple_composer")
+            return
+        }
+
+        guard let embed = await viewModel.uploadRecording(url: url, duration: duration) else {
+            try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+            return
+        }
+        resolveComposerEmbed(nodeID: nodeID, embed: embed)
+    }
+
+    private func retryRecordingUpload(nodeID: String, url: URL, duration: TimeInterval) async {
+        try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.transcribing.rawValue)
+        guard let embed = await viewModel.uploadRecording(url: url, duration: duration) else {
+            try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+            return
+        }
+        resolveComposerEmbed(nodeID: nodeID, embed: embed)
+    }
+
+    private func resolveComposerEmbed(nodeID: String, embed: ComposerPendingEmbed) {
+        let status = AppleComposerEmbedLifecycleState(rawValue: embed.status)?.rawValue
+            ?? AppleComposerEmbedLifecycleState.finished.rawValue
+        do {
+            try composerSession.resolveEmbed(
+                nodeID: nodeID,
+                durableEmbedID: embed.id,
+                referenceType: embed.referenceType,
+                status: status
+            )
+        } catch {
+            NativeDiagnostics.error("Composer attachment resolution failed: \(type(of: error))", category: "apple_composer")
+        }
+    }
+
+    #if DEBUG
+    private func insertResolvedUITestEmbed(_ embed: ComposerPendingEmbed) {
+        let nodeID = "composer:embed:ui-test"
+        do {
+            try composerSession.insertPendingEmbed(nodeID: nodeID, embedType: "image", title: embed.filename)
+            resolveComposerEmbed(nodeID: nodeID, embed: embed)
+        } catch {
+            NativeDiagnostics.error("Composer UI fixture insertion failed: \(type(of: error))", category: "apple_composer")
+        }
+    }
+    #endif
+
+    private func composerEmbedType(for filename: String) -> String {
+        switch URL(fileURLWithPath: filename).pathExtension.lowercased() {
+        case "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "svg": return "image"
+        case "pdf": return "pdf"
+        case "m4a", "mp4", "webm", "ogg", "mp3", "wav", "aac": return "recording"
+        default: return "docs-doc"
+        }
     }
 
     private var useCompactInlineNewChat: Bool {
@@ -1723,7 +1819,7 @@ struct ChatView: View {
             recordStartedFromKeyboard = false
             recordDragOffsetX = 0
             Task {
-                await viewModel.uploadRecording(url: url, duration: composerRecorder.duration)
+                await enqueueRecordingUpload(url: url, duration: composerRecorder.duration)
             }
             return
         }
@@ -1827,8 +1923,9 @@ struct ChatView: View {
     }
 
     private func sendMessage() {
-        let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty || viewModel.hasPendingComposerEmbeds else { return }
+        let text = messageText
+        guard !composerSession.hasBlockingEmbeds else { return }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.hasPendingComposerEmbeds else { return }
         let excludedIds = piiExclusions
         let pendingChatId = viewModel.chat?.id
         let blockingUploadIds = pendingChatId.flatMap { chatId -> Set<String>? in
@@ -1836,6 +1933,7 @@ struct ChatView: View {
             return Set(pendingUploads.uploadsForChat(chatId).map(\.id))
         }
         messageText = ""
+        viewModel.error = nil
         detectedPIIMatches = []
         piiExclusions = []
         mentionQuery = nil
@@ -1859,6 +1957,9 @@ struct ChatView: View {
                 piiMappings: piiMappings,
                 broadcastToSiblings: broadcastToSiblingSubChats
             )
+            if viewModel.error != nil {
+                messageText = text
+            }
         }
     }
 
