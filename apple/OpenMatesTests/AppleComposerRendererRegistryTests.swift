@@ -58,13 +58,17 @@ final class AppleComposerRendererRegistryTests: XCTestCase {
             Set(registry.registeredTypes).union(registry.notApplicableTypes),
             expectedTypes
         )
-        XCTAssertEqual(registry.notApplicableTypes, ["focus-mode-activation"])
-        XCTAssertTrue(Set(registry.registeredTypes).isDisjoint(with: registry.notApplicableTypes))
+        XCTAssertTrue(registry.notApplicableTypes.isEmpty)
+        XCTAssertEqual(Set(registry.registeredTypes), expectedTypes)
     }
 
     func testEveryRegisteredTypeHasExplicitFamilyAndAllLifecycleStates() throws {
         let registry = AppleComposerRendererRegistry.shared
         let expectedStates = Set(AppleComposerEmbedLifecycleState.allCases)
+        XCTAssertEqual(
+            Set(AppleComposerEmbedLifecycleState.allCases.map(\.rawValue)),
+            ["draft", "uploading", "processing", "transcribing", "finished", "error", "cancelled"]
+        )
 
         for embedType in registry.registeredTypes {
             let descriptor = try XCTUnwrap(registry.descriptor(for: embedType), embedType)

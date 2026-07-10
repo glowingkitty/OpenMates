@@ -20,14 +20,15 @@ final class NativeComposerInlineEmbedUITests: XCTestCase {
 
         let gallery = app.descendants(matching: .any)["dev-native-composer-embed-gallery"]
         XCTAssertTrue(gallery.waitForExistence(timeout: 8))
-        XCTAssertEqual(gallery.value as? String, "53")
+        XCTAssertEqual(gallery.value as? String, "54")
 
         assertVisible(app: app, identifier: "native-composer-preview-recording-finished")
         assertVisible(app: app, identifier: "native-composer-preview-recording-transcribing")
-        assertVisible(app: app, identifier: "native-composer-preview-app-skill-use-queued")
+        assertVisible(app: app, identifier: "native-composer-preview-app-skill-use-draft")
         assertVisible(app: app, identifier: "native-composer-preview-code-repo-group-cancelled")
         assertVisible(app: app, identifier: "native-composer-preview-electronics-pcb-schematic-error")
         assertVisible(app: app, identifier: "native-composer-preview-fitness-location-uploading")
+        assertVisible(app: app, identifier: "native-composer-preview-focus-mode-activation-finished")
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "{\"")).firstMatch.exists)
         XCTAssertFalse(app.tables.firstMatch.exists)
 
