@@ -67,7 +67,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: a8e3ca9
+  subject_commit: fe85386
 
 approvals:
   product_contract:
@@ -177,7 +177,7 @@ acceptance_criteria:
     scenario: S-2
     text: Release notes preserve detailed user-facing milestone highlights, list only verified npm, PyPI, and GHCR artifacts, and omit unavailable channels without mentioning Apple or VS Code distribution.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CATALOG-UNIT]
@@ -256,11 +256,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest scripts/tests/test_release_catalog.py
+        run_id: local:pytest-release-catalog-detailed-notes-green
+        subject_commit: fe85386
+        timestamp: "2026-07-10T14:30:00Z"
   - id: T-CATALOG-AUDIT
     type: unit
     file: scripts/release_catalog.py
@@ -286,7 +286,7 @@ tests:
         status: passed
         command: python3 scripts/release_catalog.py audit
         run_id: local:release-catalog-audit-green
-        subject_commit: a8e3ca9
+        subject_commit: fe85386
         timestamp: "2026-07-10T11:30:08Z"
   - id: T-HISTORICAL-DRAFTS
     type: manual
@@ -308,7 +308,7 @@ tests:
         status: passed
         command: gh release view v0.10.0-alpha --json tagName,targetCommitish,isDraft,isPrerelease
         run_id: manual:historical-release-drafts
-        subject_commit: a8e3ca9
+        subject_commit: fe85386
         reason: Direct GitHub CLI inspection confirmed each draft, prerelease flag, and immutable targetCommitish.
         timestamp: "2026-07-10T11:30:08Z"
 
