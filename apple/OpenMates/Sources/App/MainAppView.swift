@@ -4427,7 +4427,7 @@ struct NewChatWelcomeView: View {
     let onInspirationViewed: (String) -> Void
     let onOpenAuth: () -> Void
     var canSendAnonymously = false
-    @State private var messageText = ""
+    @StateObject private var composerSession = NativeComposerSession()
     @State private var suggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var hiddenSuggestionIds = Set<String>()
     @State private var inspirationIndex = 0
@@ -4457,6 +4457,11 @@ struct NewChatWelcomeView: View {
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @StateObject private var composerRecorder = VoiceRecorder()
     @FocusState private var isFocused: Bool
+
+    private var messageText: String {
+        get { composerSession.canonicalMarkdown }
+        nonmutating set { composerSession.replaceMarkdown(newValue) }
+    }
 
     private static let inspirationAutoRotationInterval: TimeInterval = 20
 
@@ -4623,7 +4628,7 @@ struct NewChatWelcomeView: View {
                 }
 
                 WelcomeComposer(
-                    text: $messageText,
+                    session: composerSession,
                     isActivated: $isComposerActivated,
                     isExpanded: $isComposerExpanded,
                     isFocused: $isFocused,
@@ -5823,7 +5828,7 @@ private struct OverflowCard: View {
 }
 
 private struct WelcomeComposer: View {
-    @Binding var text: String
+    @ObservedObject var session: NativeComposerSession
     @Binding var isActivated: Bool
     @Binding var isExpanded: Bool
     @FocusState.Binding var isFocused: Bool
@@ -5850,6 +5855,8 @@ private struct WelcomeComposer: View {
     let onRecordEnded: () -> Void
     let onDismiss: () -> Void
     let overlayContent: AnyView?
+
+    private var text: String { session.canonicalMarkdown }
 
     private var hasContent: Bool {
         WelcomeScreenState.shouldShowInFieldSendButton(inputText: text)
@@ -5878,7 +5885,7 @@ private struct WelcomeComposer: View {
             PIIHighlightStrip(matches: piiMatches, onExclude: onExcludePII)
 
             MessageComposerView(
-                text: $text,
+                session: session,
                 isFocused: $isFocused,
                 compact: !isOpen,
                 placeholder: AppStrings.typeMessage,

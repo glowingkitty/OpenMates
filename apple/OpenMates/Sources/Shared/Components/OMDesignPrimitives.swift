@@ -48,7 +48,7 @@ extension EnvironmentValues {
 // `.message-field`, `.message-field.inline-compact`, and ActionButtons slot.
 
 struct OMMessageInputField<ActionButtons: View>: View {
-    @Binding var text: String
+    @ObservedObject var session: NativeComposerSession
     let isFocused: FocusState<Bool>.Binding
     let compact: Bool
     let placeholder: String
@@ -73,7 +73,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
     private var resolvedFieldHeight: CGFloat? {
         if compact { return compactHeight }
         if inlineFieldContent != nil { return nil }
-        if text.isEmpty && expandedMinHeight <= MessageComposerMetric.focusedEmptyHeight {
+        if session.canonicalMarkdown.isEmpty && expandedMinHeight <= MessageComposerMetric.focusedEmptyHeight {
             return MessageComposerMetric.focusedEmptyHeight
         }
         return nil
@@ -109,13 +109,13 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 }
 
                 NativeComposerEditorView(
-                    canonicalMarkdown: $text,
+                    session: session,
                     isFocused: isFocused,
                     accessibilityHint: accessibilityHint,
                     onSubmit: onSubmit
                 )
                 .overlay(alignment: compact ? .center : .topLeading) {
-                    if text.isEmpty {
+                    if session.canonicalMarkdown.isEmpty {
                         Text(placeholder)
                             .font(.omP)
                             .foregroundStyle(Color.fontSecondary)

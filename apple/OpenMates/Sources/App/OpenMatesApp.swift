@@ -415,7 +415,7 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
     }
 
     @Published var selectedTab: Tab = .chats
-    @Published var message = ""
+    let composerSession = NativeComposerSession()
     @Published var recentChats: [BackgroundChatSender.DestinationChat] = []
     @Published var selectedChat: BackgroundChatSender.DestinationChat?
     @Published var draftDestination: BackgroundChatSender.DestinationChat?
@@ -424,6 +424,11 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
     @Published var isLoadingRecentChats = false
     @Published var isSending = false
     @Published var error: String?
+
+    var message: String {
+        get { composerSession.canonicalMarkdown }
+        set { composerSession.replaceMarkdown(newValue) }
+    }
 
     private let sender = BackgroundChatSender()
 
@@ -798,7 +803,7 @@ struct MacMenuBarQuickCaptureView: View {
     private var composer: some View {
         VStack(spacing: 0) {
             MessageComposerView(
-                text: $viewModel.message,
+                session: viewModel.composerSession,
                 isFocused: $inputFocused,
                 compact: false,
                 placeholder: AppStrings.whatDoYouNeedHelpWith,

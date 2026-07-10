@@ -124,7 +124,7 @@ struct DevNativeComposerEmbedGalleryView: View {
 #if !os(macOS)
 struct DevQuickCaptureAttachmentPreviewView: View {
     @State private var selectedTab = "chats"
-    @State private var messageText = ""
+    @StateObject private var composerSession = NativeComposerSession()
     @FocusState private var inputFocused: Bool
 
     var body: some View {
@@ -165,7 +165,7 @@ struct DevQuickCaptureAttachmentPreviewView: View {
 
             VStack(spacing: 0) {
                 MessageComposerView(
-                    text: $messageText,
+                    session: composerSession,
                     isFocused: $inputFocused,
                     compact: false,
                     placeholder: AppStrings.whatDoYouNeedHelpWith,

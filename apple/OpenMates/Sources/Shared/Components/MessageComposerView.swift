@@ -65,7 +65,7 @@ enum MessageComposerAction: Equatable {
 }
 
 struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionButtons: View>: View {
-    @Binding var text: String
+    @ObservedObject var session: NativeComposerSession
     let isFocused: FocusState<Bool>.Binding
     var compact: Bool
     var placeholder: String
@@ -86,7 +86,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
             preFieldContent()
 
             OMMessageInputField(
-                text: $text,
+                session: session,
                 isFocused: isFocused,
                 compact: compact,
                 placeholder: placeholder,
@@ -112,7 +112,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
 
 extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent == EmptyView {
     init(
-        text: Binding<String>,
+        session: NativeComposerSession,
         isFocused: FocusState<Bool>.Binding,
         compact: Bool,
         placeholder: String,
@@ -126,7 +126,7 @@ extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent
         @ViewBuilder actionButtons: @escaping () -> ActionButtons
     ) {
         self.init(
-            text: text,
+            session: session,
             isFocused: isFocused,
             compact: compact,
             placeholder: placeholder,
@@ -147,7 +147,7 @@ extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent
 
 extension MessageComposerView where PreFieldContent == EmptyView {
     init(
-        text: Binding<String>,
+        session: NativeComposerSession,
         isFocused: FocusState<Bool>.Binding,
         compact: Bool,
         placeholder: String,
@@ -162,7 +162,7 @@ extension MessageComposerView where PreFieldContent == EmptyView {
         @ViewBuilder actionButtons: @escaping () -> ActionButtons
     ) {
         self.init(
-            text: text,
+            session: session,
             isFocused: isFocused,
             compact: compact,
             placeholder: placeholder,
@@ -183,7 +183,7 @@ extension MessageComposerView where PreFieldContent == EmptyView {
 
 extension MessageComposerView where OverlayContent == EmptyView {
     init(
-        text: Binding<String>,
+        session: NativeComposerSession,
         isFocused: FocusState<Bool>.Binding,
         compact: Bool,
         placeholder: String,
@@ -198,7 +198,7 @@ extension MessageComposerView where OverlayContent == EmptyView {
         @ViewBuilder actionButtons: @escaping () -> ActionButtons
     ) {
         self.init(
-            text: text,
+            session: session,
             isFocused: isFocused,
             compact: compact,
             placeholder: placeholder,

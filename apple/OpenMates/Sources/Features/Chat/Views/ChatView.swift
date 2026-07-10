@@ -132,7 +132,7 @@ struct ChatView: View {
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @StateObject private var enhancedPIIModelController = EnhancedPIIModelDownloadController.shared
     @StateObject private var enhancedPIIRecommendationStore = EnhancedPIIRecommendationStore.shared
-    @State private var messageText = ""
+    @StateObject private var composerSession = NativeComposerSession()
     @State private var selectedEmbed: EmbedRecord?
     @State private var showEmbedFullscreen = false
     @State private var showReminder = false
@@ -173,6 +173,11 @@ struct ChatView: View {
     @FocusState private var isInputFocused: Bool
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private var messageText: String {
+        get { composerSession.canonicalMarkdown }
+        nonmutating set { composerSession.replaceMarkdown(newValue) }
+    }
 
     /// True for demo/intro/legal chats that show "New chat" CTA instead of input field
     private var isDemoOrLegalChat: Bool {
@@ -1292,7 +1297,7 @@ struct ChatView: View {
         let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
         return VStack(spacing: .spacing2) {
             MessageComposerView(
-                text: $messageText,
+                session: composerSession,
                 isFocused: $isInputFocused,
                 compact: compact && !overlayActive,
                 placeholder: placeholder,
