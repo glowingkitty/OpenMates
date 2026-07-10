@@ -115,7 +115,7 @@ final class ComposerEmbedLifecycle {
         return .applied(updated)
     }
 
-    static func isBlocking(_ state: AppleComposerEmbedLifecycleState) -> Bool {
+    nonisolated static func isBlocking(_ state: AppleComposerEmbedLifecycleState) -> Bool {
         switch state {
         case .draft, .uploading, .transcribing, .error:
             true
