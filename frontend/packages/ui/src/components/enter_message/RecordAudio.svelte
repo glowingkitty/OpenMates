@@ -86,8 +86,9 @@
     const WAVEFORM_SAMPLE_COUNT = 64;
     const WAVEFORM_FFT_SIZE = 256;
     const WAVEFORM_SAMPLE_INTERVAL_MS = 50;
-    const WAVEFORM_NOISE_FLOOR = 0.01;
-    const WAVEFORM_MAX_RMS = 0.35;
+    const WAVEFORM_NOISE_FLOOR = 0.005;
+    const WAVEFORM_MIN_DECIBELS = -46;
+    const WAVEFORM_MAX_DECIBELS = -18;
     const WAVEFORM_MIN_VISIBLE_LEVEL = 0.04;
 
     let waveformSamples = $state<number[]>(createEmptyWaveform());
@@ -361,7 +362,13 @@
         }
 
         const rms = Math.sqrt(sumOfSquares / timeDomainData.length);
-        return Math.min(1, Math.max(0, (rms - WAVEFORM_NOISE_FLOOR) / (WAVEFORM_MAX_RMS - WAVEFORM_NOISE_FLOOR)));
+        if (rms <= WAVEFORM_NOISE_FLOOR) return 0;
+
+        const decibels = 20 * Math.log10(rms);
+        return Math.min(
+            1,
+            Math.max(0, (decibels - WAVEFORM_MIN_DECIBELS) / (WAVEFORM_MAX_DECIBELS - WAVEFORM_MIN_DECIBELS))
+        );
     }
 
     function stopWaveform() {
