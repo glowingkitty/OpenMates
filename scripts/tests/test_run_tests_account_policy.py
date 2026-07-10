@@ -134,6 +134,21 @@ def test_dispatch_run_matching_uses_unique_token():
     assert run_tests._matching_dispatched_run_id(runs, "rt-missing") is None
 
 
+def test_full_git_sha_expands_short_display_ref(monkeypatch):
+    run_tests = load_run_tests_module()
+    full_sha = "a" * 40
+    commands: list[list[str]] = []
+
+    def fake_check_output(command, **_kwargs):
+        commands.append(command)
+        return full_sha
+
+    monkeypatch.setattr(run_tests.subprocess, "check_output", fake_check_output)
+
+    assert run_tests._full_git_sha("abc123") == full_sha
+    assert commands == [["git", "-C", str(PROJECT_ROOT), "rev-parse", "abc123"]]
+
+
 def test_dispatch_passes_gated_vercel_url_to_workflow(monkeypatch):
     run_tests = load_run_tests_module()
     commands: list[list[str]] = []

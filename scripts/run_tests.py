@@ -306,6 +306,18 @@ def _git_info() -> tuple[str, str]:
     return sha, branch
 
 
+def _full_git_sha(git_ref: str) -> str:
+    """Resolve a display ref to the full commit SHA required by actions/checkout."""
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(PROJECT_ROOT), "rev-parse", git_ref],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return git_ref
+
+
 def _read_env_file() -> dict[str, str]:
     """Read .env file from project root."""
     env_path = PROJECT_ROOT / ".env"
@@ -5110,7 +5122,7 @@ class TestOrchestrator:
 
         client = GitHubActionsClient(
             playwright_base_url=playwright_base_url,
-            git_sha=self.git_sha if self.environment == "development" else None,
+            git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
         )
 
         blocked_preflight_results: list[SpecResult] = []
