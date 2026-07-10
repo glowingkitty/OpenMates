@@ -93,7 +93,7 @@ final class DraftService: ObservableObject {
     private let repository: any ComposerDraftRepository
     private let legacyStore: any LegacyComposerDraftStore
     private let masterKeyProvider: () async throws -> SymmetricKey?
-    private let crypto = CryptoManager.shared
+    private let crypto: CryptoManager
 
     init(
         repository: any ComposerDraftRepository,
@@ -103,6 +103,7 @@ final class DraftService: ObservableObject {
         self.repository = repository
         self.legacyStore = legacyStore
         self.masterKeyProvider = masterKeyProvider
+        self.crypto = CryptoManager.shared
     }
 
     func saveDraft(
