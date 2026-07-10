@@ -235,6 +235,32 @@ enum ComposerMarkdownAdapter {
         to nodes: inout [ComposerNodeV1],
         counters: inout NodeCounters
     ) {
+        let opaquePattern = #"```[\s\S]*?```|:::[^\n]*\n[\s\S]*?\n:::"#
+        guard let opaqueRegex = try? NSRegularExpression(pattern: opaquePattern) else {
+            appendMentionTokens(source, to: &nodes, counters: &counters)
+            return
+        }
+
+        let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
+        var cursor = source.startIndex
+        for match in opaqueRegex.matches(in: source, range: fullRange) {
+            guard let matchRange = Range(match.range, in: source) else { continue }
+            appendMentionTokens(
+                String(source[cursor..<matchRange.lowerBound]),
+                to: &nodes,
+                counters: &counters
+            )
+            appendText(String(source[matchRange]), to: &nodes, counters: &counters)
+            cursor = matchRange.upperBound
+        }
+        appendMentionTokens(String(source[cursor...]), to: &nodes, counters: &counters)
+    }
+
+    private static func appendMentionTokens(
+        _ source: String,
+        to nodes: inout [ComposerNodeV1],
+        counters: inout NodeCounters
+    ) {
         let pattern = #"@(best-model|ai-model|mate|skill|focus|project|memory):([a-zA-Z0-9_.-]+(?::[a-zA-Z0-9_.-]+)*)"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else {
             appendText(source, to: &nodes, counters: &counters)

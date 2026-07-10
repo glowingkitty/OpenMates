@@ -176,6 +176,23 @@ final class NativeComposerControllerTests: XCTestCase {
         ))
     }
 
+    func testDuplicateInitialNodeIDsAreRejected() {
+        let document = ComposerDocumentV1(version: 1, nodes: [
+            .text(id: "composer:text:0", source: "A"),
+            .text(id: "composer:text:0", source: "B"),
+        ])
+
+        XCTAssertThrowsError(try NativeComposerController(
+            document: document,
+            selection: NSRange(location: 0, length: 0)
+        )) { error in
+            XCTAssertEqual(
+                error as? NativeComposerControllerError,
+                .duplicateNodeID("composer:text:0")
+            )
+        }
+    }
+
     private func makeEmbeddedController() throws -> NativeComposerController {
         let controller = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("BeforeAfter"),

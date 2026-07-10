@@ -176,6 +176,10 @@ final class NativeComposerController {
     init(document: ComposerDocumentV1, selection: NSRange) throws {
         self.document = document
         self.selection = selection
+        var nodeIDs = Set<String>()
+        for node in document.nodes where !nodeIDs.insert(node.id).inserted {
+            throw NativeComposerControllerError.duplicateNodeID(node.id)
+        }
         guard isValid(range: selection) else {
             throw NativeComposerControllerError.invalidSelection(selection)
         }

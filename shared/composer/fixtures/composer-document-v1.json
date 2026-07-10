@@ -182,6 +182,44 @@
         ]
       },
       "selection_fixtures": []
+    },
+    {
+      "id": "literal-mention-in-opaque-markdown",
+      "canonical_markdown": "```text\n@mate:not-a-mention\n```\n:::future\n@mate:also-literal\n:::\nAfter @mate:sophia",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "composer:text:0",
+            "source": "```text\n@mate:not-a-mention\n```"
+          },
+          {
+            "kind": "text",
+            "id": "composer:text:1",
+            "source": "\n"
+          },
+          {
+            "kind": "text",
+            "id": "composer:text:2",
+            "source": ":::future\n@mate:also-literal\n:::"
+          },
+          {
+            "kind": "text",
+            "id": "composer:text:3",
+            "source": "\nAfter "
+          },
+          {
+            "kind": "mention",
+            "id": "composer:mention:0",
+            "mentionKind": "mate",
+            "targetId": "sophia",
+            "canonicalSyntax": "@mate:sophia",
+            "displayLabel": "@Sophia"
+          }
+        ]
+      },
+      "selection_fixtures": []
     }
   ],
   "invalid_documents": [

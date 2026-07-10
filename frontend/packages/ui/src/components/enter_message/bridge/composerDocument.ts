@@ -84,6 +84,7 @@ export class ComposerDocumentError extends Error {
 const EMBED_FENCE_PATTERN = /```(json_embed|json)\n([\s\S]*?)\n```/g;
 const MENTION_PATTERN =
   /@(best-model|ai-model|mate|skill|focus|project|memory):([a-zA-Z0-9_.-]+(?::[a-zA-Z0-9_.-]+)*)/g;
+const OPAQUE_MARKDOWN_PATTERN = /```[\s\S]*?```|:::[^\n]*\n[\s\S]*?\n:::/g;
 
 interface NodeCounters {
   text: number;
@@ -182,6 +183,23 @@ export function utf16Length(value: string): number {
 }
 
 function appendTextAndMentions(
+  source: string,
+  nodes: ComposerNodeV1[],
+  counters: NodeCounters,
+): void {
+  let cursor = 0;
+
+  OPAQUE_MARKDOWN_PATTERN.lastIndex = 0;
+  let opaqueMatch: RegExpExecArray | null;
+  while ((opaqueMatch = OPAQUE_MARKDOWN_PATTERN.exec(source)) !== null) {
+    appendMentionTokens(source.slice(cursor, opaqueMatch.index), nodes, counters);
+    appendTextNode(opaqueMatch[0], nodes, counters);
+    cursor = opaqueMatch.index + opaqueMatch[0].length;
+  }
+  appendMentionTokens(source.slice(cursor), nodes, counters);
+}
+
+function appendMentionTokens(
   source: string,
   nodes: ComposerNodeV1[],
   counters: NodeCounters,

@@ -967,7 +967,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        run_id: "local-a2cc4fb"
+        timestamp: "2026-07-09T23:50:00Z"
+        summary: Audit parsed 54 registered write-mode renderer types and failed with 52 uncovered; focused audit pytest passed 3/3.
     green_phase:
       required: true
       expected: pass
@@ -1364,8 +1368,7 @@ tasks:
       acceptance_criteria: [AC-1, AC-3, AC-7]
     expected_files:
       - apple/OpenMatesTests/NativeComposerControllerTests.swift
-      - apple/OpenMates/Sources/Shared/Composer/NativeComposerPrototype/**
-      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+      - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
     verification_ids: [T-APPLE-NATIVE-EDITOR]
     blockers: [A-2]
     dependencies: [TASK-1]
@@ -1374,7 +1377,7 @@ tasks:
 
   - id: TASK-3
     title: Generate native composer renderer coverage audit
-    status: in_progress
+    status: done
     phase: checking_assumptions
     covers:
       scenarios: [S-3, S-14]
@@ -1417,8 +1420,6 @@ tasks:
     expected_files:
       - frontend/packages/ui/src/components/enter_message/bridge/**
       - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
-      - apple/OpenMates/Sources/Shared/Composer/ComposerPositionMap.swift
-      - apple/OpenMates/Sources/Shared/Composer/ComposerMarkdownAdapter.swift
     verification_ids: [T-WEB-DOCUMENT-CONTRACT, T-APPLE-DOCUMENT-CONTRACT]
     blockers: [TASK-1]
     dependencies: [TASK-1]
