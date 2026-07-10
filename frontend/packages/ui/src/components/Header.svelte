@@ -56,9 +56,7 @@
 
     let headerDiv: HTMLElement;
 
-    // Temporary rollout gate: workspace tabs do not match the current product
-    // requirements. Flip this when the redesigned switcher is ready to ship.
-    const WORKSPACE_SWITCHER_ENABLED = false;
+    const WORKSPACE_SWITCHER_ENABLED = true;
 
     // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
     let websiteNavItems = $derived([
