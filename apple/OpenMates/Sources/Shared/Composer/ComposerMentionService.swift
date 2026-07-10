@@ -65,14 +65,14 @@ struct ComposerMentionService {
     private func canonicalSyntax(for candidate: ComposerMentionCandidate) throws -> String {
         switch candidate.kind {
         case .mate:
-            "@mate:\(candidate.targetId)"
+            return "@mate:\(candidate.targetId)"
         case .aiModel:
             guard let providerId = candidate.providerId, !providerId.isEmpty else {
                 throw ComposerMentionError.missingProviderId
             }
             return "@ai-model:\(candidate.targetId):\(providerId)"
         case .bestModel:
-            "@best-model:\(candidate.targetId)"
+            return "@best-model:\(candidate.targetId)"
         case .skill:
             guard let appId = candidate.appId, !appId.isEmpty else {
                 throw ComposerMentionError.missingAppId
@@ -84,7 +84,7 @@ struct ComposerMentionService {
             }
             return "@focus:\(appId):\(candidate.targetId)"
         case .project:
-            "@project:\(candidate.targetId):\(candidate.accessMode ?? "read")"
+            return "@project:\(candidate.targetId):\(candidate.accessMode ?? "read")"
         case .memory:
             guard let appId = candidate.appId, !appId.isEmpty else {
                 throw ComposerMentionError.missingAppId
