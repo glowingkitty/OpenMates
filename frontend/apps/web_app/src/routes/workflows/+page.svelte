@@ -1042,8 +1042,15 @@
   }
 
   .workflow-sidebar-shell {
+    width: 0;
+    flex: 0 0 0;
+    overflow: hidden;
+    transition: width var(--duration-normal) var(--easing-default), flex-basis var(--duration-normal) var(--easing-default);
+  }
+
+  .workflow-sidebar-shell.drawer-open {
     width: min(325px, 28vw);
-    flex: 0 0 min(325px, 28vw);
+    flex-basis: min(325px, 28vw);
   }
 
   @media (min-width: 1100px) {

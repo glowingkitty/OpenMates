@@ -42,10 +42,8 @@ final class WorkflowStore: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
-            async let detail = api.getWorkflow(summary.id)
-            async let history = api.listRuns(workflowId: summary.id)
-            selectedWorkflow = try await detail
-            runs = try await history
+            selectedWorkflow = try await api.getWorkflow(summary.id)
+            runs = (try? await api.listRuns(workflowId: summary.id)) ?? []
         } catch {
             NativeDiagnostics.warning("request_failed", category: "workflow_select_failed")
         }

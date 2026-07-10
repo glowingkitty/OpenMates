@@ -61,7 +61,7 @@ def _stable_json(value: Any) -> str:
 
 
 def _workflow_list_sort_key(record: dict[str, Any]) -> tuple[int, int, int]:
-    """Put due scheduled workflows first without obscuring recent manual/draft work."""
+    """Put enabled scheduled workflows first without obscuring recent manual/draft work."""
     next_run_at = record.get("next_run_at")
     if record.get("enabled") and isinstance(next_run_at, int):
         return (0, next_run_at, 0)
