@@ -74,6 +74,17 @@ struct OMMessageInputField<ActionButtons: View>: View {
         compact ? compactHeight : max(expandedMinHeight, MessageComposerMetric.expandedMaxHeight)
     }
 
+    private var resolvedFieldHeight: CGFloat {
+        if compact { return compactHeight }
+        if expandedMinHeight > MessageComposerMetric.focusedEmptyHeight {
+            return expandedMinHeight
+        }
+        if session.controller.document.nodes.contains(where: { $0.kind == "embed" }) {
+            return fieldMaxHeight
+        }
+        return MessageComposerMetric.focusedEmptyHeight
+    }
+
     private var cornerRadius: CGFloat {
         compact ? compactCornerRadius : 24
     }
@@ -139,8 +150,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
         }
         .frame(
             maxWidth: .infinity,
-            minHeight: fieldHeight,
-            maxHeight: fieldMaxHeight
+            minHeight: resolvedFieldHeight,
+            maxHeight: resolvedFieldHeight
         )
         .background(Color.greyBlue)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))

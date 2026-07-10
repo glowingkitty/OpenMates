@@ -1109,7 +1109,7 @@ struct ChatView: View {
                 inputField(
                     compact: !isInputFocused && messageText.isEmpty,
                     placeholder: AppStrings.typeFollowup,
-                    expandedMinHeight: isInputFocused ? 150 : 100
+                    expandedMinHeight: MessageComposerMetric.expandedMinHeight
                 )
             }
 
