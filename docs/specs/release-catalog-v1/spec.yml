@@ -67,7 +67,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: fe85386
+  subject_commit: ee71abc
 
 approvals:
   product_contract:
@@ -110,13 +110,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-3
-  next_action: Select and record the immutable v0.14 milestone SHA before updating its existing draft.
-  command: python3 scripts/release_catalog.py audit --tag v0.14.0-alpha
-  expected_outcome: The audit passes only after v0.14 has an annotated tag matching its catalog SHA.
-  blocker:
-    reason: v0.14 remains unanchored until a maintainer selects its exact milestone commit.
-    next_action: Record the selected immutable SHA in the milestone catalog before retagging the draft.
-  last_verified_commit: a8e3ca9
+  next_action: Review and publish the historical prerelease drafts when their copy is approved.
+  command: python3 scripts/release_catalog.py audit
+  expected_outcome: All milestone tags and registered artifacts pass provenance validation.
+  blocker: null
+  last_verified_commit: ee71abc
 
 scenarios:
   - id: S-1
@@ -258,9 +256,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_release_catalog.py
-        run_id: local:pytest-release-catalog-detailed-notes-green
-        subject_commit: fe85386
-        timestamp: "2026-07-10T14:30:00Z"
+        run_id: local:pytest-release-catalog-substantial-notes-green
+        subject_commit: ee71abc
+        timestamp: "2026-07-10T17:02:00Z"
   - id: T-CATALOG-AUDIT
     type: unit
     file: scripts/release_catalog.py
@@ -286,8 +284,8 @@ tests:
         status: passed
         command: python3 scripts/release_catalog.py audit
         run_id: local:release-catalog-audit-green
-        subject_commit: fe85386
-        timestamp: "2026-07-10T11:30:08Z"
+        subject_commit: ee71abc
+        timestamp: "2026-07-10T17:02:00Z"
   - id: T-HISTORICAL-DRAFTS
     type: manual
     covers: [AC-4]
@@ -308,9 +306,9 @@ tests:
         status: passed
         command: gh release view v0.10.0-alpha --json tagName,targetCommitish,isDraft,isPrerelease
         run_id: manual:historical-release-drafts
-        subject_commit: fe85386
-        reason: Direct GitHub CLI inspection confirmed each draft, prerelease flag, and immutable targetCommitish.
-        timestamp: "2026-07-10T11:30:08Z"
+        subject_commit: ee71abc
+        reason: Direct GitHub CLI inspection confirmed each historical draft remains unpublished and targets its immutable catalog commit.
+        timestamp: "2026-07-10T17:02:00Z"
 
 verifications:
   - id: V-HISTORICAL-DRAFTS
@@ -413,8 +411,8 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Anchor the existing v0.14 draft
-    status: blocked
-    phase: blocked
+    status: done
+    phase: working_tasks
     covers:
       scenarios: [S-4]
       acceptance_criteria: [AC-5]
@@ -427,7 +425,6 @@ tasks:
       files:
         - docs/releases/milestones.yml
       shared_files: []
-    blockers:
-      - Maintainer must select the immutable v0.14 milestone SHA instead of the current moving main target.
+    blockers: []
     follow_up_tasks: []
     independently_deployable: true
