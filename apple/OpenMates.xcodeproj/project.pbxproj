@@ -44,6 +44,8 @@
 		C0FFEE00000000000005003E /* ComposerPIIDecorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */; };
 		C0FFEE00000000000005003F /* ComposerPIIDecorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */; };
 		C0FFEE000000000000050054 /* NativeComposerSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */; };
+		C0FFEE000000000000050056 /* NativeComposerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050055 /* NativeComposerSession.swift */; };
+		C0FFEE000000000000050057 /* NativeComposerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050055 /* NativeComposerSession.swift */; };
 		C0FFEE00000000000005000E /* NativeComposerEncryptionCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */; };
 		C0FFEE00000000000005000F /* NativeComposerDraftEncryptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */; };
 		C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
@@ -898,6 +900,7 @@
 		C0FFEE00000000000005003A /* ComposerMentionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerMentionService.swift; sourceTree = "<group>"; };
 		C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerPIIDecorations.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerSessionTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050055 /* NativeComposerSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerSession.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleComposerEmbedPreview.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevChatOpeningPreviewView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOpeningScalabilityUITests.swift; sourceTree = "<group>"; };
@@ -1211,6 +1214,7 @@
 				C0FFEE000000000000050009 /* NativeComposerController.swift */,
 				C0FFEE000000000000050018 /* NativeComposerTextView.swift */,
 				C0FFEE000000000000050050 /* NativeComposerEditorView.swift */,
+				C0FFEE000000000000050055 /* NativeComposerSession.swift */,
 			);
 			path = Composer;
 			sourceTree = "<group>";
@@ -2412,6 +2416,7 @@
 				C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */,
 				C0FFEE000000000000050019 /* NativeComposerTextView.swift in Sources */,
 				C0FFEE000000000000050051 /* NativeComposerEditorView.swift in Sources */,
+				C0FFEE000000000000050056 /* NativeComposerSession.swift in Sources */,
 				033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */,
 				D3FBB64A5CD7FE15DC4EAF62 /* OfflineStore.swift in Sources */,
 				BD39ADEB1143AFB7A91C5EB4 /* OfflineSyncBridge.swift in Sources */,
@@ -2642,6 +2647,7 @@
 				C0FFEE00000000000005000B /* NativeComposerController.swift in Sources */,
 				C0FFEE00000000000005001A /* NativeComposerTextView.swift in Sources */,
 				C0FFEE000000000000050052 /* NativeComposerEditorView.swift in Sources */,
+				C0FFEE000000000000050057 /* NativeComposerSession.swift in Sources */,
 				896CD28E397C1F666609BB1E /* OMDesignPrimitives.swift in Sources */,
 				25468B39379E6020F76E58A4 /* OfflineStore.swift in Sources */,
 				02C2F9D9D1747B51FD08AF8F /* OfflineSyncBridge.swift in Sources */,

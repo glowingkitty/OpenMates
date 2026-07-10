@@ -164,6 +164,25 @@ final class NativeComposerController {
         )
     }
 
+    func replaceEmbed(id: String, with replacement: ComposerNodeV1) throws {
+        guard replacement.kind == "embed", replacement.id == id else {
+            throw NativeComposerControllerError.expectedEmbed(replacement.id)
+        }
+        guard let index = document.nodes.firstIndex(where: { $0.id == id }) else {
+            throw NativeComposerControllerError.nodeNotFound(id)
+        }
+        guard document.nodes[index].kind == "embed" else {
+            throw NativeComposerControllerError.expectedEmbed(id)
+        }
+        var nodes = document.nodes
+        nodes[index] = replacement
+        apply(
+            document: ComposerDocumentV1(version: document.version, nodes: nodes),
+            selection: selection,
+            markedTextRange: markedTextRange
+        )
+    }
+
     func removeEmbed(id: String) throws {
         guard let index = document.nodes.firstIndex(where: { $0.id == id }) else {
             throw NativeComposerControllerError.nodeNotFound(id)
