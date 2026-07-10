@@ -10,6 +10,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import Foundation
+import OSLog
 import SwiftUI
 
 #if canImport(UIKit)
@@ -34,6 +35,7 @@ final class NativeComposerTextView: NSObject {
 
     private let editorAccessibilityLabel: String
     private let editorAccessibilityHint: String
+    private let editorAccessibilityIdentifier: String
     private let embedAccessibilityLabel: (ComposerNodeV1) -> String
     private let embedAccessibilityActions: (ComposerNodeV1) -> [AccessibilityAction]
     var onCanonicalMarkdownChange: @MainActor (String) -> Void
@@ -52,11 +54,13 @@ final class NativeComposerTextView: NSObject {
         embedAccessibilityActions: @escaping (ComposerNodeV1) -> [AccessibilityAction],
         onCanonicalMarkdownChange: @escaping @MainActor (String) -> Void,
         onFocusChange: @escaping @MainActor (Bool) -> Void,
-        onSubmit: @escaping @MainActor () -> Void
+        onSubmit: @escaping @MainActor () -> Void,
+        accessibilityIdentifier: String = "message-editor"
     ) {
         self.controller = controller
         self.editorAccessibilityLabel = accessibilityLabel
         self.editorAccessibilityHint = accessibilityHint
+        self.editorAccessibilityIdentifier = accessibilityIdentifier
         self.embedAccessibilityLabel = embedAccessibilityLabel
         self.embedAccessibilityActions = embedAccessibilityActions
         self.onCanonicalMarkdownChange = onCanonicalMarkdownChange
@@ -83,9 +87,10 @@ final class NativeComposerTextView: NSObject {
         }
         textView.selectedRange = controller.selection
         textView.typingAttributes = textAttributes
-        textView.accessibilityIdentifier = "message-editor"
+        textView.accessibilityIdentifier = editorAccessibilityIdentifier
         textView.accessibilityLabel = editorAccessibilityLabel
         textView.accessibilityHint = editorAccessibilityHint
+        textView.accessibilityValue = textView.text
         if rebuildEmbedAccessibilityElementsIfNeeded() {
             textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
                 let element = UIAccessibilityElement(accessibilityContainer: textView)
@@ -116,7 +121,7 @@ final class NativeComposerTextView: NSObject {
         }
         textView.setSelectedRange(controller.selection)
         textView.typingAttributes = textAttributes
-        textView.setAccessibilityIdentifier("message-editor")
+        textView.setAccessibilityIdentifier(editorAccessibilityIdentifier)
         textView.setAccessibilityLabel(editorAccessibilityLabel)
         textView.setAccessibilityHelp(editorAccessibilityHint)
         rebuildEmbedAccessibilityElementsIfNeeded()
@@ -158,7 +163,21 @@ final class NativeComposerTextView: NSObject {
         paragraphStyle.minimumLineHeight = 25.6
         paragraphStyle.maximumLineHeight = 25.6
         // Web body typography supplies --font-weight-p: 500 to ProseMirror.
-        #if canImport(UIKit)
+        #if OPENMATES_SHARE_EXTENSION && canImport(UIKit)
+        let font = UIFont.preferredFont(forTextStyle: .body)
+        return [
+            .font: font,
+            .foregroundColor: UIColor.label,
+            .paragraphStyle: paragraphStyle,
+        ]
+        #elseif OPENMATES_SHARE_EXTENSION && canImport(AppKit)
+        let font = NSFont.preferredFont(forTextStyle: .body)
+        return [
+            .font: font,
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: paragraphStyle,
+        ]
+        #elseif canImport(UIKit)
         let font = UIFont(name: FontRegistration.mediumPostScriptName, size: 16)
             ?? UIFont.systemFont(ofSize: 16, weight: .medium)
         return [
@@ -203,10 +222,15 @@ final class NativeComposerTextView: NSObject {
         do {
             onCanonicalMarkdownChange(try controller.canonicalMarkdown())
         } catch {
+            #if OPENMATES_SHARE_EXTENSION
+            Logger(subsystem: "org.openmates.app.share", category: "native_composer")
+                .warning("Native composer serialization failed: \(String(describing: type(of: error)), privacy: .public)")
+            #else
             NativeDiagnostics.warning(
                 "Native composer serialization failed: \(type(of: error))",
                 category: "apple_composer"
             )
+            #endif
         }
     }
 
@@ -241,6 +265,7 @@ final class NativeComposerTextView: NSObject {
         lastSynchronizedRevision = controller.revision
         textView.selectedRange = controller.selection
         textView.typingAttributes = textAttributes
+        textView.accessibilityValue = textView.text
         if rebuildEmbedAccessibilityElementsIfNeeded() {
             textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
                 let element = UIAccessibilityElement(accessibilityContainer: textView)

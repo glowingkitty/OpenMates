@@ -20,6 +20,7 @@ import AppKit
 final class ComposerTextAttachment: NSTextAttachment {
     let nodeID: String
     private(set) var nodeSnapshot: ComposerNodeV1?
+    #if !OPENMATES_SHARE_EXTENSION
     private(set) var embedRecord: EmbedRecord?
     private(set) var localPreviewData: Data?
     var embedActions = AppleComposerEmbedActions(
@@ -27,12 +28,22 @@ final class ComposerTextAttachment: NSTextAttachment {
         onRetry: { _ in },
         onRemove: { _ in }
     )
+    #endif
 
     init(node: ComposerNodeV1) {
         self.nodeID = node.id
         self.nodeSnapshot = node
         super.init(data: nil, ofType: nil)
+        #if OPENMATES_SHARE_EXTENSION
+        // Share hosts need atomic document positions but do not load app renderers.
+        #if canImport(UIKit)
+        image = UIImage(systemName: "paperclip")
+        #elseif canImport(AppKit)
+        image = NSImage(systemSymbolName: "paperclip", accessibilityDescription: node.display?.title)
+        #endif
+        #else
         allowsTextAttachmentView = true
+        #endif
     }
 
     required init?(coder: NSCoder) {
@@ -49,19 +60,27 @@ final class ComposerTextAttachment: NSTextAttachment {
         coder.encode(nodeID, forKey: "nodeID")
     }
 
-    override var usesTextAttachmentView: Bool { true }
+    override var usesTextAttachmentView: Bool {
+        #if OPENMATES_SHARE_EXTENSION
+        false
+        #else
+        true
+        #endif
+    }
 
     func update(node: ComposerNodeV1) {
         guard node.id == nodeID else { return }
         nodeSnapshot = node
     }
 
+    #if !OPENMATES_SHARE_EXTENSION
     func updatePreview(embedRecord: EmbedRecord?, localPreviewData: Data?) {
         self.embedRecord = embedRecord
         self.localPreviewData = localPreviewData
     }
+    #endif
 
-    #if canImport(UIKit)
+    #if !OPENMATES_SHARE_EXTENSION && canImport(UIKit)
     override func viewProvider(
         for parentView: UIView?,
         location: any NSTextLocation,
@@ -74,7 +93,7 @@ final class ComposerTextAttachment: NSTextAttachment {
             location: location
         )
     }
-    #elseif canImport(AppKit)
+    #elseif !OPENMATES_SHARE_EXTENSION && canImport(AppKit)
     override func viewProvider(
         for parentView: NSView?,
         location: any NSTextLocation,

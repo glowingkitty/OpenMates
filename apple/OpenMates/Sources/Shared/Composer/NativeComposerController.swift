@@ -183,6 +183,7 @@ final class NativeComposerController {
         )
     }
 
+    #if !OPENMATES_SHARE_EXTENSION
     func configureEmbedActions(id: String, actions: AppleComposerEmbedActions) throws {
         guard let attachment = attachments[id] else {
             throw NativeComposerControllerError.nodeNotFound(id)
@@ -200,6 +201,7 @@ final class NativeComposerController {
         }
         attachment.updatePreview(embedRecord: embedRecord, localPreviewData: localPreviewData)
     }
+    #endif
 
     func removeEmbed(id: String) throws {
         guard let index = document.nodes.firstIndex(where: { $0.id == id }) else {

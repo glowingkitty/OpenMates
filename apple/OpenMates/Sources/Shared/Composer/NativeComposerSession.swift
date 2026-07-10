@@ -6,6 +6,7 @@
 
 import Combine
 import Foundation
+import OSLog
 
 @MainActor
 final class NativeComposerSession: ObservableObject {
@@ -29,11 +30,13 @@ final class NativeComposerSession: ObservableObject {
             try controller.loadDocument(ComposerMarkdownAdapter.parse(markdown))
             publishControllerState()
         } catch {
-            NativeDiagnostics.warning(
-                "Native composer markdown replacement failed: \(type(of: error))",
-                category: "apple_composer"
-            )
+            Self.report(error, operation: "markdown replacement")
         }
+    }
+
+    func loadDocument(_ document: ComposerDocumentV1) throws {
+        try controller.loadDocument(document)
+        publishControllerState()
     }
 
     func replaceSelection(with text: String) throws {
@@ -57,14 +60,17 @@ final class NativeComposerSession: ObservableObject {
             display: ComposerEmbedDisplayV1(title: title, mediaKind: embedType)
         )
         try controller.insertEmbed(node)
+        #if !OPENMATES_SHARE_EXTENSION
         try controller.configureEmbedPreview(
             id: nodeID,
             embedRecord: nil,
             localPreviewData: localPreviewData
         )
+        #endif
         publishControllerState()
     }
 
+    #if !OPENMATES_SHARE_EXTENSION
     func resolveEmbed(
         nodeID: String,
         durableEmbedID: String,
@@ -126,6 +132,7 @@ final class NativeComposerSession: ObservableObject {
             )
         )
     }
+    #endif
 
     func removeEmbed(nodeID: String) throws {
         try controller.removeEmbed(id: nodeID)
@@ -149,10 +156,7 @@ final class NativeComposerSession: ObservableObject {
             try controller.loadDocument(ComposerDocumentV1(version: 1, nodes: []))
             publishControllerState()
         } catch {
-            NativeDiagnostics.error(
-                "Native composer clear failed: \(type(of: error))",
-                category: "apple_composer"
-            )
+            Self.report(error, operation: "clear")
         }
     }
 
@@ -166,10 +170,7 @@ final class NativeComposerSession: ObservableObject {
             revision = controller.revision
             hasBlockingEmbeds = Self.containsBlockingEmbeds(controller.document)
         } catch {
-            NativeDiagnostics.warning(
-                "Native composer state publication failed: \(type(of: error))",
-                category: "apple_composer"
-            )
+            Self.report(error, operation: "state publication")
         }
     }
 
@@ -192,10 +193,7 @@ final class NativeComposerSession: ObservableObject {
                 selection: NSRange(location: canonicalMarkdown.utf16.count, length: 0)
             )
         } catch {
-            NativeDiagnostics.warning(
-                "Native composer session recovery activated: \(type(of: error))",
-                category: "apple_composer"
-            )
+            Self.report(error, operation: "session recovery")
             let fallback = ComposerDocumentV1(
                 version: 1,
                 nodes: [.text(id: "composer:text:recovery", source: canonicalMarkdown)]
@@ -209,5 +207,17 @@ final class NativeComposerSession: ObservableObject {
                 preconditionFailure("Valid native composer recovery document was rejected")
             }
         }
+    }
+
+    private static func report(_ error: Error, operation: String) {
+        #if OPENMATES_SHARE_EXTENSION
+        Logger(subsystem: "org.openmates.app.share", category: "native_composer")
+            .warning("Native composer \(operation, privacy: .public) failed: \(String(describing: type(of: error)), privacy: .public)")
+        #else
+        NativeDiagnostics.warning(
+            "Native composer \(operation) failed: \(type(of: error))",
+            category: "apple_composer"
+        )
+        #endif
     }
 }

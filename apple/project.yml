@@ -240,12 +240,19 @@ targets:
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
       - path: OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+      - path: OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerEmbedLifecycle.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerTextAttachment.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerSession.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
     settings:
       base:
         INFOPLIST_FILE: OpenMatesShareExtension/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.share
         CODE_SIGN_ENTITLEMENTS: OpenMatesShareExtension/OpenMatesShareExtension.entitlements
         SWIFT_VERSION: "6.0"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) OPENMATES_SHARE_EXTENSION
     entitlements:
       path: OpenMatesShareExtension/OpenMatesShareExtension.entitlements
       properties:
@@ -267,12 +274,19 @@ targets:
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
       - path: OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+      - path: OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerEmbedLifecycle.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerTextAttachment.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerSession.swift
+      - path: OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
     settings:
       base:
         INFOPLIST_FILE: OpenMatesShareExtensionMacOS/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.sharemacos
         CODE_SIGN_ENTITLEMENTS: OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
         SWIFT_VERSION: "6.0"
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) OPENMATES_SHARE_EXTENSION
     entitlements:
       path: OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
       properties:

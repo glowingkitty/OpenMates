@@ -49,15 +49,27 @@ final class ShareViewController: UIViewController {
     private let previewLabel = UILabel()
     private let messageComposerView = UIView()
     private let messageFieldView = UIView()
+    private let composerSession = NativeComposerSession()
+    private lazy var composerAdapter: NativeComposerTextView = {
+        NativeComposerTextView(
+            controller: composerSession.controller,
+            accessibilityLabel: "Message editor",
+            accessibilityHint: "Add instructions to the shared content.",
+            embedAccessibilityLabel: { node in node.display?.title ?? "Shared attachment" },
+            embedAccessibilityActions: { _ in [] },
+            onCanonicalMarkdownChange: { [weak self] markdown in
+                self?.composerSession.publishControllerState(canonicalMarkdown: markdown)
+                self?.updateSendButtonState()
+            },
+            onFocusChange: { _ in },
+            onSubmit: { [weak self] in self?.sendTapped() },
+            accessibilityIdentifier: "share-extension-message-input"
+        )
+    }()
     private lazy var messageEditorTextView: UITextView = {
-        let textView = UITextView(usingTextLayoutManager: true)
-        textView.delegate = self
+        let textView = composerAdapter.makePlatformView()
         textView.backgroundColor = .clear
-        textView.font = .preferredFont(forTextStyle: .body)
-        textView.textColor = .label
         textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 48, right: 12)
-        textView.accessibilityIdentifier = "share-extension-message-input"
-        textView.accessibilityLabel = "Message editor"
         return textView
     }()
     private let newChatButton = UIButton(type: .system)
@@ -65,17 +77,20 @@ final class ShareViewController: UIViewController {
     private let statusLabel = UILabel()
     private let spinner = UIActivityIndicatorView(style: .medium)
     private var tableHeightConstraint: NSLayoutConstraint?
-    private var messageText = ""
 
     private struct SharedPart {
+        let inputIndex: Int
         let text: String
         let isURL: Bool
     }
 
     private struct SharedAttachment {
+        let inputIndex: Int
         let data: Data
         let filename: String
         let contentType: String
+
+        var nodeID: String { "share:attachment:\(inputIndex)" }
     }
 
     private final class SharedPartCollector: @unchecked Sendable {
@@ -364,7 +379,7 @@ final class ShareViewController: UIViewController {
                             collector.appendUnsupported(filename, at: currentInputIndex)
                             return
                         }
-                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType), at: currentInputIndex)
+                        collector.append(SharedAttachment(inputIndex: currentInputIndex, data: data, filename: filename, contentType: contentType), at: currentInputIndex)
                     }
                 } else if let attachmentType = Self.firstSupportedAttachmentType(from: provider) {
                     group.enter()
@@ -376,14 +391,14 @@ final class ShareViewController: UIViewController {
                             collector.appendUnsupported(filename, at: currentInputIndex)
                             return
                         }
-                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType), at: currentInputIndex)
+                        collector.append(SharedAttachment(inputIndex: currentInputIndex, data: data, filename: filename, contentType: contentType), at: currentInputIndex)
                     }
                 } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.url.identifier) { value, _ in
                         defer { group.leave() }
                         if let text = Self.sharedURLText(from: value) {
-                            collector.append(SharedPart(text: text, isURL: true), at: currentInputIndex)
+                            collector.append(SharedPart(inputIndex: currentInputIndex, text: text, isURL: true), at: currentInputIndex)
                         }
                     }
                 } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
@@ -391,7 +406,7 @@ final class ShareViewController: UIViewController {
                     provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { value, _ in
                         defer { group.leave() }
                         if let text = Self.sharedPlainText(from: value) {
-                            collector.append(SharedPart(text: text, isURL: false), at: currentInputIndex)
+                            collector.append(SharedPart(inputIndex: currentInputIndex, text: text, isURL: false), at: currentInputIndex)
                         }
                     }
                 } else if let name = provider.suggestedName {
@@ -420,8 +435,7 @@ final class ShareViewController: UIViewController {
             previewLines.append("Unsupported: \(unsupportedAttachments.joined(separator: ", "))")
         }
         previewLabel.text = previewLines.isEmpty ? "No supported URL, text, or file was found." : previewLines.joined(separator: "\n")
-        messageText = ""
-        syncMessageEditorText()
+        loadSharedContentDocument()
         updateSendButtonState()
     }
 
@@ -495,23 +509,14 @@ final class ShareViewController: UIViewController {
 
     private func buildFinalMessage() throws -> String {
         let message = try normalizedMessageMarkdown()
-        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !sharedAttachments.isEmpty else {
+        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !activeSharedAttachments.isEmpty else {
             throw BackgroundChatSendError.emptyMessage
         }
         return message
     }
 
     private func normalizedMessageMarkdown() throws -> String {
-        let source = [messageText, sharedPartMarkdown()]
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: "\n\n")
-        // Incoming share payloads are literal user content, not composer markup.
-        let document = ComposerDocumentV1(
-            version: 1,
-            nodes: [.text(id: "share:message", source: source)]
-        )
-        return try ComposerMarkdownAdapter.serialize(document)
+        try composerSession.controller.canonicalMarkdown()
     }
 
     private func sharedPartMarkdown() -> String {
@@ -519,7 +524,7 @@ final class ShareViewController: UIViewController {
     }
 
     private func draftDestinationForAttachments() -> BackgroundChatSender.DestinationChat? {
-        guard !sharedAttachments.isEmpty, selectedChat == nil else { return selectedChat }
+        guard !activeSharedAttachments.isEmpty, selectedChat == nil else { return selectedChat }
         return BackgroundChatSender.DestinationChat(
             id: UUID().uuidString.lowercased(),
             title: "New Chat",
@@ -537,10 +542,11 @@ final class ShareViewController: UIViewController {
     }
 
     private func prepareSharedAttachments(destination: BackgroundChatSender.DestinationChat?) async throws -> [BackgroundPreparedEmbed] {
-        guard !sharedAttachments.isEmpty else { return [] }
+        let attachments = activeSharedAttachments
+        guard !attachments.isEmpty else { return [] }
         let chatId = destination?.id ?? UUID().uuidString.lowercased()
         var embeds: [BackgroundPreparedEmbed] = []
-        for attachment in sharedAttachments {
+        for attachment in attachments {
             let embed = try await sender.prepareAttachment(
                 data: attachment.data,
                 filename: attachment.filename,
@@ -559,29 +565,59 @@ final class ShareViewController: UIViewController {
     }
 
     private func updateSendButtonState() {
-        let hasText = !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let hasSharedText = !sharedPartMarkdown().trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        sendButton.isEnabled = !isSubmitting && (hasText || hasSharedText || !sharedAttachments.isEmpty)
+        let hasText = composerSession.controller.document.nodes.contains { node in
+            node.kind == "text" && !(node.source ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        sendButton.isEnabled = !isSubmitting && (hasText || !activeSharedAttachments.isEmpty)
         sendButton.alpha = sendButton.isEnabled ? 1 : 0.6
     }
 
-    private func syncMessageEditorText() {
-        guard messageEditorTextView.text != messageText else { return }
-        messageEditorTextView.text = messageText
-        messageEditorTextView.accessibilityValue = messageText
+    private var activeSharedAttachments: [SharedAttachment] {
+        let activeNodeIDs = Set(composerSession.controller.document.nodes.map(\.id))
+        return sharedAttachments.filter { activeNodeIDs.contains($0.nodeID) }
+    }
+
+    private func loadSharedContentDocument() {
+        enum SharedInput {
+            case text(SharedPart)
+            case attachment(SharedAttachment)
+
+            var inputIndex: Int {
+                switch self {
+                case .text(let part): part.inputIndex
+                case .attachment(let attachment): attachment.inputIndex
+                }
+            }
+        }
+
+        let inputs = sharedParts.map(SharedInput.text) + sharedAttachments.map(SharedInput.attachment)
+        let nodes = inputs.sorted { $0.inputIndex < $1.inputIndex }.map { input -> ComposerNodeV1 in
+            switch input {
+            case .text(let part):
+                // Share payloads are literal text and must not be reparsed as composer markup.
+                .text(id: "share:text:\(part.inputIndex)", source: part.text)
+            case .attachment(let attachment):
+                .embed(
+                    id: attachment.nodeID,
+                    embedType: "share-attachment",
+                    canonicalSource: "",
+                    referenceOnly: true,
+                    display: ComposerEmbedDisplayV1(title: attachment.filename, mediaKind: attachment.contentType)
+                )
+            }
+        }
+
+        do {
+            try composerSession.loadDocument(ComposerDocumentV1(version: 1, nodes: nodes))
+            composerAdapter.synchronize(messageEditorTextView)
+        } catch {
+            showFailure("Could not prepare the shared content.")
+        }
     }
 
     private func showFailure(_ message: String) {
         statusLabel.textColor = .systemRed
         statusLabel.text = message
-    }
-}
-
-extension ShareViewController: UITextViewDelegate {
-    func textViewDidChange(_ textView: UITextView) {
-        messageText = textView.text
-        textView.accessibilityValue = messageText
-        updateSendButtonState()
     }
 }
 
