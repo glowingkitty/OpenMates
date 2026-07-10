@@ -110,6 +110,7 @@ final class AppleComposerRendererRegistryTests: XCTestCase {
         let repositoryRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
+            .deletingLastPathComponent()
         let fixtureURL = repositoryRoot
             .appendingPathComponent("shared/composer/fixtures/apple-composer-renderer-v1.json")
         let catalog = try JSONDecoder().decode(
