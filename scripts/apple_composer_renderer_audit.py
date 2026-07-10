@@ -32,6 +32,9 @@ DEFAULT_PENDING_PREVIEWS = (
     REPO_ROOT / "apple/OpenMates/Sources/App/OpenMatesApp.swift",
 )
 DEFAULT_MANIFEST = REPO_ROOT / "shared/composer/fixtures/renderer-coverage.yml"
+DEFAULT_COMPOSER_REGISTRY = (
+    REPO_ROOT / "apple/OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift"
+)
 
 CLASSIFICATIONS = {
     "specific_native",
@@ -52,6 +55,7 @@ class AuditPaths:
     router: Path
     pending_previews: tuple[Path, ...]
     manifest: Path
+    composer_registry: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -168,6 +172,38 @@ def parse_pending_preview_types(
     }
 
 
+def parse_composer_registry_types(text: str) -> tuple[dict[str, str], tuple[str, ...]]:
+    entries = re.findall(
+        r'^\s*"([^"]+)"\s*:\s*\.init\([^\n]*rendererIdentifier:\s*"([^"]+)"\)',
+        text,
+        re.MULTILINE,
+    )
+    routes: dict[str, str] = {}
+    errors: list[str] = []
+    for embed_type, renderer in entries:
+        if "Generic" in renderer:
+            errors.append(f"{embed_type}: generic renderer is forbidden")
+            continue
+        routes[embed_type] = renderer
+    return routes, tuple(errors)
+
+
+def apply_composer_registry(
+    routes: dict[str, NativeRoute],
+    composer_routes: dict[str, str],
+) -> dict[str, NativeRoute]:
+    result = dict(routes)
+    for embed_type, renderer in composer_routes.items():
+        existing = result.get(embed_type)
+        classification = "structural_group_only" if embed_type.endswith("-group") else "specific_native"
+        result[embed_type] = NativeRoute(
+            classification,
+            existing.model_case if existing else None,
+            renderer,
+        )
+    return result
+
+
 def derive_native_routes(
     renderer_map: dict[str, str],
     raw_to_case: dict[str, str],
@@ -219,10 +255,16 @@ def audit(paths: AuditPaths) -> AuditReport:
     raw_to_case, aliases = parse_apple_models(models_text)
     apple_routes = parse_apple_routes(router_text)
     routes = derive_native_routes(renderer_map, raw_to_case, apple_routes, router_text)
-    pending_types = parse_pending_preview_types(pending_texts, normalizations, aliases)
+    composer_errors: tuple[str, ...] = ()
+    if paths.composer_registry is not None:
+        composer_routes, composer_errors = parse_composer_registry_types(_read(paths.composer_registry))
+        routes = apply_composer_registry(routes, composer_routes)
+        pending_types = set(composer_routes)
+    else:
+        pending_types = parse_pending_preview_types(pending_texts, normalizations, aliases)
     manifest = load_manifest(paths.manifest)
     manifest_types = manifest.get("types")
-    manifest_errors: list[str] = []
+    manifest_errors: list[str] = list(composer_errors)
     if manifest.get("schema_version") != 1:
         manifest_errors.append("schema_version must equal 1")
     expected_source = "frontend/packages/ui/src/data/embedRegistry.generated.ts#EMBED_RENDERER_MAP"
@@ -351,9 +393,16 @@ def write_manifest(paths: AuditPaths) -> None:
     raw_to_case, aliases = parse_apple_models(models_text)
     apple_routes = parse_apple_routes(router_text)
     routes = derive_native_routes(renderer_map, raw_to_case, apple_routes, router_text)
-    pending_types = parse_pending_preview_types(
-        [_read(path) for path in paths.pending_previews], normalizations, aliases
-    )
+    if paths.composer_registry is not None:
+        composer_routes, composer_errors = parse_composer_registry_types(_read(paths.composer_registry))
+        if composer_errors:
+            raise ValueError("; ".join(composer_errors))
+        routes = apply_composer_registry(routes, composer_routes)
+        pending_types = set(composer_routes)
+    else:
+        pending_types = parse_pending_preview_types(
+            [_read(path) for path in paths.pending_previews], normalizations, aliases
+        )
     existing_types: dict[str, Any] = {}
     if paths.manifest.exists():
         existing = load_manifest(paths.manifest).get("types")
@@ -397,6 +446,7 @@ def _default_paths(args: argparse.Namespace) -> AuditPaths:
         router=Path(args.router),
         pending_previews=tuple(Path(path) for path in args.pending_preview),
         manifest=Path(args.manifest),
+        composer_registry=Path(args.composer_registry) if args.composer_registry else None,
     )
 
 
@@ -407,6 +457,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--router", default=DEFAULT_ROUTER)
     parser.add_argument("--pending-preview", action="append", default=None)
     parser.add_argument("--manifest", default=DEFAULT_MANIFEST)
+    parser.add_argument("--composer-registry", default=DEFAULT_COMPOSER_REGISTRY)
     parser.add_argument("--write-manifest", action="store_true")
     args = parser.parse_args(argv)
     if args.pending_preview is None:
