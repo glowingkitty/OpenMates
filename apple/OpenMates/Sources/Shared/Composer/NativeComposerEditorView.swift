@@ -88,8 +88,10 @@ struct NativeComposerEditorView: UIViewRepresentable {
         func logFocus(_ phase: String, requested: Bool) {
             guard ProcessInfo.processInfo.arguments.contains("--ui-test-composer-focus-diagnostics") else { return }
             focusEvent += 1
+            let event = "event=\(focusEvent) phase=\(phase) requested=\(requested) firstResponder=\(platformView?.isFirstResponder == true)"
+            platformView?.accessibilityLabel = "\(AppStrings.chatMessageInput) [\(event)]"
             NativeDiagnostics.info(
-                "event=\(focusEvent) phase=\(phase) requested=\(requested) firstResponder=\(platformView?.isFirstResponder == true)",
+                event,
                 category: "apple_composer_focus"
             )
         }
