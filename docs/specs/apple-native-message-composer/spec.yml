@@ -346,7 +346,7 @@ acceptance_criteria:
     status: pending
     coverage_status: covered
     verification_scope: apple
-    verification_ids: [T-APPLE-STATIC, T-APPLE-NATIVE-EDITOR, T-APPLE-IOS-BUILD, T-APPLE-MACOS-BUILD]
+    verification_ids: [T-APPLE-STATIC, T-APPLE-NATIVE-EDITOR, T-APPLE-COMPOSER-FOCUS-HEIGHT, T-APPLE-IOS-BUILD, T-APPLE-MACOS-BUILD]
   - id: AC-2
     scenario: S-2
     text: Existing canonical messages and encrypted drafts round-trip through ComposerDocument without database migration or semantic/order loss.
@@ -418,7 +418,7 @@ acceptance_criteria:
     status: pending
     coverage_status: covered
     verification_scope: apple
-    verification_ids: [T-APPLE-ACCESSIBILITY, T-APPLE-VISUAL-PARITY]
+    verification_ids: [T-APPLE-ACCESSIBILITY, T-APPLE-VISUAL-PARITY, T-APPLE-COMPOSER-FOCUS-HEIGHT]
   - id: AC-11
     scenario: S-11
     text: Composer boundary failures are visible, privacy-safe, recoverable, and cannot silently discard or send incomplete content.
@@ -708,9 +708,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple-remote-77becb2-native-editor"
-        timestamp: "2026-07-10T01:41:30Z"
-        summary: NativeComposerControllerTests passed 16/16, NativeComposerTextViewAdapterTests passed 4/4, and focused ComposerDocument plus UIKit/AppKit adapter sources typechecked against the macOS SDK.
+        run_id: "apple-remote-568699f-unit-210"
+        timestamp: "2026-07-10T13:28:46Z"
+        summary: OpenMatesTests passed 210/210 on the iPhone simulator, including NativeComposerControllerTests and NativeComposerTextViewAdapterTests 5/5 with typography, semantic color, platform edit, selection, identity, and accessibility coverage.
 
   - id: T-APPLE-INLINE-EMBED-UI
     type: unit
@@ -942,7 +942,39 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-568699f-visual-parity"
+        timestamp: "2026-07-10T13:38:22Z"
+        summary: ComposerVisualParityUITests passed 5/5 with screenshot artifacts for the focused welcome composer, shared chat width cap, action visibility and behavior, location insertion, and quick-capture identifier parity.
+
+  - id: T-APPLE-COMPOSER-FOCUS-HEIGHT
+    type: unit
+    file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    command: >-
+      python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing
+      OpenMatesUITests/ChatFlowParityUITests/testGuestComposerKeepsHeightCapAfterFirstCharacter
+    covers: [AC-1, AC-10]
+    assertions:
+      - tapping the native UITextView persists first-responder state through compact-to-expanded SwiftUI updates
+      - typing the first character succeeds without a keyboard-focus synthesis failure
+      - the normal focused composer remains between the rendered-web 100pt minimum and 140pt maximum instead of expanding to the 350pt fullscreen cap
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "apple-remote-79deb7e-focus-red"
+        timestamp: "2026-07-10T13:18:53Z"
+        summary: The UITextView became first responder, but an unregistered SwiftUI FocusState remained false and updateUIView immediately resigned it; XCTest could not type the first character.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "apple-remote-568699f-focus-green"
+        timestamp: "2026-07-10T13:24:10Z"
+        summary: The focused-height regression passed in 20.427 seconds; a broader focused-suggestions flow also passed in 21.482 seconds with keyboard placement, visible controls, successful typing, and the 118pt composer cap.
 
   - id: T-APPLE-ACCESSIBILITY
     type: unit
@@ -1136,7 +1168,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "local-568699f-composer-audits"
+        timestamp: "2026-07-10T13:14:00Z"
+        summary: The native-document composer audit and generated renderer audit passed; no production focus diagnostics or WebView editor path remains.
 
   - id: T-WEB-COMPOSER-REGRESSION
     type: playwright
@@ -1171,12 +1207,16 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-568699f-ios-build"
+        timestamp: "2026-07-10T13:32:51Z"
+        summary: OpenMates_iOS, embedded watchOS app, widget, notification service, and share extension built successfully for the iPhone 17 simulator.
 
   - id: T-APPLE-MACOS-BUILD
     type: build
     file: apple/OpenMates.xcodeproj/project.pbxproj
-    command: python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS build
+    command: python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
     covers: [AC-1, AC-12]
     assertions:
       - OpenMates_macOS and the macOS share extension compile with the native TextKit adapter
@@ -1188,7 +1228,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-568699f-macos-unsigned-build"
+        timestamp: "2026-07-10T13:31:04Z"
+        summary: The unsigned compile-only macOS build succeeded for OpenMates_macOS and its share extension, including the shared Binding-based AppKit composer focus contract. Signed runtime verification remains separately blocked by missing development profiles.
 
 verifications:
   - id: V-WEB-RENDERED-COMPARISON
@@ -1654,7 +1698,7 @@ tasks:
       - apple/OpenMatesTests/NativeComposerFailureRecoveryTests.swift
       - apple/OpenMatesTests/NativeComposerPerformanceTests.swift
       - docs/specs/apple-native-message-composer/spec.yml
-    verification_ids: [T-APPLE-VISUAL-PARITY, T-APPLE-ACCESSIBILITY, T-APPLE-FAILURE-RECOVERY, T-APPLE-PERFORMANCE, V-WEB-RENDERED-COMPARISON]
+    verification_ids: [T-APPLE-VISUAL-PARITY, T-APPLE-COMPOSER-FOCUS-HEIGHT, T-APPLE-ACCESSIBILITY, T-APPLE-FAILURE-RECOVERY, T-APPLE-PERFORMANCE, V-WEB-RENDERED-COMPARISON]
     blockers: [Q-1, TASK-7, TASK-11, TASK-18]
     dependencies: [TASK-7, TASK-11, TASK-18]
     follow_up_tasks: [TASK-15]
