@@ -24,17 +24,19 @@ struct NativeComposerEmbedAccessibilityDescriptor: Equatable {
 }
 
 @MainActor
-final class NativeComposerTextView {
+final class NativeComposerTextView: NSObject {
     typealias AccessibilityAction = (name: String, handler: @MainActor @Sendable () -> Bool)
 
     let controller: NativeComposerController
     private(set) var embedAccessibilityElements: [NativeComposerEmbedAccessibilityDescriptor] = []
+    private(set) var lastControllerError: NativeComposerControllerError?
 
     private let accessibilityLabel: String
     private let accessibilityHint: String
     private let embedAccessibilityLabel: (ComposerNodeV1) -> String
     private let embedAccessibilityActions: (ComposerNodeV1) -> [AccessibilityAction]
     private var actionsByEmbedID: [String: [AccessibilityAction]] = [:]
+    private var isSynchronizing = false
 
     init(
         controller: NativeComposerController,
@@ -48,17 +50,21 @@ final class NativeComposerTextView {
         self.accessibilityHint = accessibilityHint
         self.embedAccessibilityLabel = embedAccessibilityLabel
         self.embedAccessibilityActions = embedAccessibilityActions
+        super.init()
         rebuildEmbedAccessibilityElements()
     }
 
     #if canImport(UIKit)
     func makePlatformView() -> UITextView {
         let textView = UITextView(usingTextLayoutManager: true)
+        textView.delegate = self
         synchronize(textView)
         return textView
     }
 
     func synchronize(_ textView: UITextView) {
+        isSynchronizing = true
+        defer { isSynchronizing = false }
         textView.attributedText = controller.attributedString
         textView.selectedRange = controller.selection
         textView.accessibilityIdentifier = "message-editor"
@@ -79,11 +85,14 @@ final class NativeComposerTextView {
     #elseif canImport(AppKit)
     func makePlatformView() -> NSTextView {
         let textView = NSTextView(usingTextLayoutManager: true)
+        textView.delegate = self
         synchronize(textView)
         return textView
     }
 
     func synchronize(_ textView: NSTextView) {
+        isSynchronizing = true
+        defer { isSynchronizing = false }
         textView.textStorage?.setAttributedString(controller.attributedString)
         textView.setSelectedRange(controller.selection)
         textView.setAccessibilityIdentifier("message-editor")
@@ -113,4 +122,71 @@ final class NativeComposerTextView {
             )
         }
     }
+
+    private func applyPlatformEdit(
+        range: NSRange,
+        replacement: String
+    ) -> Bool {
+        do {
+            try controller.setSelection(range)
+            try controller.replaceSelection(with: replacement)
+            lastControllerError = nil
+        } catch let error as NativeComposerControllerError {
+            lastControllerError = error
+        } catch {
+            lastControllerError = .platformSynchronizationFailed
+        }
+        return false
+    }
+
+    private func applyPlatformSelection(_ range: NSRange) {
+        do {
+            try controller.setSelection(range)
+            lastControllerError = nil
+        } catch let error as NativeComposerControllerError {
+            lastControllerError = error
+        } catch {
+            lastControllerError = .platformSynchronizationFailed
+        }
+    }
 }
+
+#if canImport(UIKit)
+extension NativeComposerTextView: UITextViewDelegate {
+    func textView(
+        _ textView: UITextView,
+        shouldChangeTextIn range: NSRange,
+        replacementText text: String
+    ) -> Bool {
+        let shouldApplyPlatformEdit = applyPlatformEdit(range: range, replacement: text)
+        synchronize(textView)
+        return shouldApplyPlatformEdit
+    }
+
+    func textViewDidChangeSelection(_ textView: UITextView) {
+        guard !isSynchronizing else { return }
+        applyPlatformSelection(textView.selectedRange)
+    }
+}
+#elseif canImport(AppKit)
+extension NativeComposerTextView: NSTextViewDelegate {
+    func textView(
+        _ textView: NSTextView,
+        shouldChangeTextIn affectedCharRange: NSRange,
+        replacementString: String?
+    ) -> Bool {
+        let shouldApplyPlatformEdit = applyPlatformEdit(
+            range: affectedCharRange,
+            replacement: replacementString ?? ""
+        )
+        synchronize(textView)
+        return shouldApplyPlatformEdit
+    }
+
+    func textViewDidChangeSelection(_ notification: Notification) {
+        guard !isSynchronizing else { return }
+        guard let textView = notification.object as? NSTextView else { return }
+        applyPlatformSelection(textView.selectedRange())
+    }
+}
+#endif

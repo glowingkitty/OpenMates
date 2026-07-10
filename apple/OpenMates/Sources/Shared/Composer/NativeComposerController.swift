@@ -17,6 +17,7 @@ enum NativeComposerControllerError: Error, Equatable {
     case duplicateNodeID(String)
     case nodeNotFound(String)
     case expectedEmbed(String)
+    case platformSynchronizationFailed
 }
 
 @MainActor
@@ -285,7 +286,13 @@ final class NativeComposerController {
                 retained.append(.text(id: node.id, source: prefix + suffix))
             }
             if !selected.isEmpty {
-                removed.append(.text(id: node.id, source: selected))
+                let selectedID = prefix.isEmpty && suffix.isEmpty
+                    ? node.id
+                    : nextTextNodeID(
+                        in: document.nodes,
+                        reserving: Set(removed.map(\.id))
+                    )
+                removed.append(.text(id: selectedID, source: selected))
             }
         }
         return DeletionResult(nodes: retained, removedNodes: removed)
