@@ -17,6 +17,10 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         let inlineEmbed = element(in: app, identifier: "native-composer-preview-image-finished")
         XCTAssertTrue(inlineEmbed.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            element(in: app, identifier: "native-composer-image-content").waitForExistence(timeout: 5),
+            "A finished uploaded photo must render its image pixels instead of the generic metadata card"
+        )
         assertElement(inlineEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)

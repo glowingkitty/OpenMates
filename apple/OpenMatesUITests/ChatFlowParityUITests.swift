@@ -221,6 +221,13 @@ final class ChatFlowParityUITests: XCTestCase {
             focusedWebComposerMaxHeight,
             "Focused welcome composer must match the web bottom composer height instead of stretching into a full-screen panel"
         )
+        messageEditor.typeText("a")
+        waitForFrameHeight(atLeast: focusedWebComposerMinHeight, element: messageField, timeout: 5)
+        XCTAssertLessThanOrEqual(
+            messageField.frame.height,
+            focusedWebComposerMaxHeight,
+            "Typing the first character must not remove the web composer's height cap"
+        )
         let keyboard = app.keyboards.firstMatch
         if keyboard.exists {
             XCTAssertLessThanOrEqual(

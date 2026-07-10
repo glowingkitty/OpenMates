@@ -1927,7 +1927,7 @@ final class ChatViewModel: ObservableObject {
         )
         return registerPendingComposerEmbed(
             upload,
-            localData: Data(repeating: 0, count: 128),
+            localData: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="),
             transcription: nil,
             duration: nil,
             piiMappings: [],
@@ -2100,7 +2100,7 @@ struct ComposerPendingEmbed: Identifiable {
                 pageCount: nil,
                 deduplicated: true
             ),
-            localData: Data(repeating: 0, count: 128),
+            localData: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="),
             transcription: nil,
             duration: nil
         )

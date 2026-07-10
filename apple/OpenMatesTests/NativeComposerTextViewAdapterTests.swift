@@ -5,6 +5,7 @@
 // Adapter synchronization must retain controller and attachment identities.
 
 import Foundation
+import SwiftUI
 import XCTest
 @testable import OpenMates
 
@@ -137,6 +138,52 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         XCTAssertEqual(controller.attributedString.string, "Z\u{FFFC}B\u{FFFC}C")
         XCTAssertEqual(controller.selection, NSRange(location: 2, length: 1))
         XCTAssertNil(adapter.lastControllerError)
+    }
+
+    func testTypedTextRetainsWebTypographyAndSemanticForegroundColor() throws {
+        FontRegistration.registerFonts()
+        let controller = try makeController()
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+
+        #if canImport(UIKit)
+        XCTAssertFalse(adapter.textView(
+            textView,
+            shouldChangeTextIn: NSRange(location: 0, length: 1),
+            replacementText: "Z"
+        ))
+        let attributes = textView.attributedText.attributes(at: 0, effectiveRange: nil)
+        let font = try XCTUnwrap(attributes[.font] as? UIFont)
+        let foregroundColor = try XCTUnwrap(attributes[.foregroundColor] as? UIColor)
+        let paragraphStyle = try XCTUnwrap(attributes[.paragraphStyle] as? NSParagraphStyle)
+        let expectedColor = UIColor(Color.fontPrimary)
+        let darkTraits = UITraitCollection(userInterfaceStyle: .dark)
+
+        XCTAssertEqual(font.fontName, "LexendDeca-Medium")
+        XCTAssertEqual(font.pointSize, 16, accuracy: 0.01)
+        XCTAssertEqual(paragraphStyle.minimumLineHeight, 25.6, accuracy: 0.01)
+        XCTAssertEqual(paragraphStyle.maximumLineHeight, 25.6, accuracy: 0.01)
+        XCTAssertEqual(
+            foregroundColor.resolvedColor(with: darkTraits),
+            expectedColor.resolvedColor(with: darkTraits)
+        )
+        XCTAssertEqual((textView.typingAttributes[.font] as? UIFont)?.fontName, "LexendDeca-Medium")
+        #elseif canImport(AppKit)
+        XCTAssertFalse(adapter.textView(
+            textView,
+            shouldChangeTextIn: NSRange(location: 0, length: 1),
+            replacementString: "Z"
+        ))
+        let attributes = try XCTUnwrap(textView.textStorage).attributes(at: 0, effectiveRange: nil)
+        let font = try XCTUnwrap(attributes[.font] as? NSFont)
+        let paragraphStyle = try XCTUnwrap(attributes[.paragraphStyle] as? NSParagraphStyle)
+
+        XCTAssertEqual(font.fontName, "LexendDeca-Medium")
+        XCTAssertEqual(font.pointSize, 16, accuracy: 0.01)
+        XCTAssertEqual(paragraphStyle.minimumLineHeight, 25.6, accuracy: 0.01)
+        XCTAssertEqual(paragraphStyle.maximumLineHeight, 25.6, accuracy: 0.01)
+        XCTAssertNotNil(attributes[.foregroundColor] as? NSColor)
+        #endif
     }
 
     private func makeAdapter(

@@ -464,6 +464,15 @@ target_platform = sys.argv[2] if len(sys.argv) > 2 else "ios"
 MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
 testflight_whats_new = ""
 testflight_whats_new_locale = "en-US"
+requested_build_number = os.environ.get("OPENMATES_UNIFIED_BUILD_NUMBER")
+if requested_build_number:
+    requested_build_number = requested_build_number.strip()
+    if not re.fullmatch(r"\d{1,4}(?:\.\d{1,2}){0,2}", requested_build_number):
+        print("build_number_status=invalid")
+        sys.exit(2)
+    print(f"build_number_status=unified:{requested_build_number}")
+else:
+    requested_build_number = None
 if len(sys.argv) > 3 and sys.argv[3]:
     testflight_whats_new = base64.b64decode(sys.argv[3]).decode("utf-8").strip()
 if len(sys.argv) > 4 and sys.argv[4]:
@@ -1355,7 +1364,6 @@ export_options_path = pathlib.Path(derived) / "ExportOptions.plist"
 export_options = {
     "destination": "export" if target_platform == "watchos" else "upload",
     "method": "app-store-connect",
-    "manageAppVersionAndBuildNumber": True,
     "provisioningProfiles": profile_names,
     "signingCertificate": distribution_identity_sha1 if target_platform == "macos" else distribution_identity_name,
     "signingStyle": "manual",
@@ -1363,6 +1371,7 @@ export_options = {
     "testFlightInternalTestingOnly": internal_only,
     "uploadSymbols": True,
 }
+export_options["manageAppVersionAndBuildNumber"] = requested_build_number is None
 if target_platform == "macos":
     export_options["installerSigningCertificate"] = installer_identity_sha1
 with export_options_path.open("wb") as handle:
@@ -1391,6 +1400,8 @@ else:
     archive_cmd[-2:-2] = common_auth_args
 if build_keychain_path and not archive_without_signing:
     archive_cmd.insert(-1, f"OTHER_CODE_SIGN_FLAGS=--keychain {build_keychain_path}")
+if requested_build_number:
+    archive_cmd.insert(-1, f"CURRENT_PROJECT_VERSION={requested_build_number}")
 if target_platform == "watchos":
     watch_profile = profile_names.get("org.openmates.app.watch")
     if not watch_profile:
@@ -2087,6 +2098,7 @@ bundle_id = sys.argv[1]
 build_limit = sys.argv[2] if len(sys.argv) > 2 else "10"
 require_changelogs = len(sys.argv) > 3 and sys.argv[3] == "1"
 whats_new_locale = sys.argv[4] if len(sys.argv) > 4 and sys.argv[4] else "en-US"
+scan_all_builds = len(sys.argv) > 5 and sys.argv[5] == "1"
 MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
 
 
@@ -2135,13 +2147,28 @@ def app_store_connect_jwt():
     return f"{signing_input}.{b64url(der_ecdsa_to_raw_jws_signature(signer.stdout))}"
 
 
-def asc_get(path):
+def asc_get_url(url):
     request = urllib.request.Request(
-        f"https://api.appstoreconnect.apple.com/v1/{path}",
+        url,
         headers={"Authorization": f"Bearer {app_store_connect_jwt()}"},
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def asc_get(path):
+    return asc_get_url(f"https://api.appstoreconnect.apple.com/v1/{path}")
+
+
+def collect_build_pages(path):
+    pages = []
+    response = asc_get(path)
+    while True:
+        pages.append(response)
+        next_url = response.get("links", {}).get("next") if scan_all_builds else None
+        if not next_url:
+            return pages
+        response = asc_get_url(next_url)
 
 
 def whats_new_line_count(text):
@@ -2159,25 +2186,27 @@ print(f"app_id={app_id}")
 builds_query = urllib.parse.urlencode({
     "filter[app]": app_id,
     "include": "preReleaseVersion",
-    "limit": build_limit,
+    "limit": "200" if scan_all_builds else build_limit,
     "sort": "-uploadedDate",
 })
-response = asc_get(f"builds?{builds_query}")
-if not response.get("data"):
+responses = collect_build_pages(f"builds?{builds_query}")
+if not any(response.get("data") for response in responses):
     relationship_query = urllib.parse.urlencode({
         "include": "preReleaseVersion",
-        "limit": build_limit,
+        "limit": "200" if scan_all_builds else build_limit,
         "sort": "-uploadedDate",
     })
-    response = asc_get(f"apps/{app_id}/builds?{relationship_query}")
-included = response.get("included", [])
+    responses = collect_build_pages(f"apps/{app_id}/builds?{relationship_query}")
+included = [item for response in responses for item in response.get("included", [])]
 pre_release_versions = {
     item.get("id"): item.get("attributes", {})
     for item in included
     if item.get("type") == "preReleaseVersions"
 }
-builds = response.get("data", [])
+builds = [item for response in responses for item in response.get("data", [])]
 print(f"builds={len(builds)}")
+if scan_all_builds:
+    print("build_scan=complete")
 changelog_failures = []
 for build in builds:
     attributes = build.get("attributes", {})
@@ -2218,6 +2247,29 @@ if require_changelogs:
             print(f"changelog_failure={failure}")
         sys.exit(1)
     print("changelog_status=passed")
+'''
+
+
+NEXT_UNIFIED_BUILD_NUMBER_SCRIPT = r'''
+import re
+import sys
+
+output = sys.stdin.read()
+apps_match = re.search(r"(?m)^apps=(\d+)$", output)
+if not apps_match or int(apps_match.group(1)) < 1:
+    sys.exit("App Store Connect app lookup failed")
+if not re.search(r"(?m)^build_scan=complete$", output):
+    sys.exit("App Store Connect build scan did not complete")
+
+raw_build_numbers = re.findall(r"buildNumber=([^\s]+)", output)
+if any(not re.fullmatch(r"\d{1,4}", value) for value in raw_build_numbers):
+    sys.exit("App Store Connect contains a non-integer build number")
+
+build_numbers = [int(value) for value in raw_build_numbers]
+next_build_number = max(build_numbers, default=0) + 1
+if next_build_number > 9999:
+    sys.exit("App Store Connect build number range is exhausted")
+print(next_build_number)
 '''
 
 
@@ -2884,8 +2936,24 @@ def deploy_latest_testflight_command(
     whats_new: str | None = None,
     whats_new_locale: str = "en-US",
 ) -> str:
+    builds_command = app_store_builds_command(
+        "org.openmates.app",
+        limit=50,
+        scan_all_builds=True,
+        api_key_path=api_key_path,
+        api_key_id=api_key_id,
+        api_issuer_id=api_issuer_id,
+    )
+    next_build_command = shell_join(["python3", "-c", NEXT_UNIFIED_BUILD_NUMBER_SCRIPT])
+    select_build_number_command = (
+        f'OPENMATES_UNIFIED_BUILD_NUMBER="$({builds_command} | {next_build_command})"'
+        ' && test -n "$OPENMATES_UNIFIED_BUILD_NUMBER"'
+        ' && export OPENMATES_UNIFIED_BUILD_NUMBER'
+        ' && printf "unified_build_number=%s\\n" "$OPENMATES_UNIFIED_BUILD_NUMBER"'
+    )
     commands = [
         sync_repo_command(branch),
+        select_build_number_command,
         upload_testflight_ios_command(
             internal_only,
             api_key_path=api_key_path,
@@ -2955,6 +3023,7 @@ def app_store_builds_command(
     limit: int = 10,
     require_changelogs: bool = False,
     whats_new_locale: str = "en-US",
+    scan_all_builds: bool = False,
     *,
     api_key_path: str | None = None,
     api_key_id: str | None = None,
@@ -2970,6 +3039,7 @@ def app_store_builds_command(
         str(limit),
         "1" if require_changelogs else "0",
         whats_new_locale,
+        "1" if scan_all_builds else "0",
     ])
     return app_store_connect_env_prefix(
         command,
