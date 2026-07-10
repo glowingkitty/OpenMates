@@ -12,7 +12,12 @@ from pathlib import Path
 
 import yaml
 
-from scripts.apple_composer_renderer_audit import AuditPaths, audit, main
+from scripts.apple_composer_renderer_audit import (
+    AuditPaths,
+    audit,
+    main,
+    parse_composer_registry_types,
+)
 
 
 def write(path: Path, content: str) -> Path:
@@ -50,6 +55,20 @@ def proof_entry(web_renderer: str, classification: str = "specific_native") -> d
         "native_preview_mapping": "InlinePreviewView.swift#RecordingPreview",
         "visual_case": "RendererTests.swift#testRecordingPreview",
     }
+
+
+def test_parse_composer_registry_types_rejects_generic_fallback() -> None:
+    source = """
+    static let descriptors = [
+        "recording": .init(family: .recording, rendererIdentifier: "RecordingRenderer"),
+        "future-widget": .init(family: .summary, rendererIdentifier: "GenericEmbedRenderer"),
+    ]
+    """
+
+    routes, errors = parse_composer_registry_types(source)
+
+    assert routes == {"recording": "RecordingRenderer"}
+    assert errors == ("future-widget: generic renderer is forbidden",)
 
 
 def test_clean_specific_native_case_passes(tmp_path: Path) -> None:
