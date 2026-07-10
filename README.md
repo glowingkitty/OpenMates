@@ -4,26 +4,29 @@
 
 OpenMates is an open-source, provider-independent AI assistant platform with built-in apps, rich results inside chat, client-side encrypted storage, automatic model selection, a terminal CLI, JavaScript and Python SDKs, and self-hosting support.
 
-[Open the web app](https://openmates.org) | [Try example chats](https://openmates.org/example/flights-berlin-to-bangkok) | [Documentation](https://openmates.org/docs) | [Self-host](./docs/self-hosting/setup.md) | [Releases](https://github.com/glowingkitty/OpenMates/releases)
+[Open the web app](https://openmates.org) | [Watch the product intro](https://openmates.org/#chat-id=demo-for-everyone&autoplay-video) | [Documentation](https://openmates.org/docs) | [Self-host](./docs/self-hosting/setup.md) | [Releases](https://github.com/glowingkitty/OpenMates/releases)
 
-[![OpenMates finds travel connections and presents the results inside chat](./docs/images/readme/trips-found-in-chat.webp)](https://openmates.org/example/flights-berlin-to-bangkok)
+[![Play the OpenMates product intro](https://openmates.org/newsletter-assets/intro-thumbnail-EN.jpg)](https://openmates.org/#chat-id=demo-for-everyone&autoplay-video)
 
 > [!NOTE]
 > OpenMates is alpha software. The web app is the most complete product surface, and capabilities can differ between the web app, CLI, SDKs, and native clients. The current user-facing product line is **v0.14**.
 
-## See what it can already do
+## See it in action
 
-Public example chats are available without an account. They contain complete, interactive conversations and finished app results rather than isolated screenshots.
+The image above is a still from the [OpenMates product intro](https://openmates.org/#chat-id=demo-for-everyone&autoplay-video). Select it to play the video in OpenMates.
 
-| Capability                                         | Live example                                                                                        |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Search travel connections and inspect rich results | [Flights from Berlin to Bangkok](https://openmates.org/example/flights-berlin-to-bangkok)           |
-| Run multi-step research with focused sub-chats     | [Why US egg prices stayed high](https://openmates.org/example/us-egg-prices-deep-research)          |
-| Generate an editable Remotion video                | [Product teaser Remotion video](https://openmates.org/example/product-teaser-remotion-video)        |
-| Create a formatted document                        | [Launch readiness checklist](https://openmates.org/example/launch-readiness-checklist-doc)          |
-| Plot and inspect mathematical functions            | [Damped sine wave plot](https://openmates.org/example/damped-sine-wave-plot)                        |
-| Generate visual assets                             | [Privacy-focused website background](https://openmates.org/example/privacy-website-hero-background) |
-| Use current programming documentation              | [Svelte runes documentation](https://openmates.org/example/svelte-runes-docs)                       |
+Public example chats open without an account. Each is a complete, interactive conversation with the finished result, not a static mockup.
+
+### Developer and technical workflows
+
+- [Build a responsive single-page interface](https://openmates.org/example/beautiful-single-page-html): generate a complete HTML/CSS landing page as a reusable code artifact.
+- [Research Rust vector databases](https://openmates.org/example/rust-vector-database-repos): search GitHub and compare repositories in a structured table.
+- [Create a USB-C power schematic](https://openmates.org/example/usb-c-3v3-ldo-pcb-schematic): generate an editable Atopile circuit design for a 3.3 V regulator.
+
+### Other real workflows
+
+- [Find flights from Berlin to Bangkok](https://openmates.org/example/flights-berlin-to-bangkok): inspect live-style travel connections, prices, carriers, and timings inside chat.
+- [Research right-to-repair laws in the EU and US](https://openmates.org/example/right-to-repair-laws-eu-us): compare legislation with source-linked research.
 
 New to the project? Read [OpenMates for everyone](https://openmates.org/intro/for-everyone), [OpenMates for developers](https://openmates.org/intro/for-developers), or [who develops OpenMates](https://openmates.org/intro/who-develops-openmates).
 
