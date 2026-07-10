@@ -157,6 +157,31 @@ final class NativeComposerEmbedLifecycleTests: XCTestCase {
         XCTAssertEqual(terminatedStatus, .invalidated)
     }
 
+    func testFailedDispatchRetainsImmutableSnapshotForExplicitSameIdentityRetry() async throws {
+        let coordinator = ComposerPendingSendCoordinator()
+        let recorder = ComposerDispatchRecorder()
+        let queued = snapshot(requestId: "request-failure", nodeId: nil, generation: nil)
+        let enqueued = await coordinator.enqueue(queued)
+        XCTAssertTrue(enqueued)
+
+        await coordinator.resumeReady { _ in
+            throw SyntheticDispatchError.failed
+        }
+        let failedStatus = await coordinator.status(requestId: queued.requestId)
+        XCTAssertEqual(failedStatus, .failed)
+
+        let retried = await coordinator.retryFailed(requestId: queued.requestId)
+        XCTAssertTrue(retried)
+        await coordinator.resumeReady { snapshot in
+            await recorder.append("\(snapshot.requestId):\(snapshot.messageId)")
+        }
+
+        let values = await recorder.values()
+        XCTAssertEqual(values, ["request-failure:message-request-failure"])
+        let completedStatus = await coordinator.status(requestId: queued.requestId)
+        XCTAssertEqual(completedStatus, .completed)
+    }
+
     private func snapshot(
         requestId: String,
         nodeId: String?,
@@ -170,12 +195,17 @@ final class NativeComposerEmbedLifecycleTests: XCTestCase {
         }
         return ComposerSendSnapshot(
             requestId: requestId,
+            messageId: "message-\(requestId)",
             destinationId: "synthetic-chat",
             documentRevision: 13,
             document: .init(version: 1, nodes: [.text(id: "text-1", source: requestId)]),
             blockers: blockers
         )
     }
+}
+
+private enum SyntheticDispatchError: Error {
+    case failed
 }
 
 private actor ComposerDispatchRecorder {

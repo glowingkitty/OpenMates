@@ -44,6 +44,17 @@ final class NativeComposerPasteTests: XCTestCase {
             service.classify(.init(plainText: "https://composer-fixture.invalid/path")),
             .convert(.url, source: "https://composer-fixture.invalid/path")
         )
+
+        let markdownTable = "| name | value |\n| --- | --- |\n| alpha | 1 |"
+        XCTAssertEqual(
+            service.classify(.init(plainText: markdownTable, sourceCodeLanguage: "markdown")),
+            .convert(.sheet, source: markdownTable)
+        )
+        let commaTable = "name,value\nalpha,1\nbeta,2"
+        XCTAssertEqual(
+            service.classify(.init(plainText: commaTable, sourceCodeLanguage: "csv")),
+            .convert(.sheet, source: commaTable)
+        )
     }
 
     func testLongProseAndHTMLStructureBecomeDocuments() {

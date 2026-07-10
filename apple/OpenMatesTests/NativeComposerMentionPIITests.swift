@@ -10,7 +10,7 @@ import XCTest
 
 @MainActor
 final class NativeComposerMentionPIITests: XCTestCase {
-    func testEveryMentionKindBuildsCanonicalAtom() {
+    func testEveryMentionKindBuildsCanonicalAtom() throws {
         let service = ComposerMentionService()
         let cases: [(ComposerMentionCandidate, String)] = [
             (.init(kind: .mate, targetId: "mate-1", displayLabel: "Mate"), "@mate:mate-1"),
@@ -23,10 +23,19 @@ final class NativeComposerMentionPIITests: XCTestCase {
         ]
 
         for (index, item) in cases.enumerated() {
-            let node = service.node(candidate: item.0, nodeId: "mention-\(index)")
+            let node = try service.node(candidate: item.0, nodeId: "mention-\(index)")
             XCTAssertEqual(node.canonicalSyntax, item.1)
             XCTAssertEqual(node.displayLabel, item.0.displayLabel)
         }
+    }
+
+    func testMentionCandidatesRejectMissingCanonicalComponents() {
+        let candidate = ComposerMentionCandidate(
+            kind: .aiModel,
+            targetId: "model-1",
+            displayLabel: "Model"
+        )
+        XCTAssertThrowsError(try ComposerMentionService().node(candidate: candidate, nodeId: "mention-1"))
     }
 
     func testMentionInsertionPreservesSurroundingOrderAndSelection() throws {
@@ -36,7 +45,7 @@ final class NativeComposerMentionPIITests: XCTestCase {
             selection: NSRange(location: 6, length: 0)
         )
         let candidate = ComposerMentionCandidate(kind: .mate, targetId: "mate-1", displayLabel: "Mate")
-        let node = ComposerMentionService().node(candidate: candidate, nodeId: "mention-1")
+        let node = try ComposerMentionService().node(candidate: candidate, nodeId: "mention-1")
 
         try controller.insertMention(node)
 
@@ -46,9 +55,29 @@ final class NativeComposerMentionPIITests: XCTestCase {
         XCTAssertEqual(controller.selection, NSRange(location: 7, length: 0))
     }
 
-    func testPIIRedactionChangesVisibleTextOnly() {
+    func testMentionInsertionReplacesOnlyActiveQuery() throws {
+        let document = ComposerDocumentV1(
+            version: 1,
+            nodes: [.text(id: "text-1", source: "Hello @ma world")]
+        )
+        let controller = try NativeComposerController(
+            document: document,
+            selection: NSRange(location: 9, length: 0)
+        )
+        let candidate = ComposerMentionCandidate(kind: .mate, targetId: "mate-1", displayLabel: "Mate")
+        let node = try ComposerMentionService().node(candidate: candidate, nodeId: "mention-1")
+
+        try controller.insertMention(node, replacing: NSRange(location: 6, length: 3))
+
+        XCTAssertEqual(controller.document.nodes.map(\.kind), ["text", "mention", "text"])
+        XCTAssertEqual(controller.document.nodes.first?.source, "Hello ")
+        XCTAssertEqual(controller.document.nodes.last?.source, " world")
+        XCTAssertEqual(controller.selection, NSRange(location: 7, length: 0))
+    }
+
+    func testPIIRedactionChangesVisibleTextOnly() throws {
         let email = "person@composer-fixture.invalid"
-        let mention = ComposerMentionService().node(
+        let mention = try ComposerMentionService().node(
             candidate: .init(kind: .mate, targetId: email, displayLabel: "Private mate"),
             nodeId: "mention-1"
         )
