@@ -43,6 +43,7 @@
 		C0FFEE00000000000005003C /* ComposerMentionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003A /* ComposerMentionService.swift */; };
 		C0FFEE00000000000005003E /* ComposerPIIDecorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */; };
 		C0FFEE00000000000005003F /* ComposerPIIDecorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */; };
+		C0FFEE000000000000050054 /* NativeComposerSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */; };
 		C0FFEE00000000000005000E /* NativeComposerEncryptionCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */; };
 		C0FFEE00000000000005000F /* NativeComposerDraftEncryptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */; };
 		C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
@@ -896,6 +897,7 @@
 		C0FFEE000000000000050037 /* ComposerPasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerPasteService.swift; sourceTree = "<group>"; };
 		C0FFEE00000000000005003A /* ComposerMentionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerMentionService.swift; sourceTree = "<group>"; };
 		C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerPIIDecorations.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerSessionTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleComposerEmbedPreview.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevChatOpeningPreviewView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOpeningScalabilityUITests.swift; sourceTree = "<group>"; };
@@ -1618,6 +1620,7 @@
 				C0FFEE00000000000005002E /* NativeComposerSubmitTests.swift */,
 				C0FFEE000000000000050030 /* NativeComposerPasteTests.swift */,
 				C0FFEE000000000000050032 /* NativeComposerMentionPIITests.swift */,
+				C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */,
 				C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
 				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
@@ -2825,6 +2828,7 @@
 				C0FFEE00000000000005002F /* NativeComposerSubmitTests.swift in Sources */,
 				C0FFEE000000000000050031 /* NativeComposerPasteTests.swift in Sources */,
 				C0FFEE000000000000050033 /* NativeComposerMentionPIITests.swift in Sources */,
+				C0FFEE000000000000050054 /* NativeComposerSessionTests.swift in Sources */,
 				C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
 				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,
