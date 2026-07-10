@@ -109,6 +109,36 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         #endif
     }
 
+    func testPlatformEditsAndSelectionChangesSynchronizeBackToController() throws {
+        let controller = try makeController()
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+
+        #if canImport(UIKit)
+        XCTAssertFalse(adapter.textView(
+            textView,
+            shouldChangeTextIn: NSRange(location: 0, length: 1),
+            replacementText: "Z"
+        ))
+        XCTAssertEqual(textView.attributedText.string, "Z\u{FFFC}B\u{FFFC}C")
+        textView.selectedRange = NSRange(location: 2, length: 1)
+        adapter.textViewDidChangeSelection(textView)
+        #elseif canImport(AppKit)
+        XCTAssertFalse(adapter.textView(
+            textView,
+            shouldChangeTextIn: NSRange(location: 0, length: 1),
+            replacementString: "Z"
+        ))
+        XCTAssertEqual(textView.string, "Z\u{FFFC}B\u{FFFC}C")
+        textView.setSelectedRange(NSRange(location: 2, length: 1))
+        adapter.textViewDidChangeSelection(Notification(name: NSTextView.didChangeSelectionNotification, object: textView))
+        #endif
+
+        XCTAssertEqual(controller.attributedString.string, "Z\u{FFFC}B\u{FFFC}C")
+        XCTAssertEqual(controller.selection, NSRange(location: 2, length: 1))
+        XCTAssertNil(adapter.lastControllerError)
+    }
+
     private func makeAdapter(
         controller: NativeComposerController,
         recorder: AccessibilityActionRecorder = AccessibilityActionRecorder()

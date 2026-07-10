@@ -295,6 +295,9 @@ final class NativeComposerControllerTests: XCTestCase {
             ["composer:embed:first", "composer:embed:second"]
         )
         XCTAssertEqual(cutDocument.nodes.compactMap(\.source).joined(), "BDE")
+        XCTAssertTrue(
+            Set(cutDocument.nodes.map(\.id)).isDisjoint(with: Set(controller.document.nodes.map(\.id)))
+        )
         XCTAssertEqual(controller.attributedString.string, "AC")
         XCTAssertEqual(controller.selection, NSRange(location: 1, length: 0))
     }
