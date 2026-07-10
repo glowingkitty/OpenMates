@@ -516,13 +516,6 @@ Supports both saved payment methods and new payment form
                 updateProfile({ has_accepted_refund_policy: true });
             }}
         />
-        {#if bankTransferAvailable}
-            <div class="provider-switch-container">
-                <button class="provider-switch-btn" onclick={() => { showBankTransfer = true; }} data-testid="switch-to-bank-transfer">
-                    {$text('settings.billing.bank_transfer')}
-                </button>
-            </div>
-        {/if}
     </div>
 {/if}
 
