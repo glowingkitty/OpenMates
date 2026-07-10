@@ -492,6 +492,8 @@ test.describe('Anonymous free chat', () => {
 			rawMessageCount: number;
 			indexedMessageCount: number;
 			hasAnonymousSessionKey: boolean;
+			hash: string;
+			parsedChatId: string | null;
 		}>((resolve, reject) => {
 			const request = indexedDB.open('chats_db');
 			request.onerror = () => reject(request.error);
@@ -516,7 +518,9 @@ test.describe('Anonymous free chat', () => {
 						chatMessagesVersion: (chatRequest.result?.messages_v as number | undefined) ?? null,
 						rawMessageCount: rawMessages.filter((message) => message.chat_id === chatId).length,
 						indexedMessageCount: indexedMessagesRequest.result.length,
-						hasAnonymousSessionKey: !!sessionStorage.getItem('openmates_anonymous_chat_key')
+						hasAnonymousSessionKey: !!sessionStorage.getItem('openmates_anonymous_chat_key'),
+						hash: window.location.hash,
+						parsedChatId: new URLSearchParams(window.location.hash.substring(1)).get('chat-id')
 					});
 				};
 			};
