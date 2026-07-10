@@ -96,7 +96,6 @@ final class NativeComposerControllerTests: XCTestCase {
                 effectiveRange: nil
             ) as? ComposerTextAttachment
         )
-        var activationCount = 0
         let layoutManager = try XCTUnwrap(textView.textLayoutManager)
         let provider = try XCTUnwrap(attachment.viewProvider(
             for: textView,
@@ -104,10 +103,10 @@ final class NativeComposerControllerTests: XCTestCase {
             textContainer: textView.textContainer
         ) as? ComposerAttachmentViewProvider)
         provider.loadView()
-        let button = try XCTUnwrap(provider.view as? UIButton)
-        button.addAction(UIAction { _ in activationCount += 1 }, for: .touchUpInside)
-        button.sendActions(for: .touchUpInside)
-        XCTAssertEqual(activationCount, 1)
+        let preview = try XCTUnwrap(provider.view)
+        XCTAssertEqual(preview.accessibilityIdentifier, "native-composer-embed-composer:embed:fixture")
+        XCTAssertEqual(attachment.nodeSnapshot?.embedType, "image")
+        XCTAssertEqual(attachment.nodeSnapshot?.status, "finished")
         XCTAssertEqual(
             provider.attachmentBounds(
                 for: [:],
@@ -116,7 +115,7 @@ final class NativeComposerControllerTests: XCTestCase {
                 proposedLineFragment: CGRect(x: 0, y: 0, width: 320, height: 20),
                 position: .zero
             ).size,
-            CGSize(width: 320, height: 60)
+            CGSize(width: 320, height: 200)
         )
         #elseif canImport(AppKit)
         let textView = NSTextView(usingTextLayoutManager: true)
@@ -124,6 +123,29 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertNotNil(textView.textLayoutManager)
         XCTAssertEqual(textView.string.utf16.count, 12)
         #endif
+    }
+
+    func testAttachmentSnapshotUpdatesWithoutReplacingStableObject() throws {
+        let controller = try makeEmbeddedController()
+        let attachment = try XCTUnwrap(
+            controller.attributedString.attribute(
+                .attachment,
+                at: 6,
+                effectiveRange: nil
+            ) as? ComposerTextAttachment
+        )
+
+        try controller.updateEmbed(id: "composer:embed:fixture", status: "processing")
+
+        let updated = try XCTUnwrap(
+            controller.attributedString.attribute(
+                .attachment,
+                at: 6,
+                effectiveRange: nil
+            ) as? ComposerTextAttachment
+        )
+        XCTAssertTrue(updated === attachment)
+        XCTAssertEqual(updated.nodeSnapshot?.status, "processing")
     }
 
     func testBoundaryInsertionPreservesOriginalTextNodeID() throws {
