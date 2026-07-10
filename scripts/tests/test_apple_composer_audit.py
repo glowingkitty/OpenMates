@@ -22,5 +22,12 @@ def test_native_textkit_fixture_is_allowed() -> None:
     assert apple_composer_audit.forbidden_webview_matches(text) == []
 
 
+def test_raw_error_log_fixture_is_rejected() -> None:
+    assert apple_composer_audit.RAW_ERROR_LOG.search('print("[Chat] Upload error: \\(error)")')
+    assert not apple_composer_audit.RAW_ERROR_LOG.search(
+        'NativeDiagnostics.error("Upload failed: \\(type(of: error))", category: "apple_composer")'
+    )
+
+
 def test_repository_composer_hosts_pass_audit() -> None:
     assert apple_composer_audit.audit() == []

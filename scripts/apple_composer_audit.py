@@ -17,6 +17,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 COMPOSER_WEBVIEW = re.compile(r"\b(WKWebView|TiptapComposerWebView|WKScriptMessageHandler)\b")
+RAW_ERROR_LOG = re.compile(
+    r'print\("\[Chat\] (?:Recording transcription|Upload) error: \\\(error(?:\.localizedDescription)?\)'
+)
 
 
 @dataclass(frozen=True)
@@ -66,6 +69,14 @@ REMOVED_ARTIFACTS = (
     Path("apple/OpenMatesTests/TiptapComposerBridgeTests.swift"),
 )
 
+SECURITY_SURFACES = (
+    Path("apple/OpenMates/Sources/Shared/Composer"),
+    Path("apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift"),
+    Path("apple/OpenMates/Sources/Features/Chat/Views/MessageEditView.swift"),
+    Path("apple/OpenMatesShareExtension/ShareViewController.swift"),
+    Path("apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift"),
+)
+
 
 def forbidden_webview_matches(text: str) -> list[str]:
     """Return forbidden composer-webview symbols for focused fixture tests."""
@@ -106,6 +117,26 @@ def audit(root: Path = REPO_ROOT) -> list[str]:
         )
         if contains_artifact:
             failures.append(f"Removed composer WebView artifact exists: {path}")
+
+    for path in SECURITY_SURFACES:
+        full_path = root / path
+        candidates = full_path.rglob("*.swift") if full_path.is_dir() else (full_path,)
+        for candidate in candidates:
+            text = candidate.read_text(encoding="utf-8")
+            relative = candidate.relative_to(root)
+            if "import CryptoKit" in text or "import CommonCrypto" in text:
+                failures.append(f"{relative}: composer UI/editor layer must not implement cryptography")
+            if "print(" in text:
+                failures.append(f"{relative}: composer UI/editor diagnostics must use NativeDiagnostics")
+
+    chat_view_model = Path("apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift")
+    try:
+        chat_view_model_text = _read(root, chat_view_model)
+    except FileNotFoundError as exc:
+        failures.append(str(exc))
+    else:
+        if RAW_ERROR_LOG.search(chat_view_model_text):
+            failures.append(f"{chat_view_model}: composer upload/transcription diagnostics must not interpolate raw errors")
 
     try:
         project_text = _read(root, project)

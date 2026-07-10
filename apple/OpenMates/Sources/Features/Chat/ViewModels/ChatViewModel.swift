@@ -1849,7 +1849,10 @@ final class ChatViewModel: ObservableObject {
             PendingUploadStore.shared.markFinished(id: uploadId)
             return embed
         } catch {
-            print("[Chat] Recording transcription error: \(error)")
+            NativeDiagnostics.error(
+                "Composer recording transcription failed: \(type(of: error))",
+                category: "apple_composer"
+            )
             PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
             return nil
         }
@@ -1880,7 +1883,10 @@ final class ChatViewModel: ObservableObject {
             }
             return upload
         } catch {
-            print("[Chat] Upload error: \(error)")
+            NativeDiagnostics.error(
+                "Composer attachment upload failed: \(type(of: error))",
+                category: "apple_composer"
+            )
             PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.error)
             return nil
         }
