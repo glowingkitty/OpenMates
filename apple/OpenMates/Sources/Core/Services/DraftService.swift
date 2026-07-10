@@ -54,7 +54,7 @@ actor UserDefaultsLegacyComposerDraftStore: LegacyComposerDraftStore {
     private let defaults: UserDefaults
     private let storageKey: String
 
-    init(defaults: UserDefaults = .standard, storageKey: String = "openmates.drafts") {
+    init(defaults: UserDefaults, storageKey: String) {
         self.defaults = defaults
         self.storageKey = storageKey
     }
@@ -78,7 +78,10 @@ actor UserDefaultsLegacyComposerDraftStore: LegacyComposerDraftStore {
 final class DraftService: ObservableObject {
     static let shared = DraftService(
         repository: OfflineStore.shared,
-        legacyStore: UserDefaultsLegacyComposerDraftStore(),
+        legacyStore: UserDefaultsLegacyComposerDraftStore(
+            defaults: .standard,
+            storageKey: "openmates.drafts"
+        ),
         masterKeyProvider: {
             guard let userId = await AuthManager.currentUserId() else { return nil }
             return try await CryptoManager.shared.loadMasterKey(for: userId)
