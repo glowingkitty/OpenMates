@@ -9,6 +9,28 @@ import XCTest
 
 @MainActor
 final class AppleComposerRendererRegistryTests: XCTestCase {
+    private struct FixtureCatalog: Decodable {
+        let schemaVersion: Int
+        let lifecycleStates: [String]
+        let fixtures: [String: Fixture]
+
+        enum CodingKeys: String, CodingKey {
+            case schemaVersion = "schema_version"
+            case lifecycleStates = "lifecycle_states"
+            case fixtures
+        }
+    }
+
+    private struct Fixture: Decodable {
+        let title: String
+        let mediaKind: String
+
+        enum CodingKeys: String, CodingKey {
+            case title
+            case mediaKind = "media_kind"
+        }
+    }
+
     func testRegistryExactlyCoversGeneratedWebWriteModeTypes() throws {
         let expectedTypes = Set([
             "recording", "app-skill-use", "code-repo", "code-repo-group",
@@ -82,5 +104,29 @@ final class AppleComposerRendererRegistryTests: XCTestCase {
             )
         }
         XCTAssertThrowsError(try registry.lifecycleState(for: node.updatingStatus("future-state")))
+    }
+
+    func testSyntheticFixtureCatalogCoversEveryRegisteredTypeAndLifecycle() throws {
+        let repositoryRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let fixtureURL = repositoryRoot
+            .appendingPathComponent("shared/composer/fixtures/apple-composer-renderer-v1.json")
+        let catalog = try JSONDecoder().decode(
+            FixtureCatalog.self,
+            from: Data(contentsOf: fixtureURL)
+        )
+        let registry = AppleComposerRendererRegistry.shared
+
+        XCTAssertEqual(catalog.schemaVersion, 1)
+        XCTAssertEqual(Set(catalog.fixtures), Set(registry.registeredTypes))
+        XCTAssertEqual(
+            Set(catalog.lifecycleStates),
+            Set(AppleComposerEmbedLifecycleState.allCases.map(\.rawValue))
+        )
+        for (embedType, fixture) in catalog.fixtures {
+            XCTAssertFalse(fixture.title.isEmpty, embedType)
+            XCTAssertEqual(fixture.mediaKind, embedType)
+        }
     }
 }

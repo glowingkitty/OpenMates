@@ -375,12 +375,27 @@ def _generated_entry(
             "not_applicable_reason",
             "Focus-mode activation is system-generated and cannot be inserted by the composer.",
         )
-    elif embed_type in pending_types:
-        entry["native_preview_mapping"] = existing.get(
-            "native_preview_mapping",
-            "apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift#PendingComposerEmbedPreview",
+    if embed_type in pending_types and classification != "not_applicable_to_composer":
+        entry["fixture"] = (
+            "shared/composer/fixtures/apple-composer-renderer-v1.json"
+            f"#fixtures.{embed_type}"
         )
-        entry["lifecycle"] = existing.get("lifecycle", {"finished": "pending attachment preview"})
+        entry["lifecycle"] = {
+            "queued": "native composer lifecycle preview",
+            "uploading": "native composer lifecycle preview",
+            "transcribing": "native composer lifecycle preview",
+            "finished": "native composer lifecycle preview",
+            "error": "native composer lifecycle preview with retry and remove actions",
+            "cancelled": "native composer lifecycle preview with remove action",
+        }
+        entry["native_preview_mapping"] = (
+            "apple/OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift"
+            f"#{embed_type}"
+        )
+        entry["visual_case"] = (
+            "apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift"
+            "#testRegistryFamiliesAndLifecycleStatesRenderWithoutGenericFallback"
+        )
     return entry
 
 
