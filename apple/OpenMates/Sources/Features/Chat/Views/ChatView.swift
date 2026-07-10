@@ -1572,7 +1572,8 @@ struct ChatView: View {
             try composerSession.insertPendingEmbed(
                 nodeID: nodeID,
                 embedType: composerEmbedType(for: filename),
-                title: filename
+                title: filename,
+                localPreviewData: data
             )
             try composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.uploading.rawValue)
             try composerSession.configureEmbedActions(
@@ -1654,7 +1655,9 @@ struct ChatView: View {
                 nodeID: nodeID,
                 durableEmbedID: embed.id,
                 referenceType: embed.referenceType,
-                status: status
+                status: status,
+                embedRecord: embed.record,
+                localPreviewData: embed.localData
             )
         } catch {
             NativeDiagnostics.error("Composer attachment resolution failed: \(type(of: error))", category: "apple_composer")
@@ -1665,7 +1668,12 @@ struct ChatView: View {
     private func insertResolvedUITestEmbed(_ embed: ComposerPendingEmbed) {
         let nodeID = "composer:embed:ui-test"
         do {
-            try composerSession.insertPendingEmbed(nodeID: nodeID, embedType: "image", title: embed.filename)
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: "image",
+                title: embed.filename,
+                localPreviewData: embed.localData
+            )
             resolveComposerEmbed(nodeID: nodeID, embed: embed)
         } catch {
             NativeDiagnostics.error("Composer UI fixture insertion failed: \(type(of: error))", category: "apple_composer")

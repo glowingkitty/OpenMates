@@ -46,9 +46,16 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             return
         }
         let actions = attachment.embedActions
+        let embedRecord = attachment.embedRecord
+        let localPreviewData = attachment.localPreviewData
         let hosted = MainActor.assumeIsolated {
             let controller = UIHostingController(
-                rootView: ComposerAttachmentContent(node: node, actions: actions)
+                rootView: ComposerAttachmentContent(
+                    node: node,
+                    embedRecord: embedRecord,
+                    localPreviewData: localPreviewData,
+                    actions: actions
+                )
             )
             controller.view.backgroundColor = .clear
             controller.view.accessibilityIdentifier = platformIdentifier(for: node)
@@ -118,9 +125,16 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             return
         }
         let actions = attachment.embedActions
+        let embedRecord = attachment.embedRecord
+        let localPreviewData = attachment.localPreviewData
         let hosted = MainActor.assumeIsolated {
             let hosted = NSHostingView(
-                rootView: ComposerAttachmentContent(node: node, actions: actions)
+                rootView: ComposerAttachmentContent(
+                    node: node,
+                    embedRecord: embedRecord,
+                    localPreviewData: localPreviewData,
+                    actions: actions
+                )
             )
             hosted.identifier = NSUserInterfaceItemIdentifier(platformIdentifier(for: node))
             return hosted
@@ -159,6 +173,8 @@ private func platformIdentifier(for node: ComposerNodeV1) -> String {
 
 private struct ComposerAttachmentContent: View {
     let node: ComposerNodeV1
+    let embedRecord: EmbedRecord?
+    let localPreviewData: Data?
     let actions: AppleComposerEmbedActions
 
     @ViewBuilder
@@ -178,8 +194,9 @@ private struct ComposerAttachmentContent: View {
                 descriptor: descriptor,
                 node: node,
                 lifecycle: lifecycle,
-                embedRecord: nil,
-                allEmbedRecords: [:],
+                embedRecord: embedRecord,
+                allEmbedRecords: embedRecord.map { [$0.id: $0] } ?? [:],
+                localPreviewData: localPreviewData,
                 actions: actions
             )
         } else {

@@ -70,13 +70,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
         compact ? compactHeight : expandedMinHeight
     }
 
-    private var resolvedFieldHeight: CGFloat? {
-        if compact { return compactHeight }
-        if inlineFieldContent != nil { return nil }
-        if session.canonicalMarkdown.isEmpty && expandedMinHeight <= MessageComposerMetric.focusedEmptyHeight {
-            return MessageComposerMetric.focusedEmptyHeight
-        }
-        return nil
+    private var fieldMaxHeight: CGFloat {
+        compact ? compactHeight : max(expandedMinHeight, MessageComposerMetric.expandedMaxHeight)
     }
 
     private var cornerRadius: CGFloat {
@@ -126,6 +121,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                     }
                 }
                 .padding(.top, inlineFieldContent == nil ? 0 : .spacing2)
+                .padding(.bottom, compact ? 0 : expandedBottomPadding)
                 .frame(maxWidth: .infinity, minHeight: textEditorMinHeight, alignment: compact ? .center : .topLeading)
             }
             .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
@@ -141,7 +137,11 @@ struct OMMessageInputField<ActionButtons: View>: View {
                     .zIndex(3)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: resolvedFieldHeight)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: fieldHeight,
+            maxHeight: fieldMaxHeight
+        )
         .background(Color.greyBlue)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)

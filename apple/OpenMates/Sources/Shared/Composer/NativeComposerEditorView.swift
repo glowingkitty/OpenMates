@@ -31,9 +31,15 @@ struct NativeComposerEditorView: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.isScrollEnabled = true
         textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
-        textView.font = UIFont(name: FontRegistration.fontFamily, size: 16)
-        textView.textColor = UIColor(Color.fontPrimary)
         return textView
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width else { return nil }
+        let contentSize = uiView.sizeThatFits(
+            CGSize(width: width, height: .greatestFiniteMagnitude)
+        )
+        return CGSize(width: width, height: min(contentSize.height, 250))
     }
 
     func updateUIView(_ textView: UITextView, context: Context) {
@@ -60,7 +66,9 @@ struct NativeComposerEditorView: UIViewRepresentable {
                 accessibilityHint: accessibilityHint,
                 embedAccessibilityLabel: { node in node.display?.title ?? node.embedType ?? "" },
                 embedAccessibilityActions: { _ in [] },
-                onCanonicalMarkdownChange: { [weak session] _ in session?.publishControllerState() },
+                onCanonicalMarkdownChange: { [weak session] markdown in
+                    session?.publishControllerState(canonicalMarkdown: markdown)
+                },
                 onFocusChange: { _ in },
                 onSubmit: { }
             )
@@ -116,7 +124,9 @@ struct NativeComposerEditorView: NSViewRepresentable {
                 accessibilityHint: accessibilityHint,
                 embedAccessibilityLabel: { node in node.display?.title ?? node.embedType ?? "" },
                 embedAccessibilityActions: { _ in [] },
-                onCanonicalMarkdownChange: { [weak session] _ in session?.publishControllerState() },
+                onCanonicalMarkdownChange: { [weak session] markdown in
+                    session?.publishControllerState(canonicalMarkdown: markdown)
+                },
                 onFocusChange: { _ in },
                 onSubmit: { }
             )

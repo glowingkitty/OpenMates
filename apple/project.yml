@@ -125,12 +125,12 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         UIAppFonts:
-          - LexendDeca-Light.ttf
-          - LexendDeca-Regular.ttf
-          - LexendDeca-Medium.ttf
-          - LexendDeca-SemiBold.ttf
-          - LexendDeca-Bold.ttf
-          - LexendDeca-ExtraBold.ttf
+          - Fonts/LexendDeca-Light.ttf
+          - Fonts/LexendDeca-Regular.ttf
+          - Fonts/LexendDeca-Medium.ttf
+          - Fonts/LexendDeca-SemiBold.ttf
+          - Fonts/LexendDeca-Bold.ttf
+          - Fonts/LexendDeca-ExtraBold.ttf
     dependencies:
       - package: LucideIcons
       - target: OpenMatesShareExtension
@@ -221,12 +221,12 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
         UIAppFonts:
-          - LexendDeca-Light.ttf
-          - LexendDeca-Regular.ttf
-          - LexendDeca-Medium.ttf
-          - LexendDeca-SemiBold.ttf
-          - LexendDeca-Bold.ttf
-          - LexendDeca-ExtraBold.ttf
+          - Fonts/LexendDeca-Light.ttf
+          - Fonts/LexendDeca-Regular.ttf
+          - Fonts/LexendDeca-Medium.ttf
+          - Fonts/LexendDeca-SemiBold.ttf
+          - Fonts/LexendDeca-Bold.ttf
+          - Fonts/LexendDeca-ExtraBold.ttf
 
   # Share extension — share URLs, text, and images from other apps into OpenMates chats
   OpenMatesShareExtension:

@@ -24,14 +24,14 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
 
         #if canImport(UIKit)
         XCTAssertNotNil(textView.textLayoutManager)
-        XCTAssertTrue(textView.attributedText.isEqual(to: controller.attributedString))
+        XCTAssertEqual(textView.attributedText.string, controller.attributedString.string)
         XCTAssertEqual(textView.selectedRange, controller.selection)
         XCTAssertEqual(textView.accessibilityIdentifier, "message-editor")
         XCTAssertEqual(textView.accessibilityLabel, "Synthetic message input")
         XCTAssertEqual(textView.accessibilityHint, "Synthetic editing hint")
         #elseif canImport(AppKit)
         XCTAssertNotNil(textView.textLayoutManager)
-        XCTAssertTrue(try XCTUnwrap(textView.textStorage).isEqual(to: controller.attributedString))
+        XCTAssertEqual(try XCTUnwrap(textView.textStorage).string, controller.attributedString.string)
         XCTAssertEqual(textView.selectedRange(), controller.selection)
         XCTAssertEqual(textView.accessibilityIdentifier(), "message-editor")
         XCTAssertEqual(textView.accessibilityLabel(), "Synthetic message input")
@@ -104,9 +104,9 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
             ["Synthetic image, processing", "Synthetic PDF, finished"]
         )
         #if canImport(UIKit)
-        XCTAssertTrue(textView.attributedText.isEqual(to: controller.attributedString))
+        XCTAssertEqual(textView.attributedText.string, controller.attributedString.string)
         #elseif canImport(AppKit)
-        XCTAssertTrue(try XCTUnwrap(textView.textStorage).isEqual(to: controller.attributedString))
+        XCTAssertEqual(try XCTUnwrap(textView.textStorage).string, controller.attributedString.string)
         #endif
     }
 

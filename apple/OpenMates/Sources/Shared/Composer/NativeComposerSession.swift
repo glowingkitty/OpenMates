@@ -41,7 +41,12 @@ final class NativeComposerSession: ObservableObject {
         publishControllerState()
     }
 
-    func insertPendingEmbed(nodeID: String, embedType: String, title: String) throws {
+    func insertPendingEmbed(
+        nodeID: String,
+        embedType: String,
+        title: String,
+        localPreviewData: Data? = nil
+    ) throws {
         let node = ComposerNodeV1(
             kind: "embed",
             id: nodeID,
@@ -52,6 +57,11 @@ final class NativeComposerSession: ObservableObject {
             display: ComposerEmbedDisplayV1(title: title, mediaKind: embedType)
         )
         try controller.insertEmbed(node)
+        try controller.configureEmbedPreview(
+            id: nodeID,
+            embedRecord: nil,
+            localPreviewData: localPreviewData
+        )
         publishControllerState()
     }
 
@@ -59,7 +69,9 @@ final class NativeComposerSession: ObservableObject {
         nodeID: String,
         durableEmbedID: String,
         referenceType: String,
-        status: String
+        status: String,
+        embedRecord: EmbedRecord? = nil,
+        localPreviewData: Data? = nil
     ) throws {
         guard let current = controller.document.nodes.first(where: { $0.id == nodeID }) else {
             throw NativeComposerControllerError.nodeNotFound(nodeID)
@@ -74,6 +86,11 @@ final class NativeComposerSession: ObservableObject {
             referenceOnly: true,
             canonicalSource: canonicalSource,
             display: current.display
+        )
+        try controller.configureEmbedPreview(
+            id: nodeID,
+            embedRecord: embedRecord,
+            localPreviewData: localPreviewData
         )
         try controller.replaceEmbed(id: nodeID, with: resolved)
         publishControllerState()
@@ -127,9 +144,13 @@ final class NativeComposerSession: ObservableObject {
         }
     }
 
-    func publishControllerState() {
+    func publishControllerState(canonicalMarkdown knownCanonicalMarkdown: String? = nil) {
         do {
-            canonicalMarkdown = try controller.canonicalMarkdown()
+            if let knownCanonicalMarkdown {
+                canonicalMarkdown = knownCanonicalMarkdown
+            } else {
+                canonicalMarkdown = try controller.canonicalMarkdown()
+            }
             revision = controller.revision
             hasBlockingEmbeds = Self.containsBlockingEmbeds(controller.document)
         } catch {

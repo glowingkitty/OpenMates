@@ -190,6 +190,17 @@ final class NativeComposerController {
         attachment.embedActions = actions
     }
 
+    func configureEmbedPreview(
+        id: String,
+        embedRecord: EmbedRecord?,
+        localPreviewData: Data?
+    ) throws {
+        guard let attachment = attachments[id] else {
+            throw NativeComposerControllerError.nodeNotFound(id)
+        }
+        attachment.updatePreview(embedRecord: embedRecord, localPreviewData: localPreviewData)
+    }
+
     func removeEmbed(id: String) throws {
         guard let index = document.nodes.firstIndex(where: { $0.id == id }) else {
             throw NativeComposerControllerError.nodeNotFound(id)

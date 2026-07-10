@@ -12,7 +12,14 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import Foundation
+import ImageIO
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 private enum AppleComposerPreviewMetrics {
     static let width: CGFloat = 300
@@ -32,6 +39,7 @@ struct AppleComposerEmbedPreview: View {
     let lifecycle: AppleComposerEmbedLifecycleState
     let embedRecord: EmbedRecord?
     let allEmbedRecords: [String: EmbedRecord]
+    private let localPreviewImage: Image?
     let actions: AppleComposerEmbedActions
     let showsActions: Bool
 
@@ -41,6 +49,7 @@ struct AppleComposerEmbedPreview: View {
         lifecycle: AppleComposerEmbedLifecycleState,
         embedRecord: EmbedRecord?,
         allEmbedRecords: [String: EmbedRecord],
+        localPreviewData: Data? = nil,
         actions: AppleComposerEmbedActions,
         showsActions: Bool = true
     ) {
@@ -49,13 +58,17 @@ struct AppleComposerEmbedPreview: View {
         self.lifecycle = lifecycle
         self.embedRecord = embedRecord
         self.allEmbedRecords = allEmbedRecords
+        self.localPreviewImage = Self.makeLocalPreviewImage(data: localPreviewData)
         self.actions = actions
         self.showsActions = showsActions
     }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            if case .group(let childType) = descriptor.family,
+            if case .image = descriptor.family,
+               let localPreviewImage {
+                ComposerLocalImagePreview(image: localPreviewImage)
+            } else if case .group(let childType) = descriptor.family,
                let childDescriptor = AppleComposerRendererRegistry.shared.descriptor(for: childType) {
                 AppleComposerGroupedEmbedPreview(
                     childDescriptor: childDescriptor,
@@ -80,6 +93,24 @@ struct AppleComposerEmbedPreview: View {
         .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("native-composer-preview-\(descriptor.embedType)-\(lifecycle.rawValue)")
+    }
+
+    private static func makeLocalPreviewImage(data: Data?) -> Image? {
+        guard let data,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                  kCGImageSourceCreateThumbnailFromImageAlways: true,
+                  kCGImageSourceCreateThumbnailWithTransform: true,
+                  kCGImageSourceShouldCacheImmediately: true,
+                  kCGImageSourceThumbnailMaxPixelSize: 600,
+              ] as CFDictionary) else {
+            return nil
+        }
+        #if canImport(UIKit)
+        return Image(uiImage: UIImage(cgImage: thumbnail))
+        #elseif canImport(AppKit)
+        return Image(nsImage: NSImage(cgImage: thumbnail, size: .zero))
+        #endif
     }
 
     private var summaryPreview: some View {
@@ -244,6 +275,18 @@ struct AppleComposerEmbedPreview: View {
         case .recording: "audio"
         case .appSkillUse, .group: "openmates"
         }
+    }
+}
+
+private struct ComposerLocalImagePreview: View {
+    let image: Image
+
+    var body: some View {
+        image
+            .resizable()
+            .scaledToFill()
+            .accessibilityElement()
+            .accessibilityIdentifier("native-composer-image-content")
     }
 }
 

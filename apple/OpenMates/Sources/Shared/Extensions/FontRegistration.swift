@@ -7,6 +7,7 @@ import CoreText
 
 enum FontRegistration {
     nonisolated(unsafe) static var isRegistered = false
+    static let mediumPostScriptName = "LexendDeca-Medium"
 
     private static let fontFiles = [
         "LexendDeca-Light",

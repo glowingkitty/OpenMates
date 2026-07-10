@@ -4743,13 +4743,16 @@ struct NewChatWelcomeView: View {
             try composerSession.insertPendingEmbed(
                 nodeID: nodeID,
                 embedType: nativePreviewType(for: kind),
-                title: filename
+                title: filename,
+                localPreviewData: data
             )
             try composerSession.resolveEmbed(
                 nodeID: nodeID,
                 durableEmbedID: embed.id,
                 referenceType: embed.referenceType,
-                status: AppleComposerEmbedLifecycleState.finished.rawValue
+                status: AppleComposerEmbedLifecycleState.finished.rawValue,
+                embedRecord: embed.record,
+                localPreviewData: embed.localData
             )
             try composerSession.configureEmbedActions(
                 nodeID: nodeID,

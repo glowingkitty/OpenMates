@@ -10,6 +10,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import Foundation
+import SwiftUI
 
 #if canImport(UIKit)
 import UIKit
@@ -40,6 +41,8 @@ final class NativeComposerTextView: NSObject {
     var onSubmit: @MainActor () -> Void
     private var actionsByEmbedID: [String: [AccessibilityAction]] = [:]
     private var isSynchronizing = false
+    private var lastSynchronizedRevision: Int?
+    private var lastAccessibilityNodes: [ComposerNodeV1] = []
 
     init(
         controller: NativeComposerController,
@@ -74,21 +77,26 @@ final class NativeComposerTextView: NSObject {
     func synchronize(_ textView: UITextView) {
         isSynchronizing = true
         defer { isSynchronizing = false }
-        textView.attributedText = controller.attributedString
+        if lastSynchronizedRevision != controller.revision {
+            textView.attributedText = styledAttributedString(controller.attributedString)
+            lastSynchronizedRevision = controller.revision
+        }
         textView.selectedRange = controller.selection
+        textView.typingAttributes = textAttributes
         textView.accessibilityIdentifier = "message-editor"
         textView.accessibilityLabel = editorAccessibilityLabel
         textView.accessibilityHint = editorAccessibilityHint
-        rebuildEmbedAccessibilityElements()
-        textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
-            let element = UIAccessibilityElement(accessibilityContainer: textView)
-            element.accessibilityIdentifier = descriptor.nodeID
-            element.accessibilityLabel = descriptor.label
-            element.accessibilityTraits = .button
-            element.accessibilityCustomActions = (actionsByEmbedID[descriptor.nodeID] ?? []).map { action in
-                UIAccessibilityCustomAction(name: action.name) { _ in action.handler() }
+        if rebuildEmbedAccessibilityElementsIfNeeded() {
+            textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
+                let element = UIAccessibilityElement(accessibilityContainer: textView)
+                element.accessibilityIdentifier = descriptor.nodeID
+                element.accessibilityLabel = descriptor.label
+                element.accessibilityTraits = .button
+                element.accessibilityCustomActions = (actionsByEmbedID[descriptor.nodeID] ?? []).map { action in
+                    UIAccessibilityCustomAction(name: action.name) { _ in action.handler() }
+                }
+                return element
             }
-            return element
         }
     }
     #elseif canImport(AppKit)
@@ -102,12 +110,16 @@ final class NativeComposerTextView: NSObject {
     func synchronize(_ textView: NSTextView) {
         isSynchronizing = true
         defer { isSynchronizing = false }
-        textView.textStorage?.setAttributedString(controller.attributedString)
+        if lastSynchronizedRevision != controller.revision {
+            textView.textStorage?.setAttributedString(styledAttributedString(controller.attributedString))
+            lastSynchronizedRevision = controller.revision
+        }
         textView.setSelectedRange(controller.selection)
+        textView.typingAttributes = textAttributes
         textView.setAccessibilityIdentifier("message-editor")
         textView.setAccessibilityLabel(editorAccessibilityLabel)
         textView.setAccessibilityHelp(editorAccessibilityHint)
-        rebuildEmbedAccessibilityElements()
+        rebuildEmbedAccessibilityElementsIfNeeded()
     }
     #endif
 
@@ -132,6 +144,45 @@ final class NativeComposerTextView: NSObject {
         }
     }
 
+    @discardableResult
+    private func rebuildEmbedAccessibilityElementsIfNeeded() -> Bool {
+        let embeds = controller.document.nodes.filter { $0.kind == "embed" }
+        guard embeds != lastAccessibilityNodes else { return false }
+        lastAccessibilityNodes = embeds
+        rebuildEmbedAccessibilityElements()
+        return true
+    }
+
+    private var textAttributes: [NSAttributedString.Key: Any] {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.minimumLineHeight = 25.6
+        paragraphStyle.maximumLineHeight = 25.6
+        // Web body typography supplies --font-weight-p: 500 to ProseMirror.
+        #if canImport(UIKit)
+        let font = UIFont(name: FontRegistration.mediumPostScriptName, size: 16)
+            ?? UIFont.systemFont(ofSize: 16, weight: .medium)
+        return [
+            .font: font,
+            .foregroundColor: UIColor(Color.fontPrimary),
+            .paragraphStyle: paragraphStyle,
+        ]
+        #elseif canImport(AppKit)
+        let font = NSFont(name: FontRegistration.mediumPostScriptName, size: 16)
+            ?? NSFont.systemFont(ofSize: 16, weight: .medium)
+        return [
+            .font: font,
+            .foregroundColor: NSColor(Color.fontPrimary),
+            .paragraphStyle: paragraphStyle,
+        ]
+        #endif
+    }
+
+    private func styledAttributedString(_ source: NSAttributedString) -> NSAttributedString {
+        let styled = NSMutableAttributedString(attributedString: source)
+        styled.addAttributes(textAttributes, range: NSRange(location: 0, length: styled.length))
+        return styled
+    }
+
     private func applyPlatformEdit(
         range: NSRange,
         replacement: String
@@ -139,7 +190,6 @@ final class NativeComposerTextView: NSObject {
         do {
             try controller.setSelection(range)
             try controller.replaceSelection(with: replacement)
-            notifyCanonicalMarkdownChange()
             lastControllerError = nil
         } catch let error as NativeComposerControllerError {
             lastControllerError = error
@@ -170,6 +220,63 @@ final class NativeComposerTextView: NSObject {
             lastControllerError = .platformSynchronizationFailed
         }
     }
+
+    #if canImport(UIKit)
+    private func applyIncrementalEdit(
+        to textView: UITextView,
+        range: NSRange,
+        replacement: String
+    ) {
+        isSynchronizing = true
+        defer { isSynchronizing = false }
+        textView.textStorage.beginEditing()
+        textView.textStorage.replaceCharacters(
+            in: range,
+            with: NSAttributedString(string: replacement, attributes: textAttributes)
+        )
+        textView.textStorage.endEditing()
+        if textView.textStorage.string != controller.attributedString.string {
+            textView.attributedText = styledAttributedString(controller.attributedString)
+        }
+        lastSynchronizedRevision = controller.revision
+        textView.selectedRange = controller.selection
+        textView.typingAttributes = textAttributes
+        if rebuildEmbedAccessibilityElementsIfNeeded() {
+            textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
+                let element = UIAccessibilityElement(accessibilityContainer: textView)
+                element.accessibilityIdentifier = descriptor.nodeID
+                element.accessibilityLabel = descriptor.label
+                element.accessibilityTraits = .button
+                element.accessibilityCustomActions = (actionsByEmbedID[descriptor.nodeID] ?? []).map { action in
+                    UIAccessibilityCustomAction(name: action.name) { _ in action.handler() }
+                }
+                return element
+            }
+        }
+    }
+    #elseif canImport(AppKit)
+    private func applyIncrementalEdit(
+        to textView: NSTextView,
+        range: NSRange,
+        replacement: String
+    ) {
+        isSynchronizing = true
+        defer { isSynchronizing = false }
+        textView.textStorage?.beginEditing()
+        textView.textStorage?.replaceCharacters(
+            in: range,
+            with: NSAttributedString(string: replacement, attributes: textAttributes)
+        )
+        textView.textStorage?.endEditing()
+        if textView.textStorage?.string != controller.attributedString.string {
+            textView.textStorage?.setAttributedString(styledAttributedString(controller.attributedString))
+        }
+        lastSynchronizedRevision = controller.revision
+        textView.setSelectedRange(controller.selection)
+        textView.typingAttributes = textAttributes
+        rebuildEmbedAccessibilityElementsIfNeeded()
+    }
+    #endif
 }
 
 #if canImport(UIKit)
@@ -180,7 +287,10 @@ extension NativeComposerTextView: UITextViewDelegate {
         replacementText text: String
     ) -> Bool {
         let shouldApplyPlatformEdit = applyPlatformEdit(range: range, replacement: text)
-        synchronize(textView)
+        if lastControllerError == nil {
+            applyIncrementalEdit(to: textView, range: range, replacement: text)
+            notifyCanonicalMarkdownChange()
+        }
         return shouldApplyPlatformEdit
     }
 
@@ -214,7 +324,14 @@ extension NativeComposerTextView: NSTextViewDelegate {
             range: affectedCharRange,
             replacement: replacementString ?? ""
         )
-        synchronize(textView)
+        if lastControllerError == nil {
+            applyIncrementalEdit(
+                to: textView,
+                range: affectedCharRange,
+                replacement: replacementString ?? ""
+            )
+            notifyCanonicalMarkdownChange()
+        }
         return shouldApplyPlatformEdit
     }
 

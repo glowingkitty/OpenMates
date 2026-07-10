@@ -20,6 +20,8 @@ import AppKit
 final class ComposerTextAttachment: NSTextAttachment {
     let nodeID: String
     private(set) var nodeSnapshot: ComposerNodeV1?
+    private(set) var embedRecord: EmbedRecord?
+    private(set) var localPreviewData: Data?
     var embedActions = AppleComposerEmbedActions(
         onOpen: { _ in },
         onRetry: { _ in },
@@ -52,6 +54,11 @@ final class ComposerTextAttachment: NSTextAttachment {
     func update(node: ComposerNodeV1) {
         guard node.id == nodeID else { return }
         nodeSnapshot = node
+    }
+
+    func updatePreview(embedRecord: EmbedRecord?, localPreviewData: Data?) {
+        self.embedRecord = embedRecord
+        self.localPreviewData = localPreviewData
     }
 
     #if canImport(UIKit)
