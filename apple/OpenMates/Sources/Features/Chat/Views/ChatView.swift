@@ -166,6 +166,7 @@ struct ChatView: View {
     @State private var selectedAssistantRating: Int?
     @State private var assistantFeedbackSubmitted = false
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
+    @State private var draftSaveTask: Task<Void, Never>?
     @State private var broadcastToSiblingSubChats = false
     @StateObject private var focusModeManager = FocusModeManager()
     @StateObject private var composerRecorder = VoiceRecorder()
@@ -173,6 +174,7 @@ struct ChatView: View {
     @FocusState private var isInputFocused: Bool
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.scenePhase) private var scenePhase
 
     private var messageText: String {
         get { composerSession.canonicalMarkdown }
@@ -320,10 +322,13 @@ struct ChatView: View {
             applyCameraCaptureRequestIfNeeded()
         }
         .task(id: chatId) {
+            draftSaveTask?.cancel()
+            composerSession.clear()
             await ApplePrivacySettingsService.shared.load()
             isPIIRevealed = false
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
+            await restoreEncryptedDraft()
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed") {
                 if let embed = viewModel.seedUITestPendingComposerEmbed() {
@@ -377,6 +382,16 @@ struct ChatView: View {
         .onChange(of: messageText) { _, newValue in
             updatePIIMatches(for: newValue)
             updateMentionQuery(for: newValue)
+        }
+        .onChange(of: composerSession.revision) { _, _ in
+            scheduleEncryptedDraftSave()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { flushEncryptedDraft() }
+        }
+        .onDisappear {
+            draftSaveTask?.cancel()
+            flushEncryptedDraft()
         }
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
             updatePIIMatches(for: messageText)
@@ -1684,6 +1699,7 @@ struct ChatView: View {
 
     private var inputDismissButton: some View {
         Button {
+            flushEncryptedDraft()
             dismissInputIfNeeded()
         } label: {
             Text(messageText.isEmpty ? AppStrings.cancel : AppStrings.saveDraft)
@@ -1959,7 +1975,63 @@ struct ChatView: View {
             )
             if viewModel.error != nil {
                 messageText = text
+            } else {
+                try? await DraftService.shared.clearDraft(chatId: chatId)
             }
+        }
+    }
+
+    private func restoreEncryptedDraft() async {
+        guard !isDemoOrLegalChat, !isExampleChat else { return }
+        do {
+            if let draft = try await DraftService.shared.loadDraft(chatId: chatId),
+               composerSession.canonicalMarkdown.isEmpty {
+                composerSession.replaceMarkdown(draft.canonicalMarkdown)
+            }
+        } catch ComposerDraftError.masterKeyUnavailable {
+            return
+        } catch {
+            NativeDiagnostics.warning("Encrypted composer draft restore failed: \(type(of: error))", category: "apple_composer")
+        }
+    }
+
+    private func scheduleEncryptedDraftSave() {
+        guard !isDemoOrLegalChat, !isExampleChat else { return }
+        draftSaveTask?.cancel()
+        let markdown = composerSession.canonicalMarkdown
+        let revision = composerSession.revision
+        let draftVersion = viewModel.chat?.draftV ?? 0
+        draftSaveTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            await saveEncryptedDraft(markdown: markdown, revision: revision, draftVersion: draftVersion)
+        }
+    }
+
+    private func flushEncryptedDraft() {
+        guard !isDemoOrLegalChat, !isExampleChat else { return }
+        draftSaveTask?.cancel()
+        let markdown = composerSession.canonicalMarkdown
+        let revision = composerSession.revision
+        let draftVersion = viewModel.chat?.draftV ?? 0
+        Task { @MainActor in
+            await saveEncryptedDraft(markdown: markdown, revision: revision, draftVersion: draftVersion)
+        }
+    }
+
+    private func saveEncryptedDraft(markdown: String, revision: Int, draftVersion: Int) async {
+        do {
+            try await DraftService.shared.saveDraft(
+                canonicalMarkdown: markdown,
+                preview: String(markdown.prefix(160)),
+                chatId: chatId,
+                revision: revision,
+                draftVersion: draftVersion
+            )
+        } catch ComposerDraftError.masterKeyUnavailable {
+            return
+        } catch {
+            NativeDiagnostics.warning("Encrypted composer draft save failed: \(type(of: error))", category: "apple_composer")
         }
     }
 

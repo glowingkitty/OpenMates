@@ -1320,7 +1320,7 @@ struct MainAppView: View {
                 serverSuggestions: syncedNewChatSuggestions,
                 accountInterestTagIds: accountInterestTagIds,
                 focusRequest: newChatFocusRequest,
-                onCreateChatWithMessage: { message, piiMappings in
+                onCreateChatWithMessage: { message, piiMappings, composerEmbeds in
                     let now = ChatSendPipeline.isoString(from: Date())
                     if incognitoManager.isEnabled {
                         let chatId = makeTransientChat(isIncognito: true)
@@ -1368,7 +1368,11 @@ struct MainAppView: View {
                             wsManager: wsManager,
                             chatStore: chatStore,
                             waitForRemoteSend: false,
-                            piiMappings: piiMappings
+                            composerEmbeds: composerEmbeds,
+                            piiMappings: ChatSendPipeline().combinedPIIMappings(
+                                textMappings: piiMappings,
+                                composerEmbeds: composerEmbeds
+                            )
                         )
                         return result.chat.id
                     }
@@ -4421,7 +4425,7 @@ struct NewChatWelcomeView: View {
     let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
     let accountInterestTagIds: [InterestTagId]
     let focusRequest: Int
-    let onCreateChatWithMessage: (String, [PIIMapping]) async throws -> String
+    let onCreateChatWithMessage: (String, [PIIMapping], [ComposerPendingEmbed]) async throws -> String
     let onChatCreated: (String) -> Void
     let onOpenChat: (String) -> Void
     let onInspirationViewed: (String) -> Void
@@ -4454,6 +4458,7 @@ struct NewChatWelcomeView: View {
     @State private var recordStartedFromKeyboard = false
     @State private var recordStartTask: Task<Void, Never>?
     @State private var recordHintTask: Task<Void, Never>?
+    @State private var draftSaveTask: Task<Void, Never>?
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @StateObject private var composerRecorder = VoiceRecorder()
     @FocusState private var isFocused: Bool
@@ -4675,6 +4680,7 @@ struct NewChatWelcomeView: View {
         .task {
             await loadSuggestions()
             await ApplePrivacySettingsService.shared.load()
+            await restoreNewChatDraft()
             updatePIIMatches(for: messageText)
         }
         .onAppear {
@@ -4700,6 +4706,13 @@ struct NewChatWelcomeView: View {
         .onChange(of: messageText) { _, newValue in
             updatePIIMatches(for: newValue)
         }
+        .onChange(of: composerSession.revision) { _, _ in
+            scheduleNewChatDraftSave()
+        }
+        .onDisappear {
+            draftSaveTask?.cancel()
+            flushNewChatDraft()
+        }
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
             updatePIIMatches(for: messageText)
         }
@@ -4723,12 +4736,46 @@ struct NewChatWelcomeView: View {
     }
 
     private func addPendingComposerEmbed(filename: String, kind: WelcomeComposerPendingKind, data: Data? = nil, duration: TimeInterval? = nil) {
-        pendingComposerEmbeds.append(makePendingComposerEmbed(filename: filename, kind: kind, data: data, duration: duration))
+        let embed = makePendingComposerEmbed(filename: filename, kind: kind, data: data, duration: duration)
+        pendingComposerEmbeds.append(embed)
+        let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: nativePreviewType(for: kind),
+                title: filename
+            )
+            try composerSession.resolveEmbed(
+                nodeID: nodeID,
+                durableEmbedID: embed.id,
+                referenceType: embed.referenceType,
+                status: AppleComposerEmbedLifecycleState.finished.rawValue
+            )
+            try composerSession.configureEmbedActions(
+                nodeID: nodeID,
+                onOpen: { _ in },
+                onRetry: { _ in },
+                onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == embed.id } }
+            )
+        } catch {
+            NativeDiagnostics.error("Welcome composer attachment insertion failed: \(type(of: error))", category: "apple_composer")
+        }
         anonymousAttachmentPending = false
     }
 
     private func removePendingComposerEmbed(_ embed: ComposerPendingEmbed) {
         pendingComposerEmbeds.removeAll { $0.id == embed.id }
+        if let nodeID = composerSession.controller.document.nodes.first(where: { $0.contentRef == "embed:\(embed.id)" })?.id {
+            try? composerSession.removeEmbed(nodeID: nodeID)
+        }
+    }
+
+    private func nativePreviewType(for kind: WelcomeComposerPendingKind) -> String {
+        switch kind {
+        case .file: "docs-doc"
+        case .image: "image"
+        case .audio: "recording"
+        }
     }
 
     private func makePendingComposerEmbed(
@@ -5391,6 +5438,56 @@ struct NewChatWelcomeView: View {
         }
     }
 
+    private func restoreNewChatDraft() async {
+        guard isAuthenticated else { return }
+        do {
+            if let draft = try await DraftService.shared.loadDraft(chatId: "composer:new-chat"),
+               composerSession.canonicalMarkdown.isEmpty {
+                composerSession.replaceMarkdown(draft.canonicalMarkdown)
+            }
+        } catch ComposerDraftError.masterKeyUnavailable {
+            return
+        } catch {
+            NativeDiagnostics.warning("New-chat draft restore failed: \(type(of: error))", category: "apple_composer")
+        }
+    }
+
+    private func scheduleNewChatDraftSave() {
+        guard isAuthenticated else { return }
+        draftSaveTask?.cancel()
+        let markdown = composerSession.canonicalMarkdown
+        let revision = composerSession.revision
+        draftSaveTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            await saveNewChatDraft(markdown: markdown, revision: revision)
+        }
+    }
+
+    private func flushNewChatDraft() {
+        guard isAuthenticated else { return }
+        draftSaveTask?.cancel()
+        let markdown = composerSession.canonicalMarkdown
+        let revision = composerSession.revision
+        Task { @MainActor in await saveNewChatDraft(markdown: markdown, revision: revision) }
+    }
+
+    private func saveNewChatDraft(markdown: String, revision: Int) async {
+        do {
+            try await DraftService.shared.saveDraft(
+                canonicalMarkdown: markdown,
+                preview: String(markdown.prefix(160)),
+                chatId: "composer:new-chat",
+                revision: revision,
+                draftVersion: 0
+            )
+        } catch ComposerDraftError.masterKeyUnavailable {
+            return
+        } catch {
+            NativeDiagnostics.warning("New-chat draft save failed: \(type(of: error))", category: "apple_composer")
+        }
+    }
+
     private func createChatWith(message: String) {
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty || !pendingComposerEmbeds.isEmpty else { return }
@@ -5401,17 +5498,7 @@ struct NewChatWelcomeView: View {
             return
         }
 
-        let pendingSummaries = pendingComposerEmbeds
-            .map { $0.textPreview ?? $0.filename }
-            .joined(separator: "\n")
-        let outboundText: String
-        if text.isEmpty {
-            outboundText = pendingSummaries
-        } else if pendingSummaries.isEmpty {
-            outboundText = text
-        } else {
-            outboundText = "\(text)\n\(pendingSummaries)"
-        }
+        let outboundText = message
 
         let redaction = PIIDetector.redactionResult(
             in: outboundText,
@@ -5421,13 +5508,18 @@ struct NewChatWelcomeView: View {
 
         Task { @MainActor in
             do {
-                let chatId = try await onCreateChatWithMessage(redaction.redactedText, redaction.mappings)
+                let chatId = try await onCreateChatWithMessage(
+                    redaction.redactedText,
+                    redaction.mappings,
+                    pendingComposerEmbeds
+                )
                 messageText = ""
                 isComposerActivated = false
                 isComposerExpanded = false
                 isFocused = false
                 anonymousAttachmentPending = false
                 pendingComposerEmbeds = []
+                try? await DraftService.shared.clearDraft(chatId: "composer:new-chat")
                 showAttachmentMenu = false
                 composerOverlay = nil
                 detectedPIIMatches = []
@@ -5896,9 +5988,7 @@ private struct WelcomeComposer: View {
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() },
-                inlineFieldContent: hasPendingComposerEmbeds
-                    ? AnyView(PendingComposerEmbedsList(embeds: pendingComposerEmbeds, onRemove: onRemovePendingEmbed))
-                    : nil,
+                inlineFieldContent: nil,
                 preFieldContent: { EmptyView() },
                 overlayContent: {
                     if let overlayContent {
