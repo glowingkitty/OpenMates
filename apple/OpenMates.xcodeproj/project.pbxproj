@@ -179,6 +179,8 @@
 		23B666E453D592CEE9783215 /* SettingsServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0C1FF9CFB126B5BAA62F06 /* SettingsServerView.swift */; };
 		2410CC839A6BE347AA8A2405 /* OpenMatesShareExtension_macOS.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F376B3E95264F50E89441B25 /* OpenMatesShareExtension_macOS.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		24297CA925C3F4E644CBAFCE /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FBE13CE390895845544512 /* ShareViewController.swift */; };
+		C0FFEE000000000000050060 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
+		C0FFEE000000000000050061 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
 		25468B39379E6020F76E58A4 /* OfflineStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3097B5CA5DCA16BB86C4AADF /* OfflineStore.swift */; };
 		25630A2D3A70904E005658BA /* PasskeyLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB03275320AE573452F949A0 /* PasskeyLoginView.swift */; };
 		257091716AF1D1AD5770B815 /* SignupFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88FAB07DECD954240DE2747 /* SignupFlowView.swift */; };
@@ -2284,6 +2286,7 @@
 				9313EC17123E6C994EEF6E47 /* BackgroundChatSender.swift in Sources */,
 				F387E8E87488BEEBEAB2BF21 /* CryptoManager.swift in Sources */,
 				EDECD1214A6907A3ED0095BA /* KeychainHelper.swift in Sources */,
+				C0FFEE000000000000050060 /* ComposerDocument.swift in Sources */,
 				52834EBA1CD7FB37EE4A9463 /* MacShareViewController.swift in Sources */,
 				652975DA634D0799D49A89CA /* OpenMatesSharedEnvironment.swift in Sources */,
 				2B8DE36C8A872EB9E546F549 /* ServerConfiguration.swift in Sources */,
@@ -2770,6 +2773,7 @@
 				CA87A69207971B1FF3795C9F /* BackgroundChatSender.swift in Sources */,
 				7B57E05E2076A6077BAB312D /* CryptoManager.swift in Sources */,
 				9F7F11EF6A6C833E5F9AA7B6 /* KeychainHelper.swift in Sources */,
+				C0FFEE000000000000050061 /* ComposerDocument.swift in Sources */,
 				08EAA1E22A555C852FE8D981 /* OpenMatesSharedEnvironment.swift in Sources */,
 				E06458ADE0296F3CBCE7E65B /* ServerConfiguration.swift in Sources */,
 				24297CA925C3F4E644CBAFCE /* ShareViewController.swift in Sources */,

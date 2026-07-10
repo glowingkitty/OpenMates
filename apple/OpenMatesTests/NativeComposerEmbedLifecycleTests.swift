@@ -127,6 +127,53 @@ final class NativeComposerEmbedLifecycleTests: XCTestCase {
         XCTAssertEqual(secondStatus, .completed)
     }
 
+    func testDeferredSendDispatchesItsImmutableDocumentSnapshotExactlyOnce() async {
+        let coordinator = ComposerPendingSendCoordinator()
+        let recorder = ComposerSnapshotRecorder()
+        let queuedDocument = ComposerDocumentV1(
+            version: 1,
+            nodes: [
+                .text(id: "text-queued", source: "queued"),
+                .embed(
+                    id: "embed-queued",
+                    embedType: "image",
+                    canonicalSource: "",
+                    referenceOnly: true,
+                    display: .init(title: "Queued", mediaKind: "image")
+                ).updatingStatus(AppleComposerEmbedLifecycleState.uploading.rawValue),
+            ]
+        )
+        let snapshot = ComposerSendSnapshot(
+            requestId: "request-snapshot",
+            messageId: "message-snapshot",
+            destinationId: "synthetic-chat",
+            documentRevision: 7,
+            document: queuedDocument,
+            blockers: [.init(nodeId: "embed-queued", generation: 1)]
+        )
+        let editedAfterQueue = ComposerDocumentV1(
+            version: 1,
+            nodes: [.text(id: "text-edited", source: "edited after queue")]
+        )
+
+        let enqueued = await coordinator.enqueue(snapshot)
+        XCTAssertTrue(enqueued)
+        XCTAssertNotEqual(snapshot.document, editedAfterQueue)
+
+        await coordinator.updateNode(nodeId: "embed-queued", generation: 1, state: .finished)
+        await coordinator.resumeReady { dispatched in
+            await recorder.append(dispatched.document)
+        }
+        await coordinator.resumeReady { dispatched in
+            await recorder.append(dispatched.document)
+        }
+
+        let dispatchedDocuments = await recorder.values()
+        let status = await coordinator.status(requestId: snapshot.requestId)
+        XCTAssertEqual(dispatchedDocuments, [queuedDocument])
+        XCTAssertEqual(status, .completed)
+    }
+
     func testRetryReplacesExpectedGenerationAndTerminationInvalidatesPlaintextSnapshots() async {
         let coordinator = ComposerPendingSendCoordinator()
         let recorder = ComposerDispatchRecorder()
@@ -217,5 +264,17 @@ private actor ComposerDispatchRecorder {
 
     func values() -> [String] {
         requestIds
+    }
+}
+
+private actor ComposerSnapshotRecorder {
+    private var documents: [ComposerDocumentV1] = []
+
+    func append(_ document: ComposerDocumentV1) {
+        documents.append(document)
+    }
+
+    func values() -> [ComposerDocumentV1] {
+        documents
     }
 }

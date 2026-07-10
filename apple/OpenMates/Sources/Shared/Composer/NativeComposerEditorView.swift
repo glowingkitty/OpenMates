@@ -19,6 +19,7 @@ import UIKit
 struct NativeComposerEditorView: UIViewRepresentable {
     @ObservedObject var session: NativeComposerSession
     let isFocused: Binding<Bool>
+    let isEditable: Bool
     let accessibilityHint: String
     let onSubmit: () -> Void
 
@@ -46,6 +47,7 @@ struct NativeComposerEditorView: UIViewRepresentable {
         context.coordinator.onFocusChange = { isFocused.wrappedValue = $0 }
         context.coordinator.onSubmit = onSubmit
         context.coordinator.adapter.synchronize(textView)
+        textView.isEditable = isEditable
         if isFocused.wrappedValue, !textView.isFirstResponder {
             textView.becomeFirstResponder()
         } else if !isFocused.wrappedValue, textView.isFirstResponder {
@@ -83,6 +85,7 @@ import AppKit
 struct NativeComposerEditorView: NSViewRepresentable {
     @ObservedObject var session: NativeComposerSession
     let isFocused: Binding<Bool>
+    let isEditable: Bool
     let accessibilityHint: String
     let onSubmit: () -> Void
 
@@ -106,6 +109,7 @@ struct NativeComposerEditorView: NSViewRepresentable {
         context.coordinator.onFocusChange = { isFocused.wrappedValue = $0 }
         context.coordinator.onSubmit = onSubmit
         context.coordinator.adapter.synchronize(textView)
+        textView.isEditable = isEditable
         if isFocused.wrappedValue {
             textView.window?.makeFirstResponder(textView)
         }

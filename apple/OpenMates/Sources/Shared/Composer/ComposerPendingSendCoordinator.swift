@@ -97,7 +97,7 @@ actor ComposerPendingSendCoordinator {
     }
 
     func resumeReady(
-        dispatch: @Sendable (ComposerSendSnapshot) async throws -> Void
+        dispatch: @MainActor @Sendable (ComposerSendSnapshot) async throws -> Void
     ) async {
         for destinationId in Array(queues.keys) {
             while let requestId = queues[destinationId]?.first,

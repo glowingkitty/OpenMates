@@ -132,6 +132,18 @@ final class NativeComposerSession: ObservableObject {
         publishControllerState()
     }
 
+    func removeSentSnapshotNodes(_ snapshot: ComposerDocumentV1) throws {
+        let snapshotNodes = Dictionary(uniqueKeysWithValues: snapshot.nodes.map { ($0.id, $0) })
+        let remainingNodes = controller.document.nodes.filter { node in
+            guard let snapshotNode = snapshotNodes[node.id] else { return true }
+            // Resolved embeds differ from their queued atom, but must be removed after send.
+            // Text only disappears when it has not been edited since the user queued the send.
+            return node.kind != "embed" && node != snapshotNode
+        }
+        try controller.loadDocument(ComposerDocumentV1(version: 1, nodes: remainingNodes))
+        publishControllerState()
+    }
+
     func clear() {
         do {
             try controller.loadDocument(ComposerDocumentV1(version: 1, nodes: []))

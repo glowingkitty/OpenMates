@@ -77,6 +77,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
     var expandedMinHeight: CGFloat = MessageComposerMetric.expandedMinHeight
     var maxWidth: CGFloat? = MessageComposerMetric.mainAppMaxWidth
     var accessibilityHint: String = AppStrings.typeMessage
+    var isComposerEditable = true
     var onSubmit: () -> Void
     var inlineFieldContent: AnyView? = nil
     @ViewBuilder var preFieldContent: () -> PreFieldContent
@@ -97,6 +98,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
                 showActionButtonsWhenCompact: showActionButtonsWhenCompact,
                 expandedMinHeight: expandedMinHeight,
                 accessibilityHint: accessibilityHint,
+                isComposerEditable: isComposerEditable,
                 inlineFieldContent: inlineFieldContent,
                 overlayContent: AnyView(overlayContent()),
                 onSubmit: onSubmit

@@ -54,6 +54,16 @@ private enum ComposerOverlay: Equatable {
     case recording
 }
 
+private struct ComposerDeferredSendContext {
+    let excludedPIIIds: Set<String>
+    let broadcastToSiblings: Bool
+}
+
+private enum ComposerDeferredSendError: Error {
+    case missingContext
+    case sendFailed
+}
+
 private struct ChatScrollSentinelPreferenceKey: PreferenceKey {
     static let defaultValue: [ChatScrollSentinelEdge: CGFloat] = [:]
 
@@ -171,6 +181,12 @@ struct ChatView: View {
     @StateObject private var focusModeManager = FocusModeManager()
     @StateObject private var composerRecorder = VoiceRecorder()
     @StateObject private var pendingUploads = PendingUploadStore.shared
+    @State private var composerEmbedLifecycle = ComposerEmbedLifecycle()
+    @State private var composerPendingSendCoordinator = ComposerPendingSendCoordinator()
+    @State private var deferredComposerSendContexts: [String: ComposerDeferredSendContext] = [:]
+    @State private var deferredComposerSendNodeIDs: [String: Set<String>] = [:]
+    @State private var resolvedComposerEmbeds: [String: ComposerPendingEmbed] = [:]
+    @State private var deferredComposerSendRevisions: Set<Int> = []
     @State private var isInputFocused = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -179,6 +195,12 @@ struct ChatView: View {
     private var messageText: String {
         get { composerSession.canonicalMarkdown }
         nonmutating set { composerSession.replaceMarkdown(newValue) }
+    }
+
+    private var composerHasEmbed: Bool {
+        composerSession.controller.document.nodes.contains { node in
+            node.kind == "embed" && node.status != AppleComposerEmbedLifecycleState.cancelled.rawValue
+        }
     }
 
     /// True for demo/intro/legal chats that show "New chat" CTA instead of input field
@@ -323,6 +345,7 @@ struct ChatView: View {
         }
         .task(id: chatId) {
             draftSaveTask?.cancel()
+            await invalidateDeferredComposerSends()
             composerSession.clear()
             await ApplePrivacySettingsService.shared.load()
             isPIIRevealed = false
@@ -352,6 +375,7 @@ struct ChatView: View {
         .onDisappear {
             scrollPositionDebounceTask?.cancel()
             handoffManager.stopAdvertising()
+            Task { await invalidateDeferredComposerSends() }
         }
         .onChange(of: viewModel.forkedChatId) {
             guard let newChatId = viewModel.forkedChatId else { return }
@@ -1316,6 +1340,7 @@ struct ChatView: View {
             MessageComposerView(
                 session: composerSession,
                 isFocused: $isInputFocused,
+                isComposerEditable: deferredComposerSendContexts.isEmpty,
                 compact: compact && !overlayActive,
                 placeholder: placeholder,
                 expandedMinHeight: overlayActive ? 400 : expandedMinHeight,
@@ -1401,12 +1426,12 @@ struct ChatView: View {
                 }
                 #endif
 
-                if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerSession.hasBlockingEmbeds && !viewModel.isStreaming {
+                if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed && !viewModel.isStreaming {
                     recordActionControls
                 } else {
                     MessageComposerSendButton(
                         title: AppStrings.sendAction,
-                        disabled: composerSession.hasBlockingEmbeds || (messageText.isEmpty && !viewModel.hasPendingComposerEmbeds),
+                        disabled: messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !composerHasEmbed,
                         accessibilityLabel: AppStrings.sendMessage,
                         action: sendMessage
                     )
@@ -1575,37 +1600,43 @@ struct ChatView: View {
                 title: filename,
                 localPreviewData: data
             )
-            try composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.uploading.rawValue)
+            let record = composerEmbedLifecycle.register(nodeId: nodeID)
             try composerSession.configureEmbedActions(
                 nodeID: nodeID,
                 onOpen: { _ in },
                 onRetry: { _ in
                     Task { @MainActor in retryAttachmentUpload(nodeID: nodeID, data: data, filename: filename) }
                 },
-                onRemove: { durableID in viewModel.removePendingComposerEmbed(id: durableID) }
+                onRemove: { durableID in handleComposerEmbedRemoval(nodeID: nodeID, durableID: durableID) }
             )
+            guard transitionComposerEmbed(
+                nodeID: nodeID,
+                generation: record.generation,
+                to: .uploading
+            ) != nil else { return }
         } catch {
             NativeDiagnostics.error("Composer attachment insertion failed: \(type(of: error))", category: "apple_composer")
             return
         }
 
-        Task {
+        guard let generation = composerEmbedLifecycle.record(nodeId: nodeID)?.generation else { return }
+        Task { @MainActor in
             guard let embed = await viewModel.uploadAttachment(data: data, filename: filename) else {
-                try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+                _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
                 return
             }
-            resolveComposerEmbed(nodeID: nodeID, embed: embed)
+            resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
         }
     }
 
     private func retryAttachmentUpload(nodeID: String, data: Data, filename: String) {
-        try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.uploading.rawValue)
-        Task {
+        guard let generation = retryComposerEmbed(nodeID: nodeID, to: .uploading) else { return }
+        Task { @MainActor in
             guard let embed = await viewModel.uploadAttachment(data: data, filename: filename) else {
-                try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+                _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
                 return
             }
-            resolveComposerEmbed(nodeID: nodeID, embed: embed)
+            resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
         }
     }
 
@@ -1617,51 +1648,265 @@ struct ChatView: View {
                 embedType: "recording",
                 title: url.lastPathComponent
             )
-            try composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.transcribing.rawValue)
+            let record = composerEmbedLifecycle.register(nodeId: nodeID)
             try composerSession.configureEmbedActions(
                 nodeID: nodeID,
                 onOpen: { _ in },
                 onRetry: { _ in
                     Task { @MainActor in await retryRecordingUpload(nodeID: nodeID, url: url, duration: duration) }
                 },
-                onRemove: { durableID in viewModel.removePendingComposerEmbed(id: durableID) }
+                onRemove: { durableID in handleComposerEmbedRemoval(nodeID: nodeID, durableID: durableID) }
             )
+            guard transitionComposerEmbed(
+                nodeID: nodeID,
+                generation: record.generation,
+                to: .uploading
+            ) != nil,
+            transitionComposerEmbed(
+                nodeID: nodeID,
+                generation: record.generation,
+                to: .transcribing
+            ) != nil else { return }
         } catch {
             NativeDiagnostics.error("Composer recording insertion failed: \(type(of: error))", category: "apple_composer")
             return
         }
 
+        guard let generation = composerEmbedLifecycle.record(nodeId: nodeID)?.generation else { return }
         guard let embed = await viewModel.uploadRecording(url: url, duration: duration) else {
-            try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+            _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
             return
         }
-        resolveComposerEmbed(nodeID: nodeID, embed: embed)
+        resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
     }
 
     private func retryRecordingUpload(nodeID: String, url: URL, duration: TimeInterval) async {
-        try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.transcribing.rawValue)
+        guard let generation = retryComposerEmbed(nodeID: nodeID, to: .transcribing) else { return }
         guard let embed = await viewModel.uploadRecording(url: url, duration: duration) else {
-            try? composerSession.updateEmbed(nodeID: nodeID, status: AppleComposerEmbedLifecycleState.error.rawValue)
+            _ = transitionComposerEmbed(nodeID: nodeID, generation: generation, to: .error)
             return
         }
-        resolveComposerEmbed(nodeID: nodeID, embed: embed)
+        resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
     }
 
-    private func resolveComposerEmbed(nodeID: String, embed: ComposerPendingEmbed) {
-        let status = AppleComposerEmbedLifecycleState(rawValue: embed.status)?.rawValue
-            ?? AppleComposerEmbedLifecycleState.finished.rawValue
+    private func resolveComposerEmbed(nodeID: String, generation: Int, embed: ComposerPendingEmbed) {
+        if let current = composerEmbedLifecycle.record(nodeId: nodeID),
+           (current.generation != generation || current.state == .cancelled) {
+            // The service may have registered a stale result before this callback.
+            // Remove it from the send boundary without recreating the visible atom.
+            viewModel.removePendingComposerEmbed(id: embed.id)
+            return
+        }
+        let state = AppleComposerEmbedLifecycleState(rawValue: embed.status) ?? .finished
+        guard transitionComposerEmbed(
+            nodeID: nodeID,
+            generation: generation,
+            to: state,
+            durableEmbedID: embed.id
+        ) != nil else { return }
         do {
             try composerSession.resolveEmbed(
                 nodeID: nodeID,
                 durableEmbedID: embed.id,
                 referenceType: embed.referenceType,
-                status: status,
+                status: state.rawValue,
                 embedRecord: embed.record,
                 localPreviewData: embed.localData
             )
+            resolvedComposerEmbeds[nodeID] = embed
         } catch {
             NativeDiagnostics.error("Composer attachment resolution failed: \(type(of: error))", category: "apple_composer")
         }
+    }
+
+    @discardableResult
+    private func transitionComposerEmbed(
+        nodeID: String,
+        generation: Int,
+        to state: AppleComposerEmbedLifecycleState,
+        durableEmbedID: String? = nil
+    ) -> ComposerEmbedLifecycleRecord? {
+        guard case .applied(let record) = composerEmbedLifecycle.transition(
+            nodeId: nodeID,
+            generation: generation,
+            to: state,
+            durableEmbedId: durableEmbedID
+        ) else { return nil }
+        do {
+            try composerSession.updateEmbed(nodeID: nodeID, status: state.rawValue)
+        } catch {
+            NativeDiagnostics.error("Composer embed lifecycle update failed: \(type(of: error))", category: "apple_composer")
+            return nil
+        }
+        reportComposerEmbedState(record)
+        return record
+    }
+
+    private func retryComposerEmbed(
+        nodeID: String,
+        to state: AppleComposerEmbedLifecycleState
+    ) -> Int? {
+        guard let current = composerEmbedLifecycle.record(nodeId: nodeID),
+              case .applied(let record) = composerEmbedLifecycle.retry(
+                  nodeId: nodeID,
+                  generation: current.generation,
+                  to: state
+              ) else { return nil }
+        do {
+            try composerSession.updateEmbed(nodeID: nodeID, status: state.rawValue)
+        } catch {
+            NativeDiagnostics.error("Composer embed retry update failed: \(type(of: error))", category: "apple_composer")
+            return nil
+        }
+        let requestIDs = Array(deferredComposerSendContexts.keys)
+        Task { @MainActor in
+            for requestID in requestIDs {
+                await composerPendingSendCoordinator.replaceBlockerGeneration(
+                    requestId: requestID,
+                    nodeId: nodeID,
+                    generation: record.generation
+                )
+            }
+            await composerPendingSendCoordinator.updateNode(
+                nodeId: record.nodeId,
+                generation: record.generation,
+                state: record.state
+            )
+            await resumeDeferredComposerSends()
+        }
+        return record.generation
+    }
+
+    private func handleComposerEmbedRemoval(nodeID: String, durableID: String) {
+        if let current = composerEmbedLifecycle.record(nodeId: nodeID),
+           case .applied(let record) = composerEmbedLifecycle.remove(
+               nodeId: nodeID,
+               generation: current.generation
+           ) {
+            reportComposerEmbedState(record)
+        }
+        viewModel.removePendingComposerEmbed(id: durableID)
+        Task { await invalidateDeferredComposerSends() }
+    }
+
+    private func reportComposerEmbedState(_ record: ComposerEmbedLifecycleRecord) {
+        Task { @MainActor in
+            await composerPendingSendCoordinator.updateNode(
+                nodeId: record.nodeId,
+                generation: record.generation,
+                state: record.state
+            )
+            await resumeDeferredComposerSends()
+        }
+    }
+
+    private func queueDeferredComposerSend(document: ComposerDocumentV1) {
+        guard let destinationID = viewModel.chat?.id,
+              !deferredComposerSendRevisions.contains(composerSession.revision) else { return }
+        let blockers = composerBlockers(in: document)
+        guard !blockers.isEmpty else { return }
+        let blockerNodeIDs = Set(blockers.map(\.nodeId))
+        guard !deferredComposerSendNodeIDs.values.contains(where: { !$0.isDisjoint(with: blockerNodeIDs) }) else {
+            return
+        }
+
+        let requestID = UUID().uuidString.lowercased()
+        let snapshot = ComposerSendSnapshot(
+            requestId: requestID,
+            messageId: UUID().uuidString.lowercased(),
+            destinationId: destinationID,
+            documentRevision: composerSession.revision,
+            document: document,
+            blockers: blockers
+        )
+        deferredComposerSendRevisions.insert(snapshot.documentRevision)
+        deferredComposerSendContexts[requestID] = ComposerDeferredSendContext(
+            excludedPIIIds: piiExclusions,
+            broadcastToSiblings: broadcastToSiblingSubChats
+        )
+        deferredComposerSendNodeIDs[requestID] = Set(document.nodes.map(\.id))
+        viewModel.error = nil
+
+        Task { @MainActor in
+            guard await composerPendingSendCoordinator.enqueue(snapshot) else {
+                deferredComposerSendRevisions.remove(snapshot.documentRevision)
+                deferredComposerSendContexts.removeValue(forKey: requestID)
+                return
+            }
+            await resumeDeferredComposerSends()
+        }
+    }
+
+    private func composerBlockers(in document: ComposerDocumentV1) -> [ComposerEmbedBlocker] {
+        document.nodes.compactMap { node in
+            guard node.kind == "embed",
+                  let status = node.status,
+                  let state = AppleComposerEmbedLifecycleState(rawValue: status),
+                  ComposerEmbedLifecycle.isBlocking(state) else { return nil }
+            let record = composerEmbedLifecycle.record(nodeId: node.id)
+                ?? composerEmbedLifecycle.register(nodeId: node.id, state: state)
+            reportComposerEmbedState(record)
+            return ComposerEmbedBlocker(nodeId: node.id, generation: record.generation)
+        }
+    }
+
+    private func resumeDeferredComposerSends() async {
+        await composerPendingSendCoordinator.resumeReady { snapshot in
+            try await dispatchDeferredComposerSend(snapshot)
+        }
+    }
+
+    private func retryDeferredComposerSendIfNeeded() -> Bool {
+        guard !deferredComposerSendContexts.isEmpty else { return false }
+        Task { @MainActor in
+            for requestID in deferredComposerSendContexts.keys {
+                if await composerPendingSendCoordinator.retryFailed(requestId: requestID) {
+                    await resumeDeferredComposerSends()
+                    return
+                }
+            }
+        }
+        return true
+    }
+
+    @MainActor
+    private func dispatchDeferredComposerSend(_ snapshot: ComposerSendSnapshot) async throws {
+        guard let context = deferredComposerSendContexts[snapshot.requestId] else {
+            throw ComposerDeferredSendError.missingContext
+        }
+        let snapshotNodeIDs = deferredComposerSendNodeIDs[snapshot.requestId] ?? []
+        let embeds = snapshotNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
+        let markdown = try ComposerMarkdownAdapter.serialize(snapshot.document)
+        let redaction = await enhancedRedactionResult(in: markdown, excludedIds: context.excludedPIIIds)
+        viewModel.error = nil
+        await viewModel.sendMessage(
+            redaction.redactedText,
+            piiMappings: redaction.mappings,
+            broadcastToSiblings: context.broadcastToSiblings,
+            composerEmbeds: embeds
+        )
+        guard viewModel.error == nil else { throw ComposerDeferredSendError.sendFailed }
+
+        try composerSession.removeSentSnapshotNodes(snapshot.document)
+        detectedPIIMatches = []
+        piiExclusions = []
+        mentionQuery = nil
+        deferredComposerSendRevisions.remove(snapshot.documentRevision)
+        deferredComposerSendContexts.removeValue(forKey: snapshot.requestId)
+        deferredComposerSendNodeIDs.removeValue(forKey: snapshot.requestId)
+        for nodeID in snapshotNodeIDs {
+            resolvedComposerEmbeds.removeValue(forKey: nodeID)
+        }
+        try? await DraftService.shared.clearDraft(chatId: snapshot.destinationId)
+    }
+
+    @MainActor
+    private func invalidateDeferredComposerSends() async {
+        deferredComposerSendContexts.removeAll()
+        deferredComposerSendNodeIDs.removeAll()
+        resolvedComposerEmbeds.removeAll()
+        deferredComposerSendRevisions.removeAll()
+        await composerPendingSendCoordinator.invalidateAllForTermination()
     }
 
     #if DEBUG
@@ -1674,7 +1919,8 @@ struct ChatView: View {
                 title: embed.filename,
                 localPreviewData: embed.localData
             )
-            resolveComposerEmbed(nodeID: nodeID, embed: embed)
+            let record = composerEmbedLifecycle.register(nodeId: nodeID)
+            resolveComposerEmbed(nodeID: nodeID, generation: record.generation, embed: embed)
         } catch {
             NativeDiagnostics.error("Composer UI fixture insertion failed: \(type(of: error))", category: "apple_composer")
         }
@@ -1947,15 +2193,24 @@ struct ChatView: View {
     }
 
     private func sendMessage() {
-        let text = messageText
-        guard !composerSession.hasBlockingEmbeds else { return }
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.hasPendingComposerEmbeds else { return }
-        let excludedIds = piiExclusions
-        let pendingChatId = viewModel.chat?.id
-        let blockingUploadIds = pendingChatId.flatMap { chatId -> Set<String>? in
-            guard pendingUploads.hasActiveUploads(chatId: chatId) else { return nil }
-            return Set(pendingUploads.uploadsForChat(chatId).map(\.id))
+        guard !retryDeferredComposerSendIfNeeded() else { return }
+        let document = composerSession.controller.document
+        let decision = ComposerSubmitPolicy.decision(
+            document: document,
+            platform: .desktop,
+            trigger: .sendButton,
+            modifiers: [],
+            markedTextRange: nil,
+            conversionInFlight: false
+        )
+        if case .deferred = decision {
+            queueDeferredComposerSend(document: document)
+            return
         }
+        guard decision == .submit else { return }
+
+        let text = messageText
+        let excludedIds = piiExclusions
         messageText = ""
         viewModel.error = nil
         detectedPIIMatches = []
@@ -1966,16 +2221,6 @@ struct ChatView: View {
             let redaction = await enhancedRedactionResult(in: text, excludedIds: excludedIds)
             let sanitizedText = redaction.redactedText
             let piiMappings = redaction.mappings
-            if let chatId = pendingChatId, let blockingUploadIds {
-                pendingUploads.addPendingSend(
-                    chatId: chatId,
-                    content: sanitizedText,
-                    piiMappings: piiMappings,
-                    blockingUploadIds: blockingUploadIds,
-                    dispatchThroughActiveComposer: true
-                )
-                return
-            }
             await viewModel.sendMessage(
                 sanitizedText,
                 piiMappings: piiMappings,

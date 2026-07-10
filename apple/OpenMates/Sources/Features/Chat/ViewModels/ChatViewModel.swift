@@ -681,7 +681,8 @@ final class ChatViewModel: ObservableObject {
     func sendMessage(
         _ content: String,
         piiMappings: [PIIMapping] = [],
-        broadcastToSiblings: Bool = false
+        broadcastToSiblings: Bool = false,
+        composerEmbeds explicitComposerEmbeds: [ComposerPendingEmbed]? = nil
     ) async {
         guard let currentChat = chat else { return }
         if IncognitoChatSession.isIncognitoChatId(currentChat.id) {
@@ -693,7 +694,7 @@ final class ChatViewModel: ObservableObject {
             return
         }
         do {
-            let composerEmbeds = pendingComposerEmbeds
+            let composerEmbeds = explicitComposerEmbeds ?? pendingComposerEmbeds
             let mergedPIIMappings = sendPipeline.combinedPIIMappings(
                 textMappings: piiMappings,
                 composerEmbeds: composerEmbeds
@@ -714,7 +715,12 @@ final class ChatViewModel: ObservableObject {
             if broadcastToSiblings {
                 await broadcastMessageToSiblingSubChats(content, piiMappings: mergedPIIMappings)
             }
-            pendingComposerEmbeds.removeAll()
+            if let explicitComposerEmbeds {
+                let sentIDs = Set(explicitComposerEmbeds.map(\.id))
+                pendingComposerEmbeds.removeAll { sentIDs.contains($0.id) }
+            } else {
+                pendingComposerEmbeds.removeAll()
+            }
             isStreaming = true
             streamingContent = ""
         } catch {

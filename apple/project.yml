@@ -239,6 +239,7 @@ targets:
       - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerDocument.swift
     settings:
       base:
         INFOPLIST_FILE: OpenMatesShareExtension/Info.plist
@@ -265,6 +266,7 @@ targets:
       - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
       - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+      - path: OpenMates/Sources/Shared/Composer/ComposerDocument.swift
     settings:
       base:
         INFOPLIST_FILE: OpenMatesShareExtensionMacOS/Info.plist

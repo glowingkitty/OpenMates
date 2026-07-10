@@ -57,6 +57,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var showActionButtonsWhenCompact = false
     var expandedMinHeight: CGFloat = 100
     var accessibilityHint: String
+    var isComposerEditable = true
     var inlineFieldContent: AnyView? = nil
     var overlayContent: AnyView? = nil
     var onSubmit: () -> Void
@@ -117,6 +118,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 NativeComposerEditorView(
                     session: session,
                     isFocused: isFocused,
+                    isEditable: isComposerEditable,
                     accessibilityHint: accessibilityHint,
                     onSubmit: onSubmit
                 )

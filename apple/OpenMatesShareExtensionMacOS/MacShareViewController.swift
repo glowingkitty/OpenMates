@@ -33,46 +33,46 @@ final class MacShareViewController: NSViewController {
     }
 
     private final class SharedPartCollector: @unchecked Sendable {
-        private var parts: [SharedPart] = []
-        private var attachments: [SharedAttachment] = []
-        private var unsupported: [String] = []
+        private var parts: [Int: SharedPart] = [:]
+        private var attachments: [Int: SharedAttachment] = [:]
+        private var unsupported: [Int: String] = [:]
         private let lock = NSLock()
 
-        func append(_ part: SharedPart) {
+        func append(_ part: SharedPart, at inputIndex: Int) {
             lock.lock()
-            parts.append(part)
+            parts[inputIndex] = part
             lock.unlock()
         }
 
-        func append(_ attachment: SharedAttachment) {
+        func append(_ attachment: SharedAttachment, at inputIndex: Int) {
             lock.lock()
-            attachments.append(attachment)
+            attachments[inputIndex] = attachment
             lock.unlock()
         }
 
-        func appendUnsupported(_ filename: String) {
+        func appendUnsupported(_ filename: String, at inputIndex: Int) {
             lock.lock()
-            unsupported.append(filename)
+            unsupported[inputIndex] = filename
             lock.unlock()
         }
 
         func values() -> [SharedPart] {
             lock.lock()
-            let snapshot = parts
+            let snapshot = parts.keys.sorted().compactMap { parts[$0] }
             lock.unlock()
             return snapshot
         }
 
         func attachmentValues() -> [SharedAttachment] {
             lock.lock()
-            let snapshot = attachments
+            let snapshot = attachments.keys.sorted().compactMap { attachments[$0] }
             lock.unlock()
             return snapshot
         }
 
         func unsupportedValues() -> [String] {
             lock.lock()
-            let snapshot = unsupported
+            let snapshot = unsupported.keys.sorted().compactMap { unsupported[$0] }
             lock.unlock()
             return snapshot
         }
@@ -325,14 +325,17 @@ final class MacShareViewController: NSViewController {
         let group = DispatchGroup()
         let collector = SharedPartCollector()
 
+        var inputIndex = 0
         for item in extensionItems {
-            item.attachments?.forEach { provider in
+            for provider in item.attachments ?? [] {
+                let currentInputIndex = inputIndex
+                inputIndex += 1
                 if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { value, _ in
                         defer { group.leave() }
                         guard let url = Self.sharedFileURL(from: value), Self.isAllowedAttachmentSize(url) else {
-                            collector.appendUnsupported(provider.suggestedName ?? "Shared Attachment")
+                            collector.appendUnsupported(provider.suggestedName ?? "Shared Attachment", at: currentInputIndex)
                             return
                         }
                         let accessed = url.startAccessingSecurityScopedResource()
@@ -340,16 +343,16 @@ final class MacShareViewController: NSViewController {
                             if accessed { url.stopAccessingSecurityScopedResource() }
                         }
                         guard let data = try? Data(contentsOf: url) else {
-                            collector.appendUnsupported(url.lastPathComponent)
+                            collector.appendUnsupported(url.lastPathComponent, at: currentInputIndex)
                             return
                         }
                         let filename = url.lastPathComponent
                         let contentType = Self.attachmentContentType(typeIdentifier: UTType.fileURL.identifier, fallbackFilename: filename)
                         guard BackgroundAttachmentClassifier.classification(filename: filename, contentType: contentType) != nil else {
-                            collector.appendUnsupported(filename)
+                            collector.appendUnsupported(filename, at: currentInputIndex)
                             return
                         }
-                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType))
+                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType), at: currentInputIndex)
                     }
                 } else if let attachmentType = Self.firstSupportedAttachmentType(from: provider) {
                     group.enter()
@@ -358,17 +361,17 @@ final class MacShareViewController: NSViewController {
                     provider.loadDataRepresentation(forTypeIdentifier: attachmentType) { data, _ in
                         defer { group.leave() }
                         guard let data, data.count <= BackgroundAttachmentClassifier.maxFileSizeBytes else {
-                            collector.appendUnsupported(filename)
+                            collector.appendUnsupported(filename, at: currentInputIndex)
                             return
                         }
-                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType))
+                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType), at: currentInputIndex)
                     }
                 } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.url.identifier) { value, _ in
                         defer { group.leave() }
                         if let text = Self.sharedURLText(from: value) {
-                            collector.append(SharedPart(text: text, isURL: true))
+                            collector.append(SharedPart(text: text, isURL: true), at: currentInputIndex)
                         }
                     }
                 } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
@@ -376,11 +379,11 @@ final class MacShareViewController: NSViewController {
                     provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) { value, _ in
                         defer { group.leave() }
                         if let text = Self.sharedPlainText(from: value) {
-                            collector.append(SharedPart(text: text, isURL: false))
+                            collector.append(SharedPart(text: text, isURL: false), at: currentInputIndex)
                         }
                     }
                 } else if let name = provider.suggestedName {
-                    collector.appendUnsupported(name)
+                    collector.appendUnsupported(name, at: currentInputIndex)
                 }
             }
         }
@@ -395,7 +398,7 @@ final class MacShareViewController: NSViewController {
     }
 
     private func updatePreview() {
-        let sharedText = sharedParts.map(\.text).joined(separator: "\n")
+        let sharedText = sharedPartMarkdown()
         var previewLines: [String] = []
         if !sharedText.isEmpty { previewLines.append(sharedText) }
         if !sharedAttachments.isEmpty {
@@ -407,7 +410,7 @@ final class MacShareViewController: NSViewController {
         previewLabel.stringValue = previewLines.isEmpty ? "No supported URL, text, or file was found." : previewLines.joined(separator: "\n")
         messageText = ""
         syncMessageEditorText()
-        sendButton.isEnabled = !sharedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !sharedAttachments.isEmpty
+        updateSendButtonState()
     }
 
     private func loadRecentChats() {
@@ -467,20 +470,28 @@ final class MacShareViewController: NSViewController {
     }
 
     private func buildFinalMessage() throws -> String {
-        let userText = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sharedText = sharedParts.map(\.text).joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        let message: String
-        if userText.isEmpty {
-            message = sharedText
-        } else if sharedText.isEmpty {
-            message = userText
-        } else {
-            message = "\(userText)\n\n\(sharedText)"
-        }
+        let message = try normalizedMessageMarkdown()
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !sharedAttachments.isEmpty else {
             throw BackgroundChatSendError.emptyMessage
         }
         return message
+    }
+
+    private func normalizedMessageMarkdown() throws -> String {
+        let source = [messageText, sharedPartMarkdown()]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n\n")
+        // Incoming share payloads are literal user content, not composer markup.
+        let document = ComposerDocumentV1(
+            version: 1,
+            nodes: [.text(id: "share:message", source: source)]
+        )
+        return try ComposerMarkdownAdapter.serialize(document)
+    }
+
+    private func sharedPartMarkdown() -> String {
+        sharedParts.map(\.text).joined(separator: "\n")
     }
 
     private func draftDestinationForAttachments() -> BackgroundChatSender.DestinationChat? {
@@ -533,7 +544,7 @@ final class MacShareViewController: NSViewController {
     }
 
     private func updateSendButtonState() {
-        let sharedText = sharedParts.map(\.text).joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        let sharedText = sharedPartMarkdown().trimmingCharacters(in: .whitespacesAndNewlines)
         let hasUserText = !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         sendButton.isEnabled = !isSubmitting && (hasUserText || !sharedText.isEmpty || !sharedAttachments.isEmpty)
     }

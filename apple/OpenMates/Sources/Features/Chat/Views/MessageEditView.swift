@@ -36,6 +36,7 @@ struct MessageEditView: View {
             NativeComposerEditorView(
                 session: composerSession,
                 isFocused: $isFocused,
+                isEditable: true,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: save
             )
