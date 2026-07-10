@@ -195,6 +195,7 @@
 		C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */; };
 		C0FFEE000000000000010004 /* ChatShellResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */; };
 		C0FFEE000000000000011004 /* EmbedRenderingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */; };
+		C0FFEE000000000000051002 /* NativeComposerInlineEmbedUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000051001 /* NativeComposerInlineEmbedUITests.swift */; };
 		C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */; };
 		C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000012001 /* ChatSyncParityTests.swift */; };
 		C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000013001 /* SubChatProcessingTests.swift */; };
@@ -888,6 +889,7 @@
 		C0FFEE000000000000044001 /* ComposerVisualParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerVisualParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatResponsiveParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedRenderingParityUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000051001 /* NativeComposerInlineEmbedUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerInlineEmbedUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatShellResponsiveParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatWindowLoadingTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000012001 /* ChatSyncParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSyncParityTests.swift; sourceTree = "<group>"; };
@@ -1516,6 +1518,7 @@
 				C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */,
 				C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */,
 				C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */,
+				C0FFEE000000000000051001 /* NativeComposerInlineEmbedUITests.swift */,
 				C0FFEE000000000000014001 /* ChatManagementSharingParityUITests.swift */,
 				C0FFEE000000000000016001 /* AuthSecurityParityUITests.swift */,
 				C0FFEE000000000000018001 /* SettingsBillingParityUITests.swift */,
@@ -2724,6 +2727,7 @@
 				C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */,
 				C0FFEE000000000000010004 /* ChatShellResponsiveParityUITests.swift in Sources */,
 				C0FFEE000000000000011004 /* EmbedRenderingParityUITests.swift in Sources */,
+				C0FFEE000000000000051002 /* NativeComposerInlineEmbedUITests.swift in Sources */,
 				C0FFEE000000000000014004 /* ChatManagementSharingParityUITests.swift in Sources */,
 				C0FFEE000000000000016004 /* AuthSecurityParityUITests.swift in Sources */,
 				C0FFEE000000000000018004 /* SettingsBillingParityUITests.swift in Sources */,
