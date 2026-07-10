@@ -548,9 +548,8 @@ final class MacShareViewController: NSViewController {
 extension MacShareViewController: NSTextViewDelegate {
     nonisolated func textDidChange(_ notification: Notification) {
         MainActor.assumeIsolated {
-            guard let textView = notification.object as? NSTextView else { return }
-            messageText = textView.string
-            textView.setAccessibilityValue(messageText)
+            messageText = messageEditorTextView.string
+            messageEditorTextView.setAccessibilityValue(messageText)
             updateSendButtonState()
         }
     }
