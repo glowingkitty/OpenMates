@@ -144,7 +144,10 @@ struct OMMessageInputField<ActionButtons: View>: View {
             }
 
             if let overlayContent {
-                overlayContent
+                ZStack(alignment: .topTrailing) {
+                    overlayContent
+                }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .zIndex(3)
             }
         }

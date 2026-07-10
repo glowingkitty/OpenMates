@@ -6010,7 +6010,6 @@ private struct WelcomeComposer: View {
                         .buttonStyle(.plain)
                         .padding(.top, 10)
                         .padding(.trailing, 15)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                         .help(Text(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen))
                         .accessibilityLabel(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
                         .accessibilityIdentifier("message-input-fullscreen-button")
