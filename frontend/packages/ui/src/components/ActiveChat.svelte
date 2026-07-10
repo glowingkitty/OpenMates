@@ -9116,6 +9116,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     onMount(() => {
         const initialize = async () => {
+            // Anonymous hash chats rely only on local session storage and IndexedDB.
+            // Restore them before broader app initialization can delay the chat surface.
+            await restoreAnonymousHashChatOnMount();
+
             // Initialize app but skip auth initialization since it's already done in +page.svelte
             await initializeApp({ skipAuthInitialization: true });
             
@@ -9153,8 +9157,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 temporaryChatId = crypto.randomUUID();
                 console.debug("[ActiveChat] Generated temporary chat ID for draft saving:", temporaryChatId);
             }
-
-            await restoreAnonymousHashChatOnMount();
 
             if (!$authStore.isAuthenticated) {
                 const guestTopicPreferences = topicPreferencesStore.loadGuest();
