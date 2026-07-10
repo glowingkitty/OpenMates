@@ -34,7 +34,8 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(recordButton.waitForExistence(timeout: 5))
         recordButton.press(forDuration: 0.45)
 
-        XCTAssertTrue(element(in: app, identifier: "pending-composer-embed").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(in: app, identifier: "native-composer-preview-recording-finished").waitForExistence(timeout: 5))
+        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
         XCTAssertTrue(textContaining("recording", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(textContaining("```json", in: app).exists)
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
@@ -53,6 +54,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         element(in: app, identifier: "cancel-hint").tap()
 
         XCTAssertTrue(waitForAbsence(element(in: app, identifier: "record-overlay")))
+        XCTAssertFalse(element(in: app, identifier: "native-composer-preview-recording-finished").exists)
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
     }
 
@@ -69,6 +71,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         start.press(forDuration: 0.35, thenDragTo: end)
 
         XCTAssertTrue(waitForAbsence(element(in: app, identifier: "record-overlay")))
+        XCTAssertFalse(element(in: app, identifier: "native-composer-preview-recording-finished").exists)
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
     }
 

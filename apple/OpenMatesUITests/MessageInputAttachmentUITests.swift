@@ -1,6 +1,6 @@
 // Message input attachment parity coverage for Apple UI contracts.
 // Uses the debug-only seeded ChatView preview and simulator-safe fixture seeding
-// so the composer pending-embed hierarchy can be verified without private
+// so the inline native embed hierarchy can be verified without private
 // credentials, system pickers, upload keys, or camera hardware.
 
 import XCTest
@@ -15,9 +15,10 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-seed-pending-composer-embed"])
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        let pendingEmbed = element(in: app, identifiers: ["pending-composer-embed", "embed-full-width-wrapper"])
-        XCTAssertTrue(pendingEmbed.waitForExistence(timeout: 10))
-        assertElement(pendingEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
+        let inlineEmbed = element(in: app, identifier: "native-composer-preview-image-finished")
+        XCTAssertTrue(inlineEmbed.waitForExistence(timeout: 10))
+        assertElement(inlineEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
+        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
 
         XCTAssertTrue(waitForMessageEditor(in: app).waitForExistence(timeout: 5))
@@ -105,12 +106,11 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
-        let pendingEmbedStrip = element(in: app, identifier: "pending-composer-embed")
-        XCTAssertTrue(pendingEmbedStrip.waitForExistence(timeout: 5))
-        assertElement(element(in: app, identifier: "embed-full-width-wrapper"), isVisuallyInside: element(in: app, identifier: "message-field"))
-        assertPendingLabel("welcome-file.pdf", in: app, scrollContainer: pendingEmbedStrip)
-        assertPendingLabel("welcome-sketch.png", in: app, scrollContainer: pendingEmbedStrip)
-        assertPendingLabel("welcome-recording.m4a", in: app, scrollContainer: pendingEmbedStrip)
+        let inlineEmbed = element(in: app, identifier: "native-composer-preview-docs-doc-finished")
+        XCTAssertTrue(inlineEmbed.waitForExistence(timeout: 5))
+        assertElement(inlineEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
+        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
+        XCTAssertTrue(app.staticTexts["welcome-file.pdf"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "embed_id")).firstMatch.exists)
@@ -137,12 +137,6 @@ final class MessageInputAttachmentUITests: XCTestCase {
             .firstMatch
     }
 
-    private func element(in app: XCUIApplication, identifiers: [String]) -> XCUIElement {
-        app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier IN %@", identifiers))
-            .firstMatch
-    }
-
     private func textContaining(_ text: String, in app: XCUIApplication) -> XCUIElement {
         app.staticTexts
             .matching(NSPredicate(format: "label CONTAINS %@", text))
@@ -153,24 +147,6 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let predicate = NSPredicate(format: "exists == false")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
-    }
-
-    private func assertPendingLabel(
-        _ label: String,
-        in app: XCUIApplication,
-        scrollContainer: XCUIElement,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) {
-        let element = app.staticTexts[label]
-        if element.waitForExistence(timeout: 2) { return }
-
-        for _ in 0..<4 {
-            scrollContainer.swipeLeft()
-            if element.waitForExistence(timeout: 2) { return }
-        }
-
-        XCTFail("Expected pending composer embed named \(label)", file: file, line: line)
     }
 
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
