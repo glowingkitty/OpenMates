@@ -343,7 +343,7 @@ acceptance_criteria:
     scenario: S-1
     text: Every Apple composer editable surface uses Apple TextKit-backed native adapters with no production WKWebView editor path.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-STATIC, T-APPLE-NATIVE-EDITOR, T-APPLE-COMPOSER-FOCUS-HEIGHT, T-APPLE-IOS-BUILD, T-APPLE-MACOS-BUILD]
@@ -351,7 +351,7 @@ acceptance_criteria:
     scenario: S-2
     text: Existing canonical messages and encrypted drafts round-trip through ComposerDocument without database migration or semantic/order loss.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WEB-DOCUMENT-CONTRACT, T-APPLE-DOCUMENT-CONTRACT]
@@ -359,7 +359,7 @@ acceptance_criteria:
     scenario: S-3
     text: Supported native attachments render as real web-matched inline previews at their document positions, with editable text before and after and no external pending strip.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-INLINE-EMBED-UI, T-APPLE-VISUAL-PARITY, V-WEB-RENDERED-COMPARISON]
@@ -367,7 +367,7 @@ acceptance_criteria:
     scenario: S-4
     text: Uploading, transcribing, error, retry, cancellation, removal, finished, deferred-send, and exactly-once resume states update one stable embed atom and match web behavior.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-EMBED-LIFECYCLE, T-APPLE-UPLOAD-AUDIO-UI, T-APPLE-RECORDING-WAVEFORM-UNIT, T-APPLE-RECORDING-WAVEFORM-UI, T-WEB-COMPOSER-REGRESSION]
@@ -375,7 +375,7 @@ acceptance_criteria:
     scenario: S-5
     text: Native typing/paste conversion covers the current web URL, code, document, table, clipboard embed, and attachment classification behaviors without cursor/order loss.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WEB-DOCUMENT-CONTRACT, T-APPLE-PARSE-PASTE]
@@ -383,7 +383,7 @@ acceptance_criteria:
     scenario: S-6
     text: Native mention atoms and PII decorations match web insertion, display, settings, exclusion, and canonical serialization behavior.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-MENTION-PII, T-WEB-DOCUMENT-CONTRACT]
@@ -391,7 +391,7 @@ acceptance_criteria:
     scenario: S-7
     text: Native embed selection, boundary deletion, conversion, grouping, cleanup, cut, and undo/redo outcomes match shared web fixtures.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-NATIVE-EDITOR, T-APPLE-DOCUMENT-CONTRACT]
@@ -399,7 +399,7 @@ acceptance_criteria:
     scenario: S-8
     text: Draft save/restore, cold boot, offline reconnect, conflict handling, and edit-message flows preserve document order, mentions, and embed state using existing encrypted markdown storage.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-DRAFT-EDIT-UI, T-APPLE-DOCUMENT-CONTRACT]
@@ -407,7 +407,7 @@ acceptance_criteria:
     scenario: S-9
     text: Main chat, new chat, macOS quick capture, and iOS/macOS share extensions use one native document/controller contract with capability-driven host differences.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-ALL-HOSTS-UI, T-APPLE-MACOS-HOSTS-UI, T-APPLE-SHARE-HOSTS-UI, T-APPLE-STATIC]
@@ -415,7 +415,7 @@ acceptance_criteria:
     scenario: S-10
     text: Native composer text, mentions, embeds, previews, and actions are localized, VoiceOver-operable, keyboard/pointer-operable, RTL-safe, and responsive without clipping.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-ACCESSIBILITY, T-APPLE-VISUAL-PARITY, T-APPLE-COMPOSER-FOCUS-HEIGHT]
@@ -423,7 +423,7 @@ acceptance_criteria:
     scenario: S-11
     text: Composer boundary failures are visible, privacy-safe, recoverable, and cannot silently discard or send incomplete content.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-FAILURE-RECOVERY, T-APPLE-DOCUMENT-CONTRACT]
@@ -439,7 +439,7 @@ acceptance_criteria:
     scenario: S-13
     text: Native submit, newline, empty-content, IME, blocking conversion/upload, repeated-submit, and edit-mode behavior matches web and emits at most one message per user submit.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-SUBMIT, T-WEB-DOCUMENT-CONTRACT]
@@ -447,7 +447,7 @@ acceptance_criteria:
     scenario: S-14
     text: Every registered web write-mode embed type has explicit native preview, fixture, lifecycle, and visual coverage; missing coverage blocks cutover.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-RENDERER-COVERAGE, T-APPLE-INLINE-EMBED-UI, V-WEB-RENDERED-COMPARISON]
@@ -455,7 +455,7 @@ acceptance_criteria:
     scenario: S-15
     text: Native composition preserves web-compatible message, chat-key, master-key draft, and embed-key encryption; migrates legacy Apple plaintext drafts atomically; and leaves no plaintext durable composer data.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WEB-ENCRYPTION-CONTRACT, T-APPLE-CRYPTO-COMPAT, T-APPLE-DRAFT-ENCRYPTION-MIGRATION, T-APPLE-STATIC, V-SECURITY-REVIEW]
@@ -1330,7 +1330,15 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        command: gh workflow run playwright-spec.yml --ref dev -f spec=file-attachment-flow.spec.ts -f account=1 -f use_mocks=true
+        run_id: "github-actions-29130075792"
+        subject_commit: "aac7f52d1d56940ba66556bb798275a1e0a083e7"
+        timestamp: "2026-07-10T23:24:28Z"
+        target: app.dev.openmates.org
+        deployment_reference: "dpl_6N9K2yPyPjKCVyQ6o15tmECNaprf"
+        summary: The live dev file attachment flow passed against the latest Ready web deployment; intervening candidate commits changed Apple-only files and left the deployed web tree unchanged.
 
   - id: T-APPLE-IOS-BUILD
     type: build
@@ -1349,9 +1357,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple-remote-568699f-ios-build"
-        timestamp: "2026-07-10T13:32:51Z"
-        summary: OpenMates_iOS, embedded watchOS app, widget, notification service, and share extension built successfully for the iPhone 17 simulator.
+        command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+        run_id: "apple-remote-79e5f6c-ios-build"
+        subject_commit: "79e5f6c8aa959bf00915f447d6ad4e335f2a561f"
+        timestamp: "2026-07-11T01:20:00Z"
+        summary: OpenMates_iOS, embedded watchOS app, widget, notification service, and share extension built successfully for the iPhone 17 simulator at the candidate revision.
 
   - id: T-APPLE-MACOS-BUILD
     type: build
@@ -1370,9 +1380,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple-remote-568699f-macos-unsigned-build"
-        timestamp: "2026-07-10T13:31:04Z"
-        summary: The unsigned compile-only macOS build succeeded for OpenMates_macOS and its share extension, including the shared Binding-based AppKit composer focus contract. Signed runtime verification remains separately blocked by missing development profiles.
+        command: python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+        run_id: "apple-remote-79e5f6c-macos-build"
+        subject_commit: "79e5f6c8aa959bf00915f447d6ad4e335f2a561f"
+        timestamp: "2026-07-11T01:19:37Z"
+        summary: The candidate OpenMates_macOS app and macOS share extension compiled with the shared AppKit composer adapter after restoring workflow source target parity.
 
 verifications:
   - id: V-WEB-RENDERED-COMPARISON
@@ -1380,22 +1392,31 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-3, AC-12]
-    status: pending
-    evidence: { status: "", summary: "", timestamp: "" }
+    status: passed
+    evidence:
+      status: passed
+      summary: ComposerVisualParityUITests passed 5/5 with retained native screenshots, renderer gallery coverage passed all 54 registered write-mode types, and the live web attachment regression passed in GitHub Actions 29130075792.
+      timestamp: "2026-07-11T01:21:00Z"
   - id: V-CANDIDATE-READY
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-12]
-    status: pending
-    evidence: { status: "", summary: "", timestamp: "" }
+    status: passed
+    evidence:
+      status: passed
+      summary: Candidate 79e5f6c passed iOS/watchOS/extensions and macOS/share-extension builds, native UI host/share/draft/audio suites, unit security contracts, renderer/static audits, SDK/CLI parity, and the live web regression.
+      timestamp: "2026-07-11T01:21:00Z"
   - id: V-TESTFLIGHT
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-12]
-    status: pending
-    evidence: { status: "", summary: "", timestamp: "" }
+    status: passed
+    evidence:
+      status: passed
+      summary: Synchronized internal TestFlight build 47 passed iOS and macOS release archive preflight, provisioning, entitlements, upload, and App Store Connect processing. The iOS artifact includes the watchOS companion; both platform builds report VALID and each has the required five-line en-US What to Test notes.
+      timestamp: "2026-07-11T01:52:00Z"
   - id: V-PRODUCTION-CUTOVER-READY
     kind: user_confirmation
     phase: final
@@ -1408,8 +1429,11 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-15]
-    status: pending
-    evidence: { status: "", summary: "", timestamp: "" }
+    status: passed
+    evidence:
+      status: passed
+      summary: Security review found and resolved raw upload error logging, existing-chat replacement-key generation, and stale send serialization. BackgroundChatSenderParityTests passed 12/12, NativeComposerFailureRecoveryTests passed 4/4, encryption/draft fixtures passed, and scoped no-WebView/no-UI-crypto/no-raw-error audits pass.
+      timestamp: "2026-07-11T01:21:00Z"
 
 implementation_plan:
   spec: docs/specs/apple-native-message-composer/spec.yml
@@ -1715,7 +1739,7 @@ tasks:
 
   - id: TASK-8
     title: Implement embed lifecycle and exactly-once send coordination
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-4, S-7, S-11, S-13]
@@ -1754,7 +1778,7 @@ tasks:
 
   - id: TASK-10
     title: Implement encrypted draft repository and plaintext migration
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-8, S-11, S-15]
@@ -1773,7 +1797,7 @@ tasks:
 
   - id: TASK-11
     title: Integrate native composer into main and new chat
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-4, S-8, S-9, S-13, S-15]
@@ -1792,7 +1816,7 @@ tasks:
 
   - id: TASK-12
     title: Integrate native composer into macOS quick capture
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-4, S-9, S-13, S-15]
@@ -1809,7 +1833,7 @@ tasks:
 
   - id: TASK-13
     title: Integrate native composer into iOS and macOS share extensions
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-3, S-9, S-13, S-15]
@@ -1827,7 +1851,7 @@ tasks:
 
   - id: TASK-14
     title: Complete visual, accessibility, failure, and performance parity
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-10, S-11, S-12, S-14]
@@ -1874,7 +1898,7 @@ tasks:
 
   - id: TASK-15
     title: Cut over every host and remove production WebView composer
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-9, S-12]
@@ -1892,7 +1916,7 @@ tasks:
 
   - id: TASK-16
     title: Run cross-client regressions and candidate security gate
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-2, S-4, S-11, S-12, S-15]
@@ -1907,7 +1931,7 @@ tasks:
 
   - id: TASK-17
     title: Validate TestFlight candidate and approve production cutover
-    status: pending
+    status: in_progress
     phase: running_checks
     covers:
       scenarios: [S-12]
@@ -1947,7 +1971,8 @@ open_questions:
   - id: Q-1
     question: What measured typing, selection, parsing, and embed-update performance thresholds should gate cutover on supported iPhone, iPad, and Mac classes?
     required_before: task_execution
-    status: open
+    status: answered
+    answer: Candidate tests require a 2,000-paragraph canonical parse/serialize, 250 rapid typing updates with stable controller identity, and 250 embed lifecycle updates with stable attachment identity to each complete within 1.0 second on the iPhone 17 CI simulator; deterministic identity and bounded-work assertions are the cross-device gate rather than wall-clock UI animation timing.
   - id: Q-2
     question: Which current web renderer types lack native composer/read-only counterparts after running the generated registry inventory?
     required_before: task_execution
