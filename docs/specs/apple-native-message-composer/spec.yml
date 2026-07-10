@@ -1394,13 +1394,13 @@ tasks:
 
   - id: TASK-4
     title: Add cross-client encryption and encrypted-draft red tests
-    status: pending
+    status: in_progress
     phase: checking_assumptions
     covers:
       scenarios: [S-11, S-15]
       acceptance_criteria: [AC-11, AC-15]
     expected_files:
-      - shared/composer/fixtures/encryption/**
+      - shared/composer/fixtures/apple-composer-encryption-v1.json
       - frontend/packages/ui/src/services/encryption/__tests__/appleComposerCompatibility.test.ts
       - apple/OpenMatesTests/NativeComposerEncryptionCompatibilityTests.swift
       - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift

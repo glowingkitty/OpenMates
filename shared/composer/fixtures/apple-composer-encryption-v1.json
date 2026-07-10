@@ -1,0 +1,69 @@
+{
+  "_header": [
+    "Synthetic cross-client composer encryption fixture.",
+    "All identities and URLs use composer-fixture.invalid.",
+    "Keys are fixed sequential bytes and are not production secrets.",
+    "AES-GCM nonces are fixed solely to make checked-in vectors deterministic.",
+    "Never reuse these keys or nonces outside tests."
+  ],
+  "schema_version": 1,
+  "fixture_kind": "synthetic-cross-client-composer-encryption",
+  "synthetic_notice": "All identities, URLs, plaintext, and key bytes are deterministic test data under composer-fixture.invalid.",
+  "keys": {
+    "master_key_base64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "chat_key_base64": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+    "wrong_key_base64": "QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8="
+  },
+  "plaintext": {
+    "canonical_draft_markdown": "Synthetic draft for https://composer-fixture.invalid.\n\n```json\n{\n  \"type\": \"image\",\n  \"embed_id\": \"composer-embed-fixture.invalid\"\n}\n```",
+    "draft_preview": "Synthetic draft preview at https://composer-fixture.invalid.",
+    "canonical_message_plaintext": "Synthetic message for test.user@composer-fixture.invalid.\n\n```json\n{\n  \"type\": \"image\",\n  \"embed_id\": \"composer-embed-fixture.invalid\"\n}\n```",
+    "pii_mappings_json": "[{\"placeholder\":\"[EMAIL_1_invalid]\",\"original\":\"test.user@composer-fixture.invalid\",\"type\":\"EMAIL\"}]",
+    "embed_reference_json": "{\"type\":\"image\",\"embed_id\":\"composer-embed-fixture.invalid\",\"url\":\"https://assets.composer-fixture.invalid/image.png\"}"
+  },
+  "format_a": {
+    "message": {
+      "iv_base64": "AAECAwQFBgcICQoL",
+      "ciphertext_base64": "T02HJLFlAAECAwQFBgcICQoLDysz0yJQn4Xf2aSjVQA/W3ZQjwsYMdJ0V3n9z8jkudhPsX9NdGwhl8cdk4C4vljUHGCDiDs/nuGINwbJRd0J3CqpgWH8/Zz7JxjmFntD27fuUP7VpT9+EUv/P27uO54lGE89rh9Cbu6RNraOl3pbRrWQZBP7IA9a8fSCb2EE8TBt5utZfKAJ6d7XNJE/WykmeOlV727H+NhPJhdK"
+    },
+    "pii_mappings": {
+      "iv_base64": "DA0ODxAREhMUFRYX",
+      "ciphertext_base64": "T02HJLFlDA0ODxAREhMUFRYXuUFsRVhcY9q2OoiQl6fB/YzNbvqK5dUblofWcl1v5C6LUyJvXX9ka4YkRm//QQ+UGCz3w88kdghwrgtK4ILPyqtGpVSL8/PHwdMoCFbiFsNYzX0XrnzRT/8uHQsmyjkc8VvZJDp3y7xBZ1rcg7kjK6vRqKM="
+    },
+    "embed_reference": {
+      "iv_base64": "GBkaGxwdHh8gISIj",
+      "ciphertext_base64": "T02HJLFlGBkaGxwdHh8gISIjBEsv4Dsi/oCXnxE4J3OH6jJ7ewwBqOTk0dIaC9Tm8Eqq9ntJQWTTdckvSDEN67gV0Osq4NKtQJOMkAWApEBucZ1zWKflXizPAF2OqqXbNSiiwYuxxcINLKiOD8AB7q9qJn2EHdROjkyMeYiv4eu/R7ju6uHgWPXJg0s7t0LTeKVj41wFzkk="
+    }
+  },
+  "format_c": {
+    "iv_base64": "JCUmJygpKissLS4v",
+    "wrapped_chat_key_base64": "JCUmJygpKissLS4v066B/Qdrew4Rzk8+ObloOvOnSZliOOQP4g9TfK3L4FFOo6avrNNIqsE69mG9ZqOY"
+  },
+  "format_d": {
+    "draft": {
+      "iv_base64": "MDEyMzQ1Njc4OTo7",
+      "ciphertext_base64": "MDEyMzQ1Njc4OTo74ExftIEKPmpJE+qec/9KSPpIPXerSjB1VIR+Y4vcE04sE2kWAaby39pRYCxUr71bzyA0LQW7z0fNIAsnLyZbj1pGnq3g0Eda0iG5dA8CHadZ+xwJo+UwumiEXtY8OXvK8Zd0ej8Vd2ItzGl9YZqLdFtJKDAoMhaaV37V2CkyG4WXcNdoqSNGb0whcOVOVPcZ93DrdQBmUeY="
+    },
+    "preview": {
+      "iv_base64": "PD0+P0BBQkNERUZH",
+      "ciphertext_base64": "PD0+P0BBQkNERUZHJKdXhJwqod7PggteTywIAdVu/gNL6FdpQ3KErlyNYCPZBw7mF7Y00yf5EIciihMS3Jbf7iQkW1/h0oewtJel3TqVhld/z6EjipzXCQ=="
+    }
+  },
+  "embed": {
+    "id": "composer-embed-fixture.invalid",
+    "content_plaintext": "{\"title\":\"Synthetic image\",\"source_url\":\"https://assets.composer-fixture.invalid/image.png\"}",
+    "derived_key_base64": "xCOe6CtvMB5bTrIJoXtQtlZYe41b3/OpwA5IqJlkX/s=",
+    "master_wrapped_key": {
+      "iv_base64": "SElKS0xNTk9QUVJT",
+      "ciphertext_base64": "SElKS0xNTk9QUVJTCg4Vi16OKVGDDoV0z1t5xGniddxlBEcEMzr7T0T3/0FmHV6PZ1fNllrwoHBTOXX/"
+    },
+    "chat_wrapped_key": {
+      "iv_base64": "VFVWV1hZWltcXV5f",
+      "ciphertext_base64": "VFVWV1hZWltcXV5fc7KpP2cI6DxKrx6AJnZv28ormv/ompAkPI1UACKvPm2VNpShuH7jCF5j7ytq259u"
+    },
+    "encrypted_content": {
+      "iv_base64": "YGFiY2RlZmdoaWpr",
+      "ciphertext_base64": "YGFiY2RlZmdoaWpruluaHUOntEv9A9aQWG089xTuXla458liOunqr6VgOOJ7bw0YeUhCGfnooRX99oOEuCDd1c5XpsojFnAt+N2ueRCgbFJ6+4XDmJSYjd6wyUOOm+lxJjftRTuTA/HFIvXV045rPqLT5k+6gfTn"
+    }
+  }
+}

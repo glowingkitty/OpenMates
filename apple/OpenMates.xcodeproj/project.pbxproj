@@ -24,6 +24,8 @@
 		C0FFEE000000000000050003 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
 		C0FFEE000000000000050006 /* NativeComposerDocumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050005 /* NativeComposerDocumentTests.swift */; };
 		C0FFEE000000000000050008 /* NativeComposerControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050007 /* NativeComposerControllerTests.swift */; };
+		C0FFEE00000000000005000E /* NativeComposerEncryptionCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */; };
+		C0FFEE00000000000005000F /* NativeComposerDraftEncryptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */; };
 		C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
 		C0FFEE00000000000005000B /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
 		C0FFEE00000000000004600C /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
@@ -850,6 +852,8 @@
 		C0FFEE000000000000050001 /* ComposerDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerDocument.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050005 /* NativeComposerDocumentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerDocumentTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050007 /* NativeComposerControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerControllerTests.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerEncryptionCompatibilityTests.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerDraftEncryptionTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050009 /* NativeComposerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerController.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevChatOpeningPreviewView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOpeningScalabilityUITests.swift; sourceTree = "<group>"; };
@@ -1551,6 +1555,8 @@
 				C0FFEE00000000000004600A /* TiptapComposerBridgeTests.swift */,
 				C0FFEE000000000000050005 /* NativeComposerDocumentTests.swift */,
 				C0FFEE000000000000050007 /* NativeComposerControllerTests.swift */,
+				C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */,
+				C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */,
 				C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
 				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
@@ -2730,6 +2736,8 @@
 				C0FFEE00000000000004600B /* TiptapComposerBridgeTests.swift in Sources */,
 				C0FFEE000000000000050006 /* NativeComposerDocumentTests.swift in Sources */,
 				C0FFEE000000000000050008 /* NativeComposerControllerTests.swift in Sources */,
+				C0FFEE00000000000005000E /* NativeComposerEncryptionCompatibilityTests.swift in Sources */,
+				C0FFEE00000000000005000F /* NativeComposerDraftEncryptionTests.swift in Sources */,
 				C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
 				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,
