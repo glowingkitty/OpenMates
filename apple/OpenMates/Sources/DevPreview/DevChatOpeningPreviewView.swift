@@ -123,7 +123,8 @@ struct DevChatOpeningPreviewView: View {
     }
 
     private var isUITestMessageEditFixtureEnabled: Bool {
-        ProcessInfo.processInfo.arguments.contains("--ui-test-message-edit-fixture")
+        ProcessInfo.processInfo.environment["UI_TEST_MESSAGE_EDIT_FIXTURE"] == "1"
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-message-edit-fixture")
     }
 
     private var header: some View {
