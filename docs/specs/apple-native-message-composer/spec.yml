@@ -683,14 +683,18 @@ tests:
 
   - id: T-APPLE-NATIVE-EDITOR
     type: unit
-    file: apple/OpenMatesTests/NativeComposerControllerTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerControllerTests
+    file: "apple/OpenMatesTests/{NativeComposerControllerTests,NativeComposerTextViewAdapterTests}.swift"
+    command: >-
+      python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerControllerTests &&
+      python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerTextViewAdapterTests
     covers: [AC-1, AC-7]
     assertions:
       - insert/update/remove commands preserve stable ids and selection
       - boundary backspace/delete, cut, grouping, undo, and redo match shared fixtures
       - IME marked text is not parsed or converted before composition commits
       - unrelated embed updates do not recreate the document/controller
+      - UIKit and AppKit adapters create TextKit 2 views and synchronize attributed content plus UTF-16 selection
+      - message-editor and ordered embed accessibility expose injected localized labels and custom actions
     red_phase:
       required: true
       expected: fail
@@ -702,11 +706,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        run_id: "apple-remote-65aeb81"
-        timestamp: "2026-07-09T23:46:42Z"
-        summary: NativeComposerControllerTests passed 7/7 on iPhone simulator; focused ComposerDocument plus NativeComposerController AppKit typecheck passed against the macOS SDK.
+      evidence: { status: "", run_id: "", timestamp: "" }
 
   - id: T-APPLE-INLINE-EMBED-UI
     type: unit
@@ -1446,7 +1446,7 @@ tasks:
 
   - id: TASK-6
     title: Implement native UIKit and AppKit editor adapters
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-7, S-10]
