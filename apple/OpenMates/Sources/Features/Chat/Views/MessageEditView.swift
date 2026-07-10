@@ -49,6 +49,7 @@ struct MessageEditView: View {
                         .stroke(Color.buttonPrimary.opacity(0.5), lineWidth: 1)
                 )
                 .accessibleInput("Edit message", hint: "Modify the message content, then tap Save to confirm")
+                .accessibilityIdentifier("native-message-edit-editor")
 
             HStack(spacing: .spacing3) {
                 Button("Cancel") {
@@ -57,6 +58,7 @@ struct MessageEditView: View {
                 .font(.omSmall)
                 .foregroundStyle(Color.fontSecondary)
                 .accessibleButton("Cancel edit", hint: "Discards changes and closes the editor")
+                .accessibilityIdentifier("native-message-edit-cancel")
 
                 Button {
                     save()
@@ -82,9 +84,11 @@ struct MessageEditView: View {
                     isSaving ? "Saving" : "Save message",
                     hint: isSaving ? nil : "Saves the edited message"
                 )
+                .accessibilityIdentifier("native-message-edit-save")
             }
         }
         .padding(.spacing4)
+        .accessibilityIdentifier("native-message-edit")
         .onAppear { isFocused = true }
     }
 
