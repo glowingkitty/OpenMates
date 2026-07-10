@@ -487,7 +487,44 @@ test.describe('Anonymous free chat', () => {
 				(message) => message.chat_id === anonymousRequests[0].client_chat_id
 			).length;
 		}, { timeout: 15000 }).toBe(5);
-		await expect(page.getByTestId('chat-history-content')).toHaveAttribute('data-rendered-message-count', '5', {
+		const reloadDiagnostics = await page.evaluate((chatId: string) => new Promise<{
+			chatMessagesVersion: number | null;
+			rawMessageCount: number;
+			indexedMessageCount: number;
+			hasAnonymousSessionKey: boolean;
+		}>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction(['chats', 'messages'], 'readonly');
+				const chats = transaction.objectStore('chats');
+				const messages = transaction.objectStore('messages');
+				const chatRequest = chats.get(chatId);
+				const rawMessagesRequest = messages.getAll();
+				const indexedMessagesRequest = messages.index('chat_id_created_at').getAll(
+					IDBKeyRange.bound([chatId, -Infinity], [chatId, Infinity])
+				);
+				transaction.onerror = () => {
+					db.close();
+					reject(transaction.error);
+				};
+				transaction.oncomplete = () => {
+					const rawMessages = rawMessagesRequest.result as Array<{ chat_id: string }>;
+					db.close();
+					resolve({
+						chatMessagesVersion: (chatRequest.result?.messages_v as number | undefined) ?? null,
+						rawMessageCount: rawMessages.filter((message) => message.chat_id === chatId).length,
+						indexedMessageCount: indexedMessagesRequest.result.length,
+						hasAnonymousSessionKey: !!sessionStorage.getItem('openmates_anonymous_chat_key')
+					});
+				};
+			};
+		}), anonymousRequests[0].client_chat_id);
+		await expect(
+			page.getByTestId('chat-history-content'),
+			`Anonymous reload diagnostics: ${JSON.stringify(reloadDiagnostics)}`
+		).toHaveAttribute('data-rendered-message-count', '5', {
 			timeout: 15000
 		});
 		const reloadedSecondAnswer = page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' });
