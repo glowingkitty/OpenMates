@@ -88,10 +88,23 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         XCTAssertTrue(element(in: app, identifier: "release-text").waitForExistence(timeout: 2))
+        let overlay = element(in: app, identifier: "record-overlay")
+        let waveform = element(in: app, identifier: "recording-waveform")
+        XCTAssertTrue(overlay.waitForExistence(timeout: 2))
+        XCTAssertTrue(waveform.waitForExistence(timeout: 2))
+        XCTAssertGreaterThanOrEqual(overlay.frame.height, 220)
+        XCTAssertGreaterThanOrEqual(waveform.frame.height, 63)
+        XCTAssertLessThanOrEqual(waveform.frame.height, 65)
         XCTAssertTrue(element(in: app, identifier: "timer-pill").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
         assertCancelHint(in: app, contains: "Slide left to cancel", excludes: "Press ESC to cancel")
         XCTAssertTrue(element(in: app, identifier: "mic-button").waitForExistence(timeout: 2))
+
+        let releaseText = element(in: app, identifier: "release-text")
+        let controls = element(in: app, identifier: "record-controls")
+        XCTAssertTrue(controls.waitForExistence(timeout: 2))
+        XCTAssertLessThanOrEqual(releaseText.frame.maxY, waveform.frame.minY)
+        XCTAssertLessThanOrEqual(waveform.frame.maxY, controls.frame.minY)
 
         let screenshot = XCUIScreen.main.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
