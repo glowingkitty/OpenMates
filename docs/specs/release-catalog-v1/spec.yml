@@ -67,7 +67,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6107f6114a798f48caccfbdda7a8befb93e14ef4
+  subject_commit: a8e3ca9
 
 approvals:
   product_contract:
@@ -109,14 +109,14 @@ attempts:
     evidence: local:release-catalog-audit-red
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Implement catalog validation and note rendering for the red fixture test.
-  command: python3 -m pytest scripts/tests/test_release_catalog.py
-  expected_outcome: The fixture test passes after release_catalog.py is added.
+  current_task_id: TASK-3
+  next_action: Select and record the immutable v0.14 milestone SHA before updating its existing draft.
+  command: python3 scripts/release_catalog.py audit --tag v0.14.0-alpha
+  expected_outcome: The audit passes only after v0.14 has an annotated tag matching its catalog SHA.
   blocker:
     reason: v0.14 remains unanchored until a maintainer selects its exact milestone commit.
     next_action: Record the selected immutable SHA in the milestone catalog before retagging the draft.
-  last_verified_commit: 6107f6114a798f48caccfbdda7a8befb93e14ef4
+  last_verified_commit: a8e3ca9
 
 scenarios:
   - id: S-1
@@ -161,7 +161,7 @@ acceptance_criteria:
     scenario: S-1
     text: Every catalog milestone declares a unique tag, immutable commit SHA, title, prerelease state, and original release window.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CATALOG-UNIT, T-CATALOG-AUDIT]
@@ -169,7 +169,7 @@ acceptance_criteria:
     scenario: S-1
     text: Catalog validation rejects missing tags, lightweight tags, SHA mismatches, duplicate tags, and moving branch targets.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CATALOG-UNIT, T-CATALOG-AUDIT]
@@ -177,7 +177,7 @@ acceptance_criteria:
     scenario: S-2
     text: Release notes list only verified npm, PyPI, and GHCR artifacts and explicitly omit unavailable channels without mentioning Apple or VS Code distribution.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CATALOG-UNIT]
@@ -185,7 +185,7 @@ acceptance_criteria:
     scenario: S-3
     text: Historical v0.10 through v0.13 release records are created as prerelease drafts and never automatically published.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids: [T-HISTORICAL-DRAFTS]
@@ -193,7 +193,7 @@ acceptance_criteria:
     scenario: S-4
     text: The release command requires an existing annotated tag that resolves to the catalog SHA before creating or updating a draft.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CATALOG-UNIT, T-CATALOG-AUDIT]
@@ -250,16 +250,17 @@ tests:
         status: failed_as_expected
         command: python3 -m pytest scripts/tests/test_release_catalog.py
         run_id: local:pytest-release-catalog-red
+        subject_commit: 6107f6114a798f48caccfbdda7a8befb93e14ef4
         timestamp: "2026-07-10T11:30:08Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest scripts/tests/test_release_catalog.py
+        run_id: local:pytest-release-catalog-green
+        subject_commit: a8e3ca9
+        timestamp: "2026-07-10T11:30:08Z"
   - id: T-CATALOG-AUDIT
     type: unit
     file: scripts/release_catalog.py
@@ -276,16 +277,17 @@ tests:
         status: failed_as_expected
         command: python3 scripts/release_catalog.py audit --tag v0.10.0-alpha
         run_id: local:release-catalog-audit-red
+        subject_commit: c42dfc6
         timestamp: "2026-07-10T11:30:08Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/release_catalog.py audit
+        run_id: local:release-catalog-audit-green
+        subject_commit: a8e3ca9
+        timestamp: "2026-07-10T11:30:08Z"
   - id: T-HISTORICAL-DRAFTS
     type: manual
     covers: [AC-4]
@@ -303,11 +305,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: gh release view v0.10.0-alpha --json tagName,targetCommitish,isDraft,isPrerelease
+        run_id: manual:historical-release-drafts
+        subject_commit: a8e3ca9
+        reason: Direct GitHub CLI inspection confirmed each draft, prerelease flag, and immutable targetCommitish.
+        timestamp: "2026-07-10T11:30:08Z"
 
 verifications:
   - id: V-HISTORICAL-DRAFTS
@@ -315,11 +318,12 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-4]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      summary: v0.10 through v0.13 are GitHub prerelease drafts and each targetCommitish matches its annotated catalog tag.
+      reason: Direct GitHub CLI inspection confirmed each draft remains unpublished and points to its catalog commit.
+      timestamp: "2026-07-10T11:30:08Z"
 
 implementation_plan:
   spec_path: docs/specs/release-catalog-v1/spec.yml
@@ -365,7 +369,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Define and validate milestone provenance
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2]
@@ -388,7 +392,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Create reviewable historical release drafts
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-3, S-4]
