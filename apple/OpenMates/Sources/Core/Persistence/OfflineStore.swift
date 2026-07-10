@@ -327,7 +327,10 @@ final class OfflineStore: ObservableObject {
             modelContainer = try ModelContainer(for: schema, configurations: [config])
             modelContext = modelContainer?.mainContext
         } catch {
-            print("[Offline] Failed to create SwiftData container: \(error)")
+            NativeDiagnostics.error(
+                "phase=swiftDataContainer.failed errorType=\(type(of: error))",
+                category: "offline_store"
+            )
         }
     }
 

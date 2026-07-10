@@ -176,14 +176,14 @@ final class DraftService: ObservableObject {
     }
 
     func clearDraft(chatId: String) async throws {
-        try await repository.remove(chatId: chatId)
         await legacyStore.removeDraft(chatId: chatId)
+        try await repository.remove(chatId: chatId)
         currentDraft = ""
     }
 
     func clearAll() async throws {
-        try await repository.removeAll()
         await legacyStore.removeAllDrafts()
+        try await repository.removeAll()
         currentDraft = ""
     }
 
