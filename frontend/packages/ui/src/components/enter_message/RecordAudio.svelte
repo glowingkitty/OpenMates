@@ -554,7 +554,7 @@
 
 <style>
     :global(.message-field.recording-active) {
-        min-height: 190px;
+        min-height: 220px;
         padding: 0;
     }
 
