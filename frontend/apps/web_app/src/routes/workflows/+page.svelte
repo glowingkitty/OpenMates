@@ -3,34 +3,18 @@
   Provides the V1 server-backed workflow list, Shortcuts-style detail/editor
   shell, example workflow creation, manual runs, and run history.
 
-  Native Swift counterparts: none yet; Apple V1 parity currently covers the
-  shared workflow API models and request contract.
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+  - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
 -->
 
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { Header, Settings, Notification, WorkspaceHomeShell, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, workflowWorkspaceStore, workflowApiRequest } from '@repo/ui';
+  import { ChatHeader, Header, Settings, Notification, WorkspaceHomeShell, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, workflowWorkspaceStore } from '@repo/ui';
   import { userProfile } from '@repo/ui/stores/userProfile';
   import type { DailyInspiration, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowRun, WorkflowSummary } from '@repo/ui';
-
-  type WorkflowInputEvent = {
-    event_id: number;
-    type: string;
-    status: string;
-    redacted_summary?: string;
-  };
-
-  type WorkflowInputSession = {
-    session_id: string;
-    status: string;
-    event_cursor: number;
-    message?: string | null;
-    error?: string | null;
-    workflow?: WorkflowDetail | null;
-    undo_available: boolean;
-  };
 
   type WorkflowContinueItem = {
     id: string;
@@ -64,9 +48,6 @@
   let expandedNodeId = $state<string | null>(null);
   let showAllWorkflows = $state(false);
   let workflowInputText = $state('');
-  let workflowInputBusy = $state(false);
-  let workflowInputSession = $state<WorkflowInputSession | null>(null);
-  let workflowInputEvents = $state<WorkflowInputEvent[]>([]);
   let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
 
   let recentWorkflows = $derived(workflows.slice(0, 6));
@@ -109,7 +90,6 @@
     icon: 'workflow',
   })));
   let workflowHomeItems = $derived<WorkflowContinueItem[]>([...workflowStarterItems, ...recentWorkflowContinueItems]);
-  let listedWorkflows = $derived(showAllWorkflows ? workflows : workflows.slice(0, 5));
   let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
   let workflowCountLabel = $derived(workflows.length === 1 ? '1 workflow ready' : `${workflows.length} workflows ready`);
   let isManageView = $derived(page.url.searchParams.get('view') === 'manage');
@@ -123,7 +103,6 @@
   let showManageView = $derived(canRenderWorkflowData && isManageView);
   let visibleWorkflowGreetingName = $derived(canRenderWorkflowData ? workflowGreetingName : 'there');
   let visibleWorkflowHomeItems = $derived(canRenderWorkflowData ? workflowHomeItems : []);
-  let workflowsLoading = $derived($workflowWorkspaceStore.listStatus === 'loading' && workflows.length === 0);
 
   onMount(() => {
     void initializeWorkflowsRoute();
@@ -137,11 +116,6 @@
       console.error('[WorkflowsRoute] Failed to initialize:', initError);
       routeError = initError instanceof Error ? initError.message : 'Failed to load workflows.';
     }
-  }
-
-  async function loadWorkflows() {
-    routeError = null;
-    return workflowWorkspaceStore.loadWorkflows({ force: true });
   }
 
   async function selectWorkflow(workflowId: string) {
@@ -192,7 +166,6 @@
     if (!canRenderWorkflowData || generation !== observedWorkflowGeneration) {
       observedWorkflowGeneration = generation;
       routeError = null;
-      clearWorkflowInputState();
     }
     void storeSelectedWorkflowId;
   });
@@ -234,88 +207,10 @@
   }
 
   async function submitWorkflowInput() {
-    const text = workflowInputText.trim();
-    if (!text || workflowInputBusy || !canLoadWorkflows) return;
-    const requestGeneration = workflowWorkspaceStore.getGeneration();
-    workflowInputBusy = true;
-    routeError = null;
-    try {
-      const path = workflowInputSession?.session_id && workflowInputSession.status !== 'undone'
-        ? `/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/follow-up`
-        : '/v1/workflows/input';
-      const data = await workflowApiRequest<{ session: WorkflowInputSession }>(path, {
-        method: 'POST',
-        body: JSON.stringify(path.endsWith('/input')
-          ? { text, selected_workflow_id: selectedWorkflow?.id ?? null }
-          : { text })
-      });
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      workflowInputText = '';
-      await applyWorkflowInputSession(data.session, requestGeneration);
-    } catch (inputError) {
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      routeError = inputError instanceof Error ? inputError.message : 'Failed to process workflow input.';
-    } finally {
-      workflowInputBusy = false;
-    }
-  }
-
-  function clearWorkflowInputState() {
+    const title = workflowInputText.trim();
+    if (!title || saving || !canLoadWorkflows) return;
     workflowInputText = '';
-    workflowInputBusy = false;
-    workflowInputSession = null;
-    workflowInputEvents = [];
-  }
-
-  async function stopWorkflowInput() {
-    if (!workflowInputSession || workflowInputBusy) return;
-    const requestGeneration = workflowWorkspaceStore.getGeneration();
-    workflowInputBusy = true;
-    try {
-      const data = await workflowApiRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/stop`, {
-        method: 'POST',
-        body: JSON.stringify({})
-      });
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      await applyWorkflowInputSession(data.session, requestGeneration);
-    } finally {
-      workflowInputBusy = false;
-    }
-  }
-
-  async function undoWorkflowInput() {
-    if (!workflowInputSession || !workflowInputSession.undo_available || workflowInputBusy) return;
-    const requestGeneration = workflowWorkspaceStore.getGeneration();
-    workflowInputBusy = true;
-    try {
-      const data = await workflowApiRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/undo`, {
-        method: 'POST',
-        body: JSON.stringify({})
-      });
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      await applyWorkflowInputSession(data.session, requestGeneration);
-      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-      await loadWorkflows();
-    } finally {
-      workflowInputBusy = false;
-    }
-  }
-
-  async function applyWorkflowInputSession(session: WorkflowInputSession, requestGeneration = workflowWorkspaceStore.getGeneration()) {
-    if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-    workflowInputSession = session;
-    await refreshWorkflowInputEvents(session.session_id, Math.max(0, session.event_cursor - 20), requestGeneration);
-    if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-    if (session.workflow) {
-      workflowWorkspaceStore.upsertWorkflow(session.workflow);
-      await selectWorkflow(session.workflow.id);
-    }
-  }
-
-  async function refreshWorkflowInputEvents(sessionId: string, afterEventId = 0, requestGeneration = workflowWorkspaceStore.getGeneration()) {
-    const data = await workflowApiRequest<{ events: WorkflowInputEvent[] }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/events?after_event_id=${afterEventId}`);
-    if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
-    workflowInputEvents = data.events;
+    await createWorkflow(title, blankWorkflowGraph(), false);
   }
 
   async function createWorkflow(title: string, graph: WorkflowGraph, enabled: boolean) {
@@ -440,12 +335,11 @@
   function blankWorkflowGraph(): WorkflowGraph {
     return {
       version: 1,
-      trigger_node_id: 'trigger',
+      trigger_node_id: 'manual',
       nodes: [
-        { id: 'trigger', type: 'schedule_trigger', title: 'New schedule', config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Berlin' } } },
-        { id: 'end', type: 'end', title: 'Done', config: {} }
+        { id: 'manual', type: 'manual_trigger', title: 'Manual start', config: {} }
       ],
-      edges: [{ from: 'trigger', to: 'end' }]
+      edges: []
     };
   }
 
@@ -477,6 +371,10 @@
     editorDirty = false;
     hydratedEditorWorkflowId = workflow.id;
     expandedNodeId = null;
+  }
+
+  function undoEditorChanges() {
+    if (selectedWorkflow) resetEditor(selectedWorkflow);
   }
 
   function cloneGraph(graph: WorkflowGraph): WorkflowGraph {
@@ -765,53 +663,58 @@
   <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="chat-container workflows-container" class:menu-open={$panelState.isSettingsOpen}>
+      <div class="workflow-sidebar-shell" class:drawer-open={$panelState.isActivityHistoryOpen}>
+        <WorkflowSidebar onSelect={(workflow) => {
+          void continueWorkflowFromCard(workflow);
+          panelState.closeChats();
+        }} />
+      </div>
       <main class="active-chat-container workflows-start" class:management-view={showManageView} data-testid="workflows-page">
         {#if error}
           <div class="error-banner" data-testid="workflows-error">{error}</div>
         {/if}
 
         {#if !showManageView}
-          <WorkspaceHomeShell
-            surface="workflows"
-            testId="workflows-start-screen"
-            heading={`Hey ${visibleWorkflowGreetingName}!`}
-            subtitle="What do you want to automate next?"
-            actionItems={visibleWorkflowHomeItems}
-            actionItemsTestId="workflow-recommendations"
-            continueSectionTestId="recent-workflows"
-            onContinueItem={continueWorkflowFromCard}
-            onActionItem={startWorkflowFromCard}
-            onStartInspiration={startWorkflowFromInspiration}
-          >
-            <svelte:fragment slot="composer">
+          {#if showAllWorkflows}
+            <section class="workflow-home-all" data-testid="workflows-start-screen">
+              <button type="button" class="show-all-button" data-testid="workflows-show-all" onclick={() => showAllWorkflows = false}>Show recent</button>
+              <div class="all-workflows-grid" data-testid="all-workflows-grid">
+                {#each workflows as workflow (workflow.id)}
+                  <button type="button" class="workflow-mini-card" onclick={() => continueWorkflowFromCard(workflow)}>
+                    <strong>{workflow.title}</strong>
+                    <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'}</span>
+                  </button>
+                {/each}
+              </div>
               <form class="workflow-input-composer" data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
-                <textarea
-                  data-testid="workflow-input-textarea"
-                  bind:value={workflowInputText}
-                  rows="1"
-                  placeholder="Ask OpenMates to create or update a workflow..."
-                  disabled={workflowInputBusy || !canRenderWorkflowData}
-                ></textarea>
-                <div class="workflow-input-actions">
-                  {#if canRenderWorkflowData && workflowInputSession && workflowInputSession.status === 'running'}
-                    <button type="button" data-testid="workflow-input-stop" onclick={stopWorkflowInput} disabled={workflowInputBusy}>Stop</button>
-                  {/if}
-                  {#if canRenderWorkflowData && workflowInputSession?.undo_available}
-                    <button type="button" data-testid="workflow-input-undo" onclick={undoWorkflowInput} disabled={workflowInputBusy}>Undo</button>
-                  {/if}
-                  <button type="submit" data-testid="workflow-input-submit" disabled={workflowInputBusy || !canRenderWorkflowData || !workflowInputText.trim()}>{workflowInputBusy ? 'Working...' : 'Send'}</button>
-                </div>
+                <textarea data-testid="workflow-input-textarea" bind:value={workflowInputText} rows="1" placeholder="Name a new workflow" disabled={saving || !canRenderWorkflowData}></textarea>
+                <div class="workflow-input-actions"><button type="submit" data-testid="workflow-input-submit" disabled={saving || !canRenderWorkflowData || !workflowInputText.trim()}>{saving ? 'Creating...' : 'Create workflow'}</button></div>
               </form>
-              {#if canRenderWorkflowData && workflowInputSession}
-                <div class="workflow-input-status" data-testid="workflow-input-status" data-status={workflowInputSession.status}>
-                  <strong>{workflowInputSession.status}</strong>
-                  {#if workflowInputSession.message}<span>{workflowInputSession.message}</span>{/if}
-                  {#if workflowInputSession.error}<span>{workflowInputSession.error}</span>{/if}
-                  {#if workflowInputEvents.length > 0}<span>{workflowInputEvents.at(-1)?.type}</span>{/if}
-                </div>
-              {/if}
-            </svelte:fragment>
-          </WorkspaceHomeShell>
+            </section>
+          {:else}
+            {#if workflows.length > 0}
+              <button type="button" class="show-all-button workflow-home-show-all" data-testid="workflows-show-all" onclick={() => showAllWorkflows = true}>Show all {workflows.length}</button>
+            {/if}
+            <WorkspaceHomeShell
+              surface="workflows"
+              testId="workflows-start-screen"
+              heading={`Hey ${visibleWorkflowGreetingName}!`}
+              subtitle="What do you want to automate next?"
+              actionItems={visibleWorkflowHomeItems}
+              actionItemsTestId="workflow-recommendations"
+              continueSectionTestId="recent-workflows"
+              onContinueItem={continueWorkflowFromCard}
+              onActionItem={startWorkflowFromCard}
+              onStartInspiration={startWorkflowFromInspiration}
+            >
+              <svelte:fragment slot="composer">
+                <form class="workflow-input-composer" data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
+                  <textarea data-testid="workflow-input-textarea" bind:value={workflowInputText} rows="1" placeholder="Name a new workflow" disabled={saving || !canRenderWorkflowData}></textarea>
+                  <div class="workflow-input-actions"><button type="submit" data-testid="workflow-input-submit" disabled={saving || !canRenderWorkflowData || !workflowInputText.trim()}>{saving ? 'Creating...' : 'Create workflow'}</button></div>
+                </form>
+              </svelte:fragment>
+            </WorkspaceHomeShell>
+          {/if}
         {/if}
 
         {#if showManageView}
@@ -852,34 +755,16 @@
           {/if}
 
           <div class="management-grid">
-            <aside class="workflow-list" data-testid="workflows-list">
-              <div class="section-heading">
-                <p>Library</p>
-                <h3>Recent workflows</h3>
-              </div>
-              {#if workflowsLoading}
-                <p class="empty-copy">Loading saved workflows...</p>
-              {:else if workflows.length === 0}
-                <p class="empty-copy">Create one of the starter workflows to test the server-side runner.</p>
-              {:else}
-                {#each listedWorkflows as workflow (workflow.id)}
-                  <button
-                    type="button"
-                    class="workflow-row"
-                    class:active={selectedWorkflow?.id === workflow.id}
-                    data-testid="workflow-row"
-                    onclick={() => selectWorkflow(workflow.id)}
-                  >
-                    <strong>{workflow.title}</strong>
-                    <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'} - {retentionLabel(workflow.run_content_retention)}</span>
-                  </button>
-                {/each}
-              {/if}
-            </aside>
-
             <section class="workflow-detail" data-testid="workflow-detail">
 
           {#if selectedWorkflow}
+            <ChatHeader
+              title={editorTitle || selectedWorkflow.title}
+              category="productivity"
+              icon="workflow"
+              summary={selectedWorkflow.trigger_summary ?? 'Manual workflow'}
+              chatCreatedAt={selectedWorkflow.created_at}
+            />
             <div class="detail-header">
               <div>
                 <p>{selectedWorkflow.status}</p>
@@ -895,14 +780,15 @@
                 <span class="retention-chip" data-testid="selected-workflow-retention">Run content: {retentionLabel(selectedWorkflow.run_content_retention)}</span>
               </div>
               <div class="detail-actions">
-                <label class="inline-retention" for="selected-workflow-retention-select">
+                 <label class="inline-retention" for="selected-workflow-retention-select">
                   <span>Edit retention</span>
                   <select id="selected-workflow-retention-select" data-testid="selected-workflow-retention-select" bind:value={selectedRunContentRetention}>
                     <option value="last_5">Keep latest 5</option>
                     <option value="none">No durable content</option>
                   </select>
-                </label>
-                <button type="button" data-testid="save-workflow" onclick={saveSelectedWorkflow} disabled={saving || !editorDirty}>{saving ? 'Saving...' : 'Save workflow'}</button>
+                 </label>
+                 <button type="button" data-testid="undo-workflow" onclick={undoEditorChanges} disabled={!editorDirty || saving}>Undo</button>
+                 <button type="button" data-testid="save-workflow" onclick={saveSelectedWorkflow} disabled={saving || !editorDirty}>{saving ? 'Saving...' : 'Save workflow'}</button>
                 <button type="button" data-testid="save-workflow-retention" onclick={updateSelectedWorkflowRetention} disabled={saving}>Save</button>
                 <button type="button" data-testid="toggle-workflow" onclick={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)} disabled={saving}>
                   {selectedWorkflow.enabled ? 'Disable' : 'Enable'}
@@ -1155,6 +1041,11 @@
     padding: 10px 20px 10px 10px;
   }
 
+  .workflow-sidebar-shell {
+    width: min(325px, 28vw);
+    flex: 0 0 min(325px, 28vw);
+  }
+
   @media (min-width: 1100px) {
     .workflows-container.menu-open {
       gap: 20px;
@@ -1182,7 +1073,6 @@
   }
 
   .management-header p,
-  .section-heading p,
   .detail-header p {
     margin: 0;
     color: var(--color-font-secondary);
@@ -1207,18 +1097,16 @@
   }
 
   .management-header h2,
-  .section-heading h3,
   .empty-detail h2 {
     margin: 0;
   }
 
   .management-grid {
     display: grid;
-    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
 
-  .workflow-list,
   .workflow-detail {
     min-width: 0;
     overflow: auto;
@@ -1226,10 +1114,6 @@
     border-radius: var(--radius-16, 32px);
     background: var(--color-grey-0);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
-  }
-
-  .workflow-list {
-    padding: 18px;
   }
 
   .create-actions {
@@ -1311,27 +1195,11 @@
     background: var(--color-button-primary);
   }
 
-  .workflow-row {
-    width: 100%;
-    display: grid;
-    gap: 4px;
-    margin-block-end: 8px;
-    text-align: start;
-    color: var(--color-font-primary);
-    background: var(--color-grey-10);
-  }
-
-  .workflow-row.active {
-    outline: 2px solid var(--color-button-primary);
-    background: var(--color-grey-blue);
-  }
-
   .show-all-button {
     color: var(--color-font-primary);
     background: var(--color-grey-20);
   }
 
-  .workflow-row span,
   .empty-copy,
   .run-row span {
     margin: 0;
@@ -1727,20 +1595,6 @@
     background: var(--color-button-primary);
   }
 
-  .workflow-input-status {
-    width: min(920px, 100%);
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    color: var(--color-font-secondary);
-    font-size: 0.9rem;
-  }
-
-  .workflow-input-status strong {
-    color: var(--color-font-primary);
-  }
-
   .settings-wrapper {
     display: flex;
     align-items: flex-start;
@@ -1772,6 +1626,20 @@
       padding: 8px 10px;
     }
 
+    .workflow-sidebar-shell {
+      position: fixed;
+      z-index: 30;
+      inset: 82px auto 0 0;
+      width: min(325px, calc(100vw - 32px));
+      transform: translateX(-110%);
+      transition: transform var(--duration-normal) var(--easing-default);
+      box-shadow: 12px 0 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .workflow-sidebar-shell.drawer-open {
+      transform: translateX(0);
+    }
+
     .management-header,
     .create-actions {
       display: grid;
@@ -1781,7 +1649,6 @@
       grid-template-columns: 1fr;
     }
 
-    .workflow-list,
     .workflow-detail {
       border-radius: var(--radius-10, 24px);
     }

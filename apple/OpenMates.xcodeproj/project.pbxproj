@@ -245,6 +245,8 @@
 		C0FFEE000000000000034004 /* EmbedDiffEditingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */; };
 		C0FFEE000000000000036003 /* WorkflowModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036001 /* WorkflowModels.swift */; };
 		C0FFEE000000000000036004 /* WorkflowAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036002 /* WorkflowAPI.swift */; };
+		C0FFEE000000000000036007 /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036005 /* WorkflowStore.swift */; };
+		C0FFEE000000000000036008 /* WorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036006 /* WorkflowViews.swift */; };
 		C0FFEE000000000000037002 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
 		C0FFEE000000000000037003 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
 		C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */; };
@@ -953,6 +955,8 @@
 		C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveQuestionsParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036001 /* WorkflowModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowModels.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036002 /* WorkflowAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowAPI.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000036005 /* WorkflowStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowStore.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000036006 /* WorkflowViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowViews.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingAssistantResponseQueue.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSendPipelineParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamingLifecycleParityTests.swift; sourceTree = "<group>"; };
@@ -1159,6 +1163,8 @@
 			children = (
 				C0FFEE000000000000036002 /* WorkflowAPI.swift */,
 				C0FFEE000000000000036001 /* WorkflowModels.swift */,
+				C0FFEE000000000000036005 /* WorkflowStore.swift */,
+				C0FFEE000000000000036006 /* WorkflowViews.swift */,
 			);
 			path = Workflows;
 			sourceTree = "<group>";
@@ -2744,6 +2750,8 @@
 				D3A477A6406FCE23703E6B45 /* VoiceRecordingView.swift in Sources */,
 				C0FFEE000000000000036004 /* WorkflowAPI.swift in Sources */,
 				C0FFEE000000000000036003 /* WorkflowModels.swift in Sources */,
+				C0FFEE000000000000036007 /* WorkflowStore.swift in Sources */,
+				C0FFEE000000000000036008 /* WorkflowViews.swift in Sources */,
 				E2B960DAD0E7CBE03D8E3A15 /* WebReadEmbedRenderer.swift in Sources */,
 				3B6412DCFB407F1FD95C8D21 /* WebSearchEmbedRenderer.swift in Sources */,
 				5FA4A9B8A99A3D148F2B7FD4 /* WebSearchIntent.swift in Sources */,

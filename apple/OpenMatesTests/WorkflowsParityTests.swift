@@ -12,6 +12,12 @@ final class WorkflowsParityTests: XCTestCase {
 
         XCTAssertEqual(workflow.id, "wf-fixture")
         XCTAssertEqual(workflow.title, "Daily rain alert")
+        XCTAssertEqual(workflow.lifecycle, .temporary)
+        XCTAssertEqual(workflow.source, "workflow_input")
+        XCTAssertEqual(workflow.sourceChatId, "chat-fixture")
+        XCTAssertTrue(workflow.createdByAssistant)
+        XCTAssertEqual(workflow.autoDeleteAt, 300)
+        XCTAssertEqual(workflow.keptAt, 250)
         XCTAssertEqual(workflow.runContentRetention, .none)
         XCTAssertEqual(workflow.graph.triggerNodeId, "trigger")
         XCTAssertEqual(workflow.graph.nodes.map(\.type), [.scheduleTrigger, .appSkillAction, .decision, .sendNotification, .end])
@@ -26,8 +32,23 @@ final class WorkflowsParityTests: XCTestCase {
         XCTAssertEqual(run.contentRetentionMode, .last5)
         XCTAssertEqual(run.contentStorage, .durable)
         XCTAssertTrue(run.contentAvailable)
-        XCTAssertEqual(run.nodeRuns.first?.nodeType, .appSkillAction)
-        XCTAssertEqual(run.nodeRuns.first?.outputSummary["rain_probability"]?.value as? Int, 70)
+        XCTAssertEqual(run.startedAt, 10)
+        XCTAssertEqual(run.finishedAt, 20)
+        XCTAssertNil(run.errorSummary)
+        XCTAssertEqual(run.costSummary["credits"]?.value as? Int, 2)
+        XCTAssertEqual(run.outputSummary["alert_sent"]?.value as? Bool, true)
+
+        let nodeRun = try XCTUnwrap(run.nodeRuns.first)
+        XCTAssertEqual(nodeRun.nodeType, .appSkillAction)
+        XCTAssertEqual(nodeRun.startedAt, 11)
+        XCTAssertEqual(nodeRun.finishedAt, 19)
+        XCTAssertEqual(nodeRun.attempt, 1)
+        XCTAssertNil(nodeRun.skippedReason)
+        XCTAssertNil(nodeRun.errorCode)
+        XCTAssertNil(nodeRun.errorSummary)
+        XCTAssertEqual(nodeRun.inputSummary["location"]?.value as? String, "Berlin")
+        XCTAssertEqual(nodeRun.outputSummary["rain_probability"]?.value as? Int, 70)
+        XCTAssertEqual(nodeRun.creditCost, 2)
     }
 
     func testWorkflowRequestsUseSharedApiPathsAndSnakeCasePayloads() throws {
@@ -62,6 +83,12 @@ final class WorkflowsParityTests: XCTestCase {
               "title": "Daily rain alert",
               "status": "active",
               "enabled": true,
+              "lifecycle": "temporary",
+              "source": "workflow_input",
+              "source_chat_id": "chat-fixture",
+              "created_by_assistant": true,
+              "auto_delete_at": 300,
+              "kept_at": 250,
               "trigger_summary": "daily at 07:00",
               "next_run_at": null,
               "last_run_status": "completed",
@@ -103,10 +130,15 @@ final class WorkflowsParityTests: XCTestCase {
               "version_id": "version-fixture",
               "trigger_type": "manual",
               "status": "completed",
+              "started_at": 10,
+              "finished_at": 20,
+              "error_summary": null,
+              "cost_summary": {"credits": 2},
               "content_retention_mode": "last_5",
               "content_available": true,
               "content_storage": "durable",
               "content_expires_at": null,
+              "output_summary": {"alert_sent": true},
               "node_runs": [
                 {
                   "id": "node-run-fixture",
@@ -115,7 +147,15 @@ final class WorkflowsParityTests: XCTestCase {
                   "node_id": "weather",
                   "node_type": "app_skill_action",
                   "status": "completed",
-                  "output_summary": {"rain_probability": 70}
+                  "started_at": 11,
+                  "finished_at": 19,
+                  "attempt": 1,
+                  "skipped_reason": null,
+                  "error_code": null,
+                  "error_summary": null,
+                  "input_summary": {"location": "Berlin"},
+                  "output_summary": {"rain_probability": 70},
+                  "credit_cost": 2
                 }
               ]
             }

@@ -44,6 +44,7 @@ struct MainAppView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var appSession = AppSessionCoordinator.shared
     @StateObject private var chatStore = AppSessionCoordinator.shared.chatStore
+    @StateObject private var workflowStore = WorkflowStore()
     @StateObject private var wsManager = AppSessionCoordinator.shared.webSocketManager
     @StateObject private var deepLinkHandler = DeepLinkHandler()
     @StateObject private var incognitoManager = IncognitoManager()
@@ -331,6 +332,11 @@ struct MainAppView: View {
             phoneWatchLoginBridge.start()
             #endif
             await runStartupTask()
+            if let fixture = workflowUITestFixture {
+                selectedWorkspace = .workflows
+                isChatsPanelOpen = fixture == "sidebar"
+                workflowStore.showFixture(fixture)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { notification in
             handleChatUpdate(notification)
@@ -772,6 +778,9 @@ struct MainAppView: View {
         showShareChat = false
         showHiddenChats = false
         actionChat = nil
+        if workspace == .workflows {
+            Task { await workflowStore.load() }
+        }
         if isCompactShell {
             withAnimation(.easeInOut(duration: 0.24)) {
                 isChatsPanelOpen = false
@@ -1306,7 +1315,9 @@ struct MainAppView: View {
 
     @ViewBuilder
     private var detailContent: some View {
-        if selectedWorkspace != .chat {
+        if selectedWorkspace == .workflows {
+            WorkflowWorkspaceView(store: workflowStore)
+        } else if selectedWorkspace != .chat {
             WorkspacePlaceholderView(workspace: selectedWorkspace) {
                 selectedWorkspace = .chat
             }
@@ -1499,7 +1510,18 @@ struct MainAppView: View {
         }
     }
 
+    @ViewBuilder
     private var chatsPanel: some View {
+        if selectedWorkspace == .workflows {
+            WorkflowSidebarView(store: workflowStore) { workflow in
+                Task { await workflowStore.select(workflow) }
+                if isCompactShell {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isChatsPanelOpen = false
+                    }
+                }
+            }
+        } else {
         VStack(spacing: 0) {
             if showSearch {
                 ChatSearchView(
@@ -1563,6 +1585,15 @@ struct MainAppView: View {
         }
         .background(Color.grey0)
         .accessibilityIdentifier("chat-history-panel")
+        }
+    }
+
+    private var workflowUITestFixture: String? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "--ui-test-workflows-fixture"), arguments.indices.contains(index + 1) else {
+            return ProcessInfo.processInfo.environment["UI_TEST_WORKFLOWS_FIXTURE"]
+        }
+        return arguments[index + 1]
     }
 
     private var chatPanelTopButtons: some View {

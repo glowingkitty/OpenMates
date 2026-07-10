@@ -60,6 +60,14 @@ def _stable_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
+def _workflow_list_sort_key(record: dict[str, Any]) -> tuple[int, int, int]:
+    """Put due scheduled workflows first without obscuring recent manual/draft work."""
+    next_run_at = record.get("next_run_at")
+    if record.get("enabled") and isinstance(next_run_at, int):
+        return (0, next_run_at, 0)
+    return (1, 0, -int(record.get("updated_at") or 0))
+
+
 class WorkflowPayloadCipher(Protocol):
     requires_vault_key_id: bool
 
@@ -483,7 +491,7 @@ class WorkflowService:
             for record in self.repository.list_workflows(user_id)
             if record.get("lifecycle", WorkflowLifecycle.PERSISTED.value) == WorkflowLifecycle.PERSISTED.value
         ]
-        records = sorted(records, key=lambda item: item["updated_at"], reverse=True)
+        records = sorted(records, key=_workflow_list_sort_key)
         return [self._summary_from_record(record, vault_key_id) for record in records]
 
     def list_temporary_workflows(self, user_id: str, vault_key_id: str | None = None) -> list[WorkflowSummary]:
@@ -494,7 +502,7 @@ class WorkflowService:
             for record in self.repository.list_workflows(user_id)
             if record.get("lifecycle") == WorkflowLifecycle.TEMPORARY.value
         ]
-        records = sorted(records, key=lambda item: item["updated_at"], reverse=True)
+        records = sorted(records, key=_workflow_list_sort_key)
         return [self._summary_from_record(record, vault_key_id) for record in records]
 
     def get_workflow(self, workflow_id: str, user_id: str, vault_key_id: str | None = None) -> WorkflowDetail:

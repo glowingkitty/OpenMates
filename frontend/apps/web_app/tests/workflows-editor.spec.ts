@@ -2,8 +2,9 @@
 /**
  * Workflows V1 web editor smoke coverage.
  *
- * Purpose: verifies the deployed Workflows route can create canonical starter
- * workflows, edit retention, run server-side tests, and delete workflows.
+ * Purpose: verifies the deployed Workflows route opens a focused editor with
+ * explicit dirty-state controls, supports inline mobile node expansion, and
+ * can run and delete a workflow.
  * Security: uses the shared E2E test account and cleans up only workflows made
  * during the current test run.
  */
@@ -26,7 +27,7 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 test.describe('Workflows editor', () => {
-	test('creates, edits, runs, and deletes canonical workflows', async ({ page }) => {
+	test('opens a focused editor with explicit dirty-state controls', async ({ page }) => {
 		test.setTimeout(180000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
@@ -46,13 +47,14 @@ test.describe('Workflows editor', () => {
 		const initialIds = new Set((initialData.workflows ?? []).map((workflow: { id: string }) => workflow.id));
 
 		try {
-			await page.goto(getE2EDebugUrl('/workflows?view=manage'), { waitUntil: 'domcontentloaded' });
+			await page.setViewportSize({ width: 390, height: 844 });
+			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
-
-			await page.getByTestId('workflow-retention-select').selectOption('none');
-			await page.getByTestId('create-rain-workflow').click();
-			await expect(page.getByTestId('selected-workflow-retention')).toContainText('No durable run content', { timeout: 30000 });
+			await expect(page.getByTestId('workflow-recommendations')).toBeVisible();
+			await page.getByTestId('workflow-recommendations').getByTestId('resume-chat-card').first().click();
 			await expect(page.getByTestId('workflow-editor')).toBeVisible();
+			await expect(page.getByTestId('workflows-list')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-title-input')).toHaveValue('Daily rain alert');
 			await expect(page.getByTestId('workflow-action-palette')).toContainText('Add action');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('then');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('If true:');
@@ -61,12 +63,21 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Berlin');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('rain probability > 60');
 
+			await expect(page.getByTestId('save-workflow')).toBeDisabled();
 			await page.getByTestId('workflow-title-input').fill('Daily rain alert edited');
-			await page.getByTestId('workflow-node-summary').nth(1).click();
-			await expect(page.getByTestId('workflow-node-expanded')).toBeVisible();
-			await page.getByTestId('workflow-node-location-input').fill('Paris');
-			await page.getByTestId('add-report-node').click();
-			await expect(page.getByTestId('workflow-node-card')).toHaveCount(6);
+			await expect(page.getByTestId('undo-workflow')).toBeVisible();
+			await expect(page.getByTestId('undo-workflow')).toBeEnabled();
+			await expect(page.getByTestId('save-workflow')).toBeEnabled();
+			await page.getByTestId('undo-workflow').click();
+			await expect(page.getByTestId('workflow-title-input')).toHaveValue('Daily rain alert');
+			await expect(page.getByTestId('save-workflow')).toBeDisabled();
+
+			const mobileWeatherNode = page.getByTestId('workflow-node-card').nth(1);
+			await mobileWeatherNode.getByTestId('workflow-node-summary').click();
+			await expect(mobileWeatherNode.getByTestId('workflow-node-expanded')).toBeVisible();
+			await mobileWeatherNode.getByTestId('workflow-node-location-input').fill('Paris');
+			await expect(page.getByTestId('save-workflow')).toBeEnabled();
+			await page.getByTestId('workflow-title-input').fill('Daily rain alert edited');
 			const saveWorkflowResponse = page.waitForResponse(
 				(response) => response.url().includes('/v1/workflows/') && response.request().method() === 'PATCH' && response.ok(),
 				{ timeout: 30000 }
@@ -74,8 +85,6 @@ test.describe('Workflows editor', () => {
 			await page.getByTestId('save-workflow').click();
 			await saveWorkflowResponse;
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Create report');
-			await expect(page.getByTestId('workflows-list')).toContainText('Daily rain alert edited', { timeout: 30000 });
 
 			await page.getByTestId('toggle-workflow').click();
 			await expect(page.getByTestId('workflow-detail')).toContainText('disabled', { timeout: 30000 });
@@ -85,23 +94,9 @@ test.describe('Workflows editor', () => {
 			await page.getByTestId('run-workflow').click();
 			const rainRun = page.getByTestId('workflow-run-row').first();
 			await expect(rainRun).toContainText('completed', { timeout: 30000 });
-			await expect(rainRun).toContainText('ephemeral none');
-
-			await page.getByTestId('selected-workflow-retention-select').selectOption('last_5');
-			await page.getByTestId('save-workflow-retention').click();
-			await expect(page.getByTestId('selected-workflow-retention')).toContainText('Keep latest 5 encrypted runs', { timeout: 30000 });
-
-			await page.getByTestId('workflow-retention-select').selectOption('last_5');
-			await page.getByTestId('create-news-workflow').click();
-			await expect(page.getByTestId('selected-workflow-retention')).toContainText('Keep latest 5 encrypted runs', { timeout: 30000 });
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('News | Search OpenAI news');
-			await page.getByTestId('run-workflow').click();
-			await expect(page.getByTestId('workflow-run-row').first()).toContainText('durable last_5', { timeout: 30000 });
 
 			await page.getByTestId('delete-workflow').click();
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
-			await page.getByTestId('delete-workflow').click();
-			await expect(page.getByText('Build your first workflow')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('workflow-title-input')).toHaveCount(0);
 		} finally {
 			const finalResponse = await page.request.get(`${apiUrl}/v1/workflows`);
 			if (finalResponse.ok()) {
