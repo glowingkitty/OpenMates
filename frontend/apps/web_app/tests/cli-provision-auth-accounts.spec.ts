@@ -21,6 +21,7 @@ const {
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const CREATE_ACCOUNT_SLOT = process.env.CREATE_ACCOUNT_SLOT;
+const E2E_SIGNUP_INVITE_CODE = process.env.OPENMATES_CLI_SIGNUP_INVITE_CODE;
 const DEV_API_URL = 'https://api.dev.openmates.org';
 const RESERVED_AUTH_ACCOUNT_SLOTS = new Set([14, 15, 16, 17, 18, 19, 20]);
 
@@ -32,6 +33,7 @@ test.describe('CLI E2E auth account provisioning', () => {
 			'CREATE_ACCOUNT_SLOT must be a reserved auth-test slot.'
 		);
 		test.skip(!SIGNUP_TEST_EMAIL_DOMAINS, 'SIGNUP_TEST_EMAIL_DOMAINS is required.');
+		test.skip(!E2E_SIGNUP_INVITE_CODE, 'OPENMATES_CLI_SIGNUP_INVITE_CODE is required.');
 
 		const emailClient = createEmailClient();
 		test.skip(!emailClient, 'Email credentials required (GMAIL_* or MAILOSAUR_*).');

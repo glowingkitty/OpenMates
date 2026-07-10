@@ -3163,6 +3163,8 @@ async function handleE2E(
     throw new Error("E2E provisioning refuses production API URLs.");
   }
   if (flags.password !== undefined) throw new Error("Use generated passwords or OPENMATES_CLI_SIGNUP_PASSWORD, not --password.");
+  const inviteCode = process.env.OPENMATES_CLI_SIGNUP_INVITE_CODE;
+  if (!inviteCode) throw new Error("OPENMATES_CLI_SIGNUP_INVITE_CODE is required for E2E provisioning.");
   const slot = parseRequiredNumber(flags.slot, "--slot");
   if (![14, 15, 16, 17, 18, 19, 20].includes(slot)) {
     throw new Error("Only reserved slots 14-20 are supported.");
@@ -3184,6 +3186,7 @@ async function handleE2E(
       ...flags,
       email,
       username,
+      "invite-code": inviteCode,
       yes: true,
       json: false,
       "backup-codes-output": typeof flags["backup-codes-output"] === "string" ? flags["backup-codes-output"] : `${artifact}.backup-codes`,

@@ -35,4 +35,11 @@ describe("E2E provisioning command surface", () => {
     const output = runCli(["e2e", "--help"]);
     assert.ok(output.includes("--slot <14-20>"));
   });
+
+  it("requires the secret-backed invite before provisioning", () => {
+    assert.throws(
+      () => runCli(["e2e", "provision-auth-accounts", "--slot", "14"]),
+      /OPENMATES_CLI_SIGNUP_INVITE_CODE is required/,
+    );
+  });
 });

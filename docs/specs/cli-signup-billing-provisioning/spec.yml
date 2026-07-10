@@ -440,6 +440,7 @@ contracts:
         - --yes
       behavior:
         - Refuse production API URLs unless an explicit future approved override exists.
+        - Read the reusable dev-only invite code from a secret-backed environment variable rather than a command-line argument.
         - Write ignored local artifacts only.
   data:
     - CLI session storage continues to use `~/.openmates/session.json` plus keychain/encrypted-file tiers for master key and email encryption key.
@@ -459,6 +460,7 @@ contracts:
     - Gift-card bank-transfer orders do not create usable codes before payment is matched.
     - CLI deletion has a stricter auth contract than web deletion: the email code is always required, and 2FA is additionally required when configured.
     - Test provisioning must fail closed on production API URLs and must not upload secrets.
+    - Test provisioning invite codes are supplied through GitHub Actions secrets and must not appear in command arguments or logs.
 
 tests:
   - id: T-CLI-CRYPTO-001
