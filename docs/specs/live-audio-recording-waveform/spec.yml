@@ -1,6 +1,6 @@
 id: live-audio-recording-waveform
 title: Web Live Audio Recording Waveform
-status: implementing
+status: verified
 
 goal: >
   Give users immediate visual feedback that their microphone is receiving sound
@@ -128,7 +128,7 @@ acceptance_criteria:
     scenario: S-1
     text: Web recording renders a live right-to-left rolling bar history from the active microphone stream without changing MediaRecorder output or existing controls.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -137,7 +137,7 @@ acceptance_criteria:
     scenario: S-2
     text: Silent browser input renders stable minimum-height centered bars and does not generate random fake speech activity.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -146,7 +146,7 @@ acceptance_criteria:
     scenario: S-3
     text: Stop, cancel, error, and destruction paths terminate browser waveform updates and release Web Audio resources without regressing recording outcomes.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -155,7 +155,7 @@ acceptance_criteria:
     scenario: S-4
     text: The waveform fits phone and desktop composer widths, remains between the release instruction and controls, and is hidden from assistive technology as decorative feedback.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -232,9 +232,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: "29075626725"
+        timestamp: "2026-07-10T07:07:50Z"
+        notes: Direct full-SHA dispatch passed all seven audio recording tests with zero skips, flakes, or unexpected results after shared account preflight blocked two controller attempts.
 
 verifications:
   - id: V-RENDERED-PARITY
@@ -244,11 +245,11 @@ verifications:
     covers:
       - AC-1
       - AC-4
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      summary: Retained Playwright video shows centered white waveform bars below release-text on the existing gradient; automated geometry assertions passed at desktop and 390px phone widths.
+      timestamp: "2026-07-10T07:07:50Z"
 
 implementation_plan:
   spec: docs/specs/live-audio-recording-waveform/spec.yml
@@ -348,7 +349,7 @@ tasks:
 
   - id: TASK-2
     title: Add metering lifecycle and responsive rolling bars
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -377,7 +378,7 @@ tasks:
 
   - id: TASK-3
     title: Deploy and record green waveform evidence
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:
