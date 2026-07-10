@@ -1,0 +1,69 @@
+schema_version: 1
+milestones:
+  - tag: v0.10.0-alpha
+    commit: f485d2f8d8c9c486d79cafbb0738d20d7f54ae60
+    title: "v0.10 Alpha: apps, sharing, and payments"
+    prerelease: true
+    historical_backfill: true
+    original_release_window: "2026-05-21 to 2026-05-22"
+    overview: |
+      v0.10 expanded practical chat workflows with richer app capabilities,
+      public sharing improvements, and payment-related account support.
+    artifacts:
+      npm:
+        version: 0.10.0-alpha.5
+        git_head: f485d2f8d8c9c486d79cafbb0738d20d7f54ae60
+      pypi:
+        status: unavailable
+      ghcr:
+        status: unavailable
+  - tag: v0.11.0-alpha
+    commit: 688bca4e12537a431082bf1d6658d51b168829b7
+    title: "v0.11 Alpha: code tools and media creation"
+    prerelease: true
+    historical_backfill: true
+    original_release_window: "2026-05-26 to 2026-06-13"
+    overview: |
+      v0.11 added practical everyday tools, including code execution,
+      repository research, richer inspirations, and generated-media improvements.
+    artifacts:
+      npm:
+        version: 0.11.0-alpha.38
+        git_head: 688bca4e12537a431082bf1d6658d51b168829b7
+      pypi:
+        status: unavailable
+      ghcr:
+        status: unavailable
+  - tag: v0.12.0-alpha
+    commit: 74c88b619767753063bb294f36d1b55ed8c282d0
+    title: "v0.12 Alpha: SDK and video workflows"
+    prerelease: true
+    historical_backfill: true
+    original_release_window: "2026-06-13 to 2026-06-20"
+    overview: |
+      v0.12 improved SDK and CLI capabilities while adding video-creation
+      workflows and broader product reliability work.
+    artifacts:
+      npm:
+        version: 0.12.1
+        git_head: 74c88b619767753063bb294f36d1b55ed8c282d0
+      pypi:
+        status: unavailable
+      ghcr:
+        status: unavailable
+  - tag: v0.13.0-alpha
+    commit: 83d2504fcf0b47fe84458371ca71951dbf3dd628
+    title: "v0.13 Alpha: CLI, projects, and guest experience"
+    prerelease: true
+    historical_backfill: true
+    original_release_window: "2026-06-22"
+    overview: |
+      v0.13 introduced the CLI TUI, project foundations, connected-account
+      import, and a more guided guest experience.
+    artifacts:
+      npm:
+        status: unavailable
+      pypi:
+        status: unavailable
+      ghcr:
+        status: unavailable
