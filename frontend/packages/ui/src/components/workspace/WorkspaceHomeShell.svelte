@@ -727,6 +727,10 @@
       top: calc(50% + 13vh);
     }
 
+    .workspace-home-shell[data-surface='workflows'] .workspace-center-content.center-content {
+      top: 25%;
+    }
+
     .recent-chats-scroll-container {
       padding-left: calc(50% - 150px);
       padding-right: 48px;
