@@ -9028,10 +9028,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let restoringAnonymousHashChat = $state(false);
     let anonymousHashEmptyRestoreAttempts = $state<Record<string, number>>({});
 
-    async function getAnonymousHashChatWithRetry(chatId: string): Promise<Chat | null> {
+    async function getAnonymousHashChatWithRetry(
+        chatId: string,
+        options: { requireMessages?: boolean } = {}
+    ): Promise<Chat | null> {
         for (let attempt = 0; attempt < ANONYMOUS_HASH_RESTORE_ATTEMPTS; attempt += 1) {
             const anonymousChat = await anonymousChatStorage.getChat(chatId);
-            if (anonymousChat) return anonymousChat;
+            if (anonymousChat) {
+                if (!options.requireMessages) return anonymousChat;
+                const messages = await anonymousChatStorage.getMessagesForChat(chatId);
+                if (messages.length > 0) return anonymousChat;
+            }
             if (attempt < ANONYMOUS_HASH_RESTORE_ATTEMPTS - 1) {
                 await new Promise((resolve) => setTimeout(resolve, ANONYMOUS_HASH_RESTORE_RETRY_MS));
             }
@@ -9068,7 +9075,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
 
         try {
-            const anonymousChat = await getAnonymousHashChatWithRetry(hashChatId);
+            const shouldWaitForMessages = currentChat?.chat_id === hashChatId && currentMessages.length === 0;
+            const anonymousChat = await getAnonymousHashChatWithRetry(hashChatId, {
+                requireMessages: shouldWaitForMessages
+            });
             await loadChat(anonymousChat ?? fallbackChat);
             console.debug('[ActiveChat] Restored anonymous hash chat during mount:', hashChatId);
         } catch (error) {
