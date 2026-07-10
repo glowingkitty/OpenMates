@@ -204,9 +204,9 @@ private struct WorkflowEditorView: View {
                             .padding(.spacing5)
                             .background(Color.grey10)
                             .clipShape(RoundedRectangle(cornerRadius: .radius6))
+                            .accessibilityIdentifier("workflow-node-summary")
                         }
                         .buttonStyle(.plain)
-                        .accessibilityIdentifier("workflow-node-summary")
                     }
                 }
                 .accessibilityIdentifier("workflow-node-stack")
