@@ -108,15 +108,18 @@ export function initializeTheme() {
   } else {
     // Auto mode (default).
     themeMode.set("auto");
-    theme.set(getSystemThemePreference());
+    const systemTheme = getSystemThemePreference();
+    localStorage.setItem("theme_mode", "auto");
+    localStorage.setItem("theme", systemTheme);
+    theme.set(systemTheme);
     attachSystemListener();
   }
 }
 
 /**
  * Apply a server-side darkmode value on login / session restore.
- * Only takes effect when the user has NOT set a manual mode locally.
- * This ensures a local manual preference always wins over the server value.
+ * Only takes effect when the user has no valid local mode. This ensures both
+ * explicit manual preferences and Auto remain stable across session restore.
  *
  * @param darkmode  The boolean value from the server (true = dark, false = light).
  */
@@ -134,8 +137,16 @@ export function applyServerDarkMode(darkmode: boolean) {
     );
     return;
   }
-  // In auto mode: respect the server value by switching to the matching
-  // explicit mode so the user's cross-device preference is honoured.
+  if (storedMode === "auto") {
+    const systemTheme = getSystemThemePreference();
+    themeMode.set("auto");
+    theme.set(systemTheme);
+    localStorage.setItem("theme", systemTheme);
+    attachSystemListener();
+    return;
+  }
+  // No valid local mode exists, so migrate the server's legacy boolean into
+  // an explicit mode to preserve the user's cross-device preference.
   const serverMode = darkmode ? "dark" : "light";
   themeMode.set(serverMode);
   theme.set(serverMode);
@@ -164,8 +175,9 @@ export async function setThemeMode(
   themeMode.set(mode);
 
   if (mode === "auto") {
-    // Remove stored manual mode; switch back to OS preference.
-    localStorage.removeItem("theme_mode");
+    // Persist Auto explicitly so session restore cannot mistake it for an
+    // unset preference and replace it with the backend's legacy boolean.
+    localStorage.setItem("theme_mode", "auto");
     const systemTheme = getSystemThemePreference();
     theme.set(systemTheme);
     localStorage.setItem("theme", systemTheme);

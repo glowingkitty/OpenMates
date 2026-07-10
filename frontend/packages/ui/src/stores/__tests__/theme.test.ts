@@ -54,7 +54,7 @@ describe("theme persistence", () => {
 
     expect(get(theme)).toBe("dark");
     expect(get(themeMode)).toBe("auto");
-    expect(storage.get("theme_mode")).toBeUndefined();
+    expect(storage.get("theme_mode")).toBe("auto");
   });
 
   it("migrates a legacy manual dark preference during initialization", () => {
