@@ -2,7 +2,7 @@
 // Draft persistence must contain Format D ciphertext, never canonical plaintext.
 // Legacy UserDefaults drafts migrate only after unlock and decrypt verification.
 // Repository, legacy store, and master-key provider dependencies are injectable.
-// The production seam intentionally does not exist yet, so this file must not compile.
+// Production SwiftData coverage verifies the same ciphertext-only contract.
 
 import CryptoKit
 import SwiftData
@@ -234,6 +234,29 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         )
     }
 
+    func testLogoutRemovesLegacyPlaintextEvenWhenEncryptedRepositoryCleanupFails() async throws {
+        let fixture = try loadFixture()
+        let repository = RecordingComposerDraftRepository(removeAllError: .syntheticRemoveFailure)
+        let legacyStore = RecordingLegacyComposerDraftStore(drafts: [
+            chatId: fixture.plaintext.canonicalDraftMarkdown,
+        ])
+        let service = makeService(
+            repository: repository,
+            legacyStore: legacyStore,
+            masterKey: try masterKey(fixture)
+        )
+
+        do {
+            try await service.clearAll()
+            XCTFail("Expected encrypted repository cleanup to fail")
+        } catch RecordingComposerDraftRepository.RepositoryError.syntheticRemoveFailure {
+            // The encrypted record can remain recoverable, but plaintext must not.
+        }
+
+        let remainingLegacyDrafts = await legacyStore.drafts()
+        XCTAssertTrue(remainingLegacyDrafts.isEmpty)
+    }
+
     func testProductionSwiftDataRepositoryPersistsCiphertextOnlyAndSupportsCRUD() async throws {
         let schema = Schema([PersistedComposerDraft.self])
         let configuration = ModelConfiguration(
@@ -324,10 +347,16 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
 private actor RecordingComposerDraftRepository: ComposerDraftRepository {
     private var records: [String: ComposerDraftRecord] = [:]
     private let writeError: RepositoryError?
+    private let removeAllError: RepositoryError?
     private let corruptReads: Bool
 
-    init(writeError: RepositoryError? = nil, corruptReads: Bool = false) {
+    init(
+        writeError: RepositoryError? = nil,
+        removeAllError: RepositoryError? = nil,
+        corruptReads: Bool = false
+    ) {
         self.writeError = writeError
+        self.removeAllError = removeAllError
         self.corruptReads = corruptReads
     }
 
@@ -351,6 +380,9 @@ private actor RecordingComposerDraftRepository: ComposerDraftRepository {
     }
 
     func removeAll() async throws {
+        if let removeAllError {
+            throw removeAllError
+        }
         records.removeAll()
     }
 
@@ -360,6 +392,7 @@ private actor RecordingComposerDraftRepository: ComposerDraftRepository {
 
     enum RepositoryError: Error {
         case syntheticWriteFailure
+        case syntheticRemoveFailure
     }
 }
 
