@@ -22,6 +22,11 @@ const localStorageMock = {
   setItem: vi.fn((key: string, value: string) => storage.set(key, value)),
   removeItem: vi.fn((key: string) => storage.delete(key)),
 };
+const mediaQueryMock = {
+  matches: true,
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+};
 
 describe("theme persistence", () => {
   beforeEach(() => {
@@ -35,8 +40,21 @@ describe("theme persistence", () => {
       configurable: true,
       value: localStorageMock,
     });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => mediaQueryMock),
+    });
     theme.set("light");
     themeMode.set("auto");
+  });
+
+  it("keeps following the OS theme during authenticated session restore", () => {
+    initializeTheme();
+    applyServerDarkMode(false);
+
+    expect(get(theme)).toBe("dark");
+    expect(get(themeMode)).toBe("auto");
+    expect(storage.get("theme_mode")).toBeUndefined();
   });
 
   it("migrates a legacy manual dark preference during initialization", () => {
