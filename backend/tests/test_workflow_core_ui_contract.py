@@ -51,6 +51,28 @@ def test_title_only_manual_draft_is_persisted_disabled_with_exact_title() -> Non
     assert workflow.graph.edges == []
 
 
+def test_workflow_description_round_trips_without_plaintext_record_storage() -> None:
+    repository = InMemoryWorkflowRepository()
+    service = workflow_service(repository=repository)
+
+    workflow = service.create_workflow(
+        "alice",
+        "Plan weekly review",
+        manual_title_draft_graph(),
+        description="Review priorities every Friday.",
+    )
+    updated = service.update_workflow(
+        workflow.id,
+        "alice",
+        description="Review priorities and decisions every Friday.",
+    )
+    record = repository.workflows[workflow.id]
+
+    assert updated.description == "Review priorities and decisions every Friday."
+    assert "encrypted_description_ref" in record
+    assert "description" not in record
+
+
 def test_workflow_list_prioritizes_next_scheduled_runs_then_recent_remaining_entries() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)

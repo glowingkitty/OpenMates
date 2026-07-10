@@ -42,6 +42,7 @@
   let runContentRetention = $state<'last_5' | 'none'>('last_5');
   let selectedRunContentRetention = $state<'last_5' | 'none'>('last_5');
   let editorTitle = $state('');
+  let editorDescription = $state('');
   let editorGraph = $state<WorkflowGraph | null>(null);
   let editorDirty = $state(false);
   let hydratedEditorWorkflowId = $state<string | null>(null);
@@ -270,6 +271,7 @@
     try {
       const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
         title: editorTitle.trim() || selectedWorkflow.title,
+        description: editorDescription.trim(),
         graph: editorGraph,
         run_content_retention: selectedRunContentRetention
       });
@@ -367,6 +369,7 @@
 
   function resetEditor(workflow: WorkflowDetail) {
     editorTitle = workflow.title;
+    editorDescription = workflow.description ?? '';
     editorGraph = cloneGraph(workflow.graph);
     editorDirty = false;
     hydratedEditorWorkflowId = workflow.id;
@@ -568,6 +571,11 @@
     editorDirty = true;
   }
 
+  function setEditorDescription(value: string) {
+    editorDescription = value;
+    editorDirty = true;
+  }
+
   function updateEditorNode(nodeId: string, updater: (node: WorkflowNode) => WorkflowNode) {
     if (!editorGraph) return;
     editorGraph = {
@@ -692,10 +700,11 @@
               </form>
             </section>
           {:else}
-            {#if workflows.length > 0}
-              <button type="button" class="show-all-button workflow-home-show-all" data-testid="workflows-show-all" onclick={() => showAllWorkflows = true}>Show all {workflows.length}</button>
-            {/if}
-            <WorkspaceHomeShell
+              {#if workflows.length > 0}
+                <button type="button" class="show-all-button workflow-home-show-all" data-testid="workflows-show-all" onclick={() => showAllWorkflows = true}>Show all {workflows.length}</button>
+              {/if}
+              <button type="button" class="show-all-button workflow-home-search" data-testid="workflows-search" disabled>Search</button>
+              <WorkspaceHomeShell
               surface="workflows"
               testId="workflows-start-screen"
               heading={`Hey ${visibleWorkflowGreetingName}!`}
@@ -777,6 +786,17 @@
                     value={editorTitle}
                     oninput={(event) => setEditorTitle(event.currentTarget.value)}
                   />
+                </label>
+                <label class="title-editor" for="workflow-description-input">
+                  <span>Description</span>
+                  <textarea
+                    id="workflow-description-input"
+                    data-testid="workflow-description-input"
+                    value={editorDescription}
+                    oninput={(event) => setEditorDescription(event.currentTarget.value)}
+                    placeholder="Click to add description"
+                    rows="2"
+                  ></textarea>
                 </label>
                 <span class="retention-chip" data-testid="selected-workflow-retention">Run content: {retentionLabel(selectedWorkflow.run_content_retention)}</span>
               </div>
@@ -1085,6 +1105,12 @@
     position: absolute;
     top: 10px;
     left: 10px;
+    z-index: var(--z-index-raised-3);
+  }
+
+  .workflow-home-search {
+    position: absolute;
+    top: 10px;
     right: 10px;
     z-index: var(--z-index-raised-3);
   }

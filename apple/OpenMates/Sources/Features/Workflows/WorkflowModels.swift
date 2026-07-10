@@ -84,6 +84,7 @@ struct WorkflowGraph: Codable, Sendable {
 struct WorkflowSummary: Codable, Identifiable, Sendable {
     let id: String
     let title: String
+    let description: String?
     let status: String
     let enabled: Bool
     let lifecycle: WorkflowLifecycle
@@ -103,6 +104,7 @@ struct WorkflowSummary: Codable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id
         case title
+        case description
         case status
         case enabled
         case lifecycle
@@ -124,6 +126,7 @@ struct WorkflowSummary: Codable, Identifiable, Sendable {
 struct WorkflowDetail: Codable, Identifiable, Sendable {
     let id: String
     let title: String
+    let description: String?
     let status: String
     let enabled: Bool
     let lifecycle: WorkflowLifecycle
@@ -144,6 +147,7 @@ struct WorkflowDetail: Codable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey {
         case id
         case title
+        case description
         case status
         case enabled
         case lifecycle

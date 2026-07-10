@@ -526,6 +526,7 @@ class WorkflowService:
         created_by_assistant: bool = False,
         auto_delete_at: int | None = None,
         vault_key_id: str | None = None,
+        description: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
@@ -544,6 +545,11 @@ class WorkflowService:
         workflow_id = str(uuid.uuid4())
         version_id = str(uuid.uuid4())
         title_blob = self._save_encrypted_blob(user_id, "workflow_title", title, vault_key_id=vault_key_id)
+        description_blob = (
+            self._save_encrypted_blob(user_id, "workflow_description", description, vault_key_id=vault_key_id)
+            if description is not None
+            else None
+        )
         graph_payload = workflow_graph.model_dump(mode="json", by_alias=True)
         graph_blob = self._save_encrypted_blob(user_id, "workflow_graph", graph_payload, vault_key_id=vault_key_id)
         record = {
@@ -551,6 +557,8 @@ class WorkflowService:
             "owner_hash": _hash_owner_id(user_id),
             "encrypted_title_ref": title_blob["ref"],
             "encrypted_title_checksum": title_blob["checksum"],
+            "encrypted_description_ref": description_blob["ref"] if description_blob else None,
+            "encrypted_description_checksum": description_blob["checksum"] if description_blob else None,
             "status": WorkflowStatus.ACTIVE.value if enabled else WorkflowStatus.DISABLED.value,
             "enabled": enabled,
             "lifecycle": workflow_lifecycle.value,
@@ -589,6 +597,7 @@ class WorkflowService:
         enabled: bool | None = None,
         run_content_retention: WorkflowRunContentRetention | None = None,
         vault_key_id: str | None = None,
+        description: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
@@ -601,6 +610,12 @@ class WorkflowService:
             self.repository.delete_encrypted_blob(record["encrypted_title_ref"])
             record["encrypted_title_ref"] = title_blob["ref"]
             record["encrypted_title_checksum"] = title_blob["checksum"]
+        if description is not None:
+            description_blob = self._save_encrypted_blob(user_id, "workflow_description", description, vault_key_id=vault_key_id)
+            if record.get("encrypted_description_ref"):
+                self.repository.delete_encrypted_blob(record["encrypted_description_ref"])
+            record["encrypted_description_ref"] = description_blob["ref"]
+            record["encrypted_description_checksum"] = description_blob["checksum"]
         if graph is not None:
             workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
             version_id = str(uuid.uuid4())
@@ -796,6 +811,11 @@ class WorkflowService:
         return WorkflowSummary(
             id=record["id"],
             title=str(self._load_encrypted_blob(record["encrypted_title_ref"], vault_key_id)),
+            description=(
+                str(self._load_encrypted_blob(record["encrypted_description_ref"], vault_key_id))
+                if record.get("encrypted_description_ref")
+                else None
+            ),
             status=WorkflowStatus(record["status"]),
             enabled=bool(record["enabled"]),
             lifecycle=WorkflowLifecycle(record.get("lifecycle", WorkflowLifecycle.PERSISTED.value)),

@@ -141,6 +141,7 @@ private struct WorkflowEditorView: View {
     @ObservedObject var store: WorkflowStore
     let workflow: WorkflowDetail
     @State private var title: String
+    @State private var description: String
     @State private var expandedNodeId: String?
     @State private var isDirty = false
 
@@ -148,6 +149,7 @@ private struct WorkflowEditorView: View {
         self.store = store
         self.workflow = workflow
         _title = State(initialValue: workflow.title)
+        _description = State(initialValue: workflow.description ?? "")
     }
 
     var body: some View {
@@ -158,6 +160,11 @@ private struct WorkflowEditorView: View {
                     .onChange(of: title) { _, _ in isDirty = true }
                     .accessibilityIdentifier("workflow-title-input")
 
+                TextField(AppStrings.workflows, text: $description)
+                    .textFieldStyle(OMTextFieldStyle())
+                    .onChange(of: description) { _, _ in isDirty = true }
+                    .accessibilityIdentifier("workflow-description-input")
+
                 HStack(spacing: .spacing3) {
                     Button { title = workflow.title; isDirty = false } label: {
                         Text(AppStrings.cancel)
@@ -166,7 +173,7 @@ private struct WorkflowEditorView: View {
                     .accessibilityIdentifier("workflow-editor-undo")
 
                     Button {
-                        Task { await store.save(title: title, graph: workflow.graph) }
+                        Task { await store.save(title: title, description: description, graph: workflow.graph) }
                         isDirty = false
                     } label: {
                         Text(AppStrings.save)

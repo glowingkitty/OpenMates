@@ -55,6 +55,7 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-editor')).toBeVisible();
 			await expect(page.getByTestId('workflows-list')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-title-input')).toHaveValue('Daily rain alert');
+			await expect(page.getByTestId('workflow-description-input')).toBeVisible();
 			await expect(page.getByTestId('workflow-action-palette')).toContainText('Add action');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('then');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('If true:');
@@ -78,6 +79,7 @@ test.describe('Workflows editor', () => {
 			await mobileWeatherNode.getByTestId('workflow-node-location-input').fill('Paris');
 			await expect(page.getByTestId('save-workflow')).toBeEnabled();
 			await page.getByTestId('workflow-title-input').fill('Daily rain alert edited');
+			await page.getByTestId('workflow-description-input').fill('Check Paris weather every morning.');
 			const saveWorkflowResponse = page.waitForResponse(
 				(response) => response.url().includes('/v1/workflows/') && response.request().method() === 'PATCH' && response.ok(),
 				{ timeout: 30000 }
@@ -85,6 +87,7 @@ test.describe('Workflows editor', () => {
 			await page.getByTestId('save-workflow').click();
 			await saveWorkflowResponse;
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
+			await expect(page.getByTestId('workflow-description-input')).toHaveValue('Check Paris weather every morning.');
 
 			await page.getByTestId('toggle-workflow').click();
 			await expect(page.getByTestId('workflow-detail')).toContainText('disabled', { timeout: 30000 });

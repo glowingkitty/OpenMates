@@ -63,7 +63,7 @@ final class WorkflowStore: ObservableObject {
         defer { isLoading = false }
         do {
             let workflow = try await api.createWorkflow(
-                WorkflowCreateRequest(title: title, graph: graph, enabled: false, runContentRetention: .last5)
+                WorkflowCreateRequest(title: title, description: nil, graph: graph, enabled: false, runContentRetention: .last5)
             )
             upsert(workflow)
             selectedWorkflow = workflow
@@ -73,14 +73,14 @@ final class WorkflowStore: ObservableObject {
         }
     }
 
-    func save(title: String, graph: WorkflowGraph) async {
+    func save(title: String, description: String?, graph: WorkflowGraph) async {
         guard let workflow = selectedWorkflow else { return }
         isLoading = true
         defer { isLoading = false }
         do {
             let updated = try await api.updateWorkflow(
                 workflow.id,
-                request: WorkflowUpdateRequest(title: title, graph: graph, enabled: nil, runContentRetention: nil)
+                request: WorkflowUpdateRequest(title: title, description: description, graph: graph, enabled: nil, runContentRetention: nil)
             )
             upsert(updated)
             selectedWorkflow = updated
@@ -129,6 +129,7 @@ final class WorkflowStore: ObservableObject {
         let detail = WorkflowDetail(
             id: "workflow-fixture",
             title: AppStrings.workflows,
+            description: nil,
             status: kind == "home" ? AppStrings.disabled : AppStrings.enabled,
             enabled: kind != "home",
             lifecycle: .persisted,
@@ -149,6 +150,7 @@ final class WorkflowStore: ObservableObject {
         workflows = [WorkflowSummary(
             id: detail.id,
             title: detail.title,
+            description: detail.description,
             status: detail.status,
             enabled: detail.enabled,
             lifecycle: detail.lifecycle,
@@ -172,6 +174,7 @@ final class WorkflowStore: ObservableObject {
         let summary = WorkflowSummary(
             id: workflow.id,
             title: workflow.title,
+            description: workflow.description,
             status: workflow.status,
             enabled: workflow.enabled,
             lifecycle: workflow.lifecycle,

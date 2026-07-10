@@ -53,8 +53,8 @@ final class WorkflowsParityTests: XCTestCase {
 
     func testWorkflowRequestsUseSharedApiPathsAndSnakeCasePayloads() throws {
         let workflow = try JSONDecoder().decode(WorkflowDetail.self, from: workflowFixtureData())
-        let create = WorkflowCreateRequest(title: workflow.title, graph: workflow.graph, enabled: true, runContentRetention: .none)
-        let update = WorkflowUpdateRequest(title: nil, graph: nil, enabled: false, runContentRetention: .last5)
+        let create = WorkflowCreateRequest(title: workflow.title, description: workflow.description, graph: workflow.graph, enabled: true, runContentRetention: .none)
+        let update = WorkflowUpdateRequest(title: nil, description: "Updated description", graph: nil, enabled: false, runContentRetention: .last5)
         let run = WorkflowRunRequest(mode: "test", input: ["dry": AnyCodable(true)])
         let encoder = JSONEncoder()
 

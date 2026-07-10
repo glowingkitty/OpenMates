@@ -94,6 +94,7 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflow-recommendations')).toBeVisible();
 			await expect(page.getByTestId('recent-workflows')).toBeVisible();
 			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
+			await expect(page.getByTestId('workflows-search')).toBeDisabled();
 			await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-submit')).toBeDisabled();
