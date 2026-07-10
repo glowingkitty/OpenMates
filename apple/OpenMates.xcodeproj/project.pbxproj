@@ -15,11 +15,6 @@
 		033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */; };
 		C0FFEE000000000000046002 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
 		C0FFEE000000000000046003 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
-		C0FFEE000000000000046004 /* TiptapComposerWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046006 /* TiptapComposerWebView.swift */; };
-		C0FFEE000000000000046005 /* TiptapComposerWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046006 /* TiptapComposerWebView.swift */; };
-		C0FFEE000000000000046007 /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
-		C0FFEE000000000000046009 /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
-		C0FFEE00000000000004600B /* TiptapComposerBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000004600A /* TiptapComposerBridgeTests.swift */; };
 		C0FFEE000000000000050002 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
 		C0FFEE000000000000050003 /* ComposerDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050001 /* ComposerDocument.swift */; };
 		C0FFEE000000000000050006 /* NativeComposerDocumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050005 /* NativeComposerDocumentTests.swift */; };
@@ -60,8 +55,6 @@
 		C0FFEE00000000000005001A /* NativeComposerTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050018 /* NativeComposerTextView.swift */; };
 		C0FFEE000000000000050051 /* NativeComposerEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050050 /* NativeComposerEditorView.swift */; };
 		C0FFEE000000000000050052 /* NativeComposerEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050050 /* NativeComposerEditorView.swift */; };
-		C0FFEE00000000000004600C /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
-		C0FFEE00000000000004600D /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
 		C0FFEE000000000000047002 /* OpenMatesWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000047001 /* OpenMatesWatchApp.swift */; };
 		C0FFEE000000000000047004 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000047003 /* WatchRootView.swift */; };
 		C0FFEE000000000000047006 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
@@ -879,9 +872,6 @@
 		BE1031D79B03616FF9E0E7F7 /* OpenMates.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenMates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C085AAB1B7660B7EB15B8A54 /* VoiceRecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecordingView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000046001 /* MessageComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageComposerView.swift; sourceTree = "<group>"; };
-		C0FFEE000000000000046006 /* TiptapComposerWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiptapComposerWebView.swift; sourceTree = "<group>"; };
-		C0FFEE000000000000046008 /* TiptapComposer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TiptapComposer; path = OpenMates/Resources/TiptapComposer; sourceTree = SOURCE_ROOT; };
-		C0FFEE00000000000004600A /* TiptapComposerBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiptapComposerBridgeTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050001 /* ComposerDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerDocument.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050005 /* NativeComposerDocumentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerDocumentTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050007 /* NativeComposerControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerControllerTests.swift; sourceTree = "<group>"; };
@@ -1193,7 +1183,6 @@
 				38D934941E331ECEAA249618 /* NetworkStatusView.swift */,
 				E8CE5605C33C752A2F0375B4 /* NotificationBanners.swift */,
 				C0FFEE000000000000046001 /* MessageComposerView.swift */,
-				C0FFEE000000000000046006 /* TiptapComposerWebView.swift */,
 				196E2615E6B7768CDD149B36 /* OMButtonStyles.swift */,
 				90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */,
 				96B5D464AD5823963A861166 /* RichMarkdownRenderer.swift */,
@@ -1619,7 +1608,6 @@
 				C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */,
 				C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */,
 				C0FFEE000000000000045001 /* MessageComposerConfigurationTests.swift */,
-				C0FFEE00000000000004600A /* TiptapComposerBridgeTests.swift */,
 				C0FFEE000000000000050005 /* NativeComposerDocumentTests.swift */,
 				C0FFEE000000000000050007 /* NativeComposerControllerTests.swift */,
 				C0FFEE000000000000050010 /* NativeComposerTextViewAdapterTests.swift */,
@@ -2174,7 +2162,6 @@
 				D5FD84D2FCAAD032743CE93D /* Assets.xcassets in Resources */,
 				7675A0D015804E636ECA75FD /* Fonts in Resources */,
 				B2F0023ACAE268FD9B9C1669 /* Icons.xcassets in Resources */,
-				C0FFEE000000000000046007 /* TiptapComposer in Resources */,
 				6CB6A43B33E73A8305CF731E /* Videos in Resources */,
 				49F82188554FE3B88DAE1495 /* example_chats in Resources */,
 				F94B4062D71DF2D1EF35A604 /* i18n in Resources */,
@@ -2190,7 +2177,6 @@
 				C7109C0A3B0CBE9D553F6844 /* Assets.xcassets in Resources */,
 				62CC43487382E796C443CCE1 /* Fonts in Resources */,
 				D7B6ED7F307EAE39934B3226 /* Icons.xcassets in Resources */,
-				C0FFEE000000000000046009 /* TiptapComposer in Resources */,
 				D271A1BD7661638C8B677477 /* Videos in Resources */,
 				22E7991F2249003E9DFE35DD /* example_chats in Resources */,
 				8F7EBA59C5DFF62A8F768F31 /* i18n in Resources */,
@@ -2223,7 +2209,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C0FFEE00000000000004600C /* TiptapComposer in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2231,7 +2216,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C0FFEE00000000000004600D /* TiptapComposer in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2410,7 +2394,6 @@
 				77F5787BA1CA6159CB2E3BE6 /* NutritionSearchIntent.swift in Sources */,
 				1AE4F40CB96111DE493AF333 /* OMButtonStyles.swift in Sources */,
 				C0FFEE000000000000046002 /* MessageComposerView.swift in Sources */,
-				C0FFEE000000000000046004 /* TiptapComposerWebView.swift in Sources */,
 				C0FFEE000000000000050002 /* ComposerDocument.swift in Sources */,
 				C0FFEE00000000000005001E /* AppleComposerRendererRegistry.swift in Sources */,
 				C0FFEE000000000000050024 /* ComposerDraftRepository.swift in Sources */,
@@ -2641,7 +2624,6 @@
 				0BA7A4B79D29807CCFE43528 /* NutritionSearchIntent.swift in Sources */,
 				E84BB9B91F18230E57348D8B /* OMButtonStyles.swift in Sources */,
 				C0FFEE000000000000046003 /* MessageComposerView.swift in Sources */,
-				C0FFEE000000000000046005 /* TiptapComposerWebView.swift in Sources */,
 				C0FFEE000000000000050003 /* ComposerDocument.swift in Sources */,
 				C0FFEE00000000000005001F /* AppleComposerRendererRegistry.swift in Sources */,
 				C0FFEE000000000000050025 /* ComposerDraftRepository.swift in Sources */,
@@ -2833,7 +2815,6 @@
 				C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */,
 				C0FFEE000000000000039002 /* BackgroundChatSenderParityTests.swift in Sources */,
 				C0FFEE000000000000045002 /* MessageComposerConfigurationTests.swift in Sources */,
-				C0FFEE00000000000004600B /* TiptapComposerBridgeTests.swift in Sources */,
 				C0FFEE000000000000050006 /* NativeComposerDocumentTests.swift in Sources */,
 				C0FFEE000000000000050008 /* NativeComposerControllerTests.swift in Sources */,
 				C0FFEE000000000000050011 /* NativeComposerTextViewAdapterTests.swift in Sources */,
