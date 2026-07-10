@@ -38,6 +38,7 @@ final class NativeComposerController {
     private(set) var selection: NSRange
     private(set) var markedTextRange: NSRange?
     private(set) var attributedString = NSAttributedString()
+    private(set) var revision = 0
 
     private var attachments: [String: ComposerTextAttachment] = [:]
     private var undoSnapshots: [Snapshot] = []
@@ -73,6 +74,28 @@ final class NativeComposerController {
             throw NativeComposerControllerError.invalidSelection(range)
         }
         markedTextRange = range
+    }
+
+    func canonicalMarkdown() throws -> String {
+        try ComposerMarkdownAdapter.serialize(document)
+    }
+
+    func loadDocument(_ document: ComposerDocumentV1) throws {
+        var nodeIDs = Set<String>()
+        for node in document.nodes where !nodeIDs.insert(node.id).inserted {
+            throw NativeComposerControllerError.duplicateNodeID(node.id)
+        }
+        self.document = document
+        selection = NSRange(
+            location: document.nodes.reduce(0) { $0 + semanticLength(of: $1) },
+            length: 0
+        )
+        markedTextRange = nil
+        undoSnapshots.removeAll()
+        redoSnapshots.removeAll()
+        attachments = attachments.filter { nodeIDs.contains($0.key) }
+        revision += 1
+        rebuildAttributedString()
     }
 
     func insertEmbed(_ embed: ComposerNodeV1) throws {
@@ -256,6 +279,7 @@ final class NativeComposerController {
         self.document = document
         self.selection = selection
         self.markedTextRange = markedTextRange
+        revision += 1
         rebuildAttributedString()
     }
 
@@ -263,6 +287,7 @@ final class NativeComposerController {
         document = snapshot.document
         selection = snapshot.selection
         markedTextRange = snapshot.markedTextRange
+        revision += 1
         rebuildAttributedString()
     }
 

@@ -157,8 +157,11 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
                         recorder.nodeIDs.append(node.id)
                         return true
                     }
-                )]
-            }
+                    )]
+            },
+            onCanonicalMarkdownChange: { _ in },
+            onFocusChange: { _ in },
+            onSubmit: { }
         )
     }
 

@@ -35,6 +35,9 @@ final class NativeComposerTextView: NSObject {
     private let editorAccessibilityHint: String
     private let embedAccessibilityLabel: (ComposerNodeV1) -> String
     private let embedAccessibilityActions: (ComposerNodeV1) -> [AccessibilityAction]
+    var onCanonicalMarkdownChange: @MainActor (String) -> Void
+    var onFocusChange: @MainActor (Bool) -> Void
+    var onSubmit: @MainActor () -> Void
     private var actionsByEmbedID: [String: [AccessibilityAction]] = [:]
     private var isSynchronizing = false
 
@@ -43,13 +46,19 @@ final class NativeComposerTextView: NSObject {
         accessibilityLabel: String,
         accessibilityHint: String,
         embedAccessibilityLabel: @escaping (ComposerNodeV1) -> String,
-        embedAccessibilityActions: @escaping (ComposerNodeV1) -> [AccessibilityAction]
+        embedAccessibilityActions: @escaping (ComposerNodeV1) -> [AccessibilityAction],
+        onCanonicalMarkdownChange: @escaping @MainActor (String) -> Void,
+        onFocusChange: @escaping @MainActor (Bool) -> Void,
+        onSubmit: @escaping @MainActor () -> Void
     ) {
         self.controller = controller
         self.editorAccessibilityLabel = accessibilityLabel
         self.editorAccessibilityHint = accessibilityHint
         self.embedAccessibilityLabel = embedAccessibilityLabel
         self.embedAccessibilityActions = embedAccessibilityActions
+        self.onCanonicalMarkdownChange = onCanonicalMarkdownChange
+        self.onFocusChange = onFocusChange
+        self.onSubmit = onSubmit
         super.init()
         rebuildEmbedAccessibilityElements()
     }
@@ -130,6 +139,7 @@ final class NativeComposerTextView: NSObject {
         do {
             try controller.setSelection(range)
             try controller.replaceSelection(with: replacement)
+            notifyCanonicalMarkdownChange()
             lastControllerError = nil
         } catch let error as NativeComposerControllerError {
             lastControllerError = error
@@ -137,6 +147,17 @@ final class NativeComposerTextView: NSObject {
             lastControllerError = .platformSynchronizationFailed
         }
         return false
+    }
+
+    private func notifyCanonicalMarkdownChange() {
+        do {
+            onCanonicalMarkdownChange(try controller.canonicalMarkdown())
+        } catch {
+            NativeDiagnostics.warning(
+                "Native composer serialization failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+        }
     }
 
     private func applyPlatformSelection(_ range: NSRange) {
@@ -167,6 +188,14 @@ extension NativeComposerTextView: UITextViewDelegate {
         guard !isSynchronizing else { return }
         applyPlatformSelection(textView.selectedRange)
     }
+
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        onFocusChange(true)
+    }
+
+    func textViewDidEndEditing(_ textView: UITextView) {
+        onFocusChange(false)
+    }
 }
 #elseif canImport(AppKit)
 extension NativeComposerTextView: NSTextViewDelegate {
@@ -175,6 +204,12 @@ extension NativeComposerTextView: NSTextViewDelegate {
         shouldChangeTextIn affectedCharRange: NSRange,
         replacementString: String?
     ) -> Bool {
+        if replacementString == "\n",
+           NSApp.currentEvent?.modifierFlags.contains(.shift) != true,
+           controller.canSubmit {
+            onSubmit()
+            return false
+        }
         let shouldApplyPlatformEdit = applyPlatformEdit(
             range: affectedCharRange,
             replacement: replacementString ?? ""
@@ -187,6 +222,14 @@ extension NativeComposerTextView: NSTextViewDelegate {
         guard !isSynchronizing else { return }
         guard let textView = notification.object as? NSTextView else { return }
         applyPlatformSelection(textView.selectedRange())
+    }
+
+    func textDidBeginEditing(_ notification: Notification) {
+        onFocusChange(true)
+    }
+
+    func textDidEndEditing(_ notification: Notification) {
+        onFocusChange(false)
     }
 }
 #endif
