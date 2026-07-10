@@ -23,24 +23,29 @@ final class VoiceRecorderTests: XCTestCase {
         XCTAssertEqual(VoiceRecorder.normalizedWaveformLevel(forAveragePower: 0), 1)
     }
 
-    func testWaveformBufferRollsLeftAndKeepsSixtyFourSamples() {
+    func testWaveformBufferRollsLeftAndKeepsSixtyFourSamples() throws {
         let recorder = VoiceRecorder()
 
         for index in 0...64 {
-            recorder.recordWaveformSample(normalizedLevel: Double(index) / 64)
+            recorder.appendLocalWaveformLevel(Double(index) / 64)
         }
 
         XCTAssertEqual(recorder.waveformSamples.count, 64)
-        XCTAssertEqual(recorder.waveformSamples.first, 1.0 / 64.0, accuracy: 0.000_1)
-        XCTAssertEqual(recorder.waveformSamples.last, 1, accuracy: 0.000_1)
+        XCTAssertEqual(try XCTUnwrap(recorder.waveformSamples.first), 1.0 / 64.0, accuracy: 0.000_1)
+        XCTAssertEqual(try XCTUnwrap(recorder.waveformSamples.last), 1, accuracy: 0.000_1)
     }
 
-    func testWaveformResetClearsEverySample() {
+    func testStopAndCancelClearEveryWaveformSample() {
         let recorder = VoiceRecorder()
-        recorder.recordWaveformSample(normalizedLevel: 0.75)
+        recorder.appendLocalWaveformLevel(0.75)
 
-        recorder.resetWaveform()
+        XCTAssertNil(recorder.stopRecording())
+        XCTAssertEqual(recorder.waveformSamples, Array(repeating: 0, count: 64))
+
+        recorder.appendLocalWaveformLevel(0.5)
+        recorder.cancelRecording()
 
         XCTAssertEqual(recorder.waveformSamples, Array(repeating: 0, count: 64))
+        XCTAssertEqual(recorder.duration, 0)
     }
 }

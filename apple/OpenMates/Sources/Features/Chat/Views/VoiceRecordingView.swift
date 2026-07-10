@@ -21,13 +21,30 @@ enum MicPermissionState: Equatable {
 
 @MainActor
 final class VoiceRecorder: ObservableObject {
+    static let waveformSampleCount = 64
+    static let waveformSampleInterval: TimeInterval = 0.05
+    static let waveformMinimumVisibleLevel = 0.04
+
+    private static let waveformMinimumDecibels: Float = -46
+    private static let waveformMaximumDecibels: Float = -18
+
     @Published var isRecording = false
     @Published var duration: TimeInterval = 0
     @Published var error: String?
+    @Published private(set) var waveformSamples = Array(
+        repeating: 0.0,
+        count: VoiceRecorder.waveformSampleCount
+    )
 
     private var audioRecorder: AVAudioRecorder?
-    private var timer: Timer?
+    private var durationTimer: Timer?
+    private var waveformTimer: Timer?
     private var recordingURL: URL?
+
+    deinit {
+        durationTimer?.invalidate()
+        waveformTimer?.invalidate()
+    }
 
     func requestPermission() async -> Bool {
         #if os(iOS)
@@ -42,7 +59,9 @@ final class VoiceRecorder: ObservableObject {
     }
 
     func startRecording() {
+        guard !isRecording else { return }
         error = nil
+        resetWaveform()
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
         do {
@@ -67,41 +86,105 @@ final class VoiceRecorder: ObservableObject {
 
         do {
             audioRecorder = try AVAudioRecorder(url: url, settings: settings)
-            audioRecorder?.record()
+            audioRecorder?.isMeteringEnabled = true
+            guard audioRecorder?.record() == true else {
+                audioRecorder?.deleteRecording()
+                audioRecorder = nil
+                recordingURL = nil
+                error = AppStrings.microphoneBlocked
+                return
+            }
             isRecording = true
             duration = 0
 
-            timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            let durationTimer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
                 Task { @MainActor in
-                    self?.duration += 0.1
+                    guard let self, self.isRecording else { return }
+                    self.duration += 0.1
                 }
             }
+            self.durationTimer = durationTimer
+            RunLoop.main.add(durationTimer, forMode: .common)
+
+            let waveformTimer = Timer(
+                timeInterval: Self.waveformSampleInterval,
+                repeats: true
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.sampleWaveform()
+                }
+            }
+            self.waveformTimer = waveformTimer
+            RunLoop.main.add(waveformTimer, forMode: .common)
         } catch {
+            stopTimersAndWaveform()
             self.error = error.localizedDescription
         }
     }
 
     func stopRecording() -> URL? {
-        guard isRecording else { return nil }
+        guard isRecording else {
+            stopTimersAndWaveform()
+            return nil
+        }
         audioRecorder?.stop()
-        timer?.invalidate()
-        timer = nil
         isRecording = false
+        stopTimersAndWaveform()
         return recordingURL
     }
 
     func cancelRecording() {
         audioRecorder?.stop()
         audioRecorder?.deleteRecording()
-        timer?.invalidate()
-        timer = nil
         isRecording = false
+        stopTimersAndWaveform()
         duration = 0
         recordingURL = nil
+    }
+
+    static func normalizedWaveformLevel(forAveragePower averagePower: Float) -> Double {
+        guard averagePower.isFinite, averagePower > waveformMinimumDecibels else { return 0 }
+        let decibelRange = waveformMaximumDecibels - waveformMinimumDecibels
+        let normalized = (averagePower - waveformMinimumDecibels) / decibelRange
+        return Double(min(1, max(0, normalized)))
+    }
+
+    func appendLocalWaveformLevel(_ normalizedLevel: Double) {
+        let level = min(1, max(0, normalizedLevel))
+        waveformSamples = Array(waveformSamples.dropFirst()) + [level]
+    }
+
+    func resetWaveform() {
+        waveformSamples = Array(repeating: 0, count: Self.waveformSampleCount)
+    }
+
+    private func sampleWaveform() {
+        guard isRecording, let audioRecorder else { return }
+        audioRecorder.updateMeters()
+        appendLocalWaveformLevel(
+            Self.normalizedWaveformLevel(
+                forAveragePower: audioRecorder.averagePower(forChannel: 0)
+            )
+        )
+    }
+
+    private func stopTimersAndWaveform() {
+        durationTimer?.invalidate()
+        durationTimer = nil
+        waveformTimer?.invalidate()
+        waveformTimer = nil
+        audioRecorder?.isMeteringEnabled = false
+        resetWaveform()
     }
 }
 
 struct ComposerRecordingOverlay: View {
+    private static let waveformTrackHeight: CGFloat = 64
+    private static let waveformBarSpacing: CGFloat = 2
+    private static let waveformBarMaximumWidth: CGFloat = 3
+    private static let waveformBarMinimumHeight: CGFloat = 2
+    private static let recordingPanelMinimumHeight: CGFloat = 220
+
     @ObservedObject var recorder: VoiceRecorder
     let dragOffsetX: CGFloat
     var startedFromKeyboard = false
@@ -110,15 +193,16 @@ struct ComposerRecordingOverlay: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer()
+            VStack(spacing: .spacing4) {
+                Text(recorder.error ?? AppStrings.releaseToFinishRecording)
+                    .font(.omP.weight(.bold))
+                    .foregroundStyle(Color.white)
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("release-text")
 
-            Text(recorder.error ?? AppStrings.releaseToFinishRecording)
-                .font(.omP.weight(.bold))
-                .foregroundStyle(Color.white)
-                .multilineTextAlignment(.center)
-                .accessibilityIdentifier("release-text")
-
-            Spacer()
+                recordingWaveform
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             HStack(spacing: .spacing4) {
                 Text(formatDuration(recorder.duration))
@@ -175,11 +259,14 @@ struct ComposerRecordingOverlay: View {
                 .accessibilityLabel(AppStrings.releaseToFinishRecording)
                 .accessibilityIdentifier("mic-button")
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("record-controls")
         }
         .padding(.top, .spacing8)
         .padding(.horizontal, .spacing8)
         .padding(.bottom, .spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(minHeight: Self.recordingPanelMinimumHeight)
         .background(LinearGradient.primary)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(alignment: .topLeading) {
@@ -192,6 +279,37 @@ struct ComposerRecordingOverlay: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("record-overlay")
+    }
+
+    private var recordingWaveform: some View {
+        GeometryReader { proxy in
+            let totalSpacing = Self.waveformBarSpacing * CGFloat(VoiceRecorder.waveformSampleCount - 1)
+            let availableBarWidth = (proxy.size.width - totalSpacing) / CGFloat(VoiceRecorder.waveformSampleCount)
+            let barWidth = min(Self.waveformBarMaximumWidth, max(1, availableBarWidth))
+
+            HStack(spacing: Self.waveformBarSpacing) {
+                ForEach(Array(recorder.waveformSamples.enumerated()), id: \.offset) { _, level in
+                    Capsule()
+                        .fill(Color.white)
+                        .frame(
+                            width: barWidth,
+                            height: max(
+                                Self.waveformBarMinimumHeight,
+                                Self.waveformTrackHeight * max(VoiceRecorder.waveformMinimumVisibleLevel, level)
+                            )
+                        )
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: 480)
+        .frame(height: Self.waveformTrackHeight)
+        .padding(.horizontal, .spacing2)
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(AppStrings.voiceRecording)
+        .accessibilityValue(AppStrings.releaseToFinishRecording)
+        .accessibilityIdentifier("recording-waveform")
     }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {
