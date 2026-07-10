@@ -47,6 +47,7 @@ enum ComposerDraftError: Error, Equatable {
     case encryptedWriteFailed
     case verificationFailed
     case migrationConflict
+    case versionConflict
 }
 
 @Model

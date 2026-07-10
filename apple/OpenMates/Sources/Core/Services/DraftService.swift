@@ -75,6 +75,16 @@ final class DraftService: ObservableObject {
             try await clearDraft(chatId: chatId)
             return
         }
+        do {
+            if let existing = try await repository.record(chatId: chatId),
+               existing.draftVersion > draftVersion {
+                throw ComposerDraftError.versionConflict
+            }
+        } catch let error as ComposerDraftError {
+            throw error
+        } catch {
+            throw ComposerDraftError.verificationFailed
+        }
         let masterKey = try await requireMasterKey()
         let record = try await encryptedRecord(
             canonicalMarkdown: canonicalMarkdown,

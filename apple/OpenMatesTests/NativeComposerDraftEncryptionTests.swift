@@ -85,6 +85,39 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertEqual(loaded.draftVersion, 1)
     }
 
+    func testOlderSynchronizedDraftVersionCannotOverwriteNewerCiphertext() async throws {
+        let fixture = try loadFixture()
+        let repository = RecordingComposerDraftRepository()
+        let service = makeService(
+            repository: repository,
+            legacyStore: RecordingLegacyComposerDraftStore(),
+            masterKey: try masterKey(fixture)
+        )
+        try await service.saveDraft(
+            canonicalMarkdown: fixture.plaintext.canonicalDraftMarkdown,
+            preview: fixture.plaintext.draftPreview,
+            chatId: chatId,
+            revision: 20,
+            draftVersion: 2
+        )
+
+        do {
+            try await service.saveDraft(
+                canonicalMarkdown: "Stale synthetic draft",
+                preview: "Stale preview",
+                chatId: chatId,
+                revision: 21,
+                draftVersion: 1
+            )
+            XCTFail("Expected the stale synchronized draft version to be rejected")
+        } catch {
+            XCTAssertEqual(error as? ComposerDraftError, .versionConflict)
+        }
+        let retainedRecord = await repository.record(chatId: chatId)
+        let retained = try XCTUnwrap(retainedRecord)
+        XCTAssertEqual(retained.draftVersion, 2)
+    }
+
     func testUnlockedMigrationEncryptsVerifiesThenRemovesLegacyPlaintext() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
