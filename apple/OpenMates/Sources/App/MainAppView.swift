@@ -5041,11 +5041,13 @@ struct NewChatWelcomeView: View {
             micPermissionState = .granted
         }
         if arguments.contains("--ui-test-welcome-seed-pending-content"), pendingComposerEmbeds.isEmpty {
-            pendingComposerEmbeds = [
-                makePendingComposerEmbed(filename: "welcome-file.pdf", kind: .file),
-                makePendingComposerEmbed(filename: "welcome-sketch.png", kind: .image, data: Data(repeating: 0, count: 128)),
-                makePendingComposerEmbed(filename: "welcome-recording.m4a", kind: .audio, duration: 1)
-            ]
+            addPendingComposerEmbed(filename: "welcome-file.pdf", kind: .file)
+            addPendingComposerEmbed(
+                filename: "welcome-sketch.png",
+                kind: .image,
+                data: Data(repeating: 0, count: 128)
+            )
+            addPendingComposerEmbed(filename: "welcome-recording.m4a", kind: .audio, duration: 1)
             isComposerActivated = true
             isFocused = true
         }
