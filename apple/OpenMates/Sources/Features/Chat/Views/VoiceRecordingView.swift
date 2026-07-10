@@ -302,10 +302,7 @@ struct ComposerRecordingOverlay: View {
         .frame(height: Self.waveformTrackHeight)
         .padding(.horizontal, .spacing2)
         .allowsHitTesting(false)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(AppStrings.voiceRecording)
-        .accessibilityValue(AppStrings.releaseToFinishRecording)
-        .accessibilityIdentifier("recording-waveform")
+        .accessibilityHidden(true)
     }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {
