@@ -524,6 +524,12 @@ test.describe('Anonymous free chat', () => {
 		await expect(
 			page.getByTestId('chat-history-content'),
 			`Anonymous reload diagnostics: ${JSON.stringify(reloadDiagnostics)}`
+		).toHaveAttribute('data-source-message-count', '5', {
+			timeout: 15000
+		});
+		await expect(
+			page.getByTestId('chat-history-content'),
+			`Anonymous reload diagnostics: ${JSON.stringify(reloadDiagnostics)}`
 		).toHaveAttribute('data-rendered-message-count', '5', {
 			timeout: 15000
 		});

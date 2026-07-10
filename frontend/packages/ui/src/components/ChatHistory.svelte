@@ -2297,10 +2297,11 @@
     {#if showMessages}
         <div class="chat-history-content" 
              data-testid="chat-history-content"
-             class:has-messages={displayMessages.length > 0}
-             class:has-header={showChatHeader}
-             data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}
-             data-rendered-message-count={virtualizedDisplayMessages.length}
+              class:has-messages={displayMessages.length > 0}
+              class:has-header={showChatHeader}
+              data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}
+              data-source-message-count={sourceMessages.length}
+              data-rendered-message-count={virtualizedDisplayMessages.length}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
 
