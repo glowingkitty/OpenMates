@@ -171,7 +171,7 @@ struct ChatView: View {
     @StateObject private var focusModeManager = FocusModeManager()
     @StateObject private var composerRecorder = VoiceRecorder()
     @StateObject private var pendingUploads = PendingUploadStore.shared
-    @FocusState private var isInputFocused: Bool
+    @State private var isInputFocused = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase

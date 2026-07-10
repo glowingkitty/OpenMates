@@ -49,7 +49,7 @@ extension EnvironmentValues {
 
 struct OMMessageInputField<ActionButtons: View>: View {
     @ObservedObject var session: NativeComposerSession
-    let isFocused: FocusState<Bool>.Binding
+    let isFocused: Binding<Bool>
     let compact: Bool
     let placeholder: String
     var compactHeight: CGFloat = 48

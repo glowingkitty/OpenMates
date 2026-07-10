@@ -125,7 +125,7 @@ struct DevNativeComposerEmbedGalleryView: View {
 struct DevQuickCaptureAttachmentPreviewView: View {
     @State private var selectedTab = "chats"
     @StateObject private var composerSession = NativeComposerSession()
-    @FocusState private var inputFocused: Bool
+    @State private var inputFocused = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing6) {

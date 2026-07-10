@@ -251,7 +251,6 @@ final class ChatFlowParityUITests: XCTestCase {
         app.launchArguments = [
             "--ui-test-disable-auth-cache",
             "--ui-test-start-new-chat",
-            "--ui-test-composer-focus-diagnostics",
         ]
         app.launch()
 

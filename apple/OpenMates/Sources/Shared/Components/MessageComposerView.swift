@@ -68,7 +68,7 @@ enum MessageComposerAction: Equatable {
 
 struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionButtons: View>: View {
     @ObservedObject var session: NativeComposerSession
-    let isFocused: FocusState<Bool>.Binding
+    let isFocused: Binding<Bool>
     var compact: Bool
     var placeholder: String
     var compactHeight: CGFloat = MessageComposerMetric.inlineCompactHeight
@@ -115,7 +115,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
 extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent == EmptyView {
     init(
         session: NativeComposerSession,
-        isFocused: FocusState<Bool>.Binding,
+        isFocused: Binding<Bool>,
         compact: Bool,
         placeholder: String,
         compactHeight: CGFloat = MessageComposerMetric.inlineCompactHeight,
@@ -150,7 +150,7 @@ extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent
 extension MessageComposerView where PreFieldContent == EmptyView {
     init(
         session: NativeComposerSession,
-        isFocused: FocusState<Bool>.Binding,
+        isFocused: Binding<Bool>,
         compact: Bool,
         placeholder: String,
         compactHeight: CGFloat = MessageComposerMetric.inlineCompactHeight,
@@ -186,7 +186,7 @@ extension MessageComposerView where PreFieldContent == EmptyView {
 extension MessageComposerView where OverlayContent == EmptyView {
     init(
         session: NativeComposerSession,
-        isFocused: FocusState<Bool>.Binding,
+        isFocused: Binding<Bool>,
         compact: Bool,
         placeholder: String,
         compactHeight: CGFloat = MessageComposerMetric.inlineCompactHeight,

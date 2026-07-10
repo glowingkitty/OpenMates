@@ -4461,7 +4461,7 @@ struct NewChatWelcomeView: View {
     @State private var draftSaveTask: Task<Void, Never>?
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @StateObject private var composerRecorder = VoiceRecorder()
-    @FocusState private var isFocused: Bool
+    @State private var isFocused = false
 
     private var messageText: String {
         get { composerSession.canonicalMarkdown }
@@ -5928,7 +5928,7 @@ private struct WelcomeComposer: View {
     @ObservedObject var session: NativeComposerSession
     @Binding var isActivated: Bool
     @Binding var isExpanded: Bool
-    @FocusState.Binding var isFocused: Bool
+    @Binding var isFocused: Bool
     let isAuthenticated: Bool
     let canSendAnonymously: Bool
     let piiMatches: [PIIMatch]

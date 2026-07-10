@@ -16,7 +16,7 @@ struct MessageEditView: View {
 
     @StateObject private var composerSession: NativeComposerSession
     @State private var isSaving = false
-    @FocusState private var isFocused: Bool
+    @State private var isFocused = false
 
     init(message: Message, onSave: @escaping (String) async -> Void, onCancel: @escaping () -> Void) {
         self.message = message

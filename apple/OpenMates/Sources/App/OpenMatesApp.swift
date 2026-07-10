@@ -703,7 +703,7 @@ struct MacMenuBarQuickCaptureView: View {
     @EnvironmentObject private var authManager: AuthManager
     @StateObject private var viewModel = MacMenuBarQuickCaptureViewModel()
     @StateObject private var recorder = VoiceRecorder()
-    @FocusState private var inputFocused: Bool
+    @State private var inputFocused = false
     @State private var isRecordingGestureActive = false
 
     var body: some View {
