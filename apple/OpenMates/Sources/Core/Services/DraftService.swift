@@ -23,7 +23,7 @@ struct ComposerDraft: Sendable {
     let draftVersion: Int
 }
 
-protocol ComposerDraftRepository {
+protocol ComposerDraftRepository: Sendable {
     func upsert(_ record: ComposerDraftRecord) async throws
     func record(chatId: String) async -> ComposerDraftRecord?
     func remove(chatId: String) async throws
@@ -31,7 +31,7 @@ protocol ComposerDraftRepository {
     func allRecords() async -> [ComposerDraftRecord]
 }
 
-protocol LegacyComposerDraftStore {
+protocol LegacyComposerDraftStore: Sendable {
     func drafts() async -> [String: String]
     func removeDraft(chatId: String) async
 }
@@ -92,13 +92,13 @@ final class DraftService: ObservableObject {
 
     private let repository: any ComposerDraftRepository
     private let legacyStore: any LegacyComposerDraftStore
-    private let masterKeyProvider: () async throws -> SymmetricKey?
+    private let masterKeyProvider: @Sendable () async throws -> SymmetricKey?
     private let crypto: CryptoManager
 
     init(
         repository: any ComposerDraftRepository,
         legacyStore: any LegacyComposerDraftStore,
-        masterKeyProvider: @escaping () async throws -> SymmetricKey?
+        masterKeyProvider: @escaping @Sendable () async throws -> SymmetricKey?
     ) {
         self.repository = repository
         self.legacyStore = legacyStore
