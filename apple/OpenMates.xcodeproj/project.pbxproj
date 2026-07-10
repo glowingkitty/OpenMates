@@ -262,6 +262,10 @@
 		C0FFEE000000000000036004 /* WorkflowAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036002 /* WorkflowAPI.swift */; };
 		C0FFEE000000000000036007 /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036005 /* WorkflowStore.swift */; };
 		C0FFEE000000000000036008 /* WorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036006 /* WorkflowViews.swift */; };
+		C0FFEE000000000000036009 /* WorkflowModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036001 /* WorkflowModels.swift */; };
+		C0FFEE00000000000003600A /* WorkflowAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036002 /* WorkflowAPI.swift */; };
+		C0FFEE00000000000003600B /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036005 /* WorkflowStore.swift */; };
+		C0FFEE00000000000003600C /* WorkflowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036006 /* WorkflowViews.swift */; };
 		C0FFEE000000000000037002 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
 		C0FFEE000000000000037003 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
 		C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */; };
@@ -2326,6 +2330,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0FFEE00000000000003600A /* WorkflowAPI.swift in Sources */,
+				C0FFEE000000000000036009 /* WorkflowModels.swift in Sources */,
+				C0FFEE00000000000003600B /* WorkflowStore.swift in Sources */,
+				C0FFEE00000000000003600C /* WorkflowViews.swift in Sources */,
 				F21BC1FE5F7050B7957FA9C4 /* AITypingIndicator.swift in Sources */,
 				81C03DD57797F7494E8BC99E /* APIClient.swift in Sources */,
 				C0DE00000000000000000003 /* CodeRunService.swift in Sources */,
