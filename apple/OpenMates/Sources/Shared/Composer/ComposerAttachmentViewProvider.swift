@@ -45,9 +45,10 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             }
             return
         }
+        let actions = attachment.embedActions
         let hosted = MainActor.assumeIsolated {
             let controller = UIHostingController(
-                rootView: ComposerAttachmentContent(node: node, actions: attachment.embedActions)
+                rootView: ComposerAttachmentContent(node: node, actions: actions)
             )
             controller.view.backgroundColor = .clear
             controller.view.accessibilityIdentifier = platformIdentifier(for: node)
@@ -116,9 +117,10 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             }
             return
         }
+        let actions = attachment.embedActions
         let hosted = MainActor.assumeIsolated {
             let hosted = NSHostingView(
-                rootView: ComposerAttachmentContent(node: node, actions: attachment.embedActions)
+                rootView: ComposerAttachmentContent(node: node, actions: actions)
             )
             hosted.identifier = NSUserInterfaceItemIdentifier(platformIdentifier(for: node))
             return hosted

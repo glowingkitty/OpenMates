@@ -20,7 +20,7 @@ private enum AppleComposerPreviewMetrics {
     static let cornerRadius: CGFloat = 30
 }
 
-struct AppleComposerEmbedActions {
+struct AppleComposerEmbedActions: @unchecked Sendable {
     let onOpen: (String) -> Void
     let onRetry: (String) -> Void
     let onRemove: (String) -> Void
