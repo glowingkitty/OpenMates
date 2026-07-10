@@ -45,7 +45,12 @@ test.describe('Workspace sidebar', () => {
       const createResponse = await page.request.post(`${apiUrl}/v1/workflows`, {
         data: {
           title,
-          graph: { version: 1, nodes: [{ id: 'manual', type: 'manual_trigger', title: 'Manual', config: {} }], edges: [] },
+          graph: {
+            version: 1,
+            trigger_node_id: 'manual',
+            nodes: [{ id: 'manual', type: 'manual_trigger', title: 'Manual', config: {} }],
+            edges: [],
+          },
           enabled: false,
         },
       });
