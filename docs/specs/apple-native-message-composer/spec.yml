@@ -979,7 +979,7 @@ tests:
 
   - id: T-WEB-ENCRYPTION-CONTRACT
     type: vitest
-    file: frontend/packages/ui/src/services/encryption/__tests__/appleComposerCompatibility.test.ts
+    file: frontend/packages/ui/src/services/__tests__/appleComposerCompatibility.test.ts
     command: python3 scripts/tests.py run -- --suite vitest
     covers: [AC-15]
     assertions:
@@ -1401,7 +1401,7 @@ tasks:
       acceptance_criteria: [AC-11, AC-15]
     expected_files:
       - shared/composer/fixtures/apple-composer-encryption-v1.json
-      - frontend/packages/ui/src/services/encryption/__tests__/appleComposerCompatibility.test.ts
+      - frontend/packages/ui/src/services/__tests__/appleComposerCompatibility.test.ts
       - apple/OpenMatesTests/NativeComposerEncryptionCompatibilityTests.swift
       - apple/OpenMatesTests/NativeComposerDraftEncryptionTests.swift
     verification_ids: [T-WEB-ENCRYPTION-CONTRACT, T-APPLE-CRYPTO-COMPAT, T-APPLE-DRAFT-ENCRYPTION-MIGRATION]

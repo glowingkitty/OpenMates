@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   decryptWithChatKey,
   encryptWithChatKey,
-} from "../MessageEncryptor";
+} from "../encryption/MessageEncryptor";
 import {
   decryptChatKeyWithMasterKey,
   decryptWithEmbedKey,
@@ -21,7 +21,7 @@ import {
   encryptWithMasterKeyDirect,
   unwrapEmbedKeyWithChatKey,
   wrapEmbedKeyWithChatKey,
-} from "../MetadataEncryptor";
+} from "../encryption/MetadataEncryptor";
 
 interface CipherVector {
   iv_base64: string;
@@ -88,7 +88,7 @@ Object.defineProperty(globalThis, "atob", {
 const fixture = JSON.parse(
   readFileSync(
     new URL(
-      "../../../../../../../shared/composer/fixtures/apple-composer-encryption-v1.json",
+      "../../../../../../shared/composer/fixtures/apple-composer-encryption-v1.json",
       import.meta.url,
     ),
     "utf8",
