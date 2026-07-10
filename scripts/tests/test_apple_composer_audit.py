@@ -18,7 +18,7 @@ def test_forbidden_webview_fixture_is_rejected() -> None:
 
 
 def test_native_textkit_fixture_is_allowed() -> None:
-    text = "UITextView(usingTextLayoutManager: true); NSTextView(usingTextLayoutManager: true)"
+    text = "NativeComposerSession(); NativeComposerTextView(); share-extension-message-input"
     assert apple_composer_audit.forbidden_webview_matches(text) == []
 
 

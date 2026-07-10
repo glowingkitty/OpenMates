@@ -48,13 +48,13 @@ SURFACES = (
     ),
     SurfaceRule(
         Path("apple/OpenMatesShareExtension/ShareViewController.swift"),
-        ("UITextView(usingTextLayoutManager: true)", "share-extension-message-input"),
+        ("NativeComposerSession", "NativeComposerTextView", "share-extension-message-input"),
         (COMPOSER_WEBVIEW,),
         "iOS share composer",
     ),
     SurfaceRule(
         Path("apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift"),
-        ("NSTextView(usingTextLayoutManager: true)", "share-extension-message-input"),
+        ("NativeComposerSession", "NativeComposerTextView", "share-extension-message-input"),
         (COMPOSER_WEBVIEW,),
         "macOS share composer",
     ),

@@ -726,7 +726,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: Implementation and green renderer evidence predated a recorded red run; no retrospective failure was fabricated.
     green_phase:
       required: true
       expected: pass
@@ -750,11 +754,19 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: Upload/audio integration existed before this spec test had a recorded red execution.
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-109f139-audio-ui"
+        timestamp: "2026-07-10T14:28:29Z"
+        summary: MessageInputAudioRecordingUITests passed 5/5 and lifecycle unit coverage passed 6/6, proving recording controls, cleanup, generation checks, and exactly-once deferred dispatch.
 
   - id: T-APPLE-RECORDING-WAVEFORM-UNIT
     type: unit
@@ -823,7 +835,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: Lifecycle implementation predated a recorded red run; the full transition matrix is covered by green unit evidence.
     green_phase:
       required: true
       expected: pass
@@ -846,7 +862,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: Paste implementation predated a recorded red run; no retrospective failure was fabricated.
     green_phase:
       required: true
       expected: pass
@@ -869,7 +889,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: Mention and PII implementation predated a recorded red run; no retrospective failure was fabricated.
     green_phase:
       required: true
       expected: pass
@@ -892,11 +916,21 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        run_id: "apple-remote-927ff79-draft-edit-red"
+        timestamp: "2026-07-11T00:23:51Z"
+        summary: The draft/edit suite failed because production parent accessibility identifiers flattened the editor and action identifiers.
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/NativeComposerDraftEditUITests
+        run_id: "apple-remote-7a5d7aa-draft-edit-3"
+        subject_commit: "7a5d7aa"
+        timestamp: "2026-07-11T00:38:04Z"
+        summary: NativeComposerDraftEditUITests passed 3/3 for cancel restoration, save-only edited content, and exactly one accessible pending embed atom after cold launch.
 
   - id: T-APPLE-ALL-HOSTS-UI
     type: unit
@@ -911,7 +945,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: Visual parity coverage existed before a recorded red run; no retrospective failure was fabricated.
     green_phase:
       required: true
       expected: pass
@@ -929,7 +967,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: Failure recovery implementation predated a recorded red run; no retrospective failure was fabricated.
     green_phase:
       required: true
       expected: pass
@@ -947,7 +989,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: Submit policy implementation predated a recorded red run; no retrospective failure was fabricated.
     green_phase:
       required: true
       expected: pass
@@ -966,7 +1012,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: Performance coverage was added after implementation and has no recorded pre-implementation red run.
     green_phase:
       required: true
       expected: pass
@@ -1017,7 +1067,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: missing_test
+        run_id: "legacy-no-red-run"
+        timestamp: "2026-07-11T00:39:00Z"
+        summary: The static audit was introduced after native cutover work and has no recorded pre-implementation red run.
     green_phase:
       required: true
       expected: pass
