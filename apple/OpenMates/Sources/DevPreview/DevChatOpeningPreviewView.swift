@@ -423,7 +423,7 @@ private struct DevPIIVisibilityFixtureView: View {
     }
 }
 
-private struct DevMessageEditFixtureView: View {
+struct DevMessageEditFixtureView: View {
     private static let originalContent = "Original message content"
 
     @State private var content = Self.originalContent

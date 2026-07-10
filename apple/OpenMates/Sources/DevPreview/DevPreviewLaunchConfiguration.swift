@@ -20,6 +20,7 @@ struct DevPreviewLaunchConfiguration: Equatable {
         case chatShare = "chat-share"
         case quickCapture = "quick-capture"
         case composerEmbeds = "composer-embeds"
+        case composerDraftEdit = "composer-draft-edit"
         case embeds
     }
 
@@ -66,7 +67,7 @@ struct DevPreviewLaunchConfiguration: Equatable {
                   let surface = Surface(rawValue: parts[1]) else {
                 return nil
             }
-            if surface == .chatOpening || surface == .chatOpeningRecording || surface == .chatShare || surface == .quickCapture || surface == .composerEmbeds {
+            if surface == .chatOpening || surface == .chatOpeningRecording || surface == .chatShare || surface == .quickCapture || surface == .composerEmbeds || surface == .composerDraftEdit {
                 return DevPreviewLaunchConfiguration(surface: surface, appSlug: .web)
             }
             let app = parts.dropFirst(2).first.flatMap(DevEmbedPreviewApp.init(rawValue:))

@@ -38,6 +38,8 @@ struct DevPreviewRootView: View {
             #endif
         case .composerEmbeds:
             DevNativeComposerEmbedGalleryView()
+        case .composerDraftEdit:
+            DevMessageEditFixtureView()
         case .embeds:
             DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
         }
