@@ -4562,8 +4562,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
-     let anonymousHashRestoreReady = $state(false);
-     let anonymousHashRestoreStatus = $state('idle');
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
      let currentMessageWindowHasMoreBefore = $state(false);
      let olderMessageWindowLoading = $state(false);
@@ -9043,13 +9041,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function restoreAnonymousHashChatOnMount(): Promise<void> {
         const hashChatId = activeChatStore.getChatIdFromHash();
-        if ($authStore.isAuthenticated || !isAnonymousChatId(hashChatId)) {
-            anonymousHashRestoreStatus = 'skipped';
-            return;
-        }
+        if ($authStore.isAuthenticated || !isAnonymousChatId(hashChatId)) return;
         if (currentChat?.chat_id === hashChatId && currentMessages.length > 0) return;
 
-        anonymousHashRestoreStatus = 'loading';
         showWelcome = false;
         activeChatStore.setWithoutHashUpdate(hashChatId);
 
@@ -9076,10 +9070,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         try {
             const anonymousChat = await getAnonymousHashChatWithRetry(hashChatId);
             await loadChat(anonymousChat ?? fallbackChat);
-            anonymousHashRestoreStatus = anonymousChat ? 'loaded' : 'fallback';
             console.debug('[ActiveChat] Restored anonymous hash chat during mount:', hashChatId);
         } catch (error) {
-            anonymousHashRestoreStatus = 'error';
             console.warn('[ActiveChat] Failed to restore anonymous hash chat during mount; loading shell:', error);
             await loadChat(fallbackChat);
         }
@@ -9094,15 +9086,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const hashChatId = activeChatStore.getChatIdFromHash();
         const emptyRestoreAttempts = hashChatId ? (anonymousHashEmptyRestoreAttempts[hashChatId] ?? 0) : 0;
-        const hasUnrestoredAnonymousHash = !currentChat?.chat_id && isAnonymousChatId(hashChatId);
         const sameHashChatMissingMessages =
             currentChat?.chat_id === hashChatId &&
             currentMessages.length === 0 &&
             emptyRestoreAttempts < ANONYMOUS_HASH_EMPTY_RESTORE_ATTEMPTS;
         const shouldRestoreAnonymousHash =
             !$authStore.isAuthenticated &&
-            anonymousHashRestoreReady &&
-            (hasUnrestoredAnonymousHash || sameHashChatMissingMessages) &&
+            ((showWelcome && !currentChat?.chat_id) || sameHashChatMissingMessages) &&
+            isAnonymousChatId(hashChatId) &&
             !restoringAnonymousHashChat;
 
         if (!shouldRestoreAnonymousHash) return;
@@ -9127,7 +9118,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const initialize = async () => {
             // Initialize app but skip auth initialization since it's already done in +page.svelte
             await initializeApp({ skipAuthInitialization: true });
-            anonymousHashRestoreReady = true;
             
             // Check server status to determine if payment is enabled (for signup status bar)
             try {
@@ -10885,7 +10875,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
     data-current-chat-messages-version={currentChat?.messages_v ?? -1}
     data-current-message-count={currentMessages.length}
-    data-anonymous-hash-restore-status={anonymousHashRestoreStatus}
     class:ai-typing={isAssistantTyping}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
