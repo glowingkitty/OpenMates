@@ -85,11 +85,44 @@ def test_deploy_latest_testflight_syncs_then_uploads_ios_and_macos() -> None:
     )
 
     assert command.index("git fetch origin dev") < command.index("APP_STORE_CONNECT_API_KEY_PATH=/private/key.p8")
-    assert command.count("python3 -c") == 2
+    assert command.count("python3 -c") == 4
     assert "APP_STORE_CONNECT_API_KEY_ID=KEY123" in command
     assert "APP_STORE_CONNECT_API_ISSUER_ID=ISSUER123" in command
     assert " watchos " not in command
     assert "macos" in command
+
+
+def test_release_archive_preflight_is_non_mutating_release_archive() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.release_archive_preflight_command("ios")
+
+    assert "Release" in command
+    assert "xcodebuild" in command
+    assert "archive" in command
+    assert "release_archive_preflight=passed:" in command
+    assert "assert_ios_archive_passkey_entitlements()" in command
+    assert "assert_ios_archive_embeds_watch_companion()" in command
+    for forbidden in (
+        "-allowProvisioningUpdates",
+        "build:translations",
+        "clean_openmates_provisioning_profiles",
+        "create_or_download_app_store_profiles",
+        "sync_bundle_capabilities",
+        "-exportArchive",
+        "upsert_testflight_whats_new",
+        "--upload-package",
+    ):
+        assert forbidden not in command
+
+
+def test_upload_testflight_preflights_immediately_before_upload() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.upload_testflight_ios_command(True, whats_new=VALID_WHATS_NEW)
+
+    assert command.index("release_archive_preflight=passed:") < command.index("upload_status=started")
+    assert " && " in command
 
 
 def test_upload_testflight_ios_can_attach_whats_new_text() -> None:

@@ -43,6 +43,7 @@ import argparse
 import fcntl
 import fnmatch
 import glob as glob_mod
+import hashlib
 import json
 import os
 import re
@@ -65,6 +66,8 @@ SESSIONS_FILE = PROJECT_ROOT / ".claude" / "sessions.json"
 TASKS_DIR = PROJECT_ROOT / ".claude" / "tasks"
 TASKS_META_FILE = TASKS_DIR / ".meta.json"
 PROJECT_INDEX_FILE = PROJECT_ROOT / ".claude" / "project-index.json"
+OPENCODE_STALE_READ_STATE_FILE = PROJECT_ROOT / ".opencode" / "stale-read-state.json"
+OPENCODE_STALE_READ_LOCK_FILE = PROJECT_ROOT / ".opencode" / "stale-read-state.lock"
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
 STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
@@ -262,6 +265,106 @@ def _hours_since(iso_str: str) -> float:
 def _minutes_since(iso_str: str) -> float:
     """Return minutes elapsed since the given ISO timestamp."""
     return _hours_since(iso_str) * 60
+
+
+def normalize_opencode_stale_read_path(raw_path: str | Path) -> str | None:
+    """Return a repository-relative regular-file path or None when unsafe."""
+    try:
+        root = PROJECT_ROOT.resolve()
+        candidate = Path(raw_path)
+        resolved = (candidate if candidate.is_absolute() else root / candidate).resolve()
+        return resolved.relative_to(root).as_posix()
+    except (OSError, ValueError):
+        return None
+
+
+def _opencode_stale_read_file_hash(relative_path: str) -> str | None:
+    path = PROJECT_ROOT / relative_path
+    if not path.is_file():
+        return None
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+    except OSError:
+        return None
+    return digest.hexdigest()
+
+
+def _empty_opencode_stale_read_state() -> dict:
+    return {"version": 1, "sessions": {}}
+
+
+def _load_opencode_stale_read_state() -> dict:
+    if not OPENCODE_STALE_READ_STATE_FILE.is_file():
+        return _empty_opencode_stale_read_state()
+    try:
+        state = json.loads(OPENCODE_STALE_READ_STATE_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return _empty_opencode_stale_read_state()
+    return state if isinstance(state, dict) and isinstance(state.get("sessions"), dict) else _empty_opencode_stale_read_state()
+
+
+def _prune_opencode_stale_read_sessions(state: dict) -> None:
+    for session_id, session in list(state["sessions"].items()):
+        last_active = session.get("last_active", "") if isinstance(session, dict) else ""
+        try:
+            expired = not last_active or _hours_since(last_active) > STALE_SESSION_HOURS
+        except (TypeError, ValueError):
+            expired = True
+        if expired:
+            del state["sessions"][session_id]
+
+
+def _mutate_opencode_stale_read_state(mutator) -> None:
+    """Atomically update OpenCode-only hash metadata without source contents."""
+    OPENCODE_STALE_READ_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with OPENCODE_STALE_READ_LOCK_FILE.open("a+") as lock_handle:
+        fcntl.flock(lock_handle, fcntl.LOCK_EX)
+        try:
+            state = _load_opencode_stale_read_state()
+            _prune_opencode_stale_read_sessions(state)
+            mutator(state)
+            temporary = OPENCODE_STALE_READ_STATE_FILE.with_suffix(".tmp")
+            temporary.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+            temporary.replace(OPENCODE_STALE_READ_STATE_FILE)
+        finally:
+            fcntl.flock(lock_handle, fcntl.LOCK_UN)
+
+
+def record_opencode_stale_read(session_id: str, raw_path: str | Path) -> None:
+    relative_path = normalize_opencode_stale_read_path(raw_path)
+    if not relative_path:
+        return
+    digest = _opencode_stale_read_file_hash(relative_path)
+    if not digest:
+        return
+
+    def record(state: dict) -> None:
+        session = state["sessions"].setdefault(session_id, {"files": {}})
+        session["last_active"] = _now_iso()
+        session.setdefault("files", {})[relative_path] = {"sha256": digest, "recorded_at": _now_iso()}
+
+    _mutate_opencode_stale_read_state(record)
+
+
+def sync_opencode_stale_read(session_id: str, raw_path: str | Path) -> None:
+    """Refresh the current session baseline after its successful file edit."""
+    record_opencode_stale_read(session_id, raw_path)
+
+
+def opencode_stale_read_error(session_id: str, raw_path: str | Path) -> str | None:
+    relative_path = normalize_opencode_stale_read_path(raw_path)
+    if not relative_path:
+        return None
+    expected = _load_opencode_stale_read_state().get("sessions", {}).get(session_id, {}).get("files", {}).get(relative_path, {}).get("sha256")
+    if not expected:
+        return None
+    current = _opencode_stale_read_file_hash(relative_path)
+    if current and current != expected:
+        return f"BLOCKED: {relative_path} changed since this OpenCode session read it. Re-read the file before editing."
+    return None
 
 
 def _load_sessions() -> dict:
@@ -3139,6 +3242,20 @@ def cmd_check_write(args: argparse.Namespace) -> None:
     sys.exit(0)  # Allow
 
 
+def cmd_stale_read(args: argparse.Namespace) -> None:
+    """Record, check, or refresh OpenCode-only file-read hash state."""
+    if args.stale_read_action == "record":
+        record_opencode_stale_read(args.opencode_session, args.file)
+        return
+    if args.stale_read_action == "sync":
+        sync_opencode_stale_read(args.opencode_session, args.file)
+        return
+    error = opencode_stale_read_error(args.opencode_session, args.file)
+    if error:
+        print(error, file=sys.stderr)
+        sys.exit(2)
+
+
 def _normalize_lock_type(raw: str) -> str:
     """Normalize short lock type names to full names."""
     mapping = {
@@ -5914,6 +6031,13 @@ def main() -> None:
         "--file", "-f", help="File path (optional; falls back to stdin JSON)"
     )
 
+    p_stale_read = sub.add_parser("stale-read", help="Manage OpenCode stale-read hash protection")
+    p_stale_read_sub = p_stale_read.add_subparsers(dest="stale_read_action", required=True)
+    for action in ("record", "check", "sync"):
+        p_stale_read_action = p_stale_read_sub.add_parser(action)
+        p_stale_read_action.add_argument("--opencode-session", required=True, help="OpenCode session ID")
+        p_stale_read_action.add_argument("--file", required=True, help="Repository file path")
+
     # lock
     p_lock = sub.add_parser("lock", help="Acquire a lock")
     p_lock.add_argument(
@@ -6308,6 +6432,7 @@ def main() -> None:
         "track-stdin": cmd_track_stdin,
         "untrack": cmd_untrack,
         "check-write": cmd_check_write,
+        "stale-read": cmd_stale_read,
         "lock": cmd_lock,
         "unlock": cmd_unlock,
         "prepare-deploy": cmd_prepare_deploy,

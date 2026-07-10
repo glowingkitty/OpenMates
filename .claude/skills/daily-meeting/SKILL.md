@@ -71,28 +71,14 @@ These are safe, reliable commands that should never fail. Issue them all in para
    bash scripts/check-file-sizes.sh --ci
    ```
 
-8. **Session quality** — Bash:
-   ```bash
-   cd /home/superdev/projects/OpenMates/scripts && python3 -c "
-   from _workflow_review_helper import build_session_digests
-   from datetime import datetime, timezone, timedelta
-   y = (datetime.now(timezone.utc) - timedelta(days=1)).strftime('%Y-%m-%d')
-   t, c, ch = build_session_digests(y, verbose=False)
-   if c == 0:
-       print('(No sessions found for yesterday.)')
-   else:
-       print(f'({c} sessions, {ch:,} chars)\n\n' + t[:8000])
-   "
-   ```
+8. **Previous meeting state** — Read: `scripts/.daily-meeting-state.json`
 
-9. **Previous meeting state** — Read: `scripts/.daily-meeting-state.json`
-
-10. **Daily inspiration audit** — Bash:
+9. **Daily inspiration audit** — Bash:
     ```bash
     docker exec api python /app/backend/scripts/audit_inspiration_pool.py --include-defaults --json 2>/dev/null
     ```
 
-11. **Today's Obsidian daily note** — Bash:
+10. **Today's Obsidian daily note** — Bash:
     ```bash
     TODAY=$(date +%F)
     python3 /home/superdev/projects/OpenMates/scripts/update_obsidian_daily_note.py >/dev/null
@@ -147,7 +133,7 @@ Follow the 9-step meeting agenda from the prompt template. **Present ONE section
 3. **SYSTEM HEALTH 🏥** — **open with Revenue Health** (lifetime total, paying customers, monthly trend), then outages, test failures, errors, data gaps
 3b. **DAILY INSPIRATIONS REVIEW 📰** — show current public default inspirations from the audit data (pool violations count, defaults violations count, and list the titles of today's 3 English defaults). Flag any entries that look low-quality, off-topic, or borderline even if they passed the keyword filter. Ask the user if any should be removed or if the keyword blocklist needs updates.
 3c. **LEGAL & COMPLIANCE ⚖️** — read `docs/architecture/compliance/top-10-recommendations.md` and surface the scan metadata (scan type, date, HEAD SHA, counts line) plus every CRITICAL and HIGH finding (rank, title, score, framework, one-line why). List MEDIUM/LOW items by title only. Mention any items resolved since last run and any tier activation alerts. Ask the user which findings (if any) should be promoted to today's top 10 priorities, and whether any should be filed as Linear tasks if they are not already tracked. If the file is missing or the date is older than 7 days, flag that the scan is stale and the cronjob may be broken.
-4. **PROJECT TRAJECTORY 🗺️** — milestone progress, session quality
+4. **PROJECT TRAJECTORY 🗺️** — milestone progress
 5. **CONTEXT QUESTIONS 🔍** — 5 rounds of targeted questions (one per round, wait for answer each time) to understand the user's current focus, blockers, energy, and upcoming commitments before suggesting priorities
 6. **TODAY'S PRIORITIES 🎯** — present top 10 informed by all data + user answers, ask for confirmation
 7. **MILESTONE CHECK 📐** — based on gathered context, suggest milestone changes (create new, update existing) if warranted

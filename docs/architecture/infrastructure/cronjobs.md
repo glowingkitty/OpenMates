@@ -108,11 +108,11 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images, build cache; aggressive mode at >90% disk |
 | `01:30 daily`                 | `cleanup-opencode-sessions.sh`         | Delete OpenCode chats older than 14 days, except TODO sessions |
 
-> **Consolidated (2026-03-27):** `nightly-issues-check.sh` and `nightly-workflow-review.sh` have been folded into the daily meeting. Their helpers (`_issues_checker.py`, `_workflow_review_helper.py`) are kept as importable libraries.
+> **Workflow review:** The former scheduled workflow review was removed. `scripts/_workflow_review_helper.py` is an explicit, OpenCode-only deterministic collector and is not part of the daily meeting.
 
 ### Job Details
 
-**Daily standup meeting** (`10:00 UTC` weekdays): `daily-meeting.sh` creates a persisted OpenCode chat titled `daily-meeting YYYY-MM-DD`, asks the `daily-meeting` skill to gather data inline, and emails a deep link to the configured recipient. The OpenCode web URL is built as `${OPENCODE_WEB_BASE_URL}/${base64url(project_path)}/session/${session_id}`. No Claude launcher and no Zellij session are involved. The meeting remains interactive: it presents one agenda section at a time and saves `scripts/.daily-meeting-state.json` plus `scripts/.tmp/daily-meeting-summary-<date>.md` only after the user confirms priorities. Consolidates former `nightly-workflow-review.sh` and `nightly-issues-check.sh`. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `DAILY_MEETING_NOTIFY_EMAIL` (or `SERVER_OWNER_EMAIL`/`ADMIN_NOTIFY_EMAIL` fallback), `OPENCODE_WEB_BASE_URL`, `INTERNAL_API_SHARED_TOKEN`, `INTERNAL_API_URL`.
+**Daily standup meeting** (`10:00 UTC` weekdays): `daily-meeting.sh` creates a persisted OpenCode chat titled `daily-meeting YYYY-MM-DD`, asks the `daily-meeting` skill to gather data inline, and emails a deep link to the configured recipient. The OpenCode web URL is built as `${OPENCODE_WEB_BASE_URL}/${base64url(project_path)}/session/${session_id}`. The meeting remains interactive: it presents one agenda section at a time and saves `scripts/.daily-meeting-state.json` plus `scripts/.tmp/daily-meeting-summary-<date>.md` only after the user confirms priorities. Manual: `./scripts/daily-meeting.sh` or `/daily-meeting` skill. Env: `DAILY_MEETING_NOTIFY_EMAIL` (or `SERVER_OWNER_EMAIL`/`ADMIN_NOTIFY_EMAIL` fallback), `OPENCODE_WEB_BASE_URL`, `INTERNAL_API_SHARED_TOKEN`, `INTERNAL_API_URL`.
 
 **Deploy status checker** (`*/2 min`): Checks git log for recent commits; if found, queries Vercel API for build status. On `ERROR`/`CANCELED`, dispatches an OpenCode repair chat with the build log. State: `scripts/.deploy-checker-state.json`. Env: `VERCEL_TOKEN`.
 
@@ -138,7 +138,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **EU vulnerability check** (hourly at xx:35, 5 min after Dependabot): Queries OSV + NVD for vulnerabilities Dependabot misses. Cross-refs against `dependabot-processed.json`. No-ops in seconds when no new vulns found. Uses `sessions.py deploy` for commits. Resolved entries auto-pruned after 72h. State: `scripts/eu-vuln-processed.json`.
 
-**Workflow review**: _Consolidated into daily meeting (2026-03-27)._ Helper `_workflow_review_helper.py` still available as importable library.
+**Workflow review**: Maintainer-invoked only. Run `python3 scripts/_workflow_review_helper.py collect --since <UTC_ISO> --until <UTC_ISO>` to create a bounded OpenCode, git, and test evidence report under `test-results/workflow-review/`. It never schedules or launches an agent.
 
 **Security audit** (Tue+Fri 02:30): Reviews files changed since last audit. Top 5 critical security issues with OWASP mapping. Monthly full sweep. Acknowledged findings suppressed via `_security_helper.py acknowledge`. State: `.claude/security-audit-state.json` (gitignored).
 
@@ -186,7 +186,7 @@ Most maintenance scripts support `--dry-run` (show prompt, skip agent) or `--for
 ./scripts/check-deploy-status.sh --dry-run
 ./scripts/nightly-dead-code-removal.sh --force --category python
 ./scripts/run-tests-daily.sh --force
-REVIEW_DATE=2026-03-17 bash scripts/nightly-workflow-review.sh
+python3 scripts/_workflow_review_helper.py collect --since 2026-07-03T00:00:00Z --until 2026-07-10T00:00:00Z
 ```
 
 ### Adding a New Job

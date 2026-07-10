@@ -1478,6 +1478,88 @@ for line in (export.stdout + export.stderr).replace(derived, "<macos-peer-tmp>")
 '''
 
 
+RELEASE_ARCHIVE_PREFLIGHT_SCRIPT = r'''
+import pathlib
+import plistlib
+import shutil
+import subprocess
+import sys
+import tempfile
+
+target_platform = sys.argv[1]
+platforms = {
+    "ios": ("OpenMates_iOS", "generic/platform=iOS", "OpenMates.xcarchive"),
+    "macos": ("OpenMates_macOS", "generic/platform=macOS", "OpenMatesMac.xcarchive"),
+    "watchos": ("OpenMatesWatch", "generic/platform=watchOS", "OpenMatesWatch.xcarchive"),
+}
+if target_platform not in platforms:
+    print(f"release_archive_preflight=unsupported:{target_platform}")
+    sys.exit(2)
+
+scheme_name, archive_destination, archive_filename = platforms[target_platform]
+derived = tempfile.mkdtemp(prefix="openmates-release-preflight-")
+archive_path = pathlib.Path(derived) / archive_filename
+
+def fail(label, result):
+    print(f"release_archive_preflight={label}")
+    for line in (result.stdout + result.stderr).replace(derived, "<macos-peer-tmp>").splitlines()[-120:]:
+        print(line)
+    sys.exit(result.returncode or 1)
+
+def assert_ios_archive_passkey_entitlements():
+    if target_platform != "ios":
+        return
+    binary = archive_path / "Products" / "Applications" / "OpenMates.app" / "OpenMates"
+    result = subprocess.run(
+        ["codesign", "-d", "--entitlements", ":-", str(binary)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if result.returncode != 0:
+        fail("entitlements_failed", result)
+    text = result.stdout + result.stderr
+    required = ("com.apple.developer.associated-domains", "webcredentials:openmates.org", "group.org.openmates.app.shared")
+    if any(marker not in text for marker in required):
+        print("release_archive_preflight=missing_ios_entitlements")
+        sys.exit(1)
+
+def assert_ios_archive_embeds_watch_companion():
+    if target_platform != "ios":
+        return
+    watch_apps = sorted((archive_path / "Products" / "Applications" / "OpenMates.app" / "Watch").glob("*.app"))
+    if not watch_apps:
+        print("release_archive_preflight=missing_watch_companion")
+        sys.exit(1)
+    info_path = watch_apps[0] / "Info.plist"
+    try:
+        with info_path.open("rb") as handle:
+            info = plistlib.load(handle)
+    except (OSError, plistlib.InvalidFileException):
+        print("release_archive_preflight=invalid_watch_companion")
+        sys.exit(1)
+    if info.get("CFBundleIdentifier") != "org.openmates.app.watch" or info.get("WKCompanionAppBundleIdentifier") != "org.openmates.app":
+        print("release_archive_preflight=invalid_watch_companion")
+        sys.exit(1)
+
+try:
+    archive_cmd = [
+        "xcodebuild", "-project", "apple/OpenMates.xcodeproj", "-scheme", scheme_name,
+        "-configuration", "Release", "-destination", archive_destination,
+        "-derivedDataPath", str(pathlib.Path(derived) / "DerivedData"),
+        "-archivePath", str(archive_path), "archive",
+    ]
+    result = subprocess.run(archive_cmd, capture_output=True, text=True, timeout=1800)
+    if result.returncode != 0:
+        fail("archive_failed", result)
+    assert_ios_archive_passkey_entitlements()
+    assert_ios_archive_embeds_watch_companion()
+    print(f"release_archive_preflight=passed:{target_platform}")
+finally:
+    shutil.rmtree(derived, ignore_errors=True)
+'''
+
+
 XCODE_CACHE_REPORT_SCRIPT = r'''
 import os
 import subprocess
@@ -2691,6 +2773,17 @@ def app_store_connect_env_prefix(
     return " ".join([*env_parts, command])
 
 
+def release_archive_preflight_command(platform: str) -> str:
+    if platform not in {"ios", "macos", "watchos"}:
+        raise AppleRemoteError(f"Unsupported release archive platform: {platform}")
+    return shell_join(["python3", "-c", RELEASE_ARCHIVE_PREFLIGHT_SCRIPT, platform])
+
+
+def release_preflight_then_upload_command(preflight_command: str, upload_command: str) -> str:
+    """Require the non-mutating archive check immediately before an upload."""
+    return f"{preflight_command} && {upload_command}"
+
+
 def upload_testflight_ios_command(
     internal_only: bool,
     *,
@@ -2710,12 +2803,13 @@ def upload_testflight_ios_command(
         encoded_whats_new,
         whats_new_locale,
     ])
-    return app_store_connect_env_prefix(
+    upload_command = app_store_connect_env_prefix(
         command,
         api_key_path=api_key_path,
         api_key_id=api_key_id,
         api_issuer_id=api_issuer_id,
     )
+    return release_preflight_then_upload_command(release_archive_preflight_command("ios"), upload_command)
 
 
 def upload_testflight_macos_command(
@@ -2737,12 +2831,13 @@ def upload_testflight_macos_command(
         encoded_whats_new,
         whats_new_locale,
     ])
-    return app_store_connect_env_prefix(
+    upload_command = app_store_connect_env_prefix(
         command,
         api_key_path=api_key_path,
         api_key_id=api_key_id,
         api_issuer_id=api_issuer_id,
     )
+    return release_preflight_then_upload_command(release_archive_preflight_command("macos"), upload_command)
 
 
 def upload_testflight_watch_command(
@@ -2764,12 +2859,13 @@ def upload_testflight_watch_command(
         encoded_whats_new,
         whats_new_locale,
     ])
-    return app_store_connect_env_prefix(
+    upload_command = app_store_connect_env_prefix(
         command,
         api_key_path=api_key_path,
         api_key_id=api_key_id,
         api_issuer_id=api_issuer_id,
     )
+    return release_preflight_then_upload_command(release_archive_preflight_command("watchos"), upload_command)
 
 
 def deploy_latest_testflight_command(
@@ -2975,6 +3071,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Use passkey/webcredentials Associated Domains entitlements for paid-team builds",
     )
 
+    release_preflight_parser = subparsers.add_parser(
+        "release-archive-preflight",
+        help="Run a non-uploading Release archive preflight before Apple distribution",
+    )
+    release_preflight_parser.add_argument("--platform", choices=["ios", "macos", "watchos"], required=True)
+
     testflight_parser = subparsers.add_parser("upload-testflight-ios", help="Archive and upload OpenMates_iOS to TestFlight")
     testflight_parser.add_argument(
         "--external-capable",
@@ -3157,6 +3259,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.device_index,
                     ),
                 ]),
+            )
+        if args.command == "release-archive-preflight":
+            return run_remote(
+                config,
+                repo_command(config, ["bash", "-lc", release_archive_preflight_command(args.platform)]),
             )
         if args.command == "upload-testflight-ios":
             notes_options = testflight_notes_options(args)

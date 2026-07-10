@@ -10,8 +10,30 @@ name: Publish Python SDK
 on:
   pull_request:
     branches: [main]
+    paths:
+      - .github/workflows/publish-python-sdk.yml
+      - backend/apps/**/app.yml
+      - packages/openmates-python/**
+      - scripts/ci_impact.py
+      - scripts/generate_sdk_app_skills.py
+      - scripts/prepare_python_publish_version.py
+      - scripts/tests/test_ci_impact.py
+      - scripts/tests/test_ci_workflow_scope.py
+      - scripts/tests/test_prepare_python_publish_version.py
+      - shared/config/product_version.json
   push:
     branches: [main, dev]
+    paths:
+      - .github/workflows/publish-python-sdk.yml
+      - backend/apps/**/app.yml
+      - packages/openmates-python/**
+      - scripts/ci_impact.py
+      - scripts/generate_sdk_app_skills.py
+      - scripts/prepare_python_publish_version.py
+      - scripts/tests/test_ci_impact.py
+      - scripts/tests/test_ci_workflow_scope.py
+      - scripts/tests/test_prepare_python_publish_version.py
+      - shared/config/product_version.json
   workflow_dispatch: {}
 
 concurrency:

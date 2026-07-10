@@ -43,6 +43,29 @@ def test_apple_release_preflight_ignores_non_release_swift_paths() -> None:
     assert audit.audit_paths([ROOT / "apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift"]) == []
 
 
+def test_apple_release_preflight_validates_watch_source_membership() -> None:
+    audit = load_module("audit_apple_release_preflight", ROOT / "scripts/audit_apple_release_preflight.py")
+
+    project_text = (ROOT / "apple/project.yml").read_text(encoding="utf-8")
+    xcode_text = (ROOT / "apple/OpenMates.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
+
+    assert audit.target_source_membership_issues(project_text, xcode_text) == []
+
+
+def test_apple_release_preflight_rejects_watch_source_missing_from_target() -> None:
+    audit = load_module("audit_apple_release_preflight", ROOT / "scripts/audit_apple_release_preflight.py")
+
+    project_text = (ROOT / "apple/project.yml").read_text(encoding="utf-8")
+    xcode_text = (ROOT / "apple/OpenMates.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
+
+    broken_xcode = xcode_text.replace("OpenMatesWatchApp.swift in Sources", "OpenMatesWatchApp.swift absent")
+
+    assert any(
+        "OpenMatesWatch" in issue and "OpenMatesWatchApp.swift" in issue
+        for issue in audit.target_source_membership_issues(project_text, broken_xcode)
+    )
+
+
 def test_ui_control_visibility_blocks_new_control_without_identifier() -> None:
     audit = load_module("audit_ui_control_visibility", ROOT / "scripts/audit_ui_control_visibility.py")
 

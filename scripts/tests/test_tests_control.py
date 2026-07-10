@@ -97,6 +97,24 @@ def test_record_run_updates_state_history_and_run_archive(tmp_path, monkeypatch)
     assert (tests_control.RUNS_DIR / "20260619T030002Z.json").is_file()
 
 
+def test_record_run_preserves_passing_flake_metadata(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    run = sample_run()
+    run["summary"] = {"total": 1, "passed": 1, "failed": 0, "skipped": 0}
+    run["suites"] = {"playwright": {"status": "passed", "tests": [{
+        "name": "chat-flow.spec.ts", "file": "chat-flow.spec.ts", "status": "passed",
+        "flaky": True, "retries": 1, "attempt_statuses": ["failed", "passed"],
+    }]}}
+
+    tests_control.record_run_result(run)
+
+    record = json.loads(tests_control.STATE_FILE.read_text(encoding="utf-8"))["tests"]["playwright::chat-flow.spec.ts"]
+    assert record["status"] == "passed"
+    assert record["flaky"] is True
+    assert record["retries"] == 1
+    assert record["attempt_statuses"] == ["failed", "passed"]
+
+
 def test_triage_ranks_account_and_chat_failures_with_linked_files(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     spec_dir = tests_control.SPEC_DIR

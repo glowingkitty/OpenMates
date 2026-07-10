@@ -23,11 +23,10 @@ Data sources:
     D. OpenObserve errors (dev + prod)  — docker exec debug.py
     E. check-file-sizes.sh --ci         — subprocess
     F. Nightly job state files          — file reads (logs/nightly-reports/)
-    G. Workflow review (session quality) — import from _workflow_review_helper
-    H. User-reported issues             — docker exec debug_issue.py (Vault key)
-    I. Linear tasks                     — queried live by meeting session (MCP)
-    J. Milestone state                  — file read (.planning/)
-    K. Server stats                     — docker exec server_stats_query.py
+    G. User-reported issues             — docker exec debug_issue.py (Vault key)
+    H. Linear tasks                     — queried live by meeting session (MCP)
+    I. Milestone state                  — file read (.planning/)
+    J. Server stats                     — docker exec server_stats_query.py
     N. SEO health                       — HTTP requests to production sitemap + pages
 
 Importable from other helpers:
@@ -405,21 +404,6 @@ def gather_nightly_state_files() -> dict:
     return result
 
 
-def gather_session_quality(yesterday: str) -> str:
-    """Source G: session quality data from workflow review helper."""
-    try:
-        from _workflow_review_helper import build_session_digests
-        digest_text, count, chars = build_session_digests(yesterday, verbose=False)
-        if count == 0:
-            return "(No relevant Claude Code sessions found for yesterday.)"
-        MAX_SESSION_CHARS = 8000
-        if len(digest_text) > MAX_SESSION_CHARS:
-            digest_text = digest_text[:MAX_SESSION_CHARS] + "\n\n[...truncated for daily meeting...]"
-        return f"({count} sessions, {chars:,} chars total)\n\n{digest_text}"
-    except Exception as e:
-        return f"[DATA UNAVAILABLE: session quality — {e}]"
-
-
 def gather_user_issues(project_root: str) -> str:
     """Source H: user-reported issues via debug_issue.py inside Docker."""
     cmd = [
@@ -623,7 +607,7 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     data = {}
     failures = []
 
-    print(f"{LOG_PREFIX} Gathering data from 15 sources...")
+    print(f"{LOG_PREFIX} Gathering data from 14 sources...")
 
     with ThreadPoolExecutor(max_workers=9) as pool:
         futures = {
@@ -634,7 +618,6 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
             pool.submit(gather_openobserve_errors, True): "openobserve_prod",
             pool.submit(gather_large_files, project_root): "large_files",
             pool.submit(gather_user_issues, project_root): "user_issues",
-            pool.submit(gather_session_quality, yesterday): "session_quality",
             pool.submit(gather_server_stats): "server_stats",
             pool.submit(gather_server_stats, True): "server_stats_prod",
             pool.submit(gather_ephemeral_error_context): "ephemeral_error_context",
@@ -726,7 +709,6 @@ def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
         .replace("{{OBSIDIAN_DAILY_NOTE}}", obsidian_daily_note)
         .replace("{{GIT_LOG}}", data.get("git_log", "N/A"))
         .replace("{{NIGHTLY_REPORTS}}", nightly_text)
-        .replace("{{SESSION_QUALITY}}", data.get("session_quality", "N/A"))
         .replace("{{USER_ISSUES}}", data.get("user_issues", "N/A"))
         .replace("{{TEST_SUMMARY}}", test.get("summary", "N/A") if isinstance(test, dict) else str(test))
         .replace("{{FAILED_TESTS}}", test.get("failed_reports", "N/A") if isinstance(test, dict) else "N/A")

@@ -163,3 +163,10 @@ def test_default_vercel_node_major_matches_repo_runtime():
 
     assert package_json["engines"]["node"] == "24.x"
     assert guard.DEFAULT_VERCEL_NODE_MAJOR == 24
+
+
+def test_changed_paths_without_web_impact_are_ignored():
+    guard = load_vercel_ignore_module()
+
+    assert guard.should_ignore_for_changed_paths(["apple/OpenMates/Sources/App/OpenMatesApp.swift"]) is True
+    assert guard.should_ignore_for_changed_paths(["frontend/packages/ui/src/components/Header.svelte"]) is False

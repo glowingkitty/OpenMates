@@ -154,6 +154,7 @@ class SpecResult:
     account_email: Optional[str] = None
     retries: int = 0
     flaky: bool = False
+    attempt_statuses: list[str] = field(default_factory=list)
     # Structured Playwright data for MD reports
     playwright_errors: list[dict] = field(default_factory=list)
     steps: list[dict] = field(default_factory=list)
@@ -260,12 +261,52 @@ def _print_flaky_report() -> None:
 
     ranked.sort(key=lambda x: (-x[3], -x[1]))  # rate desc, then count desc
 
-    print(f"\nTop flaky tests ({len(ranked)} total):\n")
+    print(f"\nTop flaky tests ({len(ranked)} total, ADVISORY):\n")
     print(f"{'Rate':>6}  {'Flaky/Total':>12}  {'Last Flaky':<12}  Test")
     print(f"{'─' * 6}  {'─' * 12}  {'─' * 12}  {'─' * 40}")
     for key, flaky, total, rate, last_date in ranked[:15]:
         print(f"{rate:5.0%}   {flaky:>4}/{total:<6}  {last_date:<12}  {key}")
     print()
+
+
+def record_flake_history(run_data: dict) -> None:
+    """Persist bounded retry metrics without errors, logs, or test contents."""
+    run_id = str(run_data.get("run_id") or "")
+    if not run_id:
+        return
+    history_path = RESULTS_DIR / "flaky-history.json"
+    try:
+        history = json.loads(history_path.read_text(encoding="utf-8")) if history_path.is_file() else {}
+    except (json.JSONDecodeError, OSError):
+        history = {}
+    recorded_run_ids = set(history.get("recorded_run_ids") or [])
+    if run_id in recorded_run_ids:
+        return
+
+    tests = history.setdefault("tests", {})
+    for suite_name, suite in (run_data.get("suites") or {}).items():
+        if suite_name != "playwright" or not isinstance(suite, dict):
+            continue
+        for test in suite.get("tests") or []:
+            if not isinstance(test, dict):
+                continue
+            name = str(test.get("file") or test.get("name") or "")
+            if not name:
+                continue
+            entry = tests.setdefault(f"playwright::{name}", {"total_runs": 0, "flaky_count": 0})
+            entry["total_runs"] = int(entry.get("total_runs", 0)) + 1
+            entry["last_run_id"] = run_id
+            entry["last_status"] = str(test.get("status") or "unknown")
+            attempt_statuses = [str(status) for status in test.get("attempt_statuses") or []]
+            if attempt_statuses:
+                entry["last_attempt_statuses"] = attempt_statuses
+            if test.get("flaky"):
+                entry["flaky_count"] = int(entry.get("flaky_count", 0)) + 1
+                entry["last_flaky_date"] = datetime.now(timezone.utc).date().isoformat()
+
+    history["schema_version"] = 1
+    history["recorded_run_ids"] = sorted([*recorded_run_ids, run_id])[-500:]
+    _safe_write_json(history_path, history)
 
 
 def _record_unified_test_state(data: dict) -> None:
@@ -1241,6 +1282,9 @@ class BatchRunner:
             screenshot_paths: list[str] = []
             video_paths: list[str] = []
             account_email: Optional[str] = None
+            retries = 0
+            flaky = False
+            attempt_statuses: list[str] = []
 
             art_name = f"playwright-{spec.replace('/', '-')}"
             art_path = self.client.download_artifact(rid, art_name, artifact_dir)
@@ -1253,6 +1297,11 @@ class BatchRunner:
                     extracted_err, pw_errors, pw_steps, pw_result_statuses = (
                         self._extract_structured_data_from_playwright_json(pw_json)
                     )
+                    attempt_summary = self._playwright_attempt_summary(pw_json)
+                    pw_result_statuses = attempt_summary["terminal_statuses"]
+                    retries = int(attempt_summary["retries"])
+                    flaky = bool(attempt_summary["flaky"])
+                    attempt_statuses = list(attempt_summary["attempt_statuses"])
                     account_email = self._extract_account_email_from_playwright_json(pw_json)
                     if status == "passed" and pw_result_statuses:
                         non_passing_statuses = {
@@ -1304,6 +1353,7 @@ class BatchRunner:
             results.append(SpecResult(
                 name=spec, file=spec, status=status,
                 error=error, run_id=rid, account=account, account_email=account_email,
+                retries=retries, flaky=flaky, attempt_statuses=attempt_statuses,
                 playwright_errors=pw_errors,
                 steps=pw_steps,
                 screenshot_paths=screenshot_paths,
@@ -1412,6 +1462,56 @@ class BatchRunner:
             _log(f"Failed to parse playwright.json: {e}", "WARN")
 
         return first_error, errors, steps, result_statuses
+
+    @staticmethod
+    def _playwright_attempt_summary(pw_json: Path) -> dict[str, object]:
+        """Normalize terminal Playwright attempts while preserving flake evidence."""
+        terminal_statuses: list[str] = []
+        attempt_statuses: list[str] = []
+        retries = 0
+        flaky = False
+
+        def process_suite(suite: dict) -> None:
+            nonlocal retries, flaky
+            for spec in suite.get("specs", []):
+                for test in spec.get("tests", []):
+                    results = test.get("results", [])
+                    if not results:
+                        continue
+                    statuses = [str(result.get("status") or "") for result in results if result.get("status")]
+                    attempt_statuses.extend(statuses)
+                    if not statuses:
+                        continue
+                    has_retry_metadata = any("retry" in result for result in results)
+                    terminal_index = max(
+                        range(len(results)),
+                        key=lambda index: int(results[index].get("retry", index) or 0),
+                    ) if has_retry_metadata else len(results) - 1
+                    terminal_status = str(results[terminal_index].get("status") or "")
+                    if terminal_status:
+                        terminal_statuses.append(terminal_status)
+                    retries += max(0, len(results) - 1)
+                    if terminal_status == "passed" and any(
+                        status not in {"passed", "skipped"} for status in statuses[:terminal_index]
+                    ):
+                        flaky = True
+            for child_suite in suite.get("suites", []):
+                process_suite(child_suite)
+
+        try:
+            with pw_json.open(encoding="utf-8") as handle:
+                data = json.load(handle)
+            for suite in data.get("suites", []):
+                process_suite(suite)
+        except (json.JSONDecodeError, OSError) as exc:
+            _log(f"Failed to summarize Playwright attempts: {exc}", "WARN")
+
+        return {
+            "terminal_statuses": terminal_statuses,
+            "attempt_statuses": attempt_statuses,
+            "retries": retries,
+            "flaky": flaky,
+        }
 
     @staticmethod
     def _extract_account_email_from_playwright_json(pw_json: Path) -> Optional[str]:
@@ -1623,6 +1723,8 @@ class BatchRunner:
             d["retries"] = r.retries
         if r.flaky:
             d["flaky"] = True
+        if r.attempt_statuses:
+            d["attempt_statuses"] = r.attempt_statuses
         if r.playwright_errors:
             d["playwright_errors"] = r.playwright_errors
         if r.steps:
@@ -1730,6 +1832,7 @@ class ResultAggregator:
 
         # Write last-run.json (always overwritten)
         _safe_write_json(RESULTS_DIR / "last-run.json", data)
+        record_flake_history(data)
         try:
             _record_unified_test_state(data)
         except Exception as exc:

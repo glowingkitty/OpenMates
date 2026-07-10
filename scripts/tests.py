@@ -243,6 +243,9 @@ def record_run_result(run_data: dict[str, Any]) -> dict[str, Any]:
             "git_branch": run_data.get("git_branch"),
             "environment": run_data.get("environment"),
             "duration_seconds": test.get("duration_seconds", 0),
+            "flaky": bool(test.get("flaky")),
+            "retries": int(test.get("retries") or 0),
+            "attempt_statuses": [str(status) for status in test.get("attempt_statuses") or []],
             "error": test.get("error"),
             "updated_at": timestamp,
         }

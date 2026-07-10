@@ -229,6 +229,61 @@ def test_playwright_json_passed_with_skipped_phases_is_not_an_error(tmp_path):
     assert set(result_statuses) == {"passed", "skipped"}
 
 
+def test_playwright_retry_pass_is_a_passing_flake(tmp_path):
+    run_tests = load_run_tests_module()
+    report = tmp_path / "playwright.json"
+    report.write_text(
+        '{"suites":[{"specs":[{"tests":[{"results":['
+        '{"retry":0,"status":"failed","error":{"message":"first attempt"}},'
+        '{"retry":1,"status":"passed"}'
+        ']}]}]}]}',
+        encoding="utf-8",
+    )
+
+    summary = run_tests.BatchRunner._playwright_attempt_summary(report)
+
+    assert summary["terminal_statuses"] == ["passed"]
+    assert summary["attempt_statuses"] == ["failed", "passed"]
+    assert summary["retries"] == 1
+    assert summary["flaky"] is True
+
+
+def test_passing_flake_is_not_counted_as_a_final_failure():
+    run_tests = load_run_tests_module()
+    suite = run_tests.SuiteResult(
+        status="passed",
+        tests=[{"name": "example.spec.ts", "status": "passed", "flaky": True, "retries": 1}],
+    )
+
+    result = run_tests.ResultAggregator.build_run_result(
+        {"playwright": suite}, "run-1", "sha", "dev", "development", 1.0, {}
+    )
+
+    assert result.summary["passed"] == 1
+    assert result.summary["failed"] == 0
+
+
+def test_flake_history_is_idempotent_by_run_id(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path)
+    data = {
+        "run_id": "run-1",
+        "suites": {"playwright": {"tests": [{
+            "name": "example.spec.ts", "file": "example.spec.ts", "status": "passed",
+            "flaky": True, "retries": 1, "attempt_statuses": ["failed", "passed"],
+        }]}},
+    }
+
+    run_tests.record_flake_history(data)
+    run_tests.record_flake_history(data)
+
+    history = __import__("json").loads((tmp_path / "flaky-history.json").read_text(encoding="utf-8"))
+    entry = history["tests"]["playwright::example.spec.ts"]
+    assert entry["total_runs"] == 1
+    assert entry["flaky_count"] == 1
+    assert entry["last_attempt_statuses"] == ["failed", "passed"]
+
+
 def test_credit_guard_pipes_local_script_into_api_container(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     guard_script = tmp_path / "backend" / "scripts" / "top_up_test_account_credits.py"

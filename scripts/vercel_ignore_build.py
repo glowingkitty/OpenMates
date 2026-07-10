@@ -14,8 +14,10 @@ Tests: scripts/tests/test_vercel_ignore_build.py
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -35,6 +37,17 @@ VERSION_CONDITION_PATTERN = re.compile(r"(>=|>|<=|<|=)?\s*v?(\d+)(?:\.\d+)?(?:\.
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def _ci_impact_module():
+    script_path = Path(__file__).resolve().with_name("ci_impact.py")
+    spec = importlib.util.spec_from_file_location("openmates_ci_impact", script_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Unable to load deterministic CI impact classifier")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _parse_node_major(value: str | None) -> int:
@@ -110,6 +123,20 @@ def should_ignore_build(branch: str, lockfile_text: str, current_major: int) -> 
     return bool(incompatible), incompatible
 
 
+def should_ignore_for_changed_paths(paths: list[str] | tuple[str, ...]) -> bool:
+    """Skip only when deterministic path classification proves web is unaffected."""
+    return not _ci_impact_module().classify_paths(paths).web
+
+
+def _vercel_changed_paths(previous_sha: str, commit_sha: str) -> tuple[str, ...] | None:
+    if not previous_sha or not commit_sha:
+        return None
+    try:
+        return _ci_impact_module().changed_paths_since(previous_sha, commit_sha, _repo_root())
+    except (OSError, RuntimeError, subprocess.CalledProcessError):
+        return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Return Vercel ignoreCommand exit codes for preventable dependency-preview failures."
@@ -122,6 +149,8 @@ def main() -> int:
         help="Configured Vercel Node major. Defaults to current project setting: 20.",
     )
     parser.add_argument("--lockfile", type=Path, default=_repo_root() / "pnpm-lock.yaml")
+    parser.add_argument("--previous-sha", default=os.environ.get("VERCEL_GIT_PREVIOUS_SHA", ""))
+    parser.add_argument("--commit-sha", default=os.environ.get("VERCEL_GIT_COMMIT_SHA", ""))
     args = parser.parse_args()
 
     if not args.lockfile.exists():
@@ -131,6 +160,10 @@ def main() -> int:
     lockfile_text = args.lockfile.read_text(encoding="utf-8")
     ignore, incompatible = should_ignore_build(args.branch, lockfile_text, args.node_major)
     if not ignore:
+        changed_paths = _vercel_changed_paths(args.previous_sha, args.commit_sha)
+        if changed_paths is not None and should_ignore_for_changed_paths(changed_paths):
+            print("[vercel-ignore] skipping build: changed paths do not affect the web deployment")
+            return BUILD_IGNORE
         print(f"[vercel-ignore] continuing build for branch {args.branch or '<unknown>'}")
         return BUILD_CONTINUE
 

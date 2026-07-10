@@ -78,10 +78,6 @@ This is the persistent daily dashboard in `vaults/memory/Daily Notes/{{DATE}}.md
 
 {{SERVER_STATS_PROD}}
 
-### Session Quality (Yesterday)
-
-{{SESSION_QUALITY}}
-
 ### User-Reported Issues (last 24h)
 
 {{USER_ISSUES}}

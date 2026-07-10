@@ -9,6 +9,7 @@ import { spawnSync } from "node:child_process";
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
+const READ_TOOLS = new Set(["read", "Read"]);
 const PROJECT_ROOT = "/home/superdev/projects/OpenMates";
 const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
 const POST_EDIT_LINTS = [
@@ -119,7 +120,7 @@ function runCommand(command, payload) {
   }
 }
 
-function runCommandArgs(command, args, payload) {
+function runCommandArgs(command, args, payload, allowHookWarning = false) {
   const result = spawnSync(command, args, {
     cwd: PROJECT_ROOT,
     input: JSON.stringify(payload),
@@ -132,8 +133,32 @@ function runCommandArgs(command, args, payload) {
   if (stdout) console.log(stdout);
   if (stderr) console.error(stderr);
 
-  if (result.status !== 0 && result.status !== 2) {
+  if (result.status !== 0 && !(allowHookWarning && result.status === 2)) {
     throw new Error(stderr || stdout || `OpenMates command hook failed with exit ${result.status}`);
+  }
+}
+
+function runStaleRead(action, sessionID, file) {
+  if (!sessionID || !file) return;
+
+  const result = spawnSync("python3", [
+    `${PROJECT_ROOT}/scripts/sessions.py`,
+    "stale-read",
+    action,
+    "--opencode-session",
+    sessionID,
+    "--file",
+    file,
+  ], {
+    cwd: PROJECT_ROOT,
+    encoding: "utf8",
+  });
+  const stdout = (result.stdout || "").trim();
+  const stderr = (result.stderr || "").trim();
+  if (stdout) console.log(stdout);
+  if (stderr) console.error(stderr);
+  if (result.status !== 0) {
+    throw new Error(stderr || stdout || `OpenCode stale-read ${action} failed with exit ${result.status}`);
   }
 }
 
@@ -181,9 +206,17 @@ export const OpenMatesHooks = async () => {
   return {
     "tool.execute.before": async (input, output) => {
       const tool = input.tool || "";
-      if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool)) return;
+      if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool)) return;
 
-      runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args));
+      if (EDIT_TOOLS.has(tool)) {
+        for (const file of editedFiles(input?.args || output?.args)) {
+          runStaleRead("check", input.sessionID, file);
+        }
+      }
+
+      if (!READ_TOOLS.has(tool)) {
+        runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args));
+      }
     },
     "tool.execute.after": async (input, output) => {
       const tool = input.tool || "";
@@ -194,9 +227,16 @@ export const OpenMatesHooks = async () => {
         }
       }
 
+      if (READ_TOOLS.has(tool)) {
+        const args = input?.args || {};
+        const file = args.filePath || args.file_path || args.path;
+        runStaleRead("record", input.sessionID, file);
+        return;
+      }
+
       if (!EDIT_TOOLS.has(tool)) return;
 
-      const args = toolArgs(input, output);
+      const args = input?.args || toolArgs(input, output);
       runBridge("PostToolUse", bridgePayload("PostToolUse", tool, args));
 
       for (const file of editedFiles(args)) {
@@ -205,8 +245,14 @@ export const OpenMatesHooks = async () => {
           runCommand(command, payload);
         }
         for (const [command, ...commandArgs] of POST_EDIT_AUDITS) {
-          runCommandArgs(command, [...commandArgs, file], payload);
+          runCommandArgs(
+            command,
+            [...commandArgs, file],
+            payload,
+            commandArgs[0]?.endsWith("audit_ui_control_visibility.py"),
+          );
         }
+        runStaleRead("sync", input.sessionID, file);
       }
     },
   };
