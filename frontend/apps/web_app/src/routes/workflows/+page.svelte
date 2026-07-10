@@ -1076,8 +1076,17 @@
   }
 
   .workflows-start:not(.management-view) {
+    display: block;
     gap: 0;
     overflow: hidden;
+  }
+
+  .workflow-home-show-all {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    z-index: var(--z-index-raised-3);
   }
 
   .management-header p,
