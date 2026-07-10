@@ -175,9 +175,9 @@ acceptance_criteria:
     verification_ids: [T-CATALOG-UNIT, T-CATALOG-AUDIT]
   - id: AC-3
     scenario: S-2
-    text: Release notes list only verified npm, PyPI, and GHCR artifacts and explicitly omit unavailable channels without mentioning Apple or VS Code distribution.
+    text: Release notes preserve detailed user-facing milestone highlights, list only verified npm, PyPI, and GHCR artifacts, and omit unavailable channels without mentioning Apple or VS Code distribution.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CATALOG-UNIT]
@@ -225,7 +225,7 @@ contracts:
     - GitHub source archives are provided by the annotated tag and are never uploaded as duplicate assets.
     - npm and PyPI links must name an exact published version.
     - GHCR links must include a tag and immutable digest verified against the release source.
-    - Unverified or unavailable channels are rendered as unavailable, not rebuilt or implied.
+    - Unverified or unavailable channels are omitted from installation sections, not rebuilt or implied.
   automation:
     - Draft creation requires --verify-tag and a tag resolving to the catalog SHA.
     - The workflow may create or update drafts but must never publish a release.
@@ -240,7 +240,7 @@ tests:
     covers: [AC-1, AC-2, AC-3, AC-5]
     assertions:
       - valid historical entries render a source, npm, PyPI, and GHCR availability table
-      - unavailable channels render as unavailable and omit Apple and VS Code wording
+      - unavailable channels are omitted and release notes preserve detailed user-facing highlights
       - invalid tags, non-40-character SHAs, duplicate tags, branch targets, and SHA mismatches fail validation
       - draft command uses --verify-tag and --draft --prerelease
     red_phase:
@@ -256,11 +256,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: passed
-        command: python3 -m pytest scripts/tests/test_release_catalog.py
-        run_id: local:pytest-release-catalog-green
-        subject_commit: a8e3ca9
-        timestamp: "2026-07-10T11:30:08Z"
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
   - id: T-CATALOG-AUDIT
     type: unit
     file: scripts/release_catalog.py

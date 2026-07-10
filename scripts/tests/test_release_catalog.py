@@ -35,6 +35,7 @@ def valid_catalog() -> dict:
                 "prerelease": True,
                 "historical_backfill": True,
                 "original_release_window": "May 2026",
+                "release_notes": "## Highlights\n- A detailed user-facing capability.",
                 "artifacts": {
                     "npm": {"version": "0.10.0-alpha.5", "git_head": "a" * 40},
                     "pypi": {"status": "unavailable"},
@@ -48,12 +49,13 @@ def valid_catalog() -> dict:
 def test_valid_catalog_renders_only_supported_channels() -> None:
     milestone = validate_catalog(valid_catalog())[0]
 
-    notes = render_release_notes(milestone, "## Overview\nA reconstructed milestone.")
+    notes = render_release_notes(milestone)
 
     assert "Historical backfill" in notes
+    assert "## Highlights" in notes
+    assert "A detailed user-facing capability." in notes
     assert "npm install -g openmates@0.10.0-alpha.5" in notes
-    assert "PyPI: unavailable" in notes
-    assert "Self-hosted images: unavailable" in notes
+    assert "unavailable" not in notes
     assert "Apple" not in notes
     assert "VS Code" not in notes
 

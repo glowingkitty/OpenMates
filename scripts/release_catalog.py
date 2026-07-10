@@ -102,6 +102,7 @@ def validate_catalog(catalog: dict[str, Any]) -> list[dict[str, Any]]:
             raise ReleaseCatalogError(f"commit must be an immutable 40-character SHA: {commit}")
         _required_string(milestone, "title")
         _required_string(milestone, "original_release_window")
+        _required_string(milestone, "release_notes")
         if milestone.get("prerelease") is not True:
             raise ReleaseCatalogError(f"{tag} must be a prerelease")
         if milestone.get("historical_backfill") is not True:
@@ -124,38 +125,32 @@ def validate_catalog(catalog: dict[str, Any]) -> list[dict[str, Any]]:
     return validated
 
 
-def render_release_notes(milestone: dict[str, Any], overview: str) -> str:
+def render_release_notes(milestone: dict[str, Any]) -> str:
     artifacts = milestone["artifacts"]
     lines = [
         "> Historical backfill: reconstructed from immutable git and registry records.",
         f"> Original release window: {milestone['original_release_window']}. GitHub publication occurs after maintainer review.",
         "",
-        overview.strip(),
+        milestone["release_notes"].strip(),
         "",
         "## Source",
         f"- Commit: `{milestone['commit']}`",
         f"- GitHub provides source `.zip` and `.tar.gz` downloads for tag `{milestone['tag']}`.",
-        "",
-        "## Available Installations",
     ]
     npm = artifacts["npm"]
-    lines.append(
-        f"- npm: `npm install -g openmates@{npm['version']}`"
-        if "version" in npm
-        else "- npm: unavailable for this historical milestone."
-    )
+    available_installations: list[str] = []
+    if "version" in npm:
+        available_installations.append(f"- npm: `npm install -g openmates@{npm['version']}`")
     pypi = artifacts["pypi"]
-    lines.append(
-        f"- PyPI: `pip install openmates=={pypi['version']}`"
-        if "version" in pypi
-        else "- PyPI: unavailable for this historical milestone."
-    )
+    if "version" in pypi:
+        available_installations.append(f"- PyPI: `pip install openmates=={pypi['version']}`")
     ghcr = artifacts["ghcr"]
-    lines.append(
-        f"- Self-hosted images: `ghcr.io/glowingkitty/openmates-api:{ghcr['tag']}` (`{ghcr['digest']}`)."
-        if "tag" in ghcr
-        else "- Self-hosted images: unavailable for this historical milestone."
-    )
+    if "tag" in ghcr:
+        available_installations.append(
+            f"- Self-hosted images: `ghcr.io/glowingkitty/openmates-api:{ghcr['tag']}` (`{ghcr['digest']}`)."
+        )
+    if available_installations:
+        lines.extend(["", "## Available Installations", *available_installations])
     return "\n".join(lines) + "\n"
 
 
@@ -290,7 +285,7 @@ def create_tag(milestone: dict[str, Any], *, push: bool) -> None:
 
 def create_draft(milestone: dict[str, Any], *, apply: bool) -> None:
     audit_milestone(milestone)
-    notes = render_release_notes(milestone, milestone["overview"])
+    notes = render_release_notes(milestone)
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".md", delete=False) as file:
         notes_path = Path(file.name)
         file.write(notes)
@@ -352,7 +347,7 @@ def main() -> int:
                 create_draft(milestone, apply=args.apply)
         else:
             for milestone in milestones:
-                print(render_release_notes(milestone, milestone["overview"]), end="")
+                print(render_release_notes(milestone), end="")
     except ReleaseCatalogError as exc:
         print(f"FAIL {exc}", file=sys.stderr)
         return 1

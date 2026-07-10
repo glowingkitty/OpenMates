@@ -6,9 +6,16 @@ milestones:
     prerelease: true
     historical_backfill: true
     original_release_window: "2026-05-21 to 2026-05-22"
-    overview: |
-      v0.10 expanded practical chat workflows with richer app capabilities,
-      public sharing improvements, and payment-related account support.
+    release_notes: |
+      ## Highlights
+      - Wikipedia topics can be linked directly inside answers, making follow-up learning and research easier without leaving the chat.
+      - Message highlights and comments let you save an important passage or keep a note beside a specific recommendation.
+      - Travel, events, and code skills gained more useful sources, structured results, and direct next steps.
+      - Embeds, previews, and public example pages became clearer to inspect and share.
+
+      ## Everyday Improvements
+      - SEPA bank transfers, improved checkout support, and account email changes made account and payment basics more reliable.
+      - Encrypted chat sync, embeds, signup, and Safari behavior received broad stability work.
     artifacts:
       npm:
         version: 0.10.0-alpha.5
@@ -23,9 +30,16 @@ milestones:
     prerelease: true
     historical_backfill: true
     original_release_window: "2026-05-26 to 2026-06-13"
-    overview: |
-      v0.11 added practical everyday tools, including code execution,
-      repository research, richer inspirations, and generated-media improvements.
+    release_notes: |
+      ## Highlights
+      - Daily Inspirations became richer starting points for research, examples, and useful tasks.
+      - The Code app can run sandboxed code, show outputs, and support repository research and follow-up actions.
+      - Music generation and improved image providers expanded creative work directly in chat.
+      - App cards and embed previews gained clearer provider details, source context, and metadata.
+
+      ## Quality Improvements
+      - Follow-up suggestions and local interface font preferences made longer sessions easier to continue and read.
+      - Chat sync, embeds, file previews, and image-result previews received stability and performance improvements.
     artifacts:
       npm:
         version: 0.11.0-alpha.38
@@ -40,9 +54,15 @@ milestones:
     prerelease: true
     historical_backfill: true
     original_release_window: "2026-06-13 to 2026-06-20"
-    overview: |
-      v0.12 improved SDK and CLI capabilities while adding video-creation
-      workflows and broader product reliability work.
+    release_notes: |
+      ## Highlights
+      - The CLI and SDK gained signup, billing, security setup, workflow, and richer embed capabilities.
+      - Video-creation embeds introduced a new path for generating and reviewing product video workflows.
+      - Example chats and their embedded results became more consistent across interfaces.
+
+      ## Quality Improvements
+      - Package, dependency, and app-result reliability work improved the foundations for programmatic OpenMates use.
+      - Chat and embed behavior received focused regression coverage across the release window.
     artifacts:
       npm:
         version: 0.12.1
@@ -57,9 +77,15 @@ milestones:
     prerelease: true
     historical_backfill: true
     original_release_window: "2026-06-22"
-    overview: |
-      v0.13 introduced the CLI TUI, project foundations, connected-account
-      import, and a more guided guest experience.
+    release_notes: |
+      ## Highlights
+      - The OpenMates CLI gained an interactive terminal interface for working with chats and results.
+      - Project remote-source foundations made it possible to connect and work from external project material.
+      - Connected-account import, guest interests, and mind-map embeds improved onboarding and exploration.
+
+      ## Quality Improvements
+      - CLI benchmarks and typed contracts expanded programmatic reliability for developers and advanced users.
+      - The release continued broader work on workflow foundations and richer interactive chat outputs.
     artifacts:
       npm:
         status: unavailable
