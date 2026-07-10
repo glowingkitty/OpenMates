@@ -590,7 +590,7 @@ contracts:
     - Empty, focused empty, compact, expanded, multiline, scrolled, and fullscreen composer.
     - Raw markdown processing and completed decoration states.
     - Mention query, results, inserted mention, and deleted mention.
-    - Individual and grouped embed previews in uploading, processing, transcribing, finished, cancelled, and error states.
+    - Individual and grouped embed previews in draft, uploading, processing, transcribing, finished, cancelled, and error states.
     - Deferred send, queued send, resumed send, and failed queued send.
     - PII highlight, warning, anonymized, dismissed, and disabled states.
     - Draft restored, edit mode, offline, conflict, and recoverable parse/render failure states.
@@ -730,7 +730,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "local-and-apple-remote-7afb171"
+        timestamp: "2026-07-10T07:26:00Z"
+        summary: Generated audit passed 54/54 registered write-mode types, focused audit tests passed 9/9, Apple registry contracts passed 5/5, and the simulator renderer gallery passed 1/1 with a screenshot attachment across the exact seven lifecycle states.
 
   - id: T-APPLE-UPLOAD-AUDIO-UI
     type: unit
@@ -1468,18 +1472,21 @@ tasks:
 
   - id: TASK-7
     title: Implement complete native composer renderer registry
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-3, S-10, S-14]
       acceptance_criteria: [AC-3, AC-10, AC-14]
     expected_files:
-      - apple/OpenMates/Sources/Shared/Composer/ComposerEmbedRendererRegistry.swift
-      - apple/OpenMates/Sources/Shared/Composer/Previews/**
-      - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+      - apple/OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift
+      - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+      - apple/OpenMatesTests/AppleComposerRendererRegistryTests.swift
+      - apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift
+      - shared/composer/fixtures/apple-composer-renderer-v1.json
       - shared/composer/fixtures/renderer-coverage.yml
     verification_ids: [T-APPLE-RENDERER-COVERAGE, T-APPLE-INLINE-EMBED-UI, T-APPLE-VISUAL-PARITY]
-    blockers: [TASK-3, TASK-6]
+    blockers: []
     dependencies: [TASK-3, TASK-6]
     follow_up_tasks: [TASK-11, TASK-14]
     independently_deployable: false
