@@ -25,10 +25,10 @@ struct ComposerDraft: Sendable {
 
 protocol ComposerDraftRepository: Sendable {
     func upsert(_ record: ComposerDraftRecord) async throws
-    func record(chatId: String) async -> ComposerDraftRecord?
+    func record(chatId: String) async throws -> ComposerDraftRecord?
     func remove(chatId: String) async throws
     func removeAll() async throws
-    func allRecords() async -> [ComposerDraftRecord]
+    func allRecords() async throws -> [ComposerDraftRecord]
 }
 
 protocol LegacyComposerDraftStore: Sendable {
@@ -48,6 +48,7 @@ enum ComposerDraftError: Error, Equatable {
     case masterKeyUnavailable
     case encryptedWriteFailed
     case verificationFailed
+    case migrationConflict
 }
 
 actor UserDefaultsLegacyComposerDraftStore: LegacyComposerDraftStore {
@@ -135,7 +136,13 @@ final class DraftService: ObservableObject {
     }
 
     func loadDraft(chatId: String) async throws -> ComposerDraft? {
-        guard let record = await repository.record(chatId: chatId) else { return nil }
+        let record: ComposerDraftRecord
+        do {
+            guard let stored = try await repository.record(chatId: chatId) else { return nil }
+            record = stored
+        } catch {
+            throw ComposerDraftError.verificationFailed
+        }
         let masterKey = try await requireMasterKey()
         do {
             let markdown = try await crypto.decryptContent(
@@ -164,6 +171,15 @@ final class DraftService: ObservableObject {
         let masterKey = try await requireMasterKey()
 
         for (chatId, markdown) in legacyDrafts {
+            do {
+                if try await repository.record(chatId: chatId) != nil {
+                    throw ComposerDraftError.migrationConflict
+                }
+            } catch let error as ComposerDraftError {
+                throw error
+            } catch {
+                throw ComposerDraftError.verificationFailed
+            }
             let preview = String(markdown.prefix(160))
             let record = try await encryptedRecord(
                 canonicalMarkdown: markdown,
@@ -180,14 +196,18 @@ final class DraftService: ObservableObject {
             }
 
             do {
-                guard let stored = await repository.record(chatId: chatId) else {
+                guard let stored = try await repository.record(chatId: chatId) else {
                     throw ComposerDraftError.verificationFailed
                 }
-                let verified = try await crypto.decryptContent(
+                let verifiedMarkdown = try await crypto.decryptContent(
                     base64String: stored.encryptedMarkdown,
                     key: masterKey
                 )
-                guard verified == markdown else {
+                let verifiedPreview = try await crypto.decryptContent(
+                    base64String: stored.encryptedPreview,
+                    key: masterKey
+                )
+                guard verifiedMarkdown == markdown, verifiedPreview == preview else {
                     throw ComposerDraftError.verificationFailed
                 }
             } catch {

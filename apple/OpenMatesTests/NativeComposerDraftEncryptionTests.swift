@@ -110,6 +110,39 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertNil(remainingLegacyDrafts[chatId])
     }
 
+    func testMigrationPreservesNewerEncryptedDraftAndLegacyConflict() async throws {
+        let fixture = try loadFixture()
+        let repository = RecordingComposerDraftRepository()
+        let legacyMarkdown = "Older synthetic legacy draft at https://composer-fixture.invalid/legacy."
+        let legacyStore = RecordingLegacyComposerDraftStore(drafts: [chatId: legacyMarkdown])
+        let service = makeService(
+            repository: repository,
+            legacyStore: legacyStore,
+            masterKey: try masterKey(fixture)
+        )
+        try await service.saveDraft(
+            canonicalMarkdown: fixture.plaintext.canonicalDraftMarkdown,
+            preview: fixture.plaintext.draftPreview,
+            chatId: chatId,
+            revision: 14,
+            draftVersion: 1
+        )
+
+        await assertComposerDraftError(.migrationConflict) {
+            try await service.migrateLegacyDraftsAfterUnlock()
+        }
+
+        let storedRecord = await repository.record(chatId: chatId)
+        let encryptedRecord = try XCTUnwrap(storedRecord)
+        let encryptedMarkdown = try await CryptoManager.shared.decryptContent(
+            base64String: encryptedRecord.encryptedMarkdown,
+            key: try masterKey(fixture)
+        )
+        XCTAssertEqual(encryptedMarkdown, fixture.plaintext.canonicalDraftMarkdown)
+        let remainingLegacyDrafts = await legacyStore.drafts()
+        XCTAssertEqual(remainingLegacyDrafts[chatId], legacyMarkdown)
+    }
+
     func testUnavailableKeyPreservesLegacyDraftAndReturnsTypedError() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
@@ -261,7 +294,7 @@ private actor RecordingComposerDraftRepository: ComposerDraftRepository {
     func record(chatId: String) async -> ComposerDraftRecord? {
         guard var record = records[chatId] else { return nil }
         if corruptReads {
-            record.encryptedMarkdown = "corrupt-synthetic-ciphertext.invalid"
+            record.encryptedPreview = "corrupt-synthetic-ciphertext.invalid"
         }
         return record
     }

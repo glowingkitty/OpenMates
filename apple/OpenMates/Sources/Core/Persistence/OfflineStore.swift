@@ -714,13 +714,15 @@ extension OfflineStore: ComposerDraftRepository {
         try context.save()
     }
 
-    func record(chatId: String) async -> ComposerDraftRecord? {
-        guard let context = modelContext else { return nil }
+    func record(chatId: String) async throws -> ComposerDraftRecord? {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
         let targetChatId = chatId
         let descriptor = FetchDescriptor<PersistedComposerDraft>(
             predicate: #Predicate { $0.chatId == targetChatId }
         )
-        return try? context.fetch(descriptor).first?.toRecord()
+        return try context.fetch(descriptor).first?.toRecord()
     }
 
     func remove(chatId: String) async throws {
@@ -745,9 +747,11 @@ extension OfflineStore: ComposerDraftRepository {
         try context.save()
     }
 
-    func allRecords() async -> [ComposerDraftRecord] {
-        guard let context = modelContext else { return [] }
+    func allRecords() async throws -> [ComposerDraftRecord] {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
         let descriptor = FetchDescriptor<PersistedComposerDraft>()
-        return ((try? context.fetch(descriptor)) ?? []).map { $0.toRecord() }
+        return try context.fetch(descriptor).map { $0.toRecord() }
     }
 }
