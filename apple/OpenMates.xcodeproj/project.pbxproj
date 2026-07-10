@@ -44,6 +44,8 @@
 		C0FFEE00000000000005003E /* ComposerPIIDecorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */; };
 		C0FFEE00000000000005003F /* ComposerPIIDecorations.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */; };
 		C0FFEE000000000000050054 /* NativeComposerSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */; };
+		C0FFEE000000000000050059 /* NativeComposerFailureRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050058 /* NativeComposerFailureRecoveryTests.swift */; };
+		C0FFEE00000000000005005B /* NativeComposerPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005005A /* NativeComposerPerformanceTests.swift */; };
 		C0FFEE000000000000050056 /* NativeComposerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050055 /* NativeComposerSession.swift */; };
 		C0FFEE000000000000050057 /* NativeComposerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050055 /* NativeComposerSession.swift */; };
 		C0FFEE00000000000005000E /* NativeComposerEncryptionCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */; };
@@ -900,6 +902,8 @@
 		C0FFEE00000000000005003A /* ComposerMentionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerMentionService.swift; sourceTree = "<group>"; };
 		C0FFEE00000000000005003D /* ComposerPIIDecorations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerPIIDecorations.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerSessionTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050058 /* NativeComposerFailureRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerFailureRecoveryTests.swift; sourceTree = "<group>"; };
+		C0FFEE00000000000005005A /* NativeComposerPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerPerformanceTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050055 /* NativeComposerSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerSession.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleComposerEmbedPreview.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevChatOpeningPreviewView.swift; sourceTree = "<group>"; };
@@ -1625,6 +1629,8 @@
 				C0FFEE000000000000050030 /* NativeComposerPasteTests.swift */,
 				C0FFEE000000000000050032 /* NativeComposerMentionPIITests.swift */,
 				C0FFEE000000000000050053 /* NativeComposerSessionTests.swift */,
+				C0FFEE000000000000050058 /* NativeComposerFailureRecoveryTests.swift */,
+				C0FFEE00000000000005005A /* NativeComposerPerformanceTests.swift */,
 				C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
 				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
@@ -2835,6 +2841,8 @@
 				C0FFEE000000000000050031 /* NativeComposerPasteTests.swift in Sources */,
 				C0FFEE000000000000050033 /* NativeComposerMentionPIITests.swift in Sources */,
 				C0FFEE000000000000050054 /* NativeComposerSessionTests.swift in Sources */,
+				C0FFEE000000000000050059 /* NativeComposerFailureRecoveryTests.swift in Sources */,
+				C0FFEE00000000000005005B /* NativeComposerPerformanceTests.swift in Sources */,
 				C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
 				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,
