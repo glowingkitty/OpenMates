@@ -5,6 +5,7 @@
 // The production seam intentionally does not exist yet, so this file must not compile.
 
 import CryptoKit
+import SwiftData
 import XCTest
 @testable import OpenMates
 
@@ -231,6 +232,47 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
             String(reflecting: remainingRecords)
                 .contains(fixture.plaintext.canonicalDraftMarkdown)
         )
+    }
+
+    func testProductionSwiftDataRepositoryPersistsCiphertextOnlyAndSupportsCRUD() async throws {
+        let schema = Schema([PersistedComposerDraft.self])
+        let configuration = ModelConfiguration(
+            "ComposerDraftRepositoryTests",
+            schema: schema,
+            isStoredInMemoryOnly: true
+        )
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let repository = OfflineStore(modelContainer: container)
+        let canonicalMarkdown = "Synthetic private draft that must never be stored."
+        let initial = ComposerDraftRecord(
+            chatId: chatId,
+            encryptedMarkdown: "format-d-ciphertext-markdown",
+            encryptedPreview: "format-d-ciphertext-preview",
+            revision: 13,
+            draftVersion: 1
+        )
+
+        try await repository.upsert(initial)
+        var stored = try XCTUnwrap(try await repository.record(chatId: chatId))
+        XCTAssertEqual(stored.encryptedMarkdown, initial.encryptedMarkdown)
+        XCTAssertFalse(String(reflecting: stored).contains(canonicalMarkdown))
+
+        stored.encryptedMarkdown = "updated-format-d-ciphertext"
+        try await repository.upsert(stored)
+        let updated = try XCTUnwrap(try await repository.record(chatId: chatId))
+        XCTAssertEqual(updated.encryptedMarkdown, "updated-format-d-ciphertext")
+        XCTAssertEqual(try await repository.allRecords().count, 1)
+
+        let persisted = try container.mainContext.fetch(FetchDescriptor<PersistedComposerDraft>())
+        XCTAssertEqual(persisted.count, 1)
+        XCTAssertFalse(String(reflecting: persisted).contains(canonicalMarkdown))
+
+        try await repository.remove(chatId: chatId)
+        XCTAssertNil(try await repository.record(chatId: chatId))
+
+        try await repository.upsert(initial)
+        try await repository.removeAll()
+        XCTAssertTrue(try await repository.allRecords().isEmpty)
     }
 
     private func makeService(
