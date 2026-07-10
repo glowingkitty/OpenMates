@@ -12,11 +12,13 @@
 #if canImport(UIKit)
 import SwiftUI
 import UIKit
+import ObjectiveC
+
+private var composerHostingControllerKey: UInt8 = 0
 
 final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     private static let embedHeight: CGFloat = 200
     private static let mentionHeight: CGFloat = 28
-    private var hostingController: UIViewController?
 
     override init(
         textAttachment: NSTextAttachment,
@@ -36,16 +38,23 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     override func loadView() {
         guard let attachment = textAttachment as? ComposerTextAttachment,
               let node = attachment.nodeSnapshot else {
-            let unavailableView = UIView(frame: .zero)
-            unavailableView.accessibilityIdentifier = "native-composer-attachment-unavailable"
-            view = unavailableView
+            view = MainActor.assumeIsolated {
+                let unavailableView = UIView(frame: .zero)
+                unavailableView.accessibilityIdentifier = "native-composer-attachment-unavailable"
+                return unavailableView
+            }
             return
         }
         let hosted = MainActor.assumeIsolated {
             let controller = UIHostingController(rootView: ComposerAttachmentContent(node: node))
             controller.view.backgroundColor = .clear
             controller.view.accessibilityIdentifier = platformIdentifier(for: node)
-            hostingController = controller
+            objc_setAssociatedObject(
+                controller.view as Any,
+                &composerHostingControllerKey,
+                controller,
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+            )
             return controller.view
         }
         view = hosted
@@ -79,7 +88,6 @@ import SwiftUI
 final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     private static let embedHeight: CGFloat = 200
     private static let mentionHeight: CGFloat = 28
-    private var hostingView: NSView?
 
     override init(
         textAttachment: NSTextAttachment,
@@ -99,15 +107,16 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     override func loadView() {
         guard let attachment = textAttachment as? ComposerTextAttachment,
               let node = attachment.nodeSnapshot else {
-            let unavailableView = NSView(frame: .zero)
-            unavailableView.identifier = NSUserInterfaceItemIdentifier("native-composer-attachment-unavailable")
-            view = unavailableView
+            view = MainActor.assumeIsolated {
+                let unavailableView = NSView(frame: .zero)
+                unavailableView.identifier = NSUserInterfaceItemIdentifier("native-composer-attachment-unavailable")
+                return unavailableView
+            }
             return
         }
         let hosted = MainActor.assumeIsolated {
             let hosted = NSHostingView(rootView: ComposerAttachmentContent(node: node))
             hosted.identifier = NSUserInterfaceItemIdentifier(platformIdentifier(for: node))
-            hostingView = hosted
             return hosted
         }
         view = hosted
