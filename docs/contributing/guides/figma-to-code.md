@@ -1,11 +1,11 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-07-10
 ---
 
 # Figma-to-Code — Reference
 
-Full phase-by-phase guide, component patterns, design token mapping, and validation checklist.
+Full phase-by-phase guide for locating, interpreting, implementing, and validating Figma-referenced UI.
 
 ---
 
@@ -17,11 +17,48 @@ Instructions for implementing UI components from Figma designs. **Load this docu
 
 ## Overview
 
-This workflow ensures high-fidelity translation of Figma designs into Svelte 5 components that follow OpenMates design system conventions. It is split into three sequential phases — never skip a phase.
+This workflow turns Figma concepts into Svelte 5 components that follow OpenMates
+design system conventions. The Figma board is not automatically at parity with
+the current web app or Apple app: it may contain future concepts, incomplete
+states, or older decisions. Establish which aspects are intended to change before
+using it as an implementation target.
 
 ---
 
 ## Phase 1: Design Interpretation (Before Writing Any Code)
+
+### Step 0 — Locate The Artboard
+
+When the user names a design instead of supplying a node URL, search the private
+local index before fetching the large Figma document:
+
+```bash
+python3 scripts/figma_index.py ensure --max-age-hours 168
+python3 scripts/figma_index.py search "check the workflows UI in Figma"
+```
+
+The index contains root sections/artboards, node IDs, hierarchy paths, dimensions,
+and the beginning of every descendant text node. It is stored at
+`scripts/.figma-index.json`, mode `600`, and ignored by git because the private
+design copy may include unreleased product concepts. If several results are
+credible, ask the user to select one rather than guessing.
+
+The weekly on-demand freshness window avoids wasteful polling and respects Figma
+API limits. Force a rebuild with `python3 scripts/figma_index.py refresh` when the
+user says the design changed recently.
+
+Local authentication lives in the gitignored `.env.figma.local` file:
+
+```dotenv
+FIGMA_ACCESS_TOKEN=<PERSONAL_ACCESS_TOKEN>
+```
+
+The local OpenCode configuration starts the pinned Figma MCP through
+`scripts/run_figma_mcp.sh`, which reads this file without putting the token in
+configuration or command arguments. This private MCP registration belongs in the
+user's OpenCode configuration, not committed project configuration. Restart
+OpenCode after changing the token or MCP configuration because MCP processes are
+created at startup.
 
 ### Step 1 — Extract Design Data
 
@@ -62,7 +99,10 @@ If only one breakpoint is provided in Figma, **note this explicitly** — it wil
 
 ### Step 3 — Map to Existing Design System
 
-Compare extracted Figma values against the OpenMates design system. Map every value to existing tokens before considering new ones.
+Compare approved Figma intent against the current implementation and the
+OpenMates design system. Use existing implementation tokens where appropriate,
+but do not expect Figma styles and code tokens to match one-to-one. Token drift
+between Figma and code is not itself a defect.
 
 #### Color Mapping
 
@@ -80,7 +120,9 @@ Reference: `frontend/packages/ui/src/styles/theme.css`
 | Placeholder | `--color-font-field-placeholder` (#9e9e9e) |
 | App-specific | `--color-app-{name}` with `-start`/`-end` for gradients |
 
-**NEVER hardcode hex colors.** If a Figma color does not match any existing token within a reasonable tolerance (±5 on each RGB channel), flag it in the clarifying questions.
+**NEVER hardcode hex colors in product code.** If an approved redesign needs a
+color that has no suitable implementation token, flag that product decision
+instead of automatically creating a token to mirror Figma.
 
 #### Typography Mapping
 
@@ -280,7 +322,7 @@ blocked on production.
 
 1. Navigate to the preview URL to browse all components
 2. Find the component you implemented in the component tree
-3. Use the preview to visually compare against the Figma screenshot
+3. Compare the approved design aspects against the Figma screenshot and preserve unrelated current behavior
 
 ### Using Playwright MCP for Automated Validation
 
@@ -290,7 +332,7 @@ For precise validation, use the **Playwright MCP** browser tools:
 1. Navigate to the component preview URL or the page containing the component
 2. Resize to match Figma frame dimensions (browser_resize)
 3. Take a screenshot (browser_take_screenshot)
-4. Compare against the Figma screenshot from Phase 1
+4. Compare the task's approved design aspects against the Figma screenshot from Phase 1
 5. Use browser_evaluate to verify computed CSS properties:
 ```
 
@@ -313,16 +355,18 @@ Example computed style verification:
 }
 ```
 
-Compare these computed values against the Figma design context values from Phase 1.
+Compare these computed values only where the approved task uses the Figma node as
+an implementation target. For Apple parity, the rendered web result remains the
+source of truth after the web change is approved.
 
 ### Validation Checklist
 
 For each breakpoint (desktop 1440px, tablet 768px, mobile 375px):
 
-- [ ] Layout direction and alignment match Figma
-- [ ] Spacing (gap, padding, margin) matches within 1px
-- [ ] Typography (font size, weight, line height) matches
-- [ ] Colors match design tokens (not hardcoded)
+- [ ] Approved layout direction and alignment follow the selected Figma concept
+- [ ] Approved spacing and sizing are implemented consistently across required breakpoints
+- [ ] Typography uses the implementation design system while preserving the approved visual hierarchy
+- [ ] Colors use implementation design tokens rather than hardcoded Figma values
 - [ ] Interactive states work (hover, focus, active, disabled)
 - [ ] Dark mode renders correctly (if applicable)
 - [ ] Component is accessible (proper semantic HTML, ARIA attributes)

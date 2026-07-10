@@ -125,6 +125,7 @@ Spec-driven development:
 - Use an inline spec instead of a full spec for small behavior changes; skip specs for trivial or mechanical work. See `docs/contributing/guides/spec-driven-development.md` for the boundary.
 
 Common routing:
+- Figma artboard lookup or design-referenced web/Apple UI work: use `figma-reference` before implementation.
 - New external API/provider: use `add-api`.
 - New backend app skill: use `add-app-skill`.
 - New embed type: use `add-embed-type`.
