@@ -36,9 +36,88 @@ struct DevPreviewRootView: View {
             #else
             DevQuickCaptureAttachmentPreviewView()
             #endif
+        case .composerEmbeds:
+            DevNativeComposerEmbedGalleryView()
         case .embeds:
             DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
         }
+    }
+}
+
+struct DevNativeComposerEmbedGalleryView: View {
+    private let registry = AppleComposerRendererRegistry.shared
+    private let actions = AppleComposerEmbedActions(
+        onOpen: { _ in },
+        onRetry: { _ in },
+        onRemove: { _ in }
+    )
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: .spacing10) {
+                lifecycleShowcase
+                ForEach(registry.registeredTypes, id: \.self) { embedType in
+                    if let descriptor = registry.descriptor(for: embedType) {
+                        AppleComposerEmbedPreview(
+                            descriptor: descriptor,
+                            node: fixtureNode(embedType: embedType, state: state(for: embedType)),
+                            lifecycle: state(for: embedType),
+                            embedRecord: nil,
+                            allEmbedRecords: [:],
+                            actions: actions
+                        )
+                    }
+                }
+            }
+            .padding(.spacing12)
+        }
+        .background(Color.grey0)
+        .accessibilityIdentifier("dev-native-composer-embed-gallery")
+        .accessibilityValue("\(registry.registeredTypes.count)")
+    }
+
+    private var lifecycleShowcase: some View {
+        Group {
+            if let descriptor = registry.descriptor(for: "recording") {
+                ForEach(AppleComposerEmbedLifecycleState.allCases, id: \.self) { state in
+                    AppleComposerEmbedPreview(
+                        descriptor: descriptor,
+                        node: fixtureNode(embedType: "recording", state: state),
+                        lifecycle: state,
+                        embedRecord: nil,
+                        allEmbedRecords: [:],
+                        actions: actions
+                    )
+                }
+            }
+        }
+    }
+
+    private func state(for embedType: String) -> AppleComposerEmbedLifecycleState {
+        switch embedType {
+        case "app-skill-use": .queued
+        case "electronics-pcb-schematic": .error
+        case "fitness-location": .uploading
+        case "code-repo-group": .cancelled
+        default: .finished
+        }
+    }
+
+    private func fixtureNode(
+        embedType: String,
+        state: AppleComposerEmbedLifecycleState
+    ) -> ComposerNodeV1 {
+        ComposerNodeV1.embed(
+            id: "composer:fixture:\(embedType):\(state.rawValue)",
+            embedType: embedType,
+            canonicalSource: "```json\n{}\n```",
+            referenceOnly: false,
+            display: ComposerEmbedDisplayV1(
+                title: EmbedType.normalized(rawValue: embedType)?.displayName
+                    ?? AppStrings.uploadProgressProcessing,
+                mediaKind: embedType
+            )
+        ).updatingStatus(state.rawValue)
     }
 }
 
