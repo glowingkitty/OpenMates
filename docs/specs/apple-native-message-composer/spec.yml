@@ -769,11 +769,19 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        run_id: "apple-remote-022e3a2-waveform-red"
+        timestamp: "2026-07-10T14:08:00Z"
+        summary: The committed waveform contract failed because VoiceRecorder had no local waveform constants, normalization, rolling-level state, or terminal cleanup API.
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-2c0967f-waveform-unit"
+        timestamp: "2026-07-10T14:19:25Z"
+        summary: VoiceRecorderTests passed 4/4 with synthetic decibel values only, proving the 50ms/64-sample contract, -46dB through -18dB normalization, rolling-buffer order, and stop/cancel reset behavior without retaining microphone data.
 
   - id: T-APPLE-RECORDING-WAVEFORM-UI
     type: unit
@@ -781,18 +789,26 @@ tests:
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
     covers: [AC-4, AC-10]
     assertions:
-      - The native recording overlay exposes a 64pt live waveform between the release heading and control row, with a stable accessibility identifier for deterministic screenshot and frame assertions.
+      - The native recording overlay renders a decorative 64pt live waveform between the release heading and control row while keeping it out of the accessibility tree, matching the verified web contract.
       - The recording panel is at least 220pt high, the 64pt waveform does not collapse under Auto Layout, and the timer, cancel hint, and 44pt mic control remain visible and hittable without overlap.
       - The web-equivalent release, drag-left cancellation, keyboard Escape cancellation, and completed-recording flows remain intact while waveform metering is active.
-      - The UI test keeps a simulator screenshot artifact for the quiet-speech and active-recording states; it does not assert or log microphone content.
+      - The UI test keeps a simulator screenshot artifact for the active near-silent recording state and uses accessible neighboring controls for geometry assertions; it does not assert or log microphone content.
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        run_id: "apple-remote-022e3a2-waveform-red"
+        timestamp: "2026-07-10T14:08:00Z"
+        summary: The committed Apple test target could not build before implementation because the native recorder exposed no waveform contract; the rendered overlay consequently had no native waveform implementation to verify.
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-109f139-audio-ui"
+        timestamp: "2026-07-10T14:28:29Z"
+        summary: MessageInputAudioRecordingUITests passed 5/5 in 98.6 seconds with a retained recording-overlay screenshot, at least 64pt between release text and the 44pt control row, decorative waveform exclusion from VoiceOver, and green release, drag-cancel, Escape-cancel, and short-tap flows.
 
   - id: T-APPLE-EMBED-LIFECYCLE
     type: unit
@@ -811,7 +827,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-109f139-unit-214"
+        timestamp: "2026-07-10T14:32:17Z"
+        summary: The complete OpenMatesTests target passed 214/214; NativeComposerEmbedLifecycleTests passed 6/6 across allowed, forbidden, duplicate, stale, retry, terminal, queued-send, and reconnect/termination transitions.
 
   - id: T-APPLE-PARSE-PASTE
     type: unit
@@ -830,7 +850,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-109f139-unit-214"
+        timestamp: "2026-07-10T14:32:17Z"
+        summary: The complete OpenMatesTests target passed 214/214; NativeComposerPasteTests passed 4/4 for custom embeds, URL/code/table/document classification, structured HTML, and lossless Unicode fallback.
 
   - id: T-APPLE-MENTION-PII
     type: unit
@@ -849,7 +873,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-109f139-unit-214"
+        timestamp: "2026-07-10T14:32:17Z"
+        summary: The complete OpenMatesTests target passed 214/214; NativeComposerMentionPIITests passed 5/5 for registered mention atoms, active-query replacement, surrounding selection/order, and visible-text-only PII redaction.
 
   - id: T-APPLE-DRAFT-EDIT-UI
     type: unit
@@ -1012,7 +1040,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-109f139-unit-214"
+        timestamp: "2026-07-10T14:32:17Z"
+        summary: The complete OpenMatesTests target passed 214/214; NativeComposerFailureRecoveryTests passed 3/3 for typed no-op lifecycle failures, original markdown recovery, and error-atom send blocking.
 
   - id: T-APPLE-SUBMIT
     type: unit
@@ -1031,7 +1063,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-109f139-unit-214"
+        timestamp: "2026-07-10T14:32:17Z"
+        summary: The complete OpenMatesTests target passed 214/214; NativeComposerSubmitTests passed 4/4 for platform Return policy, eligibility/blockers, lifecycle deferral, and duplicate request suppression.
 
   - id: T-APPLE-RENDERER-COVERAGE
     type: lint
@@ -1053,7 +1089,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "local-109f139-renderer-audit"
+        timestamp: "2026-07-10T14:29:05Z"
+        summary: The generated audit matched all 54 web write-mode renderer registrations to explicit Apple specific-native or structural-group coverage and passed with no silent fallback gaps.
 
   - id: T-WEB-ENCRYPTION-CONTRACT
     type: vitest
@@ -1146,7 +1186,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-109f139-unit-214"
+        timestamp: "2026-07-10T14:32:17Z"
+        summary: The complete OpenMatesTests target passed 214/214; NativeComposerPerformanceTests passed 3/3 for long canonical parsing, rapid typing with stable controller identity, and attachment reuse during 250 lifecycle updates.
 
   - id: T-APPLE-STATIC
     type: lint
@@ -1594,7 +1638,7 @@ tasks:
 
   - id: TASK-9
     title: Implement submit, paste, mentions, and PII behavior
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-5, S-6, S-13]
@@ -1706,7 +1750,7 @@ tasks:
 
   - id: TASK-18
     title: Match native live recording waveform, geometry, and cleanup to web
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-4, S-10, S-11]
