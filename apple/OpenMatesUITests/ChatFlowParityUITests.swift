@@ -246,6 +246,29 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Guest default suggestions before interest selection")
     }
 
+    func testGuestComposerKeepsHeightCapAfterFirstCharacter() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
+        let messageEditor = waitForMessageEditor(in: app)
+        messageEditor.tap()
+
+        let messageField = app.descendants(matching: .any)["message-field"]
+        XCTAssertTrue(messageField.waitForExistence(timeout: 5))
+        waitForFrameHeight(atLeast: focusedWebComposerMinHeight, element: messageField, timeout: 5)
+        XCTAssertLessThanOrEqual(messageField.frame.height, focusedWebComposerMaxHeight)
+
+        messageEditor.typeText("a")
+
+        XCTAssertLessThanOrEqual(
+            messageField.frame.height,
+            focusedWebComposerMaxHeight,
+            "Typing the first character must not remove the web composer's height cap"
+        )
+    }
+
     func testWelcomeRecentOverflowUsesCompactHeightOnPhone() throws {
         let app = XCUIApplication()
         app.launchArguments = [
