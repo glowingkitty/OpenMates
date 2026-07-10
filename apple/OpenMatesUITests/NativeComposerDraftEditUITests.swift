@@ -62,11 +62,12 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
         app.launch()
 
-        let atom = element(in: app, identifier: "composer:embed:ui-test")
+        let atomIdentifier = "native-composer-embed-composer:embed:ui-test"
+        let atom = element(in: app, identifier: atomIdentifier)
         XCTAssertTrue(atom.waitForExistence(timeout: 12))
         XCTAssertEqual(
             app.descendants(matching: .any)
-                .matching(NSPredicate(format: "identifier == %@", "composer:embed:ui-test"))
+                .matching(NSPredicate(format: "identifier == %@", atomIdentifier))
                 .count,
             1,
             "The pending embed fixture must remain one inline atom after a cold launch"
