@@ -160,6 +160,10 @@ final class NativeComposerSession: ObservableObject {
         }
     }
 
+    func canonicalMarkdownForSend() throws -> String {
+        try controller.canonicalMarkdown()
+    }
+
     func publishControllerState(canonicalMarkdown knownCanonicalMarkdown: String? = nil) {
         do {
             if let knownCanonicalMarkdown {

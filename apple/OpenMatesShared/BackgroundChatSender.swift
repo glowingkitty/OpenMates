@@ -321,6 +321,19 @@ struct BackgroundPreparedEmbed: Identifiable, @unchecked Sendable {
 }
 
 enum BackgroundChatSendContract {
+    static func chatKeyIntent(
+        isExistingChat: Bool,
+        encryptedChatKey: String?
+    ) throws -> BackgroundChatKeyIntent {
+        if isExistingChat {
+            guard let encryptedChatKey, !encryptedChatKey.isEmpty else {
+                throw BackgroundChatSendError.missingChatKey
+            }
+            return .loadExisting(encryptedChatKey)
+        }
+        return .createNew
+    }
+
     private struct Pattern: Sendable {
         let type: String
         let expression: NSRegularExpression
@@ -796,9 +809,13 @@ actor BackgroundChatSender {
         let createdAtUnix = Int(now.timeIntervalSince1970)
         let chatId = request.destination?.id ?? BackgroundChatID.makeAuthenticatedChatId()
         let messageId = BackgroundChatID.makeMessageId(chatId: chatId)
+        let keyIntent = try BackgroundChatSendContract.chatKeyIntent(
+            isExistingChat: request.destination != nil,
+            encryptedChatKey: request.destination?.encryptedChatKey
+        )
         let keyMaterial = try await ensureChatKey(
             chatId: chatId,
-            encryptedChatKey: request.destination?.encryptedChatKey,
+            intent: keyIntent,
             userId: auth.userId
         )
         let encryptedContent = try await crypto.encryptContent(sendContent, key: keyMaterial.key)
@@ -1112,29 +1129,22 @@ actor BackgroundChatSender {
 
     private func ensureChatKey(
         chatId: String,
-        encryptedChatKey: String?,
+        intent: BackgroundChatKeyIntent,
         userId: String
     ) async throws -> (key: SymmetricKey, encryptedChatKey: String) {
         guard let masterKey = try await crypto.loadMasterKey(for: userId) else {
             throw BackgroundChatSendError.missingMasterKey
         }
-        if let key = chatKeyCache[chatId] {
-            let encrypted: String
-            if let encryptedChatKey {
-                encrypted = encryptedChatKey
-            } else {
-                encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
-            }
-            return (key, encrypted)
-        }
-        if let encryptedChatKey {
+        switch intent {
+        case .loadExisting(let encryptedChatKey):
             let key = try await crypto.unwrapChatKey(encryptedChatKeyBase64: encryptedChatKey, masterKey: masterKey)
             chatKeyCache[chatId] = key
             return (key, encryptedChatKey)
+        case .createNew:
+            let key = await crypto.generateChatKey()
+            chatKeyCache[chatId] = key
+            return (key, try await crypto.wrapChatKey(key, masterKey: masterKey))
         }
-        let key = await crypto.generateChatKey()
-        chatKeyCache[chatId] = key
-        return (key, try await crypto.wrapChatKey(key, masterKey: masterKey))
     }
 
     private func encryptedEmbeds(
@@ -1462,11 +1472,17 @@ private struct BackgroundWSOutboundMessage: Encodable {
     }
 }
 
+enum BackgroundChatKeyIntent: Equatable {
+    case createNew
+    case loadExisting(String)
+}
+
 enum BackgroundChatSendError: LocalizedError {
     case emptyMessage
     case unsupportedAttachment
     case notAuthenticated
     case missingMasterKey
+    case missingChatKey
     case incompleteNewChatMetadata
     case network
     case encoding
@@ -1482,6 +1498,8 @@ enum BackgroundChatSendError: LocalizedError {
             return "Open OpenMates and sign in first."
         case .missingMasterKey:
             return "Open OpenMates and sign in again to unlock encryption on this device."
+        case .missingChatKey:
+            return "OpenMates could not unlock this chat. Open the app and try again."
         case .incompleteNewChatMetadata:
             return "The assistant did not return complete chat metadata. Please try again."
         case .network:

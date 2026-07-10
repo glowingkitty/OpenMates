@@ -2209,7 +2209,17 @@ struct ChatView: View {
         }
         guard decision == .submit else { return }
 
-        let text = messageText
+        let text: String
+        do {
+            text = try composerSession.canonicalMarkdownForSend()
+        } catch {
+            NativeDiagnostics.error(
+                "Composer send serialization failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+            viewModel.error = AppStrings.error
+            return
+        }
         let excludedIds = piiExclusions
         messageText = ""
         viewModel.error = nil
