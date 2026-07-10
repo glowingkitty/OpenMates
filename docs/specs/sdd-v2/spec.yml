@@ -1,7 +1,7 @@
 schema_version: 2
 id: sdd-v2
 title: OpenCode Spec-Driven Development V2
-status: approved
+status: verified
 
 goal: >
   Make every new OpenMates full spec a durable, evidence-backed, resumable work
@@ -75,7 +75,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 3f37059a5
+  subject_commit: c4340ce91
 
 approvals:
   product_contract:
@@ -99,14 +99,20 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-07-10T10:15:00Z"
     evidence: local:pytest:sdd-v2-red
+  - id: ATTEMPT-2
+    task_id: TASK-4
+    approach: Run the complete Schema V2 fixture and Plan Mode audit suite after implementation.
+    outcome: succeeded
+    recorded_at: "2026-07-10T10:37:47Z"
+    evidence: local:pytest:sdd-v2-green
 
 handoff:
   current_task_id: TASK-4
-  next_action: Run final schema, audit, documentation, and code-quality checks before deployment.
+  next_action: Monitor follow-up migration of actively resumed Schema V1 specs to Schema V2.
   command: python3 scripts/spec_verify.py docs/specs/sdd-v2/spec.yml --phase complete
-  expected_outcome: Verification remains blocked only by pending green evidence until the tested revision is committed and recorded.
+  expected_outcome: Verification passes for implementation commit c4340ce91.
   blocker: null
-  last_verified_commit: 3f37059a5
+  last_verified_commit: c4340ce91
 
 scenarios:
   - id: S-1
@@ -312,7 +318,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending, run_id: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_spec_workflow_validation.py scripts/tests/test_opencode_spec_workflow_audit.py
+        run_id: local:pytest:sdd-v2-green
+        subject_commit: c4340ce91
+        timestamp: "2026-07-10T10:37:47Z"
+        summary: Schema V1 compatibility and Schema V2 structural fixtures passed.
   - id: T-SDD-VERIFY
     type: pytest
     file: scripts/tests/test_spec_workflow_validation.py
@@ -335,7 +347,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending, run_id: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_spec_workflow_validation.py scripts/tests/test_opencode_spec_workflow_audit.py
+        run_id: local:pytest:sdd-v2-green
+        subject_commit: c4340ce91
+        timestamp: "2026-07-10T10:37:47Z"
+        summary: Provenance, manual-evidence, Playwright deployment, and stale-evidence fixtures passed.
   - id: T-SDD-OPENCODE-AUDIT
     type: pytest
     file: scripts/tests/test_opencode_spec_workflow_audit.py
@@ -358,7 +376,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending, run_id: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/audit_opencode_spec_workflow.py
+        run_id: local:audit:sdd-v2-green
+        subject_commit: c4340ce91
+        timestamp: "2026-07-10T10:37:47Z"
+        summary: The Plan Mode permission order and canonical skill mirror audit passed.
 
 implementation_plan:
   spec_path: docs/specs/sdd-v2/spec.yml
@@ -443,7 +467,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Define and test Schema V2 validation
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-4, S-5, S-7]
@@ -463,7 +487,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Define and test evidence provenance and invalidation
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-2, S-3]
@@ -483,7 +507,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Update canonical SDD instructions and skills
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-4, S-5, S-7]
@@ -515,7 +539,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Restrict and audit OpenCode Plan Mode edit access
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-6]
