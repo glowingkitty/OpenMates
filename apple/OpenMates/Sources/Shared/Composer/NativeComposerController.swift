@@ -94,22 +94,33 @@ final class NativeComposerController {
         )
     }
 
-    func insertMention(_ mention: ComposerNodeV1) throws {
+    func insertMention(_ mention: ComposerNodeV1, replacing queryRange: NSRange? = nil) throws {
         guard mention.kind == "mention" else {
             throw NativeComposerControllerError.expectedMention(mention.id)
         }
         guard !document.nodes.contains(where: { $0.id == mention.id }) else {
             throw NativeComposerControllerError.duplicateNodeID(mention.id)
         }
-        guard selection.length == 0 else {
-            throw NativeComposerControllerError.invalidSelection(selection)
+        let replacementRange = queryRange ?? selection
+        guard isValid(range: replacementRange) else {
+            throw NativeComposerControllerError.invalidSelection(replacementRange)
         }
 
-        let nodes = try nodesByInserting(mention, atUTF16Offset: selection.location)
+        let deletion = try deleting(range: replacementRange)
+        let nodes = try nodesByInserting(
+            mention,
+            into: deletion.nodes,
+            atUTF16Offset: replacementRange.location
+        )
+        let markedAfterDeletion = adjusted(markedTextRange, deleting: replacementRange)
         apply(
             document: ComposerDocumentV1(version: document.version, nodes: nodes),
-            selection: NSRange(location: selection.location + 1, length: 0),
-            markedTextRange: adjusted(markedTextRange, insertingAt: selection.location, length: 1)
+            selection: NSRange(location: replacementRange.location + 1, length: 0),
+            markedTextRange: adjusted(
+                markedAfterDeletion,
+                insertingAt: replacementRange.location,
+                length: 1
+            )
         )
     }
 
@@ -319,10 +330,19 @@ final class NativeComposerController {
     }
 
     private func nodesByInserting(
-        _ embed: ComposerNodeV1,
+        _ node: ComposerNodeV1,
         atUTF16Offset offset: Int
     ) throws -> [ComposerNodeV1] {
-        guard offset >= 0, offset <= semanticLength else {
+        try nodesByInserting(node, into: document.nodes, atUTF16Offset: offset)
+    }
+
+    private func nodesByInserting(
+        _ insertedNode: ComposerNodeV1,
+        into sourceNodes: [ComposerNodeV1],
+        atUTF16Offset offset: Int
+    ) throws -> [ComposerNodeV1] {
+        let sourceLength = sourceNodes.reduce(0) { $0 + semanticLength(of: $1) }
+        guard offset >= 0, offset <= sourceLength else {
             throw NativeComposerControllerError.invalidSelection(selection)
         }
 
@@ -330,36 +350,36 @@ final class NativeComposerController {
         var cursor = 0
         var inserted = false
 
-        for node in document.nodes {
+        for node in sourceNodes {
             let length = semanticLength(of: node)
             if !inserted, offset >= cursor, offset <= cursor + length {
                 if node.kind == "text", let source = node.source {
                     let localOffset = offset - cursor
                     if localOffset == 0 {
-                        result.append(embed)
+                        result.append(insertedNode)
                         result.append(node)
                     } else if localOffset == length {
                         result.append(node)
-                        result.append(embed)
+                        result.append(insertedNode)
                     } else if
                         let left = substring(source, from: 0, to: localOffset),
                         let right = substring(source, from: localOffset, to: length)
                     {
                         result.append(.text(id: node.id, source: left))
-                        result.append(embed)
+                        result.append(insertedNode)
                         result.append(.text(
-                            id: nextTextNodeID(in: document.nodes, reserving: [embed.id]),
+                            id: nextTextNodeID(in: sourceNodes, reserving: [insertedNode.id]),
                             source: right
                         ))
                     } else {
                         throw NativeComposerControllerError.invalidSelection(selection)
                     }
                 } else if offset == cursor {
-                    result.append(embed)
+                    result.append(insertedNode)
                     result.append(node)
                 } else if offset == cursor + length {
                     result.append(node)
-                    result.append(embed)
+                    result.append(insertedNode)
                 } else {
                     throw NativeComposerControllerError.invalidSelection(selection)
                 }
@@ -371,7 +391,7 @@ final class NativeComposerController {
         }
 
         if !inserted, offset == cursor {
-            result.append(embed)
+            result.append(insertedNode)
             inserted = true
         }
         guard inserted else {

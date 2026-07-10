@@ -7,6 +7,7 @@
 import Foundation
 
 struct ComposerPIIMapping: Equatable, Sendable {
+    // Request-scoped reversible plaintext. Never persist or include in diagnostics.
     let placeholder: String
     let original: String
     let category: String

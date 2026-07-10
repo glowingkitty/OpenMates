@@ -50,11 +50,11 @@ struct ComposerPasteService {
             return .insertEmbed(customEmbed)
         }
         let source = payload.plainText ?? ""
-        if payload.sourceCodeLanguage?.isEmpty == false || isFencedCode(source) {
-            return .convert(.code, source: source)
-        }
         if isTable(source) || payload.html?.localizedCaseInsensitiveContains("<table") == true {
             return .convert(.sheet, source: source)
+        }
+        if payload.sourceCodeLanguage?.isEmpty == false || isFencedCode(source) {
+            return .convert(.code, source: source)
         }
         if isDocument(source) || containsDocumentHTML(payload.html) {
             return .convert(.document, source: source)
@@ -70,8 +70,24 @@ struct ComposerPasteService {
     }
 
     private func isTable(_ source: String) -> Bool {
-        let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
-        return lines.count > 1 && lines.allSatisfy { $0.contains("\t") }
+        let lines = source.split(separator: "\n").map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }.filter { !$0.isEmpty }
+        guard lines.count > 1 else { return false }
+        if source.contains("|"),
+           source.range(
+               of: #"(?m)^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$"#,
+               options: .regularExpression
+           ) != nil {
+            return true
+        }
+        let delimiter: Character = lines.contains(where: { $0.contains("\t") }) ? "\t" : ","
+        if delimiter == ",", lines.count < 3 { return false }
+        guard lines.allSatisfy({ $0.contains(delimiter) }) else { return false }
+        let columnCounts = lines.map { $0.split(separator: delimiter, omittingEmptySubsequences: false).count }
+        return columnCounts.first.map { count in
+            count > 1 && columnCounts.allSatisfy { $0 == count }
+        } ?? false
     }
 
     private func isDocument(_ source: String) -> Bool {

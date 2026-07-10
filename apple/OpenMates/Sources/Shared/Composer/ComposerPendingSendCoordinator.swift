@@ -13,6 +13,7 @@ struct ComposerEmbedBlocker: Hashable, Sendable {
 
 struct ComposerSendSnapshot: Equatable, Sendable {
     let requestId: String
+    let messageId: String
     let destinationId: String
     let documentRevision: Int
     let document: ComposerDocumentV1
@@ -86,6 +87,15 @@ actor ComposerPendingSendCoordinator {
         nodeStates.removeAll()
     }
 
+    func retryFailed(requestId: String) -> Bool {
+        guard let entry = entries[requestId], statuses[requestId] == .failed else {
+            return false
+        }
+        queues[entry.snapshot.destinationId, default: []].append(requestId)
+        statuses[requestId] = .queued
+        return true
+    }
+
     func resumeReady(
         dispatch: @Sendable (ComposerSendSnapshot) async throws -> Void
     ) async {
@@ -95,9 +105,9 @@ actor ComposerPendingSendCoordinator {
                   isReady(entry.snapshot) {
                 statuses[requestId] = .dispatching
                 queues[destinationId]?.removeFirst()
-                entries.removeValue(forKey: requestId)
                 do {
                     try await dispatch(entry.snapshot)
+                    entries.removeValue(forKey: requestId)
                     statuses[requestId] = .completed
                 } catch {
                     statuses[requestId] = .failed

@@ -44,33 +44,55 @@ struct ComposerMentionCandidate: Equatable, Sendable {
     }
 }
 
+enum ComposerMentionError: Error, Equatable {
+    case missingProviderId
+    case missingAppId
+    case missingMemoryType
+}
+
 struct ComposerMentionService {
-    func node(candidate: ComposerMentionCandidate, nodeId: String) -> ComposerNodeV1 {
-        .mention(
+    func node(candidate: ComposerMentionCandidate, nodeId: String) throws -> ComposerNodeV1 {
+        let syntax = try canonicalSyntax(for: candidate)
+        return .mention(
             id: nodeId,
             mentionKind: candidate.kind.rawValue,
             targetId: candidate.targetId,
-            canonicalSyntax: canonicalSyntax(for: candidate),
+            canonicalSyntax: syntax,
             displayLabel: candidate.displayLabel
         )
     }
 
-    private func canonicalSyntax(for candidate: ComposerMentionCandidate) -> String {
+    private func canonicalSyntax(for candidate: ComposerMentionCandidate) throws -> String {
         switch candidate.kind {
         case .mate:
             "@mate:\(candidate.targetId)"
         case .aiModel:
-            "@ai-model:\(candidate.targetId):\(candidate.providerId ?? "")"
+            guard let providerId = candidate.providerId, !providerId.isEmpty else {
+                throw ComposerMentionError.missingProviderId
+            }
+            return "@ai-model:\(candidate.targetId):\(providerId)"
         case .bestModel:
             "@best-model:\(candidate.targetId)"
         case .skill:
-            "@skill:\(candidate.appId ?? ""):\(candidate.targetId)"
+            guard let appId = candidate.appId, !appId.isEmpty else {
+                throw ComposerMentionError.missingAppId
+            }
+            return "@skill:\(appId):\(candidate.targetId)"
         case .focus:
-            "@focus:\(candidate.appId ?? ""):\(candidate.targetId)"
+            guard let appId = candidate.appId, !appId.isEmpty else {
+                throw ComposerMentionError.missingAppId
+            }
+            return "@focus:\(appId):\(candidate.targetId)"
         case .project:
             "@project:\(candidate.targetId):\(candidate.accessMode ?? "read")"
         case .memory:
-            "@memory:\(candidate.appId ?? ""):\(candidate.targetId):\(candidate.memoryType ?? "text")"
+            guard let appId = candidate.appId, !appId.isEmpty else {
+                throw ComposerMentionError.missingAppId
+            }
+            guard let memoryType = candidate.memoryType, !memoryType.isEmpty else {
+                throw ComposerMentionError.missingMemoryType
+            }
+            return "@memory:\(appId):\(candidate.targetId):\(memoryType)"
         }
     }
 }
