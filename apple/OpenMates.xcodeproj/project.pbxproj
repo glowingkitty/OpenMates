@@ -29,6 +29,12 @@
 		C0FFEE00000000000005000F /* NativeComposerDraftEncryptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */; };
 		C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
 		C0FFEE00000000000005000B /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
+		C0FFEE000000000000050013 /* ComposerTextAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050012 /* ComposerTextAttachment.swift */; };
+		C0FFEE000000000000050014 /* ComposerTextAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050012 /* ComposerTextAttachment.swift */; };
+		C0FFEE000000000000050016 /* ComposerAttachmentViewProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050015 /* ComposerAttachmentViewProvider.swift */; };
+		C0FFEE000000000000050017 /* ComposerAttachmentViewProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050015 /* ComposerAttachmentViewProvider.swift */; };
+		C0FFEE000000000000050019 /* NativeComposerTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050018 /* NativeComposerTextView.swift */; };
+		C0FFEE00000000000005001A /* NativeComposerTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050018 /* NativeComposerTextView.swift */; };
 		C0FFEE00000000000004600C /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
 		C0FFEE00000000000004600D /* TiptapComposer in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046008 /* TiptapComposer */; };
 		C0FFEE000000000000047002 /* OpenMatesWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000047001 /* OpenMatesWatchApp.swift */; };
@@ -857,6 +863,9 @@
 		C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerEncryptionCompatibilityTests.swift; sourceTree = "<group>"; };
 		C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerDraftEncryptionTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000050009 /* NativeComposerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerController.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050012 /* ComposerTextAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerTextAttachment.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050015 /* ComposerAttachmentViewProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerAttachmentViewProvider.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050018 /* NativeComposerTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerTextView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevChatOpeningPreviewView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOpeningScalabilityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -1154,8 +1163,11 @@
 		C0FFEE000000000000050004 /* Composer */ = {
 			isa = PBXGroup;
 			children = (
+				C0FFEE000000000000050015 /* ComposerAttachmentViewProvider.swift */,
 				C0FFEE000000000000050001 /* ComposerDocument.swift */,
+				C0FFEE000000000000050012 /* ComposerTextAttachment.swift */,
 				C0FFEE000000000000050009 /* NativeComposerController.swift */,
+				C0FFEE000000000000050018 /* NativeComposerTextView.swift */,
 			);
 			path = Composer;
 			sourceTree = "<group>";
@@ -2342,7 +2354,10 @@
 				C0FFEE000000000000046002 /* MessageComposerView.swift in Sources */,
 				C0FFEE000000000000046004 /* TiptapComposerWebView.swift in Sources */,
 				C0FFEE000000000000050002 /* ComposerDocument.swift in Sources */,
+				C0FFEE000000000000050013 /* ComposerTextAttachment.swift in Sources */,
+				C0FFEE000000000000050016 /* ComposerAttachmentViewProvider.swift in Sources */,
 				C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */,
+				C0FFEE000000000000050019 /* NativeComposerTextView.swift in Sources */,
 				033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */,
 				D3FBB64A5CD7FE15DC4EAF62 /* OfflineStore.swift in Sources */,
 				BD39ADEB1143AFB7A91C5EB4 /* OfflineSyncBridge.swift in Sources */,
@@ -2560,7 +2575,10 @@
 				C0FFEE000000000000046003 /* MessageComposerView.swift in Sources */,
 				C0FFEE000000000000046005 /* TiptapComposerWebView.swift in Sources */,
 				C0FFEE000000000000050003 /* ComposerDocument.swift in Sources */,
+				C0FFEE000000000000050014 /* ComposerTextAttachment.swift in Sources */,
+				C0FFEE000000000000050017 /* ComposerAttachmentViewProvider.swift in Sources */,
 				C0FFEE00000000000005000B /* NativeComposerController.swift in Sources */,
+				C0FFEE00000000000005001A /* NativeComposerTextView.swift in Sources */,
 				896CD28E397C1F666609BB1E /* OMDesignPrimitives.swift in Sources */,
 				25468B39379E6020F76E58A4 /* OfflineStore.swift in Sources */,
 				02C2F9D9D1747B51FD08AF8F /* OfflineSyncBridge.swift in Sources */,

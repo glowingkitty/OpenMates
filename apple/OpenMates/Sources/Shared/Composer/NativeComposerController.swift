@@ -1,8 +1,8 @@
 // Native controller for the product-owned ComposerDocument model.
-// TextKit receives one attachment character for each atomic embed node.
-// Selection uses UTF-16 offsets so UIKit, AppKit, and web fixtures agree.
-// Attachment objects are cached by node id across non-structural updates.
-// This controller owns no networking, persistence, or encryption material.
+// Commands edit semantic nodes directly and never parse transient editor text.
+// Selection and marked ranges use platform-compatible UTF-16 offsets.
+// Undo snapshots restore document, selection, and marked composition atomically.
+// Attachment objects remain cached by stable node id across every transaction.
 
 import Foundation
 
@@ -19,158 +19,31 @@ enum NativeComposerControllerError: Error, Equatable {
     case expectedEmbed(String)
 }
 
-final class ComposerTextAttachment: NSTextAttachment {
-    let nodeID: String
-
-    init(nodeID: String) {
-        self.nodeID = nodeID
-        super.init(data: nil, ofType: nil)
-        allowsTextAttachmentView = true
-    }
-
-    required init?(coder: NSCoder) {
-        guard let nodeID = coder.decodeObject(of: NSString.self, forKey: "nodeID") as? String else {
-            return nil
-        }
-        self.nodeID = nodeID
-        super.init(coder: coder)
-    }
-
-    override func encode(with coder: NSCoder) {
-        super.encode(with: coder)
-        coder.encode(nodeID, forKey: "nodeID")
-    }
-
-    override var usesTextAttachmentView: Bool { true }
-
-    #if canImport(UIKit)
-    override func viewProvider(
-        for parentView: UIView?,
-        location: any NSTextLocation,
-        textContainer: NSTextContainer?
-    ) -> NSTextAttachmentViewProvider? {
-        ComposerAttachmentViewProvider(
-            textAttachment: self,
-            parentView: parentView,
-            textLayoutManager: textContainer?.textLayoutManager,
-            location: location
-        )
-    }
-    #elseif canImport(AppKit)
-    override func viewProvider(
-        for parentView: NSView?,
-        location: any NSTextLocation,
-        textContainer: NSTextContainer?
-    ) -> NSTextAttachmentViewProvider? {
-        ComposerAttachmentViewProvider(
-            textAttachment: self,
-            parentView: parentView,
-            textLayoutManager: textContainer?.textLayoutManager,
-            location: location
-        )
-    }
-    #endif
-}
-
-#if canImport(UIKit)
-final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
-    private static let prototypeHeight: CGFloat = 60
-
-    override init(
-        textAttachment: NSTextAttachment,
-        parentView: UIView?,
-        textLayoutManager: NSTextLayoutManager?,
-        location: any NSTextLocation
-    ) {
-        super.init(
-            textAttachment: textAttachment,
-            parentView: parentView,
-            textLayoutManager: textLayoutManager,
-            location: location
-        )
-        tracksTextAttachmentViewBounds = true
-    }
-
-    override func loadView() {
-        let button = MainActor.assumeIsolated {
-            let button = UIButton(type: .custom)
-            button.accessibilityIdentifier = "native-composer-embed-prototype"
-            return button
-        }
-        view = button
-    }
-
-    override func attachmentBounds(
-        for attributes: [NSAttributedString.Key: Any],
-        location: any NSTextLocation,
-        textContainer: NSTextContainer?,
-        proposedLineFragment: CGRect,
-        position: CGPoint
-    ) -> CGRect {
-        CGRect(
-            x: proposedLineFragment.minX,
-            y: 0,
-            width: proposedLineFragment.width,
-            height: Self.prototypeHeight
-        )
-    }
-}
-#elseif canImport(AppKit)
-final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
-    private static let prototypeHeight: CGFloat = 60
-
-    override init(
-        textAttachment: NSTextAttachment,
-        parentView: NSView?,
-        textLayoutManager: NSTextLayoutManager?,
-        location: any NSTextLocation
-    ) {
-        super.init(
-            textAttachment: textAttachment,
-            parentView: parentView,
-            textLayoutManager: textLayoutManager,
-            location: location
-        )
-        tracksTextAttachmentViewBounds = true
-    }
-
-    override func loadView() {
-        let button = MainActor.assumeIsolated {
-            let button = NSButton(frame: .zero)
-            button.identifier = NSUserInterfaceItemIdentifier("native-composer-embed-prototype")
-            return button
-        }
-        view = button
-    }
-
-    override func attachmentBounds(
-        for attributes: [NSAttributedString.Key: Any],
-        location: any NSTextLocation,
-        textContainer: NSTextContainer?,
-        proposedLineFragment: CGRect,
-        position: CGPoint
-    ) -> CGRect {
-        CGRect(
-            x: proposedLineFragment.minX,
-            y: 0,
-            width: proposedLineFragment.width,
-            height: Self.prototypeHeight
-        )
-    }
-}
-#endif
-
 @MainActor
 final class NativeComposerController {
+    private struct Snapshot {
+        let document: ComposerDocumentV1
+        let selection: NSRange
+        let markedTextRange: NSRange?
+    }
+
+    private struct DeletionResult {
+        let nodes: [ComposerNodeV1]
+        let removedNodes: [ComposerNodeV1]
+    }
+
     private(set) var document: ComposerDocumentV1
     private(set) var selection: NSRange
     private(set) var markedTextRange: NSRange?
     private(set) var attributedString = NSAttributedString()
 
     private var attachments: [String: ComposerTextAttachment] = [:]
+    private var undoSnapshots: [Snapshot] = []
+    private var redoSnapshots: [Snapshot] = []
 
     var canSubmit: Bool {
-        markedTextRange == nil && !attributedString.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        markedTextRange == nil
+            && !attributedString.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     init(document: ComposerDocumentV1, selection: NSRange) throws {
@@ -184,6 +57,13 @@ final class NativeComposerController {
             throw NativeComposerControllerError.invalidSelection(selection)
         }
         rebuildAttributedString()
+    }
+
+    func setSelection(_ range: NSRange) throws {
+        guard isValid(range: range) else {
+            throw NativeComposerControllerError.invalidSelection(range)
+        }
+        selection = range
     }
 
     func setMarkedTextRange(_ range: NSRange?) throws {
@@ -205,9 +85,11 @@ final class NativeComposerController {
         }
 
         let nodes = try nodesByInserting(embed, atUTF16Offset: selection.location)
-        document = ComposerDocumentV1(version: document.version, nodes: nodes)
-        selection = NSRange(location: selection.location + 1, length: 0)
-        rebuildAttributedString()
+        apply(
+            document: ComposerDocumentV1(version: document.version, nodes: nodes),
+            selection: NSRange(location: selection.location + 1, length: 0),
+            markedTextRange: adjusted(markedTextRange, insertingAt: selection.location, length: 1)
+        )
     }
 
     func updateEmbed(id: String, status: String) throws {
@@ -220,8 +102,193 @@ final class NativeComposerController {
 
         var nodes = document.nodes
         nodes[index] = nodes[index].updatingStatus(status)
-        document = ComposerDocumentV1(version: document.version, nodes: nodes)
+        apply(
+            document: ComposerDocumentV1(version: document.version, nodes: nodes),
+            selection: selection,
+            markedTextRange: markedTextRange
+        )
+    }
+
+    func removeEmbed(id: String) throws {
+        guard let index = document.nodes.firstIndex(where: { $0.id == id }) else {
+            throw NativeComposerControllerError.nodeNotFound(id)
+        }
+        guard document.nodes[index].kind == "embed" else {
+            throw NativeComposerControllerError.expectedEmbed(id)
+        }
+
+        let range = NSRange(
+            location: document.nodes[..<index].reduce(0) { $0 + semanticLength(of: $1) },
+            length: 1
+        )
+        let result = try deleting(range: range)
+        applyDeletion(result, range: range, selection: adjusted(selection, deleting: range))
+    }
+
+    func deleteBackward() throws {
+        if selection.length > 0 {
+            try deleteSelection()
+            return
+        }
+        guard let range = deletionRangeBefore(selection.location) else { return }
+        let result = try deleting(range: range)
+        applyDeletion(result, range: range, selection: NSRange(location: range.location, length: 0))
+    }
+
+    func deleteForward() throws {
+        if selection.length > 0 {
+            try deleteSelection()
+            return
+        }
+        guard let range = deletionRangeAfter(selection.location) else { return }
+        let result = try deleting(range: range)
+        applyDeletion(result, range: range, selection: selection)
+    }
+
+    func deleteSelection() throws {
+        guard selection.length > 0 else { return }
+        let range = selection
+        let result = try deleting(range: range)
+        applyDeletion(
+            result,
+            range: range,
+            selection: NSRange(location: range.location, length: 0)
+        )
+    }
+
+    func cutSelection() throws -> ComposerDocumentV1 {
+        guard selection.length > 0 else {
+            return ComposerDocumentV1(version: document.version, nodes: [])
+        }
+        let range = selection
+        let result = try deleting(range: range)
+        applyDeletion(
+            result,
+            range: range,
+            selection: NSRange(location: range.location, length: 0)
+        )
+        return ComposerDocumentV1(version: document.version, nodes: result.removedNodes)
+    }
+
+    func replaceSelection(with source: String) throws {
+        let replacedRange = selection
+        let result = try deleting(range: replacedRange)
+        let retainedIDs = Set(result.nodes.map(\.id))
+        let preferredNodeID = result.removedNodes
+            .first(where: { $0.kind == "text" && !retainedIDs.contains($0.id) })?
+            .id
+        let nodes = try nodesByInsertingText(
+            source,
+            into: result.nodes,
+            atUTF16Offset: replacedRange.location,
+            preferredNodeID: preferredNodeID
+        )
+        let replacementRange = NSRange(location: replacedRange.location, length: source.utf16.count)
+        let nextMarkedRange = markedTextRange == nil
+            ? nil
+            : replacementRange
+        apply(
+            document: ComposerDocumentV1(version: document.version, nodes: nodes),
+            selection: NSRange(location: NSMaxRange(replacementRange), length: 0),
+            markedTextRange: nextMarkedRange
+        )
+    }
+
+    func undo() throws {
+        guard let snapshot = undoSnapshots.popLast() else { return }
+        redoSnapshots.append(currentSnapshot)
+        restore(snapshot)
+    }
+
+    func redo() throws {
+        guard let snapshot = redoSnapshots.popLast() else { return }
+        undoSnapshots.append(currentSnapshot)
+        restore(snapshot)
+    }
+
+    private var currentSnapshot: Snapshot {
+        Snapshot(
+            document: document,
+            selection: selection,
+            markedTextRange: markedTextRange
+        )
+    }
+
+    private func apply(
+        document: ComposerDocumentV1,
+        selection: NSRange,
+        markedTextRange: NSRange?
+    ) {
+        undoSnapshots.append(currentSnapshot)
+        redoSnapshots.removeAll()
+        self.document = document
+        self.selection = selection
+        self.markedTextRange = markedTextRange
         rebuildAttributedString()
+    }
+
+    private func restore(_ snapshot: Snapshot) {
+        document = snapshot.document
+        selection = snapshot.selection
+        markedTextRange = snapshot.markedTextRange
+        rebuildAttributedString()
+    }
+
+    private func applyDeletion(
+        _ result: DeletionResult,
+        range: NSRange,
+        selection: NSRange
+    ) {
+        apply(
+            document: ComposerDocumentV1(version: document.version, nodes: result.nodes),
+            selection: selection,
+            markedTextRange: adjusted(markedTextRange, deleting: range)
+        )
+    }
+
+    private func deleting(range: NSRange) throws -> DeletionResult {
+        guard isValid(range: range) else {
+            throw NativeComposerControllerError.invalidSelection(range)
+        }
+        guard range.length > 0 else {
+            return DeletionResult(nodes: document.nodes, removedNodes: [])
+        }
+
+        var retained: [ComposerNodeV1] = []
+        var removed: [ComposerNodeV1] = []
+        var cursor = 0
+        for node in document.nodes {
+            let length = semanticLength(of: node)
+            let nodeRange = NSRange(location: cursor, length: length)
+            let intersection = NSIntersectionRange(nodeRange, range)
+            defer { cursor += length }
+
+            guard intersection.length > 0 else {
+                retained.append(node)
+                continue
+            }
+            guard node.kind == "text", let source = node.source else {
+                removed.append(node)
+                continue
+            }
+
+            let localStart = intersection.location - cursor
+            let localEnd = localStart + intersection.length
+            guard
+                let prefix = substring(source, from: 0, to: localStart),
+                let selected = substring(source, from: localStart, to: localEnd),
+                let suffix = substring(source, from: localEnd, to: length)
+            else {
+                throw NativeComposerControllerError.invalidSelection(range)
+            }
+            if !prefix.isEmpty || !suffix.isEmpty {
+                retained.append(.text(id: node.id, source: prefix + suffix))
+            }
+            if !selected.isEmpty {
+                removed.append(.text(id: node.id, source: selected))
+            }
+        }
+        return DeletionResult(nodes: retained, removedNodes: removed)
     }
 
     private func nodesByInserting(
@@ -247,13 +314,14 @@ final class NativeComposerController {
                     } else if localOffset == length {
                         result.append(node)
                         result.append(embed)
-                    } else if let splitIndex = stringIndex(in: source, utf16Offset: localOffset) {
-                        let left = String(source[..<splitIndex])
-                        let right = String(source[splitIndex...])
+                    } else if
+                        let left = substring(source, from: 0, to: localOffset),
+                        let right = substring(source, from: localOffset, to: length)
+                    {
                         result.append(.text(id: node.id, source: left))
                         result.append(embed)
                         result.append(.text(
-                            id: nextTextNodeID(reserving: [embed.id]),
+                            id: nextTextNodeID(in: document.nodes, reserving: [embed.id]),
                             source: right
                         ))
                     } else {
@@ -285,6 +353,101 @@ final class NativeComposerController {
         return result
     }
 
+    private func nodesByInsertingText(
+        _ source: String,
+        into nodes: [ComposerNodeV1],
+        atUTF16Offset offset: Int,
+        preferredNodeID: String?
+    ) throws -> [ComposerNodeV1] {
+        guard !source.isEmpty else { return nodes }
+
+        var result = nodes
+        var cursor = 0
+        for index in result.indices {
+            let node = result[index]
+            let length = semanticLength(of: node)
+            if node.kind == "text", let current = node.source,
+               offset >= cursor, offset <= cursor + length {
+                let localOffset = offset - cursor
+                guard
+                    let prefix = substring(current, from: 0, to: localOffset),
+                    let suffix = substring(current, from: localOffset, to: length)
+                else {
+                    throw NativeComposerControllerError.invalidSelection(selection)
+                }
+                result[index] = .text(id: node.id, source: prefix + source + suffix)
+                return result
+            }
+            if offset == cursor {
+                result.insert(
+                    .text(
+                        id: preferredNodeID
+                            ?? nextTextNodeID(in: result, reserving: Set(document.nodes.map(\.id))),
+                        source: source
+                    ),
+                    at: index
+                )
+                return result
+            }
+            cursor += length
+        }
+
+        guard offset == cursor else {
+            throw NativeComposerControllerError.invalidSelection(selection)
+        }
+        result.append(.text(
+            id: preferredNodeID
+                ?? nextTextNodeID(in: result, reserving: Set(document.nodes.map(\.id))),
+            source: source
+        ))
+        return result
+    }
+
+    private func deletionRangeBefore(_ position: Int) -> NSRange? {
+        guard position > 0 else { return nil }
+        var cursor = 0
+        for node in document.nodes {
+            let length = semanticLength(of: node)
+            if position > cursor, position <= cursor + length {
+                guard node.kind == "text", let source = node.source else {
+                    return NSRange(location: cursor, length: length)
+                }
+                let localOffset = position - cursor
+                guard
+                    let end = stringIndex(in: source, utf16Offset: localOffset),
+                    end > source.startIndex
+                else { return nil }
+                let start = source.index(before: end)
+                let removedLength = source[start..<end].utf16.count
+                return NSRange(location: position - removedLength, length: removedLength)
+            }
+            cursor += length
+        }
+        return nil
+    }
+
+    private func deletionRangeAfter(_ position: Int) -> NSRange? {
+        guard position < semanticLength else { return nil }
+        var cursor = 0
+        for node in document.nodes {
+            let length = semanticLength(of: node)
+            if position >= cursor, position < cursor + length {
+                guard node.kind == "text", let source = node.source else {
+                    return NSRange(location: cursor, length: length)
+                }
+                let localOffset = position - cursor
+                guard
+                    let start = stringIndex(in: source, utf16Offset: localOffset),
+                    start < source.endIndex
+                else { return nil }
+                let end = source.index(after: start)
+                return NSRange(location: position, length: source[start..<end].utf16.count)
+            }
+            cursor += length
+        }
+        return nil
+    }
+
     private var semanticLength: Int {
         document.nodes.reduce(0) { $0 + semanticLength(of: $1) }
     }
@@ -295,6 +458,14 @@ final class NativeComposerController {
         case "hardBreak", "mention", "embed": 1
         default: 0
         }
+    }
+
+    private func substring(_ source: String, from start: Int, to end: Int) -> String? {
+        guard
+            let startIndex = stringIndex(in: source, utf16Offset: start),
+            let endIndex = stringIndex(in: source, utf16Offset: end)
+        else { return nil }
+        return String(source[startIndex..<endIndex])
     }
 
     private func stringIndex(in source: String, utf16Offset: Int) -> String.Index? {
@@ -308,9 +479,9 @@ final class NativeComposerController {
             range.location >= 0,
             range.length >= 0,
             range.location <= semanticLength,
-            range.location + range.length <= semanticLength
+            range.length <= semanticLength - range.location
         else { return false }
-        return isValid(position: range.location) && isValid(position: range.location + range.length)
+        return isValid(position: range.location) && isValid(position: NSMaxRange(range))
     }
 
     private func isValid(position: Int) -> Bool {
@@ -328,11 +499,36 @@ final class NativeComposerController {
         return position == cursor
     }
 
-    private func nextTextNodeID(reserving reservedIDs: Set<String> = []) -> String {
+    private func nextTextNodeID(
+        in nodes: [ComposerNodeV1],
+        reserving reservedIDs: Set<String> = []
+    ) -> String {
         var index = 0
-        let ids = Set(document.nodes.map(\.id)).union(reservedIDs)
+        let ids = Set(nodes.map(\.id)).union(reservedIDs)
         while ids.contains("composer:text:\(index)") { index += 1 }
         return "composer:text:\(index)"
+    }
+
+    private func adjusted(_ range: NSRange?, deleting deletedRange: NSRange) -> NSRange? {
+        range.map { adjusted($0, deleting: deletedRange) }
+    }
+
+    private func adjusted(_ range: NSRange, deleting deletedRange: NSRange) -> NSRange {
+        func position(_ value: Int) -> Int {
+            if value <= deletedRange.location { return value }
+            if value >= NSMaxRange(deletedRange) { return value - deletedRange.length }
+            return deletedRange.location
+        }
+        let start = position(range.location)
+        let end = position(NSMaxRange(range))
+        return NSRange(location: start, length: end - start)
+    }
+
+    private func adjusted(_ range: NSRange?, insertingAt location: Int, length: Int) -> NSRange? {
+        guard let range else { return nil }
+        let start = range.location >= location ? range.location + length : range.location
+        let end = NSMaxRange(range) >= location ? NSMaxRange(range) + length : NSMaxRange(range)
+        return NSRange(location: start, length: end - start)
     }
 
     private func rebuildAttributedString() {
@@ -343,9 +539,7 @@ final class NativeComposerController {
                 value.append(NSAttributedString(string: node.source ?? ""))
             case "hardBreak":
                 value.append(NSAttributedString(string: "\n"))
-            case "mention":
-                value.append(NSAttributedString(string: node.displayLabel ?? node.canonicalSyntax ?? ""))
-            case "embed":
+            case "mention", "embed":
                 let attachment = attachments[node.id] ?? ComposerTextAttachment(nodeID: node.id)
                 attachments[node.id] = attachment
                 value.append(NSAttributedString(attachment: attachment))
