@@ -34,6 +34,8 @@ Before writing the plan, confirm the spec has:
   external dependency, or explicitly scheduled for pre-implementation checking
 - Required acceptance criteria have `coverage_status`, `verification_scope`, and
   `verification_ids` when the spec is ready for implementation
+- Schema V2 `implementation_state`, approvals, decisions, attempts, and handoff
+  records when the spec is newly authored or actively resumed
 
 Run:
 
@@ -68,6 +70,8 @@ The plan must include:
 - Acceptance-criteria coverage mapping: each required AC must map to concrete
   `verification_ids`, a user-confirmed/manual check, a waiver path, or a blocker
 - Open questions and risks
+- Whether a material technical-plan decision needs user approval beyond the
+  approved product contract
 
 ### Step 4: Keep The Plan Minimal
 
@@ -79,6 +83,11 @@ If a plan has vague criteria such as "all tests pass" or "no regressions", do
 not leave them as final checks. Normalize them into concrete scoped checks such
 as backend pytest, CLI, npm SDK, pip SDK, Playwright, Apple build/test, full CI,
 manual review, or user confirmation.
+
+Record `approvals.implementation_plan: pending` and stop when the plan introduces
+a material architecture, security, privacy, migration, rollout, or external
+dependency decision not covered by the approved product contract. Otherwise,
+record why a separate technical approval is not required.
 
 ### Step 5: Output Summary
 
@@ -97,6 +106,7 @@ Next: run `tasks-from-spec docs/specs/<slug>/spec.yml`
 
 - Do not write implementation code during this skill.
 - Every plan section must trace back to scenario or acceptance-criteria IDs.
+- Update `handoff` with the next action before finishing this planning step.
 - Prefer existing utilities, components, providers, schemas, and architecture.
 - If a plan requires a risky dependency, schema, privacy, or auth decision not
   present in the spec, stop and ask.

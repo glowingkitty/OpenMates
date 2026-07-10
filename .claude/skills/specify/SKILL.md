@@ -59,9 +59,10 @@ questions:
 - "What should happen in the failure or unauthorized case?"
 - "What is explicitly out of scope for this first slice?"
 
-After the questions, summarize your understanding of the user's vision, scope,
-non-goals, and unresolved decisions in 2-3 sentences. Wait for user confirmation
-before writing a full `spec.yml`.
+After the questions, summarize verified facts, uncertainties, the user's vision,
+scope, non-goals, and unresolved decisions in 2-3 sentences. Wait for user
+confirmation before writing a full `spec.yml`. Do not present unverified
+inferences as repository facts.
 
 If enough context exists for a small inline spec, do not force the full five
 questions.
@@ -77,6 +78,7 @@ docs/specs/<slug>/spec.yml
 Use the template from `docs/contributing/guides/spec-driven-development.md`.
 Every full spec must include:
 
+- `schema_version: 2`
 - Goal
 - Scope and non-goals
 - Context discovery and clarification summary
@@ -94,6 +96,7 @@ Every full spec must include:
   status, evidence, blockers, waivers, or user-confirmation tracking beyond a
   simple test entry
 - Implementation plan and tasks placeholders or initial entries
+- `implementation_state`, `approvals`, `decisions`, `attempts`, and `handoff`
 - Risks, open questions, and privacy/security requirements
 
 Scenarios must use concrete examples. Avoid abstract placeholders except for
@@ -105,6 +108,11 @@ set `coverage_status: ambiguous` and ask the user or infer concrete scoped
 checks before implementation. Do not mark required criteria satisfied until they
 are covered by verification_ids, user confirmation, a waiver, or an accepted
 blocker.
+
+Schema V2 is the full durable work ledger. Automated evidence records command,
+run ID, timestamp, and subject commit. A manual check, skip, waiver, or blocker
+records its reason, actor when known, and next action. Do not create a separate
+task file that duplicates a full spec.
 
 Run validation before presenting the spec:
 
@@ -123,7 +131,7 @@ Why this size: <one sentence>
 Key scenarios: S-1, S-2, ...
 Open questions: <none or list>
 Validation: <spec_validate result>
-Next: approve the spec, then run `plan-from-spec docs/specs/<slug>/spec.yml`
+Next: approve the product contract, then run `plan-from-spec docs/specs/<slug>/spec.yml`
 ```
 
 Do not implement code during this skill.

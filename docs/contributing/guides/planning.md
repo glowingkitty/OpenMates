@@ -32,16 +32,21 @@ background jobs, cron jobs, and Directus schema changes.
 If the change is trivial or mechanical, state why a spec would be overkill and
 continue with normal planning.
 
-### 0. State Your Understanding (ALWAYS FIRST)
+### 0. Discover, Then State Your Understanding
 
-**Before any planning or coding, write out your understanding of the task in plain language and wait for the user to confirm it.**
+**Before clarification or coding, perform bounded repository discovery.** Read the
+related specs, architecture docs, source patterns, and tests. Search the tracker
+when relevant. This prevents asking users questions the repository already
+answers.
 
-This is not optional — even when the request seems obvious. The goal is to surface misunderstandings before effort is wasted.
+Then write an evidence-backed understanding of the task in plain language and
+wait for the user to confirm it. This is not optional for non-trivial work; the
+goal is to surface misunderstandings before effort is wasted.
 
 State:
 
 - **What** the user asked for (in your own words — not a paraphrase of their exact message)
-- **Why** you think that is the correct interpretation
+- **What you verified** in the repository and what remains uncertain
 - **What you will NOT do** (related things you are explicitly not tackling)
 - For bug reports specifically: what the user expected, what actually happened, and which part of the system you believe is responsible
 
@@ -63,9 +68,15 @@ Wait for a yes/no before proceeding to planning.
 
 ---
 
-### 0b. Create a Task File (multi-session tasks)
+### 0b. Choose the Durable Work Ledger
 
-If the task spans more than one session or touches more than 3 files, create a task file immediately after confirming understanding. This gives any agent an exact checkpoint to resume from.
+For full-spec work, `docs/specs/<slug>/spec.yml` is the only durable work
+ledger. It contains the plan, tasks, decisions, attempts, evidence, and handoff;
+do not create a session task file that duplicates those records.
+
+For inline-spec or non-spec work spanning more than one session or touching more
+than three files, create a session task file immediately after confirming
+understanding. It gives any agent an exact checkpoint to resume from.
 
 ```bash
 # Create the task file (links to current session automatically)
@@ -309,11 +320,11 @@ Is this correct?
 
 Complements the planning template above with the end-to-end lifecycle.
 
-1. **Understand** — State your interpretation and wait for confirmation (Step 0 above)
-2. **Clarify** — Resolve ambiguities, search codebase for similar implementations (DRY), check `docs/architecture/`
+1. **Discover** — Read related specs, docs, source patterns, tests, and tracker context before asking questions.
+2. **Understand** — State verified facts, uncertainties, scope, and non-goals; ask one blocking question at a time and wait for confirmation.
 3. **Specify** — For full-spec work, run `specify` and review `docs/specs/<slug>/spec.yml` before implementation.
 4. **Plan** — Follow the template above or run `plan-from-spec`. Check `sessions.py status` for file conflicts.
-5. **Test strategy** — Decide before implementation: TDD when behavior is clearly defined, test-after when API is still being designed.
+5. **Test contract** — Define tests and expected evidence before implementation. Red evidence may pass unexpectedly or be inapplicable, but the result and reason must be recorded.
 6. **Implement** — Backend first, then frontend, then integration. Track every file. Lint incrementally.
 7. **Verify** — Work through Acceptance Criteria checklist. Run `verify-spec` for full-spec work.
 8. **Deploy** — `deploy-docs` → `prepare-deploy` → `deploy`. Rebuild Docker if backend changed.

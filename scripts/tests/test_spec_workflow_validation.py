@@ -115,6 +115,118 @@ tasks:
 """
 
 
+def schema_v2_spec() -> str:
+    return minimal_spec(
+        extra_top_level="""
+implementation_state:
+  subject_commit: abc1234
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-10T00:00:00Z"
+  implementation_plan:
+    status: not_required
+    reason: Existing architecture supports the approved contract.
+decisions:
+  - id: D-1
+    status: active
+    decision: Reuse the existing route pattern.
+    reason: It already enforces authenticated access.
+    decided_at: "2026-07-10T00:00:00Z"
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Add a focused validator fixture.
+    outcome: planned
+    recorded_at: "2026-07-10T00:00:00Z"
+handoff:
+  current_task_id: TASK-1
+  next_action: Run the validator fixture.
+  command: python3 -m pytest scripts/tests/test_spec_workflow_validation.py
+  expected_outcome: The fixture passes after validator implementation.
+  blocker: null
+  last_verified_commit: abc1234
+implementation_plan:
+  spec_path: docs/specs/example/spec.yml
+  existing_patterns:
+    - scripts/spec_validate.py
+  architecture: Extend the validator with Schema V2 checks.
+  data_flow:
+    - Author creates a Schema V2 spec.
+    - Validator checks the required records.
+  affected_files:
+    - path: scripts/spec_validate.py
+      reason: Validate Schema V2.
+  verification_strategy:
+    - python3 -m pytest scripts/tests/test_spec_workflow_validation.py
+  verification_order:
+    - Validator fixtures first.
+tasks:
+  - id: TASK-1
+    title: Implement example slice
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - scripts/spec_validate.py
+    ownership:
+      files:
+        - scripts/spec_validate.py
+      shared_files: []
+    verification_ids:
+      - V-EXAMPLE
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+""",
+    ).replace(
+        "id: example\n",
+        "schema_version: 2\nid: example\n",
+        1,
+    ).replace(
+        """        status: failed_as_expected
+        run_id: local:red
+        timestamp: "2026-07-02T00:00:00Z"
+""",
+        """        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_example.py
+        run_id: local:red
+        subject_commit: abc1234
+        timestamp: "2026-07-02T00:00:00Z"
+""",
+        1,
+    ).replace(
+        """        status: passed
+        run_id: local:green
+        timestamp: "2026-07-02T00:00:00Z"
+""",
+        """        status: passed
+        command: python3 -m pytest backend/tests/test_example.py
+        run_id: local:green
+        subject_commit: abc1234
+        timestamp: "2026-07-02T00:00:00Z"
+""",
+        1,
+    ).replace(
+        """      status: passed
+      run_id: local:green
+      timestamp: "2026-07-02T00:00:00Z"
+""",
+        """      status: passed
+      command: python3 -m pytest backend/tests/test_example.py
+      run_id: local:green
+      subject_commit: abc1234
+      timestamp: "2026-07-02T00:00:00Z"
+""",
+        1,
+    )
+
+
 def test_validator_accepts_plan_like_spec(tmp_path):
     spec_validate = load_module("spec_validate")
     path = write_spec(tmp_path, minimal_spec())
@@ -271,3 +383,122 @@ def test_spec_verify_rejects_pending_required_final_verification(tmp_path):
     failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
 
     assert any("V-EXAMPLE" in failure for failure in failures)
+
+
+def test_validator_rejects_schema_v2_without_handoff(tmp_path):
+    spec_validate = load_module("spec_validate")
+    path = write_spec(
+        tmp_path,
+        schema_v2_spec().replace(
+            """handoff:
+  current_task_id: TASK-1
+  next_action: Run the validator fixture.
+  command: python3 -m pytest scripts/tests/test_spec_workflow_validation.py
+  expected_outcome: The fixture passes after validator implementation.
+  blocker: null
+  last_verified_commit: abc1234
+""",
+            "",
+        ),
+    )
+
+    try:
+        spec_validate.validate_spec(path)
+    except spec_validate.SpecError as exc:
+        assert "handoff" in str(exc)
+    else:
+        raise AssertionError("Schema V2 specs without handoff should fail validation")
+
+
+def test_validator_accepts_complete_schema_v2_spec(tmp_path):
+    spec_validate = load_module("spec_validate")
+    path = write_spec(tmp_path, schema_v2_spec())
+
+    assert spec_validate.validate_spec(path)["schema_version"] == 2
+
+
+def test_validator_rejects_schema_v2_task_without_expected_files(tmp_path):
+    spec_validate = load_module("spec_validate")
+    path = write_spec(tmp_path, schema_v2_spec().replace("""    expected_files:
+      - scripts/spec_validate.py
+""", ""))
+
+    try:
+        spec_validate.validate_spec(path)
+    except spec_validate.SpecError as exc:
+        assert "expected_files" in str(exc)
+    else:
+        raise AssertionError("Schema V2 tasks without expected_files should fail validation")
+
+
+def test_spec_verify_rejects_schema_v2_green_evidence_without_subject_commit(tmp_path):
+    spec_verify = load_module("spec_verify")
+    path = write_spec(
+        tmp_path,
+        schema_v2_spec().replace("""        subject_commit: abc1234
+        timestamp: "2026-07-02T00:00:00Z"
+""", """        timestamp: "2026-07-02T00:00:00Z"
+""", 2),
+    )
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("subject_commit" in failure for failure in failures)
+
+
+def test_spec_verify_rejects_schema_v2_stale_green_evidence(tmp_path):
+    spec_verify = load_module("spec_verify")
+    path = write_spec(
+        tmp_path,
+        schema_v2_spec().replace(
+            """implementation_state:
+  subject_commit: abc1234
+""",
+            """implementation_state:
+  subject_commit: def5678
+""",
+        ),
+    )
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("stale" in failure for failure in failures)
+
+
+def test_spec_verify_rejects_schema_v2_playwright_evidence_without_deployment_reference(tmp_path):
+    spec_verify = load_module("spec_verify")
+    path = write_spec(
+        tmp_path,
+        schema_v2_spec()
+        .replace("type: pytest", "type: playwright", 1)
+        .replace("""    green_phase:
+      required: true
+      expected: pass
+""", """    green_phase:
+      required: true
+      expected: pass_after_deploy
+""", 1)
+        .replace(
+            """    command: python3 -m pytest backend/tests/test_example.py
+    covers:
+""",
+            """    command: python3 scripts/tests.py run --spec example.spec.ts
+    target: app.dev.openmates.org
+    covers:
+""",
+            1,
+        ),
+    )
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("deployment_reference" in failure for failure in failures)
+
+
+def test_spec_verify_rejects_schema_v2_manual_evidence_without_reason(tmp_path):
+    spec_verify = load_module("spec_verify")
+    path = write_spec(tmp_path, schema_v2_spec().replace("kind: automated_test", "kind: manual_check", 1))
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert any("reason" in failure for failure in failures)

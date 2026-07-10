@@ -60,6 +60,12 @@ Pass only when:
   reason, skipped with a reason, or not applicable.
 - Every required green/final check has passing, user-confirmed, waived, or
   accepted-blocker evidence.
+- Schema V2 automated evidence records command, run ID, timestamp, and subject
+  commit; manual, skipped, waived, and blocked evidence records a reason and
+  follow-up or recheck condition.
+- Green evidence subject commits match the spec implementation-state subject
+  commit; a material source, contract, assertion, or assumption change invalidates
+  affected evidence until replacement evidence is recorded.
 - Privacy/security criteria have concrete code or test evidence.
 - Changed source files have related tests or an explicit skip reason.
 - Open questions are resolved or listed as accepted residual risk.
@@ -114,3 +120,5 @@ intent changed, or ask the user to accept a documented risk.
 - Manual verification is allowed only when automation is impractical and the
   reason is documented.
 - Do not mark a full spec verified while required green evidence is missing.
+- Do not preserve green status from an earlier subject commit after a material
+  change, even when the earlier test result was genuinely passing.

@@ -21,6 +21,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VALID_STATUSES = {"draft", "clarifying", "approved", "implementing", "verified"}
+VALID_SCHEMA_VERSIONS = {1, 2}
 VALID_TEST_TYPES = {"playwright", "pytest", "vitest", "unit", "lint", "build", "manual"}
 VALID_AC_STATUSES = {"pending", "satisfied", "failed", "waived", "blocked"}
 VALID_COVERAGE_STATUSES = {"uncovered", "covered", "ambiguous", "blocked", "waived"}
@@ -53,6 +54,9 @@ VALID_VERIFICATION_PHASES = {"red", "green", "final", "not_applicable"}
 VALID_VERIFICATION_STATUSES = {"pending", "passed", "failed", "passed_unexpectedly", "skipped", "waived", "blocked"}
 VALID_TASK_STATUSES = {"pending", "in_progress", "done", "blocked", "needs_fix", "cancelled"}
 VALID_TASK_PHASES = {"drafting", "checking_assumptions", "awaiting_approval", "working_tasks", "running_checks", "blocked", "complete"}
+VALID_APPROVAL_STATUSES = {"pending", "approved", "not_required", "waived", "blocked"}
+VALID_DECISION_STATUSES = {"active", "superseded"}
+VALID_ATTEMPT_OUTCOMES = {"planned", "failed_as_expected", "rejected", "blocked", "succeeded"}
 SCENARIO_ID = re.compile(r"^S-\d+$")
 AC_ID = re.compile(r"^AC-\d+$")
 TEST_ID = re.compile(r"^T-[A-Z0-9-]+$")
@@ -69,6 +73,13 @@ BROAD_AC_PATTERNS = (
 
 class SpecError(ValueError):
     """Raised when a spec.yml file fails validation."""
+
+
+def _schema_version(data: dict[str, Any]) -> int:
+    value = data.get("schema_version", 1)
+    if isinstance(value, bool) or not isinstance(value, int) or value not in VALID_SCHEMA_VERSIONS:
+        raise SpecError(f"schema_version must be one of {', '.join(str(version) for version in sorted(VALID_SCHEMA_VERSIONS))}")
+    return value
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -133,7 +144,19 @@ def _optional_string_list(value: Any, field: str) -> list[str]:
     return [item.strip() for item in items]
 
 
-def _validate_acceptance_criteria(data: dict[str, Any], scenario_ids: set[str]) -> tuple[set[str], dict[str, dict[str, Any]]]:
+def _string_list(value: Any, field: str, *, allow_empty: bool = False) -> list[str]:
+    if not isinstance(value, list) or (not value and not allow_empty):
+        raise SpecError(f"{field} must be {'a list' if allow_empty else 'a non-empty list'}")
+    if not all(isinstance(item, str) and item.strip() for item in value):
+        raise SpecError(f"{field} must contain non-empty strings")
+    return [item.strip() for item in value]
+
+
+def _validate_acceptance_criteria(
+    data: dict[str, Any],
+    scenario_ids: set[str],
+    schema_version: int,
+) -> tuple[set[str], dict[str, dict[str, Any]]]:
     ac_ids: set[str] = set()
     ac_by_id: dict[str, dict[str, Any]] = {}
     for index, criterion in enumerate(_as_list(data.get("acceptance_criteria"), "acceptance_criteria"), start=1):
@@ -157,6 +180,14 @@ def _validate_acceptance_criteria(data: dict[str, Any], scenario_ids: set[str]) 
             raise SpecError(f"{criterion_id}.verification_scope must be one of {', '.join(sorted(VALID_VERIFICATION_SCOPES))}")
 
         verification_ids = _optional_string_list(criterion.get("verification_ids"), f"acceptance_criteria[{index}].verification_ids")
+        if schema_version == 2:
+            for field in ("required", "status", "coverage_status", "verification_scope"):
+                if field not in criterion:
+                    raise SpecError(f"{criterion_id} Schema V2 record requires {field}")
+            if not isinstance(criterion["required"], bool):
+                raise SpecError(f"{criterion_id}.required must be boolean")
+            if criterion["required"] and criterion.get("coverage_status") == "covered" and not verification_ids:
+                raise SpecError(f"{criterion_id} requires verification_ids when coverage_status is covered")
         if verification_ids and criterion.get("coverage_status") in {"uncovered", "ambiguous"}:
             raise SpecError(f"{criterion_id} has verification_ids but coverage_status is {criterion.get('coverage_status')}")
         if criterion.get("status") == "satisfied" and criterion.get("coverage_status") in {"uncovered", "ambiguous"}:
@@ -167,7 +198,19 @@ def _validate_acceptance_criteria(data: dict[str, Any], scenario_ids: set[str]) 
     return ac_ids, ac_by_id
 
 
-def _validate_tests(data: dict[str, Any], ac_ids: set[str]) -> tuple[set[str], set[str]]:
+def _validate_evidence(
+    evidence: Any,
+    *,
+    record_id: str,
+    phase: str,
+    schema_version: int,
+) -> None:
+    if schema_version != 2:
+        return
+    _as_mapping(evidence, f"{record_id}.{phase}.evidence")
+
+
+def _validate_tests(data: dict[str, Any], ac_ids: set[str], schema_version: int) -> tuple[set[str], set[str]]:
     covered: set[str] = set()
     test_ids: set[str] = set()
     for index, test in enumerate(_as_list(data.get("tests"), "tests"), start=1):
@@ -201,6 +244,18 @@ def _validate_tests(data: dict[str, Any], ac_ids: set[str]) -> tuple[set[str], s
             raise SpecError(f"{test_id}.red_phase must include required and expected")
         if "required" not in green_phase or "expected" not in green_phase:
             raise SpecError(f"{test_id}.green_phase must include required and expected")
+        _validate_evidence(
+            red_phase.get("evidence"),
+            record_id=test_id,
+            phase="red_phase",
+            schema_version=schema_version,
+        )
+        _validate_evidence(
+            green_phase.get("evidence"),
+            record_id=test_id,
+            phase="green_phase",
+            schema_version=schema_version,
+        )
         if test_type == "playwright":
             target = _require_string(test, f"tests[{index}].target")
             if target != "app.dev.openmates.org":
@@ -210,7 +265,7 @@ def _validate_tests(data: dict[str, Any], ac_ids: set[str]) -> tuple[set[str], s
     return covered, test_ids
 
 
-def _validate_assumptions(data: dict[str, Any]) -> None:
+def _validate_assumptions(data: dict[str, Any], schema_version: int) -> None:
     assumptions = data.get("assumptions")
     if assumptions is None:
         return
@@ -230,8 +285,11 @@ def _validate_assumptions(data: dict[str, Any]) -> None:
         required_before = assumption.get("required_before", "never")
         if required_before not in VALID_REQUIRED_BEFORE:
             raise SpecError(f"{assumption_id}.required_before must be one of {', '.join(sorted(VALID_REQUIRED_BEFORE))}")
+        if schema_version == 2 and required_before != "never" and status in {"confirmed", "corrected"}:
+            _as_list(assumption.get("evidence"), f"{assumption_id}.evidence")
 
-def _validate_verifications(data: dict[str, Any], ac_ids: set[str]) -> tuple[set[str], set[str]]:
+
+def _validate_verifications(data: dict[str, Any], ac_ids: set[str], schema_version: int) -> tuple[set[str], set[str]]:
     verifications = data.get("verifications")
     if verifications is None:
         return set(), set()
@@ -261,6 +319,12 @@ def _validate_verifications(data: dict[str, Any], ac_ids: set[str]) -> tuple[set
         if verification.get("required_for_done") is True and phase in {"green", "final"} and status in {"failed", "pending"}:
             # Pending required checks are allowed while drafting/implementing; spec_verify enforces evidence before completion.
             pass
+        _validate_evidence(
+            verification.get("evidence"),
+            record_id=verification_id,
+            phase=phase,
+            schema_version=schema_version,
+        )
     return seen, covered
 
 
@@ -273,10 +337,17 @@ def _validate_task_refs(refs: dict[str, Any], field: str, scenario_ids: set[str]
             raise SpecError(f"{field} references unknown acceptance criterion {criterion_id}")
 
 
-def _validate_tasks(data: dict[str, Any], scenario_ids: set[str], ac_ids: set[str], test_ids: set[str], verification_ids: set[str]) -> None:
+def _validate_tasks(
+    data: dict[str, Any],
+    scenario_ids: set[str],
+    ac_ids: set[str],
+    test_ids: set[str],
+    verification_ids: set[str],
+    schema_version: int,
+) -> set[str]:
     tasks = data.get("tasks")
     if tasks is None:
-        return
+        return set()
     seen: set[str] = set()
     valid_verification_refs = test_ids | verification_ids
     for index, task in enumerate(_as_list(tasks, "tasks"), start=1):
@@ -299,10 +370,85 @@ def _validate_tasks(data: dict[str, Any], scenario_ids: set[str], ac_ids: set[st
         for ref in refs:
             if (ref.startswith("T-") or ref.startswith("V-")) and valid_verification_refs and ref not in valid_verification_refs:
                 raise SpecError(f"{task_id} references unknown verification/test {ref}")
+        if schema_version == 2:
+            for field in ("status", "phase", "covers", "expected_files", "verification_ids", "dependencies", "blockers", "follow_up_tasks", "ownership"):
+                if field not in task:
+                    raise SpecError(f"{task_id} Schema V2 record requires {field}")
+            _as_list(task.get("expected_files"), f"{task_id}.expected_files")
+            _optional_string_list(task.get("verification_ids"), f"{task_id}.verification_ids")
+            ownership = _as_mapping(task.get("ownership"), f"{task_id}.ownership")
+            _as_list(ownership.get("files"), f"{task_id}.ownership.files")
+            if not isinstance(ownership.get("shared_files"), list):
+                raise SpecError(f"{task_id}.ownership.shared_files must be a list")
+    if schema_version == 2:
+        for index, task in enumerate(_as_list(tasks, "tasks"), start=1):
+            task_id = _require_string(_as_mapping(task, f"tasks[{index}]"), f"tasks[{index}].id")
+            for dependency in _string_list(task.get("dependencies"), f"{task_id}.dependencies", allow_empty=True):
+                if dependency not in seen:
+                    raise SpecError(f"{task_id} depends on unknown task {dependency}")
+    return seen
+
+
+def _validate_schema_v2(data: dict[str, Any], task_ids: set[str]) -> None:
+    implementation_state = _as_mapping(data.get("implementation_state"), "implementation_state")
+    _require_string(implementation_state, "implementation_state.subject_commit")
+
+    approvals = _as_mapping(data.get("approvals"), "approvals")
+    for approval_name in ("product_contract", "implementation_plan"):
+        approval = _as_mapping(approvals.get(approval_name), f"approvals.{approval_name}")
+        status = _require_string(approval, f"approvals.{approval_name}.status")
+        if status not in VALID_APPROVAL_STATUSES:
+            raise SpecError(f"approvals.{approval_name}.status must be one of {', '.join(sorted(VALID_APPROVAL_STATUSES))}")
+        if status == "approved":
+            _require_string(approval, f"approvals.{approval_name}.approved_at")
+        if status in {"not_required", "waived", "blocked"}:
+            _require_string(approval, f"approvals.{approval_name}.reason")
+
+    for index, decision in enumerate(_as_list(data.get("decisions"), "decisions"), start=1):
+        decision = _as_mapping(decision, f"decisions[{index}]")
+        _require_string(decision, f"decisions[{index}].id")
+        status = _require_string(decision, f"decisions[{index}].status")
+        if status not in VALID_DECISION_STATUSES:
+            raise SpecError(f"decisions[{index}].status must be one of {', '.join(sorted(VALID_DECISION_STATUSES))}")
+        for field in ("decision", "reason", "decided_at"):
+            _require_string(decision, f"decisions[{index}].{field}")
+
+    for index, attempt in enumerate(_as_list(data.get("attempts"), "attempts"), start=1):
+        attempt = _as_mapping(attempt, f"attempts[{index}]")
+        _require_string(attempt, f"attempts[{index}].id")
+        task_id = _require_string(attempt, f"attempts[{index}].task_id")
+        if task_id not in task_ids:
+            raise SpecError(f"attempts[{index}].task_id references unknown task {task_id}")
+        outcome = _require_string(attempt, f"attempts[{index}].outcome")
+        if outcome not in VALID_ATTEMPT_OUTCOMES:
+            raise SpecError(f"attempts[{index}].outcome must be one of {', '.join(sorted(VALID_ATTEMPT_OUTCOMES))}")
+        for field in ("approach", "recorded_at"):
+            _require_string(attempt, f"attempts[{index}].{field}")
+
+    handoff = _as_mapping(data.get("handoff"), "handoff")
+    current_task_id = _require_string(handoff, "handoff.current_task_id")
+    if current_task_id not in task_ids:
+        raise SpecError(f"handoff.current_task_id references unknown task {current_task_id}")
+    for field in ("next_action", "command", "expected_outcome", "last_verified_commit"):
+        _require_string(handoff, f"handoff.{field}")
+    blocker = handoff.get("blocker")
+    if blocker is not None and not isinstance(blocker, dict):
+        raise SpecError("handoff.blocker must be null or a mapping")
+
+    plan = _as_mapping(data.get("implementation_plan"), "implementation_plan")
+    for field in ("spec_path", "architecture"):
+        _require_string(plan, f"implementation_plan.{field}")
+    for field in ("existing_patterns", "data_flow", "affected_files", "verification_strategy", "verification_order"):
+        _as_list(plan.get(field), f"implementation_plan.{field}")
+    for index, affected_file in enumerate(_as_list(plan.get("affected_files"), "implementation_plan.affected_files"), start=1):
+        affected_file = _as_mapping(affected_file, f"implementation_plan.affected_files[{index}]")
+        _require_string(affected_file, f"implementation_plan.affected_files[{index}].path")
+        _require_string(affected_file, f"implementation_plan.affected_files[{index}].reason")
 
 
 def validate_spec(path: Path) -> dict[str, Any]:
     data = _load_yaml(path)
+    schema_version = _schema_version(data)
     _require_string(data, "id")
     _require_string(data, "title")
     status = _require_string(data, "status")
@@ -311,10 +457,10 @@ def validate_spec(path: Path) -> dict[str, Any]:
     _require_string(data, "goal")
     _validate_scope(data)
     scenario_ids = _validate_scenarios(data)
-    ac_ids, ac_by_id = _validate_acceptance_criteria(data, scenario_ids)
-    covered_ac_ids, test_ids = _validate_tests(data, ac_ids)
-    _validate_assumptions(data)
-    verification_ids, verification_covered_ac_ids = _validate_verifications(data, ac_ids)
+    ac_ids, ac_by_id = _validate_acceptance_criteria(data, scenario_ids, schema_version)
+    covered_ac_ids, test_ids = _validate_tests(data, ac_ids, schema_version)
+    _validate_assumptions(data, schema_version)
+    verification_ids, verification_covered_ac_ids = _validate_verifications(data, ac_ids, schema_version)
     all_verification_refs = test_ids | verification_ids
     covered_ac_ids |= verification_covered_ac_ids
     for criterion_id, criterion in ac_by_id.items():
@@ -324,10 +470,12 @@ def validate_spec(path: Path) -> dict[str, Any]:
             covered_ac_ids.add(criterion_id)
         if criterion.get("coverage_status") in {"blocked", "waived"}:
             covered_ac_ids.add(criterion_id)
-    _validate_tasks(data, scenario_ids, ac_ids, test_ids, verification_ids)
+    task_ids = _validate_tasks(data, scenario_ids, ac_ids, test_ids, verification_ids, schema_version)
     missing_coverage = sorted(ac_ids - covered_ac_ids)
     if missing_coverage:
         raise SpecError(f"acceptance criteria without test coverage: {', '.join(missing_coverage)}")
+    if schema_version == 2:
+        _validate_schema_v2(data, task_ids)
     return data
 
 

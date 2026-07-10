@@ -20,6 +20,11 @@ Do not maintain separate Markdown spec, plan, or task files for new full specs.
 If a readable document is needed, generate it from `spec.yml` instead of
 duplicating content by hand.
 
+New full specs declare `schema_version: 2`. Existing specs without that field
+remain Schema V1 and are validated under the legacy contract until they are
+actively resumed for material implementation work. Do not bulk-migrate old
+specs solely to satisfy this guide.
+
 ## When Specs Are Required
 
 Automatically use the spec workflow before implementation when work is complex,
@@ -59,7 +64,8 @@ Skip specs for trivial or mechanical work:
 For full specs:
 
 1. Detect the user's implementation intent and auto-select `specify`.
-2. Discover existing context before asking questions: GitHub Issues, relevant
+2. Perform bounded discovery before stating an understanding or asking questions:
+   GitHub Issues, relevant
    Linear tasks only when appropriate, `docs/specs/`, `docs/architecture/`, user
    guides, source code, and existing tests. If the work touches a shared product
    surface with an Apple counterpart, discover the mapped Swift files and Apple
@@ -67,13 +73,17 @@ For full specs:
 3. Ask up to five rounds of clarifying questions, one question per message. Wait
    for the user's response before asking the next question. The questions must
    be based on discovered context and focus on blocking product decisions.
-4. Summarize the understood vision, scope, non-goals, and unresolved decisions.
-   Wait for user confirmation before writing the final full spec.
+4. Summarize the understood vision, scope, non-goals, verified facts, and
+   unresolved decisions. Do not present an inference as a repository fact. Wait
+   for user confirmation before writing the final full spec.
 5. Create or update `docs/specs/<slug>/spec.yml`.
 6. Run `python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml`.
-7. Present the spec to the user and wait for approval.
+7. Present the product contract to the user and record product-contract approval.
 8. Use `plan-from-spec` and `tasks-from-spec` to fill `implementation_plan` and
-   `tasks` inside the same `spec.yml`.
+   `tasks` inside the same `spec.yml`. Record a separate technical-plan approval
+   only when the plan introduces a material architecture, security, privacy,
+   migration, rollout, or external-dependency decision not already covered by
+   the approved product contract.
 9. Write or update the tests listed in `spec.yml` before feature code. For new
    functionality, list CLI evidence first, web Playwright evidence second, and
    Apple remote evidence third when the Apple app has a counterpart.
@@ -83,12 +93,20 @@ For full specs:
     vague acceptance criteria such as "all tests pass" into concrete scoped
     checks. Required criteria must have `coverage_status`, `verification_scope`,
     and `verification_ids`, or an explicit user confirmation, waiver, or blocker.
-12. Implement one small requirement slice at a time.
+12. Implement one small requirement slice at a time. Update `handoff` before a
+    non-trivial action and after a verified result, failed attempt, scope change,
+    or blocker so a fresh session can continue without chat context.
 13. Deploy before Playwright green-phase verification because Playwright specs
     run against `app.dev.openmates.org`.
 14. Run green-phase tests in CLI → web → Apple order, record evidence in
     `spec.yml`, and run `python3 scripts/spec_verify.py
     docs/specs/<slug>/spec.yml`.
+
+Material changes to an acceptance criterion, test assertion, contract,
+assumption, or linked implementation invalidate its green evidence. Preserve the
+old evidence as history, mark the affected task `needs_fix` or `in_progress`,
+and record replacement evidence for the new subject revision. Never retain a
+passing status merely because it was true for an earlier revision.
 
 Implementation must not begin before the user approves the full spec unless the
 user explicitly instructs OpenCode to skip the spec gate.
@@ -156,9 +174,39 @@ Playwright specs always test the live dev app, not undeployed local code.
 Backend and unit tests can usually complete both red and green phases before
 deploy. Playwright green evidence is always after deploy.
 
+## Schema V2 Contract
+
+Schema V2 makes the durable full spec a complete work ledger. New full specs
+must include the existing scenarios, acceptance criteria, tests,
+`implementation_plan`, and `tasks`, plus:
+
+- `implementation_state.subject_commit`: the revision whose evidence is current.
+- `approvals.product_contract` and `approvals.implementation_plan`: separate
+  approval states, timestamps, and reasons for non-required, waived, or blocked
+  approvals.
+- `decisions`: durable decision, reason, status, and timestamp records.
+- `attempts`: failed, rejected, blocked, planned, or successful approaches linked
+  to the task they informed.
+- `handoff`: current task, exact next command, expected outcome, blocker, and
+  last verified revision.
+- task `ownership`, `dependencies`, `expected_files`, verification IDs, blockers,
+  and follow-up links.
+
+For full specs, `spec.yml` is the only durable plan and task ledger. Do not
+create a session task file that duplicates its scenarios, acceptance criteria,
+tasks, status, or handoff. Session task files remain appropriate for inline-spec
+and non-spec work.
+
+Evidence is a claim of action and must support that claim. Recorded automated
+evidence requires `command`, `run_id`, `timestamp`, and `subject_commit`.
+Playwright evidence also records its live target and deployment reference.
+Manual checks, skips, waivers, and blockers require a reason, actor when known,
+timestamp, and next action or recheck condition where applicable.
+
 ## Spec YAML Template
 
 ```yaml
+schema_version: 2
 id: teams-v1
 title: Teams V1
 status: draft # draft | clarifying | approved | implementing | verified
@@ -205,6 +253,39 @@ clarification:
     content or personal chat metadata beyond usage totals explicitly approved in
     the spec.
   approved_by_user: false
+
+implementation_state:
+  subject_commit: <COMMIT_SHA>
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: ""
+  implementation_plan:
+    status: not_required
+    reason: Existing architecture satisfies the approved contract.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Reuse the existing authenticated-route dependency.
+    reason: It provides the required user identity and authorization boundary.
+    decided_at: ""
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Add the API contract test before route implementation.
+    outcome: planned
+    recorded_at: ""
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Write and run the red backend contract test.
+  command: python3 -m pytest backend/tests/test_teams.py
+  expected_outcome: The test fails because the route does not exist yet.
+  blocker: null
+  last_verified_commit: <COMMIT_SHA>
 
 scenarios:
   - id: S-1
@@ -275,7 +356,9 @@ tests:
       expected: pass
       evidence:
         status: ""
+        command: ""
         run_id: ""
+        subject_commit: ""
         timestamp: ""
 
   - id: T-E2E-001
@@ -317,6 +400,7 @@ verifications:
       timestamp: ""
 
 implementation_plan:
+  spec_path: docs/specs/teams-v1/spec.yml
   existing_patterns:
     - backend/core/api/app/routes/example.py
   architecture: >
@@ -354,6 +438,12 @@ tasks:
       - T-PYTEST-001
     verification_ids:
       - T-PYTEST-001
+    dependencies: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/teams.py
+        - backend/tests/test_teams.py
+      shared_files: []
     blockers: []
     follow_up_tasks: []
     independently_deployable: true

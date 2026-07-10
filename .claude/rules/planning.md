@@ -3,11 +3,16 @@ description: Task planning, acceptance criteria, and debugging attempt limits
 globs:
 ---
 
-## Proactive Clarifying Questions (Mandatory)
+## Discovery And Clarifying Questions (Mandatory)
 
-Before planning, debugging, or writing code — ask questions first. Do not assume context.
+Before planning, debugging, or writing code, perform bounded discovery first:
+related specs, architecture docs, source patterns, tests, and tracker context
+when relevant. Do not ask users for facts the repository can answer.
 
-**Protocol:** Ask up to 5 clarifying questions, **one question per message**. Wait for the user's response before asking the next question. Stop early if context is sufficiently clear to proceed confidently.
+**Protocol:** State verified facts, uncertainties, scope, and non-goals. Then ask
+up to 5 clarifying questions, **one question per message**. Wait for the user's
+response before asking the next question. Stop early if context is sufficiently
+clear to proceed confidently.
 
 **What to ask about** (adapt naturally to the task):
 - Expected vs actual behavior, reproduction steps
@@ -19,7 +24,9 @@ Before planning, debugging, or writing code — ask questions first. Do not assu
 
 **When to skip:** Trivial tasks with zero ambiguity (typo fix, single-line config change, explicit "just do it" from user).
 
-**After questions are answered:** State your understanding in 2-3 sentences and get a final confirmation before starting work.
+**After questions are answered:** State your evidence-backed understanding in
+2-3 sentences and get a final confirmation before starting work. Do not present
+an inference as a verified repository fact.
 
 ## Pre-Planning Checks (Mandatory for Features & Integrations)
 
@@ -31,6 +38,11 @@ Before planning any new feature or provider implementation:
 ## Acceptance Criteria Before Implementing
 
 Every non-trivial task needs a checklist of verifiable acceptance criteria before implementation.
+
+For full-spec work, required acceptance criteria need explicit verification IDs,
+user confirmation, waiver, or accepted blocker records. Define the test contract
+before implementation; red evidence may be flexible, but record what happened
+and why.
 
 ## Debugging Attempt Limit
 

@@ -39,6 +39,7 @@ Each task must include:
 - Verification command or planned test file
 - `verification_ids` or test IDs that gate the task
 - Initial `status`, blockers, dependencies, and follow-up task links when known
+- File ownership and shared-file ownership
 - Whether it is independently deployable
 
 Run validation after editing:
@@ -80,3 +81,5 @@ Next: write tests for T-1, record red evidence, implement T-1, then run `verify-
 - Do not include unrelated cleanup unless it is required by a scenario.
 - Mark dependencies between tasks explicitly.
 - Keep follow-up tasks traceable to the failed required checks that created them.
+- Update the Schema V2 handoff so a fresh session can start the first pending task
+  without reconstructing chat context.

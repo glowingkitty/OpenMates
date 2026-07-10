@@ -1,0 +1,545 @@
+schema_version: 2
+id: sdd-v2
+title: OpenCode Spec-Driven Development V2
+status: approved
+
+goal: >
+  Make every new OpenMates full spec a durable, evidence-backed, resumable work
+  contract whose schema, validator, verifier, skills, and OpenCode Plan Mode
+  enforce the same truthfulness and traceability rules.
+
+scope:
+  in:
+    - Schema V2 requirements for full specs created after this work is released.
+    - Evidence provenance and stale-evidence invalidation for acceptance criteria,
+      test assertions, contracts, assumptions, and relevant implementation changes.
+    - Separate product-contract and material technical-plan approval records.
+    - Durable decisions, failed attempts, task ownership, dependencies, and handoff state.
+    - One authoritative full-spec ledger, with session task records limited to a
+      reference to the spec and current task rather than duplicated plan data.
+    - Reconciliation of planning-order and test-first instruction conflicts.
+    - Path-scoped OpenCode Plan Mode edits limited to executable specs.
+    - Deterministic fixtures and audits for the new schema and permissions.
+    - Staged migration rules for legacy specs.
+  out:
+    - Changes to the user-facing Plans V1 product, API, encryption model, or UI.
+    - Retrofitting every existing spec to Schema V2 in this change.
+    - Replacing the active deterministic-workflow-guardrails implementation.
+    - Product source, database schema, or external provider behavior.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP authentication returned 401; no issue was linked to this request.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/planning.md
+    - docs/specs/README.md
+    - docs/specs/deterministic-workflow-guardrails/spec.yml
+    - .claude/rules/planning.md
+    - .claude/rules/session-lifecycle.md
+  code_patterns:
+    - scripts/spec_validate.py
+    - scripts/spec_verify.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/tests/test_spec_workflow_validation.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - opencode.json
+    - .agents/skills/specify/SKILL.md
+    - .agents/skills/plan-from-spec/SKILL.md
+    - .agents/skills/tasks-from-spec/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+  tests:
+    - scripts/tests/test_spec_workflow_validation.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - No Apple product surface or native contract changes.
+  verification:
+    - Not required because this changes repository-only OpenCode workflow tooling.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should SDD improvements update the existing workflow-guardrails spec or use a separate contract?
+      answer: >
+        Use a separate SDD V2 spec. Link it to deterministic-workflow-guardrails,
+        avoid duplicate work, and do not change the user-facing Plans feature.
+  vision_summary: >
+    New full specs must be executable, honest, resumable, and deterministic where
+    possible. Existing specs stay valid under their current schema until actively
+    resumed, while every new Schema V2 spec follows the stronger contract.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 3f37059a5
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-10T10:10:00Z"
+  implementation_plan:
+    status: not_required
+    reason: The approved repository-governance contract already defines the required technical boundaries.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep SDD V2 separate from deterministic-workflow-guardrails.
+    reason: The existing spec owns execution guardrails, while this spec owns the full-spec contract and evidence model.
+    decided_at: "2026-07-10T10:10:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Add Schema V2 fixture tests before validator and verifier changes.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-10T10:15:00Z"
+    evidence: local:pytest:sdd-v2-red
+
+handoff:
+  current_task_id: TASK-4
+  next_action: Run final schema, audit, documentation, and code-quality checks before deployment.
+  command: python3 scripts/spec_verify.py docs/specs/sdd-v2/spec.yml --phase complete
+  expected_outcome: Verification remains blocked only by pending green evidence until the tested revision is committed and recorded.
+  blocker: null
+  last_verified_commit: 3f37059a5
+
+scenarios:
+  - id: S-1
+    title: Author creates a complete Schema V2 full spec
+    given:
+      - An OpenCode author starts a new multi-file authentication feature.
+    when:
+      - The author drafts docs/specs/auth-v2/spec.yml.
+    then:
+      - The validator rejects missing required acceptance-criterion, task,
+        implementation-plan, evidence, or handoff fields.
+      - The author receives a specific error identifying the missing contract field.
+
+  - id: S-2
+    title: Verification evidence identifies the exact tested revision
+    given:
+      - A required backend test passes for commit abc1234.
+    when:
+      - The author records green evidence.
+    then:
+      - The evidence records command, run identifier, timestamp, subject commit,
+        and relevant target or artifact information.
+      - The verifier rejects incomplete automated evidence.
+
+  - id: S-3
+    title: Material changes invalidate stale verification evidence
+    given:
+      - AC-2 has passing green evidence for commit abc1234.
+    when:
+      - The implementation or linked assertion changes at commit def5678.
+    then:
+      - AC-2 and linked task state become pending or needs_fix.
+      - The old evidence is retained as history but cannot satisfy completion.
+
+  - id: S-4
+    title: A fresh OpenCode session resumes a full spec without chat context
+    given:
+      - TASK-3 is in progress after a failed red-phase attempt.
+    when:
+      - A new OpenCode session reads the spec.
+    then:
+      - The handoff identifies the current task, next command, expected result,
+        current blocker, and last verified commit.
+      - The session does not need a duplicate session task file to recover scope or status.
+
+  - id: S-5
+    title: Product and technical approvals remain distinguishable
+    given:
+      - The user approved the product contract for a feature.
+    when:
+      - The technical plan introduces a migration or privacy decision not previously approved.
+    then:
+      - The spec records a pending material technical-plan approval.
+      - Implementation stops until the decision is approved, revised, waived, or blocked.
+
+  - id: S-6
+    title: Plan Mode can author a spec but cannot edit product code
+    given:
+      - An OpenCode session uses the Plan Mode agent.
+    when:
+      - It creates or updates docs/specs/example/spec.yml.
+    then:
+      - The edit is permitted.
+      - An attempted edit to backend or frontend source is denied.
+
+  - id: S-7
+    title: Legacy specs remain usable during staged migration
+    given:
+      - A verified Schema V1 spec exists before SDD V2 is released.
+    when:
+      - Repository validation runs.
+    then:
+      - The legacy spec remains structurally valid under V1 rules.
+      - A newly authored or actively resumed V2 spec must satisfy the stricter V2 rules.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Schema V2 rejects incomplete full-spec records with field-specific validation errors.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SDD-VALIDATE]
+  - id: AC-2
+    scenario: S-2
+    text: Required automated evidence identifies what ran, when it ran, and the commit it verified.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SDD-VERIFY]
+  - id: AC-3
+    scenario: S-3
+    text: Material changes invalidate linked green evidence until replacement evidence is recorded.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SDD-VERIFY]
+  - id: AC-4
+    scenario: S-4
+    text: Every Schema V2 full spec has a concise handoff with the current task and next verified action.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SDD-VALIDATE]
+  - id: AC-5
+    scenario: S-5
+    text: Schema V2 records separate product and material technical-plan approval states.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SDD-VALIDATE]
+  - id: AC-6
+    scenario: S-6
+    text: OpenCode Plan Mode can edit only docs/specs executable contracts and cannot edit product source.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SDD-OPENCODE-AUDIT]
+  - id: AC-7
+    scenario: S-7
+    text: Existing Schema V1 specs remain valid while new or resumed Schema V2 specs use stricter rules.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SDD-VALIDATE]
+
+assumptions:
+  - id: A-1
+    text: The current Python validator and verifier can distinguish schema versions without changing existing spec files.
+    category: implementation
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/spec_validate.py
+        summary: The validator already loads each YAML spec independently and can branch on a new top-level schema_version field.
+  - id: A-2
+    text: OpenCode agent edit permission supports path-specific allow and deny rules.
+    category: tooling
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: OpenCode permissions documentation queried through Context7 on 2026-07-10.
+        summary: Agent edit rules support glob patterns, with later matching rules taking precedence.
+  - id: A-3
+    text: The active deterministic-workflow-guardrails work owns any concurrent stale-read enforcement changes.
+    category: coordination
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/specs/deterministic-workflow-guardrails/spec.yml
+        summary: Its scope explicitly includes blocking edits after another process changes a file.
+
+contracts:
+  schema:
+    - Schema V2 is required for new full specs after rollout; V1 remains supported for existing specs.
+    - Schema V2 requires implementation_plan, tasks, approvals, decisions, attempts, and handoff.
+    - Required acceptance criteria require explicit coverage metadata and linked verification, waiver, or accepted blocker records.
+  evidence:
+    - Automated evidence records status, command, run_id, timestamp, and subject_commit.
+    - Playwright evidence also records target and deployment reference.
+    - Manual, waived, blocked, and skipped evidence records actor, reason, timestamp, and next action where applicable.
+    - Evidence belongs to a specified subject commit and becomes stale after a material linked change.
+  planning:
+    - Bounded repository discovery precedes evidence-backed clarification.
+    - Tests and expected verification evidence are defined before implementation; red evidence may be flexible but must be recorded.
+    - Full specs are the only durable plan/task ledger; session task records may reference but must not duplicate full-spec state.
+  plan_mode:
+    - Plan Mode may edit only docs/specs/**/spec.yml.
+    - Plan Mode cannot edit product source, tests, arbitrary documentation, or configuration.
+  migration:
+    - Existing specs without schema_version are treated as V1.
+    - New specs declare schema_version: 2.
+    - A V1 spec is migrated when actively resumed for a material implementation change, not solely because validation runs.
+
+tests:
+  - id: T-SDD-VALIDATE
+    type: pytest
+    file: scripts/tests/test_spec_workflow_validation.py
+    command: python3 -m pytest scripts/tests/test_spec_workflow_validation.py
+    covers: [AC-1, AC-4, AC-5, AC-7]
+    assertions:
+      - complete Schema V2 fixture passes validation
+      - incomplete Schema V2 fixture fails with the required field name
+      - V1 fixture continues to pass existing validation rules
+      - V2 task, approval, decision, attempt, and handoff references are validated
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_spec_workflow_validation.py
+        run_id: local:pytest:sdd-v2-red
+        subject_commit: 3f37059a5
+        timestamp: "2026-07-10T10:15:00Z"
+        summary: Schema V2 handoff and task expected_files fixtures failed as expected before validator support existed.
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, run_id: "", timestamp: ""}
+  - id: T-SDD-VERIFY
+    type: pytest
+    file: scripts/tests/test_spec_workflow_validation.py
+    command: python3 -m pytest scripts/tests/test_spec_workflow_validation.py
+    covers: [AC-2, AC-3]
+    assertions:
+      - incomplete automated evidence fails verification
+      - a material changed subject commit invalidates linked evidence
+      - replaced evidence for the new commit restores passing verification
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_spec_workflow_validation.py
+        run_id: local:pytest:sdd-v2-red
+        subject_commit: 3f37059a5
+        timestamp: "2026-07-10T10:15:00Z"
+        summary: Schema V2 provenance and stale-evidence fixtures failed as expected before verifier support existed.
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, run_id: "", timestamp: ""}
+  - id: T-SDD-OPENCODE-AUDIT
+    type: pytest
+    file: scripts/tests/test_opencode_spec_workflow_audit.py
+    command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py
+    covers: [AC-6]
+    assertions:
+      - Plan Mode allows docs/specs/**/spec.yml edits
+      - Plan Mode denies non-spec edits
+      - canonical skills and Agent Skill mirrors remain synchronized
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py
+        run_id: local:pytest:sdd-v2-audit-red
+        subject_commit: 3f37059a5
+        timestamp: "2026-07-10T10:15:00Z"
+        summary: The audit fixture failed as expected because the Plan Mode audit still required total edit denial.
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, run_id: "", timestamp: ""}
+
+implementation_plan:
+  spec_path: docs/specs/sdd-v2/spec.yml
+  existing_patterns:
+    - scripts/spec_validate.py validates structural spec contracts.
+    - scripts/spec_verify.py validates recorded evidence without running tests.
+    - scripts/tests/test_spec_workflow_validation.py uses minimal fixture specs.
+    - scripts/audit_opencode_spec_workflow.py checks OpenCode config and skill mirrors.
+  architecture: >
+    Add a versioned Schema V2 branch to the validator and verifier while retaining
+    V1 behavior for existing specs. Update the canonical SDD guide and skills to
+    require V2 fields, then synchronize Agent Skill mirrors and harden the
+    OpenCode Plan Mode audit around path-scoped spec-only edit permission.
+  approval_boundary:
+    - Product-contract approval is recorded when the user approves the completed spec.
+    - Technical-plan approval is required only when a plan introduces a material decision not already covered by the product contract.
+    - This repository-governance change introduces no such additional material decision.
+  data_flow:
+    - Author declares schema_version: 2 in a new full spec.
+    - Validator checks the V2 contract, IDs, references, task ownership, and handoff.
+    - Verifier checks evidence provenance, subject commits, and stale invalidation.
+    - A material change updates the spec handoff and invalidates affected evidence.
+    - A resumed session reads the handoff and continues the identified task.
+  affected_files:
+    - path: docs/contributing/guides/spec-driven-development.md
+      reason: Define Schema V2, evidence, approvals, invalidation, handoff, and migration rules.
+    - path: docs/contributing/guides/planning.md
+      reason: Remove contradictory planning order, duplicate full-spec task files, and test-after guidance.
+    - path: .claude/rules/planning.md
+      reason: Align global clarification and pre-planning rules with the SDD guide.
+    - path: .claude/rules/session-lifecycle.md
+      reason: Make session task records references for full specs instead of duplicate contracts.
+    - path: .claude/skills/specify/SKILL.md
+      reason: Require Schema V2 drafting and product-contract approval.
+    - path: .claude/skills/plan-from-spec/SKILL.md
+      reason: Require material technical-plan approval and V2 plan traceability.
+    - path: .claude/skills/tasks-from-spec/SKILL.md
+      reason: Require task ownership, dependencies, attempts, and handoff updates.
+    - path: .claude/skills/verify-spec/SKILL.md
+      reason: Require provenance, stale-evidence checks, and honest completion reports.
+    - path: opencode.json
+      reason: Permit Plan Mode editing only executable specs.
+    - path: scripts/spec_validate.py
+      reason: Validate Schema V2 while preserving V1 compatibility.
+    - path: scripts/spec_verify.py
+      reason: Enforce evidence provenance and invalidation.
+    - path: scripts/audit_opencode_spec_workflow.py
+      reason: Audit new config and canonical workflow requirements.
+    - path: scripts/tests/test_spec_workflow_validation.py
+      reason: Test V2 fixtures, V1 compatibility, evidence, and invalidation.
+    - path: scripts/tests/test_opencode_spec_workflow_audit.py
+      reason: Assert the Plan Mode permission contract and audit failures.
+  migration_rollout:
+    - Existing specs without schema_version remain Schema V1 and are not rewritten by this change.
+    - New full specs declare schema_version: 2 after the validator and guide land.
+    - An actively resumed V1 spec migrates before its next material implementation slice; documentation-only updates do not require migration.
+  observability:
+    - Validation and verification errors name the failing spec ID, record ID, and missing or stale evidence field.
+    - No product telemetry or user data is collected; evidence paths remain repository-relative and sanitized.
+  required_assumption_checks:
+    - A-1: exercised by V1 and V2 fixture specs in test_spec_workflow_validation.py.
+    - A-2: exercised by the direct workflow audit and test_opencode_spec_workflow_audit.py.
+    - A-3: no implementation change is made to stale-read hooks or sessions.py without coordination.
+  acceptance_criteria_mapping:
+    - AC-1, AC-4, AC-5, AC-7: T-SDD-VALIDATE.
+    - AC-2, AC-3: T-SDD-VERIFY.
+    - AC-6: T-SDD-OPENCODE-AUDIT.
+  verification_strategy:
+    - Add validator/verifier fixture tests before implementation.
+    - Run python3 -m pytest scripts/tests/test_spec_workflow_validation.py.
+    - Run python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py.
+    - Run python3 scripts/audit_opencode_spec_workflow.py.
+    - Run python3 scripts/spec_validate.py docs/specs/sdd-v2/spec.yml.
+    - Run python3 scripts/spec_verify.py docs/specs/sdd-v2/spec.yml after green evidence is recorded.
+  verification_order:
+    - Validator and verifier fixtures.
+    - OpenCode workflow audit fixtures and direct audit.
+    - Schema validation and verification of this spec.
+  open_questions:
+    - none
+
+tasks:
+  - id: TASK-1
+    title: Define and test Schema V2 validation
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-4, S-5, S-7]
+      acceptance_criteria: [AC-1, AC-4, AC-5, AC-7]
+    expected_files:
+      - scripts/spec_validate.py
+      - scripts/tests/test_spec_workflow_validation.py
+    ownership:
+      files:
+        - scripts/spec_validate.py
+        - scripts/tests/test_spec_workflow_validation.py
+      shared_files: []
+    verification_ids: [T-SDD-VALIDATE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Define and test evidence provenance and invalidation
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-3]
+      acceptance_criteria: [AC-2, AC-3]
+    expected_files:
+      - scripts/spec_verify.py
+      - scripts/tests/test_spec_workflow_validation.py
+    ownership:
+      files:
+        - scripts/spec_verify.py
+        - scripts/tests/test_spec_workflow_validation.py
+      shared_files: []
+    verification_ids: [T-SDD-VERIFY]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Update canonical SDD instructions and skills
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-4, S-5, S-7]
+      acceptance_criteria: [AC-1, AC-4, AC-5, AC-7]
+    expected_files:
+      - docs/contributing/guides/spec-driven-development.md
+      - docs/contributing/guides/planning.md
+      - .claude/rules/planning.md
+      - .claude/rules/session-lifecycle.md
+      - .claude/skills/specify/SKILL.md
+      - .claude/skills/plan-from-spec/SKILL.md
+      - .claude/skills/tasks-from-spec/SKILL.md
+      - .claude/skills/verify-spec/SKILL.md
+    ownership:
+      files:
+        - docs/contributing/guides/spec-driven-development.md
+        - docs/contributing/guides/planning.md
+        - .claude/rules/planning.md
+        - .claude/rules/session-lifecycle.md
+        - .claude/skills/specify/SKILL.md
+        - .claude/skills/plan-from-spec/SKILL.md
+        - .claude/skills/tasks-from-spec/SKILL.md
+        - .claude/skills/verify-spec/SKILL.md
+      shared_files: []
+    verification_ids: [T-SDD-VALIDATE]
+    dependencies: [TASK-1, TASK-2]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Restrict and audit OpenCode Plan Mode edit access
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-6]
+      acceptance_criteria: [AC-6]
+    expected_files:
+      - opencode.json
+      - scripts/audit_opencode_spec_workflow.py
+      - scripts/tests/test_opencode_spec_workflow_audit.py
+    ownership:
+      files:
+        - opencode.json
+        - scripts/audit_opencode_spec_workflow.py
+        - scripts/tests/test_opencode_spec_workflow_audit.py
+      shared_files: []
+    verification_ids: [T-SDD-OPENCODE-AUDIT]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+risks:
+  - Strict Schema V2 validation can make migrations noisy; version-gating keeps legacy specs valid.
+  - Subject-commit invalidation must be explicit and deterministic rather than heuristically guessing source-to-AC impact.
+  - The deterministic-workflow-guardrails session may touch session lifecycle behavior; this work must not modify overlapping files without coordination.
+
+open_questions:
+  - Should V2 require a technical-plan approval for all full specs, or only when implementation introduces material decisions outside the approved product contract?

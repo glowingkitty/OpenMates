@@ -45,7 +45,22 @@ def test_opencode_spec_workflow_audit_requires_plan_agent():
     assert any("agent.plan" in failure for failure in failures)
 
 
-def test_opencode_spec_workflow_audit_requires_read_only_plan_agent():
+def test_opencode_spec_workflow_audit_allows_plan_mode_to_edit_only_executable_specs():
+    audit = load_audit_module()
+    config = audit._load_opencode_config()
+    config["agent"]["plan"] = dict(config["agent"]["plan"])
+    config["agent"]["plan"]["permission"] = dict(config["agent"]["plan"]["permission"])
+    config["agent"]["plan"]["permission"]["edit"] = {
+        "*": "deny",
+        "docs/specs/**/spec.yml": "allow",
+    }
+
+    failures = audit.audit_config(config)
+
+    assert not any("agent.plan.permission.edit" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_rejects_broad_plan_mode_edit_access():
     audit = load_audit_module()
     config = audit._load_opencode_config()
     config["agent"]["plan"] = dict(config["agent"]["plan"])
@@ -54,7 +69,22 @@ def test_opencode_spec_workflow_audit_requires_read_only_plan_agent():
 
     failures = audit.audit_config(config)
 
-    assert "agent.plan.permission.edit must be deny" in failures
+    assert any("spec-only edit access" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_rejects_reversed_plan_mode_edit_precedence():
+    audit = load_audit_module()
+    config = audit._load_opencode_config()
+    config["agent"]["plan"] = dict(config["agent"]["plan"])
+    config["agent"]["plan"]["permission"] = dict(config["agent"]["plan"]["permission"])
+    config["agent"]["plan"]["permission"]["edit"] = {
+        "docs/specs/**/spec.yml": "allow",
+        "*": "deny",
+    }
+
+    failures = audit.audit_config(config)
+
+    assert any("spec-only edit access" in failure for failure in failures)
 
 
 def test_opencode_spec_workflow_audit_detects_skill_mirror_drift(tmp_path):

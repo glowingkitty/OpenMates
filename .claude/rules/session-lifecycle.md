@@ -59,7 +59,7 @@ python3 scripts/sessions.py spawn-chat --prompt-file prompt.txt --name "fix-task
 
 ## Multi-Session Tasks
 
-For tasks spanning >1 session or touching >3 files:
+For inline-spec or non-spec tasks spanning >1 session or touching >3 files:
 ```bash
 python3 scripts/sessions.py task-create --session <ID> --title "..." --context "..."
 python3 scripts/sessions.py task-step --id t001 --add "[ ] Step one"
@@ -67,3 +67,9 @@ python3 scripts/sessions.py task-ac --id t001 --add "[ ] Acceptance criterion"
 # Resume: sessions.py start --mode <mode> --task "..." --task-id t001
 # Complete: sessions.py task-update --id t001 --status done --summary "..."
 ```
+
+For full-spec work, `docs/specs/<slug>/spec.yml` is the only durable plan, task,
+evidence, and handoff ledger. Do not create a session task file that duplicates
+its scenarios, acceptance criteria, tasks, or status. Start a session with the
+spec path in `--task`, then update the spec handoff before and after non-trivial
+actions.

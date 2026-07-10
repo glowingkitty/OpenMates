@@ -28,6 +28,7 @@ RED_EVIDENCE_STATUSES = {
     "not_applicable",
 }
 FINAL_ACCEPTED_STATUSES = {"passed", "passed_after_deploy", "user_confirmed", "waived", "blocked"}
+EVIDENCE_REASON_STATUSES = {"missing_test", "skipped_with_reason", "waived", "blocked"}
 
 
 def _phase_evidence(test: dict[str, Any], phase: str) -> dict[str, Any] | None:
@@ -55,6 +56,63 @@ def _record_status(record: dict[str, Any]) -> str | None:
     return status if isinstance(status, str) else None
 
 
+def _evidence_contract_failures(
+    data: dict[str, Any],
+    *,
+    record_id: str,
+    phase: str,
+    evidence: dict[str, Any] | None,
+    automated: bool,
+    playwright: bool = False,
+) -> list[str]:
+    if data.get("schema_version", 1) != 2 or not evidence:
+        return []
+    status = _evidence_status(evidence)
+    if not status or status == "pending":
+        return []
+
+    failures: list[str] = []
+    for field in ("timestamp",):
+        if not isinstance(evidence.get(field), str) or not evidence[field].strip():
+            failures.append(f"{record_id}: {phase} evidence missing {field}")
+    if status in EVIDENCE_REASON_STATUSES:
+        if not isinstance(evidence.get("reason"), str) or not evidence["reason"].strip():
+            failures.append(f"{record_id}: {phase} evidence missing reason")
+        if status in {"waived", "blocked"}:
+            if not isinstance(evidence.get("actor"), str) or not evidence["actor"].strip():
+                failures.append(f"{record_id}: {phase} evidence missing actor")
+        if status == "blocked" and not any(
+            isinstance(evidence.get(field), str) and evidence[field].strip()
+            for field in ("next_action", "recheck_condition")
+        ):
+            failures.append(f"{record_id}: {phase} blocked evidence missing next_action or recheck_condition")
+        return failures
+    if not automated:
+        if not isinstance(evidence.get("reason"), str) or not evidence["reason"].strip():
+            failures.append(f"{record_id}: {phase} manual evidence missing reason")
+        return failures
+
+    for field in ("command", "run_id", "subject_commit"):
+        if not isinstance(evidence.get(field), str) or not evidence[field].strip():
+            failures.append(f"{record_id}: {phase} evidence missing {field}")
+
+    if playwright and phase == "green_phase" and status in PASS_STATUSES:
+        for field in ("target", "deployment_reference"):
+            if not isinstance(evidence.get(field), str) or not evidence[field].strip():
+                failures.append(f"{record_id}: {phase} evidence missing {field}")
+
+    current_commit = data.get("implementation_state", {}).get("subject_commit")
+    if (
+        phase in {"green_phase", "green", "final"}
+        and status in PASS_STATUSES
+        and isinstance(current_commit, str)
+        and current_commit.strip()
+        and evidence.get("subject_commit") != current_commit
+    ):
+        failures.append(f"{record_id}: {phase} evidence is stale for subject_commit {current_commit}")
+    return failures
+
+
 def verify_spec(path: Path, *, require_red: bool, require_green: bool) -> list[str]:
     data = validate_spec(path)
     failures: list[str] = []
@@ -80,14 +138,36 @@ def verify_spec(path: Path, *, require_red: bool, require_green: bool) -> list[s
         green_phase = test.get("green_phase", {})
 
         if require_red and red_phase.get("required"):
-            red_status = _evidence_status(_phase_evidence(test, "red_phase"))
+            red_evidence = _phase_evidence(test, "red_phase")
+            red_status = _evidence_status(red_evidence)
             if red_status not in RED_EVIDENCE_STATUSES:
                 failures.append(f"{test_id}: missing red-phase evidence")
+            failures.extend(
+                _evidence_contract_failures(
+                    data,
+                    record_id=test_id,
+                    phase="red_phase",
+                    evidence=red_evidence,
+                    automated=test.get("type") != "manual",
+                    playwright=test.get("type") == "playwright",
+                )
+            )
 
         if require_green and green_phase.get("required"):
-            green_status = _evidence_status(_phase_evidence(test, "green_phase"))
+            green_evidence = _phase_evidence(test, "green_phase")
+            green_status = _evidence_status(green_evidence)
             if green_status not in PASS_STATUSES:
                 failures.append(f"{test_id}: missing green-phase passing evidence")
+            failures.extend(
+                _evidence_contract_failures(
+                    data,
+                    record_id=test_id,
+                    phase="green_phase",
+                    evidence=green_evidence,
+                    automated=test.get("type") != "manual",
+                    playwright=test.get("type") == "playwright",
+                )
+            )
 
     for verification in data.get("verifications", []) or []:
         verification_id = verification["id"]
@@ -99,6 +179,16 @@ def verify_spec(path: Path, *, require_red: bool, require_green: bool) -> list[s
             failures.append(f"{verification_id}: missing red-phase evidence")
         if require_green and phase in {"green", "final"} and status not in FINAL_ACCEPTED_STATUSES:
             failures.append(f"{verification_id}: missing required final evidence")
+        if (require_red and phase == "red") or (require_green and phase in {"green", "final"}):
+            failures.extend(
+                _evidence_contract_failures(
+                    data,
+                    record_id=verification_id,
+                    phase=phase,
+                    evidence=verification.get("evidence") if isinstance(verification.get("evidence"), dict) else None,
+                    automated=verification.get("kind") in {"automated_test", "deterministic_check"},
+                )
+            )
 
     return failures
 

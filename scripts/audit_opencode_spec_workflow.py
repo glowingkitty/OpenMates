@@ -31,28 +31,43 @@ PLAN_PROMPT_TERMS = {
     "Failed required checks",
     "spec_validate.py",
     "spec_verify.py",
+    "schema_version",
+    "subject_commit",
+    "handoff",
 }
+PLAN_EDIT_PERMISSION_ITEMS = (
+    ("*", "deny"),
+    ("docs/specs/**/spec.yml", "allow"),
+)
 SKILL_TERMS = {
     ".claude/skills/specify/SKILL.md": {
         "coverage_status",
         "verification_ids",
         "assumptions",
         "vague criteria",
+        "schema_version",
+        "handoff",
     },
     ".claude/skills/plan-from-spec/SKILL.md": {
         "required assumptions",
         "coverage_status",
         "verification_ids",
+        "approvals.implementation_plan",
+        "handoff",
     },
     ".claude/skills/tasks-from-spec/SKILL.md": {
         "failed required checks",
         "follow-up tasks",
         "verification_ids",
+        "ownership",
+        "handoff",
     },
     ".claude/skills/verify-spec/SKILL.md": {
         "coverage_status",
         "required assumptions",
         "failed required checks",
+        "subject commit",
+        "material",
     },
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
@@ -74,8 +89,9 @@ def audit_config(config: dict[str, Any]) -> list[str]:
         return failures
 
     permission = plan_agent.get("permission", {})
-    if permission.get("edit") != "deny":
-        failures.append("agent.plan.permission.edit must be deny")
+    edit_permission = permission.get("edit")
+    if not isinstance(edit_permission, dict) or tuple(edit_permission.items()) != PLAN_EDIT_PERMISSION_ITEMS:
+        failures.append("agent.plan.permission.edit must provide spec-only edit access")
     if permission.get("question") != "allow":
         failures.append("agent.plan.permission.question must be allow")
     if plan_agent.get("mode") != "primary":
