@@ -8375,16 +8375,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             } else if (currentChat.is_anonymous) {
                 try {
-                    const anonymousChatId = currentChat.chat_id;
-                    const expectsMessages = (currentChat.messages_v ?? 0) > 0;
-                    for (let attempt = 0; attempt < ANONYMOUS_HASH_RESTORE_ATTEMPTS; attempt += 1) {
-                        newMessages = await anonymousChatStorage.getMessagesForChat(anonymousChatId);
-                        if (newMessages.length > 0 || !expectsMessages) break;
-                        if (attempt < ANONYMOUS_HASH_RESTORE_ATTEMPTS - 1) {
-                            await new Promise((resolve) => setTimeout(resolve, ANONYMOUS_HASH_RESTORE_RETRY_MS));
-                        }
-                    }
-                    console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from anonymousChatStorage for ${anonymousChatId}`);
+                    newMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
+                    console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from anonymousChatStorage for ${currentChat.chat_id}`);
                 } catch (error) {
                     console.error(`[ActiveChat] Error loading anonymous chat messages for ${currentChat.chat_id}:`, error);
                     newMessages = [];
