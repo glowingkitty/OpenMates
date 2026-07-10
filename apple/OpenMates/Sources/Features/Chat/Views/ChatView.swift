@@ -1340,12 +1340,12 @@ struct ChatView: View {
             MessageComposerView(
                 session: composerSession,
                 isFocused: $isInputFocused,
-                isComposerEditable: deferredComposerSendContexts.isEmpty,
                 compact: compact && !overlayActive,
                 placeholder: placeholder,
                 expandedMinHeight: overlayActive ? 400 : expandedMinHeight,
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
+                isComposerEditable: deferredComposerSendContexts.isEmpty,
                 onSubmit: sendMessage,
                 inlineFieldContent: nil
             ) {
