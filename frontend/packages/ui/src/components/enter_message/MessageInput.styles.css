@@ -245,7 +245,8 @@
 }
 
 .message-field.recording-active {
-  /* RecordAudio now uses an absolute inset overlay — no extra padding needed */
+  min-height: 220px;
+  padding: 0;
 }
 
 /* When a focus pill is visible, add top padding so the pill partially overlaps the field top.

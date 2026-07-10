@@ -378,6 +378,9 @@ test('active recording shows live rolling waveform and releases analyser resourc
 	const controls = overlay.getByTestId('record-controls');
 	await expect(waveform).toBeVisible();
 	await expect(waveform).toHaveAttribute('aria-hidden', 'true');
+	await expect
+		.poll(async () => (await overlay.boundingBox())?.height ?? 0)
+		.toBeGreaterThanOrEqual(220);
 
 	const bars = waveform.getByTestId('recording-waveform-bar');
 	expect(await bars.count()).toBeGreaterThan(20);

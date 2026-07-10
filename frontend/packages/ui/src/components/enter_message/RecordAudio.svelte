@@ -553,11 +553,6 @@
 </div>
 
 <style>
-    :global(.message-field.recording-active) {
-        min-height: 220px;
-        padding: 0;
-    }
-
     /* Full overlay that covers the entire .message-field */
     .record-overlay {
         position: absolute;
