@@ -31,8 +31,8 @@ final class NativeComposerTextView: NSObject {
     private(set) var embedAccessibilityElements: [NativeComposerEmbedAccessibilityDescriptor] = []
     private(set) var lastControllerError: NativeComposerControllerError?
 
-    private let accessibilityLabel: String
-    private let accessibilityHint: String
+    private let editorAccessibilityLabel: String
+    private let editorAccessibilityHint: String
     private let embedAccessibilityLabel: (ComposerNodeV1) -> String
     private let embedAccessibilityActions: (ComposerNodeV1) -> [AccessibilityAction]
     private var actionsByEmbedID: [String: [AccessibilityAction]] = [:]
@@ -46,8 +46,8 @@ final class NativeComposerTextView: NSObject {
         embedAccessibilityActions: @escaping (ComposerNodeV1) -> [AccessibilityAction]
     ) {
         self.controller = controller
-        self.accessibilityLabel = accessibilityLabel
-        self.accessibilityHint = accessibilityHint
+        self.editorAccessibilityLabel = accessibilityLabel
+        self.editorAccessibilityHint = accessibilityHint
         self.embedAccessibilityLabel = embedAccessibilityLabel
         self.embedAccessibilityActions = embedAccessibilityActions
         super.init()
@@ -68,8 +68,8 @@ final class NativeComposerTextView: NSObject {
         textView.attributedText = controller.attributedString
         textView.selectedRange = controller.selection
         textView.accessibilityIdentifier = "message-editor"
-        textView.accessibilityLabel = accessibilityLabel
-        textView.accessibilityHint = accessibilityHint
+        textView.accessibilityLabel = editorAccessibilityLabel
+        textView.accessibilityHint = editorAccessibilityHint
         rebuildEmbedAccessibilityElements()
         textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
             let element = UIAccessibilityElement(accessibilityContainer: textView)
@@ -96,8 +96,8 @@ final class NativeComposerTextView: NSObject {
         textView.textStorage?.setAttributedString(controller.attributedString)
         textView.setSelectedRange(controller.selection)
         textView.setAccessibilityIdentifier("message-editor")
-        textView.setAccessibilityLabel(accessibilityLabel)
-        textView.setAccessibilityHelp(accessibilityHint)
+        textView.setAccessibilityLabel(editorAccessibilityLabel)
+        textView.setAccessibilityHelp(editorAccessibilityHint)
         rebuildEmbedAccessibilityElements()
     }
     #endif
