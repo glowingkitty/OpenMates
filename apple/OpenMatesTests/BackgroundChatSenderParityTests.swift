@@ -111,6 +111,34 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertNotNil(UUID(uuidString: chatId))
     }
 
+    func testExistingBackgroundChatRequiresWrappedChatKey() throws {
+        XCTAssertThrowsError(
+            try BackgroundChatSendContract.chatKeyIntent(
+                isExistingChat: true,
+                encryptedChatKey: nil
+            )
+        ) { error in
+            guard case BackgroundChatSendError.missingChatKey = error else {
+                return XCTFail("Expected missingChatKey, got \(type(of: error))")
+            }
+        }
+
+        XCTAssertEqual(
+            try BackgroundChatSendContract.chatKeyIntent(
+                isExistingChat: true,
+                encryptedChatKey: "wrapped-existing-key"
+            ),
+            .loadExisting("wrapped-existing-key")
+        )
+        XCTAssertEqual(
+            try BackgroundChatSendContract.chatKeyIntent(
+                isExistingChat: false,
+                encryptedChatKey: nil
+            ),
+            .createNew
+        )
+    }
+
     func testQueuedStorageAcceptsBackendActiveTaskId() {
         let taskId = BackgroundChatStorageContract.storageTaskId(
             taskId: nil,

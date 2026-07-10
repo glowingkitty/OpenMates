@@ -57,4 +57,17 @@ final class NativeComposerFailureRecoveryTests: XCTestCase {
         XCTAssertFalse(session.hasBlockingEmbeds)
         XCTAssertEqual(session.canonicalMarkdown, "Sendable text")
     }
+
+    func testSendSerializationFailureDoesNotReuseLastPublishedMarkdown() throws {
+        let session = NativeComposerSession(canonicalMarkdown: "Previously valid content")
+        try session.controller.loadDocument(
+            ComposerDocumentV1(
+                version: 1,
+                nodes: [ComposerNodeV1(kind: "unsupported", id: "composer:invalid:1")]
+            )
+        )
+
+        XCTAssertThrowsError(try session.canonicalMarkdownForSend())
+        XCTAssertEqual(session.canonicalMarkdown, "Previously valid content")
+    }
 }
