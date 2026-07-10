@@ -123,6 +123,11 @@ describe("activeChatStore", () => {
       expect(activeChatStore.getChatIdFromHash()).toBe("abc-123");
     });
 
+    it("finds chat ID when debug parameters precede it", () => {
+      locationMock.hash = "#e2e-debug=run-1&e2e-token=test-token&chat-id=abc-123";
+      expect(activeChatStore.getChatIdFromHash()).toBe("abc-123");
+    });
+
     it("returns null for unrelated hash", () => {
       locationMock.hash = "#other-param=value";
       expect(activeChatStore.getChatIdFromHash()).toBeNull();

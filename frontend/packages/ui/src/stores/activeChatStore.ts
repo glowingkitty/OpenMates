@@ -93,12 +93,7 @@ function readChatIdFromHash(): string | null {
   if (!browser) return null;
 
   const hash = window.location.hash;
-  if (hash.startsWith("#chat-id=")) {
-    const chatId = new URLSearchParams(hash.substring(1)).get("chat-id");
-    return chatId || null;
-  }
-
-  return null;
+  return new URLSearchParams(hash.substring(1)).get("chat-id") || null;
 }
 
 /**
