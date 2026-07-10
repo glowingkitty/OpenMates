@@ -722,11 +722,17 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed_unexpectedly
+        run_id: "github-actions-29060003738"
+        timestamp: "2026-07-10T00:28:25Z"
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "github-actions-29061031603"
+        timestamp: "2026-07-10T00:53:20Z"
 
   - id: T-APPLE-UPLOAD-AUDIO-UI
     type: unit
@@ -742,11 +748,17 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        run_id: "apple-remote-e8e9eaa-red"
+        timestamp: "2026-07-10T00:24:35Z"
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-8e5b1b9-crypto"
+        timestamp: "2026-07-10T00:53:01Z"
 
   - id: T-APPLE-EMBED-LIFECYCLE
     type: unit
@@ -761,11 +773,17 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        run_id: "apple-remote-e8e9eaa-red"
+        timestamp: "2026-07-10T00:24:35Z"
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-8e5b1b9-drafts"
+        timestamp: "2026-07-10T00:50:28Z"
 
   - id: T-APPLE-PARSE-PASTE
     type: unit
@@ -1394,7 +1412,7 @@ tasks:
 
   - id: TASK-4
     title: Add cross-client encryption and encrypted-draft red tests
-    status: in_progress
+    status: done
     phase: checking_assumptions
     covers:
       scenarios: [S-11, S-15]
@@ -1503,7 +1521,7 @@ tasks:
 
   - id: TASK-10
     title: Implement encrypted draft repository and plaintext migration
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-8, S-11, S-15]
