@@ -108,15 +108,23 @@ struct OMMessageInputField<ActionButtons: View>: View {
                         .padding(.top, compact ? .spacing2 : .spacing4)
                 }
 
-                TiptapComposerWebView(
-                    text: $text,
+                NativeComposerEditorView(
+                    canonicalMarkdown: $text,
                     isFocused: isFocused,
-                    compact: compact,
-                    placeholder: placeholder,
-                    minHeight: textEditorMinHeight,
                     accessibilityHint: accessibilityHint,
                     onSubmit: onSubmit
                 )
+                .overlay(alignment: compact ? .center : .topLeading) {
+                    if text.isEmpty {
+                        Text(placeholder)
+                            .font(.omP)
+                            .foregroundStyle(Color.fontSecondary)
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, compact ? 0 : .spacing6)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                }
                 .padding(.top, inlineFieldContent == nil ? 0 : .spacing2)
                 .frame(maxWidth: .infinity, minHeight: textEditorMinHeight, alignment: compact ? .center : .topLeading)
             }
