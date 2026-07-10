@@ -20,7 +20,7 @@ final class NativeComposerInlineEmbedUITests: XCTestCase {
 
         let gallery = app.descendants(matching: .any)["dev-native-composer-embed-gallery"]
         XCTAssertTrue(gallery.waitForExistence(timeout: 8))
-        XCTAssertEqual(gallery.value as? String, "53 registered, 1 not applicable")
+        XCTAssertEqual(gallery.value as? String, "53")
 
         assertVisible(app: app, identifier: "native-composer-preview-recording-finished")
         assertVisible(app: app, identifier: "native-composer-preview-app-skill-use-queued")

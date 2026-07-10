@@ -28,6 +28,8 @@
 		C0FFEE00000000000005001C /* AppleComposerRendererRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005001B /* AppleComposerRendererRegistryTests.swift */; };
 		C0FFEE00000000000005001E /* AppleComposerRendererRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */; };
 		C0FFEE00000000000005001F /* AppleComposerRendererRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */; };
+		C0FFEE000000000000050021 /* AppleComposerEmbedPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */; };
+		C0FFEE000000000000050022 /* AppleComposerEmbedPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */; };
 		C0FFEE00000000000005000E /* NativeComposerEncryptionCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000C /* NativeComposerEncryptionCompatibilityTests.swift */; };
 		C0FFEE00000000000005000F /* NativeComposerDraftEncryptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000005000D /* NativeComposerDraftEncryptionTests.swift */; };
 		C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000050009 /* NativeComposerController.swift */; };
@@ -872,6 +874,7 @@
 		C0FFEE000000000000050018 /* NativeComposerTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerTextView.swift; sourceTree = "<group>"; };
 		C0FFEE00000000000005001B /* AppleComposerRendererRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleComposerRendererRegistryTests.swift; sourceTree = "<group>"; };
 		C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleComposerRendererRegistry.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleComposerEmbedPreview.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevChatOpeningPreviewView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOpeningScalabilityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -1170,6 +1173,7 @@
 		C0FFEE000000000000050004 /* Composer */ = {
 			isa = PBXGroup;
 			children = (
+				C0FFEE000000000000050020 /* AppleComposerEmbedPreview.swift */,
 				C0FFEE00000000000005001D /* AppleComposerRendererRegistry.swift */,
 				C0FFEE000000000000050015 /* ComposerAttachmentViewProvider.swift */,
 				C0FFEE000000000000050001 /* ComposerDocument.swift */,
@@ -2365,6 +2369,7 @@
 				C0FFEE000000000000046004 /* TiptapComposerWebView.swift in Sources */,
 				C0FFEE000000000000050002 /* ComposerDocument.swift in Sources */,
 				C0FFEE00000000000005001E /* AppleComposerRendererRegistry.swift in Sources */,
+				C0FFEE000000000000050021 /* AppleComposerEmbedPreview.swift in Sources */,
 				C0FFEE000000000000050013 /* ComposerTextAttachment.swift in Sources */,
 				C0FFEE000000000000050016 /* ComposerAttachmentViewProvider.swift in Sources */,
 				C0FFEE00000000000005000A /* NativeComposerController.swift in Sources */,
@@ -2587,6 +2592,7 @@
 				C0FFEE000000000000046005 /* TiptapComposerWebView.swift in Sources */,
 				C0FFEE000000000000050003 /* ComposerDocument.swift in Sources */,
 				C0FFEE00000000000005001F /* AppleComposerRendererRegistry.swift in Sources */,
+				C0FFEE000000000000050022 /* AppleComposerEmbedPreview.swift in Sources */,
 				C0FFEE000000000000050014 /* ComposerTextAttachment.swift in Sources */,
 				C0FFEE000000000000050017 /* ComposerAttachmentViewProvider.swift in Sources */,
 				C0FFEE00000000000005000B /* NativeComposerController.swift in Sources */,
