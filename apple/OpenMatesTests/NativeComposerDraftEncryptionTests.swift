@@ -253,26 +253,31 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         )
 
         try await repository.upsert(initial)
-        var stored = try XCTUnwrap(try await repository.record(chatId: chatId))
+        let initialRecord = try await repository.record(chatId: chatId)
+        var stored = try XCTUnwrap(initialRecord)
         XCTAssertEqual(stored.encryptedMarkdown, initial.encryptedMarkdown)
         XCTAssertFalse(String(reflecting: stored).contains(canonicalMarkdown))
 
         stored.encryptedMarkdown = "updated-format-d-ciphertext"
         try await repository.upsert(stored)
-        let updated = try XCTUnwrap(try await repository.record(chatId: chatId))
+        let updatedRecord = try await repository.record(chatId: chatId)
+        let updated = try XCTUnwrap(updatedRecord)
         XCTAssertEqual(updated.encryptedMarkdown, "updated-format-d-ciphertext")
-        XCTAssertEqual(try await repository.allRecords().count, 1)
+        let updatedRecords = try await repository.allRecords()
+        XCTAssertEqual(updatedRecords.count, 1)
 
         let persisted = try container.mainContext.fetch(FetchDescriptor<PersistedComposerDraft>())
         XCTAssertEqual(persisted.count, 1)
         XCTAssertFalse(String(reflecting: persisted).contains(canonicalMarkdown))
 
         try await repository.remove(chatId: chatId)
-        XCTAssertNil(try await repository.record(chatId: chatId))
+        let removedRecord = try await repository.record(chatId: chatId)
+        XCTAssertNil(removedRecord)
 
         try await repository.upsert(initial)
         try await repository.removeAll()
-        XCTAssertTrue(try await repository.allRecords().isEmpty)
+        let remainingRecords = try await repository.allRecords()
+        XCTAssertTrue(remainingRecords.isEmpty)
     }
 
     private func makeService(

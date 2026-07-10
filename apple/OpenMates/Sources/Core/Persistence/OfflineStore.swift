@@ -278,40 +278,6 @@ final class PersistedEmbedKey {
     }
 }
 
-@Model
-final class PersistedComposerDraft {
-    @Attribute(.unique) var chatId: String
-    var encryptedMarkdown: String
-    var encryptedPreview: String
-    var revision: Int
-    var draftVersion: Int
-
-    init(record: ComposerDraftRecord) {
-        self.chatId = record.chatId
-        self.encryptedMarkdown = record.encryptedMarkdown
-        self.encryptedPreview = record.encryptedPreview
-        self.revision = record.revision
-        self.draftVersion = record.draftVersion
-    }
-
-    func update(from record: ComposerDraftRecord) {
-        encryptedMarkdown = record.encryptedMarkdown
-        encryptedPreview = record.encryptedPreview
-        revision = record.revision
-        draftVersion = record.draftVersion
-    }
-
-    func toRecord() -> ComposerDraftRecord {
-        ComposerDraftRecord(
-            chatId: chatId,
-            encryptedMarkdown: encryptedMarkdown,
-            encryptedPreview: encryptedPreview,
-            revision: revision,
-            draftVersion: draftVersion
-        )
-    }
-}
-
 // MARK: - Pending offline actions (queued for sync when online)
 
 @Model
@@ -363,6 +329,11 @@ final class OfflineStore: ObservableObject {
         } catch {
             print("[Offline] Failed to create SwiftData container: \(error)")
         }
+    }
+
+    init(modelContainer: ModelContainer) {
+        self.modelContainer = modelContainer
+        self.modelContext = modelContainer.mainContext
     }
 
     // MARK: - Save chats from sync

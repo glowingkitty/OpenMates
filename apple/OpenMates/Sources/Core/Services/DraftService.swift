@@ -8,49 +8,6 @@ import Combine
 import CryptoKit
 import Foundation
 
-struct ComposerDraftRecord: Sendable {
-    let chatId: String
-    var encryptedMarkdown: String
-    var encryptedPreview: String
-    let revision: Int
-    let draftVersion: Int
-}
-
-struct ComposerDraft: Sendable {
-    let canonicalMarkdown: String
-    let preview: String
-    let revision: Int
-    let draftVersion: Int
-}
-
-protocol ComposerDraftRepository: Sendable {
-    func upsert(_ record: ComposerDraftRecord) async throws
-    func record(chatId: String) async throws -> ComposerDraftRecord?
-    func remove(chatId: String) async throws
-    func removeAll() async throws
-    func allRecords() async throws -> [ComposerDraftRecord]
-}
-
-protocol LegacyComposerDraftStore: Sendable {
-    func drafts() async -> [String: String]
-    func removeDraft(chatId: String) async
-}
-
-extension LegacyComposerDraftStore {
-    func removeAllDrafts() async {
-        for chatId in await drafts().keys {
-            await removeDraft(chatId: chatId)
-        }
-    }
-}
-
-enum ComposerDraftError: Error, Equatable {
-    case masterKeyUnavailable
-    case encryptedWriteFailed
-    case verificationFailed
-    case migrationConflict
-}
-
 actor UserDefaultsLegacyComposerDraftStore: LegacyComposerDraftStore {
     private let defaults: UserDefaults
     private let storageKey: String
