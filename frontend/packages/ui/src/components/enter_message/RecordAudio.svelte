@@ -4,6 +4,9 @@
   Replaces the normal message field appearance with a purple/blue gradient
   while recording is in progress, matching the Figma design:
 
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+
   ┌──────────────────────────────────────────────────────┐
   │              Release to finish                       │  ← bold, centered
   │                                                      │
@@ -80,6 +83,20 @@
     // null = no pending release; false = complete; true = cancel.
     let pendingReleaseCancel: boolean | null = null;
 
+    const WAVEFORM_SAMPLE_COUNT = 64;
+    const WAVEFORM_FFT_SIZE = 256;
+    const WAVEFORM_SAMPLE_INTERVAL_MS = 50;
+    const WAVEFORM_NOISE_FLOOR = 0.01;
+    const WAVEFORM_MAX_RMS = 0.35;
+    const WAVEFORM_MIN_VISIBLE_LEVEL = 0.04;
+
+    let waveformSamples = $state<number[]>(createEmptyWaveform());
+    let waveformContext: AudioContext | null = null;
+    let waveformSource: MediaStreamAudioSourceNode | null = null;
+    let waveformAnalyser: AnalyserNode | null = null;
+    let waveformAnimationFrame: number | null = null;
+    let lastWaveformSampleAt = 0;
+
     const logger = {
         debug: (...args: unknown[]) => console.debug('[RecordAudio]', ...args),
         info:  (...args: unknown[]) => console.info('[RecordAudio]',  ...args),
@@ -106,6 +123,7 @@
 
     onDestroy(() => {
         logger.debug('Component destroying.');
+        stopWaveform();
         // Guard: don't double-stop if stop/cancel already ran
         if (!stopAlreadyCalled) {
             stopInternal(true);
@@ -158,6 +176,7 @@
 
             mediaRecorder.onstop = () => {
                 logger.debug('MediaRecorder stopped.');
+                stopWaveform();
 
                 // Release the mic track
                 if (internalStream) {
@@ -197,6 +216,7 @@
             readyForRelease = true;
             logger.info('MediaRecorder started.');
             startRecordingTimer();
+            startWaveform(streamToUse);
 
             // If a pointer-release or Escape arrived while we were waiting for
             // getUserMedia + MediaRecorder init, honour it now.
@@ -212,6 +232,7 @@
             logger.error('Failed to initialize recording:', err);
             isRecording = false;
             stopRecordingTimer();
+            stopWaveform();
             if (internalStream) {
                 internalStream.getTracks().forEach(track => track.stop());
                 internalStream = null;
@@ -235,6 +256,7 @@
         logger.info(`Stopping recording. Cancelled: ${isCancelled}`);
 
         stopRecordingTimer();
+        stopWaveform();
         isRecording = false;
 
         if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
@@ -276,6 +298,93 @@
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // --- Live waveform ---
+
+    function createEmptyWaveform(): number[] {
+        return Array.from({ length: WAVEFORM_SAMPLE_COUNT }, () => 0);
+    }
+
+    function startWaveform(stream: MediaStream) {
+        stopWaveform();
+
+        try {
+            const audioWindow = window as unknown as {
+                AudioContext?: typeof AudioContext;
+                webkitAudioContext?: typeof AudioContext;
+            };
+            const AudioContextConstructor = audioWindow.AudioContext ?? audioWindow.webkitAudioContext;
+            if (!AudioContextConstructor) {
+                throw new Error('Web Audio API is unavailable.');
+            }
+
+            waveformContext = new AudioContextConstructor();
+            waveformSource = waveformContext.createMediaStreamSource(stream);
+            waveformAnalyser = waveformContext.createAnalyser();
+            waveformAnalyser.fftSize = WAVEFORM_FFT_SIZE;
+            waveformSource.connect(waveformAnalyser);
+
+            if (waveformContext.state === 'suspended') {
+                void waveformContext.resume().catch((error) => {
+                    logger.error('Failed to resume waveform AudioContext:', error);
+                });
+            }
+
+            const timeDomainData = new Uint8Array(waveformAnalyser.frequencyBinCount);
+            lastWaveformSampleAt = 0;
+
+            const sampleWaveform = (timestamp: number) => {
+                if (!waveformAnalyser || !waveformContext || !isRecording) return;
+
+                if (timestamp - lastWaveformSampleAt >= WAVEFORM_SAMPLE_INTERVAL_MS) {
+                    waveformAnalyser.getByteTimeDomainData(timeDomainData);
+                    waveformSamples = [...waveformSamples.slice(1), normalizeWaveformLevel(timeDomainData)];
+                    lastWaveformSampleAt = timestamp;
+                }
+
+                waveformAnimationFrame = requestAnimationFrame(sampleWaveform);
+            };
+
+            waveformAnimationFrame = requestAnimationFrame(sampleWaveform);
+        } catch (error) {
+            logger.error('Failed to initialize live waveform:', error);
+            stopWaveform();
+        }
+    }
+
+    function normalizeWaveformLevel(timeDomainData: Uint8Array): number {
+        let sumOfSquares = 0;
+        for (const sample of timeDomainData) {
+            const centeredSample = (sample - 128) / 128;
+            sumOfSquares += centeredSample * centeredSample;
+        }
+
+        const rms = Math.sqrt(sumOfSquares / timeDomainData.length);
+        return Math.min(1, Math.max(0, (rms - WAVEFORM_NOISE_FLOOR) / (WAVEFORM_MAX_RMS - WAVEFORM_NOISE_FLOOR)));
+    }
+
+    function stopWaveform() {
+        if (waveformAnimationFrame !== null) {
+            cancelAnimationFrame(waveformAnimationFrame);
+            waveformAnimationFrame = null;
+        }
+
+        waveformSource?.disconnect();
+        waveformAnalyser?.disconnect();
+
+        const contextToClose = waveformContext;
+        waveformSource = null;
+        waveformAnalyser = null;
+        waveformContext = null;
+        lastWaveformSampleAt = 0;
+        waveformSamples = createEmptyWaveform();
+
+        if (contextToClose && contextToClose.state !== 'closed') {
+            void contextToClose.close().catch((error) => {
+                logger.error('Failed to close waveform AudioContext:', error);
+            });
+        }
     }
 
     // --- Document-level pointer release → complete recording ---
@@ -388,13 +497,27 @@
   document-level listeners — no need to intercept on the div.
 -->
 <div class="record-overlay" data-testid="record-overlay" transition:fade={{ duration: 150 }}>
-    <!-- Top: "Release to finish" heading -->
-    <div class="record-header">
-        <span class="release-text" data-testid="release-text">{$text('enter_message.record_audio.release_to_finish')}</span>
+    <div class="record-content">
+        <!-- Top: "Release to finish" heading -->
+        <div class="record-header">
+            <span class="release-text" data-testid="release-text">{$text('enter_message.record_audio.release_to_finish')}</span>
+        </div>
+
+        <!-- Recent microphone levels enter on the right and roll left. -->
+        <div class="recording-waveform" data-testid="recording-waveform" aria-hidden="true">
+            {#each waveformSamples as level, index (index)}
+                <span
+                    class="recording-waveform-bar"
+                    data-testid="recording-waveform-bar"
+                    data-level={level.toFixed(3)}
+                    style:height={`${Math.max(WAVEFORM_MIN_VISIBLE_LEVEL, level) * 100}%`}
+                ></span>
+            {/each}
+        </div>
     </div>
 
     <!-- Bottom controls: timer | cancel hint | mic circle -->
-    <div class="record-controls">
+    <div class="record-controls" data-testid="record-controls">
         <!-- Red timer pill -->
         <div class="timer-pill" data-testid="timer-pill">
             {formatTime(recordingTime)}
@@ -423,6 +546,11 @@
 </div>
 
 <style>
+    :global(.message-field.recording-active) {
+        min-height: 190px;
+        padding: 0;
+    }
+
     /* Full overlay that covers the entire .message-field */
     .record-overlay {
         position: absolute;
@@ -440,11 +568,21 @@
         overflow: hidden;
     }
 
+    .record-content {
+        width: 100%;
+        min-height: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-4);
+    }
+
     /* "Release to finish" heading */
     .record-header {
         width: 100%;
         text-align: center;
-        flex: 1;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -455,6 +593,28 @@
         font-weight: 700;
         color: white;
         letter-spacing: 0.01em;
+    }
+
+    .recording-waveform {
+        width: min(100%, 480px);
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(1px, 0.4vw, 4px);
+        padding-inline: var(--spacing-2);
+        box-sizing: border-box;
+        color: white;
+        overflow: hidden;
+    }
+
+    .recording-waveform-bar {
+        width: clamp(1px, 0.25vw, 3px);
+        min-height: 2px;
+        max-height: 100%;
+        flex: 0 1 3px;
+        background-color: currentColor;
+        border-radius: var(--radius-full);
     }
 
     /* Bottom controls row */

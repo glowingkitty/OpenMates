@@ -181,12 +181,18 @@ async function installDeterministicAudioAnalyser(page: any) {
 }
 
 async function expectWaveformContained(overlay: any, waveform: any) {
-	const overlayBox = await overlay.boundingBox();
-	const waveformBox = await waveform.boundingBox();
-	if (!overlayBox || !waveformBox) throw new Error('Recording overlay or waveform bounding box not found');
+	await expect
+		.poll(async () => {
+			const overlayBox = await overlay.boundingBox();
+			const waveformBox = await waveform.boundingBox();
+			if (!overlayBox || !waveformBox) return false;
 
-	expect(waveformBox.x).toBeGreaterThanOrEqual(overlayBox.x);
-	expect(waveformBox.x + waveformBox.width).toBeLessThanOrEqual(overlayBox.x + overlayBox.width);
+			return (
+				waveformBox.x >= overlayBox.x &&
+				waveformBox.x + waveformBox.width <= overlayBox.x + overlayBox.width
+			);
+		})
+		.toBe(true);
 }
 
 async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500) {
@@ -373,12 +379,19 @@ test('active recording shows live rolling waveform and releases analyser resourc
 	);
 	expect(minimumBarHeight).toBeGreaterThanOrEqual(2);
 
-	const releaseBox = await releaseText.boundingBox();
-	const waveformBox = await waveform.boundingBox();
-	const controlsBox = await controls.boundingBox();
-	if (!releaseBox || !waveformBox || !controlsBox) throw new Error('Recording content bounding box not found');
-	expect(waveformBox.y).toBeGreaterThanOrEqual(releaseBox.y + releaseBox.height);
-	expect(waveformBox.y + waveformBox.height).toBeLessThanOrEqual(controlsBox.y);
+	await expect
+		.poll(async () => {
+			const releaseBox = await releaseText.boundingBox();
+			const waveformBox = await waveform.boundingBox();
+			const controlsBox = await controls.boundingBox();
+			if (!releaseBox || !waveformBox || !controlsBox) return false;
+
+			return (
+				waveformBox.y >= releaseBox.y + releaseBox.height &&
+				waveformBox.y + waveformBox.height <= controlsBox.y
+			);
+		})
+		.toBe(true);
 	await expectWaveformContained(overlay, waveform);
 
 	await page.setViewportSize({ width: 390, height: 844 });
@@ -478,6 +491,7 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 test('press hold then escape cancels recording', async ({ page }) => {
 	test.setTimeout(60000);
 
+	await installDeterministicAudioAnalyser(page);
 	await setupAndFocusMessageField(page);
 	const micButton = await waitForMicButton(page);
 
@@ -502,6 +516,14 @@ test('press hold then escape cancels recording', async ({ page }) => {
 	await page.waitForTimeout(1000);
 	const embedCountAfter = await page.getByTestId('recording-preview').count();
 	expect(embedCountAfter).toBe(embedCountBefore);
+	await expect
+		.poll(() =>
+			page.evaluate(() =>
+				(window as unknown as { __waveformTestState: { closedContexts: number } })
+					.__waveformTestState.closedContexts
+			)
+		)
+		.toBe(1);
 
 	console.log('[TEST] Press hold escape: recording cancelled, no embed');
 });

@@ -224,9 +224,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "29058091784"
+        timestamp: "2026-07-09T23:45:46Z"
+        notes: The new test failed because recording-waveform was absent; all six pre-existing audio recording tests passed.
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -319,7 +320,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Define deterministic web waveform regression coverage
-    status: in_progress
+    status: done
     phase: running_checks
     covers:
       scenarios:
@@ -347,7 +348,7 @@ tasks:
 
   - id: TASK-2
     title: Add metering lifecycle and responsive rolling bars
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios:
