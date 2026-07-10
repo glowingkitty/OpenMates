@@ -14,7 +14,7 @@ import SwiftUI
 import UIKit
 import ObjectiveC
 
-private var composerHostingControllerKey: UInt8 = 0
+@MainActor private var composerHostingControllerKey: UInt8 = 0
 
 final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     private static let embedHeight: CGFloat = 200
