@@ -6,12 +6,12 @@
 
 import Foundation
 
-struct ComposerDocumentV1: Codable, Equatable {
+struct ComposerDocumentV1: Codable, Equatable, Sendable {
     let version: Int
     let nodes: [ComposerNodeV1]
 }
 
-struct ComposerNodeV1: Codable, Equatable {
+struct ComposerNodeV1: Codable, Equatable, Sendable {
     let kind: String
     let id: String
     let source: String?
@@ -116,7 +116,7 @@ struct ComposerNodeV1: Codable, Equatable {
     }
 }
 
-struct ComposerEmbedDisplayV1: Codable, Equatable {
+struct ComposerEmbedDisplayV1: Codable, Equatable, Sendable {
     let title: String
     let mediaKind: String
 }

@@ -97,15 +97,19 @@ final class NativeComposerEmbedLifecycleTests: XCTestCase {
         let first = snapshot(requestId: "request-1", nodeId: "node-1", generation: 1)
         let second = snapshot(requestId: "request-2", nodeId: nil, generation: nil)
 
-        XCTAssertTrue(await coordinator.enqueue(first))
-        XCTAssertTrue(await coordinator.enqueue(second))
-        XCTAssertFalse(await coordinator.enqueue(first))
+        let enqueuedFirst = await coordinator.enqueue(first)
+        let enqueuedSecond = await coordinator.enqueue(second)
+        let enqueuedDuplicate = await coordinator.enqueue(first)
+        XCTAssertTrue(enqueuedFirst)
+        XCTAssertTrue(enqueuedSecond)
+        XCTAssertFalse(enqueuedDuplicate)
 
         await coordinator.updateNode(nodeId: "node-1", generation: 1, state: .error)
         await coordinator.resumeReady { snapshot in
             await recorder.append(snapshot.requestId)
         }
-        XCTAssertEqual(await recorder.values(), [])
+        let blockedValues = await recorder.values()
+        XCTAssertEqual(blockedValues, [])
 
         await coordinator.updateNode(nodeId: "node-1", generation: 1, state: .finished)
         await coordinator.resumeReady { snapshot in
@@ -115,16 +119,20 @@ final class NativeComposerEmbedLifecycleTests: XCTestCase {
             await recorder.append(snapshot.requestId)
         }
 
-        XCTAssertEqual(await recorder.values(), ["request-1", "request-2"])
-        XCTAssertEqual(await coordinator.status(requestId: "request-1"), .completed)
-        XCTAssertEqual(await coordinator.status(requestId: "request-2"), .completed)
+        let dispatchedValues = await recorder.values()
+        let firstStatus = await coordinator.status(requestId: "request-1")
+        let secondStatus = await coordinator.status(requestId: "request-2")
+        XCTAssertEqual(dispatchedValues, ["request-1", "request-2"])
+        XCTAssertEqual(firstStatus, .completed)
+        XCTAssertEqual(secondStatus, .completed)
     }
 
     func testRetryReplacesExpectedGenerationAndTerminationInvalidatesPlaintextSnapshots() async {
         let coordinator = ComposerPendingSendCoordinator()
         let recorder = ComposerDispatchRecorder()
         let queued = snapshot(requestId: "request-retry", nodeId: "node-retry", generation: 1)
-        XCTAssertTrue(await coordinator.enqueue(queued))
+        let enqueued = await coordinator.enqueue(queued)
+        XCTAssertTrue(enqueued)
 
         await coordinator.replaceBlockerGeneration(
             requestId: queued.requestId,
@@ -135,15 +143,18 @@ final class NativeComposerEmbedLifecycleTests: XCTestCase {
         await coordinator.resumeReady { snapshot in
             await recorder.append(snapshot.requestId)
         }
-        XCTAssertEqual(await recorder.values(), [])
+        let staleValues = await recorder.values()
+        XCTAssertEqual(staleValues, [])
 
         await coordinator.invalidateAllForTermination()
         await coordinator.updateNode(nodeId: "node-retry", generation: 2, state: .finished)
         await coordinator.resumeReady { snapshot in
             await recorder.append(snapshot.requestId)
         }
-        XCTAssertEqual(await recorder.values(), [])
-        XCTAssertEqual(await coordinator.status(requestId: queued.requestId), .invalidated)
+        let terminatedValues = await recorder.values()
+        let terminatedStatus = await coordinator.status(requestId: queued.requestId)
+        XCTAssertEqual(terminatedValues, [])
+        XCTAssertEqual(terminatedStatus, .invalidated)
     }
 
     private func snapshot(
