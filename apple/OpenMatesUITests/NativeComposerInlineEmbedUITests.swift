@@ -23,11 +23,11 @@ final class NativeComposerInlineEmbedUITests: XCTestCase {
         XCTAssertEqual(gallery.value as? String, "53")
 
         assertVisible(app: app, identifier: "native-composer-preview-recording-finished")
+        assertVisible(app: app, identifier: "native-composer-preview-recording-transcribing")
         assertVisible(app: app, identifier: "native-composer-preview-app-skill-use-queued")
+        assertVisible(app: app, identifier: "native-composer-preview-code-repo-group-cancelled")
         assertVisible(app: app, identifier: "native-composer-preview-electronics-pcb-schematic-error")
         assertVisible(app: app, identifier: "native-composer-preview-fitness-location-uploading")
-        assertVisible(app: app, identifier: "native-composer-preview-recording-transcribing")
-        assertVisible(app: app, identifier: "native-composer-preview-code-repo-group-cancelled")
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "{\"")).firstMatch.exists)
         XCTAssertFalse(app.tables.firstMatch.exists)
 
