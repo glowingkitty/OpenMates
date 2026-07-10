@@ -17,6 +17,7 @@ enum NativeComposerControllerError: Error, Equatable {
     case duplicateNodeID(String)
     case nodeNotFound(String)
     case expectedEmbed(String)
+    case expectedMention(String)
     case platformSynchronizationFailed
 }
 
@@ -86,6 +87,25 @@ final class NativeComposerController {
         }
 
         let nodes = try nodesByInserting(embed, atUTF16Offset: selection.location)
+        apply(
+            document: ComposerDocumentV1(version: document.version, nodes: nodes),
+            selection: NSRange(location: selection.location + 1, length: 0),
+            markedTextRange: adjusted(markedTextRange, insertingAt: selection.location, length: 1)
+        )
+    }
+
+    func insertMention(_ mention: ComposerNodeV1) throws {
+        guard mention.kind == "mention" else {
+            throw NativeComposerControllerError.expectedMention(mention.id)
+        }
+        guard !document.nodes.contains(where: { $0.id == mention.id }) else {
+            throw NativeComposerControllerError.duplicateNodeID(mention.id)
+        }
+        guard selection.length == 0 else {
+            throw NativeComposerControllerError.invalidSelection(selection)
+        }
+
+        let nodes = try nodesByInserting(mention, atUTF16Offset: selection.location)
         apply(
             document: ComposerDocumentV1(version: document.version, nodes: nodes),
             selection: NSRange(location: selection.location + 1, length: 0),
