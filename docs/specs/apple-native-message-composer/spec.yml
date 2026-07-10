@@ -370,7 +370,7 @@ acceptance_criteria:
     status: pending
     coverage_status: covered
     verification_scope: custom
-    verification_ids: [T-APPLE-EMBED-LIFECYCLE, T-APPLE-UPLOAD-AUDIO-UI, T-WEB-COMPOSER-REGRESSION]
+    verification_ids: [T-APPLE-EMBED-LIFECYCLE, T-APPLE-UPLOAD-AUDIO-UI, T-APPLE-RECORDING-WAVEFORM-UNIT, T-APPLE-RECORDING-WAVEFORM-UI, T-WEB-COMPOSER-REGRESSION]
   - id: AC-5
     scenario: S-5
     text: Native typing/paste conversion covers the current web URL, code, document, table, clipboard embed, and attachment classification behaviors without cursor/order loss.
@@ -747,6 +747,44 @@ tests:
       - cancel/remove excludes the atom and retry recovers the visible state
       - no raw references, keys, paths, or transcripts appear in diagnostics
       - stale, duplicate, remove-then-complete, retry-old-completion, and termination/reconnect callbacks produce no duplicate side effects
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-RECORDING-WAVEFORM-UNIT
+    type: unit
+    file: apple/OpenMatesTests/VoiceRecorderTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/VoiceRecorderTests
+    covers: [AC-4]
+    assertions:
+      - VoiceRecorder enables microphone metering only while recording and samples it no more frequently than every 50ms.
+      - A 64-sample rolling waveform buffer shifts existing values left and appends the newest level without retaining raw audio or microphone data.
+      - Average microphone power maps from the rendered web decibel range of -46dB through -18dB to a normalized level, with a 0.04 minimum visible level and silence/noise-floor handling.
+      - Stop, cancellation, permission failure, and recorder failure invalidate the meter timer, clear waveform state, and preserve the existing recording-file cleanup behavior.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
+
+  - id: T-APPLE-RECORDING-WAVEFORM-UI
+    type: unit
+    file: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    covers: [AC-4, AC-10]
+    assertions:
+      - The native recording overlay exposes a 64pt live waveform between the release heading and control row, with a stable accessibility identifier for deterministic screenshot and frame assertions.
+      - The recording panel is at least 220pt high, the 64pt waveform does not collapse under Auto Layout, and the timer, cancel hint, and 44pt mic control remain visible and hittable without overlap.
+      - The web-equivalent release, drag-left cancellation, keyboard Escape cancellation, and completed-recording flows remain intact while waveform metering is active.
+      - The UI test keeps a simulator screenshot artifact for the quiet-speech and active-recording states; it does not assert or log microphone content.
     red_phase:
       required: true
       expected: fail
@@ -1565,7 +1603,7 @@ tasks:
     verification_ids: [T-APPLE-INLINE-EMBED-UI, T-APPLE-UPLOAD-AUDIO-UI, T-APPLE-DRAFT-EDIT-UI, T-APPLE-ALL-HOSTS-UI]
     blockers: [TASK-6, TASK-7, TASK-8, TASK-9, TASK-10]
     dependencies: [TASK-6, TASK-7, TASK-8, TASK-9, TASK-10]
-    follow_up_tasks: [TASK-12, TASK-13, TASK-14]
+    follow_up_tasks: [TASK-12, TASK-13, TASK-14, TASK-18]
     independently_deployable: false
 
   - id: TASK-12
@@ -1617,9 +1655,37 @@ tasks:
       - apple/OpenMatesTests/NativeComposerPerformanceTests.swift
       - docs/specs/apple-native-message-composer/spec.yml
     verification_ids: [T-APPLE-VISUAL-PARITY, T-APPLE-ACCESSIBILITY, T-APPLE-FAILURE-RECOVERY, T-APPLE-PERFORMANCE, V-WEB-RENDERED-COMPARISON]
-    blockers: [Q-1, TASK-7, TASK-11]
-    dependencies: [TASK-7, TASK-11]
+    blockers: [Q-1, TASK-7, TASK-11, TASK-18]
+    dependencies: [TASK-7, TASK-11, TASK-18]
     follow_up_tasks: [TASK-15]
+    independently_deployable: false
+
+  - id: TASK-18
+    title: Match native live recording waveform, geometry, and cleanup to web
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-4, S-10, S-11]
+      acceptance_criteria: [AC-4, AC-10, AC-11]
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+      - apple/OpenMatesTests/VoiceRecorderTests.swift
+      - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+      - docs/specs/apple-native-message-composer/spec.yml
+    implementation_requirements:
+      - Use AVAudioRecorder metering, not audio-buffer retention: enable metering during recording, poll averagePower at most every 50ms, and store only normalized scalar display levels.
+      - Match RecordAudio.svelte constants: a rolling 64-bar waveform, 64pt fixed track height, 2pt minimum bar height, -46dB to -18dB normalization window, 0.04 minimum visible level, and silence/noise-floor suppression.
+      - Preserve the web overlay composition: centered bold release instruction, waveform between heading and controls, 220pt minimum recording panel, 44pt green mic control, timer/cancel/mic control row, and no control overlap at compact iPhone widths or Dynamic Type sizes.
+      - Keep stop, drag-left cancellation, Escape cancellation, permission denial, recorder failure, and teardown idempotent; invalidate all timers/meters and delete cancelled files without logging audio, file paths, or recording content.
+      - Use generated tokens and AppStrings only; add no hardcoded user-visible strings, colors, fonts, or spacing values except the documented web-equivalent measurements that lack generated tokens.
+      - Update every voice-capable native composer host through the shared overlay integration points, without changing durable recording, embed, encryption, or send contracts.
+    verification_ids: [T-APPLE-RECORDING-WAVEFORM-UNIT, T-APPLE-RECORDING-WAVEFORM-UI, T-APPLE-UPLOAD-AUDIO-UI, T-WEB-COMPOSER-REGRESSION]
+    blockers: [TASK-11]
+    dependencies: [TASK-11]
+    follow_up_tasks: [TASK-14]
     independently_deployable: false
 
   - id: TASK-15
