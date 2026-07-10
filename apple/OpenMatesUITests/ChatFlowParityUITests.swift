@@ -158,7 +158,11 @@ final class ChatFlowParityUITests: XCTestCase {
 
     func testGuestInterestTagsSelectAndFilterSuggestions() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-composer-focus-diagnostics",
+        ]
         app.launch()
 
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))

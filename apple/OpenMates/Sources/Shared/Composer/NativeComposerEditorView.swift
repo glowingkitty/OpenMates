@@ -28,9 +28,11 @@ struct NativeComposerEditorView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UITextView {
         let textView = context.coordinator.adapter.makePlatformView()
+        context.coordinator.platformView = textView
         textView.backgroundColor = .clear
         textView.isScrollEnabled = true
         textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
+        context.coordinator.logFocus("make", requested: isFocused.wrappedValue)
         return textView
     }
 
@@ -43,6 +45,7 @@ struct NativeComposerEditorView: UIViewRepresentable {
     }
 
     func updateUIView(_ textView: UITextView, context: Context) {
+        context.coordinator.logFocus("update.before", requested: isFocused.wrappedValue)
         context.coordinator.onFocusChange = { isFocused.wrappedValue = $0 }
         context.coordinator.onSubmit = onSubmit
         context.coordinator.adapter.synchronize(textView)
@@ -51,13 +54,16 @@ struct NativeComposerEditorView: UIViewRepresentable {
         } else if !isFocused.wrappedValue, textView.isFirstResponder {
             textView.resignFirstResponder()
         }
+        context.coordinator.logFocus("update.after", requested: isFocused.wrappedValue)
     }
 
     @MainActor
     final class Coordinator {
         let adapter: NativeComposerTextView
+        weak var platformView: UITextView?
         var onFocusChange: (Bool) -> Void = { _ in }
         var onSubmit: () -> Void = { }
+        private var focusEvent = 0
 
         init(session: NativeComposerSession, accessibilityHint: String) {
             adapter = NativeComposerTextView(
@@ -72,8 +78,20 @@ struct NativeComposerEditorView: UIViewRepresentable {
                 onFocusChange: { _ in },
                 onSubmit: { }
             )
-            adapter.onFocusChange = { [weak self] focused in self?.onFocusChange(focused) }
+            adapter.onFocusChange = { [weak self] focused in
+                self?.logFocus("delegate.\(focused ? "begin" : "end")", requested: focused)
+                self?.onFocusChange(focused)
+            }
             adapter.onSubmit = { [weak self] in self?.onSubmit() }
+        }
+
+        func logFocus(_ phase: String, requested: Bool) {
+            guard ProcessInfo.processInfo.arguments.contains("--ui-test-composer-focus-diagnostics") else { return }
+            focusEvent += 1
+            NativeDiagnostics.info(
+                "event=\(focusEvent) phase=\(phase) requested=\(requested) firstResponder=\(platformView?.isFirstResponder == true)",
+                category: "apple_composer_focus"
+            )
         }
     }
 }
