@@ -9086,14 +9086,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     $effect(() => {
         const hashChatId = activeChatStore.getChatIdFromHash();
         const emptyRestoreAttempts = hashChatId ? (anonymousHashEmptyRestoreAttempts[hashChatId] ?? 0) : 0;
+        const hasUnrestoredAnonymousHash = !currentChat?.chat_id && isAnonymousChatId(hashChatId);
         const sameHashChatMissingMessages =
             currentChat?.chat_id === hashChatId &&
             currentMessages.length === 0 &&
             emptyRestoreAttempts < ANONYMOUS_HASH_EMPTY_RESTORE_ATTEMPTS;
         const shouldRestoreAnonymousHash =
             !$authStore.isAuthenticated &&
-            ((showWelcome && !currentChat?.chat_id) || sameHashChatMissingMessages) &&
-            isAnonymousChatId(hashChatId) &&
+            (hasUnrestoredAnonymousHash || sameHashChatMissingMessages) &&
             !restoringAnonymousHashChat;
 
         if (!shouldRestoreAnonymousHash) return;
