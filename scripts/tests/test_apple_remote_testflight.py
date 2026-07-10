@@ -142,8 +142,10 @@ def test_upload_testflight_ios_can_attach_whats_new_text() -> None:
     assert encoded in command
     assert "en-US" in command
     assert "upsert_testflight_whats_new()" in script
+    assert "previous_testflight_build_ids" in script
+    assert "excluded_build_ids=previous_testflight_build_ids" in script
     assert "betaBuildLocalizations" in script
-    assert "whats_new_previous_build=" in script
+    assert "whats_new_previous_build_count=" in script
     assert script.index('print("upload_status=passed")') < script.rindex("upsert_testflight_whats_new()")
 
 

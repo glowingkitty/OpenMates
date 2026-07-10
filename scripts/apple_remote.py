@@ -481,7 +481,7 @@ distribution_identity_name = ""
 distribution_identity_sha1 = ""
 installer_identity_sha1 = ""
 profile_names = {}
-previous_testflight_build_id = None
+previous_testflight_build_ids = set()
 APP_GROUP_IDENTIFIER = "group.org.openmates.app.shared"
 if target_platform == "ios":
     scheme_name = "OpenMates_iOS"
@@ -663,7 +663,8 @@ def asc_request(path, method="GET", body=None):
     sys.exit(1)
 
 
-def latest_app_store_build_for_notes(excluded_build_id=None, wait_for_new=True):
+def latest_app_store_build_for_notes(excluded_build_ids=None, wait_for_new=True):
+    excluded_build_ids = set(excluded_build_ids or [])
     apps_query = urllib.parse.urlencode({"filter[bundleId]": "org.openmates.app", "limit": "10"})
     apps = asc_request(f"apps?{apps_query}").get("data", [])
     if not apps:
@@ -690,7 +691,7 @@ def latest_app_store_build_for_notes(excluded_build_id=None, wait_for_new=True):
             for build in response.get("data", []):
                 pre_release_id = build.get("relationships", {}).get("preReleaseVersion", {}).get("data", {}).get("id")
                 platform = pre_release_versions.get(pre_release_id, {}).get("platform")
-                if platform == expected_platform and build.get("id") != excluded_build_id:
+                if platform == expected_platform and build.get("id") not in excluded_build_ids:
                     return build
         if attempt < attempts - 1:
             time.sleep(30)
@@ -709,7 +710,7 @@ def upsert_testflight_whats_new():
         print("whats_new_status=skipped_watchos")
         return
 
-    build = latest_app_store_build_for_notes(excluded_build_id=previous_testflight_build_id)
+    build = latest_app_store_build_for_notes(excluded_build_ids=previous_testflight_build_ids)
     build_id = build.get("id")
     if not build_id:
         print("whats_new_status=missing_build_id")
@@ -1425,9 +1426,15 @@ export_cmd = [
 ]
 
 if testflight_whats_new and target_platform != "watchos":
-    previous_build = latest_app_store_build_for_notes(wait_for_new=False)
-    previous_testflight_build_id = previous_build.get("id") if previous_build else None
-    print(f"whats_new_previous_build={previous_testflight_build_id or 'none'}")
+    while len(previous_testflight_build_ids) < 20:
+        previous_build = latest_app_store_build_for_notes(
+            excluded_build_ids=previous_testflight_build_ids,
+            wait_for_new=False,
+        )
+        if not previous_build or not previous_build.get("id"):
+            break
+        previous_testflight_build_ids.add(previous_build["id"])
+    print(f"whats_new_previous_build_count={len(previous_testflight_build_ids)}")
 
 print("upload_status=started")
 export = subprocess.run(export_cmd, capture_output=True, text=True, timeout=1800)
