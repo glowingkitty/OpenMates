@@ -232,6 +232,7 @@ export type WorkflowLifecycle = "persisted" | "temporary";
 export interface WorkflowSummary {
   id: string;
   title: string;
+  description?: string | null;
   status: "draft" | "active" | "disabled" | "error" | "deleted";
   enabled: boolean;
   lifecycle?: WorkflowLifecycle;

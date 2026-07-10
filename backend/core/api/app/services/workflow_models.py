@@ -173,6 +173,7 @@ class WorkflowGraph(BaseModel):
 class WorkflowSummary(BaseModel):
     id: str
     title: str
+    description: str | None = None
     status: WorkflowStatus
     enabled: bool
     lifecycle: WorkflowLifecycle = WorkflowLifecycle.PERSISTED

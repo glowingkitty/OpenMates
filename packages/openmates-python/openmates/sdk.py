@@ -732,6 +732,7 @@ class OpenMatesWorkflows:
         self,
         *,
         title: str,
+        description: str | None = None,
         graph: dict[str, Any],
         enabled: bool = False,
         run_content_retention: str = "last_5",
@@ -750,6 +751,8 @@ class OpenMatesWorkflows:
             "source": source,
             "created_by_assistant": created_by_assistant,
         }
+        if description is not None:
+            payload["description"] = description
         if source_chat_id is not None:
             payload["source_chat_id"] = source_chat_id
         if auto_delete_at is not None:

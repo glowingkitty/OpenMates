@@ -37,6 +37,7 @@ export type WorkflowGraph = {
 export type WorkflowSummary = {
   id: string;
   title: string;
+  description?: string | null;
   status: string;
   enabled: boolean;
   trigger_summary?: string | null;

@@ -21,6 +21,9 @@ workflows:
     encrypted_title:
       type: text
       note: "[Encrypted] Workflow title."
+    encrypted_description:
+      type: text
+      note: "[Encrypted, Nullable] Workflow description."
     status:
       type: string
       note: "draft, active, disabled, error, or deleted."

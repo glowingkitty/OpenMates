@@ -8,12 +8,14 @@ import Foundation
 
 struct WorkflowCreateRequest: Encodable, Sendable {
     let title: String
+    let description: String?
     let graph: WorkflowGraph
     let enabled: Bool
     let runContentRetention: WorkflowRunContentRetention
 
     enum CodingKeys: String, CodingKey {
         case title
+        case description
         case graph
         case enabled
         case runContentRetention = "run_content_retention"
@@ -22,12 +24,14 @@ struct WorkflowCreateRequest: Encodable, Sendable {
 
 struct WorkflowUpdateRequest: Encodable, Sendable {
     let title: String?
+    let description: String?
     let graph: WorkflowGraph?
     let enabled: Bool?
     let runContentRetention: WorkflowRunContentRetention?
 
     enum CodingKeys: String, CodingKey {
         case title
+        case description
         case graph
         case enabled
         case runContentRetention = "run_content_retention"

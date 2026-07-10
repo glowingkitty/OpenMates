@@ -999,6 +999,7 @@ export class OpenMatesWorkflows {
 
   async create(params: {
     title: string;
+    description?: string | null;
     graph: WorkflowGraph;
     enabled?: boolean;
     runContentRetention?: WorkflowRunContentRetention;
@@ -1010,6 +1011,7 @@ export class OpenMatesWorkflows {
   }): Promise<WorkflowDetail> {
     const response = await this.client.request<{ workflow?: WorkflowDetail }>("/v1/workflows", {
       title: params.title,
+      ...(params.description !== undefined ? { description: params.description } : {}),
       graph: params.graph,
       enabled: params.enabled ?? false,
       run_content_retention: params.runContentRetention ?? "last_5",
@@ -1025,10 +1027,11 @@ export class OpenMatesWorkflows {
 
   async update(
     workflowId: string,
-    params: { title?: string; graph?: WorkflowGraph; enabled?: boolean; runContentRetention?: WorkflowRunContentRetention },
+    params: { title?: string; description?: string | null; graph?: WorkflowGraph; enabled?: boolean; runContentRetention?: WorkflowRunContentRetention },
   ): Promise<WorkflowDetail> {
     const payload: Record<string, unknown> = {};
     if (params.title !== undefined) payload.title = params.title;
+    if (params.description !== undefined) payload.description = params.description;
     if (params.graph !== undefined) payload.graph = params.graph;
     if (params.enabled !== undefined) payload.enabled = params.enabled;
     if (params.runContentRetention !== undefined) payload.run_content_retention = params.runContentRetention;

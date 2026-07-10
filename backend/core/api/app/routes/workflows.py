@@ -33,6 +33,7 @@ router = APIRouter(prefix="/v1/workflows", tags=["Workflows"], dependencies=[Dep
 
 class WorkflowCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2_000)
     graph: WorkflowGraph
     enabled: bool = False
     run_content_retention: WorkflowRunContentRetention = WorkflowRunContentRetention.LAST_5
@@ -45,6 +46,7 @@ class WorkflowCreateRequest(BaseModel):
 
 class WorkflowUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2_000)
     graph: WorkflowGraph | None = None
     enabled: bool | None = None
     run_content_retention: WorkflowRunContentRetention | None = None
@@ -157,6 +159,7 @@ async def create_workflow(
             body.created_by_assistant,
             body.auto_delete_at,
             current_user.vault_key_id,
+            body.description,
         )
         return {"workflow": workflow.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
@@ -309,6 +312,7 @@ async def update_workflow(
             enabled=body.enabled,
             run_content_retention=body.run_content_retention,
             vault_key_id=current_user.vault_key_id,
+            description=body.description,
         )
         return {"workflow": workflow.model_dump(mode="json", by_alias=True)}
     except Exception as exc:
