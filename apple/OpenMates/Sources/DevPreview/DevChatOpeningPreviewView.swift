@@ -465,7 +465,6 @@ struct DevMessageEditFixtureView: View {
         .padding(.spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.grey20)
-        .accessibilityIdentifier("dev-message-edit-fixture")
     }
 }
 
