@@ -88,7 +88,6 @@ struct MessageEditView: View {
             }
         }
         .padding(.spacing4)
-        .accessibilityIdentifier("native-message-edit")
         .onAppear { isFocused = true }
     }
 
