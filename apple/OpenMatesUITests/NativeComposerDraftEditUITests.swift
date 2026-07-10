@@ -95,9 +95,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
     }
 
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
-        app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == %@", identifier))
-            .firstMatch
+        app.descendants(matching: .any)[identifier]
     }
 
     private func attachScreenshot(name: String) {
