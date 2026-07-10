@@ -16,8 +16,22 @@ from scripts.apple_composer_renderer_audit import (
     AuditPaths,
     audit,
     main,
+    parse_composer_lifecycle_states,
     parse_composer_registry_types,
+    validate_composer_renderer_implementations,
+    validate_renderer_fixture,
 )
+
+
+LIFECYCLE_EVIDENCE = {
+    "draft": "preview",
+    "uploading": "preview",
+    "processing": "preview",
+    "transcribing": "preview",
+    "finished": "preview",
+    "error": "preview",
+    "cancelled": "preview",
+}
 
 
 def write(path: Path, content: str) -> Path:
@@ -51,7 +65,7 @@ def proof_entry(web_renderer: str, classification: str = "specific_native") -> d
         "web_renderer": web_renderer,
         "classification": classification,
         "fixture": "fixtures.json#recording",
-        "lifecycle": {"finished": "preview"},
+        "lifecycle": LIFECYCLE_EVIDENCE,
         "native_preview_mapping": "InlinePreviewView.swift#RecordingPreview",
         "visual_case": "RendererTests.swift#testRecordingPreview",
     }
@@ -69,6 +83,86 @@ def test_parse_composer_registry_types_rejects_generic_fallback() -> None:
 
     assert routes == {"recording": "RecordingRenderer"}
     assert errors == ("future-widget: generic renderer is forbidden",)
+
+
+def test_parse_composer_lifecycle_states_matches_spec_contract() -> None:
+    source = """
+    enum AppleComposerEmbedLifecycleState: String {
+        case draft
+        case uploading
+        case processing
+        case transcribing
+        case finished
+        case error
+        case cancelled
+    }
+    """
+
+    assert parse_composer_lifecycle_states(source) == {
+        "draft", "uploading", "processing", "transcribing", "finished", "error", "cancelled"
+    }
+
+
+def test_validate_composer_renderer_implementations_requires_real_view_branch() -> None:
+    errors = validate_composer_renderer_implementations(
+        {
+            "recording": "RecordingRenderer",
+            "app-skill-use": "AppSkillUseComposerPreview",
+            "future-widget": "PlausibleButMissingPreview",
+        },
+        "case .recording:\n    RecordingRenderer(data: data)",
+        """
+        private struct AppSkillUseComposerPreview: View { var body: some View { EmptyView() } }
+        AppSkillUseComposerPreview()
+        """,
+    )
+
+    assert errors == (
+        "future-widget: renderer 'PlausibleButMissingPreview' has no concrete Swift view implementation",
+    )
+
+
+def test_read_renderer_call_does_not_prove_composer_only_renderer_implementation() -> None:
+    errors = validate_composer_renderer_implementations(
+        {"focus-mode-activation": "FocusModeComposerPreview"},
+        "case .focusModeActivation:\n    FocusModeRenderer(data: data)",
+        "",
+    )
+
+    assert errors == (
+        "focus-mode-activation: renderer 'FocusModeComposerPreview' has no concrete Swift view implementation",
+    )
+
+
+def test_validate_renderer_fixture_requires_exact_types_and_lifecycle() -> None:
+    errors = validate_renderer_fixture(
+        {
+            "lifecycle_states": ["finished", "error"],
+            "fixtures": {"recording": {}, "stale-widget": {}},
+        },
+        {"recording", "focus-mode-activation"},
+    )
+
+    assert errors == (
+        "renderer fixture lifecycle_states must match the exact composer lifecycle contract",
+        "focus-mode-activation: missing renderer fixture",
+        "stale-widget: stale renderer fixture",
+    )
+
+
+def test_validate_composer_group_renderer_requires_all_child_records() -> None:
+    errors = validate_composer_renderer_implementations(
+        {"code-code-group": "AppleComposerGroupedEmbedPreview"},
+        "",
+        """
+        struct AppleComposerGroupedEmbedPreview: View {
+            var body: some View { childEmbedRecords.first.map(childPreview) }
+        }
+        AppleComposerGroupedEmbedPreview()
+        """,
+    )
+
+    assert errors == ("group renderer must dispatch every matching child record",)
 
 
 def test_clean_specific_native_case_passes(tmp_path: Path) -> None:

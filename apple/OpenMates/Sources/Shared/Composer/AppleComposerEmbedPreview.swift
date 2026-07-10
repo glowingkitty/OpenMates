@@ -14,6 +14,12 @@
 
 import SwiftUI
 
+private enum AppleComposerPreviewMetrics {
+    static let width: CGFloat = 300
+    static let height: CGFloat = 200
+    static let cornerRadius: CGFloat = 30
+}
+
 struct AppleComposerEmbedActions {
     let onOpen: (String) -> Void
     let onRetry: (String) -> Void
@@ -21,87 +27,93 @@ struct AppleComposerEmbedActions {
 }
 
 struct AppleComposerEmbedPreview: View {
-    private enum Constants {
-        static let width: CGFloat = 300
-        static let height: CGFloat = 200
-        static let cornerRadius: CGFloat = 30
-    }
-
     let descriptor: AppleComposerPreviewDescriptor
     let node: ComposerNodeV1
     let lifecycle: AppleComposerEmbedLifecycleState
     let embedRecord: EmbedRecord?
     let allEmbedRecords: [String: EmbedRecord]
     let actions: AppleComposerEmbedActions
+    let showsActions: Bool
+
+    init(
+        descriptor: AppleComposerPreviewDescriptor,
+        node: ComposerNodeV1,
+        lifecycle: AppleComposerEmbedLifecycleState,
+        embedRecord: EmbedRecord?,
+        allEmbedRecords: [String: EmbedRecord],
+        actions: AppleComposerEmbedActions,
+        showsActions: Bool = true
+    ) {
+        self.descriptor = descriptor
+        self.node = node
+        self.lifecycle = lifecycle
+        self.embedRecord = embedRecord
+        self.allEmbedRecords = allEmbedRecords
+        self.actions = actions
+        self.showsActions = showsActions
+    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            if lifecycle == .finished, let embedRecord, usesReadRenderer {
+            if case .group(let childType) = descriptor.family,
+               let childDescriptor = AppleComposerRendererRegistry.shared.descriptor(for: childType) {
+                AppleComposerGroupedEmbedPreview(
+                    childDescriptor: childDescriptor,
+                    node: node,
+                    lifecycle: lifecycle,
+                    embedRecord: embedRecord,
+                    allEmbedRecords: allEmbedRecords,
+                    actions: actions
+                )
+            } else if lifecycle == .finished, let embedRecord, usesReadRenderer {
                 EmbedPreviewCard(embed: embedRecord, allEmbedRecords: allEmbedRecords) {
                     actions.onOpen(node.id)
                 }
             } else {
-                summaryPreview
+                composerSummaryPreview
             }
-            actionBar
-                .padding(.spacing4)
+            if showsActions {
+                actionBar
+                    .padding(.spacing4)
+            }
         }
-        .frame(width: Constants.width, height: Constants.height)
+        .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("native-composer-preview-\(descriptor.embedType)-\(lifecycle.rawValue)")
     }
 
     private var summaryPreview: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: .spacing5) {
-                AppIconView(appId: appId, size: 60)
-                Text(title)
-                    .font(.omSmall.weight(.semibold))
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                lifecycleContent
-            }
-            .padding(.horizontal, .spacing10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            EmbedBasicInfoBar(
-                appId: appId,
-                skillIconName: AppIconView.iconName(forAppId: appId),
-                title: title,
-                subtitle: lifecycleLabel,
-                faviconURL: nil,
-                showSkillIcon: false
-            )
-        }
-        .frame(width: Constants.width, height: Constants.height)
-        .background(lifecycle == .error ? Color.error.opacity(0.1) : Color.grey25)
-        .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
-        .overlay {
-            if lifecycle == .error {
-                RoundedRectangle(cornerRadius: Constants.cornerRadius)
-                    .stroke(Color.error, lineWidth: 1)
-            }
-        }
-        .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
-        .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+        AppleComposerSummaryCard(
+            appId: appId,
+            title: title,
+            lifecycle: lifecycle,
+            lifecycleLabel: lifecycleLabel
+        )
     }
 
     @ViewBuilder
-    private var lifecycleContent: some View {
-        switch lifecycle {
-        case .queued, .uploading, .transcribing:
-            ProgressView()
-                .tint(Color.buttonPrimary)
-        case .finished:
-            Icon("check", size: 22)
-                .foregroundStyle(Color.buttonPrimary)
-        case .error:
-            Icon("warning", size: 22)
-                .foregroundStyle(Color.error)
-        case .cancelled:
-            Icon("close", size: 22)
-                .foregroundStyle(Color.fontTertiary)
+    private var composerSummaryPreview: some View {
+        switch descriptor.family {
+        case .appSkillUse:
+            AppSkillUseComposerPreview(node: node, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+        case .repository:
+            RepositoryComposerPreview(node: node, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+        case .pcbSchematic:
+            PcbSchematicComposerPreview(node: node, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+        case .electronicsComponent:
+            ElectronicsComponentComposerPreview(node: node, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+        case .fitnessLocation:
+            FitnessLocationComposerPreview(node: node, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+        case .fitnessClass:
+            FitnessClassComposerPreview(node: node, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+        case .socialPost:
+            SocialPostComposerPreview(node: node, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+        case .weatherDay:
+            WeatherDayComposerPreview(node: node, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+        case .focusActivation:
+            FocusModeComposerPreview(node: node, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+        default:
+            summaryPreview
         }
     }
 
@@ -153,8 +165,9 @@ struct AppleComposerEmbedPreview: View {
 
     private var lifecycleLabel: String {
         switch lifecycle {
-        case .queued: AppStrings.waitingForUpload
+        case .draft: AppStrings.waitingForUpload
         case .uploading: AppStrings.uploadProgressUploading(percent: "0")
+        case .processing: AppStrings.uploadProgressProcessing
         case .transcribing: AppStrings.uploadProgressTranscribing
         case .finished: openLabel
         case .error: AppStrings.uploadProgressError
@@ -197,6 +210,7 @@ struct AppleComposerEmbedPreview: View {
         case .video: "videos"
         case .weatherDay: "weather"
         case .sheet: "sheets"
+        case .focusActivation: "openmates"
         case .group(let childType):
             AppleComposerRendererRegistry.shared.descriptor(for: childType)
                 .map { appId(for: $0.family) } ?? "openmates"
@@ -226,8 +240,202 @@ struct AppleComposerEmbedPreview: View {
         case .video: "videos"
         case .weatherDay: "weather"
         case .sheet: "sheets"
+        case .focusActivation: "openmates"
         case .recording: "audio"
         case .appSkillUse, .group: "openmates"
+        }
+    }
+}
+
+private struct AppleComposerGroupedEmbedPreview: View {
+    let childDescriptor: AppleComposerPreviewDescriptor
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let embedRecord: EmbedRecord?
+    let allEmbedRecords: [String: EmbedRecord]
+    let actions: AppleComposerEmbedActions
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: .spacing4) {
+                if childEmbedRecords.isEmpty {
+                    childPreview(embedRecord: nil)
+                } else {
+                    ForEach(childEmbedRecords) { childRecord in
+                        childPreview(embedRecord: childRecord)
+                    }
+                }
+            }
+        }
+    }
+
+    private var childEmbedRecords: [EmbedRecord] {
+        guard let embedRecord else { return [] }
+        return embedRecord.childEmbedIds
+            .compactMap { allEmbedRecords[$0] }
+            .filter { $0.type == childDescriptor.embedType }
+    }
+
+    private func childPreview(embedRecord: EmbedRecord?) -> some View {
+        AnyView(AppleComposerEmbedPreview(
+            descriptor: childDescriptor,
+            node: node,
+            lifecycle: lifecycle,
+            embedRecord: embedRecord,
+            allEmbedRecords: allEmbedRecords,
+            actions: actions,
+            showsActions: false
+        ))
+    }
+}
+
+private struct AppSkillUseComposerPreview: View {
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    var body: some View {
+        AppleComposerSummaryCard(appId: "openmates", title: title, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+    }
+    private var title: String { node.display?.title ?? AppStrings.uploadProgressProcessing }
+}
+
+private struct RepositoryComposerPreview: View {
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    var body: some View {
+        AppleComposerSummaryCard(appId: "code", title: title, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+    }
+    private var title: String { node.display?.title ?? AppStrings.uploadProgressProcessing }
+}
+
+private struct PcbSchematicComposerPreview: View {
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    var body: some View {
+        AppleComposerSummaryCard(appId: "electronics", title: title, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+    }
+    private var title: String { node.display?.title ?? AppStrings.uploadProgressProcessing }
+}
+
+private struct ElectronicsComponentComposerPreview: View {
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    var body: some View {
+        AppleComposerSummaryCard(appId: "electronics", title: title, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+    }
+    private var title: String { node.display?.title ?? AppStrings.uploadProgressProcessing }
+}
+
+private struct FitnessLocationComposerPreview: View {
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    var body: some View {
+        AppleComposerSummaryCard(appId: "fitness", title: title, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+    }
+    private var title: String { node.display?.title ?? AppStrings.uploadProgressProcessing }
+}
+
+private struct FitnessClassComposerPreview: View {
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    var body: some View {
+        AppleComposerSummaryCard(appId: "fitness", title: title, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+    }
+    private var title: String { node.display?.title ?? AppStrings.uploadProgressProcessing }
+}
+
+private struct SocialPostComposerPreview: View {
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    var body: some View {
+        AppleComposerSummaryCard(appId: "social_media", title: title, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+    }
+    private var title: String { node.display?.title ?? AppStrings.uploadProgressProcessing }
+}
+
+private struct WeatherDayComposerPreview: View {
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    var body: some View {
+        AppleComposerSummaryCard(appId: "weather", title: title, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+    }
+    private var title: String { node.display?.title ?? AppStrings.uploadProgressProcessing }
+}
+
+private struct FocusModeComposerPreview: View {
+    let node: ComposerNodeV1
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    var body: some View {
+        AppleComposerSummaryCard(appId: "openmates", title: title, lifecycle: lifecycle, lifecycleLabel: lifecycleLabel)
+    }
+    private var title: String { node.display?.title ?? AppStrings.uploadProgressProcessing }
+}
+
+private struct AppleComposerSummaryCard: View {
+    let appId: String
+    let title: String
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: .spacing5) {
+                AppIconView(appId: appId, size: 60)
+                Text(title)
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                lifecycleContent
+            }
+            .padding(.horizontal, .spacing10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            EmbedBasicInfoBar(
+                appId: appId,
+                skillIconName: AppIconView.iconName(forAppId: appId),
+                title: title,
+                subtitle: lifecycleLabel,
+                faviconURL: nil,
+                showSkillIcon: false
+            )
+        }
+        .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
+        .background(lifecycle == .error ? Color.error.opacity(0.1) : Color.grey25)
+        .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+        .overlay {
+            if lifecycle == .error {
+                RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius)
+                    .stroke(Color.error, lineWidth: 1)
+            }
+        }
+        .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+    }
+
+    @ViewBuilder
+    private var lifecycleContent: some View {
+        switch lifecycle {
+        case .draft, .uploading, .processing, .transcribing:
+            ProgressView()
+                .tint(Color.buttonPrimary)
+        case .finished:
+            Icon("check", size: 22)
+                .foregroundStyle(Color.buttonPrimary)
+        case .error:
+            Icon("warning", size: 22)
+                .foregroundStyle(Color.error)
+        case .cancelled:
+            Icon("close", size: 22)
+                .foregroundStyle(Color.fontTertiary)
         }
     }
 }

@@ -95,7 +95,7 @@ struct DevNativeComposerEmbedGalleryView: View {
 
     private func state(for embedType: String) -> AppleComposerEmbedLifecycleState {
         switch embedType {
-        case "app-skill-use": .queued
+        case "app-skill-use": .draft
         case "electronics-pcb-schematic": .error
         case "fitness-location": .uploading
         case "code-repo-group": .cancelled

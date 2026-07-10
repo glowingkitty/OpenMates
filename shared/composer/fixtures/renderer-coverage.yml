@@ -15,8 +15,9 @@ types:
     apple_read_renderer: RecordingRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.recording
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -30,8 +31,9 @@ types:
     apple_read_renderer: AppSkillUseComposerPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.app-skill-use
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -45,8 +47,9 @@ types:
     apple_read_renderer: RepositoryComposerPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.code-repo
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -60,8 +63,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.code-repo-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -75,8 +79,9 @@ types:
     apple_read_renderer: CodeEmbedRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.code-code
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -90,8 +95,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.code-code-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -105,8 +111,9 @@ types:
     apple_read_renderer: DocsRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.docs-doc
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -120,8 +127,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.docs-doc-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -135,8 +143,9 @@ types:
     apple_read_renderer: PcbSchematicComposerPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.electronics-pcb-schematic
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -150,8 +159,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.electronics-pcb-schematic-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -165,8 +175,9 @@ types:
     apple_read_renderer: ElectronicsComponentComposerPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.electronics-component
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -180,8 +191,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.electronics-component-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -195,8 +207,9 @@ types:
     apple_read_renderer: EventEmbedRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.events-event
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -210,8 +223,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.events-event-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -225,8 +239,9 @@ types:
     apple_read_renderer: FitnessLocationComposerPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.fitness-location
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -240,8 +255,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.fitness-location-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -255,8 +271,9 @@ types:
     apple_read_renderer: FitnessClassComposerPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.fitness-class
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -270,8 +287,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.fitness-class-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -285,8 +303,9 @@ types:
     apple_read_renderer: AppointmentRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.health-appointment
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -300,8 +319,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.health-appointment-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -315,8 +335,9 @@ types:
     apple_read_renderer: HomeListingRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.home-listing
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -330,8 +351,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.home-listing-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -345,8 +367,9 @@ types:
     apple_read_renderer: ImageEmbedRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.image
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -360,8 +383,9 @@ types:
     apple_read_renderer: ImageResultEmbedRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.images-image-result
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -375,8 +399,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.images-image-result-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -390,8 +415,9 @@ types:
     apple_read_renderer: MailRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.mail-email
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -405,8 +431,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.mail-email-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -420,8 +447,9 @@ types:
     apple_read_renderer: MapsPlaceRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.maps-place
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -435,8 +463,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.maps-place-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -450,8 +479,9 @@ types:
     apple_read_renderer: MapsLocationRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.maps
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -465,8 +495,9 @@ types:
     apple_read_renderer: MathPlotRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.math-plot
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -480,8 +511,9 @@ types:
     apple_read_renderer: MindMapEmbedRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.mindmaps-mindmap
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -495,8 +527,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.mindmaps-mindmap-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -510,8 +543,9 @@ types:
     apple_read_renderer: WebsiteEmbedRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.web-website
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -525,8 +559,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.web-website-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -540,8 +575,9 @@ types:
     apple_read_renderer: RecipeRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.nutrition-recipe
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -555,8 +591,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.nutrition-recipe-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -570,8 +607,9 @@ types:
     apple_read_renderer: PDFRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.pdf
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -585,8 +623,9 @@ types:
     apple_read_renderer: ShoppingProductRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.shopping-product
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -600,8 +639,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.shopping-product-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -615,8 +655,9 @@ types:
     apple_read_renderer: SocialPostComposerPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.social-media-post
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -630,8 +671,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.social-media-post-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -645,8 +687,9 @@ types:
     apple_read_renderer: TravelConnectionEmbedRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.travel-connection
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -660,8 +703,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.travel-connection-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -675,8 +719,9 @@ types:
     apple_read_renderer: TravelStayEmbedRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.travel-stay
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -690,8 +735,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.travel-stay-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -705,8 +751,9 @@ types:
     apple_read_renderer: VideoRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.videos-video
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -720,8 +767,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.videos-video-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -735,8 +783,9 @@ types:
     apple_read_renderer: WeatherDayComposerPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.weather-day
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -750,8 +799,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.weather-day-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -765,8 +815,9 @@ types:
     apple_read_renderer: SheetRenderer
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.sheets-sheet
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -780,8 +831,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.sheets-sheet-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions
@@ -790,15 +842,20 @@ types:
     visual_case: apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift#testRegistryFamiliesAndLifecycleStatesRenderWithoutGenericFallback
   focus-mode-activation:
     web_renderer: FocusModeActivationRenderer
-    classification: not_applicable_to_composer
+    classification: specific_native
     apple_model_case: focusModeActivation
-    apple_read_renderer: FocusModeRenderer
-    fixture: not_applicable
+    apple_read_renderer: FocusModeComposerPreview
+    fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.focus-mode-activation
     lifecycle:
-      not_applicable: system-generated read-only embed
-    native_preview_mapping: not_applicable
-    visual_case: not_applicable
-    not_applicable_reason: Focus-mode activation is system-generated and cannot be inserted by the composer.
+      draft: native composer lifecycle preview
+      uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
+      transcribing: native composer lifecycle preview
+      finished: native composer lifecycle preview
+      error: native composer lifecycle preview with retry and remove actions
+      cancelled: native composer lifecycle preview with remove action
+    native_preview_mapping: apple/OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift#focus-mode-activation
+    visual_case: apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift#testRegistryFamiliesAndLifecycleStatesRenderWithoutGenericFallback
   app-skill-use-group:
     web_renderer: GroupRenderer
     classification: structural_group_only
@@ -806,8 +863,9 @@ types:
     apple_read_renderer: AppleComposerGroupedEmbedPreview
     fixture: shared/composer/fixtures/apple-composer-renderer-v1.json#fixtures.app-skill-use-group
     lifecycle:
-      queued: native composer lifecycle preview
+      draft: native composer lifecycle preview
       uploading: native composer lifecycle preview
+      processing: native composer lifecycle preview
       transcribing: native composer lifecycle preview
       finished: native composer lifecycle preview
       error: native composer lifecycle preview with retry and remove actions

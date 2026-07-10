@@ -11,6 +11,7 @@ Generic renderers are inventory findings, never native composer parity.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from collections import Counter
@@ -35,6 +36,10 @@ DEFAULT_MANIFEST = REPO_ROOT / "shared/composer/fixtures/renderer-coverage.yml"
 DEFAULT_COMPOSER_REGISTRY = (
     REPO_ROOT / "apple/OpenMates/Sources/Shared/Composer/AppleComposerRendererRegistry.swift"
 )
+DEFAULT_COMPOSER_PREVIEW = (
+    REPO_ROOT / "apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift"
+)
+DEFAULT_RENDERER_FIXTURE = REPO_ROOT / "shared/composer/fixtures/apple-composer-renderer-v1.json"
 
 CLASSIFICATIONS = {
     "specific_native",
@@ -46,6 +51,15 @@ CLASSIFICATIONS = {
 }
 PARITY_CLASSIFICATIONS = {"specific_native", "structural_group_only", "not_applicable_to_composer"}
 REQUIRED_MANIFEST_FIELDS = ("fixture", "lifecycle", "native_preview_mapping", "visual_case")
+EXPECTED_LIFECYCLE_STATES = {
+    "draft",
+    "uploading",
+    "processing",
+    "transcribing",
+    "finished",
+    "error",
+    "cancelled",
+}
 
 
 @dataclass(frozen=True)
@@ -56,6 +70,8 @@ class AuditPaths:
     pending_previews: tuple[Path, ...]
     manifest: Path
     composer_registry: Path | None = None
+    composer_preview: Path | None = None
+    renderer_fixture: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -188,6 +204,54 @@ def parse_composer_registry_types(text: str) -> tuple[dict[str, str], tuple[str,
     return routes, tuple(errors)
 
 
+def parse_composer_lifecycle_states(text: str) -> set[str]:
+    block = _extract_braced_block(text, "enum AppleComposerEmbedLifecycleState")
+    return set(re.findall(r"^\s*case\s+(\w+)\s*$", block, re.MULTILINE))
+
+
+def validate_composer_renderer_implementations(
+    routes: dict[str, str],
+    router_text: str,
+    composer_preview_text: str,
+) -> tuple[str, ...]:
+    errors: list[str] = []
+    for embed_type, renderer in routes.items():
+        read_renderer_call = re.search(rf"\b{re.escape(renderer)}\s*\(", router_text)
+        composer_view_declaration = re.search(
+            rf"\bstruct\s+{re.escape(renderer)}\s*:\s*View\b",
+            composer_preview_text,
+        )
+        composer_view_call = re.search(rf"\b{re.escape(renderer)}\s*\(", composer_preview_text)
+        if read_renderer_call is None and (
+            composer_view_declaration is None or composer_view_call is None
+        ):
+            errors.append(f"{embed_type}: renderer {renderer!r} has no concrete Swift view implementation")
+    if any(embed_type.endswith("-group") for embed_type in routes):
+        group_block = _extract_braced_block(composer_preview_text, "struct AppleComposerGroupedEmbedPreview")
+        if "ForEach(childEmbedRecords)" not in group_block or ".first" in group_block:
+            errors.append("group renderer must dispatch every matching child record")
+    return tuple(errors)
+
+
+def validate_renderer_fixture(payload: Any, expected_types: set[str]) -> tuple[str, ...]:
+    if not isinstance(payload, dict):
+        return ("renderer fixture must contain a JSON object",)
+    lifecycle_states = payload.get("lifecycle_states")
+    fixture_types = payload.get("fixtures")
+    errors: list[str] = []
+    if not isinstance(lifecycle_states, list) or set(lifecycle_states) != EXPECTED_LIFECYCLE_STATES:
+        errors.append("renderer fixture lifecycle_states must match the exact composer lifecycle contract")
+    if not isinstance(fixture_types, dict):
+        errors.append("renderer fixture fixtures must be an object")
+    else:
+        actual_types = set(fixture_types)
+        for embed_type in sorted(expected_types - actual_types):
+            errors.append(f"{embed_type}: missing renderer fixture")
+        for embed_type in sorted(actual_types - expected_types):
+            errors.append(f"{embed_type}: stale renderer fixture")
+    return tuple(errors)
+
+
 def apply_composer_registry(
     routes: dict[str, NativeRoute],
     composer_routes: dict[str, str],
@@ -257,7 +321,8 @@ def audit(paths: AuditPaths) -> AuditReport:
     routes = derive_native_routes(renderer_map, raw_to_case, apple_routes, router_text)
     composer_errors: tuple[str, ...] = ()
     if paths.composer_registry is not None:
-        composer_routes, composer_errors = parse_composer_registry_types(_read(paths.composer_registry))
+        composer_registry_text = _read(paths.composer_registry)
+        composer_routes, composer_errors = parse_composer_registry_types(composer_registry_text)
         routes = apply_composer_registry(routes, composer_routes)
         pending_types = set(composer_routes)
     else:
@@ -265,6 +330,32 @@ def audit(paths: AuditPaths) -> AuditReport:
     manifest = load_manifest(paths.manifest)
     manifest_types = manifest.get("types")
     manifest_errors: list[str] = list(composer_errors)
+    if paths.composer_registry is not None:
+        lifecycle_states = parse_composer_lifecycle_states(composer_registry_text)
+        if lifecycle_states != EXPECTED_LIFECYCLE_STATES:
+            manifest_errors.append(
+                "composer lifecycle states must equal "
+                + ", ".join(sorted(EXPECTED_LIFECYCLE_STATES))
+            )
+        if paths.composer_preview is None:
+            manifest_errors.append("composer preview source is required with composer registry auditing")
+        else:
+            manifest_errors.extend(
+                validate_composer_renderer_implementations(
+                    composer_routes,
+                    router_text,
+                    _read(paths.composer_preview),
+                )
+            )
+        if paths.renderer_fixture is None:
+            manifest_errors.append("renderer fixture is required with composer registry auditing")
+        else:
+            manifest_errors.extend(
+                validate_renderer_fixture(
+                    json.loads(_read(paths.renderer_fixture)),
+                    set(composer_routes),
+                )
+            )
     if manifest.get("schema_version") != 1:
         manifest_errors.append("schema_version must equal 1")
     expected_source = "frontend/packages/ui/src/data/embedRegistry.generated.ts#EMBED_RENDERER_MAP"
@@ -320,6 +411,9 @@ def audit(paths: AuditPaths) -> AuditReport:
                     reasons.append(f"manifest field {field!r} has no coverage evidence")
             if classification == "specific_native" and embed_type not in pending_types:
                 reasons.append("current pending-composer preview paths do not route this type")
+            lifecycle = entry.get("lifecycle")
+            if not isinstance(lifecycle, dict) or set(lifecycle) != EXPECTED_LIFECYCLE_STATES:
+                reasons.append("lifecycle evidence must cover the exact composer lifecycle contract")
 
         classifications[classification] += 1
         if reasons:
@@ -341,10 +435,6 @@ def _generated_entry(
     existing: dict[str, Any],
 ) -> dict[str, Any]:
     classification = route.classification
-    if existing.get("classification") == "not_applicable_to_composer":
-        classification = "not_applicable_to_composer"
-    elif embed_type == "focus-mode-activation":
-        classification = "not_applicable_to_composer"
     entry = {
         "web_renderer": web_renderer,
         "classification": classification,
@@ -381,8 +471,9 @@ def _generated_entry(
             f"#fixtures.{embed_type}"
         )
         entry["lifecycle"] = {
-            "queued": "native composer lifecycle preview",
+            "draft": "native composer lifecycle preview",
             "uploading": "native composer lifecycle preview",
+            "processing": "native composer lifecycle preview",
             "transcribing": "native composer lifecycle preview",
             "finished": "native composer lifecycle preview",
             "error": "native composer lifecycle preview with retry and remove actions",
@@ -412,6 +503,23 @@ def write_manifest(paths: AuditPaths) -> None:
         composer_routes, composer_errors = parse_composer_registry_types(_read(paths.composer_registry))
         if composer_errors:
             raise ValueError("; ".join(composer_errors))
+        if paths.composer_preview is None:
+            raise ValueError("composer preview source is required with composer registry auditing")
+        implementation_errors = validate_composer_renderer_implementations(
+            composer_routes,
+            router_text,
+            _read(paths.composer_preview),
+        )
+        if implementation_errors:
+            raise ValueError("; ".join(implementation_errors))
+        if paths.renderer_fixture is None:
+            raise ValueError("renderer fixture is required with composer registry auditing")
+        fixture_errors = validate_renderer_fixture(
+            json.loads(_read(paths.renderer_fixture)),
+            set(composer_routes),
+        )
+        if fixture_errors:
+            raise ValueError("; ".join(fixture_errors))
         routes = apply_composer_registry(routes, composer_routes)
         pending_types = set(composer_routes)
     else:
@@ -462,6 +570,8 @@ def _default_paths(args: argparse.Namespace) -> AuditPaths:
         pending_previews=tuple(Path(path) for path in args.pending_preview),
         manifest=Path(args.manifest),
         composer_registry=Path(args.composer_registry) if args.composer_registry else None,
+        composer_preview=Path(args.composer_preview) if args.composer_preview else None,
+        renderer_fixture=Path(args.renderer_fixture) if args.renderer_fixture else None,
     )
 
 
@@ -473,6 +583,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--pending-preview", action="append", default=None)
     parser.add_argument("--manifest", default=DEFAULT_MANIFEST)
     parser.add_argument("--composer-registry", default=DEFAULT_COMPOSER_REGISTRY)
+    parser.add_argument("--composer-preview", default=DEFAULT_COMPOSER_PREVIEW)
+    parser.add_argument("--renderer-fixture", default=DEFAULT_RENDERER_FIXTURE)
     parser.add_argument("--write-manifest", action="store_true")
     args = parser.parse_args(argv)
     if args.pending_preview is None:
@@ -485,7 +597,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"Wrote Apple composer renderer manifest: {paths.manifest}")
             return 0
         report = audit(paths)
-    except (FileNotFoundError, ValueError, yaml.YAMLError) as exc:
+    except (FileNotFoundError, ValueError, json.JSONDecodeError, yaml.YAMLError) as exc:
         print(f"Apple composer renderer audit failed: {exc}", file=sys.stderr)
         return 2
 

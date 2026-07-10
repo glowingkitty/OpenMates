@@ -7,8 +7,9 @@
 import Foundation
 
 enum AppleComposerEmbedLifecycleState: String, CaseIterable, Codable, Sendable {
-    case queued
+    case draft
     case uploading
+    case processing
     case transcribing
     case finished
     case error
@@ -45,6 +46,7 @@ enum AppleComposerPreviewFamily: Equatable, Sendable {
     case video
     case weatherDay
     case sheet
+    case focusActivation
     case group(childType: String)
 }
 
@@ -85,7 +87,7 @@ enum AppleComposerRendererRegistryError: Error, Equatable {
 struct AppleComposerRendererRegistry: Sendable {
     static let shared = Self()
 
-    let notApplicableTypes: Set<String> = ["focus-mode-activation"]
+    let notApplicableTypes: Set<String> = []
 
     var registeredTypes: [String] {
         Self.descriptors.keys.sorted()
@@ -161,6 +163,7 @@ struct AppleComposerRendererRegistry: Sendable {
         "weather-day-group": .init(family: .group(childType: "weather-day"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
         "sheets-sheet": .init(family: .sheet, rendererIdentifier: "SheetRenderer"),
         "sheets-sheet-group": .init(family: .group(childType: "sheets-sheet"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
+        "focus-mode-activation": .init(family: .focusActivation, rendererIdentifier: "FocusModeComposerPreview"),
         "app-skill-use-group": .init(family: .group(childType: "app-skill-use"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
     ]
 }

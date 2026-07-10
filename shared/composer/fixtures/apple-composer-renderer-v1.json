@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "lifecycle_states": [
-    "queued",
+    "draft",
     "uploading",
+    "processing",
     "transcribing",
     "finished",
     "error",
@@ -61,6 +62,7 @@
     "weather-day-group": { "title": "Synthetic composer preview", "media_kind": "weather-day-group" },
     "sheets-sheet": { "title": "Synthetic composer preview", "media_kind": "sheets-sheet" },
     "sheets-sheet-group": { "title": "Synthetic composer preview", "media_kind": "sheets-sheet-group" },
+    "focus-mode-activation": { "title": "Synthetic composer preview", "media_kind": "focus-mode-activation" },
     "app-skill-use-group": { "title": "Synthetic composer preview", "media_kind": "app-skill-use-group" }
   }
 }
