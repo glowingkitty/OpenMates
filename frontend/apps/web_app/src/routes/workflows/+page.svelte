@@ -89,7 +89,6 @@
     appId: 'workflows',
     icon: 'workflow',
   })));
-  let workflowHomeItems = $derived<WorkflowContinueItem[]>([...workflowStarterItems, ...recentWorkflowContinueItems]);
   let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
   let workflowCountLabel = $derived(workflows.length === 1 ? '1 workflow ready' : `${workflows.length} workflows ready`);
   let isManageView = $derived(page.url.searchParams.get('view') === 'manage');
@@ -102,7 +101,8 @@
   let canRenderWorkflowData = $derived(routeReady && $authStore.isAuthenticated);
   let showManageView = $derived(canRenderWorkflowData && isManageView);
   let visibleWorkflowGreetingName = $derived(canRenderWorkflowData ? workflowGreetingName : 'there');
-  let visibleWorkflowHomeItems = $derived(canRenderWorkflowData ? workflowHomeItems : []);
+  let visibleWorkflowStarterItems = $derived(canRenderWorkflowData ? workflowStarterItems : []);
+  let visibleRecentWorkflowContinueItems = $derived(canRenderWorkflowData ? recentWorkflowContinueItems : []);
 
   onMount(() => {
     void initializeWorkflowsRoute();
@@ -700,7 +700,8 @@
               testId="workflows-start-screen"
               heading={`Hey ${visibleWorkflowGreetingName}!`}
               subtitle="What do you want to automate next?"
-              actionItems={visibleWorkflowHomeItems}
+              actionItems={visibleWorkflowStarterItems}
+              continueItems={visibleRecentWorkflowContinueItems}
               actionItemsTestId="workflow-recommendations"
               continueSectionTestId="recent-workflows"
               onContinueItem={continueWorkflowFromCard}
