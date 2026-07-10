@@ -105,8 +105,8 @@ def validate_catalog(catalog: dict[str, Any]) -> list[dict[str, Any]]:
         _required_string(milestone, "release_notes")
         if milestone.get("prerelease") is not True:
             raise ReleaseCatalogError(f"{tag} must be a prerelease")
-        if milestone.get("historical_backfill") is not True:
-            raise ReleaseCatalogError(f"{tag} must declare historical_backfill")
+        if not isinstance(milestone.get("historical_backfill"), bool):
+            raise ReleaseCatalogError(f"{tag} historical_backfill must be a boolean")
 
         artifacts = milestone.get("artifacts")
         if not isinstance(artifacts, dict):
@@ -127,16 +127,24 @@ def validate_catalog(catalog: dict[str, Any]) -> list[dict[str, Any]]:
 
 def render_release_notes(milestone: dict[str, Any]) -> str:
     artifacts = milestone["artifacts"]
-    lines = [
-        "> Historical backfill: reconstructed from immutable git and registry records.",
-        f"> Original release window: {milestone['original_release_window']}. GitHub publication occurs after maintainer review.",
-        "",
+    lines: list[str] = []
+    if milestone["historical_backfill"]:
+        lines.extend(
+            [
+                "> Historical backfill: reconstructed from immutable git and registry records.",
+                f"> Original release window: {milestone['original_release_window']}. GitHub publication occurs after maintainer review.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
         milestone["release_notes"].strip(),
         "",
         "## Source",
         f"- Commit: `{milestone['commit']}`",
         f"- GitHub provides source `.zip` and `.tar.gz` downloads for tag `{milestone['tag']}`.",
-    ]
+        ]
+    )
     npm = artifacts["npm"]
     available_installations: list[str] = []
     if "version" in npm:

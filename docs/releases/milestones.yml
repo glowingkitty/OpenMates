@@ -11,11 +11,22 @@ milestones:
       - Wikipedia topics can be linked directly inside answers, making follow-up learning and research easier without leaving the chat.
       - Message highlights and comments let you save an important passage or keep a note beside a specific recommendation.
       - Travel, events, and code skills gained more useful sources, structured results, and direct next steps.
+      - A secure code-execution sandbox made it possible to run code, choose files or dependencies, and cancel active runs from chat.
+      - Music generation and a unified generated-media pipeline added new ways to create audio, images, and video results.
+      - Electronics component search and richer shopping results brought more real-world information into dedicated result embeds.
+      - Provider improvements made travel, events, payment, and safety results more current, source-backed, and actionable.
       - Embeds, previews, and public example pages became clearer to inspect and share.
 
       ## Everyday Improvements
       - SEPA bank transfers, improved checkout support, and account email changes made account and payment basics more reliable.
+      - Public announcements, tips, legal pages, and example chats became easier to revisit and share as dedicated public pages.
+      - The CLI improved file-transfer retry behavior, upload endpoint alignment, and embed-payload preservation.
+      - Gemini 3.5 Flash expanded processing, daily-inspiration, and OCR capabilities.
+
+      ## Reliability And Privacy
       - Encrypted chat sync, embeds, signup, and Safari behavior received broad stability work.
+      - Shared-chat hydration and embed metadata were hardened to avoid duplicate results and missing reference data.
+      - Focus Mode, math embeds, chat-header rendering, and browser favicon handling received targeted reliability fixes.
     artifacts:
       npm:
         version: 0.10.0-alpha.5
@@ -36,10 +47,19 @@ milestones:
       - The Code app can run sandboxed code, show outputs, and support repository research and follow-up actions.
       - Music generation and improved image providers expanded creative work directly in chat.
       - App cards and embed previews gained clearer provider details, source context, and metadata.
+      - Encrypted sub-chats added a structured way to manage nested conversations without weakening chat privacy.
+      - Interactive questions added choices, text input, ratings, sliders, and swipe responses directly in the chat flow.
+      - Referral credits added QR-based sharing, reward notifications, and clearer billing status.
+      - Interface font preferences can sync across sessions and devices.
+      - Weather Forecast brought interactive daily drilldowns, while Mastodon search added a public social source.
+      - Explain in new chat lets you fork a focused clarification from a highlighted message.
 
       ## Quality Improvements
       - Follow-up suggestions and local interface font preferences made longer sessions easier to continue and read.
       - Chat sync, embeds, file previews, and image-result previews received stability and performance improvements.
+      - Safari navigation and startup issues were addressed, including cleanup of stale PWA service workers that could block loading.
+      - Audio recordings retain drafts more reliably across reloads and avoid duplicate transcription work.
+      - Authentication, billing, self-hosted signup modes, and account export handling received focused hardening.
     artifacts:
       npm:
         version: 0.11.0-alpha.38
@@ -59,10 +79,19 @@ milestones:
       - The CLI and SDK gained signup, billing, security setup, workflow, and richer embed capabilities.
       - Video-creation embeds introduced a new path for generating and reviewing product video workflows.
       - Example chats and their embedded results became more consistent across interfaces.
+      - Weather Rain Radar added real-time precipitation data, while the nutrition app moved recipe search to Edamam.
+      - Durable chat short links and dynamic Open Graph previews made shared conversations easier to distribute and understand.
+      - A content embed catalog in settings shows live examples for audio, code, maps, and other result types.
+      - Scalable chat loading and compound window cursors improved opening performance for larger conversation histories.
+      - Application previews now start automatically after generation, streamlining the code-to-preview workflow.
+      - Kimi K2.7 Code became available as an additional model option.
+      - Sidebar show-more controls improved navigation through long chat histories.
 
       ## Quality Improvements
       - Package, dependency, and app-result reliability work improved the foundations for programmatic OpenMates use.
       - Chat and embed behavior received focused regression coverage across the release window.
+      - Paste recovery, draft-chat sending, shared-chat ownership, and parent-preview metadata received targeted fixes.
+      - Self-host image mode and free testing-credit controls improved practical self-hosting and evaluation workflows.
     artifacts:
       npm:
         version: 0.12.1
@@ -82,10 +111,52 @@ milestones:
       - The OpenMates CLI gained an interactive terminal interface for working with chats and results.
       - Project remote-source foundations made it possible to connect and work from external project material.
       - Connected-account import, guest interests, and mind-map embeds improved onboarding and exploration.
+      - Calendar and connected-account foundations added granular permissions, operation receipts, and undo or cancel controls.
+      - Anonymous usage added persistent web chats, CLI inference, and budget-aware guest sessions.
+      - PCB schematic embeds introduced interactive electronics designs generated with Atopile.
+      - Guest onboarding gained dynamic interest selection and inspirations that adapt chat suggestions in real time.
+      - Learning Mode preferences can persist across user sessions, including guest use.
+      - Local OpenAI-compatible providers became configurable for self-hosted installations.
+      - Assistant feedback ratings, example-chat cost transparency, and image authenticity badges improved user visibility and trust.
+      - CLI model benchmarks expanded with image attachments and richer evaluation metrics.
 
       ## Quality Improvements
       - CLI benchmarks and typed contracts expanded programmatic reliability for developers and advanced users.
       - The release continued broader work on workflow foundations and richer interactive chat outputs.
+      - Embed diff editing, anonymous streaming, credit accounting, and draft preservation received extensive stabilization work.
+      - Issue reporting gained shorter identifiers and direct feedback links for clearer follow-up.
+    artifacts:
+      npm:
+        status: unavailable
+      pypi:
+        status: unavailable
+      ghcr:
+        status: unavailable
+  - tag: v0.14.0-alpha
+    commit: 3eb0b67e2fb69cea5ad2c2ff8536df308da9880a
+    title: "v0.14 Alpha: release automation, package publishing, and platform polish"
+    prerelease: true
+    historical_backfill: false
+    original_release_window: "2026-07-08 to 2026-07-09"
+    release_notes: |
+      ## Highlights
+      - The SDK and CLI reached broader parity, including normalized chat responses and memory-type routing through the apps API.
+      - Shared chats gained clearer indicators and labels in the guest continue carousel.
+      - Webhook chat encryption keys are persisted to protect continuity across sessions.
+      - Focus Mode gained live badges in chat rows and active-chat views.
+      - Guest onboarding was refined with better language detection, interest selection, and responsive layout work.
+      - Weather, travel, and web search embeds received stability work for more consistent result rendering.
+      - Invoice views now show bank-transfer references for clearer payment tracking.
+      - API-key settings received a more robust management flow for developer accounts.
+      - The workspace home shell gained surface-specific loading for Daily Inspirations.
+      - CLI and Python SDK publishing, self-host image publishing, and release automation received stronger provenance controls.
+
+      ## Bug Fixes And Reliability
+      - Gemini streaming failures now recover more gracefully to preserve chat continuity.
+      - Audio transcription gained safer routing and ASCII sanitization.
+      - Daily Inspirations avoid guest retry loops and filter unsuitable content more reliably.
+      - Interactive-question embeds, API-key device verification, and SDK authentication received focused fixes.
+      - Anonymous chat restoration and reload behavior received broad resilience improvements.
     artifacts:
       npm:
         status: unavailable

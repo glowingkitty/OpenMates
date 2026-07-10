@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 _catalog = importlib.import_module("release_catalog")
 ReleaseCatalogError = _catalog.ReleaseCatalogError
+load_catalog = _catalog.load_catalog
 render_release_notes = _catalog.render_release_notes
 validate_catalog = _catalog.validate_catalog
 
@@ -125,3 +126,13 @@ def test_existing_draft_uses_update_command() -> None:
     assert "--draft" in command
     assert "--prerelease" in command
     assert command[command.index("--target") + 1] == "a" * 40
+
+
+def test_catalog_release_notes_are_substantial_and_user_facing() -> None:
+    milestones = validate_catalog(load_catalog())
+
+    for milestone in milestones:
+        notes = milestone["release_notes"]
+
+        assert "## Highlights" in notes
+        assert notes.count("\n- ") >= 10
