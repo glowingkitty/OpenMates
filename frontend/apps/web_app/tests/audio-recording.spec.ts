@@ -9,11 +9,12 @@
  * Microphone permission is auto-granted via browser context settings.
  *
  * Test matrix:
- *   1. Single tap  → no recording overlay; inline "Press & hold" label highlights
- *   2. Press & hold (>500ms) → recording overlay appears with correct UI elements
- *   3. Active recording → live rolling waveform responds and cleans up
- *   4. Press & hold then release → recording completes, audio embed inserted
- *   5. Press & hold then Escape → recording cancelled, no embed inserted
+ *   1. Legacy manual dark mode → remains dark after app initialization
+ *   2. Single tap  → no recording overlay; inline "Press & hold" label highlights
+ *   3. Press & hold (>500ms) → recording overlay appears with correct UI elements
+ *   4. Active recording → quiet speech produces clearly visible rolling bars
+ *   5. Press & hold then release → recording completes, audio embed inserted
+ *   6. Press & hold then Escape → recording cancelled, no embed inserted
  */
 
 import { test, expect } from './helpers/cookie-audit';
@@ -127,6 +128,7 @@ async function waitForMicButton(page: any) {
 
 async function installDeterministicAudioAnalyser(page: any) {
 	await page.addInitScript(() => {
+		const quietSpeechAmplitude = 8;
 		const testState = { frame: 0, closedContexts: 0 };
 		Object.defineProperty(window, '__waveformTestState', {
 			configurable: true,
@@ -138,7 +140,7 @@ async function installDeterministicAudioAnalyser(page: any) {
 			frequencyBinCount = 128;
 
 			getByteTimeDomainData(data: Uint8Array) {
-				const amplitude = testState.frame++ % 2 === 0 ? 0 : 48;
+				const amplitude = testState.frame++ % 2 === 0 ? 0 : quietSpeechAmplitude;
 				for (let index = 0; index < data.length; index += 1) {
 					data[index] = 128 + Math.round(Math.sin((index / data.length) * Math.PI * 2) * amplitude);
 				}
@@ -177,6 +179,15 @@ async function installDeterministicAudioAnalyser(page: any) {
 			configurable: true,
 			value: DeterministicAudioContext
 		});
+	});
+}
+
+async function installLegacyDarkModePreference(page: any) {
+	await page.emulateMedia({ colorScheme: 'light' });
+	await page.addInitScript(() => {
+		localStorage.removeItem('theme_mode');
+		localStorage.setItem('theme_preference', 'manual');
+		localStorage.setItem('theme', 'dark');
 	});
 }
 
@@ -227,7 +238,25 @@ async function getEditorPlainText(page: any): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 1: Single tap shows "Press & hold" hint (no recording overlay)
+// Test 1: Existing users keep their legacy manual dark mode preference
+// ─────────────────────────────────────────────────────────────────────────────
+test('legacy manual dark mode preference remains active on app load', async ({ page }) => {
+	test.setTimeout(60000);
+
+	await installLegacyDarkModePreference(page);
+	await page.goto(getE2EDebugUrl('/'));
+
+	await expect
+		.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+		.toBe('dark');
+	await expect
+		.poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor))
+		.toBe('rgb(23, 23, 23)');
+	await expect.poll(() => page.evaluate(() => localStorage.getItem('theme_mode'))).toBe('dark');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 2: Single tap shows "Press & hold" hint (no recording overlay)
 // ─────────────────────────────────────────────────────────────────────────────
 test('single tap on mic button does not start recording', async ({ page }) => {
 	test.setTimeout(60000);
@@ -256,7 +285,7 @@ test('single tap on mic button does not start recording', async ({ page }) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 1b: Hold Space from chat surface starts recording without focusing input
+// Test 2b: Hold Space from chat surface starts recording without focusing input
 // ─────────────────────────────────────────────────────────────────────────────
 test('spacebar hold shows ESC cancel hint and escape cancels without inserting spaces', async ({ page }) => {
 	test.setTimeout(60000);
@@ -291,7 +320,7 @@ test('spacebar hold shows ESC cancel hint and escape cancels without inserting s
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 2: Press & hold shows recording overlay with expected UI elements
+// Test 3: Press & hold shows recording overlay with expected UI elements
 // ─────────────────────────────────────────────────────────────────────────────
 test('press and hold mic button shows recording overlay', async ({ page }) => {
 	test.setTimeout(60000);
@@ -331,7 +360,7 @@ test('press and hold mic button shows recording overlay', async ({ page }) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 3: Active recording shows a responsive rolling waveform
+// Test 4: Active recording shows a responsive rolling waveform
 // ─────────────────────────────────────────────────────────────────────────────
 test('active recording shows live rolling waveform and releases analyser resources', async ({ page }) => {
 	test.setTimeout(60000);
@@ -378,6 +407,12 @@ test('active recording shows live rolling waveform and releases analyser resourc
 		))
 	);
 	expect(minimumBarHeight).toBeGreaterThanOrEqual(2);
+	const maximumBarHeight = Math.max(
+		...(await bars.evaluateAll((elements: Element[]) =>
+			elements.map((element) => Number.parseFloat(getComputedStyle(element).height))
+		))
+	);
+	expect(maximumBarHeight).toBeGreaterThanOrEqual(24);
 
 	await expect
 		.poll(async () => {
@@ -411,7 +446,7 @@ test('active recording shows live rolling waveform and releases analyser resourc
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 4: Press & hold then release → recording completes, audio embed inserted
+// Test 5: Press & hold then release → recording completes, audio embed inserted
 // ─────────────────────────────────────────────────────────────────────────────
 test('press hold and release creates audio embed', async ({ page }) => {
 	test.setTimeout(60000);
@@ -441,7 +476,7 @@ test('press hold and release creates audio embed', async ({ page }) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 4b: Authenticated recording uploads and reaches transcription endpoint
+// Test 5b: Authenticated recording uploads and reaches transcription endpoint
 // ─────────────────────────────────────────────────────────────────────────────
 test('authenticated press hold release uploads and transcribes audio embed', async ({ page }) => {
 	test.setTimeout(180000);
@@ -486,7 +521,7 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 5: Press & hold then Escape → recording cancelled, no embed
+// Test 6: Press & hold then Escape → recording cancelled, no embed
 // ─────────────────────────────────────────────────────────────────────────────
 test('press hold then escape cancels recording', async ({ page }) => {
 	test.setTimeout(60000);
