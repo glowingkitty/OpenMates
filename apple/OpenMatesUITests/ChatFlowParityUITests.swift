@@ -260,6 +260,7 @@ final class ChatFlowParityUITests: XCTestCase {
         waitForFrameHeight(atLeast: focusedWebComposerMinHeight, element: messageField, timeout: 5)
         XCTAssertLessThanOrEqual(messageField.frame.height, focusedWebComposerMaxHeight)
 
+        messageEditor.tap()
         messageEditor.typeText("a")
 
         XCTAssertLessThanOrEqual(
