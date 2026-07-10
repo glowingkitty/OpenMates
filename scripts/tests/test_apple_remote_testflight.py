@@ -100,8 +100,11 @@ def test_release_archive_preflight_is_non_mutating_release_archive() -> None:
     assert "Release" in command
     assert "xcodebuild" in command
     assert "archive" in command
+    assert "CODE_SIGNING_ALLOWED=NO" in command
+    assert "CODE_SIGNING_REQUIRED=NO" in command
     assert "release_archive_preflight=passed:" in command
     assert "assert_ios_archive_passkey_entitlements()" in command
+    assert "OpenMatesPasskey.entitlements" in command
     assert "assert_ios_archive_embeds_watch_companion()" in command
     for forbidden in (
         "-allowProvisioningUpdates",

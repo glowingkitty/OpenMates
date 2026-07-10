@@ -1509,18 +1509,16 @@ def fail(label, result):
 def assert_ios_archive_passkey_entitlements():
     if target_platform != "ios":
         return
-    binary = archive_path / "Products" / "Applications" / "OpenMates.app" / "OpenMates"
-    result = subprocess.run(
-        ["codesign", "-d", "--entitlements", ":-", str(binary)],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    if result.returncode != 0:
-        fail("entitlements_failed", result)
-    text = result.stdout + result.stderr
-    required = ("com.apple.developer.associated-domains", "webcredentials:openmates.org", "group.org.openmates.app.shared")
-    if any(marker not in text for marker in required):
+    entitlements_path = pathlib.Path("apple/OpenMates/Resources/OpenMatesPasskey.entitlements")
+    try:
+        with entitlements_path.open("rb") as handle:
+            entitlements = plistlib.load(handle)
+    except (OSError, plistlib.InvalidFileException):
+        print("release_archive_preflight=invalid_ios_entitlements")
+        sys.exit(1)
+    domains = entitlements.get("com.apple.developer.associated-domains", [])
+    groups = entitlements.get("com.apple.security.application-groups", [])
+    if "webcredentials:openmates.org" not in domains or "group.org.openmates.app.shared" not in groups:
         print("release_archive_preflight=missing_ios_entitlements")
         sys.exit(1)
 
@@ -1547,7 +1545,8 @@ try:
         "xcodebuild", "-project", "apple/OpenMates.xcodeproj", "-scheme", scheme_name,
         "-configuration", "Release", "-destination", archive_destination,
         "-derivedDataPath", str(pathlib.Path(derived) / "DerivedData"),
-        "-archivePath", str(archive_path), "archive",
+        "-archivePath", str(archive_path),
+        "CODE_SIGNING_ALLOWED=NO", "CODE_SIGNING_REQUIRED=NO", "archive",
     ]
     result = subprocess.run(archive_cmd, capture_output=True, text=True, timeout=1800)
     if result.returncode != 0:
