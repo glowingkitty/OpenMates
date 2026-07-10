@@ -79,12 +79,13 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         app.launchEnvironment["DEV_PREVIEW"] = "composer-draft-edit"
         app.launch()
 
-        XCTAssertTrue(element(in: app, identifier: "message-editor").waitForExistence(timeout: 8))
+        XCTAssertTrue(element(in: app, identifier: "native-message-edit-cancel").waitForExistence(timeout: 8))
+        XCTAssertTrue(app.textViews.firstMatch.waitForExistence(timeout: 5))
         return app
     }
 
     private func editor(in app: XCUIApplication) -> XCUIElement {
-        let editor = element(in: app, identifier: "message-editor")
+        let editor = app.textViews.firstMatch
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
         return editor
     }
