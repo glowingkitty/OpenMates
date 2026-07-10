@@ -111,6 +111,7 @@ def test_draft_command_requires_an_annotated_tag() -> None:
     assert "--verify-tag" in command
     assert "--draft" in command
     assert "--prerelease" in command
+    assert command[command.index("--target") + 1] == "a" * 40
 
 
 def test_existing_draft_uses_update_command() -> None:
@@ -121,3 +122,4 @@ def test_existing_draft_uses_update_command() -> None:
     assert command[:3] == ["gh", "release", "edit"]
     assert "--draft" in command
     assert "--prerelease" in command
+    assert command[command.index("--target") + 1] == "a" * 40
