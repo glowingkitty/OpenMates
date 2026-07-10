@@ -79,8 +79,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
         app.launch()
 
-        XCTAssertTrue(element(in: app, identifier: "dev-message-edit-fixture").waitForExistence(timeout: 8))
-        XCTAssertTrue(element(in: app, identifier: "native-message-edit-editor").exists)
+        XCTAssertTrue(app.textViews["message-editor"].waitForExistence(timeout: 8))
         return app
     }
 
