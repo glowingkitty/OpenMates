@@ -79,7 +79,11 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         app.launchEnvironment["DEV_PREVIEW"] = "composer-draft-edit"
         app.launch()
 
-        XCTAssertTrue(element(in: app, identifier: "native-message-edit-cancel").waitForExistence(timeout: 8))
+        let cancel = element(in: app, identifier: "native-message-edit-cancel")
+        XCTAssertTrue(
+            cancel.waitForExistence(timeout: 8),
+            "Expected native edit fixture. Visible hierarchy: \(app.debugDescription)"
+        )
         XCTAssertTrue(app.textViews.firstMatch.waitForExistence(timeout: 5))
         return app
     }
