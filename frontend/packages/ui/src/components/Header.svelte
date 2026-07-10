@@ -493,6 +493,7 @@
                                     class:active={item.active}
                                     data-testid={item.testId}
                                     aria-label={item.label}
+                                    aria-current={item.active ? 'page' : undefined}
                                     onclick={(e) => handleClick(e, item.href)}
                                     onmouseenter={() => handleWorkspaceIntent(item, index)}
                                     onmouseleave={() => { hoveredWorkspaceIndex = null; }}

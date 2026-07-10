@@ -81,12 +81,13 @@ test.describe('Workflows input home', () => {
 				createdWorkflowIds.add(data.workflow.id);
 			}
 
-			await page.setViewportSize({ width: 390, height: 844 });
+			await page.setViewportSize({ width: 1024, height: 844 });
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('chats-nav-link')).toBeVisible();
 			await expect(page.getByTestId('workflows-nav-link')).toBeVisible();
 			await expect(page.getByTestId('workflows-nav-link')).toHaveAttribute('aria-current', 'page');
+			await page.setViewportSize({ width: 390, height: 844 });
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
 			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
 			await expect(page.getByTestId('daily-inspiration-label')).toBeVisible();
