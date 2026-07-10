@@ -64,6 +64,7 @@ struct NativeComposerEditorView: UIViewRepresentable {
         var onFocusChange: (Bool) -> Void = { _ in }
         var onSubmit: () -> Void = { }
         private var focusEvent = 0
+        private var recentFocusEvents: [String] = []
 
         init(session: NativeComposerSession, accessibilityHint: String) {
             adapter = NativeComposerTextView(
@@ -89,7 +90,9 @@ struct NativeComposerEditorView: UIViewRepresentable {
             guard ProcessInfo.processInfo.arguments.contains("--ui-test-composer-focus-diagnostics") else { return }
             focusEvent += 1
             let event = "event=\(focusEvent) phase=\(phase) requested=\(requested) firstResponder=\(platformView?.isFirstResponder == true)"
-            platformView?.accessibilityLabel = "\(AppStrings.chatMessageInput) [\(event)]"
+            recentFocusEvents.append(event)
+            recentFocusEvents = Array(recentFocusEvents.suffix(8))
+            platformView?.accessibilityLabel = "\(AppStrings.chatMessageInput) [\(recentFocusEvents.joined(separator: " | "))]"
             NativeDiagnostics.info(
                 event,
                 category: "apple_composer_focus"
