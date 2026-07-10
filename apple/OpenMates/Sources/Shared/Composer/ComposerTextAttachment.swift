@@ -19,9 +19,11 @@ import AppKit
 
 final class ComposerTextAttachment: NSTextAttachment {
     let nodeID: String
+    private(set) var nodeSnapshot: ComposerNodeV1?
 
-    init(nodeID: String) {
-        self.nodeID = nodeID
+    init(node: ComposerNodeV1) {
+        self.nodeID = node.id
+        self.nodeSnapshot = node
         super.init(data: nil, ofType: nil)
         allowsTextAttachmentView = true
     }
@@ -31,6 +33,7 @@ final class ComposerTextAttachment: NSTextAttachment {
             return nil
         }
         self.nodeID = nodeID
+        self.nodeSnapshot = nil
         super.init(coder: coder)
     }
 
@@ -40,6 +43,11 @@ final class ComposerTextAttachment: NSTextAttachment {
     }
 
     override var usesTextAttachmentView: Bool { true }
+
+    func update(node: ComposerNodeV1) {
+        guard node.id == nodeID else { return }
+        nodeSnapshot = node
+    }
 
     #if canImport(UIKit)
     override func viewProvider(

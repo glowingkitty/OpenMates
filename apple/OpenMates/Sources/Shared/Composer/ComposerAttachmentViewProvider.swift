@@ -1,8 +1,8 @@
 // TextKit 2 attachment-view provider for native composer atoms.
 // The provider owns only the reusable platform view and its layout bounds.
 // Controller state remains keyed by the attachment's stable semantic node id.
-// Interactive preview content will be supplied by the renderer registry.
-// No user-visible copy or product styling is defined in this adapter layer.
+// Embed snapshots are rendered through the explicit native renderer registry.
+// Mention atoms use the same TextKit provider with compact token-based chrome.
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
@@ -10,10 +10,13 @@
 // ────────────────────────────────────────────────────────────────────
 
 #if canImport(UIKit)
+import SwiftUI
 import UIKit
 
 final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
-    private static let prototypeHeight: CGFloat = 60
+    private static let embedHeight: CGFloat = 200
+    private static let mentionHeight: CGFloat = 28
+    private var hostingController: UIViewController?
 
     override init(
         textAttachment: NSTextAttachment,
@@ -31,12 +34,21 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     }
 
     override func loadView() {
-        let button = MainActor.assumeIsolated {
-            let button = UIButton(type: .custom)
-            button.accessibilityIdentifier = "native-composer-embed-prototype"
-            return button
+        guard let attachment = textAttachment as? ComposerTextAttachment,
+              let node = attachment.nodeSnapshot else {
+            let unavailableView = UIView(frame: .zero)
+            unavailableView.accessibilityIdentifier = "native-composer-attachment-unavailable"
+            view = unavailableView
+            return
         }
-        view = button
+        let hosted = MainActor.assumeIsolated {
+            let controller = UIHostingController(rootView: ComposerAttachmentContent(node: node))
+            controller.view.backgroundColor = .clear
+            controller.view.accessibilityIdentifier = platformIdentifier(for: node)
+            hostingController = controller
+            return controller.view
+        }
+        view = hosted
     }
 
     override func attachmentBounds(
@@ -50,15 +62,24 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             x: proposedLineFragment.minX,
             y: 0,
             width: proposedLineFragment.width,
-            height: Self.prototypeHeight
+            height: attachmentHeight
         )
+    }
+
+    private var attachmentHeight: CGFloat {
+        (textAttachment as? ComposerTextAttachment)?.nodeSnapshot?.kind == "mention"
+            ? Self.mentionHeight
+            : Self.embedHeight
     }
 }
 #elseif canImport(AppKit)
 import AppKit
+import SwiftUI
 
 final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
-    private static let prototypeHeight: CGFloat = 60
+    private static let embedHeight: CGFloat = 200
+    private static let mentionHeight: CGFloat = 28
+    private var hostingView: NSView?
 
     override init(
         textAttachment: NSTextAttachment,
@@ -76,12 +97,20 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
     }
 
     override func loadView() {
-        let button = MainActor.assumeIsolated {
-            let button = NSButton(frame: .zero)
-            button.identifier = NSUserInterfaceItemIdentifier("native-composer-embed-prototype")
-            return button
+        guard let attachment = textAttachment as? ComposerTextAttachment,
+              let node = attachment.nodeSnapshot else {
+            let unavailableView = NSView(frame: .zero)
+            unavailableView.identifier = NSUserInterfaceItemIdentifier("native-composer-attachment-unavailable")
+            view = unavailableView
+            return
         }
-        view = button
+        let hosted = MainActor.assumeIsolated {
+            let hosted = NSHostingView(rootView: ComposerAttachmentContent(node: node))
+            hosted.identifier = NSUserInterfaceItemIdentifier(platformIdentifier(for: node))
+            hostingView = hosted
+            return hosted
+        }
+        view = hosted
     }
 
     override func attachmentBounds(
@@ -95,8 +124,59 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
             x: proposedLineFragment.minX,
             y: 0,
             width: proposedLineFragment.width,
-            height: Self.prototypeHeight
+            height: attachmentHeight
         )
+    }
+
+    private var attachmentHeight: CGFloat {
+        (textAttachment as? ComposerTextAttachment)?.nodeSnapshot?.kind == "mention"
+            ? Self.mentionHeight
+            : Self.embedHeight
     }
 }
 #endif
+
+private func platformIdentifier(for node: ComposerNodeV1) -> String {
+    node.kind == "mention"
+        ? "native-composer-mention-\(node.id)"
+        : "native-composer-embed-\(node.id)"
+}
+
+private struct ComposerAttachmentContent: View {
+    let node: ComposerNodeV1
+
+    @ViewBuilder
+    var body: some View {
+        if node.kind == "mention" {
+            Text(node.displayLabel ?? node.canonicalSyntax ?? "")
+                .font(.omSmall)
+                .foregroundStyle(Color.fontPrimary)
+                .padding(.horizontal, .spacing4)
+                .padding(.vertical, .spacing2)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+        } else if let embedType = node.embedType,
+                  let descriptor = AppleComposerRendererRegistry.shared.descriptor(for: embedType),
+                  let lifecycle = try? AppleComposerRendererRegistry.shared.lifecycleState(for: node) {
+            AppleComposerEmbedPreview(
+                descriptor: descriptor,
+                node: node,
+                lifecycle: lifecycle,
+                embedRecord: nil,
+                allEmbedRecords: [:],
+                actions: AppleComposerEmbedActions(
+                    onOpen: { _ in },
+                    onRetry: { _ in },
+                    onRemove: { _ in }
+                )
+            )
+        } else {
+            Text(node.display?.title ?? node.embedType ?? "")
+                .font(.omSmall)
+                .foregroundStyle(Color.fontPrimary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        }
+    }
+}

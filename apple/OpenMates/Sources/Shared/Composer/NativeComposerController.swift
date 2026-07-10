@@ -587,7 +587,8 @@ final class NativeComposerController {
             case "hardBreak":
                 value.append(NSAttributedString(string: "\n"))
             case "mention", "embed":
-                let attachment = attachments[node.id] ?? ComposerTextAttachment(nodeID: node.id)
+                let attachment = attachments[node.id] ?? ComposerTextAttachment(node: node)
+                attachment.update(node: node)
                 attachments[node.id] = attachment
                 value.append(NSAttributedString(attachment: attachment))
             default:
