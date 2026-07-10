@@ -521,6 +521,15 @@ test.describe('Anonymous free chat', () => {
 				};
 			};
 		}), anonymousRequests[0].client_chat_id);
+		const activeChat = page.getByTestId('active-chat-container');
+		await expect(
+			activeChat,
+			`Anonymous reload diagnostics: ${JSON.stringify(reloadDiagnostics)}`
+		).toHaveAttribute('data-current-chat-messages-version', '5', { timeout: 15000 });
+		await expect(
+			activeChat,
+			`Anonymous reload diagnostics: ${JSON.stringify(reloadDiagnostics)}`
+		).toHaveAttribute('data-current-message-count', '5', { timeout: 15000 });
 		await expect(
 			page.getByTestId('chat-history-content'),
 			`Anonymous reload diagnostics: ${JSON.stringify(reloadDiagnostics)}`

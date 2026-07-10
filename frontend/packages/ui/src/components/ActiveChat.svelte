@@ -10875,6 +10875,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class="active-chat-container"
     data-testid="active-chat-container"
     data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
+    data-current-chat-messages-version={currentChat?.messages_v ?? -1}
+    data-current-message-count={currentMessages.length}
     class:ai-typing={isAssistantTyping}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
