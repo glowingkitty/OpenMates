@@ -4562,6 +4562,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat);
      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+     let anonymousHashRestoreReady = $state(false);
      let anonymousHashRestoreStatus = $state('idle');
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
      let currentMessageWindowHasMoreBefore = $state(false);
@@ -9100,6 +9101,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             emptyRestoreAttempts < ANONYMOUS_HASH_EMPTY_RESTORE_ATTEMPTS;
         const shouldRestoreAnonymousHash =
             !$authStore.isAuthenticated &&
+            anonymousHashRestoreReady &&
             (hasUnrestoredAnonymousHash || sameHashChatMissingMessages) &&
             !restoringAnonymousHashChat;
 
@@ -9123,12 +9125,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     onMount(() => {
         const initialize = async () => {
-            // Anonymous hash chats rely only on local session storage and IndexedDB.
-            // Restore them before broader app initialization can delay the chat surface.
-            await restoreAnonymousHashChatOnMount();
-
             // Initialize app but skip auth initialization since it's already done in +page.svelte
             await initializeApp({ skipAuthInitialization: true });
+            anonymousHashRestoreReady = true;
             
             // Check server status to determine if payment is enabled (for signup status bar)
             try {
