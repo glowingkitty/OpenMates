@@ -16,7 +16,7 @@ struct MessageEditView: View {
 
     @StateObject private var composerSession: NativeComposerSession
     @State private var isSaving = false
-    @State private var isFocused = false
+    @FocusState private var isFocused: Bool
 
     init(message: Message, onSave: @escaping (String) async -> Void, onCancel: @escaping () -> Void) {
         self.message = message
@@ -36,6 +36,7 @@ struct MessageEditView: View {
             NativeComposerEditorView(
                 session: composerSession,
                 isFocused: $isFocused,
+                accessibilityHint: AppStrings.typeMessage,
                 onSubmit: save
             )
                 .frame(minHeight: 60)
