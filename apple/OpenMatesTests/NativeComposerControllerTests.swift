@@ -288,7 +288,7 @@ final class NativeComposerControllerTests: XCTestCase {
         let cutDocument = try controller.cutSelection()
 
         XCTAssertEqual(cutDocument.nodes.map(\.kind), [
-            "text", "embed", "text", "embed", "text",
+            "text", "embed", "text", "embed",
         ])
         XCTAssertEqual(
             cutDocument.nodes.filter { $0.kind == "embed" }.map(\.id),
