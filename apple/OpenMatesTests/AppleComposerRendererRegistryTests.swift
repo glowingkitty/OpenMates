@@ -119,7 +119,7 @@ final class AppleComposerRendererRegistryTests: XCTestCase {
         let registry = AppleComposerRendererRegistry.shared
 
         XCTAssertEqual(catalog.schemaVersion, 1)
-        XCTAssertEqual(Set(catalog.fixtures), Set(registry.registeredTypes))
+        XCTAssertEqual(Set(catalog.fixtures.keys), Set(registry.registeredTypes))
         XCTAssertEqual(
             Set(catalog.lifecycleStates),
             Set(AppleComposerEmbedLifecycleState.allCases.map(\.rawValue))
