@@ -529,6 +529,10 @@ test.describe('Anonymous free chat', () => {
 		await expect(
 			activeChat,
 			`Anonymous reload diagnostics: ${JSON.stringify(reloadDiagnostics)}`
+		).toHaveAttribute('data-anonymous-hash-restore-status', 'loaded', { timeout: 15000 });
+		await expect(
+			activeChat,
+			`Anonymous reload diagnostics: ${JSON.stringify(reloadDiagnostics)}`
 		).toHaveAttribute('data-current-chat-messages-version', '5', { timeout: 15000 });
 		await expect(
 			activeChat,
