@@ -278,6 +278,40 @@ final class PersistedEmbedKey {
     }
 }
 
+@Model
+final class PersistedComposerDraft {
+    @Attribute(.unique) var chatId: String
+    var encryptedMarkdown: String
+    var encryptedPreview: String
+    var revision: Int
+    var draftVersion: Int
+
+    init(record: ComposerDraftRecord) {
+        self.chatId = record.chatId
+        self.encryptedMarkdown = record.encryptedMarkdown
+        self.encryptedPreview = record.encryptedPreview
+        self.revision = record.revision
+        self.draftVersion = record.draftVersion
+    }
+
+    func update(from record: ComposerDraftRecord) {
+        encryptedMarkdown = record.encryptedMarkdown
+        encryptedPreview = record.encryptedPreview
+        revision = record.revision
+        draftVersion = record.draftVersion
+    }
+
+    func toRecord() -> ComposerDraftRecord {
+        ComposerDraftRecord(
+            chatId: chatId,
+            encryptedMarkdown: encryptedMarkdown,
+            encryptedPreview: encryptedPreview,
+            revision: revision,
+            draftVersion: draftVersion
+        )
+    }
+}
+
 // MARK: - Pending offline actions (queued for sync when online)
 
 @Model
@@ -316,6 +350,7 @@ final class OfflineStore: ObservableObject {
                 PersistedMessage.self,
                 PersistedEmbed.self,
                 PersistedEmbedKey.self,
+                PersistedComposerDraft.self,
                 PendingOfflineAction.self,
             ])
             let config = ModelConfiguration(
@@ -597,6 +632,7 @@ final class OfflineStore: ObservableObject {
         try? context.delete(model: PersistedMessage.self)
         try? context.delete(model: PersistedEmbed.self)
         try? context.delete(model: PersistedEmbedKey.self)
+        try? context.delete(model: PersistedComposerDraft.self)
         try? context.delete(model: PendingOfflineAction.self)
         try? context.save()
     }
@@ -654,5 +690,64 @@ final class OfflineStore: ObservableObject {
         if !offline {
             updatePendingCount()
         }
+    }
+}
+
+enum OfflineStoreDraftError: Error {
+    case persistenceUnavailable
+}
+
+extension OfflineStore: ComposerDraftRepository {
+    func upsert(_ record: ComposerDraftRecord) async throws {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
+        let targetChatId = record.chatId
+        let descriptor = FetchDescriptor<PersistedComposerDraft>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        if let existing = try context.fetch(descriptor).first {
+            existing.update(from: record)
+        } else {
+            context.insert(PersistedComposerDraft(record: record))
+        }
+        try context.save()
+    }
+
+    func record(chatId: String) async -> ComposerDraftRecord? {
+        guard let context = modelContext else { return nil }
+        let targetChatId = chatId
+        let descriptor = FetchDescriptor<PersistedComposerDraft>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        return try? context.fetch(descriptor).first?.toRecord()
+    }
+
+    func remove(chatId: String) async throws {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
+        let targetChatId = chatId
+        let descriptor = FetchDescriptor<PersistedComposerDraft>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        if let record = try context.fetch(descriptor).first {
+            context.delete(record)
+            try context.save()
+        }
+    }
+
+    func removeAll() async throws {
+        guard let context = modelContext else {
+            throw OfflineStoreDraftError.persistenceUnavailable
+        }
+        try context.delete(model: PersistedComposerDraft.self)
+        try context.save()
+    }
+
+    func allRecords() async -> [ComposerDraftRecord] {
+        guard let context = modelContext else { return [] }
+        let descriptor = FetchDescriptor<PersistedComposerDraft>()
+        return ((try? context.fetch(descriptor)) ?? []).map { $0.toRecord() }
     }
 }

@@ -286,3 +286,55 @@ actor CryptoManager {
         }
     }
 }
+
+/// Shared embed-field crypto used by foreground and background send paths.
+/// This stays in Core/Crypto so composer views and document models never own keys.
+enum ComposerEmbedCrypto {
+    private static let derivationSalt = Data("openmates-embed-key-v1".utf8)
+
+    static func deriveKey(chatKey: SymmetricKey, embedId: String) -> SymmetricKey {
+        HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: chatKey,
+            salt: derivationSalt,
+            info: Data(embedId.utf8),
+            outputByteCount: 32
+        )
+    }
+
+    static func wrapKey(_ key: SymmetricKey, using wrappingKey: SymmetricKey) throws -> String {
+        let rawKey = key.withUnsafeBytes { Data($0) }
+        return try encrypt(rawKey, using: wrappingKey)
+    }
+
+    static func unwrapKey(_ encryptedKey: String, using wrappingKey: SymmetricKey) throws -> SymmetricKey {
+        SymmetricKey(data: try decrypt(encryptedKey, using: wrappingKey))
+    }
+
+    static func encryptContent(_ plaintext: String, using key: SymmetricKey) throws -> String {
+        try encrypt(Data(plaintext.utf8), using: key)
+    }
+
+    static func decryptContent(_ encryptedContent: String, using key: SymmetricKey) throws -> String {
+        let plaintext = try decrypt(encryptedContent, using: key)
+        guard let value = String(data: plaintext, encoding: .utf8) else {
+            throw CryptoManager.CryptoError.invalidUTF8
+        }
+        return value
+    }
+
+    private static func encrypt(_ plaintext: Data, using key: SymmetricKey) throws -> String {
+        let sealed = try AES.GCM.seal(plaintext, using: key)
+        guard let combined = sealed.combined else {
+            throw CryptoManager.CryptoError.decryptionFailed
+        }
+        return combined.base64EncodedString()
+    }
+
+    private static func decrypt(_ encryptedValue: String, using key: SymmetricKey) throws -> Data {
+        guard let combined = Data(base64Encoded: encryptedValue) else {
+            throw CryptoManager.CryptoError.invalidBase64
+        }
+        let sealed = try AES.GCM.SealedBox(combined: combined)
+        return try AES.GCM.open(sealed, using: key)
+    }
+}

@@ -3814,14 +3814,14 @@ final class ChatSendPipeline {
         var encryptedPayloads: [[String: Any]] = []
         for embed in persistableEmbeds {
             guard let content = embed.content else { continue }
-            let embedKey = deriveEmbedKey(from: chatKey, embedId: embed.id)
+            let embedKey = ComposerEmbedCrypto.deriveKey(chatKey: chatKey, embedId: embed.id)
             let hashedEmbedId = sha256Hex(embed.id)
-            let wrappedWithMaster = try await encryptRawKey(embedKey, wrappingKey: masterKey)
-            let wrappedWithChat = try await encryptRawKey(embedKey, wrappingKey: chatKey)
+            let wrappedWithMaster = try ComposerEmbedCrypto.wrapKey(embedKey, using: masterKey)
+            let wrappedWithChat = try ComposerEmbedCrypto.wrapKey(embedKey, using: chatKey)
             var payload: [String: Any] = [
                 "embed_id": embed.id,
-                "encrypted_type": try await encryptEmbedField(embed.type, key: embedKey),
-                "encrypted_content": try await encryptEmbedField(content, key: embedKey),
+                "encrypted_type": try ComposerEmbedCrypto.encryptContent(embed.type, using: embedKey),
+                "encrypted_content": try ComposerEmbedCrypto.encryptContent(content, using: embedKey),
                 "status": embed.status,
                 "hashed_chat_id": hashedChatId,
                 "hashed_message_id": hashedMessageId,
@@ -3848,37 +3848,11 @@ final class ChatSendPipeline {
                 ]
             ]
             if let textPreview = embed.textPreview {
-                payload["encrypted_text_preview"] = try await encryptEmbedField(textPreview, key: embedKey)
+                payload["encrypted_text_preview"] = try ComposerEmbedCrypto.encryptContent(textPreview, using: embedKey)
             }
             encryptedPayloads.append(payload)
         }
         return encryptedPayloads
-    }
-
-    private func deriveEmbedKey(from chatKey: SymmetricKey, embedId: String) -> SymmetricKey {
-        HKDF<SHA256>.deriveKey(
-            inputKeyMaterial: chatKey,
-            salt: Data("openmates-embed-key-v1".utf8),
-            info: Data(embedId.utf8),
-            outputByteCount: 32
-        )
-    }
-
-    private func encryptEmbedField(_ value: String, key: SymmetricKey) async throws -> String {
-        try await encryptRawData(Data(value.utf8), key: key)
-    }
-
-    private func encryptRawKey(_ key: SymmetricKey, wrappingKey: SymmetricKey) async throws -> String {
-        let raw = key.withUnsafeBytes { Data($0) }
-        return try await encryptRawData(raw, key: wrappingKey)
-    }
-
-    private func encryptRawData(_ data: Data, key: SymmetricKey) async throws -> String {
-        let encrypted = try await crypto.encrypt(data, using: key)
-        var combined = Data()
-        combined.append(encrypted.nonce)
-        combined.append(encrypted.ciphertext)
-        return combined.base64EncodedString()
     }
 
     private func sha256Hex(_ value: String) -> String {
