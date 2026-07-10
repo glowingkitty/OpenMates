@@ -700,13 +700,17 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
-        run_id: "apple-remote-2a0e1b5"
-        timestamp: "2026-07-09T23:33:00Z"
-        summary: NativeComposerControllerTests were included and failed to compile because the controller and attachment types did not exist.
+        run_id: "apple-remote-17edc2d"
+        timestamp: "2026-07-10T01:37:00Z"
+        summary: Extended adapter suite failed to compile because platform edit/selection delegate synchronization and typed adapter error state did not exist.
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-77becb2-native-editor"
+        timestamp: "2026-07-10T01:41:30Z"
+        summary: NativeComposerControllerTests passed 16/16, NativeComposerTextViewAdapterTests passed 4/4, and focused ComposerDocument plus UIKit/AppKit adapter sources typechecked against the macOS SDK.
 
   - id: T-APPLE-INLINE-EMBED-UI
     type: unit
@@ -1446,7 +1450,7 @@ tasks:
 
   - id: TASK-6
     title: Implement native UIKit and AppKit editor adapters
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-7, S-10]
@@ -1464,7 +1468,7 @@ tasks:
 
   - id: TASK-7
     title: Implement complete native composer renderer registry
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-3, S-10, S-14]
