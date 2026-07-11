@@ -256,7 +256,9 @@ test.describe('Cross-client encrypted draft sync', () => {
 
 			log('Deleting sent chat while web client is offline.');
 			await page.context().setOffline(true);
-			await runCliJson(apiUrl, ['chats', 'delete', sentChatId, '--yes']);
+			const deletion = await runCli(apiUrl, ['chats', 'delete', sentChatId, '--yes']);
+			expect(deletion.code, `CLI chat deletion failed:\n${deletion.stderr}`).toBe(0);
+			expect(deletion.stdout).toContain('1/1 chat(s) deleted.');
 			cleanupChatIds.delete(sentChatId);
 			await page.context().setOffline(false);
 			await page.reload();
