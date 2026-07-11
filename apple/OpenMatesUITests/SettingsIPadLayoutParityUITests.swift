@@ -29,7 +29,7 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-show-all-apps-row", in: app, timeout: 5))
         XCTAssertTrue(waitForElement("app-card-weather", in: app, timeout: 5))
         assertElementInsideWindow(app.descendants(matching: .any)["settings-show-all-apps-row"], in: app)
-        assertElementInsideWindow(app.descendants(matching: .any)["app-card-weather"], in: app)
+        assertElementInsideWindow(app.descendants(matching: .any)["app-card-weather"].firstMatch, in: app)
 
         app.descendants(matching: .any)["settings-show-all-apps-row"].tap()
         XCTAssertTrue(waitForElement("settings-all-apps-page", in: app, timeout: 8))
@@ -60,7 +60,7 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
     }
 
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
-        let element = app.descendants(matching: .any)[identifier]
+        let element = app.descendants(matching: .any)[identifier].firstMatch
         if element.waitForExistence(timeout: timeout), isElementInsideWindow(element, in: app) { return true }
 
         let scrollView = app.scrollViews.firstMatch
