@@ -378,6 +378,8 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
     client.notifications.list(limit=2)
     client.reminders.list()
     client.learning_mode.status()
+    client.learning_mode.enable(age_group="16_18", passcode="teach-1234")
+    client.learning_mode.disable("teach-1234")
     client.inspirations.list(language="de")
     client.new_chat_suggestions.list(limit=4)
 
@@ -393,6 +395,8 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/notifications?limit=2"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/reminders"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/learning-mode"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/learning-mode/enable"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/learning-mode/disable"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/inspirations?lang=de"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/new-chat-suggestions?limit=4"},
     ]

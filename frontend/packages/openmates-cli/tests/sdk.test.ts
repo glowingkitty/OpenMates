@@ -316,6 +316,8 @@ describe("OpenMates SDK", () => {
       await client.notifications.list({ limit: 2 });
       await client.reminders.list();
       await client.learningMode.status();
+      await client.learningMode.enable({ ageGroup: "16_18", passcode: "teach-1234" });
+      await client.learningMode.disable("teach-1234");
       await client.inspirations.list({ language: "de" });
       await client.newChatSuggestions.list({ limit: 4 });
     });
@@ -332,6 +334,8 @@ describe("OpenMates SDK", () => {
       { method: "GET", url: "/v1/sdk/notifications?limit=2" },
       { method: "GET", url: "/v1/sdk/reminders" },
       { method: "GET", url: "/v1/sdk/learning-mode" },
+      { method: "POST", url: "/v1/sdk/learning-mode/enable" },
+      { method: "POST", url: "/v1/sdk/learning-mode/disable" },
       { method: "GET", url: "/v1/sdk/inspirations?lang=de" },
       { method: "GET", url: "/v1/sdk/new-chat-suggestions?limit=4" },
     ]);
