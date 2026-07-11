@@ -12,12 +12,12 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
     func testReplacingStreamKeepsNewestSubscriberRegistered() async {
         let chatId = "fixture-stream-replacement-\(UUID().uuidString)"
         let firstStream = await StreamingClient.shared.streamForChat(chatId)
-        let firstConsumer = Task {
+        let firstConsumer = Task.detached {
             for await _ in firstStream {}
         }
         let secondStream = await StreamingClient.shared.streamForChat(chatId)
         let received = expectation(description: "Newest stream receives chat event")
-        let secondConsumer = Task {
+        let secondConsumer = Task.detached {
             for await event in secondStream {
                 if case .messageReady(let receivedChatId, _) = event,
                    receivedChatId == chatId {
