@@ -78,6 +78,31 @@ final class AppleComposerRendererRegistryTests: XCTestCase {
             XCTAssertFalse(descriptor.rendererIdentifier.isEmpty, embedType)
         }
         XCTAssertNil(registry.descriptor(for: "future-unregistered-embed"))
+        XCTAssertEqual(registry.descriptor(for: "recording")?.rendererIdentifier, "ComposerAudioPreview")
+        XCTAssertEqual(registry.descriptor(for: "image")?.rendererIdentifier, "ComposerLocalImagePreview")
+        XCTAssertEqual(registry.descriptor(for: "maps")?.rendererIdentifier, "ComposerLocationPreview")
+    }
+
+    func testLocationSelectionCreatesCanonicalMapsEmbed() throws {
+        let embed = ComposerLocationSelection(
+            latitude: 52.52,
+            longitude: 13.405,
+            name: "Synthetic location",
+            address: "Synthetic address",
+            placeType: "station",
+            isPrecise: true
+        ).makePendingEmbed()
+
+        XCTAssertEqual(embed.type, "maps")
+        XCTAssertEqual(embed.referenceType, "location")
+        XCTAssertEqual(embed.record.type, "maps")
+        XCTAssertEqual(embed.record.appId, "maps")
+        XCTAssertEqual(embed.record.skillId, "location")
+        XCTAssertEqual(embed.record.rawData?["type"]?.value as? String, "location")
+        XCTAssertEqual(embed.record.rawData?["name"]?.value as? String, "Synthetic location")
+        XCTAssertEqual(embed.record.rawData?["location_type"]?.value as? String, "precise")
+        XCTAssertEqual(embed.record.rawData?["precise_lat"]?.value as? Double, 52.52)
+        XCTAssertEqual(embed.record.rawData?["precise_lon"]?.value as? Double, 13.405)
     }
 
     func testStructuralGroupsDelegateToTheirRegisteredChildType() throws {

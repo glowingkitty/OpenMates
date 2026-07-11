@@ -111,7 +111,7 @@ struct AppleComposerRendererRegistry: Sendable {
     }
 
     private static let descriptors: [String: AppleComposerPreviewDescriptor] = [
-        "recording": .init(family: .recording, rendererIdentifier: "RecordingRenderer"),
+        "recording": .init(family: .recording, rendererIdentifier: "ComposerAudioPreview"),
         "app-skill-use": .init(family: .appSkillUse, rendererIdentifier: "AppSkillUseComposerPreview"),
         "code-repo": .init(family: .repository, rendererIdentifier: "RepositoryComposerPreview"),
         "code-repo-group": .init(family: .group(childType: "code-repo"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
@@ -133,14 +133,14 @@ struct AppleComposerRendererRegistry: Sendable {
         "health-appointment-group": .init(family: .group(childType: "health-appointment"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
         "home-listing": .init(family: .homeListing, rendererIdentifier: "HomeListingRenderer"),
         "home-listing-group": .init(family: .group(childType: "home-listing"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
-        "image": .init(family: .image, rendererIdentifier: "ImageEmbedRenderer"),
+        "image": .init(family: .image, rendererIdentifier: "ComposerLocalImagePreview"),
         "images-image-result": .init(family: .imageResult, rendererIdentifier: "ImageResultEmbedRenderer"),
         "images-image-result-group": .init(family: .group(childType: "images-image-result"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
         "mail-email": .init(family: .email, rendererIdentifier: "MailRenderer"),
         "mail-email-group": .init(family: .group(childType: "mail-email"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
         "maps-place": .init(family: .place, rendererIdentifier: "MapsPlaceRenderer"),
         "maps-place-group": .init(family: .group(childType: "maps-place"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),
-        "maps": .init(family: .map, rendererIdentifier: "MapsLocationRenderer"),
+        "maps": .init(family: .map, rendererIdentifier: "ComposerLocationPreview"),
         "math-plot": .init(family: .mathPlot, rendererIdentifier: "MathPlotRenderer"),
         "mindmaps-mindmap": .init(family: .mindMap, rendererIdentifier: "MindMapEmbedRenderer"),
         "mindmaps-mindmap-group": .init(family: .group(childType: "mindmaps-mindmap"), rendererIdentifier: "AppleComposerGroupedEmbedPreview"),

@@ -150,6 +150,7 @@ struct ChatView: View {
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
     @State private var composerOverlay: ComposerOverlay?
+    @State private var isComposerExpanded = false
     @State private var micPermissionState: MicPermissionState = .unknown
     @State private var recordHintVisible = false
     @State private var recordDragOffsetX: CGFloat = 0
@@ -1342,7 +1343,9 @@ struct ChatView: View {
                 isFocused: $isInputFocused,
                 compact: compact && !overlayActive,
                 placeholder: placeholder,
-                expandedMinHeight: overlayActive ? 400 : expandedMinHeight,
+                expandedMinHeight: isComposerExpanded
+                    ? max(400, chatViewportHeight - 20)
+                    : (overlayActive ? 400 : expandedMinHeight),
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 isComposerEditable: deferredComposerSendContexts.isEmpty,
@@ -1482,11 +1485,8 @@ struct ChatView: View {
         case .location:
             return AnyView(
                 ComposerLocationOverlay(
-                    onShare: { latitude, longitude, name in
-                        let label = name.isEmpty ? AppStrings.selectedLocation : name
-                        messageText += messageText.isEmpty ? "📍 \(label) (\(latitude), \(longitude))" : "\n📍 \(label) (\(latitude), \(longitude))"
-                        self.composerOverlay = nil
-                    },
+                    isFullscreen: $isComposerExpanded,
+                    onShare: insertSharedLocation,
                     onCancel: { self.composerOverlay = nil }
                 )
             )
@@ -1494,6 +1494,7 @@ struct ChatView: View {
             #if os(iOS)
             return AnyView(
                 SketchComposerOverlay(
+                    isFullscreen: $isComposerExpanded,
                     onSave: { data, filename in
                         self.composerOverlay = nil
                         enqueueAttachmentUpload(data: data, filename: filename)
@@ -1626,6 +1627,38 @@ struct ChatView: View {
                 return
             }
             resolveComposerEmbed(nodeID: nodeID, generation: generation, embed: embed)
+        }
+    }
+
+    private func insertSharedLocation(_ selection: ComposerLocationSelection) {
+        let embed = selection.makePendingEmbed()
+        let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: "maps",
+                title: selection.name
+            )
+            try composerSession.resolveEmbed(
+                nodeID: nodeID,
+                durableEmbedID: embed.id,
+                referenceType: embed.referenceType,
+                status: AppleComposerEmbedLifecycleState.finished.rawValue,
+                embedRecord: embed.record
+            )
+            try composerSession.configureEmbedActions(
+                nodeID: nodeID,
+                onOpen: { _ in },
+                onRetry: { _ in },
+                onRemove: { _ in resolvedComposerEmbeds.removeValue(forKey: nodeID) }
+            )
+            resolvedComposerEmbeds[nodeID] = embed
+            composerOverlay = nil
+        } catch {
+            NativeDiagnostics.error(
+                "Composer location insertion failed: \(type(of: error))",
+                category: "apple_composer"
+            )
         }
     }
 
@@ -2221,6 +2254,8 @@ struct ChatView: View {
             return
         }
         let excludedIds = piiExclusions
+        let documentNodeIDs = document.nodes.filter { $0.kind == "embed" }.map(\.id)
+        let composerEmbeds = documentNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
         messageText = ""
         viewModel.error = nil
         detectedPIIMatches = []
@@ -2234,11 +2269,15 @@ struct ChatView: View {
             await viewModel.sendMessage(
                 sanitizedText,
                 piiMappings: piiMappings,
-                broadcastToSiblings: broadcastToSiblingSubChats
+                broadcastToSiblings: broadcastToSiblingSubChats,
+                composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds
             )
             if viewModel.error != nil {
                 messageText = text
             } else {
+                for nodeID in documentNodeIDs {
+                    resolvedComposerEmbeds.removeValue(forKey: nodeID)
+                }
                 try? await DraftService.shared.clearDraft(chatId: chatId)
             }
         }

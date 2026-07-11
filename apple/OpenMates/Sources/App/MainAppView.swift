@@ -4665,6 +4665,7 @@ struct NewChatWelcomeView: View {
 
                 WelcomeComposer(
                     session: composerSession,
+                    availableHeight: proxy.size.height,
                     isActivated: $isComposerActivated,
                     isExpanded: $isComposerExpanded,
                     isFocused: $isFocused,
@@ -4876,7 +4877,14 @@ struct NewChatWelcomeView: View {
 
     private func openLocationOverlay() {
         if isUITestWelcomeLocationPreselected {
-            insertSharedLocation(latitude: 52.52, longitude: 13.405, name: AppStrings.selectedLocation)
+            insertSharedLocation(ComposerLocationSelection(
+                latitude: 52.52,
+                longitude: 13.405,
+                name: AppStrings.selectedLocation,
+                address: nil,
+                placeType: nil,
+                isPrecise: true
+            ))
             isComposerActivated = true
             isFocused = true
             return
@@ -4889,10 +4897,36 @@ struct NewChatWelcomeView: View {
         }
     }
 
-    private func insertSharedLocation(latitude: Double, longitude: Double, name: String) {
-        let label = name.isEmpty ? AppStrings.selectedLocation : name
-        let locationText = "📍 \(label) (\(latitude), \(longitude))"
-        messageText += messageText.isEmpty ? locationText : "\n\(locationText)"
+    private func insertSharedLocation(_ selection: ComposerLocationSelection) {
+        let embed = selection.makePendingEmbed()
+        let nodeID = "composer:embed:\(UUID().uuidString.lowercased())"
+        pendingComposerEmbeds.append(embed)
+        do {
+            try composerSession.insertPendingEmbed(
+                nodeID: nodeID,
+                embedType: "maps",
+                title: selection.name
+            )
+            try composerSession.resolveEmbed(
+                nodeID: nodeID,
+                durableEmbedID: embed.id,
+                referenceType: embed.referenceType,
+                status: AppleComposerEmbedLifecycleState.finished.rawValue,
+                embedRecord: embed.record
+            )
+            try composerSession.configureEmbedActions(
+                nodeID: nodeID,
+                onOpen: { _ in },
+                onRetry: { _ in },
+                onRemove: { _ in pendingComposerEmbeds.removeAll { $0.id == embed.id } }
+            )
+        } catch {
+            pendingComposerEmbeds.removeAll { $0.id == embed.id }
+            NativeDiagnostics.error(
+                "Welcome composer location insertion failed: \(type(of: error))",
+                category: "apple_composer"
+            )
+        }
         composerOverlay = nil
     }
 
@@ -5138,9 +5172,8 @@ struct NewChatWelcomeView: View {
         case .location:
             return AnyView(
                 ComposerLocationOverlay(
-                    onShare: { latitude, longitude, name in
-                        insertSharedLocation(latitude: latitude, longitude: longitude, name: name)
-                    },
+                    isFullscreen: $isComposerExpanded,
+                    onShare: insertSharedLocation,
                     onCancel: { self.composerOverlay = nil }
                 )
             )
@@ -5148,6 +5181,7 @@ struct NewChatWelcomeView: View {
             #if os(iOS)
             return AnyView(
                 SketchComposerOverlay(
+                    isFullscreen: $isComposerExpanded,
                     onSave: { data, filename in
                         self.composerOverlay = nil
                         handleAttachmentSelection(data: data, filename: filename, kind: .image)
@@ -5965,6 +5999,7 @@ private struct OverflowCard: View {
 
 private struct WelcomeComposer: View {
     @ObservedObject var session: NativeComposerSession
+    let availableHeight: CGFloat
     @Binding var isActivated: Bool
     @Binding var isExpanded: Bool
     @Binding var isFocused: Bool
@@ -6014,6 +6049,10 @@ private struct WelcomeComposer: View {
         hasContent || anonymousAttachmentPending || hasPendingComposerEmbeds
     }
 
+    private var expandedHeight: CGFloat {
+        max(400, availableHeight - 20)
+    }
+
     var body: some View {
         VStack(spacing: .spacing2) {
             PIIWarningBanner(matches: piiMatches, onUndoAll: onUndoAllPII)
@@ -6028,7 +6067,7 @@ private struct WelcomeComposer: View {
                 compactHeight: 60,
                 compactCornerRadius: 24,
                 showActionButtonsWhenCompact: isOpen,
-                expandedMinHeight: isOverlayActive ? 400 : (isExpanded ? 360 : MessageComposerMetric.expandedMinHeight),
+                expandedMinHeight: isExpanded ? expandedHeight : (isOverlayActive ? 400 : MessageComposerMetric.expandedMinHeight),
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() },

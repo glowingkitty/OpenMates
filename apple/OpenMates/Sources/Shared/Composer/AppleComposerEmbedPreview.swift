@@ -15,6 +15,7 @@
 import Foundation
 import ImageIO
 import SwiftUI
+import AVFoundation
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -67,7 +68,26 @@ struct AppleComposerEmbedPreview: View {
         ZStack(alignment: .topTrailing) {
             if case .image = descriptor.family,
                let localPreviewImage {
-                ComposerLocalImagePreview(image: localPreviewImage)
+                ComposerLocalImagePreview(
+                    image: localPreviewImage,
+                    title: title,
+                    lifecycleLabel: lifecycleLabel
+                )
+            } else if case .recording = descriptor.family {
+                ComposerAudioPreview(
+                    title: title,
+                    lifecycle: lifecycle,
+                    lifecycleLabel: lifecycleLabel,
+                    data: embedRecord?.rawData,
+                    localAudioData: localPreviewData
+                )
+            } else if case .map = descriptor.family {
+                ComposerLocationPreview(
+                    title: title,
+                    lifecycle: lifecycle,
+                    lifecycleLabel: lifecycleLabel,
+                    data: embedRecord?.rawData
+                )
             } else if case .group(let childType) = descriptor.family,
                let childDescriptor = AppleComposerRendererRegistry.shared.descriptor(for: childType) {
                 AppleComposerGroupedEmbedPreview(
@@ -280,13 +300,186 @@ struct AppleComposerEmbedPreview: View {
 
 private struct ComposerLocalImagePreview: View {
     let image: Image
+    let title: String
+    let lifecycleLabel: String
 
     var body: some View {
-        image
-            .resizable()
-            .scaledToFill()
-            .accessibilityElement()
-            .accessibilityIdentifier("native-composer-image-content")
+        AppleComposerUnifiedCard(
+            appId: "images",
+            title: title,
+            subtitle: lifecycleLabel
+        ) {
+            image
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .accessibilityElement()
+                .accessibilityIdentifier("native-composer-image-content")
+        }
+    }
+}
+
+private struct ComposerAudioPreview: View {
+    let title: String
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    let data: [String: AnyCodable]?
+    @StateObject private var player: ComposerAudioPreviewPlayer
+
+    init(
+        title: String,
+        lifecycle: AppleComposerEmbedLifecycleState,
+        lifecycleLabel: String,
+        data: [String: AnyCodable]?,
+        localAudioData: Data?
+    ) {
+        self.title = title
+        self.lifecycle = lifecycle
+        self.lifecycleLabel = lifecycleLabel
+        self.data = data
+        _player = StateObject(wrappedValue: ComposerAudioPreviewPlayer(data: localAudioData))
+    }
+
+    var body: some View {
+        AppleComposerUnifiedCard(
+            appId: "audio",
+            title: AppStrings.voiceRecording,
+            subtitle: lifecycleLabel
+        ) {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                HStack(spacing: .spacing4) {
+                    if player.isAvailable, lifecycle == .finished {
+                        Button(action: player.togglePlayback) {
+                            Icon(player.isPlaying ? "pause" : "play", size: 18)
+                                .foregroundStyle(Color.fontButton)
+                                .frame(width: 38, height: 38)
+                                .background(Color.buttonPrimary)
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(player.isPlaying ? AppStrings.pause : AppStrings.play)
+                        .accessibilityIdentifier("native-composer-audio-play-button")
+                    } else {
+                        Icon("microphone", size: 26)
+                            .foregroundStyle(Color.buttonPrimary)
+                    }
+                    Text(title)
+                        .font(.omSmall.weight(.semibold))
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
+                }
+
+                if let transcript {
+                    Text(transcript)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(3)
+                } else if lifecycle == .uploading || lifecycle == .processing || lifecycle == .transcribing {
+                    ProgressView()
+                        .tint(Color.buttonPrimary)
+                } else {
+                    Text(AppStrings.transcription)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                }
+            }
+            .padding(.horizontal, .spacing8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("native-composer-audio-content")
+        }
+    }
+
+    private var transcript: String? {
+        for key in ["transcript_preview", "transcript", "text", "corrected_transcript"] {
+            if let value = data?[key]?.value as? String, !value.isEmpty { return value }
+        }
+        return nil
+    }
+}
+
+@MainActor
+private final class ComposerAudioPreviewPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
+    @Published private(set) var isPlaying = false
+    private var player: AVAudioPlayer?
+
+    var isAvailable: Bool { player != nil }
+
+    init(data: Data?) {
+        if let data {
+            player = try? AVAudioPlayer(data: data)
+            player?.prepareToPlay()
+        }
+        super.init()
+        player?.delegate = self
+    }
+
+    func togglePlayback() {
+        guard let player else { return }
+        if player.isPlaying {
+            player.pause()
+            isPlaying = false
+        } else {
+            player.play()
+            isPlaying = true
+        }
+    }
+
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in isPlaying = false }
+    }
+}
+
+private struct ComposerLocationPreview: View {
+    let title: String
+    let lifecycle: AppleComposerEmbedLifecycleState
+    let lifecycleLabel: String
+    let data: [String: AnyCodable]?
+
+    var body: some View {
+        AppleComposerUnifiedCard(
+            appId: "maps",
+            title: name,
+            subtitle: lifecycleLabel
+        ) {
+            MapsLocationRenderer(data: data, mode: .preview)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("native-composer-location-content")
+        }
+    }
+
+    private var name: String {
+        let value = data?["name"]?.value as? String
+        return value?.isEmpty == false ? value! : title
+    }
+}
+
+private struct AppleComposerUnifiedCard<Details: View>: View {
+    let appId: String
+    let title: String
+    let subtitle: String?
+    @ViewBuilder let details: () -> Details
+
+    var body: some View {
+        VStack(spacing: 0) {
+            details()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            EmbedBasicInfoBar(
+                appId: appId,
+                skillIconName: AppIconView.iconName(forAppId: appId),
+                title: title,
+                subtitle: subtitle,
+                faviconURL: nil,
+                showSkillIcon: false
+            )
+        }
+        .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
+        .background(Color.grey25)
+        .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+        .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
     }
 }
 

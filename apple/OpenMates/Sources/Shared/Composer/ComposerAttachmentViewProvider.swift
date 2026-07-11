@@ -78,7 +78,7 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
         position: CGPoint
     ) -> CGRect {
         CGRect(
-            x: proposedLineFragment.minX,
+            x: 0,
             y: 0,
             width: proposedLineFragment.width,
             height: attachmentHeight
@@ -150,7 +150,7 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
         position: CGPoint
     ) -> CGRect {
         CGRect(
-            x: proposedLineFragment.minX,
+            x: 0,
             y: 0,
             width: proposedLineFragment.width,
             height: attachmentHeight
@@ -179,33 +179,36 @@ private struct ComposerAttachmentContent: View {
 
     @ViewBuilder
     var body: some View {
-        if node.kind == "mention" {
-            Text(node.displayLabel ?? node.canonicalSyntax ?? "")
-                .font(.omSmall)
-                .foregroundStyle(Color.fontPrimary)
-                .padding(.horizontal, .spacing4)
-                .padding(.vertical, .spacing2)
-                .background(Color.grey10)
-                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-        } else if let embedType = node.embedType,
-                  let descriptor = AppleComposerRendererRegistry.shared.descriptor(for: embedType),
-                  let lifecycle = try? AppleComposerRendererRegistry.shared.lifecycleState(for: node) {
-            AppleComposerEmbedPreview(
-                descriptor: descriptor,
-                node: node,
-                lifecycle: lifecycle,
-                embedRecord: embedRecord,
-                allEmbedRecords: embedRecord.map { [$0.id: $0] } ?? [:],
-                localPreviewData: localPreviewData,
-                actions: actions
-            )
-        } else {
-            Text(node.display?.title ?? node.embedType ?? "")
-                .font(.omSmall)
-                .foregroundStyle(Color.fontPrimary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.grey10)
-                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        Group {
+            if node.kind == "mention" {
+                Text(node.displayLabel ?? node.canonicalSyntax ?? "")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontPrimary)
+                    .padding(.horizontal, .spacing4)
+                    .padding(.vertical, .spacing2)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            } else if let embedType = node.embedType,
+                      let descriptor = AppleComposerRendererRegistry.shared.descriptor(for: embedType),
+                      let lifecycle = try? AppleComposerRendererRegistry.shared.lifecycleState(for: node) {
+                AppleComposerEmbedPreview(
+                    descriptor: descriptor,
+                    node: node,
+                    lifecycle: lifecycle,
+                    embedRecord: embedRecord,
+                    allEmbedRecords: embedRecord.map { [$0.id: $0] } ?? [:],
+                    localPreviewData: localPreviewData,
+                    actions: actions
+                )
+            } else {
+                Text(node.display?.title ?? node.embedType ?? "")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontPrimary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }

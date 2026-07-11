@@ -1079,7 +1079,12 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
+        run_id: "apple-remote-253d196-composer-parity-red"
+        timestamp: "2026-07-11T02:15:07Z"
+        summary: Location embed insertion, type-specific image/audio previews with rotation and left alignment, drawing controls, and fullscreen expand/collapse all failed on build 47 candidate behavior as reported.
     green_phase:
       required: true
       expected: pass

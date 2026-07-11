@@ -463,6 +463,7 @@ enum AppStrings {
     static var getLocation: String { L("enter_message.location.get_location") }
     static var selectedLocation: String { L("enter_message.location.selected_location") }
     static var locationSelect: String { L("enter_message.location.select") }
+    static var preciseLocation: String { L("enter_message.location.precise") }
     static var enterMessagePlaceholder: String { L("enter_message.placeholder.touch") }
     static var waitingForUpload: String { L("enter_message.waiting_for_upload") }
     static var uploadProgressProcessing: String { L("enter_message.upload_progress.processing") }
@@ -481,6 +482,9 @@ enum AppStrings {
     // MARK: - Embeds
     static var voiceRecording: String { L("embed.voice_recording") }
     static var transcription: String { L("embed.transcription") }
+    static var play: String { L("audio.play") }
+    static var pause: String { L("audio.pause") }
+    static var locationNearby: String { L("embeds.maps_location.nearby") }
     static var openVideo: String { L("embed.open_video") }
     static var openInBrowser: String { L("embed.open_in_browser") }
     static var loadPDF: String { L("embed.load_pdf") }
@@ -548,6 +552,11 @@ enum AppStrings {
     static var zoomIn: String { L("sketchview.zoom_in") }
     static var zoomOut: String { L("sketchview.zoom_out") }
     static var resetZoom: String { L("sketchview.reset_zoom") }
+    static var sketchPen: String { L("sketchview.pen") }
+    static var sketchEraser: String { L("sketchview.eraser") }
+    static var sketchUndo: String { L("sketchview.undo") }
+    static var sketchClear: String { L("sketchview.clear") }
+    static var sketchDone: String { L("sketchview.done") }
     static var mindMap: String { L("embeds.mindmaps.mindmap") }
     static var mindMapInvalidJSON: String { L("embeds.mindmaps.invalid_json") }
     static var mindMapInvalidContent: String { L("embeds.mindmaps.invalid_content") }
