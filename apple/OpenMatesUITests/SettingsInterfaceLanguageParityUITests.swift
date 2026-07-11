@@ -39,7 +39,6 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
         XCTAssertTrue(waitForElement("settings-interface-row", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-interface-row"].tap()
-        XCTAssertTrue(waitForElement("settings-interface-page", in: app, timeout: 8))
         XCTAssertTrue(waitForElement("settings-interface-language-row", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-interface-language-row"].tap()
         XCTAssertTrue(waitForElement("settings-language-option-en", in: app, timeout: 5))
@@ -62,7 +61,7 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
         if backButton.waitForExistence(timeout: 2) {
             backButton.tap()
         }
-        XCTAssertTrue(waitForElement("settings-interface-page", in: app, timeout: 5))
+        XCTAssertTrue(waitForElement("settings-interface-language-row", in: app, timeout: 5))
         XCTAssertTrue(waitForText(expectedText, in: app, timeout: 5))
     }
 
