@@ -738,7 +738,7 @@ struct UsageSummary: Decodable, Identifiable {
     let totalCredits: Double
     func identifier(fallback: String) -> String { chatId ?? appId ?? apiKeyHash ?? fallback }
     var id: String { "\(chatId ?? ""):\(appId ?? ""):\(apiKeyHash ?? ""):\(month)" }
-    static func fixture(for tab: UsageTab) -> Self { Self(chatId: tab == .chats ? "fixture-chat" : nil, appId: tab == .apps ? "ai" : nil, apiKeyHash: tab == .api ? "fixture-key" : nil, month: "2026-01", totalCredits: 42) }
+    fileprivate static func fixture(for tab: UsageTab) -> Self { Self(chatId: tab == .chats ? "fixture-chat" : nil, appId: tab == .apps ? "ai" : nil, apiKeyHash: tab == .api ? "fixture-key" : nil, month: "2026-01", totalCredits: 42) }
 }
 
 struct UsageEntry: Decodable, Identifiable {
