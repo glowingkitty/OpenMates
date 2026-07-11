@@ -204,10 +204,20 @@ test.describe('Unified detail metadata multi-device sync', () => {
 
 			const headerA = await openOwnedChat(pageA, chatId);
 			const headerB = await openOwnedChat(pageB, chatId);
-			const initialVersion = await expect
-				.poll(() => localMetadataVersion(pageA, chatId), { timeout: 30_000 })
+			await expect
+				.poll(
+					() =>
+						latestServerMetadataVersion(serverVersionsA, chatId, [
+							'post_processing_metadata_stored',
+							'encrypted_metadata_stored'
+						]),
+					{ timeout: 45_000 }
+				)
 				.toBeGreaterThan(0)
-				.then(() => localMetadataVersion(pageA, chatId));
+			const initialVersion = latestServerMetadataVersion(serverVersionsA, chatId, [
+				'post_processing_metadata_stored',
+				'encrypted_metadata_stored'
+			]);
 
 			const savedTitle = `Synced detail title ${unique}`;
 			await headerA.getByTestId('chat-header-title').click();
