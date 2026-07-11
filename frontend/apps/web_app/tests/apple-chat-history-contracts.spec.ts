@@ -304,6 +304,7 @@ test.describe('Apple stable chat-history web contracts', () => {
 						'message-assistant',
 						'mate-profile',
 						'mate-message-content',
+						'new-chat-button',
 						'message-field'
 					],
 					path.join(dimensionDir, 'example-stable.png')
@@ -323,6 +324,7 @@ test.describe('Apple stable chat-history web contracts', () => {
 						'chat-header-banner',
 						'message-assistant',
 						'mate-message-content',
+						'new-chat-button',
 						'message-field'
 					],
 					path.join(dimensionDir, 'example-restored.png')
@@ -345,7 +347,8 @@ test.describe('Apple stable chat-history web contracts', () => {
 						'message-assistant',
 						'embed-preview',
 						'recording-preview',
-						'new-chat-cta-fullwidth'
+						'new-chat-button',
+						'message-field'
 					],
 					path.join(dimensionDir, 'public-shared-audio.png')
 				)
@@ -368,7 +371,8 @@ test.describe('Apple stable chat-history web contracts', () => {
 						'message-assistant',
 						'source-quote-block',
 						'embed-preview',
-						'new-chat-cta-fullwidth'
+						'new-chat-button',
+						'message-field'
 					],
 					path.join(dimensionDir, 'public-shared-source-quote.png')
 				)

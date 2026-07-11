@@ -62,11 +62,26 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Use hashed_user_id for ownership verification instead
 CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
+    field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
+)
+CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS = ",".join(
+    field
+    for field in CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS.split(",")
+    if field != "metadata_v"
+)
 CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
 CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELD_SETS = (
+    CHAT_METADATA_FIELDS,
+    CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION,
+    CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
+    CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS,
+    CHAT_METADATA_FIELDS_FALLBACK,
+)
 
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
@@ -257,38 +272,24 @@ class ChatMethods:
             return None
         
         logger.info(f"Fetching chat metadata for chat_id: {chat_id}")
-        params = {
+        base_params = {
             'filter[id][_eq]': chat_id,
-            'fields': CHAT_METADATA_FIELDS,
             'limit': 1
         }
         try:
-            response = await self.directus_service.get_items(
-                'chats',
-                params=params,
-                no_cache=True,
-                return_none_on_403=True,
-                admin_required=admin_required,
-            )
-            if response is None:
-                fallback_params = dict(params)
-                fallback_params['fields'] = CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS
+            response = None
+            for fields in CHAT_METADATA_FIELD_SETS:
+                params = dict(base_params)
+                params['fields'] = fields
                 response = await self.directus_service.get_items(
                     'chats',
-                    params=fallback_params,
+                    params=params,
                     no_cache=True,
                     return_none_on_403=True,
                     admin_required=admin_required,
                 )
-            if response is None:
-                fallback_params = dict(params)
-                fallback_params['fields'] = CHAT_METADATA_FIELDS_FALLBACK
-                response = await self.directus_service.get_items(
-                    'chats',
-                    params=fallback_params,
-                    no_cache=True,
-                    admin_required=admin_required,
-                )
+                if response is not None:
+                    break
             if response and isinstance(response, list) and len(response) > 0:
                 logger.info(f"Successfully fetched metadata for chat {chat_id}")
                 return response[0]
@@ -311,14 +312,9 @@ class ChatMethods:
             return {}
 
         logger.info(f"Batch fetching chat metadata for {len(valid_ids)} chats")
-        field_sets = [
-            CHAT_METADATA_FIELDS,
-            CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
-            CHAT_METADATA_FIELDS_FALLBACK,
-        ]
         chunk_size = 25
         try:
-            for fields in field_sets:
+            for fields in CHAT_METADATA_FIELD_SETS:
                 result: Dict[str, Dict[str, Any]] = {}
                 permission_denied = False
 
