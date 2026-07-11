@@ -237,6 +237,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			const sentChatId = String(sendDraft.chatId);
 			cleanupDraftIds.add(sentChatId);
 			await openDraft(page, sentChatId, sentText);
+			await editor.click();
 			const sendButton = page.locator('[data-action="send-message"]');
 			await expect(sendButton).toBeVisible({ timeout: 15_000 });
 			await sendButton.click();
