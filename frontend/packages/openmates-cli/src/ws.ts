@@ -194,13 +194,17 @@ export class OpenMatesWsClient {
     timeoutMs = 20_000,
   ): Promise<WsEnvelope> {
     return new Promise<WsEnvelope>((resolve, reject) => {
+      const seenTypes = new Set<string>();
+      let predicateMisses = 0;
       const onMessage = (rawData: RawData) => {
         try {
           const parsed = JSON.parse(rawData.toString()) as WsEnvelope;
+          if (typeof parsed.type === "string") seenTypes.add(parsed.type);
           if (parsed.type !== expectedType) {
             return;
           }
           if (predicate && !predicate(parsed.payload)) {
+            predicateMisses += 1;
             return;
           }
           cleanup();
@@ -222,7 +226,13 @@ export class OpenMatesWsClient {
 
       const timeout = setTimeout(() => {
         cleanup();
-        reject(new Error(`Timeout waiting for '${expectedType}'`));
+        const observed = [...seenTypes].sort().join(", ") || "none";
+        reject(
+          new Error(
+            `Timeout waiting for '${expectedType}' ` +
+              `(seen types: ${observed}; predicate misses: ${predicateMisses})`,
+          ),
+        );
       }, timeoutMs);
 
       const cleanup = () => {
