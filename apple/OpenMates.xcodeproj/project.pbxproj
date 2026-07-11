@@ -92,6 +92,7 @@
 		C0FFEE000000000000049005 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049003 /* WatchChatRuntime.swift */; };
 		C0FFEE000000000000049006 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049003 /* WatchChatRuntime.swift */; };
 		C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */; };
+		C0FFEE000000000000049010 /* WatchAuthStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049009 /* WatchAuthStoreTests.swift */; };
 		C0FFEE000000000000049010 /* WatchEmbedPreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */; };
 		C0FFEE000000000000049011 /* WatchEmbedPreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */; };
 		C0FFEE000000000000049012 /* WatchEmbedPreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */; };
@@ -769,6 +770,7 @@
 		C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPairLoginRuntimeTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049003 /* WatchChatRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatRuntime.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatRuntimeTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000049009 /* WatchAuthStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAuthStoreTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchEmbedPreviewModel.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049015 /* WatchEmbedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchEmbedViews.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchEmbedPreviewTests.swift; sourceTree = "<group>"; };
@@ -1766,6 +1768,7 @@
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
 				C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */,
 				C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */,
+				C0FFEE000000000000049009 /* WatchAuthStoreTests.swift */,
 				C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */,
 				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
 				C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */,
@@ -3046,6 +3049,7 @@
 				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
 				C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */,
 				C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */,
+				C0FFEE000000000000049010 /* WatchAuthStoreTests.swift in Sources */,
 				C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */,
 				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,
 				C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */,
