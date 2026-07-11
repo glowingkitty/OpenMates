@@ -17,6 +17,8 @@ const {
 } = require('../../../packages/ui/src/data/embedRegistry.generated');
 
 const CONTRACT_SCHEMA_VERSION = 1;
+const REGISTRY_CAPTURE_DIMENSION_ID = 'iphone-light-ltr';
+const REGISTRY_CAPTURE_WORKERS = 6;
 const OUTPUT_DIR = path.resolve(process.cwd(), 'test-results', 'apple-ui-contracts', 'embeds');
 
 const DIMENSIONS = [
@@ -281,9 +283,73 @@ async function captureRegistrySurface(
 	};
 }
 
+async function captureRegistryMatrix(
+	context: any,
+	dimensionDir: string,
+	registryKeys: string[],
+	theme: 'light' | 'dark',
+	direction: 'ltr' | 'rtl',
+	viewport: { width: number; height: number }
+): Promise<Record<string, unknown>[]> {
+	const results: Record<string, unknown>[] = [];
+	const captures: Array<{
+		index: number;
+		registryKey: string;
+		surface: 'preview' | 'fullscreen';
+		componentPath: string;
+	}> = [];
+
+	for (const registryKey of registryKeys) {
+		for (const surface of ['preview', 'fullscreen'] as const) {
+			const componentPath =
+				surface === 'preview'
+					? EMBED_PREVIEW_COMPONENTS[registryKey]
+					: EMBED_FULLSCREEN_COMPONENTS[registryKey];
+			const index = results.length;
+			results.push({});
+			if (componentPath) {
+				captures.push({ index, registryKey, surface, componentPath });
+			} else {
+				results[index] = {
+					registryKey,
+					surface,
+					exists: false,
+					reason: 'missing registry component'
+				};
+			}
+		}
+	}
+
+	let nextCapture = 0;
+	await Promise.all(
+		Array.from({ length: Math.min(REGISTRY_CAPTURE_WORKERS, captures.length) }, async () => {
+			const workerPage = await context.newPage();
+			await workerPage.setViewportSize(viewport);
+			try {
+				while (nextCapture < captures.length) {
+					const capture = captures[nextCapture++];
+					results[capture.index] = await captureRegistrySurface(
+						workerPage,
+						dimensionDir,
+						capture.registryKey,
+						capture.surface,
+						capture.componentPath,
+						theme,
+						direction
+					);
+				}
+			} finally {
+				await workerPage.close();
+			}
+		})
+	);
+
+	return results;
+}
+
 test.describe('Apple complete embed rendering web contracts', () => {
 	for (const dimension of DIMENSIONS) {
-		test(`captures every embed surface for ${dimension.id}`, async ({ page }) => {
+		test(`captures every embed surface for ${dimension.id}`, async ({ page, context }) => {
 			test.setTimeout(600_000);
 			await page.setViewportSize({ width: dimension.width, height: dimension.height });
 			fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -298,49 +364,17 @@ test.describe('Apple complete embed rendering web contracts', () => {
 			).sort();
 			const dimensionDir = path.join(OUTPUT_DIR, dimension.id);
 
-			for (const registryKey of registryKeys) {
-				const previewComponent = EMBED_PREVIEW_COMPONENTS[registryKey];
-				const fullscreenComponent = EMBED_FULLSCREEN_COMPONENTS[registryKey];
-				if (previewComponent) {
-					registrySurfaces.push(
-						await captureRegistrySurface(
-							page,
-							dimensionDir,
-							registryKey,
-							'preview',
-							previewComponent,
-							dimension.theme,
-							dimension.direction
-						)
-					);
-				} else {
-					registrySurfaces.push({
-						registryKey,
-						surface: 'preview',
-						exists: false,
-						reason: 'missing registry component'
-					});
-				}
-				if (fullscreenComponent) {
-					registrySurfaces.push(
-						await captureRegistrySurface(
-							page,
-							dimensionDir,
-							registryKey,
-							'fullscreen',
-							fullscreenComponent,
-							dimension.theme,
-							dimension.direction
-						)
-					);
-				} else {
-					registrySurfaces.push({
-						registryKey,
-						surface: 'fullscreen',
-						exists: false,
-						reason: 'missing registry component'
-					});
-				}
+			if (dimension.id === REGISTRY_CAPTURE_DIMENSION_ID) {
+				registrySurfaces.push(
+					...(await captureRegistryMatrix(
+						context,
+						dimensionDir,
+						registryKeys,
+						dimension.theme,
+						dimension.direction,
+						{ width: dimension.width, height: dimension.height }
+					))
+				);
 			}
 
 			for (const app of ALL_APPS) {
