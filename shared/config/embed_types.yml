@@ -53,7 +53,7 @@ embed_types:
     has_children: false
     groupable: false
     preview_component: FocusModeActivationEmbed.svelte
-    fullscreen_component: null
+    fullscreen_component: FocusModeActivationEmbedFullscreen.svelte
     icon: focus
     gradient_var: "--color-app-ai"
     i18n_namespace: embeds.ai.focus_mode_activation

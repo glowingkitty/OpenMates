@@ -17,10 +17,12 @@ import Foundation
 
 enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case audio
+    case calendar
     case code
     case diagrams
     case docs
     case electronics
+    case fitness
     case health
     case home
     case web
@@ -28,6 +30,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case mail
     case maps
     case math
+    case mindmaps
     case music
     case news
     case nutrition
@@ -46,10 +49,12 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .audio: return "Audio"
+        case .calendar: return "Calendar"
         case .code: return "Code"
         case .diagrams: return "Diagrams"
         case .docs: return "Docs"
         case .electronics: return "Electronics"
+        case .fitness: return "Fitness"
         case .health: return "Health"
         case .home: return "Home"
         case .web: return "Web"
@@ -57,6 +62,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         case .mail: return "Mail"
         case .maps: return "Maps"
         case .math: return "Math"
+        case .mindmaps: return "Mind Maps"
         case .music: return "Music"
         case .news: return "News"
         case .nutrition: return "Nutrition"
@@ -86,6 +92,8 @@ enum DevEmbedPreviewFixtures {
         switch app {
         case .audio:
             return [recording]
+        case .calendar:
+            return [calendarGetEvents, calendarCreateEvent, calendarUpdateEvent, calendarDeleteEvent]
         case .code:
             return [codeEmbed, codeRepoSearch, codeRepo, codeApplication, codeGetDocs]
         case .diagrams:
@@ -93,7 +101,9 @@ enum DevEmbedPreviewFixtures {
         case .docs:
             return [docsDocument]
         case .electronics:
-            return [electronicsSearch, electronicsComponent]
+            return [electronicsPcbSchematic, electronicsSearch, electronicsComponent]
+        case .fitness:
+            return [fitnessSearchLocations, fitnessLocation, fitnessSearchClasses, fitnessClass]
         case .health:
             return [healthAppointment, healthSearch]
         case .home:
@@ -108,6 +118,8 @@ enum DevEmbedPreviewFixtures {
             return [mapsSearch, mapsLocation]
         case .math:
             return [mathCalculate, mathPlot]
+        case .mindmaps:
+            return [mindmapsMindmap]
         case .music:
             return [musicGenerate]
         case .news:
@@ -127,9 +139,9 @@ enum DevEmbedPreviewFixtures {
         case .travel:
             return [travelSearch, travelConnection, travelPriceCalendar, travelFlight, travelStay, travelStays]
         case .videos:
-            return [videosSearch, video, videoTranscript, videoGenerate]
+            return [videosSearch, video, videoTranscript, videoGenerate, videoCreate]
         case .weather:
-            return [weatherForecast, weatherDay]
+            return [weatherForecast, weatherDay, weatherRainRadar]
         case .events:
             return [eventsSearch, event]
         }
@@ -517,6 +529,33 @@ enum DevEmbedPreviewFixtures {
         return skill(id: "recording", label: "Recording", primary: embed)
     }
 
+    private static var calendarGetEvents: DevEmbedPreviewSkill {
+        calendarAction(id: "calendar-get-events", skillId: "get-events", title: "Upcoming events")
+    }
+
+    private static var calendarCreateEvent: DevEmbedPreviewSkill {
+        calendarAction(id: "calendar-create-event", skillId: "create-event", title: "Project review")
+    }
+
+    private static var calendarUpdateEvent: DevEmbedPreviewSkill {
+        calendarAction(id: "calendar-update-event", skillId: "update-event", title: "Updated project review")
+    }
+
+    private static var calendarDeleteEvent: DevEmbedPreviewSkill {
+        calendarAction(id: "calendar-delete-event", skillId: "delete-event", title: "Cancelled project review")
+    }
+
+    private static func calendarAction(id: String, skillId: String, title: String) -> DevEmbedPreviewSkill {
+        let embed = appSkill(
+            id: "preview-\(id)-1",
+            type: "app:calendar:\(skillId)",
+            appId: "calendar",
+            skillId: skillId,
+            data: ["title": title, "start": "2026-07-12T10:00:00Z", "calendar_name": "Work"]
+        )
+        return skill(id: id, label: title, primary: embed)
+    }
+
     private static var codeRepoSearch: DevEmbedPreviewSkill {
         let child = record(id: "preview-code-repo-1", type: EmbedType.codeRepo.rawValue, appId: "code", data: ["name": "openmates/example", "description": "Synthetic repository fixture", "stars": 128], parentEmbedId: "preview-code-repo-search-1")
         let parent = appSkill(id: "preview-code-repo-search-1", type: EmbedType.codeRepoSearch.rawValue, appId: "code", skillId: "search_repos", data: ["query": "svelte chat UI", "provider": "GitHub"], embedIds: child.id)
@@ -576,6 +615,16 @@ enum DevEmbedPreviewFixtures {
         return skill(id: "electronics-search-components", label: "Search Components", primary: parent, children: [child])
     }
 
+    private static var electronicsPcbSchematic: DevEmbedPreviewSkill {
+        let embed = record(
+            id: "preview-electronics-pcb-1",
+            type: EmbedType.electronicsPcbSchematic.rawValue,
+            appId: "electronics",
+            data: ["title": "USB-C power board", "source": "(kicad_sch (version 20231120))", "status": "finished"]
+        )
+        return skill(id: "electronics-pcb-schematic", label: "PCB Schematic", primary: embed)
+    }
+
     private static var electronicsComponent: DevEmbedPreviewSkill {
         let embed = record(id: "preview-electronics-component-direct-1", type: EmbedType.electronicsComponent.rawValue, appId: "electronics", data: ["mpn": "TPS564257DRLR", "description": "Buck converter", "efficiency": "92.4%"])
         return skill(id: "electronics-component", label: "Component", primary: embed)
@@ -584,6 +633,28 @@ enum DevEmbedPreviewFixtures {
     private static var healthAppointment: DevEmbedPreviewSkill {
         let embed = record(id: "preview-health-appointment-1", type: EmbedType.healthAppointment.rawValue, appId: "health", data: ["doctor_name": "Dr. Mueller", "specialty": "Cardiology", "date": "2026-04-03T10:30:00+02:00"])
         return skill(id: "health-appointment", label: "Appointment", primary: embed)
+    }
+
+    private static var fitnessLocation: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-fitness-location-1", type: EmbedType.fitnessLocation.rawValue, appId: "fitness", data: ["name": "Urban Sports Studio", "address": "Berlin", "activity": "Yoga"])
+        return skill(id: "fitness-location", label: "Fitness Location", primary: embed)
+    }
+
+    private static var fitnessClass: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-fitness-class-1", type: EmbedType.fitnessClass.rawValue, appId: "fitness", data: ["name": "Morning Yoga", "location": "Urban Sports Studio", "starts_at": "2026-07-12T08:00:00Z"])
+        return skill(id: "fitness-class", label: "Fitness Class", primary: embed)
+    }
+
+    private static var fitnessSearchLocations: DevEmbedPreviewSkill {
+        let child = fitnessLocation.primaryEmbed
+        let parent = appSkill(id: "preview-fitness-locations-1", type: EmbedType.fitnessSearchLocations.rawValue, appId: "fitness", skillId: "search_locations", data: ["query": "Yoga in Berlin"], embedIds: child.id)
+        return skill(id: "fitness-search-locations", label: "Search Locations", primary: parent, children: [child])
+    }
+
+    private static var fitnessSearchClasses: DevEmbedPreviewSkill {
+        let child = fitnessClass.primaryEmbed
+        let parent = appSkill(id: "preview-fitness-classes-1", type: EmbedType.fitnessSearchClasses.rawValue, appId: "fitness", skillId: "search_classes", data: ["query": "Morning yoga"], embedIds: child.id)
+        return skill(id: "fitness-search-classes", label: "Search Classes", primary: parent, children: [child])
     }
 
     private static var healthSearch: DevEmbedPreviewSkill {
@@ -637,6 +708,11 @@ enum DevEmbedPreviewFixtures {
     private static var musicGenerate: DevEmbedPreviewSkill {
         let embed = appSkill(id: "preview-music-generate-1", type: EmbedType.musicGenerate.rawValue, appId: "music", skillId: "generate", data: ["prompt": "Ambient synth background loop", "duration_seconds": 30])
         return skill(id: "music-generate", label: "Generate", primary: embed)
+    }
+
+    private static var mindmapsMindmap: DevEmbedPreviewSkill {
+        let embed = record(id: "preview-mindmap-1", type: EmbedType.mindmapsMindmap.rawValue, appId: "mindmaps", data: ["title": "Privacy launch plan", "markdown": "# Launch\n## Product\n## Legal\n## Community"])
+        return skill(id: "mindmaps-mindmap", label: "Mind Map", primary: embed)
     }
 
     private static var newsSearch: DevEmbedPreviewSkill {
@@ -729,6 +805,11 @@ enum DevEmbedPreviewFixtures {
         return skill(id: "videos-generate", label: "Generate", primary: embed)
     }
 
+    private static var videoCreate: DevEmbedPreviewSkill {
+        let embed = appSkill(id: "preview-video-create-1", type: EmbedType.videosCreate.rawValue, appId: "videos", skillId: "create", data: ["title": "Product demo", "status": "finished", "duration_seconds": 15])
+        return skill(id: "videos-create", label: "Create", primary: embed)
+    }
+
     private static var weatherDay: DevEmbedPreviewSkill {
         let embed = record(id: "preview-weather-day-1", type: EmbedType.weatherDay.rawValue, appId: "weather", data: ["date": "2026-06-03", "location_name": "Berlin", "condition": "rain", "temperature_min_c": 14, "temperature_max_c": 19])
         return skill(id: "weather-day", label: "Day", primary: embed)
@@ -738,6 +819,11 @@ enum DevEmbedPreviewFixtures {
         let child = weatherDay.primaryEmbed
         let parent = appSkill(id: "preview-weather-forecast-1", type: EmbedType.weatherForecast.rawValue, appId: "weather", skillId: "forecast", data: ["query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst", "location": ["name": "Berlin"]], embedIds: child.id)
         return skill(id: "weather-forecast", label: "Forecast", primary: parent, children: [child])
+    }
+
+    private static var weatherRainRadar: DevEmbedPreviewSkill {
+        let embed = appSkill(id: "preview-weather-radar-1", type: EmbedType.weatherRainRadar.rawValue, appId: "weather", skillId: "rain_radar", data: ["location_name": "Rostock", "summary": "Heavy rain moving east", "status": "finished"])
+        return skill(id: "weather-rain-radar", label: "Rain Radar", primary: embed)
     }
 
     // MARK: - Builders

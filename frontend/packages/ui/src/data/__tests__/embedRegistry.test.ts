@@ -100,13 +100,10 @@ describe("Embed Registry — component files exist on disk", () => {
     ).toHaveLength(0);
   });
 
-  it("every embed type with a preview also has a fullscreen (except virtual types)", () => {
-    // focus-mode-activation is intentionally preview-only (no fullscreen)
-    const PREVIEW_ONLY_ALLOWLIST = new Set(["focus-mode-activation"]);
+  it("every embed type with a preview also has a fullscreen", () => {
     const mismatched: string[] = [];
 
     for (const key of Object.keys(EMBED_PREVIEW_COMPONENTS)) {
-      if (PREVIEW_ONLY_ALLOWLIST.has(key)) continue;
       if (!EMBED_FULLSCREEN_COMPONENTS[key]) {
         mismatched.push(
           `[${key}] has preview but no fullscreen component registered`,
