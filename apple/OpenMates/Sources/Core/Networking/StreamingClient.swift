@@ -7,7 +7,12 @@ import Foundation
 actor StreamingClient {
     static let shared = StreamingClient()
 
-    private var activeStreams: [String: AsyncStream<StreamEvent>.Continuation] = [:]
+    private struct ActiveStream {
+        let id: UUID
+        let continuation: AsyncStream<StreamEvent>.Continuation
+    }
+
+    private var activeStreams: [String: ActiveStream] = [:]
     private var bufferedEvents: [String: [StreamEvent]] = [:]
     private let maxBufferedEventsPerChat = 80
 
@@ -45,11 +50,12 @@ actor StreamingClient {
 
     func streamForChat(_ chatId: String) -> AsyncStream<StreamEvent> {
         if let existing = activeStreams[chatId] {
-            existing.finish()
+            existing.continuation.finish()
         }
 
+        let streamId = UUID()
         return AsyncStream { continuation in
-            activeStreams[chatId] = continuation
+            activeStreams[chatId] = ActiveStream(id: streamId, continuation: continuation)
             if let buffered = bufferedEvents.removeValue(forKey: chatId) {
                 for event in buffered {
                     continuation.yield(event)
@@ -57,7 +63,7 @@ actor StreamingClient {
             }
 
             continuation.onTermination = { @Sendable _ in
-                Task { await self.removeStream(chatId) }
+                Task { await self.removeStream(chatId, streamId: streamId) }
             }
         }
     }
@@ -66,11 +72,16 @@ actor StreamingClient {
         activeStreams.removeValue(forKey: chatId)
     }
 
+    private func removeStream(_ chatId: String, streamId: UUID) {
+        guard activeStreams[chatId]?.id == streamId else { return }
+        activeStreams.removeValue(forKey: chatId)
+    }
+
     // MARK: - Dispatch events from WebSocket
 
     func dispatch(_ event: StreamEvent, for chatId: String) {
-        if let continuation = activeStreams[chatId] {
-            continuation.yield(event)
+        if let activeStream = activeStreams[chatId] {
+            activeStream.continuation.yield(event)
             return
         }
         var events = bufferedEvents[chatId] ?? []
@@ -82,8 +93,8 @@ actor StreamingClient {
     }
 
     func dispatchToAll(_ event: StreamEvent) {
-        for (_, continuation) in activeStreams {
-            continuation.yield(event)
+        for (_, activeStream) in activeStreams {
+            activeStream.continuation.yield(event)
         }
     }
 }

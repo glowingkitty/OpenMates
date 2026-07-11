@@ -944,6 +944,9 @@ final class ChatViewModel: ObservableObject {
         streamingContent = ""
         streamingMessageId = nil
         streamingLifecycle.reset()
+        if let chatId {
+            subscribeToStream(chatId: chatId)
+        }
     }
 
     // MARK: - Streaming subscription

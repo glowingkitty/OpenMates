@@ -640,7 +640,7 @@ tests:
   - id: T-SWIFT-STREAM-BROKER
     type: unit
     file: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatStreamingLifecycleParityTests/testReplacingStreamKeepsNewestSubscriberRegistered
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatStreamingLifecycleParityTests
     covers: [AC-7]
     assertions:
       - replacing a subscriber cannot remove the new continuation
@@ -649,7 +649,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", run_id: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatStreamingLifecycleParityTests
+        run_id: remote:stream-replacement-red-20260711T1028Z
+        subject_commit: 03e6927
+        reason: Seven tests executed; the replacement regression failed because the first continuation termination removed the second subscriber.
+        timestamp: "2026-07-11T10:28:42Z"
     green_phase:
       required: true
       expected: pass
