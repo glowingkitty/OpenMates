@@ -113,6 +113,10 @@
 		D00D00000000000000000041 /* Sodium in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000021 /* Sodium */; };
 		D00D00000000000000000042 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000022 /* Yams */; };
 		D00D00000000000000000043 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000023 /* ZIPFoundation */; };
+		D00D00000000000000000051 /* AccountSecurityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000061 /* AccountSecurityService.swift */; };
+		D00D00000000000000000052 /* AccountSecurityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000061 /* AccountSecurityService.swift */; };
+		D00D00000000000000000053 /* PasskeyRegistrationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000062 /* PasskeyRegistrationCoordinator.swift */; };
+		D00D00000000000000000054 /* PasskeyRegistrationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00D00000000000000000062 /* PasskeyRegistrationCoordinator.swift */; };
 		054A74F600EA9DCABA103B0A /* EditMessageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4011158DF04A05A08516EA7D /* EditMessageStore.swift */; };
 		0651B4D9F35E780990F06473 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
 		D1A6D1A6D1A6D1A6D1A60002 /* NativeDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6D1A6D1A6D1A6D1A60001 /* NativeDiagnostics.swift */; };
@@ -1000,6 +1004,8 @@
 		A22E00000000000000000002 /* SettingsLearningModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLearningModeView.swift; sourceTree = "<group>"; };
 		A22E00000000000000000003 /* SettingsModesParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModesParityTests.swift; sourceTree = "<group>"; };
 		A22E00000000000000000004 /* SettingsModesParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModesParityUITests.swift; sourceTree = "<group>"; };
+		D00D00000000000000000061 /* AccountSecurityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSecurityService.swift; sourceTree = "<group>"; };
+		D00D00000000000000000062 /* PasskeyRegistrationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasskeyRegistrationCoordinator.swift; sourceTree = "<group>"; };
 		B70000000000000000000001 /* PrivacySettingsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySettingsModels.swift; sourceTree = "<group>"; };
 		B70000000000000000000002 /* SettingsPrivacyContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPrivacyContentView.swift; sourceTree = "<group>"; };
 		B70000000000000000000003 /* SettingsAutoDeletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAutoDeletionView.swift; sourceTree = "<group>"; };
@@ -1394,9 +1400,19 @@
 			children = (
 				A22E00000000000000000021 /* Models */,
 				B70000000000000000000021 /* Privacy */,
+				D00D00000000000000000070 /* Services */,
 				CFE6DC4E6E577CC4E8695932 /* Views */,
 			);
 			path = Settings;
+			sourceTree = "<group>";
+		};
+		D00D00000000000000000070 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				D00D00000000000000000061 /* AccountSecurityService.swift */,
+				D00D00000000000000000062 /* PasskeyRegistrationCoordinator.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		B70000000000000000000021 /* Privacy */ = {
@@ -2610,6 +2626,8 @@
 				327AD82FCCAE7C0344853EB2 /* SettingsDevicesView.swift in Sources */,
 				0799383785A4BA6A304DEC02 /* SettingsEmailView.swift in Sources */,
 				20E1E4156A3D7B78FE408865 /* SettingsExportAccountView.swift in Sources */,
+				D00D00000000000000000051 /* AccountSecurityService.swift in Sources */,
+				D00D00000000000000000053 /* PasskeyRegistrationCoordinator.swift in Sources */,
 				DD05C56256EF1B375FF04CC4 /* SettingsHidePersonalDataView.swift in Sources */,
 				DFCEBCE4565A07FC1B635D33 /* SettingsIncognitoInfoView.swift in Sources */,
 				A22E00000000000000000011 /* SettingsModeModels.swift in Sources */,
@@ -2847,6 +2865,8 @@
 				8740E875A59D8D4445F2E0CC /* SettingsDevicesView.swift in Sources */,
 				B5235C7666366F0D9792715C /* SettingsEmailView.swift in Sources */,
 				E1C78FC783CF532F39DC2563 /* SettingsExportAccountView.swift in Sources */,
+				D00D00000000000000000052 /* AccountSecurityService.swift in Sources */,
+				D00D00000000000000000054 /* PasskeyRegistrationCoordinator.swift in Sources */,
 				D02C464DD8BC7CB2FE2BFE20 /* SettingsHidePersonalDataView.swift in Sources */,
 				8685DC828E2CE573C2032001 /* SettingsIncognitoInfoView.swift in Sources */,
 				A22E00000000000000000012 /* SettingsModeModels.swift in Sources */,

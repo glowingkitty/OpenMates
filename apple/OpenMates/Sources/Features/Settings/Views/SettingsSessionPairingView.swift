@@ -166,10 +166,10 @@ struct CLIPairAuthorizeView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var info: PairInfoResponse?
     @State private var pin: String?
-    @State private var state: State = .loading
+    @State private var state: PairingState = .loading
     @State private var errorMessage: String?
 
-    private enum State { case loading, confirm, authorizing, pin, completed, failed }
+    private enum PairingState { case loading, confirm, authorizing, pin, completed, failed }
 
     var body: some View {
         OMSettingsPage(title: AppStrings.authorizeDevice, showsFooter: false) {
