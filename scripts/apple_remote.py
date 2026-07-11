@@ -2786,6 +2786,10 @@ def test_ios_command(simulator: str, only_testing: str | None) -> str:
         f"platform=iOS Simulator,name={simulator}",
     ]
     if only_testing:
+        if only_testing.startswith("OpenMatesUITests/"):
+            parts.extend(["-skip-testing", "OpenMatesTests"])
+        elif only_testing.startswith("OpenMatesTests/"):
+            parts.extend(["-skip-testing", "OpenMatesUITests"])
         parts.extend(["-only-testing", only_testing])
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {simulator_locked_command(parts)}"
 

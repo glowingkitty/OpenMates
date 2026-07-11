@@ -36,6 +36,16 @@ def test_ios_test_command_holds_shared_simulator_lock() -> None:
     assert "fcntl.flock" in command
     assert "simulator_lock=acquired" in command
     assert "-only-testing OpenMatesUITests/SettingsAppsParityUITests" in command
+    assert "-skip-testing OpenMatesTests" in command
+
+
+def test_ios_unit_test_command_skips_ui_test_target() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.test_ios_command("iPhone 17e", "OpenMatesTests/SettingsModesParityTests")
+
+    assert "-only-testing OpenMatesTests/SettingsModesParityTests" in command
+    assert "-skip-testing OpenMatesUITests" in command
 
 
 def test_ios_build_command_holds_shared_simulator_lock() -> None:
