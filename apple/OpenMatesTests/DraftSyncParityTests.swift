@@ -305,6 +305,41 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertEqual(Set(offline.cascadedChatIds), ["omitted", "tombstone"])
     }
 
+    func testAuthoritativeDraftSyncPreservesOptimisticChatWithSentMessage() async throws {
+        let repository = DraftSyncRecordingRepository(records: [
+            "optimistic-chat": ComposerDraftRecord(
+                chatId: "optimistic-chat",
+                encryptedMarkdown: "md",
+                encryptedPreview: "preview",
+                revision: 1,
+                draftVersion: 1
+            ),
+        ])
+        let chatStore = ChatStore()
+        chatStore.performWithoutPersistence {
+            chatStore.upsertChat(makeChat(id: "optimistic-chat", messagesV: 1))
+            chatStore.appendMessage(makeUserMessage(chatId: "optimistic-chat"), to: "optimistic-chat")
+        }
+        let offline = DraftSyncRecordingOfflineActions()
+        let coordinator = DraftSyncCoordinator(
+            repository: repository,
+            chatStore: chatStore,
+            transport: DraftSyncRecordingTransport(isConnected: true),
+            offlineActions: offline
+        )
+
+        try await coordinator.reconcileChats(
+            authoritative: true,
+            authoritativeChatIds: [],
+            deletedChatIds: []
+        )
+
+        XCTAssertNotNil(chatStore.chat(for: "optimistic-chat"))
+        XCTAssertEqual(chatStore.messages(for: "optimistic-chat").map(\.id), ["user-1"])
+        XCTAssertNotNil(try await repository.record(chatId: "optimistic-chat"))
+        XCTAssertTrue(offline.cascadedChatIds.isEmpty)
+    }
+
     private func jsonData(_ value: [String: Any]) throws -> Data {
         try JSONSerialization.data(withJSONObject: value)
     }
@@ -323,6 +358,21 @@ final class DraftSyncParityTests: XCTestCase {
             encryptedChatKey: nil,
             messagesV: messagesV,
             draftV: draftV
+        )
+    }
+
+    private func makeUserMessage(chatId: String) -> Message {
+        Message(
+            id: "user-1",
+            chatId: chatId,
+            role: .user,
+            content: "Synthetic prompt",
+            encryptedContent: "encrypted-user",
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil
         )
     }
 }
