@@ -714,7 +714,7 @@ struct ChatView: View {
                                 }
 
                                 #if DEBUG
-                                if ProcessInfo.processInfo.arguments.contains("--ui-test-chat-history-audio-parity") {
+                                if isUITestChatHistoryAudioParityEnabled {
                                     chatHistoryAudioParityFixture(containerWidth: scrollGeo.size.width)
                                 }
                                 #endif
@@ -867,6 +867,11 @@ struct ChatView: View {
     }
 
     #if DEBUG
+    private var isUITestChatHistoryAudioParityEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-chat-history-audio-parity")
+            || ProcessInfo.processInfo.environment["UI_TEST_CHAT_HISTORY_AUDIO_PARITY"] == "1"
+    }
+
     private func chatHistoryAudioParityFixture(containerWidth: CGFloat) -> some View {
         let records = Self.chatHistoryAudioParityRecords
         let recordLookup = EmbedRecord.dictionaryById(records, context: "chatView.audioParityFixture")
@@ -1081,7 +1086,13 @@ struct ChatView: View {
         let targetId = viewModel.chat?.lastVisibleMessageId
         let hasTargetMessage = targetId.map { id in viewModel.messages.contains { $0.id == id } } ?? false
 
-        if bannerState != nil || isDemoOrLegalChat {
+        #if DEBUG
+        let shouldKeepTopAligned = isUITestChatHistoryAudioParityEnabled || bannerState != nil || isDemoOrLegalChat
+        #else
+        let shouldKeepTopAligned = bannerState != nil || isDemoOrLegalChat
+        #endif
+
+        if shouldKeepTopAligned {
             proxy.scrollTo("scroll-top", anchor: .top)
             NativeSyncPerfLog.info("phase=chatScrollRestore chat=\(chatId.prefix(8)) mode=publicTop messages=\(viewModel.messages.count)")
         } else if let targetId, hasTargetMessage {
