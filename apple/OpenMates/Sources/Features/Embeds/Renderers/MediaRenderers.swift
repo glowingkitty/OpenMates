@@ -426,7 +426,7 @@ struct MusicGenerateEmbedRenderer: View {
                 .clipShape(RoundedRectangle(cornerRadius: .radius8))
                 .shadow(color: .black.opacity(0.12), radius: 15, x: 0, y: 8)
 
-                VStack(alignment: .leading, spacing: .spacing7) {
+                VStack(alignment: .leading, spacing: .spacing6) {
                     if let prompt = payload.prompt { detail(GeneratedMediaText.prompt, prompt) }
                     detail(GeneratedMediaText.model, payload.model ?? "Lyria")
                     if let duration = payload.duration { detail(GeneratedMediaText.duration, Self.duration(duration)) }
@@ -455,7 +455,7 @@ struct MusicGenerateEmbedRenderer: View {
     }
 
     private var musicPlayer: some View {
-        VStack(alignment: .leading, spacing: .spacing7) {
+        VStack(alignment: .leading, spacing: .spacing6) {
             Text(payload.modeLabel ?? GeneratedMediaText.generatedMusic)
                 .font(.omH3).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
             if payload.status == "error" {
@@ -599,7 +599,11 @@ private struct GeneratedAudioControl: View {
 
     private func togglePlayback() {
         if let player {
-            player.isPlaying ? player.pause() : player.play()
+            if player.isPlaying {
+                player.pause()
+            } else {
+                _ = player.play()
+            }
             isPlaying = player.isPlaying
             return
         }
