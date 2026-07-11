@@ -107,6 +107,12 @@
 		FDD100000000000000000002 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		FDD100000000000000000003 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */; };
+		D00D00000000000000000031 /* Sodium in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000011 /* Sodium */; };
+		D00D00000000000000000032 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000012 /* Yams */; };
+		D00D00000000000000000033 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000013 /* ZIPFoundation */; };
+		D00D00000000000000000041 /* Sodium in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000021 /* Sodium */; };
+		D00D00000000000000000042 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000022 /* Yams */; };
+		D00D00000000000000000043 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = D00D00000000000000000023 /* ZIPFoundation */; };
 		054A74F600EA9DCABA103B0A /* EditMessageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4011158DF04A05A08516EA7D /* EditMessageStore.swift */; };
 		0651B4D9F35E780990F06473 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
 		D1A6D1A6D1A6D1A6D1A60002 /* NativeDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6D1A6D1A6D1A6D1A60001 /* NativeDiagnostics.swift */; };
@@ -1101,6 +1107,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				07676E979606FF0FAD918D77 /* LucideIcons in Frameworks */,
+				D00D00000000000000000041 /* Sodium in Frameworks */,
+				D00D00000000000000000042 /* Yams in Frameworks */,
+				D00D00000000000000000043 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1130,6 +1139,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */,
+				D00D00000000000000000031 /* Sodium in Frameworks */,
+				D00D00000000000000000032 /* Yams in Frameworks */,
+				D00D00000000000000000033 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2041,6 +2053,9 @@
 			name = OpenMates_iOS;
 			packageProductDependencies = (
 				8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */,
+				D00D00000000000000000011 /* Sodium */,
+				D00D00000000000000000012 /* Yams */,
+				D00D00000000000000000013 /* ZIPFoundation */,
 			);
 			productName = OpenMates_iOS;
 			productReference = BE1031D79B03616FF9E0E7F7 /* OpenMates.app */;
@@ -2133,6 +2148,9 @@
 			name = OpenMates_macOS;
 			packageProductDependencies = (
 				47F26F17E3084624A8B0C927 /* LucideIcons */,
+				D00D00000000000000000021 /* Sodium */,
+				D00D00000000000000000022 /* Yams */,
+				D00D00000000000000000023 /* ZIPFoundation */,
 			);
 			productName = OpenMates_macOS;
 			productReference = 6B67074848688485A446BC5C /* OpenMates.app */;
@@ -2247,6 +2265,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				9F629A6D9D36C641EE6F558A /* XCRemoteSwiftPackageReference "lucide-icons-swift" */,
+				D00D00000000000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */,
+				D00D00000000000000000002 /* XCRemoteSwiftPackageReference "Yams" */,
+				D00D00000000000000000003 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AA17F1DC1A7C9E6EE61B6010 /* Products */;
@@ -3710,6 +3731,30 @@
 				minimumVersion = 1.8.0;
 			};
 		};
+		D00D00000000000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jedisct1/swift-sodium.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.1;
+			};
+		};
+		D00D00000000000000000002 /* XCRemoteSwiftPackageReference "Yams" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jpsim/Yams.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.1.3;
+			};
+		};
+		D00D00000000000000000003 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.19;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -3722,6 +3767,36 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9F629A6D9D36C641EE6F558A /* XCRemoteSwiftPackageReference "lucide-icons-swift" */;
 			productName = LucideIcons;
+		};
+		D00D00000000000000000011 /* Sodium */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */;
+			productName = Sodium;
+		};
+		D00D00000000000000000012 /* Yams */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000002 /* XCRemoteSwiftPackageReference "Yams" */;
+			productName = Yams;
+		};
+		D00D00000000000000000013 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000003 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+		D00D00000000000000000021 /* Sodium */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000001 /* XCRemoteSwiftPackageReference "swift-sodium" */;
+			productName = Sodium;
+		};
+		D00D00000000000000000022 /* Yams */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000002 /* XCRemoteSwiftPackageReference "Yams" */;
+			productName = Yams;
+		};
+		D00D00000000000000000023 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00D00000000000000000003 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

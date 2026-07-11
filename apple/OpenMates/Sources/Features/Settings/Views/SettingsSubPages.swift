@@ -408,6 +408,10 @@ struct SettingsPasswordView: View {
                     throw AccountSecurityError.missingAccountData
                 }
                 let passwordSalt = randomSalt()
+                try await AccountSecurityService.shared.verifyPasswordReauth(
+                    hashedEmail: await CryptoManager.shared.hashEmail(email),
+                    lookupHash: await CryptoManager.shared.hashKey(currentPassword, salt: emailSalt)
+                )
                 let wrappingKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
                     password: newPassword,
                     salt: passwordSalt

@@ -153,9 +153,9 @@ struct SettingsPairInitiateView: View {
 
     private var deviceHint: String {
         #if os(iOS)
-        UIDevice.current.userInterfaceIdiom == .pad ? "OpenMates iPadOS" : "OpenMates iOS"
+        UIDevice.current.name
         #elseif os(macOS)
-        "OpenMates macOS"
+        Host.current().localizedName ?? AppStrings.openMatesName
         #endif
     }
 }
