@@ -76,6 +76,7 @@ targets:
         type: folder
     resources:
       # Xcode asset catalogs with theme-aware colors and custom icons
+      - path: OpenMates/Resources/BrandAssets.xcassets
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Icons.xcassets
     settings:

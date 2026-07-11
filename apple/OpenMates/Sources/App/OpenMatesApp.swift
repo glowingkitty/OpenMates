@@ -301,6 +301,7 @@ struct OpenMatesApp: App {
         } label: {
             OpenMatesMenuBarGlyph()
                 .frame(width: 18, height: 18)
+                .accessibilityLabel(AppStrings.openMatesName)
         }
         .menuBarExtraStyle(.window)
     }
@@ -313,6 +314,10 @@ private final class AppWindowCommandCenter {
     static let shared = AppWindowCommandCenter()
 
     var openMainWindow: ((AppWindowLaunchCommand) -> Void)?
+
+    var hasVisibleMainWindow: Bool {
+        NSApp.windows.contains { $0.isVisible && !($0 is NSPanel) }
+    }
 
     func openNewWindow() {
         if let openMainWindow {
@@ -1034,72 +1039,10 @@ struct OpenMatesMenuBarGlyph: View {
     static let includesAppIconContainerForTests = false
 
     var body: some View {
-        Canvas { context, size in
-            let scale = min(size.width, size.height) / 29
-            context.scaleBy(x: scale, y: scale)
-            context.fill(Self.personPath, with: .color(.primary))
-            context.fill(Self.largeSparklePath, with: .color(.primary))
-            context.fill(Self.smallSparklePath, with: .color(.primary))
-        }
-        .accessibilityHidden(true)
-    }
-
-    private static var personPath: Path {
-        var path = Path()
-        path.addEllipse(in: CGRect(x: 10.12, y: 5, width: 9.41, height: 9.63))
-        path.move(to: CGPoint(x: 8.34, y: 24.25))
-        path.addCurve(to: CGPoint(x: 5.97, y: 23.38), control1: CGPoint(x: 7.35, y: 24.25), control2: CGPoint(x: 6.56, y: 23.96))
-        path.addCurve(to: CGPoint(x: 5.07, y: 21.00), control1: CGPoint(x: 5.37, y: 22.80), control2: CGPoint(x: 5.07, y: 22.01))
-        path.addCurve(to: CGPoint(x: 5.11, y: 19.71), control1: CGPoint(x: 5.07, y: 20.56), control2: CGPoint(x: 5.08, y: 20.13))
-        path.addCurve(to: CGPoint(x: 5.28, y: 18.34), control1: CGPoint(x: 5.14, y: 19.29), control2: CGPoint(x: 5.20, y: 18.83))
-        path.addCurve(to: CGPoint(x: 5.61, y: 16.98), control1: CGPoint(x: 5.37, y: 17.85), control2: CGPoint(x: 5.48, y: 17.40))
-        path.addCurve(to: CGPoint(x: 6.14, y: 15.76), control1: CGPoint(x: 5.74, y: 16.56), control2: CGPoint(x: 5.92, y: 16.16))
-        path.addCurve(to: CGPoint(x: 6.90, y: 14.74), control1: CGPoint(x: 6.36, y: 15.36), control2: CGPoint(x: 6.61, y: 15.02))
-        path.addCurve(to: CGPoint(x: 7.94, y: 14.07), control1: CGPoint(x: 7.19, y: 14.46), control2: CGPoint(x: 7.53, y: 14.23))
-        path.addCurve(to: CGPoint(x: 9.31, y: 13.82), control1: CGPoint(x: 8.35, y: 13.90), control2: CGPoint(x: 8.81, y: 13.82))
-        path.addCurve(to: CGPoint(x: 9.84, y: 14.09), control1: CGPoint(x: 9.39, y: 13.82), control2: CGPoint(x: 9.57, y: 13.91))
-        path.addCurve(to: CGPoint(x: 10.73, y: 14.69), control1: CGPoint(x: 10.11, y: 14.27), control2: CGPoint(x: 10.41, y: 14.47))
-        path.addCurve(to: CGPoint(x: 12.04, y: 15.29), control1: CGPoint(x: 11.06, y: 14.91), control2: CGPoint(x: 11.49, y: 15.11))
-        path.addCurve(to: CGPoint(x: 13.70, y: 15.56), control1: CGPoint(x: 12.58, y: 15.47), control2: CGPoint(x: 13.13, y: 15.56))
-        path.addCurve(to: CGPoint(x: 15.35, y: 15.29), control1: CGPoint(x: 14.25, y: 15.56), control2: CGPoint(x: 14.80, y: 15.47))
-        path.addCurve(to: CGPoint(x: 16.66, y: 14.69), control1: CGPoint(x: 15.90, y: 15.11), control2: CGPoint(x: 16.34, y: 14.91))
-        path.addCurve(to: CGPoint(x: 17.55, y: 14.09), control1: CGPoint(x: 16.99, y: 14.47), control2: CGPoint(x: 17.28, y: 14.27))
-        path.addCurve(to: CGPoint(x: 18.08, y: 13.82), control1: CGPoint(x: 17.82, y: 13.91), control2: CGPoint(x: 18.00, y: 13.82))
-        path.addCurve(to: CGPoint(x: 19.45, y: 14.07), control1: CGPoint(x: 18.58, y: 13.82), control2: CGPoint(x: 19.03, y: 13.90))
-        path.addCurve(to: CGPoint(x: 20.49, y: 14.74), control1: CGPoint(x: 19.86, y: 14.23), control2: CGPoint(x: 20.21, y: 14.46))
-        path.addCurve(to: CGPoint(x: 21.25, y: 15.76), control1: CGPoint(x: 20.78, y: 15.02), control2: CGPoint(x: 21.03, y: 15.36))
-        path.addCurve(to: CGPoint(x: 21.78, y: 16.98), control1: CGPoint(x: 21.47, y: 16.16), control2: CGPoint(x: 21.65, y: 16.56))
-        path.addCurve(to: CGPoint(x: 22.10, y: 18.34), control1: CGPoint(x: 21.91, y: 17.40), control2: CGPoint(x: 22.02, y: 17.85))
-        path.addCurve(to: CGPoint(x: 22.27, y: 19.71), control1: CGPoint(x: 22.19, y: 18.83), control2: CGPoint(x: 22.24, y: 19.29))
-        path.addCurve(to: CGPoint(x: 22.32, y: 21.00), control1: CGPoint(x: 22.30, y: 20.13), control2: CGPoint(x: 22.32, y: 20.56))
-        path.addCurve(to: CGPoint(x: 21.42, y: 23.38), control1: CGPoint(x: 22.32, y: 22.01), control2: CGPoint(x: 22.02, y: 22.80))
-        path.addCurve(to: CGPoint(x: 19.04, y: 24.25), control1: CGPoint(x: 20.82, y: 23.96), control2: CGPoint(x: 20.03, y: 24.25))
-        path.closeSubpath()
-        return path
-    }
-
-    private static var largeSparklePath: Path {
-        sparklePath(center: CGPoint(x: 14.85, y: 20.04), horizontal: 2.30, vertical: 3.20)
-    }
-
-    private static var smallSparklePath: Path {
-        var path = sparklePath(center: CGPoint(x: 12.25, y: 18.25), horizontal: 1.15, vertical: 1.45)
-        path.addPath(sparklePath(center: CGPoint(x: 11.85, y: 21.30), horizontal: 1.05, vertical: 1.25))
-        return path
-    }
-
-    private static func sparklePath(center: CGPoint, horizontal: CGFloat, vertical: CGFloat) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: center.x, y: center.y - vertical))
-        path.addLine(to: CGPoint(x: center.x + horizontal * 0.36, y: center.y - vertical * 0.36))
-        path.addLine(to: CGPoint(x: center.x + horizontal, y: center.y))
-        path.addLine(to: CGPoint(x: center.x + horizontal * 0.36, y: center.y + vertical * 0.36))
-        path.addLine(to: CGPoint(x: center.x, y: center.y + vertical))
-        path.addLine(to: CGPoint(x: center.x - horizontal * 0.36, y: center.y + vertical * 0.36))
-        path.addLine(to: CGPoint(x: center.x - horizontal, y: center.y))
-        path.addLine(to: CGPoint(x: center.x - horizontal * 0.36, y: center.y - vertical * 0.36))
-        path.closeSubpath()
-        return path
+        Image("openmates-menu-bar")
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
     }
 }
 #endif
@@ -1153,6 +1096,18 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 #elseif os(macOS)
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if AppWindowCommandCenter.shared.hasVisibleMainWindow {
+            return true
+        }
+        AppWindowCommandCenter.shared.openNewWindow()
+        return false
+    }
+
     func application(
         _ application: NSApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data

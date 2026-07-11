@@ -67,6 +67,7 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
 
         let mainWindow = app.windows.firstMatch
         XCTAssertTrue(mainWindow.waitForExistence(timeout: 15), "Expected the regular OpenMates window on launch")
+        XCTAssertEqual(app.windows.count, 1, "Expected exactly one regular OpenMates window on launch")
 
         mainWindow.typeKey("w", modifierFlags: .command)
         XCTAssertTrue(waitForWindowCount(0, in: app), "Expected Command-W to close the regular window")
@@ -77,6 +78,7 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
             app.windows.firstMatch.waitForExistence(timeout: 10),
             "Expected Dock activation to restore the regular OpenMates window"
         )
+        XCTAssertEqual(app.windows.count, 1, "Expected Dock activation to restore exactly one regular window")
     }
 
     private func launchQuickCapturePreview(seedAttachment: Bool = false) -> XCUIApplication {
