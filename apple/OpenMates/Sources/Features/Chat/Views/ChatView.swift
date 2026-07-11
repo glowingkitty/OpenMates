@@ -3362,9 +3362,9 @@ private struct SpeechTailView: View {
     private var tailOffsetX: CGFloat {
         let direction: CGFloat = layoutDirection == .rightToLeft ? -1 : 1
         switch side {
-        case .leading: -tailWidth * direction
-        case .trailing: tailWidth * direction
-        case .top: 20
+        case .leading: return -tailWidth * direction
+        case .trailing: return tailWidth * direction
+        case .top: return 20
         }
     }
 
@@ -3375,9 +3375,9 @@ private struct SpeechTailView: View {
 
     private var tailOffsetY: CGFloat {
         switch side {
-        case .leading: 20
-        case .trailing: -10
-        case .top: -16
+        case .leading: return 20
+        case .trailing: return -10
+        case .top: return -16
         }
     }
 }
