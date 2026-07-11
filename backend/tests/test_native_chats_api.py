@@ -40,6 +40,7 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
                 "encrypted_chat_key": "wrapped-chat-key",
                 "pinned": False,
                 "updated_at": 200,
+                "last_message_timestamp": 190,
             }
         ])
     )
@@ -58,7 +59,8 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
                 "encrypted_chat_summary": "cipher-summary",
                 "encrypted_chat_key": "wrapped-chat-key",
                 "pinned": False,
-                "updated_at": 200,
+                "updated_at": "200",
+                "last_message_at": "190",
             }
         ],
         "limit": 20,

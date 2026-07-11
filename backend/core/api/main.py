@@ -32,7 +32,7 @@ import httpx  # noqa: E402 # Used for CMS readiness check during lifespan startu
 from typing import Dict, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, referrals, websockets, sdk  # noqa: E402
+from backend.core.api.app.routes import auth, chats, email, invoice, credit_note, settings, payments, referrals, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
@@ -1329,6 +1329,7 @@ def create_app() -> FastAPI:
     
     # Web app only routers - excluded from API schema (use web app auth, not API keys)
     app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - web app only
+    app.include_router(chats.router, include_in_schema=False)  # Encrypted chat reads - session-authenticated first-party clients
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
