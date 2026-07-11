@@ -77,6 +77,7 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         let editor = element(in: app, identifier: "message-editor")
         XCTAssertTrue(editor.waitForExistence(timeout: 8))
         editor.tap()
+        editor.typeText("x")
 
         let keyboard = app.keyboards.firstMatch
         XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
