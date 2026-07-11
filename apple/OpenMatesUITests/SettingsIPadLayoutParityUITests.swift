@@ -27,8 +27,8 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
 
         XCTAssertTrue(waitForElement("settings-app-store-page", in: app, timeout: 10))
         XCTAssertTrue(waitForElement("settings-show-all-apps-row", in: app, timeout: 5))
-        XCTAssertTrue(waitForElement("app-card-weather", in: app, timeout: 5))
         assertElementInsideWindow(app.descendants(matching: .any)["settings-show-all-apps-row"], in: app)
+        XCTAssertTrue(waitForElement("app-card-weather", in: app, timeout: 5))
         assertElementInsideWindow(app.descendants(matching: .any)["app-card-weather"].firstMatch, in: app)
 
         app.descendants(matching: .any)["settings-show-all-apps-row"].tap()
