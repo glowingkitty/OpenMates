@@ -4893,7 +4893,7 @@ struct NewChatWelcomeView: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             composerOverlay = .location
             isComposerActivated = true
-            isFocused = true
+            isFocused = false
         }
     }
 
@@ -4939,7 +4939,7 @@ struct NewChatWelcomeView: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             composerOverlay = .sketch
             isComposerActivated = true
-            isFocused = true
+            isFocused = false
         }
         #else
         ToastManager.shared.show(AppStrings.sketchAction, type: .info)
@@ -6133,6 +6133,8 @@ private struct WelcomeComposer: View {
                             .frame(width: 30, height: 30)
                     }
                     .buttonStyle(.plain)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                     .padding(.top, 10)
                     .padding(.trailing, 15)
                     .help(Text(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen))

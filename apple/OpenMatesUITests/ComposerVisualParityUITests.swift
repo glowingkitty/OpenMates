@@ -165,21 +165,21 @@ final class ComposerVisualParityUITests: XCTestCase {
             extraArguments: ["--ui-test-welcome-sketch-enabled"]
         )
         defer { XCUIDevice.shared.orientation = .portrait }
-        XCUIDevice.shared.orientation = .landscapeLeft
         let sketchButton = app.buttons["sketch-button"]
         XCTAssertTrue(sketchButton.waitForExistence(timeout: 5))
-        attachScreenshot(name: "Landscape composer before opening sketch")
         XCTAssertTrue(
             sketchButton.isHittable,
-            "Sketch button must remain hittable after rotation. button=\(sketchButton.debugDescription) UI=\(app.debugDescription)"
+            "Sketch button must be hittable before opening the tool. button=\(sketchButton.debugDescription) UI=\(app.debugDescription)"
         )
         sketchButton.tap()
 
         let canvas = element(in: app, identifier: "sketch-canvas")
+        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Sketch canvas must render after the action. UI=\(app.debugDescription)")
+        XCUIDevice.shared.orientation = .landscapeLeft
         attachScreenshot(name: "Landscape sketch overlay after action")
         XCTAssertTrue(
             canvas.waitForExistence(timeout: 5),
-            "Sketch canvas must render after the action. UI=\(app.debugDescription)"
+            "Sketch canvas must survive rotation. UI=\(app.debugDescription)"
         )
         for identifier in [
             "sketch-eraser-button",

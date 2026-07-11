@@ -1406,7 +1406,7 @@ struct ChatView: View {
                 MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation) {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         composerOverlay = .location
-                        isInputFocused = true
+                        isInputFocused = false
                     }
                 }
 
@@ -1414,7 +1414,7 @@ struct ChatView: View {
                     #if os(iOS)
                     withAnimation(.easeInOut(duration: 0.2)) {
                         composerOverlay = .sketch
-                        isInputFocused = true
+                        isInputFocused = false
                     }
                     #else
                     ToastManager.shared.show(AppStrings.sketchAction, type: .info)
