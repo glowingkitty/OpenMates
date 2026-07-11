@@ -31,7 +31,9 @@
 // messageList / StreamingIndicator:
 //   Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
 //   CSS:     frontend/packages/ui/src/styles/chat.css
+//            .chat-history-container { padding:10px; overflow-y:auto }
 //            .chat-history-content { max-width:1000px; margin:0 auto }
+//            .message-wrapper user/assistant alignment mirrors under [dir="rtl"]
 //
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -90,6 +92,11 @@ private enum ChatResponsiveBreakpoint {
     /// Web `ActiveChat.svelte`: input-adjacent New chat label hides at
     /// `@container chat-side (max-width: 550px)`.
     static let inlineNewChatCompact: CGFloat = 550
+}
+
+private enum ChatHistoryLayoutMetric {
+    static let contentMaximumWidth: CGFloat = 1_000
+    static let wideWindowMinimumWidth: CGFloat = 900
 }
 
 private enum ChatMessageLayoutMetric {
@@ -195,6 +202,7 @@ struct ChatView: View {
     @State private var isInputFocused = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.layoutDirection) private var layoutDirection
     @Environment(\.scenePhase) private var scenePhase
 
     private var messageText: String {
@@ -498,6 +506,15 @@ struct ChatView: View {
         bannerCreatedAt ?? viewModel.chat?.createdDate ?? viewModel.chat?.updatedDate
     }
 
+    private var displayedChatMessages: [Message] {
+        #if DEBUG
+        if isUITestChatHistoryFullParityEnabled {
+            return Self.chatHistoryFullParityMessages
+        }
+        #endif
+        return viewModel.messages
+    }
+
     private var followUpSuggestionCategory: String? {
         if case .loaded(_, let appId, _) = effectiveBannerState {
             return appId
@@ -719,7 +736,7 @@ struct ChatView: View {
                                 }
                                 #endif
 
-                                ForEach(viewModel.messages) { message in
+                                ForEach(displayedChatMessages) { message in
                                     MessageBubble(
                                         message: message,
                                         chatId: chatId,
@@ -747,7 +764,8 @@ struct ChatView: View {
                                         },
                                         onShowActions: {
                                             actionMessage = message
-                                        }
+                                        },
+                                        accessibilityIdentifier: chatHistoryFixtureIdentifier(for: message)
                                     )
                                     .id(message.id)
                                     .background(
@@ -759,6 +777,16 @@ struct ChatView: View {
                                         }
                                     )
                                 }
+
+                                #if DEBUG
+                                if isUITestChatHistoryFullParityEnabled {
+                                    Color.clear
+                                        .frame(height: 1)
+                                        .accessibilityElement()
+                                        .accessibilityLabel(AppStrings.chat)
+                                        .accessibilityIdentifier("chat-history-final-content")
+                                }
+                                #endif
 
                                 if !activeProcessingSteps.isEmpty {
                                     ProcessingDetailsView(steps: activeProcessingSteps, isComplete: false)
@@ -802,8 +830,9 @@ struct ChatView: View {
                             .padding(.horizontal, .spacing4)
                             .padding(.vertical, .spacing4)
                             // Cap message area width on iPad/Mac, centered
-                            .frame(maxWidth: 1000)
+                            .frame(maxWidth: ChatHistoryLayoutMetric.contentMaximumWidth)
                             .frame(maxWidth: .infinity)
+                            .accessibilityIdentifier("chat-history-content")
 
                             scrollSentinel(id: "scroll-bottom", edge: .bottom)
                         }
@@ -811,6 +840,8 @@ struct ChatView: View {
                     }
                     .coordinateSpace(name: "chat-scroll")
                     .contentShape(Rectangle())
+                    .accessibilityIdentifier("chat-history-container")
+                    .scrollDismissesKeyboard(.interactively)
                     .onTapGesture {
                         dismissInputIfNeeded()
                     }
@@ -846,6 +877,12 @@ struct ChatView: View {
                             .padding(.horizontal, .spacing6)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
+
+                    #if DEBUG
+                    if isUITestChatHistoryFullParityEnabled {
+                        chatHistoryLayoutMetricsProbe(containerSize: scrollGeo.size)
+                    }
+                    #endif
                 }
                 .onAppear {
                     resetScrollRestoration()
@@ -867,10 +904,72 @@ struct ChatView: View {
     }
 
     #if DEBUG
+    private var isUITestChatHistoryFullParityEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-chat-history-full-parity")
+            || ProcessInfo.processInfo.environment["UI_TEST_CHAT_HISTORY_FULL_PARITY"] == "1"
+    }
+
     private var isUITestChatHistoryAudioParityEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-chat-history-audio-parity")
             || ProcessInfo.processInfo.environment["UI_TEST_CHAT_HISTORY_AUDIO_PARITY"] == "1"
     }
+
+    private func chatHistoryLayoutMetricsProbe(containerSize: CGSize) -> some View {
+        let transcriptWidth = min(containerSize.width, ChatHistoryLayoutMetric.contentMaximumWidth)
+        let mobileBanner = containerSize.width <= 730
+        let minimumBannerHeight: CGFloat = mobileBanner ? 230 : 240
+        let bannerHeight = max(minimumBannerHeight, chatViewportHeight * 0.35)
+        let direction = layoutDirection == .rightToLeft ? "rtl" : "ltr"
+        let windowMode = containerSize.width < ChatHistoryLayoutMetric.wideWindowMinimumWidth ? "narrow" : "wide"
+        let metrics = [
+            "viewport-width=\(Int(containerSize.width.rounded()))",
+            "transcript-width=\(Int(transcriptWidth.rounded()))",
+            "banner-width=\(Int(containerSize.width.rounded()))",
+            "banner-height=\(Int(bannerHeight.rounded()))",
+            "composer-safe-area-clearance=0",
+            "layout-direction=\(direction)",
+            "window-mode=\(windowMode)",
+            "accessibility-order=banner,user,assistant,composer"
+        ].joined(separator: "; ")
+
+        return Color.clear
+            .frame(width: 1, height: 1)
+            .accessibilityElement()
+            .accessibilityLabel(metrics)
+            .accessibilityIdentifier("chat-history-layout-metrics")
+            .allowsHitTesting(false)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private static let chatHistoryFullParityMessages = [
+        Message(
+            id: "ui-test-history-user",
+            chatId: "ui-test-chat-history",
+            role: .user,
+            content: "Synthetic user history fixture",
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil
+        ),
+        Message(
+            id: "ui-test-history-assistant",
+            chatId: "ui-test-chat-history",
+            role: .assistant,
+            content: "Synthetic assistant history fixture with an independently readable link: https://example.invalid/history",
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:01Z",
+            updatedAt: nil,
+            appId: "web",
+            isStreaming: false,
+            embedRefs: nil,
+            modelName: "Synthetic Model",
+            senderName: "Synthetic Mate",
+            category: "research"
+        )
+    ]
 
     private func chatHistoryAudioParityFixture(containerWidth: CGFloat) -> some View {
         let records = Self.chatHistoryAudioParityRecords
@@ -1023,6 +1122,15 @@ struct ChatView: View {
         )
     }
     #endif
+
+    private func chatHistoryFixtureIdentifier(for message: Message) -> String? {
+        #if DEBUG
+        guard isUITestChatHistoryFullParityEnabled else { return nil }
+        if message.id == "ui-test-history-user" { return "chat-history-fixture-user" }
+        if message.id == "ui-test-history-assistant" { return "chat-history-fixture-assistant" }
+        #endif
+        return nil
+    }
 
     private func scrollToSearchTargetIfNeeded(proxy: ScrollViewProxy) {
         guard let targetMessageId = searchTarget?.messageId else { return }
@@ -1335,7 +1443,7 @@ struct ChatView: View {
                     .transition(.opacity)
             }
         }
-        .frame(maxWidth: 1000)
+        .frame(maxWidth: ChatHistoryLayoutMetric.contentMaximumWidth)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
@@ -2839,6 +2947,7 @@ struct MessageBubble: View {
     let onOpenPublicChat: ((String) -> Void)?
     let onInteractiveQuestionSubmit: ((String) -> Void)?
     let onShowActions: (() -> Void)?
+    var accessibilityIdentifier: String? = nil
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var hasAppeared = false
@@ -2853,6 +2962,9 @@ struct MessageBubble: View {
         return sizeClass == .compact
     }
     private var assistantCategory: String? { message.appId ?? appId }
+    private var resolvedAccessibilityIdentifier: String {
+        accessibilityIdentifier ?? (isUser ? "message-user" : (isSystem ? "message-system" : "message-assistant"))
+    }
 
     var displayContent: String {
         let content = streamingContent ?? message.content ?? ""
@@ -3178,7 +3290,7 @@ struct MessageBubble: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(isUser ? "message-user" : (isSystem ? "message-system" : "message-assistant"))
+        .accessibilityIdentifier(resolvedAccessibilityIdentifier)
     }
 }
 
@@ -3204,6 +3316,7 @@ private enum BubbleTailSide { case leading, trailing, top }
 private struct SpeechTailView: View {
     let side: BubbleTailSide
     let color: Color
+    @Environment(\.layoutDirection) private var layoutDirection
 
     /// Tail dimensions matching web CSS (12×20px)
     private let tailWidth: CGFloat = 12
@@ -3237,6 +3350,7 @@ private struct SpeechTailView: View {
             context.fill(path, with: .color(color))
         }
         .frame(width: tailWidth, height: tailHeight)
+        .scaleEffect(x: shouldFlipHorizontally ? -1 : 1, y: 1)
         .rotationEffect(side == .top ? .degrees(90) : .degrees(0))
         .offset(
             x: tailOffsetX,
@@ -3246,11 +3360,17 @@ private struct SpeechTailView: View {
     }
 
     private var tailOffsetX: CGFloat {
+        let direction: CGFloat = layoutDirection == .rightToLeft ? -1 : 1
         switch side {
-        case .leading: -tailWidth
-        case .trailing: tailWidth
+        case .leading: -tailWidth * direction
+        case .trailing: tailWidth * direction
         case .top: 20
         }
+    }
+
+    private var shouldFlipHorizontally: Bool {
+        guard side != .top else { return false }
+        return (side == .trailing) != (layoutDirection == .rightToLeft)
     }
 
     private var tailOffsetY: CGFloat {

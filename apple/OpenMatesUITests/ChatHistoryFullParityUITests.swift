@@ -119,11 +119,11 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         let history = element(in: app, identifier: "chat-history-container")
         let finalContent = element(in: app, identifier: "chat-history-final-content")
         XCTAssertTrue(history.waitForExistence(timeout: 8))
-        for _ in 0..<8 where !finalContent.isHittable {
+        for _ in 0..<8 where !isVisible(finalContent, in: app) {
             history.swipeUp()
         }
         XCTAssertTrue(finalContent.waitForExistence(timeout: 5))
-        XCTAssertTrue(finalContent.isHittable)
+        XCTAssertTrue(isVisible(finalContent, in: app))
     }
 
     private func assertComposerClearsFinalContent(in app: XCUIApplication) {
@@ -139,9 +139,13 @@ final class ChatHistoryFullParityUITests: XCTestCase {
             .firstMatch
     }
 
+    private func isVisible(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        element.exists && !element.frame.isEmpty && app.windows.firstMatch.frame.intersects(element.frame)
+    }
+
     private func metric(_ key: String, in label: String) throws -> CGFloat {
         let value = try XCTUnwrap(rawMetric(key, in: label), "Missing metric \(key): \(label)")
-        return try XCTUnwrap(Double(value).map(CGFloat.init), "Invalid metric \(key): \(label)")
+        return CGFloat(try XCTUnwrap(Double(value), "Invalid metric \(key): \(label)"))
     }
 
     private func stringMetric(_ key: String, in label: String) throws -> String {

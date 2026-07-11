@@ -7,6 +7,8 @@
 // Svelte:  frontend/packages/ui/src/components/ChatHeader.svelte
 // CSS:     frontend/packages/ui/src/components/ChatHeader.svelte <style>
 //          .chat-header-banner { height:35vh; min-height:240px; border-radius:0 0 14px 14px }
+//          .is-mobile-header (measured width <=730px) { min-height:230px }
+//          .is-compact-teaser-header (measured width <=960px) alternates text/media
 //          .banner-orbs .orb { radial-gradient, filter:blur(28px), opacity:0.55 }
 //          .deco-icon { width:126px; opacity:0.4; decoEnter+decoFloat animation }
 //          .processing-content (shimmer AI icon + text)
@@ -63,6 +65,8 @@ struct ChatBannerView: View {
 
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.layoutDirection) private var layoutDirection
     @State private var shimmerPhase: CGFloat = 0
     @State private var decoAppeared = false
     /// Mobile crossfade: toggles between text (false) and video (true) every 6s.
@@ -75,14 +79,15 @@ struct ChatBannerView: View {
     @State private var bannerWidth: CGFloat = 0
 
     private var isCompact: Bool { sizeClass == .compact }
-    /// True when banner is narrow enough for mobile crossfade layout (matches web's max-width: 520px).
-    private var useCompactTeaser: Bool { bannerWidth > 0 ? bannerWidth < 520 : isCompact }
+    private var isMobileHeader: Bool { bannerWidth > 0 ? bannerWidth <= 730 : isCompact }
+    /// Web derives the compact teaser from the measured banner width, not the device size class.
+    private var useCompactTeaser: Bool { bannerWidth > 0 ? bannerWidth <= 960 : isCompact }
     private let desktopMinimumBannerHeight: CGFloat = 240
     private let compactMinimumBannerHeight: CGFloat = 230
     private let responsiveBannerHeightRatio: CGFloat = 0.35
 
     private var minimumBannerHeight: CGFloat {
-        isCompact ? compactMinimumBannerHeight : desktopMinimumBannerHeight
+        isMobileHeader ? compactMinimumBannerHeight : desktopMinimumBannerHeight
     }
 
     private var bannerHeight: CGFloat {
@@ -137,14 +142,22 @@ struct ChatBannerView: View {
                             let dx = value.translation.width
                             let dy = value.translation.height
                             guard abs(dx) > abs(dy) * 1.5 else { return }
-                            if dx < 0 { onNext?() }   // swipe left → next
-                            else { onPrevious?() }     // swipe right → previous
+                            if layoutDirection == .rightToLeft {
+                                if dx < 0 { onPrevious?() }
+                                else { onNext?() }
+                            } else if dx < 0 {
+                                onNext?()
+                            } else {
+                                onPrevious?()
+                            }
                         }
                 )
             }
         }
         .frame(maxWidth: .infinity)
         .frame(height: bannerHeight)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat-header-banner")
     }
 
     // MARK: - Gradient Background
@@ -211,7 +224,7 @@ struct ChatBannerView: View {
         switch state {
         case .loaded(_, let appId, _):
             GeometryReader { geo in
-                let iconSize: CGFloat = isCompact ? 90 : 126
+                let iconSize: CGFloat = isMobileHeader ? 90 : 126
                 let floatOffset = decoAppeared ? floatY(time: time, period: 16, radius: 10) : 30
 
                 // Left icon — positioned at left edge, partially clipped
@@ -240,7 +253,7 @@ struct ChatBannerView: View {
 
         case .incognito:
             GeometryReader { geo in
-                let iconSize: CGFloat = isCompact ? 90 : 126
+                let iconSize: CGFloat = isMobileHeader ? 90 : 126
 
                 incognitoDecoIcon(size: iconSize, rotation: -15)
                     .position(
@@ -320,15 +333,16 @@ struct ChatBannerView: View {
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
-                .frame(width: isCompact ? 32 : 38, height: isCompact ? 32 : 38)
+                .frame(width: isMobileHeader ? 32 : 38, height: isMobileHeader ? 32 : 38)
                 .foregroundStyle(.white)
                 .modifier(ShimmerModifier(phase: shimmerPhase))
 
             Text(AppStrings.creatingNewChat)
-                .font(isCompact ? .omLg : .omH3)
+                .font(isMobileHeader ? .omLg : .omH3)
                 .fontWeight(.semibold)
                 .foregroundStyle(.white)
                 .modifier(ShimmerModifier(phase: shimmerPhase))
+                .accessibilityIdentifier("chat-header-title")
         }
         .onAppear {
             guard !reduceMotion else { return }
@@ -346,13 +360,14 @@ struct ChatBannerView: View {
                 .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
-                .frame(width: isCompact ? 32 : 38, height: isCompact ? 32 : 38)
+                .frame(width: isMobileHeader ? 32 : 38, height: isMobileHeader ? 32 : 38)
                 .foregroundStyle(.white.opacity(0.9))
 
             Text(AppStrings.incognitoModeActive)
                 .font(.omH3)
                 .fontWeight(.bold)
                 .foregroundStyle(.white)
+                .accessibilityIdentifier("chat-header-title")
         }
     }
 
@@ -444,21 +459,21 @@ struct ChatBannerView: View {
     /// AI icon + teaser copy lines
     private func teaserTextColumn(appId: String) -> some View {
         VStack(alignment: .leading, spacing: .spacing4) {
-            bannerIcon(appId: appId, iconName: nil, size: isCompact ? 32 : 38)
+            bannerIcon(appId: appId, iconName: nil, size: isMobileHeader ? 32 : 38)
 
             VStack(alignment: .leading, spacing: .spacing1) {
                 Text(AppStrings.teaserLine1)
-                    .font(isCompact ? .omLg : .omH3)
+                    .font(isMobileHeader ? .omLg : .omH3)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
 
                 Text(AppStrings.teaserLine2)
-                    .font(isCompact ? .omLg : .omH3)
+                    .font(isMobileHeader ? .omLg : .omH3)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
 
                 Text(AppStrings.teaserLine3)
-                    .font(isCompact ? .omLg : .omH3)
+                    .font(isMobileHeader ? .omLg : .omH3)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
             }
@@ -483,13 +498,13 @@ struct ChatBannerView: View {
                         Circle()
                             .fill(.ultraThinMaterial)
                             .overlay(Circle().stroke(.white.opacity(0.55), lineWidth: 2))
-                            .frame(width: isCompact ? 56 : 72, height: isCompact ? 56 : 72)
+                            .frame(width: isMobileHeader ? 56 : 72, height: isMobileHeader ? 56 : 72)
 
                         // CSS triangle: border-left: 22px solid white
                         PlayTriangle()
                             .fill(.white.opacity(0.95))
-                            .frame(width: isCompact ? 17 : 22, height: isCompact ? 20 : 26)
-                            .offset(x: isCompact ? 2 : 3) // optical centering
+                            .frame(width: isMobileHeader ? 17 : 22, height: isMobileHeader ? 20 : 26)
+                            .offset(x: isMobileHeader ? 2 : 3) // optical centering
                     }
                 }
                 .buttonStyle(.plain)
@@ -502,14 +517,15 @@ struct ChatBannerView: View {
     private func standardLoadedContent(title: String, appId: String, iconName: String?, summary: String?) -> some View {
         VStack(spacing: .spacing2) {
             // Category icon (38px, white, raw shape — NOT a gradient circle)
-            bannerIcon(appId: appId, iconName: iconName, size: isCompact ? 32 : 38)
+            bannerIcon(appId: appId, iconName: iconName, size: isMobileHeader ? 32 : 38)
 
             Text(title)
-                .font(isCompact ? .omLg : .omH3)
+                .font(isMobileHeader ? .omLg : .omH3)
                 .fontWeight(.bold)
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
-                .lineLimit(2)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                .accessibilityIdentifier("chat-header-title")
 
             if isExampleChat {
                 Text(AppStrings.exampleChatBadge)
@@ -530,8 +546,9 @@ struct ChatBannerView: View {
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
-                    .lineLimit(isCompact ? 2 : 3)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : (isMobileHeader ? 2 : 3))
                     .padding(.top, .spacing1)
+                    .accessibilityIdentifier("chat-header-summary")
             }
 
             if let createdAt {
@@ -542,8 +559,8 @@ struct ChatBannerView: View {
                     .padding(.top, .spacing1)
             }
         }
-        .frame(maxWidth: isCompact ? 360 : 480)
-        .padding(.horizontal, isCompact ? .spacing10 : .spacing12)
+        .frame(maxWidth: isMobileHeader ? 360 : 480)
+        .padding(.horizontal, isMobileHeader ? .spacing10 : .spacing12)
         .padding(.vertical, .spacing8)
     }
 
@@ -575,7 +592,7 @@ struct ChatBannerView: View {
                 Button(action: onPrevious) {
                     ZStack {
                         Color.clear
-                        Image(systemName: SFSymbol.chevronLeft)
+                        Image(systemName: layoutDirection == .rightToLeft ? SFSymbol.chevronRight : SFSymbol.chevronLeft)
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(.white.opacity(0.85))
                     }
@@ -583,6 +600,8 @@ struct ChatBannerView: View {
                 .buttonStyle(NavArrowButtonStyle())
                 .frame(width: 40)
                 .frame(maxHeight: .infinity)
+                .accessibilityLabel(AppStrings.localized("chat.header.previous_chat"))
+                .accessibilityIdentifier("chat-header-previous")
             }
 
             Spacer()
@@ -591,7 +610,7 @@ struct ChatBannerView: View {
                 Button(action: onNext) {
                     ZStack {
                         Color.clear
-                        Image(systemName: SFSymbol.chevronRight)
+                        Image(systemName: layoutDirection == .rightToLeft ? SFSymbol.chevronLeft : SFSymbol.chevronRight)
                             .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(.white.opacity(0.85))
                     }
@@ -599,6 +618,8 @@ struct ChatBannerView: View {
                 .buttonStyle(NavArrowButtonStyle())
                 .frame(width: 40)
                 .frame(maxHeight: .infinity)
+                .accessibilityLabel(AppStrings.localized("chat.header.next_chat"))
+                .accessibilityIdentifier("chat-header-next")
             }
         }
     }
