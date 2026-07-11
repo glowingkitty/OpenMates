@@ -1818,8 +1818,12 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        note: "Pending a fresh run of the migrated focused-editor assertions against the current deployed dev UI. Historical No tests found evidence does not cover this contract."
+        status: failed_as_expected
+        command: python3 scripts/tests.py run -- --spec workflows-editor.spec.ts
+        run_id: "29156752718"
+        subject_commit: f473d1bcd
+        timestamp: "2026-07-11T14:50:30Z"
+        summary: The committed contract failed because the deployed page did not render workflow-mixed-row, confirming the old separate recommendation/recent composition.
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -1858,8 +1862,12 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        summary: Pending a fresh run of the title-only fixed-composer and real home assertions against the current deployed dev UI.
+        status: failed_as_expected
+        command: python3 scripts/tests.py run -- --spec workflows-input.spec.ts
+        run_id: "29156752709"
+        subject_commit: f473d1bcd
+        timestamp: "2026-07-11T14:49:59Z"
+        summary: The committed contract failed because workflow-mixed-row was absent; the screenshot showed separate starter and Continue where you left off rows plus an always-visible submit action.
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -2596,7 +2604,7 @@ tasks:
 
   - id: TASK-8
     title: Replace stale workflow evidence with red core UI contracts
-    status: pending
+    status: done
     phase: awaiting_approval
     covers:
       scenarios: [S-6, S-20, S-21, S-27, S-28, S-29]
@@ -2693,7 +2701,7 @@ tasks:
 
   - id: TASK-11
     title: Build corrected Workflow landing, mixed row, and restrained title composer
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-20, S-21, S-29]

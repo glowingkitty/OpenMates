@@ -97,6 +97,7 @@
     /** When true, shows a large Sign Up CTA below the title inside the banner.
      *  Only used for intro chats shown to non-authenticated users. */
     showSignupCta = false,
+    titleTestId = 'chat-header-title',
   }: {
     title?: string;
     currentChatId?: string | null;
@@ -141,6 +142,7 @@
     autoplayVideo?: boolean;
     /** When true, shows a large Sign Up CTA below the title inside the banner. */
     showSignupCta?: boolean;
+    titleTestId?: string;
   } = $props();
 
   /** True when the static-image slideshow should render inside the media frame. */
@@ -950,7 +952,7 @@
             <div class="loaded-content">
               <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
                    never render as HTML to prevent stored XSS via prompt injection. -->
-              <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+              <span class="loaded-title" data-testid={titleTestId}>{title}</span>
 
               {#if isExampleChat}
                 <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
@@ -1061,7 +1063,7 @@
 
           <!-- SECURITY: plain text only — chat titles are AI-generated from user input,
                never render as HTML to prevent stored XSS via prompt injection. -->
-          <span class="loaded-title" data-testid="chat-header-title">{title}</span>
+          <span class="loaded-title" data-testid={titleTestId}>{title}</span>
 
           {#if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>

@@ -41,9 +41,12 @@ export type WorkflowSummary = {
   status: string;
   enabled: boolean;
   trigger_summary?: string | null;
+  next_run_at?: number | null;
   last_run_status?: string | null;
   run_content_retention?: "last_5" | "none";
   current_version_id: string;
+  created_at?: number | null;
+  updated_at?: number | null;
 };
 
 export type WorkflowDetail = WorkflowSummary & { graph: WorkflowGraph };

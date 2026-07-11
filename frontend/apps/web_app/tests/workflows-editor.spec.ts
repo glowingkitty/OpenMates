@@ -51,7 +51,7 @@ test.describe('Workflows editor', () => {
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('workflow-mixed-row')).toBeVisible();
-			await page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Daily rain alert' }).click();
+			await page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Tell me if it will rain tomorrow' }).click();
 			await expect(page.getByTestId('workflow-editor')).toBeVisible();
 			await expect(page).toHaveURL(/\/workflows\/[^/?#]+/);
 			await expect(page.getByTestId('workflows-list')).toHaveCount(0);

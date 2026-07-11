@@ -28,6 +28,7 @@
     category?: string | null;
     appId?: string | null;
     icon?: string | null;
+    source?: 'recent' | 'example';
   };
 
   type Props = {
@@ -40,6 +41,7 @@
     continueItems?: ContinueItem[];
     actionItems?: ContinueItem[];
     actionItemsTestId?: string;
+    itemTestId?: string;
     continueSectionTestId?: string;
     onContinueItem?: (item: ContinueItem) => void;
     onActionItem?: (item: ContinueItem) => void;
@@ -56,6 +58,7 @@
     continueItems = [],
     actionItems = [],
     actionItemsTestId = `${surface}-workspace-actions`,
+    itemTestId = 'resume-chat-card',
     continueSectionTestId = `${surface}-workspace-continue`,
     onContinueItem,
     onActionItem,
@@ -130,7 +133,8 @@
             <button
               type="button"
               class="resume-chat-large-card"
-              data-testid="resume-chat-large-card"
+              data-testid={itemTestId}
+              data-card-source={item.source ?? undefined}
               style={continueLargeCardStyle(item)}
               onclick={() => handleActionItem(item)}
             >
@@ -162,7 +166,8 @@
             <button
               type="button"
               class="resume-chat-card"
-              data-testid="resume-chat-card"
+              data-testid={itemTestId}
+              data-card-source={item.source ?? undefined}
               style={continueCardStyle(item)}
               onclick={() => handleActionItem(item)}
             >
