@@ -101,6 +101,10 @@ REQUIRED_EMBED_SHOWCASE_APPS = {
     "web",
 }
 EMBED_REGISTRY_FIXTURE_ALIASES = {
+    "app:calendar:get-events": {"calendar-get-events"},
+    "app:calendar:create-event": {"calendar-create-event"},
+    "app:calendar:update-event": {"calendar-update-event"},
+    "app:calendar:delete-event": {"calendar-delete-event"},
     # Same native renderer/fixture as the standard image generation card.
     "app:images:generate_draft": {"images-generate"},
     # Native fixture IDs intentionally use shorter display-route names than the

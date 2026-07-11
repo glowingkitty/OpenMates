@@ -29,9 +29,9 @@ final class SettingsPrivacyParityTests: XCTestCase {
 
     func testFixedRetentionPoliciesMatchWebContract() {
         XCTAssertEqual(PrivacyRetentionPolicy.filesDays, 90)
-        XCTAssertEqual(PrivacyRetentionPolicy.usageDataYears, 3)
-        XCTAssertEqual(PrivacyRetentionPolicy.complianceLogsYears, 1)
-        XCTAssertEqual(PrivacyRetentionPolicy.invoicesYears, 10)
+        XCTAssertEqual(PrivacyRetentionPolicy.usageDataRetentionYears, 3)
+        XCTAssertEqual(PrivacyRetentionPolicy.complianceLogRetentionYears, 1)
+        XCTAssertEqual(PrivacyRetentionPolicy.invoiceRetentionYears, 10)
     }
 
     func testDiagnosticsPreferencePersistsThroughInjectedStore() {
