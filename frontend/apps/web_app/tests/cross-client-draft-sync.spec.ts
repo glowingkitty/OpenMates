@@ -186,7 +186,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await editor.click();
 			await page.keyboard.press('ControlOrMeta+A');
 			await page.keyboard.insertText(updatedText);
-			await editor.evaluate((element: HTMLElement) => element.blur());
+			await page.getByTestId('input-dismiss-button').click();
 			await expect
 				.poll(async () => (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft?.markdown, {
 					timeout: 30_000,
@@ -197,7 +197,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await editor.click();
 			await page.keyboard.press('ControlOrMeta+A');
 			await page.keyboard.press('Backspace');
-			await editor.evaluate((element: HTMLElement) => element.blur());
+			await page.getByTestId('input-dismiss-button').click();
 			await expect
 				.poll(async () => (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft, {
 					timeout: 30_000,
