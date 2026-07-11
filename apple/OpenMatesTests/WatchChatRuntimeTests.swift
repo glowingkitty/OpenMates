@@ -8,6 +8,15 @@ import XCTest
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    func testWatchCryptoCanOmitHiddenChatCandidates() throws {
+        let appleRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let runtimeURL = appleRoot.appendingPathComponent("OpenMates/Sources/Core/Watch/WatchChatRuntime.swift")
+        let source = try String(contentsOf: runtimeURL, encoding: .utf8)
+
+        XCTAssertTrue(source.contains("func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary?"))
+        XCTAssertTrue(source.contains("if let decrypted = await crypto.decryptChat(chat)"))
+    }
+
     func testOfflineCacheRoundTripsSnapshot() async throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
