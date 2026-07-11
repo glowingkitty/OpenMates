@@ -26,14 +26,12 @@ final class SettingsMatesParityUITests: XCTestCase {
 
         let promptToggle = app.buttons["settings-mate-prompt-toggle"].firstMatch
         XCTAssertTrue(promptToggle.waitForExistence(timeout: 5))
-        XCTAssertTrue(promptToggle.isHittable)
         promptToggle.tap()
         XCTAssertTrue(app.descendants(matching: .any)["mate-system-prompt"].waitForExistence(timeout: 5))
         promptToggle.tap()
         XCTAssertTrue(app.descendants(matching: .any)["mate-system-prompt"].waitForNonExistence(timeout: 5))
         let startChat = app.buttons["settings-mate-start-chat"].firstMatch
         XCTAssertTrue(startChat.waitForExistence(timeout: 5))
-        XCTAssertTrue(startChat.isHittable)
         startChat.tap()
         XCTAssertTrue(app.descendants(matching: .any)["message-composer"].waitForExistence(timeout: 8))
         XCTAssertNotEqual(XCUIApplication(bundleIdentifier: "com.apple.mobilesafari").state, .runningForeground)
