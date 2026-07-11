@@ -265,13 +265,19 @@ attempts:
   - id: ATTEMPT-21
     task_id: TASK-6
     approach: Add a stable identifier to the custom chat-actions menu and assert the menu independently from localized row element classification.
-    outcome: planned
+    outcome: succeeded
     recorded_at: "2026-07-11T23:25:00Z"
-    reason: The repeated failure only proved that XCTest did not classify the Unpin row as a Button; it did not establish whether the long press had opened the custom overlay.
+    reason: The rerun found chat-actions-menu immediately after the press, proving the UIKit-backed long press works. Only an unsupported secondary query that treated the localized Unpin label as an identifier failed.
+  - id: ATTEMPT-22
+    task_id: TASK-6
+    approach: Remove the invalid Unpin identifier assertion and retain the stable custom-menu assertion.
+    outcome: planned
+    recorded_at: "2026-07-11T23:29:00Z"
+    reason: Menu visibility directly proves the compact recent card exposes its custom actions without depending on localized row labels or XCTest element classification.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the stable chat-actions menu identifier, sync the remote checkout, and rerun the focused phone card test.
+  next_action: Deploy the corrected custom-menu assertion, sync the remote checkout, and rerun both focused phone card tests.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress"
   expected_outcome: The compact recent card renders title-only and opens the custom actions menu on long press.
   blocker:
