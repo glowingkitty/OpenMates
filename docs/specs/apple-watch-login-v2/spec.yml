@@ -92,7 +92,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: e71101477
+  subject_commit: 7a5460048
 
 approvals:
   product_contract:
@@ -139,14 +139,22 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-11T17:45:00Z"
     reason: The crash report lacks symbols; source-line attribution requires the matching dSYM or a deterministic reproduction.
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Detect Watch process lifetime with launchctl service labels and pgrep bundle matching.
+    outcome: rejected
+    recorded_at: "2026-07-11T18:38:00Z"
+    reason: The approach was rejected after a false process_exited result; PID-based launchctl procinfo replaced it and passed the 60-second verifier.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Commit the implementation revision, sync the remote Mac checkout, and run the targeted Apple tests.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
-  expected_outcome: The production-first attempt, persistence, approval eligibility, and payload tests pass.
-  blocker: null
-  last_verified_commit: e71101477
+  current_task_id: TASK-4
+  next_action: Validate the next TestFlight build on physical Watch and recover build-49 symbols only if an archive becomes available.
+  command: python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60
+  expected_outcome: The Watch remains alive, creates one production pair code, and shows code plus QR fallback.
+  blocker:
+    reason: The release Mac has no archived OpenMatesWatch dSYM matching build-49 UUID 90f9a086-6e0a-358f-8576-36856706d5e4.
+    next_action: Recheck App Store Connect symbols or another release archive if historical line-level attribution remains necessary.
+  last_verified_commit: 7a5460048
 
 scenarios:
   - id: S-1
@@ -226,7 +234,7 @@ acceptance_criteria:
     scenario: S-1
     text: A fresh unauthenticated Watch creates exactly one production token and immediately exposes code and QR without server selector buttons.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-002, T-APPLE-005]
@@ -234,7 +242,7 @@ acceptance_criteria:
     scenario: S-2
     text: The optional self-hosted URL flow validates HTTPS, cancels the prior attempt, and creates one profile-scoped replacement attempt.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-002]
@@ -242,7 +250,7 @@ acceptance_criteria:
     scenario: S-3
     text: A matching iPhone can explicitly approve while code and QR remain available, and WatchConnectivity contains no forbidden secrets.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-003]
@@ -250,7 +258,7 @@ acceptance_criteria:
     scenario: S-4
     text: Unreachable or mismatched iPhone state never changes the Watch server, token, or fallback visibility.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-003]
@@ -258,15 +266,15 @@ acceptance_criteria:
     scenario: S-5
     text: Callback ordering and repeated lifecycle events maintain one active attempt and do not crash the Watch process.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
-    verification_ids: [T-APPLE-001, T-APPLE-004, T-APPLE-005]
+    verification_ids: [T-APPLE-001, T-APPLE-004, T-APPLE-005, T-SCRIPT-001]
   - id: AC-6
     scenario: S-6
     text: Only a successfully authenticated self-hosted profile is persisted, restored, and removable through explicit reset.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001]
@@ -292,10 +300,12 @@ assumptions:
     text: Exact build-49 source attribution requires the matching archived dSYM.
     category: debugging
     required_before: completion
-    status: checking
+    status: blocked
     evidence:
       - source: supplied TestFlight crash report
         summary: Binary UUID and offsets are present, but app frames are not symbolicated.
+      - source: release Mac archive UUID scan on 2026-07-11
+        summary: No OpenMatesWatch archives were available to match the build-49 UUID; historical symbolication remains externally blocked.
 
 contracts:
   api:
@@ -360,11 +370,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
+        run_id: "remote=macos-peer exit_code=0; 15 tests"
+        subject_commit: 7a5460048
+        timestamp: "2026-07-11T18:44:00Z"
   - id: T-APPLE-002
     type: unit
     file: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
@@ -378,20 +388,21 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: missing_test
-        command: ""
-        run_id: ""
+        status: skipped_with_reason
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
+        run_id: "not run separately; old UI contract lacked approved self-host identifiers"
         subject_commit: e71101477
-        timestamp: ""
+        timestamp: "2026-07-11T18:13:00Z"
+        reason: The runtime test target failed compilation first on the missing approved state model, so the UI assertion could not execute separately before implementation.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
+        run_id: "remote=macos-peer exit_code=0; 7 tests"
+        subject_commit: 7a5460048
+        timestamp: "2026-07-11T18:45:00Z"
   - id: T-APPLE-003
     type: unit
     file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
@@ -413,11 +424,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
+        run_id: "remote=macos-peer exit_code=0; 15 tests"
+        subject_commit: 7a5460048
+        timestamp: "2026-07-11T18:44:00Z"
   - id: T-APPLE-004
     type: manual
     file: supplied TestFlight build-49 crash report and matching archive dSYM
@@ -431,11 +442,11 @@ tests:
       expected: fail
       evidence:
         status: blocked
-        command: ""
-        run_id: ""
+        command: Remote dSYM UUID scan under the release Mac Xcode Archives directory.
+        run_id: "build49_dsym_status=not_found; archives_scanned=0"
         subject_commit: e71101477
-        timestamp: "2026-07-11T17:45:00Z"
-        reason: Matching build-49 dSYM has not yet been located.
+        timestamp: "2026-07-11T18:35:00Z"
+        reason: Matching build-49 dSYM was not present on the configured release Mac.
     green_phase:
       required: false
       expected: not_applicable
@@ -459,20 +470,47 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         command: ""
-        run_id: ""
+        run_id: "supplied TestFlight incident C50FE488-11E4-45AA-A259-4F1D86E673B0"
         subject_commit: e71101477
-        timestamp: ""
+        timestamp: "2026-07-11T17:22:16Z"
+        reason: The supplied physical-Watch build-49 crash is the red runtime evidence; the simulator verifier was added after that candidate.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60
+        run_id: "remote=macos-peer exit_code=0; screenshots=5s,30s; startup_status=passed"
+        subject_commit: 7a5460048
+        timestamp: "2026-07-11T18:46:00Z"
+  - id: T-SCRIPT-001
+    type: pytest
+    file: scripts/tests/test_apple_remote_watch_debug.py
+    command: python3 -m pytest scripts/tests/test_apple_remote_watch_debug.py
+    covers: [AC-5]
+    assertions:
+      - The verifier checks the launched PID with launchctl procinfo.
+      - Bundle-label and pgrep probes cannot falsely report a healthy Watch process as exited.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_apple_remote_watch_debug.py
+        run_id: "1 failed, 2 passed"
+        subject_commit: 2bd2beea2
+        timestamp: "2026-07-11T18:36:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_apple_remote_watch_debug.py
+        run_id: "3 passed"
+        subject_commit: 7a5460048
+        timestamp: "2026-07-11T18:45:00Z"
 
 verifications:
   - id: V-USER-001
@@ -561,7 +599,7 @@ implementation_plan:
     - AC-2 -> T-APPLE-001, T-APPLE-002
     - AC-3 -> T-APPLE-001, T-APPLE-003
     - AC-4 -> T-APPLE-001, T-APPLE-003
-    - AC-5 -> T-APPLE-001, T-APPLE-004, T-APPLE-005
+    - AC-5 -> T-APPLE-001, T-APPLE-004, T-APPLE-005, T-SCRIPT-001
     - AC-6 -> T-APPLE-001
   verification_order:
     - Apple unit contract tests because this behavior is native-only.
@@ -602,7 +640,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Implement production-first and optional self-hosted Watch pairing
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-6]
@@ -627,7 +665,7 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Make matching-iPhone handoff idempotent and crash-safe
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-3, S-4, S-5]
@@ -648,15 +686,15 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Symbolicate build 49 and verify Watch pairing runtime
-    status: pending
+    status: blocked
     phase: running_checks
     covers:
       scenarios: [S-1, S-5]
       acceptance_criteria: [AC-1, AC-5]
     expected_files:
       - docs/specs/apple-watch-login-v2/spec.yml
-    verification: [T-APPLE-004, T-APPLE-005]
-    verification_ids: [T-APPLE-004, T-APPLE-005]
+    verification: [T-APPLE-004, T-APPLE-005, T-SCRIPT-001]
+    verification_ids: [T-APPLE-004, T-APPLE-005, T-SCRIPT-001]
     dependencies: [TASK-2, TASK-3]
     ownership:
       files:
