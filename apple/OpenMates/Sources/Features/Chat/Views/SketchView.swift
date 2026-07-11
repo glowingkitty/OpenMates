@@ -179,6 +179,7 @@ struct SketchComposerOverlay: View {
                 }
                 .padding(.horizontal, .spacing2)
             }
+            .accessibilityIdentifier("sketch-toolbar-scroll")
 
             Button(action: saveAndSend) {
                 Text(AppStrings.sketchDone)

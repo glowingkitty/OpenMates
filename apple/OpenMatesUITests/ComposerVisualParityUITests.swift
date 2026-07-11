@@ -41,9 +41,7 @@ final class ComposerVisualParityUITests: XCTestCase {
     }
 
     func testFocusedWelcomeComposerScreenshotShowsActionButtons() throws {
-        let app = launchFocusedWelcomeComposer(
-            extraArguments: ["--ui-test-welcome-seed-pending-content"]
-        )
+        let app = launchFocusedWelcomeComposer()
 
         XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
         let screenshot = XCUIScreen.main.screenshot()
@@ -97,7 +95,9 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
 
-        let app = launchFocusedWelcomeComposer()
+        let app = launchFocusedWelcomeComposer(
+            extraArguments: ["--ui-test-welcome-seed-pending-content"]
+        )
         let field = element(in: app, identifier: "message-field")
         let image = element(in: app, identifier: "native-composer-image-content")
         let audio = element(in: app, identifier: "native-composer-audio-content")
@@ -179,19 +179,16 @@ final class ComposerVisualParityUITests: XCTestCase {
             canvas.waitForExistence(timeout: 5),
             "Sketch canvas must survive rotation. UI=\(app.debugDescription)"
         )
-        for identifier in [
-            "sketch-eraser-button",
-            "sketch-clear-button",
-            "sketch-zoom-in-button",
-            "sketch-fullscreen-button",
-        ] {
+        for identifier in ["sketch-eraser-button", "sketch-fullscreen-button"] {
             let control = app.buttons[identifier]
             XCTAssertTrue(control.waitForExistence(timeout: 2), "Missing web-parity drawing control: \(identifier)")
             XCTAssertTrue(control.isHittable, "Drawing control is clipped: \(identifier)")
         }
 
+        let toolbar = app.scrollViews["sketch-toolbar-scroll"]
         let undo = app.buttons["sketch-undo-button"]
         let save = app.buttons["sketch-save-button"]
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 2))
         XCTAssertTrue(undo.waitForExistence(timeout: 2))
         XCTAssertTrue(save.waitForExistence(timeout: 2))
         XCTAssertFalse(undo.isHittable, "Undo must stay disabled until the canvas has a stroke")
@@ -201,6 +198,12 @@ final class ComposerVisualParityUITests: XCTestCase {
         let strokeEnd = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.65))
         strokeStart.press(forDuration: 0.1, thenDragTo: strokeEnd)
 
+        toolbar.swipeLeft()
+        for identifier in ["sketch-zoom-in-button", "sketch-clear-button"] {
+            let control = app.buttons[identifier]
+            XCTAssertTrue(control.waitForExistence(timeout: 2), "Missing web-parity drawing control: \(identifier)")
+            XCTAssertTrue(control.isHittable, "Drawing control remains unreachable after scrolling: \(identifier)")
+        }
         XCTAssertTrue(waitForHittable(undo), "Undo must become actionable after drawing")
         XCTAssertTrue(waitForHittable(save), "Save must become actionable after drawing")
     }
