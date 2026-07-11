@@ -72,7 +72,7 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
             scrollView.swipeUp()
             if element.waitForExistence(timeout: 1), visibleElement(identifier, in: app) != nil { return true }
         }
-        return element.exists
+        return visibleElement(identifier, in: app) != nil
     }
 
     private func visibleElement(_ identifier: String, in app: XCUIApplication) -> XCUIElement? {

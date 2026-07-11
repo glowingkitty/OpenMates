@@ -23,7 +23,9 @@ final class SettingsAppsParityUITests: XCTestCase {
         let appsRow = app.descendants(matching: .any)["settings-apps-row"].firstMatch
         appsRow.tap()
         if !app.descendants(matching: .any)["settings-app-store-page"].waitForExistence(timeout: 3) {
-            appsRow.tap()
+            let retryAppsRow = app.descendants(matching: .any)["settings-apps-row"].firstMatch
+            XCTAssertTrue(retryAppsRow.waitForExistence(timeout: 3))
+            retryAppsRow.tap()
         }
 
         XCTAssertTrue(waitForElement("settings-app-store-page", in: app, timeout: 10))
@@ -74,7 +76,11 @@ final class SettingsAppsParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-apps-row", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-apps-row"].tap()
         XCTAssertTrue(waitForElement("app-card-weather", in: app, timeout: 5))
-        app.descendants(matching: .any).matching(identifier: "app-card-weather").firstMatch.tap()
+        guard let visibleWeather = visibleElement("app-card-weather", in: app) else {
+            XCTFail("Expected a visible Weather card")
+            return
+        }
+        visibleWeather.tap()
         XCTAssertTrue(waitForElement("settings-app-skill-row-forecast", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-app-skill-row-forecast"].tap()
         XCTAssertTrue(waitForElement("settings-skill-detail-page", in: app, timeout: 5))
@@ -110,14 +116,22 @@ final class SettingsAppsParityUITests: XCTestCase {
 
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
         let element = app.descendants(matching: .any)[identifier]
-        if element.waitForExistence(timeout: timeout) { return true }
+        if element.waitForExistence(timeout: timeout), visibleElement(identifier, in: app) != nil { return true }
 
         let scrollView = app.scrollViews.firstMatch
         for _ in 0..<5 where scrollView.exists {
             scrollView.swipeUp()
-            if element.waitForExistence(timeout: 1) { return true }
+            if element.waitForExistence(timeout: 1), visibleElement(identifier, in: app) != nil { return true }
         }
         return false
+    }
+
+    private func visibleElement(_ identifier: String, in app: XCUIApplication) -> XCUIElement? {
+        let windowFrame = app.windows.firstMatch.frame.insetBy(dx: -1, dy: -1)
+        return app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@", identifier))
+            .allElementsBoundByIndex
+            .first { $0.exists && !$0.frame.isEmpty && windowFrame.intersects($0.frame) }
     }
 
     private func attachScreenshot(name: String) {
