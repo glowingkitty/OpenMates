@@ -132,7 +132,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b1c6d8fa67739151617dce90159cefb2aeb9f213
+  subject_commit: b8a51a981946c94bba521ec4af57eddab59946f4
 
 approvals:
   product_contract:
@@ -193,6 +193,12 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-11T01:25:15Z"
     evidence: Repository rules define browser-computed output and simulator artifacts as the final visual contract.
+  - id: ATTEMPT-4
+    task_id: TASK-2
+    approach: Dispatch the green Playwright contract after the web parity fix was committed.
+    outcome: blocked
+    recorded_at: "2026-07-11T10:17:33Z"
+    evidence: Run 2026-07-11T10:12:05Z stopped at the Vercel gate because concurrent dev deployment dpl_E3ZhJHXrfVYgzCRkwoKwJ6WWnXDy was canceled before test dispatch.
 
 handoff:
   current_task_id: TASK-2
