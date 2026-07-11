@@ -943,12 +943,19 @@ struct RecordingRenderer: View {
         }
 
         if let activeTranscript, !activeTranscript.isEmpty {
-            Text(activeTranscript)
+            let transcript = Text(activeTranscript)
                 .font(compact ? .omXs : .omP)
                 .foregroundStyle(Color.fontPrimary)
-                .lineLimit(compact ? 4 : nil)
-                .textSelection(compact ? .disabled : .enabled)
-                .accessibilityIdentifier(compact ? "recording-transcript" : "recording-fullscreen-transcript")
+            if compact {
+                transcript
+                    .lineLimit(4)
+                    .textSelection(.disabled)
+                    .accessibilityIdentifier("recording-transcript")
+            } else {
+                transcript
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("recording-fullscreen-transcript")
+            }
         } else {
             Text(AppStrings.localized("app_skills.audio.transcribe.no_transcript"))
                 .font(.omXs)
