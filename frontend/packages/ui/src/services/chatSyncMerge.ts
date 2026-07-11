@@ -65,6 +65,7 @@ export async function mergeServerChatWithLocal(
       encrypted_title: serverChat.encrypted_title ?? null,
       messages_v: serverChat.messages_v ?? 0,
       title_v: serverChat.title_v ?? 0,
+      metadata_v: serverChat.metadata_v,
       draft_v: serverChat.draft_v ?? 0,
       unread_count: serverChat.unread_count ?? 0,
       created_at: serverChat.created_at ?? nowTimestamp,
@@ -112,6 +113,7 @@ export async function mergeServerChatWithLocal(
       : serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
     messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
     title_v: serverChat.title_v ?? localChat.title_v ?? 0,
+    metadata_v: serverChat.metadata_v ?? localChat.metadata_v,
     draft_v: serverChat.draft_v ?? localChat.draft_v ?? 0,
     unread_count: serverChat.unread_count ?? localChat.unread_count ?? 0,
     created_at: serverChat.created_at ?? localChat.created_at ?? nowTimestamp,
@@ -197,13 +199,31 @@ export async function mergeServerChatWithLocal(
       serverChat.encrypted_chat_key,
     );
     merged.messages_v = 0;
+    merged.metadata_v = localChat.metadata_v;
     return merged;
   }
 
   const localTitleV = localChat.title_v || 0;
   const serverTitleV = serverChat.title_v || 0;
-  if (localTitleV >= serverTitleV && localChat.encrypted_title) {
+  const hasMetadataVersion =
+    (localChat.metadata_v ?? 0) > 0 || (serverChat.metadata_v ?? 0) > 0;
+  const localMetadataV = localChat.metadata_v || localTitleV;
+  const serverMetadataV = serverChat.metadata_v || serverTitleV;
+  if (localMetadataV >= serverMetadataV) {
+    merged.encrypted_title = localChat.encrypted_title ?? serverChat.encrypted_title;
+    merged.encrypted_chat_summary =
+      localChat.encrypted_chat_summary ?? serverChat.encrypted_chat_summary;
+    merged.title_v = localChat.title_v;
+    merged.metadata_v = localChat.metadata_v;
+  } else if (hasMetadataVersion) {
+    merged.encrypted_title = serverChat.encrypted_title ?? null;
+    merged.encrypted_chat_summary = serverChat.encrypted_chat_summary;
+    merged.title_v = serverChat.title_v ?? 0;
+    merged.metadata_v = serverChat.metadata_v;
+  } else if (localTitleV >= serverTitleV && localChat.encrypted_title) {
     merged.encrypted_title = localChat.encrypted_title;
+    merged.encrypted_chat_summary =
+      localChat.encrypted_chat_summary ?? serverChat.encrypted_chat_summary;
     merged.title_v = localChat.title_v;
   }
 

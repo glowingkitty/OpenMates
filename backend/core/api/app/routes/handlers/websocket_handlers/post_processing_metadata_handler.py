@@ -10,6 +10,9 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_metadata_handler import (
+    allocate_chat_metadata_versions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +68,7 @@ async def handle_post_processing_metadata(
             # OPE-314: Client includes encrypted_chat_key so server can validate metadata
             # was encrypted with the correct key (prevents stale-key metadata from persisting)
             encrypted_chat_key = payload.get("encrypted_chat_key")
+            client_versions = payload.get("versions", {})
 
             if not chat_id:
                 logger.error(f"Missing chat_id in post-processing metadata from {user_id}")
@@ -154,6 +158,18 @@ async def handle_post_processing_metadata(
             now_ts = int(datetime.now(timezone.utc).timestamp())
             chat_update_fields["updated_at"] = now_ts
 
+            accepted_versions = None
+            if encrypted_title or encrypted_chat_summary:
+                accepted_versions = await allocate_chat_metadata_versions(
+                    cache_service,
+                    directus_service,
+                    user_id,
+                    chat_id,
+                    title_changed=bool(encrypted_title),
+                    fallback_versions=client_versions,
+                )
+                chat_update_fields.update(accepted_versions)
+
             logger.info(f"Storing encrypted post-processing metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
 
             # Queue task to update chat metadata in Directus
@@ -171,7 +187,8 @@ async def handle_post_processing_metadata(
                     "type": "post_processing_metadata_stored",
                     "payload": {
                         "chat_id": chat_id,
-                        "status": "queued_for_storage"
+                        "status": "queued_for_storage",
+                        "versions": accepted_versions or {},
                     }
                 },
                 user_id,
@@ -179,6 +196,21 @@ async def handle_post_processing_metadata(
             )
 
             logger.info(f"Confirmed post-processing metadata storage for chat {chat_id}")
+
+            if accepted_versions:
+                broadcast_payload = {
+                    "chat_id": chat_id,
+                    "versions": accepted_versions,
+                }
+                if encrypted_title:
+                    broadcast_payload["encrypted_title"] = encrypted_title
+                if encrypted_chat_summary:
+                    broadcast_payload["encrypted_chat_summary"] = encrypted_chat_summary
+                await manager.broadcast_to_user(
+                    message={"type": "encrypted_chat_metadata", "payload": broadcast_payload},
+                    user_id=user_id,
+                    exclude_device_hash=device_fingerprint_hash,
+                )
 
         except Exception as e:
             logger.error(f"Error handling post-processing metadata from {user_id}: {e}", exc_info=True)

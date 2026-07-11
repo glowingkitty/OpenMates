@@ -51,6 +51,7 @@ class ChatInDB(BaseModel): # Represents the structure in Directus 'chats' table
     encrypted_title: Optional[str] = None # Encrypted with chat-specific key
     messages_v: int
     title_v: int
+    metadata_v: Optional[int] = None
     last_edited_overall_timestamp: datetime # Updated when messages are sent to this chat (for sorting). Drafts do NOT update this timestamp.
     unread_count: int
     created_at: datetime
@@ -80,6 +81,7 @@ class CachedChatVersions(BaseModel):
     """
     messages_v: int
     title_v: int
+    metadata_v: int = 0
     # Example of how dynamic user draft versions might be represented if parsed from this key:
     # user_draft_versions: Optional[Dict[str, int]] = None # e.g., {"user_draft_v:some_user_id": 5}
     
@@ -208,6 +210,7 @@ class ClientChatComponentVersions(BaseModel):
     """Component versions structure expected by the client."""
     messages_v: int
     title_v: int
+    metadata_v: Optional[int] = None
     draft_v: Optional[int] = None
 
 class ChatSyncData(BaseModel):
@@ -221,6 +224,7 @@ class ChatSyncData(BaseModel):
     created_at: int
     updated_at: int
     encrypted_title: Optional[str] = None # Encrypted title from cache
+    encrypted_chat_summary: Optional[str] = None # Client-encrypted summary from cache
     encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
     encrypted_draft_preview: Optional[str] = None # Encrypted preview text for the user's draft (shown in chat list)
     encrypted_chat_key: Optional[str] = None # Encrypted chat-specific key for decryption

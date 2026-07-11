@@ -1161,7 +1161,7 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("ai_response_storage_confirmed", (payload) =>
       aiHandlers.handleAIResponseStorageConfirmedImpl(
         this,
-        payload as { chat_id: string; message_id: string; task_id?: string },
+        payload as Parameters<typeof aiHandlers.handleEncryptedMetadataStoredImpl>[1],
       ),
     );
     webSocketService.on("encrypted_metadata_stored", (payload) =>
@@ -1217,7 +1217,7 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("post_processing_metadata_stored", (payload) =>
       aiHandlers.handlePostProcessingMetadataStoredImpl(
         this,
-        payload as { chat_id: string; task_id?: string },
+        payload as Parameters<typeof aiHandlers.handlePostProcessingMetadataStoredImpl>[1],
       ),
     );
 
@@ -2052,7 +2052,12 @@ export class ChatSynchronizationService extends EventTarget {
 
       const client_chat_versions: Record<
         string,
-        { messages_v: number; title_v: number; draft_v: number }
+        {
+          messages_v: number;
+          title_v: number;
+          metadata_v?: number;
+          draft_v: number;
+        }
       > = {};
       const client_chat_ids: string[] = [];
 
@@ -2078,6 +2083,7 @@ export class ChatSynchronizationService extends EventTarget {
           client_chat_versions[chat.chat_id] = {
             messages_v: chat.messages_v || 0,
             title_v: chat.title_v || 0,
+            metadata_v: chat.metadata_v,
             draft_v: chat.draft_v || 0,
           };
         }

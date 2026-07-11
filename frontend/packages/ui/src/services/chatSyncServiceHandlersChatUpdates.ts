@@ -374,6 +374,7 @@ export async function handleNewChatMessageImpl(
     encrypted_chat_key?: string;
     /** Encrypted title — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
     encrypted_title?: string;
+    encrypted_chat_summary?: string;
     /** Encrypted category — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
     encrypted_category?: string;
     /** Inspiration video embed data — sent by sync_inspiration_chat_handler so
@@ -1522,7 +1523,12 @@ export async function handleEncryptedChatMetadataImpl(
     encrypted_title?: string;
     encrypted_icon?: string;
     encrypted_category?: string;
-    versions?: { messages_v?: number; title_v?: number; draft_v?: number };
+    versions?: {
+      messages_v?: number;
+      title_v?: number;
+      metadata_v?: number;
+      draft_v?: number;
+    };
   },
 ): Promise<void> {
   console.info(
@@ -1665,12 +1671,24 @@ export async function handleEncryptedChatMetadataImpl(
     }
     let needsHeal = false;
 
+    const incomingMetadataV = payload.versions?.metadata_v;
+    const localMetadataV = chat.metadata_v || chat.title_v || 0;
+    const acceptsMetadataRevision =
+      incomingMetadataV === undefined || incomingMetadataV > localMetadataV;
+
     for (const field of [
       "encrypted_title",
+      "encrypted_chat_summary",
       "encrypted_icon",
       "encrypted_category",
     ] as const) {
       const incoming = payload[field];
+      if (
+        (field === "encrypted_title" || field === "encrypted_chat_summary") &&
+        !acceptsMetadataRevision
+      ) {
+        continue;
+      }
       if (incoming !== undefined && incoming !== chat[field]) {
         if (chatKey && chat[field]) {
           // We have both a key and a local value — validate the incoming field
@@ -1705,6 +1723,8 @@ export async function handleEncryptedChatMetadataImpl(
         }
         // Accept the incoming value (either validated OK or no local to compare)
         if (field === "encrypted_title") chat.encrypted_title = incoming;
+        else if (field === "encrypted_chat_summary")
+          chat.encrypted_chat_summary = incoming;
         else if (field === "encrypted_icon") chat.encrypted_icon = incoming;
         else if (field === "encrypted_category")
           chat.encrypted_category = incoming;
@@ -1722,6 +1742,15 @@ export async function handleEncryptedChatMetadataImpl(
         changed = true;
       }
       if (
+        payload.versions.metadata_v !== undefined &&
+        acceptsMetadataRevision
+      ) {
+        chat.metadata_v = payload.versions.metadata_v;
+        if (payload.versions.title_v !== undefined) {
+          chat.title_v = payload.versions.title_v;
+        }
+        changed = true;
+      } else if (
         payload.versions.title_v !== undefined &&
         payload.versions.title_v > (chat.title_v || 0)
       ) {

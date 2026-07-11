@@ -174,17 +174,17 @@ async def test_list_tasks_filters_by_chat_and_project_hashes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_rejects_stale_version() -> None:
+async def test_update_accepts_stale_client_version_and_uses_server_version() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(return_value=[{"id": "row-1", "version": 3, "task_id": "task-1"}])
-    directus.update_item = AsyncMock()
+    directus.update_item = AsyncMock(return_value={"id": "row-1", "version": 4, "task_id": "task-1"})
 
     service = UserTaskService(UserTaskMethods(directus))
 
-    with pytest.raises(UserTaskConflictError):
-        await service.update_task("task-1", "user-1", {"status": "done", "version": 2})
+    updated = await service.update_task("task-1", "user-1", {"status": "done", "version": 2})
 
-    directus.update_item.assert_not_awaited()
+    assert updated["version"] == 4
+    assert directus.update_item.await_args.args[2]["version"] == 4
 
 
 @pytest.mark.asyncio

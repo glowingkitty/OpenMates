@@ -26,6 +26,11 @@ chats:
       type: integer
       note: "Version number for the title, increments when the title is updated"
 
+    metadata_v:
+      type: integer
+      default: 0
+      note: "Server-authoritative version for encrypted_title and encrypted_chat_summary. Legacy rows logically fall back to title_v until backfilled."
+
     last_edited_overall_timestamp:
       type: integer
       note: "Unix timestamp (seconds) of the most recent modification to messages or draft (not title). Used for sorting chats by recency."

@@ -8,6 +8,9 @@ from backend.core.api.app.services.directus.directus import DirectusService # Co
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_metadata_handler import (
+    allocate_chat_metadata_versions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,7 @@ async def handle_update_title(
     user_otel_attrs: dict = None,):
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("update_title", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -56,8 +59,14 @@ async def handle_update_title(
             # Store the encrypted title from client directly (already encrypted with master key)
             encrypted_new_title = encrypted_title_from_client
 
-            # Increment title_v in cache
-            new_cache_title_v = await cache_service.increment_chat_component_version(user_id, chat_id, "title_v")
+            accepted_versions = await allocate_chat_metadata_versions(
+                cache_service,
+                directus_service,
+                user_id,
+                chat_id,
+                title_changed=True,
+            )
+            new_cache_title_v = accepted_versions["title_v"]
         
         except Exception as e:
             logger.error(f"Error processing title update for chat {chat_id}: {str(e)}. User: {user_id}")
@@ -92,7 +101,8 @@ async def handle_update_title(
         persist_kwargs = {
             "chat_id": chat_id,
             "encrypted_title": encrypted_new_title,
-            "title_v": new_cache_title_v
+            "title_v": new_cache_title_v,
+            "metadata_v": accepted_versions["metadata_v"],
         }
         if encrypted_chat_key:
             persist_kwargs["encrypted_chat_key"] = encrypted_chat_key
@@ -108,7 +118,7 @@ async def handle_update_title(
             "event": "chat_title_updated", 
             "chat_id": chat_id,
             "data": {"encrypted_title": encrypted_new_title},  # Send encrypted title for other devices to decrypt
-            "versions": {"title_v": new_cache_title_v}
+            "versions": accepted_versions,
         }
         await manager.broadcast_to_user(
             message_content=broadcast_payload, 

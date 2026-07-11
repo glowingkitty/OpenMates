@@ -361,6 +361,11 @@ async def _build_chat_details_from_cache(
         "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
         "messages_v": cached_versions.messages_v if cached_versions else 0,
         "title_v": cached_versions.title_v if cached_versions else 0,
+        "metadata_v": (
+            cached_versions.metadata_v
+            if cached_versions and (cached_versions.metadata_v or cached_versions.title_v == 0)
+            else cached_versions.title_v if cached_versions else 0
+        ),
         "pinned": cached_list_item.pinned,
         "is_shared": cached_list_item.is_shared,
         "is_private": cached_list_item.is_private,
@@ -398,6 +403,7 @@ def _build_chat_details_from_directus_metadata(
         "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
         "messages_v": chat_metadata.get("messages_v", 0),
         "title_v": chat_metadata.get("title_v", 0),
+        "metadata_v": chat_metadata.get("metadata_v") or chat_metadata.get("title_v", 0),
         "pinned": chat_metadata.get("pinned"),
         "is_shared": chat_metadata.get("is_shared"),
         "is_private": chat_metadata.get("is_private"),
@@ -431,7 +437,7 @@ def _merge_partial_cache_chat_details(
             merged[field] = directus_value
 
     if prefer_directus_versions:
-        for field in ("messages_v", "title_v"):
+        for field in ("messages_v", "title_v", "metadata_v"):
             directus_value = directus_details.get(field)
             if directus_value is not None:
                 merged[field] = directus_value
@@ -1085,11 +1091,19 @@ async def _handle_phase2_sync(
                 if cached_server_versions:
                     client_messages_v = client_versions.get("messages_v", 0)
                     client_title_v = client_versions.get("title_v", 0)
+                    client_metadata_v = client_versions.get("metadata_v", client_title_v)
                     chat_details_messages_v = chat_wrapper["chat_details"].get("messages_v", 0)
                     server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
                     server_title_v = cached_server_versions.title_v
+                    server_metadata_v = cached_server_versions.metadata_v
+                    if server_metadata_v is None:
+                        server_metadata_v = server_title_v
 
-                    if client_messages_v >= server_messages_v and client_title_v >= server_title_v:
+                    if (
+                        client_messages_v >= server_messages_v
+                        and client_title_v >= server_title_v
+                        and client_metadata_v >= server_metadata_v
+                    ):
                         chats_skipped += 1
                         continue
 

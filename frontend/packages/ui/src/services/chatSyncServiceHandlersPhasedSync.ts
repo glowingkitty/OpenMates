@@ -1252,6 +1252,7 @@ export async function handleLoadMoreChatsResponseImpl(
           title: null, // Will be decrypted by the UI
           messages_v: details.messages_v || 0,
           title_v: details.title_v || 0,
+          metadata_v: details.metadata_v,
           draft_v: 0,
           encrypted_draft_md: null,
           encrypted_draft_preview: null,
@@ -1335,6 +1336,7 @@ export async function handleSyncMetadataChatsResponseImpl(
           title: null,
           messages_v: details.messages_v || 0,
           title_v: details.title_v || 0,
+          metadata_v: details.metadata_v,
           draft_v: 0,
           encrypted_draft_md: null,
           encrypted_draft_preview: null,

@@ -32,7 +32,7 @@ async def handle_initial_sync(
     # --- OpenTelemetry span creation via ws_span_helper (migrated from inline) ---
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("initial_sync", user_id, None, user_otel_attrs)
     except Exception:
         pass
@@ -144,7 +144,8 @@ async def handle_initial_sync(
                     # Use actual versions from DB
                     cached_server_versions = CachedChatVersions(
                         messages_v=db_list_item_data_for_versions.get('messages_v', 1),
-                        title_v=db_list_item_data_for_versions.get('title_v', 1)
+                        title_v=db_list_item_data_for_versions.get('title_v', 1),
+                        metadata_v=db_list_item_data_for_versions.get('metadata_v'),
                     )
                     logger.info(f"User {user_id}: Fetched real versions from DB for chat {server_chat_id}: messages_v={cached_server_versions.messages_v}, title_v={cached_server_versions.title_v}")
                 else:
@@ -161,6 +162,11 @@ async def handle_initial_sync(
             server_versions_for_client = ClientChatComponentVersions(
                 messages_v=cached_server_versions.messages_v,
                 title_v=cached_server_versions.title_v,
+                metadata_v=(
+                    cached_server_versions.metadata_v
+                    if cached_server_versions.metadata_v or cached_server_versions.title_v == 0
+                    else cached_server_versions.title_v
+                ),
                 draft_v=user_draft_version_cache
             )
             current_chat_payload_dict["versions"] = server_versions_for_client
@@ -175,6 +181,12 @@ async def handle_initial_sync(
                 logger.debug(f"User {user_id}: Chat {server_chat_id} is new to client (missing: {is_missing_on_client}, no versions: {not client_versions_for_chat})")
             elif not needs_update_on_client: # Don't re-evaluate if already forced
                 if server_versions_for_client.title_v > client_versions_for_chat.get("title_v", -1):
+                    needs_update_on_client = True
+                client_metadata_v = client_versions_for_chat.get(
+                    "metadata_v",
+                    client_versions_for_chat.get("title_v", -1),
+                )
+                if server_versions_for_client.metadata_v > client_metadata_v:
                     needs_update_on_client = True
                 if server_versions_for_client.draft_v > client_versions_for_chat.get("draft_v", -1):
                     needs_update_on_client = True
@@ -203,7 +215,8 @@ async def handle_initial_sync(
                             unread_count=db_list_item_data.get("unread_count", 0),
                             created_at=db_list_item_data.get("created_at", 0),
                             updated_at=db_list_item_data.get("updated_at", 0),
-                            encrypted_chat_key=db_list_item_data.get("encrypted_chat_key")  # Include encrypted_chat_key from DB
+                            encrypted_chat_key=db_list_item_data.get("encrypted_chat_key"),
+                            encrypted_chat_summary=db_list_item_data.get("encrypted_chat_summary"),
                         )
                     else:
                         logger.error(f"DB fallback failed for chat {server_chat_id}. Cannot get list item data.")
@@ -234,6 +247,9 @@ async def handle_initial_sync(
                     encrypted_draft_preview = user_draft_preview_encrypted
 
                 current_chat_payload_dict["encrypted_title"] = encrypted_title
+                current_chat_payload_dict["encrypted_chat_summary"] = (
+                    cached_list_item_data.encrypted_chat_summary if cached_list_item_data else None
+                )
                 current_chat_payload_dict["encrypted_draft_md"] = encrypted_draft_md
                 current_chat_payload_dict["encrypted_draft_preview"] = encrypted_draft_preview
                 current_chat_payload_dict["unread_count"] = unread_count

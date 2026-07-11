@@ -48,6 +48,7 @@ user_plans:
     version:
       type: integer
       default: 1
+      note: "Server-authoritative monotonic metadata version; every accepted PATCH advances it."
     created_at:
       type: integer
     updated_at:

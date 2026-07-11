@@ -41,11 +41,8 @@ class UserPlanService:
         existing = await self.plan_methods.get_plan(plan_id, user_id)
         if not existing:
             raise UserPlanNotFoundError("Plan not found")
-        expected_version = patch.get("version")
-        if expected_version is not None and int(expected_version) != int(existing.get("version") or 1):
-            raise UserPlanConflictError("Plan was modified by another client")
         update = dict(patch)
-        update.pop("version", None)
+        update["version"] = int(existing.get("version") or 1) + 1
         updated = await self.plan_methods.update_plan(plan_id, user_id, update)
         if not updated:
             raise ValueError("Failed to update plan")

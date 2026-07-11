@@ -11,7 +11,9 @@ import {
   mergeServerChatWithLocal,
 } from "../chatSyncMerge";
 
-function makeChat(overrides: Partial<Chat> = {}): Chat {
+type VersionedChat = Chat & { metadata_v?: number };
+
+function makeChat(overrides: Partial<VersionedChat> = {}): VersionedChat {
   return {
     chat_id: "chat-1",
     user_id: "user-1",
@@ -166,5 +168,62 @@ describe("chat sync merge", () => {
 
     expect(merged.encrypted_shared_short_url).toBe("server-encrypted-short-url");
     expect(merged.is_shared).toBe(true);
+  });
+
+  it("uses newer metadata_v for encrypted title and summary as one metadata revision", async () => {
+    const localChat = makeChat({
+      encrypted_title: "local-title-v50",
+      encrypted_chat_summary: "local-summary-v4",
+      metadata_v: 4,
+      title_v: 50,
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      encrypted_title: "server-title-v8",
+      encrypted_chat_summary: "server-summary-v5",
+      metadata_v: 5,
+      messages_v: 6,
+      title_v: 8,
+      draft_v: 0,
+    };
+
+    const merged = (await mergeServerChatWithLocal(
+      serverChat,
+      localChat,
+      "user-1",
+    )) as VersionedChat;
+
+    expect(merged.metadata_v).toBe(5);
+    expect(merged.encrypted_title).toBe("server-title-v8");
+    expect(merged.encrypted_chat_summary).toBe("server-summary-v5");
+    expect(merged.title_v).toBe(8);
+  });
+
+  it("falls back to title_v for title and summary when metadata_v is absent", async () => {
+    const localChat = makeChat({
+      encrypted_title: "local-legacy-title-v12",
+      encrypted_chat_summary: "local-legacy-summary-v12",
+      title_v: 12,
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      encrypted_title: "server-legacy-title-v11",
+      encrypted_chat_summary: "server-legacy-summary-v11",
+      messages_v: 6,
+      title_v: 11,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(
+      serverChat,
+      localChat,
+      "user-1",
+    );
+
+    expect(merged.encrypted_title).toBe("local-legacy-title-v12");
+    expect(merged.encrypted_chat_summary).toBe("local-legacy-summary-v12");
+    expect(merged.title_v).toBe(12);
   });
 });

@@ -50,6 +50,10 @@ workflows:
     kept_at:
       type: integer
       note: "Nullable Unix timestamp when a temporary workflow was kept."
+    version:
+      type: integer
+      default: 1
+      note: "Server-authoritative monotonic metadata version."
     current_version_id:
       type: string
       note: "Current immutable workflow_versions id."

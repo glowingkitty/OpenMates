@@ -239,6 +239,11 @@ def _build_chat_wrapper_from_cache(chat_id: str, cached_list_item, cached_versio
     if cached_versions:
         chat_details["messages_v"] = cached_versions.messages_v
         chat_details["title_v"] = cached_versions.title_v
+        chat_details["metadata_v"] = (
+            cached_versions.metadata_v
+            if cached_versions.metadata_v or cached_versions.title_v == 0
+            else cached_versions.title_v
+        )
     
     return {
         "chat_details": chat_details,

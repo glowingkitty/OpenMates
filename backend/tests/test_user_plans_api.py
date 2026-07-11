@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.core.api.app.services.directus.user_plan_methods import UserPlanMethods, hash_id
-from backend.core.api.app.services.user_plan_service import UserPlanConflictError, UserPlanService
+from backend.core.api.app.services.user_plan_service import UserPlanService
 
 
 def plan_payload(**overrides):
@@ -200,17 +200,17 @@ async def test_replace_plan_key_wrappers_creates_new_set_then_deletes_old_wrappe
 
 
 @pytest.mark.asyncio
-async def test_update_rejects_stale_plan_version() -> None:
+async def test_update_accepts_stale_plan_version_and_uses_server_version() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(return_value=[{"id": "row-1", "version": 3, "plan_id": "plan-1"}])
-    directus.update_item = AsyncMock()
+    directus.update_item = AsyncMock(return_value={"id": "row-1", "version": 4, "plan_id": "plan-1"})
 
     service = UserPlanService(UserPlanMethods(directus))
 
-    with pytest.raises(UserPlanConflictError):
-        await service.update_plan("plan-1", "user-1", {"status": "active", "version": 2})
+    updated = await service.update_plan("plan-1", "user-1", {"status": "active", "version": 2})
 
-    directus.update_item.assert_not_awaited()
+    assert updated["version"] == 4
+    assert directus.update_item.await_args.args[2]["version"] == 4
 
 
 @pytest.mark.asyncio

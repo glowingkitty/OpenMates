@@ -91,7 +91,7 @@ user_tasks:
     version:
       type: integer
       default: 1
-      note: "Optimistic concurrency version. PATCH rejects stale client versions."
+      note: "Server-authoritative monotonic metadata version; every accepted PATCH advances it."
 
     created_at:
       type: integer

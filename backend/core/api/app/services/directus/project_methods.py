@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 PROJECT_FIELDS = (
     "id,project_id,hashed_user_id,encrypted_project_key,encrypted_name,"
     "encrypted_description,encrypted_icon,encrypted_color,pinned,archived,"
-    "is_private,is_shared,created_at,updated_at,last_opened_at,item_count"
+    "is_private,is_shared,version,created_at,updated_at,last_opened_at,item_count"
 )
 FOLDER_FIELDS = (
     "id,folder_id,hashed_project_id,hashed_parent_folder_id,hashed_user_id,"
@@ -78,6 +78,7 @@ class ProjectMethods:
             "archived": payload.get("archived", False),
             "is_private": payload.get("is_private", True),
             "is_shared": payload.get("is_shared", False),
+            "version": 1,
             "created_at": now,
             "updated_at": payload.get("updated_at", now),
             "last_opened_at": payload.get("last_opened_at", now),
@@ -93,7 +94,9 @@ class ProjectMethods:
         existing = await self.get_project(project_id, user_id)
         if not existing:
             return None
-        return await self.directus_service.update_item("projects", existing["id"], patch)
+        update = dict(patch)
+        update["version"] = int(existing.get("version") or 1) + 1
+        return await self.directus_service.update_item("projects", existing["id"], update)
 
     async def list_sources(self, project_id: str, user_id: str) -> List[Dict[str, Any]]:
         params = {

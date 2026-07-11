@@ -172,6 +172,7 @@ class WorkflowGraph(BaseModel):
 
 class WorkflowSummary(BaseModel):
     id: str
+    version: int = 1
     title: str
     description: str | None = None
     status: WorkflowStatus

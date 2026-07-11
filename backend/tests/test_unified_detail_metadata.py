@@ -6,11 +6,18 @@ server-authoritative monotonic versions. Client-encrypted domains must persist
 only ciphertext; Workflow metadata remains inside its Automation Vault boundary.
 """
 
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
+from backend.core.api.app.routes.handlers.websocket_handlers import (
+    encrypted_chat_metadata_handler,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_metadata_handler import (
+    handle_encrypted_chat_metadata,
+)
 from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id
 from backend.core.api.app.services.user_plan_service import UserPlanNotFoundError, UserPlanService
 from backend.core.api.app.services.user_task_service import UserTaskNotFoundError, UserTaskService
@@ -56,6 +63,75 @@ class OwnerScopedMetadataMethods:
 
     async def update_plan(self, plan_id: str, user_id: str, patch: dict[str, object]) -> dict[str, object] | None:
         return await self._update(plan_id, user_id, patch)
+
+
+class ChatMetadataManager:
+    def __init__(self) -> None:
+        self.personal_messages: list[tuple[dict, str, str]] = []
+        self.broadcasts: list[tuple[dict, str, str | None]] = []
+
+    async def send_personal_message(
+        self, message: dict, user_id: str, device_hash: str
+    ) -> None:
+        self.personal_messages.append((message, user_id, device_hash))
+
+    async def broadcast_to_user(
+        self,
+        message: dict,
+        user_id: str,
+        exclude_device_hash: str | None = None,
+    ) -> None:
+        self.broadcasts.append((message, user_id, exclude_device_hash))
+
+
+class ChatMetadataDirectus:
+    def __init__(self, *, is_owner: bool) -> None:
+        self.chat = SimpleNamespace(
+            check_chat_ownership=AsyncMock(return_value=is_owner),
+            get_chat_metadata=AsyncMock(
+                return_value={
+                    "hashed_user_id": "different-owner-hash",
+                    "messages_v": 12,
+                    "title_v": 7,
+                    "metadata_v": 4,
+                    "encrypted_title": "cipher-title-v7",
+                    "encrypted_chat_summary": "cipher-summary-v4",
+                }
+            ),
+        )
+
+
+class ChatMetadataCache:
+    async def get_chat_list_item_data(self, _user_id: str, _chat_id: str):
+        return None
+
+
+def chat_metadata_payload(**overrides: object) -> dict[str, object]:
+    return {
+        "chat_id": "chat-1",
+        "versions": {"metadata_v": 4, "title_v": 7, "messages_v": 12},
+        **overrides,
+    }
+
+
+async def send_chat_metadata(
+    payload: dict[str, object],
+    *,
+    is_owner: bool,
+) -> ChatMetadataManager:
+    manager = ChatMetadataManager()
+    await handle_encrypted_chat_metadata(
+        websocket=None,
+        manager=manager,
+        cache_service=ChatMetadataCache(),
+        directus_service=ChatMetadataDirectus(is_owner=is_owner),
+        encryption_service=None,
+        user_id="owner-1" if is_owner else "read-only-user",
+        user_id_hash="owner-hash",
+        device_fingerprint_hash="device-1",
+        payload=payload,
+    )
+    return manager
 
 
 @pytest.mark.asyncio
@@ -157,6 +233,101 @@ async def test_project_metadata_version_is_owner_scoped_and_ignores_client_clock
     assert persisted_patch["encrypted_name"] == "cipher-name-v5"
     assert "name" not in persisted_patch
     assert "description" not in persisted_patch
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        {"encrypted_title": "cipher-title-v8"},
+        {"encrypted_chat_summary": "cipher-summary-v5"},
+    ],
+)
+def test_chat_title_and_summary_mutations_are_owner_only(
+    monkeypatch,
+    mutation: dict[str, str],
+) -> None:
+    queued_tasks: list[tuple[str, list, str | None]] = []
+    monkeypatch.setattr(
+        encrypted_chat_metadata_handler.celery_app,
+        "send_task",
+        lambda name, args=None, queue=None: queued_tasks.append((name, args or [], queue)),
+    )
+
+    manager = asyncio.run(
+        send_chat_metadata(chat_metadata_payload(**mutation), is_owner=False)
+    )
+
+    assert queued_tasks == []
+    assert manager.broadcasts == []
+    assert manager.personal_messages[0][0]["type"] == "error"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_title_v"),
+    [
+        (
+            {
+                "encrypted_title": "cipher-title-v8",
+                "encrypted_chat_summary": "cipher-summary-v5",
+                "title": "plaintext title must be ignored",
+                "chat_summary": "plaintext summary must be ignored",
+            },
+            8,
+        ),
+        (
+            {
+                "encrypted_chat_summary": "cipher-summary-v5",
+                "chat_summary": "plaintext summary must be ignored",
+            },
+            7,
+        ),
+    ],
+)
+def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadcast(
+    monkeypatch,
+    mutation: dict[str, str],
+    expected_title_v: int,
+) -> None:
+    queued_tasks: list[tuple[str, list, str | None]] = []
+
+    def queue_task(name: str, args=None, queue: str | None = None):
+        queued_tasks.append((name, args or [], queue))
+        return SimpleNamespace(id="task-1")
+
+    monkeypatch.setattr(encrypted_chat_metadata_handler.celery_app, "send_task", queue_task)
+
+    manager = asyncio.run(
+        send_chat_metadata(chat_metadata_payload(**mutation), is_owner=True)
+    )
+
+    assert len(queued_tasks) == 1
+    task_name, task_args, queue = queued_tasks[0]
+    assert task_name == "app.tasks.persistence_tasks.persist_encrypted_chat_metadata"
+    assert queue == "persistence"
+    persisted = task_args[1]
+    assert persisted["metadata_v"] == 5
+    assert persisted["title_v"] == expected_title_v
+    assert persisted["messages_v"] == 12
+    assert persisted.get("encrypted_title") == mutation.get("encrypted_title")
+    assert persisted["encrypted_chat_summary"] == mutation["encrypted_chat_summary"]
+    assert "title" not in persisted
+    assert "summary" not in persisted
+    assert "chat_summary" not in persisted
+
+    assert len(manager.broadcasts) == 1
+    broadcast, user_id, excluded_device = manager.broadcasts[0]
+    assert user_id == "owner-1"
+    assert excluded_device == "device-1"
+    assert broadcast["payload"]["versions"] == {
+        "metadata_v": 5,
+        "title_v": expected_title_v,
+        "messages_v": 12,
+    }
+    assert broadcast["payload"].get("encrypted_title") == mutation.get("encrypted_title")
+    assert broadcast["payload"]["encrypted_chat_summary"] == mutation["encrypted_chat_summary"]
+    assert "title" not in broadcast["payload"]
+    assert "summary" not in broadcast["payload"]
+    assert "chat_summary" not in broadcast["payload"]
 
 
 def test_workflow_metadata_version_is_owner_scoped_and_vault_backed() -> None:

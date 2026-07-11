@@ -50,6 +50,7 @@ class WorkflowUpdateRequest(BaseModel):
     graph: WorkflowGraph | None = None
     enabled: bool | None = None
     run_content_retention: WorkflowRunContentRetention | None = None
+    version: int | None = None
 
 
 class WorkflowRunRequest(BaseModel):

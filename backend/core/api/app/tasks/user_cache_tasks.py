@@ -54,6 +54,10 @@ def _cached_chat_versions_from_details(
             value = DEFAULT_CHAT_VERSION
         version_values[field] = value
 
+    version_values["metadata_v"] = chat_data.get("metadata_v")
+    if not version_values["metadata_v"] and version_values["title_v"] > 0:
+        version_values["metadata_v"] = version_values["title_v"]
+
     return CachedChatVersions(**version_values)
 
 

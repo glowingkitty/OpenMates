@@ -236,6 +236,7 @@ class DirectusWorkflowRepository:
             "created_by_assistant": bool(record.get("created_by_assistant")),
             "auto_delete_at": record.get("auto_delete_at"),
             "kept_at": record.get("kept_at"),
+            "version": int(record.get("version") or 1),
             "current_version_id": record["current_version_id"],
             "trigger_type": record.get("trigger_type") or record.get("trigger_summary"),
             "trigger_summary": record.get("trigger_summary"),
@@ -567,6 +568,7 @@ class WorkflowService:
             "created_by_assistant": created_by_assistant,
             "auto_delete_at": auto_delete_at,
             "kept_at": None,
+            "version": 1,
             "trigger_summary": self._trigger_summary(workflow_graph),
             "next_run_at": None,
             "last_run_status": None,
@@ -640,6 +642,7 @@ class WorkflowService:
             record["status"] = WorkflowStatus.ACTIVE.value if enabled else WorkflowStatus.DISABLED.value
         if run_content_retention is not None:
             record["run_content_retention"] = WorkflowRunContentRetention(run_content_retention).value
+        record["version"] = int(record.get("version") or 1) + 1
         record["updated_at"] = int(time.time())
         return self._detail_from_record(self.repository.save_workflow(record), vault_key_id)
 
@@ -810,6 +813,7 @@ class WorkflowService:
     def _summary_from_record(self, record: dict[str, Any], vault_key_id: str | None) -> WorkflowSummary:
         return WorkflowSummary(
             id=record["id"],
+            version=int(record.get("version") or 1),
             title=str(self._load_encrypted_blob(record["encrypted_title_ref"], vault_key_id)),
             description=(
                 str(self._load_encrypted_blob(record["encrypted_description_ref"], vault_key_id))

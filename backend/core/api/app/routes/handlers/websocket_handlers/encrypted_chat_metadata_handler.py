@@ -14,6 +14,70 @@ from backend.core.api.app.tasks.celery_config import app as celery_app
 logger = logging.getLogger(__name__)
 
 
+def _effective_metadata_version(metadata: Dict[str, Any]) -> int:
+    """Use title_v as the logical metadata version for pre-migration rows."""
+    title_v = int(metadata.get("title_v", 0) or 0)
+    metadata_v = int(metadata.get("metadata_v", 0) or 0)
+    return metadata_v if metadata_v > 0 or title_v == 0 else title_v
+
+
+async def allocate_chat_metadata_versions(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    chat_id: str,
+    *,
+    title_changed: bool,
+    fallback_versions: Dict[str, Any] | None = None,
+) -> Dict[str, int]:
+    """Allocate server-authoritative metadata versions, using Redis when available."""
+    fallback_versions = fallback_versions or {}
+    current = await directus_service.chat.get_chat_metadata(chat_id) or {}
+    has_persisted_metadata_v = int(current.get("metadata_v", 0) or 0) > 0
+    current_messages_v = int(current.get("messages_v", fallback_versions.get("messages_v", 0)) or 0)
+    current_title_v = int(current.get("title_v", fallback_versions.get("title_v", 0)) or 0)
+    current_metadata_v = _effective_metadata_version(current) if current else int(
+        fallback_versions.get("metadata_v", fallback_versions.get("title_v", 0)) or 0
+    )
+
+    get_versions = getattr(cache_service, "get_chat_versions", None)
+    if callable(get_versions):
+        cached_versions = await get_versions(user_id, chat_id)
+        if cached_versions:
+            current_messages_v = max(current_messages_v, int(cached_versions.messages_v or 0))
+            current_title_v = max(current_title_v, int(cached_versions.title_v or 0))
+            cached_metadata_v = getattr(cached_versions, "metadata_v", None)
+            current_metadata_v = max(
+                current_metadata_v,
+                int(
+                    cached_metadata_v
+                    if cached_metadata_v is not None
+                    else current_metadata_v if has_persisted_metadata_v
+                    else cached_versions.title_v or 0
+                ),
+            )
+
+    set_component = getattr(cache_service, "set_chat_version_component", None)
+    increment_component = getattr(cache_service, "increment_chat_component_version", None)
+    if callable(set_component) and callable(increment_component):
+        await set_component(user_id, chat_id, "metadata_v", current_metadata_v)
+        accepted_metadata_v = await increment_component(user_id, chat_id, "metadata_v")
+        if title_changed:
+            await set_component(user_id, chat_id, "title_v", current_title_v)
+            accepted_title_v = await increment_component(user_id, chat_id, "title_v")
+        else:
+            accepted_title_v = current_title_v
+    else:
+        accepted_metadata_v = current_metadata_v + 1
+        accepted_title_v = current_title_v + 1 if title_changed else current_title_v
+
+    return {
+        "messages_v": current_messages_v,
+        "title_v": int(accepted_title_v or current_title_v),
+        "metadata_v": int(accepted_metadata_v or current_metadata_v + 1),
+    }
+
+
 async def handle_encrypted_chat_metadata(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -68,6 +132,7 @@ async def handle_encrypted_chat_metadata(
             # The model_name indicates which AI model generated the assistant's response, not which model will respond
             # Get encrypted chat fields from preprocessing
             encrypted_title = payload.get("encrypted_title")
+            encrypted_chat_summary = payload.get("encrypted_chat_summary")
             encrypted_icon = payload.get("encrypted_icon")
             encrypted_chat_category = payload.get("encrypted_chat_category")  # Chat metadata category
             encrypted_chat_tags = payload.get("encrypted_chat_tags")
@@ -334,10 +399,22 @@ async def handle_encrypted_chat_metadata(
 
             # Store encrypted chat metadata from preprocessing
             chat_update_fields = {}
+            accepted_versions = None
+            if encrypted_title or encrypted_chat_summary:
+                accepted_versions = await allocate_chat_metadata_versions(
+                    cache_service,
+                    directus_service,
+                    user_id,
+                    chat_id,
+                    title_changed=bool(encrypted_title),
+                    fallback_versions=versions,
+                )
             if encrypted_title:
                 chat_update_fields["encrypted_title"] = encrypted_title
-                # Use the incremented title_v from frontend (frontend already incremented it)
-                chat_update_fields["title_v"] = versions.get("title_v")  # Frontend sends incremented value
+            if encrypted_chat_summary:
+                chat_update_fields["encrypted_chat_summary"] = encrypted_chat_summary
+            if accepted_versions:
+                chat_update_fields.update(accepted_versions)
             if encrypted_icon:
                 chat_update_fields["encrypted_icon"] = encrypted_icon
             if encrypted_chat_category:
@@ -385,7 +462,8 @@ async def handle_encrypted_chat_metadata(
                 # Add version info for chat creation/update
                 # The metadata task will use these when creating the chat
                 # Use sensible defaults if not provided (current timestamp, messages_v=1 since we just got a message)
-                chat_update_fields["messages_v"] = versions.get("messages_v", 1)  # At least 1 message exists
+                if not accepted_versions:
+                    chat_update_fields["messages_v"] = versions.get("messages_v", 1)  # At least 1 message exists
                 chat_update_fields["last_edited_overall_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
                 chat_update_fields["last_message_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
             
@@ -427,7 +505,8 @@ async def handle_encrypted_chat_metadata(
                     "payload": {
                         "chat_id": chat_id,
                         "message_id": message_id,
-                        "status": "queued_for_storage"
+                        "status": "queued_for_storage",
+                        "versions": accepted_versions or versions,
                     }
                 },
                 user_id,
@@ -445,7 +524,7 @@ async def handle_encrypted_chat_metadata(
                     "type": "encrypted_chat_metadata",
                     "payload": {
                         "chat_id": chat_id,
-                        "versions": versions if versions else {}
+                        "versions": accepted_versions or (versions if versions else {})
                     }
                 }
                 # Add all updated fields to broadcast
@@ -453,6 +532,8 @@ async def handle_encrypted_chat_metadata(
                     broadcast_payload["payload"]["encrypted_chat_key"] = encrypted_chat_key
                 if encrypted_title:
                     broadcast_payload["payload"]["encrypted_title"] = encrypted_title
+                if encrypted_chat_summary:
+                    broadcast_payload["payload"]["encrypted_chat_summary"] = encrypted_chat_summary
                 if encrypted_icon:
                     broadcast_payload["payload"]["encrypted_icon"] = encrypted_icon
                 if encrypted_chat_category:

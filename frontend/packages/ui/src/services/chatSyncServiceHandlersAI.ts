@@ -2018,10 +2018,40 @@ export async function handleAIResponseStorageConfirmedImpl(
  * Handles the 'encrypted_metadata_stored' event from the server.
  * This confirms that encrypted chat metadata has been successfully stored on the server.
  */
-export function handleEncryptedMetadataStoredImpl(
+type AcceptedChatVersions = {
+  messages_v?: number;
+  title_v?: number;
+  metadata_v?: number;
+};
+
+async function applyAcceptedChatVersions(
+  chatId: string,
+  versions?: AcceptedChatVersions,
+): Promise<void> {
+  if (!versions) return;
+  const chat = await chatDB.getChat(chatId);
+  if (!chat) return;
+  if (versions.messages_v !== undefined) {
+    chat.messages_v = Math.max(chat.messages_v || 0, versions.messages_v);
+  }
+  if (versions.title_v !== undefined) {
+    chat.title_v = Math.max(chat.title_v || 0, versions.title_v);
+  }
+  if (versions.metadata_v !== undefined) {
+    chat.metadata_v = Math.max(chat.metadata_v || chat.title_v || 0, versions.metadata_v);
+  }
+  await chatDB.updateChat(chat);
+}
+
+export async function handleEncryptedMetadataStoredImpl(
   serviceInstance: ChatSynchronizationService,
-  payload: { chat_id: string; message_id: string; task_id?: string },
-): void {
+  payload: {
+    chat_id: string;
+    message_id: string;
+    task_id?: string;
+    versions?: AcceptedChatVersions;
+  },
+): Promise<void> {
   console.debug(
     `[ChatSyncService:AI] Received 'encrypted_metadata_stored':`,
     payload,
@@ -2031,6 +2061,7 @@ export function handleEncryptedMetadataStoredImpl(
   if (payload.message_id) {
     serviceInstance.unmarkMessageSyncing(payload.message_id);
   }
+  await applyAcceptedChatVersions(payload.chat_id, payload.versions);
 
   console.debug(
     `[ChatSyncService:AI] Encrypted metadata storage confirmed for chat ${payload.chat_id}`,
@@ -2041,15 +2072,18 @@ export function handleEncryptedMetadataStoredImpl(
  * Handle post-processing metadata stored confirmation from server.
  * This confirms that encrypted follow-up suggestions, summary, and tags were stored in Directus.
  */
-export function handlePostProcessingMetadataStoredImpl(
+export async function handlePostProcessingMetadataStoredImpl(
   serviceInstance: ChatSynchronizationService,
-  payload: { chat_id: string; task_id?: string },
-): void {
+  payload: {
+    chat_id: string;
+    task_id?: string;
+    versions?: AcceptedChatVersions;
+  },
+): Promise<void> {
   console.info(
     `[ChatSyncService:AI] Received 'post_processing_metadata_stored' confirmation for chat ${payload.chat_id}`,
   );
-  // Nothing to do here - the data is already encrypted and stored locally
-  // This is just an acknowledgment that the server successfully stored it in Directus
+  await applyAcceptedChatVersions(payload.chat_id, payload.versions);
 }
 
 /**

@@ -112,8 +112,10 @@ export async function handleInitialSyncResponseImpl(
         const chat: Chat = {
           chat_id: serverChat.chat_id,
           encrypted_title: serverChat.encrypted_title,
+          encrypted_chat_summary: serverChat.encrypted_chat_summary,
           messages_v: serverChat.versions.messages_v,
           title_v: serverChat.versions.title_v,
+          metadata_v: serverChat.versions.metadata_v,
           draft_v: serverChat.versions.draft_v,
           encrypted_draft_md: serverChat.encrypted_draft_md,
           encrypted_draft_preview: serverChat.encrypted_draft_preview,

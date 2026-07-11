@@ -46,7 +46,7 @@ def _validate_client_encrypted_chat_payload(message_id: str, encrypted_content: 
 
 async def _async_persist_chat_title_task(
     chat_id: str, encrypted_title: str, title_v: int, task_id: str,
-    encrypted_chat_key: Optional[str] = None
+    encrypted_chat_key: Optional[str] = None, metadata_v: Optional[int] = None
 ):
     """
     Async logic for persisting an updated chat title.
@@ -87,6 +87,7 @@ async def _async_persist_chat_title_task(
     fields_to_update = {
         "encrypted_title": encrypted_title,
         "title_v": title_v,
+        "metadata_v": metadata_v if metadata_v is not None else title_v,
         "updated_at": int(datetime.now(timezone.utc).timestamp())
     }
 
@@ -103,14 +104,30 @@ async def _async_persist_chat_title_task(
         logger.error(f"Error in _async_persist_chat_title_task for chat {chat_id} (task_id: {task_id}): {e}", exc_info=True)
 
 @app.task(name="app.tasks.persistence_tasks.persist_chat_title", bind=True)
-def persist_chat_title_task(self, chat_id: str, encrypted_title: str, title_v: int, encrypted_chat_key: Optional[str] = None):
+def persist_chat_title_task(
+    self,
+    chat_id: str,
+    encrypted_title: str,
+    title_v: int,
+    encrypted_chat_key: Optional[str] = None,
+    metadata_v: Optional[int] = None,
+):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(f"SYNC_WRAPPER: persist_chat_title_task for chat {chat_id}, task_id: {task_id}")
     loop = None
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_persist_chat_title_task(chat_id, encrypted_title, title_v, task_id, encrypted_chat_key))
+        loop.run_until_complete(
+            _async_persist_chat_title_task(
+                chat_id,
+                encrypted_title,
+                title_v,
+                task_id,
+                encrypted_chat_key,
+                metadata_v,
+            )
+        )
     except Exception as e:
         logger.error(f"SYNC_WRAPPER_ERROR: persist_chat_title_task for chat {chat_id}, task_id: {task_id}: {e}", exc_info=True)
         raise # Re-raise to let Celery handle retries/failure
@@ -1716,8 +1733,11 @@ async def _async_persist_encrypted_chat_metadata(
             logger.info(f"Chat {chat_id} exists, updating with encrypted metadata")
             
             # OPTIMISTIC LOCKING: Don't downgrade versions or timestamps
-            current_messages_v = chat_metadata.get("messages_v", 0)
-            current_title_v = chat_metadata.get("title_v", 0)
+            current_messages_v = int(chat_metadata.get("messages_v", 0) or 0)
+            current_title_v = int(chat_metadata.get("title_v", 0) or 0)
+            current_metadata_v = int(chat_metadata.get("metadata_v", 0) or 0)
+            if not current_metadata_v and current_title_v > 0:
+                current_metadata_v = current_title_v
             
             # Prepare update fields, excluding versions if they are not newer
             # CRITICAL: Always include encrypted metadata fields (title, icon, category) even if versions are same
@@ -1809,6 +1829,16 @@ async def _async_persist_encrypted_chat_metadata(
             elif current_title_v == 0 and incoming_title_v > 0:
                 logger.info(f"Updating title_v from 0 to {incoming_title_v} for chat {chat_id} (pre-processing metadata)")
 
+            incoming_metadata_v = update_fields.get("metadata_v")
+            if incoming_metadata_v is not None and incoming_metadata_v <= current_metadata_v:
+                update_fields.pop("metadata_v", None)
+                update_fields.pop("encrypted_title", None)
+                update_fields.pop("encrypted_chat_summary", None)
+                logger.debug(
+                    f"Skipping stale metadata revision for chat {chat_id}: "
+                    f"incoming={incoming_metadata_v}, current={current_metadata_v}"
+                )
+
             # CRITICAL FIX: Always update metadata fields (title, icon, category) if provided
             # Remove None values but keep empty strings for encrypted fields
             update_fields = {k: v for k, v in update_fields.items() if v is not None}
@@ -1885,12 +1915,16 @@ async def _async_persist_encrypted_chat_metadata(
 
                                 fresh_messages_v = int(fresh_chat_metadata.get("messages_v", 0) or 0)
                                 fresh_title_v = int(fresh_chat_metadata.get("title_v", 0) or 0)
+                                fresh_metadata_v = fresh_chat_metadata.get("metadata_v")
+                                if not fresh_metadata_v and fresh_title_v > 0:
+                                    fresh_metadata_v = fresh_title_v
                                 versions_update_result = await cache_service.set_chat_versions(
                                     user_id,
                                     chat_id,
                                     CachedChatVersions(
                                         messages_v=fresh_messages_v,
                                         title_v=fresh_title_v,
+                                        metadata_v=int(fresh_metadata_v or 0),
                                     ),
                                 )
                                 if versions_update_result:
@@ -1949,6 +1983,7 @@ async def _async_persist_encrypted_chat_metadata(
                     # Get version values - use sensible defaults, NEVER 0
                     messages_v = encrypted_metadata.get("messages_v", 1)  # At least 1 message exists when creating chat
                     title_v = encrypted_metadata.get("title_v", 1)  # Title exists if we're creating the chat
+                    metadata_v = encrypted_metadata.get("metadata_v", title_v)
                     last_edited = encrypted_metadata.get("last_edited_overall_timestamp", now_ts)
                     last_message = encrypted_metadata.get("last_message_timestamp", now_ts)
                     
@@ -1995,6 +2030,7 @@ async def _async_persist_encrypted_chat_metadata(
                     now_ts = int(datetime.now(timezone.utc).timestamp())
                     messages_v = encrypted_metadata.get("messages_v", 1)
                     title_v = encrypted_metadata.get("title_v", 1)
+                    metadata_v = encrypted_metadata.get("metadata_v", title_v)
                     last_edited = encrypted_metadata.get("last_edited_overall_timestamp", now_ts)
                     last_message = encrypted_metadata.get("last_message_timestamp", now_ts)
                 finally:
@@ -2004,6 +2040,7 @@ async def _async_persist_encrypted_chat_metadata(
                 now_ts = int(datetime.now(timezone.utc).timestamp())
                 messages_v = encrypted_metadata.get("messages_v", 1)
                 title_v = encrypted_metadata.get("title_v", 1)
+                metadata_v = encrypted_metadata.get("metadata_v", title_v)
                 last_edited = encrypted_metadata.get("last_edited_overall_timestamp", now_ts)
                 last_message = encrypted_metadata.get("last_message_timestamp", now_ts)
             
@@ -2028,6 +2065,7 @@ async def _async_persist_encrypted_chat_metadata(
                 # Version tracking - use actual values, never 0
                 "messages_v": messages_v,
                 "title_v": title_v,
+                "metadata_v": metadata_v,
                 "last_edited_overall_timestamp": last_edited,
                 "last_message_timestamp": last_message,
                 "unread_count": 0,
@@ -2075,12 +2113,16 @@ async def _async_persist_encrypted_chat_metadata(
                         if fresh_chat_metadata:
                             fresh_messages_v = int(fresh_chat_metadata.get("messages_v", 0) or 0)
                             fresh_title_v = int(fresh_chat_metadata.get("title_v", 0) or 0)
+                            fresh_metadata_v = fresh_chat_metadata.get("metadata_v")
+                            if not fresh_metadata_v and fresh_title_v > 0:
+                                fresh_metadata_v = fresh_title_v
                             versions_update_result = await cache_service.set_chat_versions(
                                 user_id,
                                 chat_id,
                                 CachedChatVersions(
                                     messages_v=fresh_messages_v,
                                     title_v=fresh_title_v,
+                                    metadata_v=int(fresh_metadata_v or 0),
                                 ),
                             )
                             if versions_update_result:
@@ -2126,12 +2168,16 @@ async def _async_persist_encrypted_chat_metadata(
                             if fresh_chat_metadata:
                                 fresh_messages_v = int(fresh_chat_metadata.get("messages_v", 0) or 0)
                                 fresh_title_v = int(fresh_chat_metadata.get("title_v", 0) or 0)
+                                fresh_metadata_v = fresh_chat_metadata.get("metadata_v")
+                                if not fresh_metadata_v and fresh_title_v > 0:
+                                    fresh_metadata_v = fresh_title_v
                                 versions_update_result = await cache_service.set_chat_versions(
                                     user_id,
                                     chat_id,
                                     CachedChatVersions(
                                         messages_v=fresh_messages_v,
                                         title_v=fresh_title_v,
+                                        metadata_v=int(fresh_metadata_v or 0),
                                     ),
                                 )
                                 if versions_update_result:

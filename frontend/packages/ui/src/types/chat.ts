@@ -312,6 +312,7 @@ export interface Chat {
 
   messages_v: number; // Client's current version for messages for this chat
   title_v: number; // Client's current version for title for this chat
+  metadata_v?: number; // Server-authoritative version for encrypted title + summary; legacy chats fall back to title_v
 
   last_edited_overall_timestamp: number; // Unix timestamp of the most recent message sent to this chat (for sorting). Only messages update this timestamp, not drafts.
   unread_count: number; // Number of unread messages in this chat for the current user
@@ -407,6 +408,7 @@ export interface ResumeCardImageBubble {
 export interface ChatComponentVersions {
   messages_v: number;
   title_v: number;
+  metadata_v?: number;
   draft_v?: number;
 }
 
@@ -809,6 +811,7 @@ export interface InitialSyncResponsePayload {
     created_at: number;
     updated_at: number;
     encrypted_title?: string;
+    encrypted_chat_summary?: string | null;
     encrypted_draft_md?: string | null;
     encrypted_draft_preview?: string | null;
     encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption

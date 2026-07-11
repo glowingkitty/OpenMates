@@ -236,7 +236,7 @@ class ChatCacheMixin:
             logger.error(f"Error checking chat presence in cache for user {user_id}, chat {chat_id}: {e}")
             return False
 
-    # 2. user:{user_id}:chat:{chat_id}:versions (Hash: messages_v, draft_v, title_v)
+    # 2. user:{user_id}:chat:{chat_id}:versions (Hash: messages_v, draft_v, title_v, metadata_v)
     def _get_chat_versions_key(self, user_id: str, chat_id: str) -> str:
         return f"user:{user_id}:chat:{chat_id}:versions"
 
@@ -341,7 +341,7 @@ class ChatCacheMixin:
         """
         Increments a specific component version for a chat in the versions hash.
         Returns the new version or None on error.
-        The 'component' can be "messages_v", "title_v", or dynamic like f"user_draft_v:{specific_user_id}".
+        The 'component' can be "messages_v", "title_v", "metadata_v", or dynamic like f"user_draft_v:{specific_user_id}".
         """
         client = await self.client
         if not client:

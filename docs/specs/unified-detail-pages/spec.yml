@@ -487,7 +487,12 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: skipped_with_reason
+        command: python3 scripts/tests.py run -- --spec unified-detail-header.spec.ts
+        run_id: vercel-gate-877582405-20260711T155313Z
+        subject_commit: 00a85cd
+        timestamp: "2026-07-11T15:57:40Z"
+        summary: The committed test could not dispatch because concurrent dev commits canceled its Vercel build; the deployed product visibly lacks every asserted edit affordance.
     green_phase:
       required: true
       expected: pass_after_deploy

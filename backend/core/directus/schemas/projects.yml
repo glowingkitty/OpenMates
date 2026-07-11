@@ -59,6 +59,11 @@ projects:
       default: false
       note: "Whether a read-only share link has been created for this project."
 
+    version:
+      type: integer
+      default: 1
+      note: "Server-authoritative monotonic metadata version."
+
     created_at:
       type: integer
       note: "Unix timestamp (seconds) when the project was created."

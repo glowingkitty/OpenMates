@@ -59,8 +59,9 @@ class ProjectUpdateRequest(BaseModel):
     encrypted_color: Optional[str] = None
     pinned: Optional[bool] = None
     archived: Optional[bool] = None
-    updated_at: int
+    updated_at: Optional[int] = None
     last_opened_at: Optional[int] = None
+    version: Optional[int] = None
 
 
 class FolderCreateRequest(BaseModel):

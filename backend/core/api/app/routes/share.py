@@ -179,7 +179,7 @@ async def get_shared_chat_auxiliary_payload(
         "chats",
         params={
             "filter[parent_id][_eq]": chat_id,
-            "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
+            "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
             "sort": "created_at",
             "limit": -1,
         },
@@ -324,7 +324,7 @@ async def get_shared_chat(
             "chats",
             params={
                 "filter[parent_id][_eq]": chat_id,
-                "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
+                "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
                 "sort": "created_at",
                 "limit": -1,
             },
