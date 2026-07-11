@@ -21,7 +21,7 @@ final class SettingsPrivacyParityUITests: XCTestCase {
 
         element("settings-privacy-connected-accounts-row", in: app).tap()
         XCTAssertTrue(element("privacy-connected-account-row", in: app).waitForExistence(timeout: 5))
-        element("settings-privacy-subpage-back", in: app).tap()
+        returnToPrivacyHub(in: app)
 
         scrollTo("settings-privacy-auto-delete-chats-row", in: app)
         scrollUntilExists("settings-privacy-files-retention-row", in: app)
@@ -35,7 +35,7 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         element("settings-privacy-auto-delete-chats-row", in: app).tap()
         XCTAssertTrue(element("privacy-auto-deletion-page", in: app).waitForExistence(timeout: 5))
         assertHittable("privacy-auto-deletion-period-90d", in: app)
-        element("settings-privacy-subpage-back", in: app).tap()
+        returnToPrivacyHub(in: app)
 
         scrollTo("settings-privacy-share-debug-logs-row", in: app)
         element("settings-privacy-share-debug-logs-row", in: app).tap()
@@ -65,6 +65,16 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         let target = element(identifier, in: app)
         XCTAssertTrue(target.waitForExistence(timeout: 5), "Missing \(identifier)")
         XCTAssertTrue(target.isHittable, "Not hittable: \(identifier)")
+    }
+
+    private func returnToPrivacyHub(in app: XCUIApplication) {
+        let explicitBack = app.buttons["settings-privacy-subpage-back"].firstMatch
+        if explicitBack.exists {
+            explicitBack.tap()
+        } else {
+            app.buttons["settings-privacy-page"].firstMatch.tap()
+        }
+        XCTAssertTrue(element("settings-privacy-connected-accounts-row", in: app).waitForExistence(timeout: 5))
     }
 
     private func scrollTo(_ identifier: String, in app: XCUIApplication) {
