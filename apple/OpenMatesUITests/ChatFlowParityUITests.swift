@@ -328,9 +328,10 @@ final class ChatFlowParityUITests: XCTestCase {
         compactCard.press(forDuration: 0.8)
 
         XCTAssertTrue(
-            app.buttons["Unpin"].waitForExistence(timeout: 5),
+            app.descendants(matching: .any)["chat-actions-menu"].waitForExistence(timeout: 5),
             "Long-pressing a recent-chat preview must open the custom chat actions"
         )
+        XCTAssertTrue(app.descendants(matching: .any)["Unpin"].exists)
     }
 
     func testTextDraftBlursIntoCompactPreviewWithoutLosingContent() throws {

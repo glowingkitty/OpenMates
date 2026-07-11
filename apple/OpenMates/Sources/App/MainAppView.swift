@@ -1860,6 +1860,7 @@ struct MainAppView: View {
                     .stroke(Color.grey20, lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.18), radius: 18, x: 0, y: 10)
+            .accessibilityIdentifier("chat-actions-menu")
         }
     }
 

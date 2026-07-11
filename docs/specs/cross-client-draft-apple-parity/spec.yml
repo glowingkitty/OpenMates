@@ -262,10 +262,16 @@ attempts:
     outcome: planned
     recorded_at: "2026-07-11T23:22:00Z"
     reason: Commit cddcb41 compiled and rendered the card but the representable had no intrinsic overlay size, leaving the UIKit recognizers without a reliable hit region.
+  - id: ATTEMPT-21
+    task_id: TASK-6
+    approach: Add a stable identifier to the custom chat-actions menu and assert the menu independently from localized row element classification.
+    outcome: planned
+    recorded_at: "2026-07-11T23:25:00Z"
+    reason: The repeated failure only proved that XCTest did not classify the Unpin row as a Button; it did not establish whether the long press had opened the custom overlay.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the full-size UIKit interaction surface, sync the remote checkout, and rerun both focused phone card tests.
+  next_action: Deploy the stable chat-actions menu identifier, sync the remote checkout, and rerun the focused phone card test.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress"
   expected_outcome: The compact recent card renders title-only and opens the custom actions menu on long press.
   blocker:
