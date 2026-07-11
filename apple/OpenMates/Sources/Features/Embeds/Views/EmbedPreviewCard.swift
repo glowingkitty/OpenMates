@@ -66,8 +66,46 @@ struct EmbedPreviewCard: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            previewLayout
+        Group {
+            if embedType == .recording {
+                cardSurface
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if embed.status != .processing { onTap() }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("embed-preview")
+                    .accessibilityLabel(embedType?.displayName ?? embed.type)
+                    .accessibilityValue(statusAccessibilityValue)
+            } else {
+                Button(action: onTap) {
+                    cardSurface
+                }
+                .buttonStyle(EmbedPreviewButtonStyle())
+                .disabled(embed.status == .processing)
+                .accessibilityIdentifier("embed-preview")
+                .accessibleEmbed(
+                    type: embedType?.displayName ?? embed.type,
+                    title: embedType?.displayName
+                )
+                .accessibilityValue(statusAccessibilityValue)
+            }
+        }
+        .onAppear {
+            if embed.status == .processing && processingStartDate == nil {
+                processingStartDate = Date()
+            }
+        }
+        .onChange(of: embed.status) { oldStatus, newStatus in
+            handleStatusChange(from: oldStatus, to: newStatus)
+        }
+        .onDisappear {
+            statusHintTask?.cancel()
+        }
+    }
+
+    private var cardSurface: some View {
+        previewLayout
             .frame(width: cardWidth, height: cardHeight)
             .background(Color.grey25)
             .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
@@ -91,26 +129,10 @@ struct EmbedPreviewCard: View {
             .background(hoverTracker)
             #endif
             .animation(.easeOut(duration: 0.15), value: isHovering)
-        }
-        .buttonStyle(EmbedPreviewButtonStyle())
-        .disabled(embed.status == .processing)
-        .accessibilityIdentifier("embed-preview")
-        .accessibleEmbed(
-            type: embedType?.displayName ?? embed.type,
-            title: embedType?.displayName
-        )
-        .accessibilityValue(embed.status == .processing ? "Loading" : embed.status == .error ? "Failed to load" : embed.status == .cancelled ? "Cancelled" : "Ready")
-        .onAppear {
-            if embed.status == .processing && processingStartDate == nil {
-                processingStartDate = Date()
-            }
-        }
-        .onChange(of: embed.status) { oldStatus, newStatus in
-            handleStatusChange(from: oldStatus, to: newStatus)
-        }
-        .onDisappear {
-            statusHintTask?.cancel()
-        }
+    }
+
+    private var statusAccessibilityValue: String {
+        embed.status == .processing ? "Loading" : embed.status == .error ? "Failed to load" : embed.status == .cancelled ? "Cancelled" : "Ready"
     }
 
     private func handleStatusChange(from oldStatus: EmbedStatus, to newStatus: EmbedStatus) {

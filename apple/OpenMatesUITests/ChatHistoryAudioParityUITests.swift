@@ -97,7 +97,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
     }
 
     private func recordingCard(in application: XCUIApplication, value: String) -> XCUIElement {
-        application.buttons.matching(
+        application.descendants(matching: .any).matching(
             NSPredicate(format: "identifier == %@ AND value == %@", "embed-preview", value)
         ).firstMatch
     }
