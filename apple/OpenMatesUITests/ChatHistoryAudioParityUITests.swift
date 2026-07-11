@@ -95,7 +95,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         XCTAssertTrue(seek.isHittable)
         XCTAssertTrue(application.descendants(matching: .any)["recording-time"].exists)
         XCTAssertTrue(application.descendants(matching: .any)["recording-fullscreen-transcript"].exists)
-        seek.adjust(toNormalizedSliderPosition: 0.5)
+        seek.tap()
     }
 
     private func attachScreenshot(name: String) {

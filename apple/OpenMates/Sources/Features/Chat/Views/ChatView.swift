@@ -6,12 +6,15 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // MessageBubble:
 //   Svelte:  frontend/packages/ui/src/components/ChatMessage.svelte
+//            frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+//            frontend/packages/ui/src/components/embeds/SourceQuoteBlock.svelte
 //   CSS:     frontend/packages/ui/src/styles/chat.css
 //            .mate-message-content  { background:var(--color-grey-0); border-radius:13px;
 //              filter:drop-shadow(0 4px 4px rgba(0,0,0,.25)); padding:12px }
 //            .user-message-content  { background:var(--color-grey-blue); color:var(--color-grey-100) }
 //            .user-message-content::before / .mate-message-content::before  (SVG tail)
 //            speechbubble.svg       { viewBox: 0 0 7 11 → rendered 12×20pt }
+//            SourceQuoteBlock.svelte .source-quote-block (semantic verified source)
 //
 // inputBar:
 //   Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
@@ -710,6 +713,12 @@ struct ChatView: View {
                                     .id("load-older")
                                 }
 
+                                #if DEBUG
+                                if ProcessInfo.processInfo.arguments.contains("--ui-test-chat-history-audio-parity") {
+                                    chatHistoryAudioParityFixture(containerWidth: scrollGeo.size.width)
+                                }
+                                #endif
+
                                 ForEach(viewModel.messages) { message in
                                     MessageBubble(
                                         message: message,
@@ -856,6 +865,159 @@ struct ChatView: View {
             }
         }
     }
+
+    #if DEBUG
+    private func chatHistoryAudioParityFixture(containerWidth: CGFloat) -> some View {
+        let records = Self.chatHistoryAudioParityRecords
+        let recordLookup = EmbedRecord.dictionaryById(records, context: "chatView.audioParityFixture")
+        return VStack(alignment: .leading, spacing: .spacing4) {
+            MessageBubble(
+                message: Self.chatHistorySourceQuoteMessage,
+                chatId: chatId,
+                appId: "web",
+                embeds: [Self.chatHistorySourceRecord],
+                allEmbedRecords: recordLookup,
+                streamingContent: nil,
+                thinkingContent: nil,
+                isThinkingStreaming: false,
+                piiMappings: [],
+                isPIIRevealed: false,
+                containerWidth: containerWidth,
+                isSearchTarget: false,
+                searchHighlightQuery: nil,
+                onEmbedTap: { _ in },
+                onOpenPublicChat: nil,
+                onInteractiveQuestionSubmit: nil,
+                onShowActions: nil
+            )
+
+            MessageBubble(
+                message: Self.chatHistorySystemMessage,
+                chatId: chatId,
+                appId: nil,
+                embeds: [],
+                allEmbedRecords: recordLookup,
+                streamingContent: nil,
+                thinkingContent: nil,
+                isThinkingStreaming: false,
+                piiMappings: [],
+                isPIIRevealed: false,
+                containerWidth: containerWidth,
+                isSearchTarget: false,
+                searchHighlightQuery: nil,
+                onEmbedTap: { _ in },
+                onOpenPublicChat: nil,
+                onInteractiveQuestionSubmit: nil,
+                onShowActions: nil
+            )
+
+            ForEach([Self.chatHistoryFinishedAudio, Self.chatHistoryProcessingAudio, Self.chatHistoryErrorAudio]) { record in
+                EmbedPreviewCard(embed: record, allEmbedRecords: recordLookup) {
+                    guard record.status == .finished else { return }
+                    selectedEmbed = record
+                    showEmbedFullscreen = true
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 220)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat-history-audio-parity-fixture")
+    }
+
+    private static let chatHistorySourceQuoteMessage = Message(
+        id: "ui-test-source-message",
+        chatId: "ui-test-chat-history",
+        role: .assistant,
+        content: "Synthetic ordered introduction\n\n> [Verified synthetic source quote](embed:synthetic-source)",
+        encryptedContent: nil,
+        createdAt: "2026-01-01T00:00:00Z",
+        updatedAt: nil,
+        appId: "web",
+        isStreaming: false,
+        embedRefs: [EmbedRef(id: "synthetic-source", type: "web-website", status: "finished", data: nil)],
+        modelName: "Synthetic Model",
+        senderName: "Synthetic Mate",
+        category: "research"
+    )
+
+    private static let chatHistorySystemMessage = Message(
+        id: "ui-test-system-message",
+        chatId: "ui-test-chat-history",
+        role: .system,
+        content: "Synthetic system notice",
+        encryptedContent: nil,
+        createdAt: "2026-01-01T00:00:01Z",
+        updatedAt: nil,
+        appId: nil,
+        isStreaming: false,
+        embedRefs: nil
+    )
+
+    private static let chatHistorySourceRecord = chatHistoryAudioRecord(
+        id: "synthetic-source-record",
+        type: "web-website",
+        appId: "web",
+        data: [
+            "embed_ref": "synthetic-source",
+            "source": "example.invalid",
+            "url": "https://example.invalid/source"
+        ]
+    )
+
+    private static let chatHistoryFinishedAudio = chatHistoryAudioRecord(
+        id: "synthetic-finished-audio",
+        data: [
+            "status": "finished",
+            "duration": "0:42",
+            "transcript": "Synthetic corrected transcript for sent audio parity.",
+            "transcript_original": "Synthetic original transcript for sent audio parity.",
+            "transcript_corrected": "Synthetic corrected transcript for sent audio parity.",
+            "use_corrected": true,
+            "model": "Synthetic Voxtral",
+            "preview_audio_url": "https://example.invalid/synthetic-audio.m4a"
+        ]
+    )
+
+    private static let chatHistoryProcessingAudio = chatHistoryAudioRecord(
+        id: "synthetic-processing-audio",
+        status: .processing,
+        data: ["status": "transcribing", "model": "Synthetic Voxtral"]
+    )
+
+    private static let chatHistoryErrorAudio = chatHistoryAudioRecord(
+        id: "synthetic-error-audio",
+        status: .error,
+        data: ["status": "error", "upload_error": "Audio unavailable"]
+    )
+
+    private static let chatHistoryAudioParityRecords = [
+        chatHistorySourceRecord,
+        chatHistoryFinishedAudio,
+        chatHistoryProcessingAudio,
+        chatHistoryErrorAudio
+    ]
+
+    private static func chatHistoryAudioRecord(
+        id: String,
+        type: String = EmbedType.recording.rawValue,
+        status: EmbedStatus = .finished,
+        appId: String = "audio",
+        data: [String: Any]
+    ) -> EmbedRecord {
+        EmbedRecord(
+            id: id,
+            type: type,
+            status: status,
+            data: .raw(data.mapValues(AnyCodable.init)),
+            parentEmbedId: nil,
+            appId: appId,
+            skillId: type == EmbedType.recording.rawValue ? "transcribe" : nil,
+            embedIds: nil,
+            createdAt: "2026-01-01T00:00:00Z"
+        )
+    }
+    #endif
 
     private func scrollToSearchTargetIfNeeded(proxy: ScrollViewProxy) {
         guard let targetMessageId = searchTarget?.messageId else { return }
@@ -2671,6 +2833,7 @@ struct MessageBubble: View {
     @State private var hasAppeared = false
 
     var isUser: Bool { message.role == .user }
+    private var isSystem: Bool { message.role == .system }
     /// Web: ≤500px uses stacked layout (avatar above message).
     private var useStackedLayout: Bool {
         if containerWidth > 0 {
@@ -2684,6 +2847,16 @@ struct MessageBubble: View {
         let content = streamingContent ?? message.content ?? ""
         guard isPIIRevealed else { return content }
         return PIIDetector.restorePII(in: content, mappings: piiMappings)
+    }
+
+    private var stableRenderDocument: ChatHistoryRenderDocument? {
+        guard streamingContent == nil,
+              !isPIIRevealed,
+              let document = message.renderDocumentForDisplay,
+              !document.blocks.contains(where: { $0.kind == .interactiveQuestion || $0.kind == .demoGroup }) else {
+            return nil
+        }
+        return document
     }
 
     private var viewAllowsInteractiveQuestionSubmit: Bool {
@@ -2820,6 +2993,7 @@ struct MessageBubble: View {
             if !displayContent.isEmpty || thinkingContent?.isEmpty == false {
                 RichMarkdownView(
                     content: displayContent,
+                    renderDocument: stableRenderDocument,
                     isUserMessage: true,
                     allEmbedRecords: allEmbedRecords,
                     onEmbedTap: onEmbedTap,
@@ -2884,6 +3058,7 @@ struct MessageBubble: View {
 
                         RichMarkdownView(
                             content: displayContent,
+                            renderDocument: stableRenderDocument,
                             isUserMessage: false,
                             onOpenPublicChat: onOpenPublicChat,
                             embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
@@ -2915,6 +3090,31 @@ struct MessageBubble: View {
         }
     }
 
+    private var systemContent: some View {
+        RichMarkdownView(
+            content: displayContent,
+            renderDocument: stableRenderDocument,
+            isUserMessage: false,
+            embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.systemMarkdown"),
+            allEmbedRecords: allEmbedRecords,
+            onEmbedTap: onEmbedTap,
+            searchHighlightQuery: searchHighlightQuery
+        )
+        .font(.omSmall)
+        .foregroundStyle(Color.fontSecondary)
+        .padding(.horizontal, .spacing6)
+        .padding(.vertical, .spacing4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey10)
+        .overlay {
+            RoundedRectangle(cornerRadius: .radius4)
+                .stroke(Color.grey30, lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .searchTargetOutline(isSearchTarget)
+        .accessibilityIdentifier("chat-history-system-message")
+    }
+
     private func generatedByContainer(modelName: String) -> some View {
         Text(AppStrings.generatedBy(modelName))
             .font(.omSmall)
@@ -2937,6 +3137,8 @@ struct MessageBubble: View {
                     )
                     userBubble
                 }
+            } else if isSystem {
+                systemContent
             } else if useStackedLayout {
                 // Web ≤500px: assistant avatar stacked above message
                 VStack(alignment: .leading, spacing: ChatMessageLayoutMetric.stackedAvatarGap) {
@@ -2964,10 +3166,8 @@ struct MessageBubble: View {
                 }
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(isUser ? "You" : "AI"): \(displayContent.prefix(200))")
-        .accessibilityHint("Long press for options")
-        .accessibilityIdentifier(isUser ? "message-user" : "message-assistant")
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(isUser ? "message-user" : (isSystem ? "message-system" : "message-assistant"))
     }
 }
 
