@@ -5906,17 +5906,11 @@ private struct WelcomeResumeCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 30))
             .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
             .contentShape(RoundedRectangle(cornerRadius: 30))
-            .gesture(
+            .highPriorityGesture(
                 LongPressGesture(minimumDuration: 0.6)
-                    .exclusively(before: TapGesture())
-                    .onEnded { result in
-                        switch result {
-                        case .first(true): onLongPress()
-                        case .first(false): break
-                        case .second: onTap()
-                        }
-                    }
+                    .onEnded { _ in onLongPress() }
             )
+            .onTapGesture(perform: onTap)
             .accessibilityElement(children: .ignore)
             .accessibilityIdentifier("welcome-chat-card-\(card.id)")
             .accessibilityAddTraits(.isButton)
@@ -5966,17 +5960,11 @@ private struct WelcomeResumeCompactCard: View {
         )
         .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
         .contentShape(RoundedRectangle(cornerRadius: .radius8))
-        .gesture(
+        .highPriorityGesture(
             LongPressGesture(minimumDuration: 0.6)
-                .exclusively(before: TapGesture())
-                .onEnded { result in
-                    switch result {
-                    case .first(true): onLongPress()
-                    case .first(false): break
-                    case .second: onTap()
-                    }
-                }
+                .onEnded { _ in onLongPress() }
         )
+        .onTapGesture(perform: onTap)
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
         .accessibilityAddTraits(.isButton)
