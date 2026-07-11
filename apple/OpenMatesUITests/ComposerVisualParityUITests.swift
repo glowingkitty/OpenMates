@@ -129,7 +129,11 @@ final class ComposerVisualParityUITests: XCTestCase {
         let button = app.buttons["message-input-fullscreen-button"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertTrue(button.waitForExistence(timeout: 5))
-        XCTAssertTrue(button.isHittable)
+        attachScreenshot(name: "Welcome composer fullscreen button hit testing")
+        XCTAssertTrue(
+            button.isHittable,
+            "Fullscreen button must be hittable. button=\(button.debugDescription) field=\(field.debugDescription) UI=\(app.debugDescription)"
+        )
 
         let collapsedPortraitHeight = field.frame.height
         let expandLabel = button.label
@@ -162,9 +166,21 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
         defer { XCUIDevice.shared.orientation = .portrait }
         XCUIDevice.shared.orientation = .landscapeLeft
-        app.buttons["sketch-button"].tap()
+        let sketchButton = app.buttons["sketch-button"]
+        XCTAssertTrue(sketchButton.waitForExistence(timeout: 5))
+        attachScreenshot(name: "Landscape composer before opening sketch")
+        XCTAssertTrue(
+            sketchButton.isHittable,
+            "Sketch button must remain hittable after rotation. button=\(sketchButton.debugDescription) UI=\(app.debugDescription)"
+        )
+        sketchButton.tap()
 
-        XCTAssertTrue(element(in: app, identifier: "sketch-canvas").waitForExistence(timeout: 5))
+        let canvas = element(in: app, identifier: "sketch-canvas")
+        attachScreenshot(name: "Landscape sketch overlay after action")
+        XCTAssertTrue(
+            canvas.waitForExistence(timeout: 5),
+            "Sketch canvas must render after the action. UI=\(app.debugDescription)"
+        )
         for identifier in [
             "sketch-eraser-button",
             "sketch-undo-button",
