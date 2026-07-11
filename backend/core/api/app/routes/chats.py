@@ -6,6 +6,7 @@ decrypt content server-side, and return the same 404 for missing or foreign
 chats to avoid existence disclosure.
 """
 
+import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -15,6 +16,7 @@ from backend.core.api.app.models.user import User
 
 
 router = APIRouter(prefix="/v1", tags=["Chats"])
+NATIVE_CHAT_SORT = "-pinned,-last_edited_overall_timestamp"
 
 
 def _string_timestamp(value: Any) -> str | None:
@@ -43,6 +45,16 @@ def _watch_message_payload(message: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _message_record(message: str | dict[str, Any]) -> dict[str, Any] | None:
+    if isinstance(message, dict):
+        return message
+    try:
+        decoded = json.loads(message)
+    except (TypeError, json.JSONDecodeError):
+        return None
+    return decoded if isinstance(decoded, dict) else None
+
+
 @router.get("/chats")
 async def list_chats(
     request: Request,
@@ -53,6 +65,7 @@ async def list_chats(
         current_user.id,
         limit=limit,
         offset=0,
+        sort=NATIVE_CHAT_SORT,
     )
     return {"chats": [_watch_chat_payload(chat) for chat in chats], "limit": limit}
 
@@ -67,4 +80,5 @@ async def list_chat_messages(
     if not await chat_service.check_chat_ownership(chat_id, current_user.id):
         raise HTTPException(status_code=404, detail="Chat not found")
     messages = await chat_service.get_all_messages_for_chat(chat_id, decrypt_content=False)
-    return [_watch_message_payload(message) for message in messages or [] if isinstance(message, dict)]
+    records = [_message_record(message) for message in messages or []]
+    return [_watch_message_payload(record) for record in records if record is not None]

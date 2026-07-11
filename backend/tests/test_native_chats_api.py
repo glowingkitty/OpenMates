@@ -5,6 +5,7 @@ reads, and inspect FastAPI dependencies without requiring a live Directus or
 authenticated user account. The same routes serve independent Apple clients.
 """
 
+import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -65,7 +66,12 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
         ],
         "limit": 20,
     }
-    chat_service.get_user_chats_metadata.assert_awaited_once_with("user-1", limit=20, offset=0)
+    chat_service.get_user_chats_metadata.assert_awaited_once_with(
+        "user-1",
+        limit=20,
+        offset=0,
+        sort="-pinned,-last_edited_overall_timestamp",
+    )
     assert "title" not in result["chats"][0]
     assert "chat_summary" not in result["chats"][0]
 
@@ -75,13 +81,13 @@ async def test_list_chat_messages_requires_ownership_before_encrypted_read() -> 
     chat_service = SimpleNamespace(
         check_chat_ownership=AsyncMock(return_value=True),
         get_all_messages_for_chat=AsyncMock(return_value=[
-            {
+            json.dumps({
                 "id": "message-1",
                 "chat_id": "chat-owned",
                 "role": "assistant",
                 "encrypted_content": "cipher-message",
                 "created_at": 201,
-            }
+            })
         ]),
     )
 

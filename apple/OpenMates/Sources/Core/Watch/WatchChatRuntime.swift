@@ -343,6 +343,8 @@ final class WatchChatRuntime: ObservableObject {
     private let syncSession: WatchSyncSession?
     private var pendingTextSends: [WatchPendingTextSend] = []
     private static let incognitoChatIdPrefix = "incognito-"
+    private static let recentChatLimit = 20
+    private static let hiddenCandidateFetchLimit = 40
 
     init(
         currentUserId: String? = nil,
@@ -381,8 +383,8 @@ final class WatchChatRuntime: ObservableObject {
         }
 
         do {
-            let fetchedChats = try await api.fetchRecentChats(limit: 20)
-            chats = Self.sortedChats(await decryptChats(fetchedChats))
+            let fetchedChats = try await api.fetchRecentChats(limit: Self.hiddenCandidateFetchLimit)
+            chats = Array(Self.sortedChats(await decryptChats(fetchedChats)).prefix(Self.recentChatLimit))
             if selectedChatId == nil {
                 selectedChatId = chats.first?.id
             }

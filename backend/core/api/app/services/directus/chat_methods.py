@@ -400,7 +400,13 @@ class ChatMethods:
             logger.error(f"Error checking chat ownership for chat {chat_id}, user {user_id}: {e}", exc_info=True)
             return False
 
-    async def get_user_chats_metadata(self, user_id: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    async def get_user_chats_metadata(
+        self,
+        user_id: str,
+        limit: int = 100,
+        offset: int = 0,
+        sort: str = "-pinned,-updated_at",
+    ) -> List[Dict[str, Any]]:
         """
         Fetches metadata for all chats belonging to a user from Directus, excluding content.
         Uses hashed_user_id for filtering (privacy by design - raw user_id is never stored in Directus).
@@ -413,7 +419,7 @@ class ChatMethods:
             'fields': CHAT_METADATA_FIELDS,
             'limit': limit,
             'offset': offset,
-            'sort': '-pinned,-updated_at'
+            'sort': sort
         }
         try:
             response = await self.directus_service.get_items('chats', params=params)
