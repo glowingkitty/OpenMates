@@ -1,7 +1,7 @@
 schema_version: 2
 id: workflows-v1
 title: Workflows V1
-status: implementing
+status: approved
 
 goal: >
   Add a real server-backed Workflows section where users can create, edit,
@@ -15,11 +15,11 @@ goal: >
 scope:
   in:
     - Server-side workflow execution that does not depend on any connected browser, WebSocket, IndexedDB, or active user device.
-    - Durable workflow, version, trigger, run, node-run, and wait-state data models.
+    - Durable workflow, immutable version, trigger, accepted execution run, node-run, and wait-state data models; planned or future occurrences are trigger state, never workflow_run records.
     - Capped workflow definition version history so users can view how a workflow looked on a prior day/change and restore a previous definition as a new current version.
     - Workflow lifecycle modes for persisted reusable workflows and temporary chat-created one-time workflows that auto-delete after seven days unless the user keeps them.
     - A Workflows workspace that lists created workflows and opens a manual Shortcuts-style vertical editor.
-    - One trigger node per workflow in V1, with schedule, manual run, required-start-input prompts for manual runs, disabled webhook-trigger data model support, and event-trigger metadata for chat, assistant action, app-skill, terminal command, and sandbox command events.
+    - One trigger node per workflow in V1, with generic manual, schedule, webhook, and event trigger kinds; required-start-input prompts for manual runs; and normalized authenticated event sources for chat skill use, assistant actions, app-skill events, and terminal, remote-dev, or sandbox command events.
     - Action nodes for feature-enabled app skills, creating a chat/report, starting a deterministic chat, sending a safe push notification, and sending a safe email notification. A workflow completes when no executable outgoing edge remains; no explicit end node is required.
     - Decision nodes with structured rules over previous node outputs.
     - Repeat node UI and schema for bounded repeat/for-each/poll-until flows, with execution limited to explicitly supported safe repeat modes.
@@ -27,19 +27,19 @@ scope:
     - Weather forecast and news search workflow actions using existing backend app skills through real app-skill adapters rather than mocked runner output.
     - Assistant-facing workflow skills so the assistant can find, propose, create, schedule, run, cancel pending, and keep workflows with countdown/approval behavior.
     - Persisted user-created workflows exposed as assistant-considerable runnable capabilities, subject to required input collection, feature availability, ownership, and safety gates.
-    - Safe workflow template sharing that exports an allowlisted definition/template only, imports disabled by default, and requires recipients to bind their own accounts/settings before enabling.
+    - Safe workflow template sharing through a separate persistent client-encrypted projection that contains only an allowlisted portable definition, supports Chat-style short and offline long fragment-key links, imports disabled by default, and requires recipients to bind their own accounts/settings before enabling.
     - Separate run history with per-node status, input summary, output summary, error, retry, timing, and credit usage, governed by run-content retention rather than workflow-definition version retention.
     - Workflow run task-view projections in the Tasks section, so queued/running and recently completed workflow runs are visible beside user tasks without duplicating workflow_runs into user_tasks.
     - Cooperative workflow run cancellation from the Tasks section and workflow run detail for queued, running, or waiting runs; cancellation stops future nodes at runner checkpoints but does not mutate an already-started node call or edit the immutable run definition.
     - CLI commands to list, show, create from JSON/YAML, edit, enable, disable, delete, run, and inspect workflow runs.
     - npm SDK and pip SDK methods that match CLI workflow management and run behavior.
     - Web Playwright coverage for the workflow list/editor and canonical rain/news workflows.
-    - Apple app parity for listing, viewing, enabling/disabling, manually running, and inspecting workflows after CLI, SDK, and web evidence are green.
+    - Apple app parity for listing, viewing, enabling/disabling, manually running, and inspecting workflows only after the user explicitly approves corrected deployed web screenshots/artifacts.
   out:
     - Open-ended AI-assisted workflow design as the primary editor. V1 may let the assistant create or run structured workflows from chat only through validated workflow skills and safety gates.
     - Fully free-form n8n-style canvas editing as the primary editor.
     - Arbitrary custom code execution in V1; custom code nodes may be represented as disabled/gated future nodes only.
-    - Persistent connected-account offline automation grants for provider-backed mutations.
+    - Copying connected-account credentials, grants, provider credential Vault data, or live account identifiers into workflow versions or shared templates; runtime nodes carry only opaque binding references or capability requirements and revalidate scopes per run.
     - External send/mutation actions such as sending email to third parties, modifying calendars, payments, deleting external data, or posting to social media.
     - Multi-trigger workflows; V1 allows one active trigger per workflow.
     - Unbounded loops, arbitrary recursion, or user-authored JavaScript/Python expressions.
@@ -50,24 +50,26 @@ scope:
 current_milestone:
   id: core-ui-alignment
   goal: >
-    Release a Figma-correct core workflow loop across web and Apple with a
+    Release a Figma-correct core workflow loop across web and, only after
+    explicit approval of corrected deployed web artifacts, Apple with a
     chat-like landing page, one mixed recent/example row, workspace-aware
-    sidebar, restrained title-first draft creation, a unified editable detail
-    header, focused vertical workflow canvas, contextual dirty-state actions,
+    sidebar, restrained title-first draft creation, a Workflow-specific detail
+    composition, focused vertical workflow canvas, contextual dirty-state actions,
     and useful run history.
   in:
     - Web and Apple workflow landing with Daily Inspiration and one horizontal row containing recently edited workflows first followed by curated example workflows.
     - Show all browsing plus a visible non-functional Search affordance whose future behavior is not implied.
     - A bottom workflow composer that visually matches the message input, centers its placeholder, and shows its submit action only while focused with non-empty valid text.
     - Title-only draft creation from the landing composer; general workflow AI planning and voice remain deferred.
-    - A stable focused Workflow detail page that replaces the landing while keeping global app chrome and uses docs/specs/unified-detail-pages/spec.yml for its editable header.
-    - The Figma workflow canvas starts immediately after the shared header with type/status metadata, Add action, Add decision, contextual dirty-state Save/Undo, workflow on/off, and New workflow in their designed locations.
+    - A stable focused Workflow detail page that replaces the landing while keeping global app chrome and uses Workflow-specific Figma composition rather than the generic detail-header visual ownership in docs/specs/unified-detail-pages/spec.yml.
+    - A low-radius gradient Workflow header with fixed white title/description text without shadows, enabled toggle below the title, Created relative time or applicable next-run metadata, and a top-left back arrow followed by an orange New workflow CTA with Share and Report Issue beside it.
+    - The Figma workflow canvas starts immediately after the Workflow-specific header with Add action, Add decision, and contextual dirty-state Save/Undo; it has no top-right Report Issue button and no duplicate below-header Workflow/status/New workflow row.
     - Removal from the primary detail canvas of the run-retention picker, duplicate title/description form, run-content pill, permanent management toolbar, and permanent test/disable/delete button row shown in the rejected prototype.
-    - Manual trigger/action/decision editing with inline node expansion on desktop and mobile.
+    - Compact vertical trigger/action/decision cards matching Figma geometry; expanding a node grows that card in place on desktop and mobile and never opens a sibling editor panel.
     - Explicit dirty state with contextual Undo and Save only after graph changes; graph edits are never auto-saved.
     - Full native Apple creation and vertical editor parity for the core node set.
     - Workspace-aware sidebar content in mobile drawers and persistent desktop/tablet sidebars.
-    - Useful run history with run status and per-node execution state for retained content.
+    - Routed Workflow and Workflow runs tabs at /workflows/{workflow_id} and /workflows/{workflow_id}/runs, with the run screen matching Figma node 5488:39515.
   deferred:
     - General AI workflow planning, clarification, complex natural-language graph creation, and voice input.
     - Workflow definition time-machine UI and restore controls.
@@ -78,15 +80,18 @@ current_milestone:
     - "5370:45293 Workflows home and recommendation cards"
     - "5420:34107 New workflow"
     - "5420:34558 Existing workflow and unsaved state"
+    - "5420:35214 Workflow detail composition"
     - "5422:34561 Expanded node editor"
     - "5486:38468 Definition timeline, deferred from the core milestone"
     - "5488:39515 Workflow run history"
   design_authority: >
-    Figma nodes 5370:45293, 5420:34558, 5420:35214, and 5422:34561 define the
-    required landing/detail information hierarchy and which controls belong in
-    the primary canvas. ChatHeader and docs/specs/unified-detail-pages/spec.yml
-    define the exact shared header CSS and editing behavior. The approved web
-    implementation becomes the rendered visual source of truth for Apple.
+    Figma nodes 5420:34107, 5420:34558, 5420:35214, 5422:34561, and 5488:39515
+    govern Workflow-specific detail, expanded-card, and run composition. The
+    deployed generic Workflow detail UI was rejected and is not visual approval.
+    Exact nested measurements remain blocked because the Figma API/export returns
+    403; implementation must not guess them. Corrected deployed web screenshots
+    and artifacts require explicit user approval before becoming Apple's visual
+    source of truth.
 
 context_discovery:
   github_issues:
@@ -121,6 +126,12 @@ context_discovery:
     - apple/OpenMates/Sources/Features/Workflows contains unused iOS-only API models and no production workflow views.
     - test-results/recordings and the current Playwright sources prove that prior green evidence covered a dense admin-style editor, not the full Figma-aligned UI assertions recorded below.
     - frontend/packages/ui/src/components/ChatHeader.svelte owns component-scoped CSS, so exact reuse requires the shared visual primitive specified by docs/specs/unified-detail-pages/spec.yml rather than copied Workflow CSS.
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte currently composes WorkspaceDetailHeader with an absolutely positioned top-right Report Issue button, which is the rejected generic visual composition.
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte currently adds a duplicate below-header Workflow/on-off/New workflow row and expands node editors under summary cards; neither deployed shape establishes approval for the Figma-specific contract.
+    - backend/core/directus/schemas/workflow_triggers.yml currently stores schedule_config as plaintext JSON and does not model event routing, atomic claim leases, or encrypted recurrence/predicate references required by this revision.
+    - backend/core/api/app/services/workflow_runner.py currently creates the run id in the runner and persists only after execution, so it does not yet prove claim-time one-run creation or immutable accepted-execution state.
+    - backend/core/api/app/services/workflow_event_service.py currently matches unnormalized in-memory event dictionaries and rate-limits in process; it does not yet prove authenticated envelopes, durable dedupe, owner/source/type routing, or encrypted predicate evaluation.
+    - backend/core/api/app/services/workflow_models.py currently builds an ephemeral server-side template payload; it does not implement the required persistent client-encrypted template projection or fragment-key sharing routes.
   tests:
     - backend/tests/test_feature_availability_service.py
     - backend/tests/test_feature_availability_enforcement.py
@@ -148,12 +159,13 @@ apple_impact:
     - Apple implements the full core vertical editor rather than a read-only or limited-edit first slice.
     - The workspace sidebar shows workflow navigation in Workflows mode on iPhone, iPad, and macOS instead of retaining the chat list.
     - Apple must use localized strings and generated design tokens; no hardcoded user-visible English strings.
-    - Apple Workflow details consume the shared native detail-header contract only after the corresponding deployed web header and canvas are approved.
+    - Apple Workflow details use Workflow-specific native composition only after the user explicitly approves corrected deployed web screenshots/artifacts; the rejected generic deployed Workflow UI cannot unlock Apple work.
   verification:
     - Run or attempt python3 scripts/apple_remote.py status.
     - Run or attempt python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WorkflowsParityTests.
     - Run or attempt python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/WorkflowsParityUITests when UI parity is implemented.
     - Capture sanitized iPhone, iPad, and macOS screenshots for workflow home, focused editor, expanded node, and run history.
+    - Do not run Workflow visual parity implementation as approved work until V-FIGMA-CORE-UI records explicit user approval of corrected deployed web artifacts.
   intentional_native_differences:
     - Apple uses native SwiftUI composition with OpenMates primitives, but the vertical flow semantics, labels, sidebar context, dirty state, and run states match web.
     - OS-owned text input and accessibility behavior may differ while the surrounding product UI matches the approved web contract.
@@ -224,6 +236,15 @@ clarification:
         action only when the field is focused and contains valid non-empty text.
         The core milestone still creates title-only drafts and does not pretend
         to provide the deferred AI/voice planner.
+    - question: Which architecture direction governs the revised Workflow UI, execution records, event triggers, template sharing, and privacy boundary?
+      answer: >
+        The user explicitly approved the architecture direction in this revision:
+        Workflow owns a Figma-specific detail/run composition; runs exist only for
+        claimed or accepted executions; schedule recurrence lives on triggers and
+        loop/repeat lives in immutable graphs; events use one authenticated
+        normalized envelope; sharing uses a persistent client-encrypted portable
+        projection and Chat-style fragment-key links; Automation Vault, not
+        cryptographic backend inaccessibility, is the unattended execution boundary.
   vision_summary: >
     Workflows V1 is a real product section, not a mock. It exposes durable
     server-side workflow graph and run models, a manual vertical editor, and a
@@ -236,10 +257,15 @@ clarification:
     manual editors on web and Apple, opens workflows in a focused canvas, uses
     contextual Save/Undo only for dirty graph state, expands mobile nodes inline,
     and makes every sidebar or hamburger list reflect the active workspace. The
-    corrected landing keeps Daily Inspiration and one mixed recent/example row;
-    the corrected detail page uses the shared editable ChatHeader visual system
-    and removes duplicate retention, metadata, and management controls that are
-    absent from Figma.
+    corrected landing keeps Daily Inspiration and one mixed recent/example row.
+    Workflow detail and run pages own a Figma-specific low-radius gradient header,
+    routed tabs, compact in-place expanding cards, action placement, and run
+    composition rather than inheriting the generic detail-header visual. Runtime
+    records are created only for accepted executions, event routing is normalized
+    and authenticated, and sharing uses a separate persistent client-encrypted
+    portable projection. Exact nested Figma measurements remain blocked by 403,
+    and Apple remains blocked until corrected deployed web artifacts receive
+    explicit user approval.
   approved_by_user: true
 
 implementation_state:
@@ -248,12 +274,12 @@ implementation_state:
 approvals:
   product_contract:
     status: approved
-    approved_at: "2026-07-11T14:29:09Z"
-    reason: User approved the revised Workflow and unified-detail contracts.
+    approved_at: "2026-07-11T22:04:41Z"
+    reason: The user explicitly approved the revised Workflow UI, trigger, execution, sharing, and privacy product contract.
   implementation_plan:
     status: approved
-    approved_at: "2026-07-11T14:29:09Z"
-    reason: User approved the revised implementation sequence with web verification before Apple parity.
+    approved_at: "2026-07-11T22:14:15Z"
+    reason: The user explicitly approved the dependency order, fail-closed schedule migration, lazy client-created projections, cross-client sequence, web artifact gate, and Apple dependency.
 
 decisions:
   - id: D-1
@@ -287,9 +313,9 @@ decisions:
     reason: The Figma board is exploratory and does not maintain one-to-one implementation or token parity.
     decided_at: "2026-07-10T13:31:07Z"
   - id: D-7
-    status: active
+    status: superseded
     decision: Reuse DailyInspirationBanner on the Workflow landing and adopt the shared editable detail header owned by docs/specs/unified-detail-pages/spec.yml.
-    reason: Workflow alignment must preserve the exact OpenMates header visual language without copying gradient, spacing, typography, responsive, editing, or action-layout code.
+    reason: DailyInspirationBanner remains valid for the landing, but D-11 supersedes generic shared-header ownership after the deployed Workflow composition was rejected.
     decided_at: "2026-07-10T13:54:49Z"
   - id: D-8
     status: active
@@ -305,6 +331,31 @@ decisions:
     status: active
     decision: Keep the landing composer title-only in the core milestone and do not render a fake detail change composer before the durable workflow-input planner exists.
     reason: Visual Figma alignment must not misrepresent deferred AI/voice functionality as implemented.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-11
+    status: active
+    decision: Workflow detail and run visuals are owned by workflows-v1 and follow Figma-specific composition instead of the generic unified-detail header visual.
+    reason: The deployed generic Workflow composition was explicitly rejected and cannot count as visual approval.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-12
+    status: active
+    decision: Create workflow_runs only when an execution is atomically claimed or accepted; represent future recurrence only in workflow_triggers and loop/repeat only in immutable workflow_versions graphs.
+    reason: Planned run rows conflate schedule state with actual execution and weaken idempotent claiming.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-13
+    status: active
+    decision: Use one authenticated normalized event envelope and encrypted structured trigger predicates for all event sources; never execute arbitrary predicate code.
+    reason: Chat, assistant, app-skill, and command events need one owner-scoped, deduplicated, auditable dispatch boundary.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-14
+    status: active
+    decision: Maintain a separate persistent client-encrypted portable template projection per Workflow and use Chat-style fragment-key sharing.
+    reason: The projection enables offline long-link sharing without exposing runtime Automation Vault state, credentials, or the fragment key to the server.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-15
+    status: active
+    decision: Treat Automation Vault with least-privilege audited decrypt as the privacy boundary for unattended execution.
+    reason: Server-side unattended workflows cannot be cryptographically inaccessible to the backend that must execute them.
     decided_at: "2026-07-11T00:00:00Z"
 
 attempts:
@@ -326,24 +377,32 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-10T13:31:07Z"
     reason: The user approved title-only draft creation until a real structured AI planner is implemented.
+  - id: ATTEMPT-4
+    task_id: TASK-12
+    approach: Count the deployed generic WorkspaceDetailHeader Workflow composition and workflows-editor green run as Figma visual approval.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    reason: The user rejected its generic header, top-right report action, duplicate below-header action row, and non-Figma composition; the prior artifact cannot unlock Apple work.
 
 handoff:
-  current_task_id: TASK-12
-  next_action: Complete shared editable Workflow header integration through docs/specs/unified-detail-pages/spec.yml, then perform web artifact review before Apple parity.
-  command: python3 scripts/tests.py run -- --spec unified-detail-header.spec.ts
-  expected_outcome: Workflow canvas remains green while shared title/description editing is initially red.
+  current_task_id: TASK-1
+  next_action: Write and run the deterministic T-PYTEST-006 scheduler contract red test without changing production code.
+  command: python3 -m pytest backend/tests/test_workflow_scheduler_contract.py
+  expected_outcome: T-PYTEST-006 fails on the missing encrypted trigger configuration, atomic accepted-run claim, no-planned-run, and provider-binding revalidation contracts.
   blocker: null
   last_verified_commit: 0f82413d8
 
 assumptions:
   - id: A-1
-    text: The existing workflow CRUD, enable/disable, manual run, and run metadata APIs are sufficient foundations for the core UI after targeted contract corrections.
+    text: Existing owner-scoped workflow CRUD, enable/disable, and history routes are reusable foundations, but current run creation, trigger persistence, event dispatch, and template sharing do not satisfy the revised acceptance and privacy contracts.
     category: api
     required_before: implementation
-    status: confirmed
+    status: corrected
     evidence:
       - source: backend/core/api/app/routes/workflows.py
-        summary: Existing routes expose CRUD, enable/disable, run, list runs, and run detail.
+        summary: Existing routes expose reusable CRUD and history boundaries, while WorkflowRunner still creates and persists run ids only after execution.
+      - source: backend/core/api/app/services/workflow_event_service.py
+        summary: Current event matching uses process-local rate state and unnormalized dictionaries rather than authenticated envelopes and durable receipts.
   - id: A-2
     text: Remote Mac verification is reachable for iPhone, iPad, and macOS workflow UI evidence.
     category: apple
@@ -360,6 +419,24 @@ assumptions:
     evidence:
       - source: backend/core/api/app/services/feature_availability_service.py
         summary: platform:workflows is disabled by default, and current Playwright runs skip while disabled.
+  - id: A-4
+    text: The existing Chat short-link route, durable share_short_links collection, and client shareEncryption.ts primitives can be minimally extended for workflow_template ownership and revocation without a parallel short-link service.
+    category: sharing
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/share.py
+        summary: POST and GET /v1/share/short-url already persist opaque encrypted_url values, verify owner targets, and keep shortKey in the URL fragment.
+      - source: frontend/packages/ui/src/services/shareEncryption.ts
+        summary: Existing Web Crypto AES-GCM and fragment-key utilities are the client-side encryption foundation to reuse.
+  - id: A-5
+    text: Existing plaintext workflow_triggers.schedule_config must be migrated to Automation Vault ciphertext before the revised scheduler is enabled, and the migration can remain fail-closed behind platform:workflows.
+    category: migration
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/workflow_triggers.yml
+        summary: The current schema stores schedule_config as plaintext JSON and has no atomic claim lease fields.
 
 scenarios:
   - id: S-1
@@ -557,16 +634,19 @@ scenarios:
       - High-risk or high-cost workflows require explicit approval rather than only a countdown.
 
   - id: S-15
-    title: Workflow triggers can subscribe to assistant and command events
+    title: Authenticated normalized events dispatch owner-scoped workflows exactly once
     given:
-      - Alice creates an advanced workflow trigger for assistant action or command events.
+      - Alice creates an event trigger for an assistant app-skill completion or an explicitly consented terminal command scope.
+      - The trigger stores plaintext owner/source/event-type routing fields and a Vault-encrypted structured predicate.
     when:
-      - A chat message, assistant app-skill execution, terminal command, remote-dev command, or sandbox command emits a workflow event.
+      - Chat skill use, an assistant action, an app-skill, or a terminal, remote-dev, or sandbox command emits one authenticated normalized event envelope with event_id, owner hash, source, event_type, scope, occurred_at, and payload.
+      - The dispatcher receives the same event more than once.
     then:
-      - The trigger matches only events with the configured type, source, scope, and filters.
-      - Phrase filters can use deterministic contains/starts-with rules without requiring AI.
-      - Semantic matching requires an explicit AI action/classifier node or trigger mode.
-      - Trigger events are rate-limited and do not run side-effecting workflows without the required approval policy.
+      - The dispatcher routes only by indexed owner/source/event_type, decrypts the structured predicate, and evaluates allowlisted operators without arbitrary code.
+      - event_id plus trigger_id is durably deduplicated and creates at most one run pinned to the trigger's immutable version.
+      - Event payload is transient for predicate evaluation and is Vault-encrypted only if retention is required.
+      - Command matching requires explicit scope and consent, authenticated source identity, redaction and size/rate limits, no cross-owner or cross-project access, and recursion/loop protection.
+      - Side-effecting matched workflows still enforce approval, feature, capability, and rate-limit policy.
 
   - id: S-16
     title: Workflow execution uses real adapters instead of mocked node output
@@ -581,21 +661,26 @@ scenarios:
       - Run history records real adapter status, timing, cost, summarized inputs, summarized outputs, and visible errors.
 
   - id: S-17
-    title: User shares a safe workflow template without runtime context
+    title: User shares and imports a persistent client-encrypted workflow template
     given:
       - Alice owns an enabled workflow with connected-account bindings, scheduler metadata, prior runs, and workflow run content.
-      - Alice chooses to share the workflow as a reusable template.
+      - Alice's client has maintained a portable allowlisted template projection with stable template_id, source_version, ciphertext, and a wrapped key for Alice's cross-device use.
+      - Alice chooses to share the workflow as a reusable template while online.
     when:
-      - OpenMates builds the shared workflow template payload.
-      - Bob imports the template.
+      - Alice's client sanitizes and encrypts the projection, creates a revocable short share, and sends Bob /s/{token}#{shortKey}.
+      - Bob opens the link and imports the template client-side.
     then:
-      - The exported payload is built from an allowlisted template builder, not by serializing workflow, workflow_version, workflow_run, or connected-account records directly.
-      - The payload includes only safe template definition fields such as title, description, trigger/action/decision node definitions, typed input schemas, required app capabilities, and placeholder binding requirements.
-      - The payload excludes previous runs, run content, connected-account identifiers, access tokens, refresh tokens, API keys, webhook secrets, scheduler claim state, next_run_at, runtime wait/resume tokens, source_chat_id, execution grants, and provider raw responses.
-      - Workflow template sharing does not use task/plan/project record-key wrapping; imported templates create recipient-owned workflow records and runtime bindings.
-      - Bob's imported workflow is disabled by default until Bob explicitly binds his own connected accounts, webhook endpoint/secrets if supported, schedule/timezone, notification preferences, and required start inputs.
-      - The import creates new workflow ids, version ids, owner metadata, and encryption/runtime context for Bob; it never grants access to Alice's workflow execution context.
-      - A recursive export guard rejects sensitive keys such as token, refresh_token, access_token, secret, credential, connected_account_id, webhook_secret, api_key, password, vault, and run_id anywhere in the template payload.
+      - The server stores share ciphertext and revocation metadata but never receives the URL fragment key.
+      - The decrypted projection contains only portable title/description, trigger template without live secrets, nodes/edges, variable schemas, required capabilities, and binding requirements.
+      - It excludes runs, runtime ids/refs, connected-account ids, credentials, grants, webhook secrets, next_run_at, claims, waits, outputs, and provider raw responses.
+      - Bob receives a new recipient-owned disabled runtime workflow and must rebind accounts, schedule, permissions, webhook secret, notification preferences, and required inputs.
+      - Runtime workflow/version state remains Automation Vault encrypted and authoritative; source_version detects stale projection data and there is no two-way projection-to-runtime synchronization.
+    when:
+      - Alice is offline or the short-share API is unavailable but her encrypted projection is locally available.
+    then:
+      - Her client can produce /share/workflow-template/{templateId}#key={templateKeyBlob} as the long fallback.
+      - The persistent projection, not runtime records, makes the offline long link possible.
+      - Revoking the template share prevents future retrieval where server mediation is available and does not mutate either owner's runtime workflow.
 
   - id: S-18
     title: Workflow runs appear in Tasks and active runs can be cancelled
@@ -759,17 +844,47 @@ scenarios:
       - Alice opens Daily Weather check from the workflow home or workspace sidebar.
     when:
       - The canonical Workflow detail route replaces the landing in the main canvas.
-      - Alice edits title or description through the shared detail header.
+      - Alice views or edits metadata through the Workflow-owned header composition and its existing Automation Vault metadata API.
       - Alice changes the trigger or an expanded workflow node.
     then:
       - The global app chrome and active-workspace sidebar remain available without a second workflow-library column.
-      - The detail header uses the exact shared ChatHeader CSS and editable metadata contract from docs/specs/unified-detail-pages/spec.yml.
-      - The vertical node canvas begins immediately after the header with the Figma Workflow label and Add action/Add decision controls.
-      - Workflow on/off and New workflow appear in their designed contextual locations.
+      - The low-radius gradient header renders fixed white title/description text without shadows, an enabled toggle below the title, and Created relative time or applicable next-run metadata.
+      - A top-left back arrow is followed by an orange New workflow CTA with Share and Report Issue beside it; there is no top-right report action.
+      - Workflow and Workflow runs are routed tabs at /workflows/{workflow_id} and /workflows/{workflow_id}/runs.
+      - The vertical node canvas begins immediately after the header with Add action/Add decision controls and no duplicate Workflow/status/New workflow row.
       - A dirty graph state offers contextual Undo and Save; those actions are absent before a graph edit.
       - Leaving with unsaved graph changes requires an explicit decision rather than silently discarding or auto-saving.
-      - Desktop and mobile render the flow vertically, and mobile node details expand inline.
+      - Desktop and mobile render compact vertical cards matching Figma geometry, and expanding a node grows that card in place rather than opening any sibling editor panel.
       - The primary canvas has no run-retention picker, duplicate title/description form, run-content pill, permanent management toolbar, or permanent test/disable/delete button row.
+      - The run route follows Figma node 5488:39515.
+      - Exact nested measurements are not asserted or invented while Figma API/export remains blocked with 403.
+
+  - id: S-30
+    title: Scheduler atomically claims one due recurrence and creates one accepted execution
+    given:
+      - Alice owns an enabled schedule trigger whose indexed next_run_at is due.
+      - The full recurrence schedule_config is Automation Vault encrypted and the trigger points to an immutable workflow_version.
+      - Two scheduler workers query the same due trigger concurrently.
+    when:
+      - A worker atomically acquires the trigger claim lease.
+    then:
+      - Exactly one workflow_run is created for the claimed execution and is pinned to the trigger's immutable version_id.
+      - No planned or future workflow_run records are created.
+      - The winning worker decrypts recurrence config only after the claim, computes and stores the next indexed next_run_at, then releases or finalizes the claim.
+      - Retry and idempotency keys prevent duplicate execution if delivery or acknowledgement repeats.
+      - Repeat or loop behavior inside the accepted run comes only from the immutable graph and its server-enforced limits.
+
+  - id: S-31
+    title: Connected-account actions resolve opaque bindings at execution time
+    given:
+      - Alice's workflow template requires a provider capability and the runtime workflow has an opaque binding reference.
+      - Alice's provider credential remains in the provider credential Vault.
+    when:
+      - A claimed run reaches the provider-backed node.
+    then:
+      - The runner resolves the opaque binding without copying credentials, connected-account ids, or grants into the workflow version or template projection.
+      - Current account ownership, capability, consent, and provider scopes are revalidated for that run.
+      - Missing or revoked scope fails visibly without falling back to stale credentials or crossing owner/project boundaries.
 
   - id: S-29
     title: User creates a titled draft from the restrained workflow composer
@@ -838,7 +953,7 @@ acceptance_criteria:
     verification_ids: [T-NPM-SDK-001, T-PIP-SDK-001]
   - id: AC-7
     scenario: S-6
-    text: Apple can create and manually edit core workflow graphs, list, view, enable, disable, manually run, and inspect workflows and run history through native UI after shared API surfaces are green.
+    text: Apple can create and manually edit core workflow graphs, list, view, enable, disable, manually run, and inspect workflows and run history through native UI only after the user explicitly approves corrected deployed web screenshots/artifacts.
     required: true
     status: pending
     coverage_status: covered
@@ -862,7 +977,7 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-001, T-E2E-001]
   - id: AC-10
     scenario: S-9
-    text: Workflow definitions, triggers, runs, node runs, waits, and logs preserve user ownership, minimal plaintext metadata, encryption/redaction boundaries, and cross-user isolation.
+    text: Workflow definitions, triggers, runs, node runs, waits, retained event payloads, and logs preserve user ownership, the allowlisted minimal plaintext routing/claim metadata, Automation Vault encryption or redaction boundaries, and cross-user/project isolation.
     required: true
     status: pending
     coverage_status: covered
@@ -918,12 +1033,12 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003]
   - id: AC-17
     scenario: S-15
-    text: Workflow trigger metadata supports scoped assistant/chat/app-skill/terminal/sandbox event triggers with deterministic filters, optional explicit AI semantic matching, rate limits, and side-effect approval policies.
-    required: false
+    text: Generic event triggers consume one authenticated normalized event envelope for chat skill, assistant action, app-skill, terminal, remote-dev, and sandbox sources; dispatch uses owner/source/type routing, encrypted structured predicates, event_id plus trigger_id dedupe, explicit command consent/scope, rate limits, redaction, and recursion protection without arbitrary predicate code.
+    required: true
     status: pending
     coverage_status: covered
     verification_scope: related_backend
-    verification_ids: [T-PYTEST-001, T-PYTEST-003]
+    verification_ids: [T-PYTEST-006, T-PYTEST-007, T-CLI-003, T-NPM-SDK-003, T-PIP-SDK-003]
   - id: AC-18
     scenario: S-16
     text: Workflow runner app-skill and platform-action execution uses real adapters and service boundaries rather than mocked hardcoded node output.
@@ -942,12 +1057,12 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-001, T-PYTEST-002, T-E2E-001]
   - id: AC-20
     scenario: S-17
-    text: Workflow sharing exports only a safe template definition, rejects sensitive runtime fields recursively, does not reuse or wrap sender runtime keys, and imports disabled until the recipient binds their own runtime context.
-    required: false
+    text: Each Workflow has a separate persistent client-encrypted allowlisted template projection with stable template_id, source_version, ciphertext, and owner cross-device wrapped key; Chat-style revocable short and offline long fragment-key links never disclose the fragment key to the server, and import creates a new recipient-owned disabled runtime workflow requiring rebinding.
+    required: true
     status: pending
     coverage_status: covered
     verification_scope: related_backend
-    verification_ids: [T-PYTEST-001]
+    verification_ids: [T-PYTEST-008, T-CLI-003, T-NPM-SDK-003, T-PIP-SDK-003, T-E2E-005]
   - id: AC-21
     scenario: S-18
     text: Workflow runs publish read-only task-view projections for Tasks, with queued/running runs mapped to in_progress and recently completed runs mapped to Done without duplicating workflow_runs into user_tasks.
@@ -1078,12 +1193,12 @@ acceptance_criteria:
     verification_ids: [T-E2E-003, T-APPLE-UI-001]
   - id: AC-37
     scenario: S-28
-    text: Web and Apple open a stable Workflow detail page using the shared editable ChatHeader visual contract, render the Figma vertical canvas immediately below it, show Save/Undo only for dirty graph state, and contain none of the rejected duplicate retention/metadata/management areas.
+    text: Web opens Workflow-specific routed detail and runs tabs with the approved low-radius gradient header, fixed white unshadowed title/description, enabled toggle, relative Created or applicable next-run metadata, top-left back/New workflow/Share/Report Issue actions, compact in-place expanding cards, and Figma run composition; it has no top-right report action, duplicate below-header row, sibling editor panel, or rejected management areas, and Apple remains blocked pending explicit corrected-web artifact approval.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: full_ci
-    verification_ids: [T-E2E-001, T-APPLE-UI-001, V-FIGMA-CORE-UI]
+    verification_ids: [T-E2E-004, T-APPLE-UI-001, V-FIGMA-CORE-UI]
   - id: AC-38
     scenario: S-29
     text: The bottom composer matches message-input styling, centers its placeholder, reveals submit only while focused with valid non-empty input, creates a disabled title-only draft, and makes no general AI or voice-processing claim.
@@ -1092,6 +1207,63 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: full_ci
     verification_ids: [T-E2E-002, T-APPLE-UI-001]
+
+  - id: AC-39
+    scenario: S-30
+    text: workflow_runs contains exactly one record per atomically claimed or accepted execution, pinned to an immutable workflow_version; planned/future occurrences are never run rows, recurrence belongs to workflow_triggers, and loop/repeat belongs to the immutable graph.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-006, T-CLI-003, T-NPM-SDK-003, T-PIP-SDK-003]
+  - id: AC-40
+    scenario: S-30
+    text: The scheduler selects indexed due next_run_at values, atomically claims a trigger, creates one run, decrypts recurrence config only after claim, advances next_run_at, and prevents duplicate execution through durable idempotency.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-006]
+  - id: AC-41
+    scenario: S-9
+    text: Plaintext workflow storage is restricted to owner hash, stable ids, enabled state, trigger_type/source/event_type, next_run_at, claim timestamps/status, run/node status/timing, and other explicitly justified routing/query/claim metadata; full schedule_config, event predicates/filters, payloads, and user text are Vault-encrypted.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-006, T-PYTEST-007, T-PYTEST-008]
+  - id: AC-42
+    scenario: S-31
+    text: Provider credentials remain in the provider credential Vault; workflow versions and template projections contain only opaque binding references or capability requirements, and ownership, consent, capability, and scopes are revalidated for every run.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-006, T-PYTEST-008]
+  - id: AC-43
+    scenario: S-17
+    text: Runtime workflow/version state remains Automation Vault encrypted and authoritative; client-side projection updates are sanitized one-way snapshots, source_version exposes staleness, and projection content never updates runtime state through two-way sync.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-PYTEST-008, T-E2E-005]
+  - id: AC-44
+    scenario: S-15
+    text: Atomic claims, event/share idempotency, per-owner/source rate limits, command consent/scope limits, payload redaction, and recursion protection prevent duplicate, cross-owner/project, and self-triggering workflow execution.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-006, T-PYTEST-007]
+  - id: AC-45
+    scenario: S-9
+    text: Product and privacy copy state that unattended server execution cannot be cryptographically inaccessible to the backend and that Automation Vault with least-privilege audited decrypt is the security boundary; transient event payloads are not retained unless Vault-encrypted and logs remain redacted.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-PYTEST-006, T-PYTEST-007, T-E2E-004]
 
 contracts:
   api:
@@ -1161,6 +1333,8 @@ contracts:
       errors:
         - 400 MISSING_WORKFLOW_INPUT when the workflow requires start input and the run request does not provide it.
         - 403 APPROVAL_REQUIRED when the workflow action mix requires explicit approval instead of immediate manual execution.
+      notes:
+        - The run record is created only after the manual/test execution is accepted and is pinned to the current immutable version in the same idempotent acceptance boundary.
     - route: POST /v1/workflows/{workflow_id}/keep
       auth: session_or_api_key
       behavior: Converts a temporary chat-created workflow into a persisted reusable workflow before auto_delete_at.
@@ -1186,24 +1360,41 @@ contracts:
     - route: GET /v1/workflows/capabilities
       auth: session_or_api_key_optional
       response: "Available node types, feature-enabled app skills, workflow metadata, user-owned persisted workflow run capabilities, required input schemas, lifecycle metadata, and disabled reasons."
-    - route: POST /v1/workflows/{workflow_id}/template-export
+    - route: PUT /v1/workflows/{workflow_id}/template-projection
       auth: session_or_api_key
-      response: "WorkflowTemplateSharePayload"
+      request: "{ template_id, source_version, ciphertext, owner_wrapped_key, ciphertext_checksum, projection_schema_version }"
+      response: "{ template_id, source_version, updated_at }"
       errors:
         - 403 when the user does not own the workflow.
-        - 400 when the allowlisted template builder or recursive sensitive-field guard detects runtime-only fields.
+        - 409 when source_version is older than the current accepted projection version.
       notes:
-        - Builds a template from explicit safe graph fields, not by serializing existing workflow records directly.
-        - Does not include workflow definition version history, restore provenance, run history, run content, connected-account identifiers, credentials, webhook secrets, scheduler/runtime state, or execution grants.
+        - The client builds, allowlists, sanitizes, and encrypts the portable projection; the server does not receive its plaintext or unwrapped template key.
+        - Projection updates flow from runtime edits to a new client snapshot only. Projection state never mutates authoritative runtime workflow/version state.
+    - route: POST /v1/share/short-url
+      auth: session_or_api_key
+      request: "{ token, encrypted_url, content_type: workflow_template, content_id: template_id, ttl_seconds? } where token, shortKey, and encrypted_url are generated client-side"
+      response: "{ success, expires_at? }"
+      errors:
+        - 403 when the workflow/template projection is not owner-authorized.
+        - 409 when the projection source_version is stale relative to the current workflow version.
+      notes:
+        - Reuse the existing Chat short-link service by extending its content_type allowlist and ownership check for workflow_template; do not create a parallel Workflow short-link implementation.
+        - The client encrypts the long template URL under shortKey, sends only encrypted_url and token, and assembles /s/{token}#{shortKey} locally after success.
+        - Short shares are revocable and store only opaque encrypted_url plus lookup/revocation metadata; URL fragment keys never reach the server.
+        - Offline/API fallback is /share/workflow-template/{templateId}#key={templateKeyBlob}, generated from the persistent encrypted projection without creating runtime or share plaintext.
+    - route: DELETE /v1/share/short-url/{token}
+      auth: session_or_api_key
+      behavior: Extends the generic short-link service with owner-authorized revocation and prevents future retrieval of encrypted_url without mutating sender or recipient runtime workflows.
     - route: POST /v1/workflows/template-import
       auth: session_or_api_key
-      request: "WorkflowTemplateSharePayload"
-      response: "WorkflowDetail with enabled=false and binding_requirements[]"
+      request: "Client-decrypted and locally validated WorkflowTemplateProjectionPayload"
+      response: "WorkflowDetail with new recipient-owned ids, enabled=false, and binding_requirements[]"
       errors:
-        - 400 for invalid templates, unsupported nodes, missing required capability declarations, or sensitive fields.
+        - 400 for invalid templates, unsupported nodes, missing required capability declarations, or forbidden runtime/sensitive fields.
         - 403 FEATURE_DISABLED when platform:workflows is disabled.
       notes:
-        - Imported workflows are disabled by default and require the recipient to bind their own runtime context before enabling.
+        - Import creates new Automation Vault runtime state only after client-side decryption and recursive allowlist validation.
+        - Recipient must rebind connected accounts, schedules, permissions, webhook secrets, notification preferences, and required inputs before enabling.
     - route: POST /v1/workflows/input
       auth: session_or_api_key
       request: "{ action?: start | followup | stop | confirm | reject | undo, session_id?: string, input_type?: text | audio | transcript, text?: string, audio_ref?: object, selected_workflow_id?: string, selected_project_id?: string, client_event_cursor?: integer }"
@@ -1258,23 +1449,25 @@ contracts:
       behavior: Converts a temporary workflow to persisted reusable state.
   data:
     - collection: workflows
-      fields: id, hashed_user_id, encrypted_user_id, encrypted_title, status, enabled, lifecycle, source, source_chat_id, created_by_assistant, current_version_id, trigger_type, trigger_summary, next_run_at, last_run_id, run_content_retention, version_retention_mode, auto_delete_at, kept_at, deleted_at, created_at, updated_at.
+      fields: id, hashed_user_id, encrypted_user_id, encrypted_title_ref, encrypted_description_ref, status, enabled, lifecycle, source, current_version_id, trigger_type, next_run_at, last_run_id, run_content_retention, version_retention_mode, auto_delete_at, kept_at, deleted_at, created_at, updated_at.
       plaintext: id, hashed_user_id, status, enabled, lifecycle, source, current_version_id, trigger_type, next_run_at, last_run_id, run_content_retention, version_retention_mode, auto_delete_at, kept_at, deleted_at, timestamps.
-      encrypted_or_redacted: title, graph display labels, and any user-authored descriptive text.
+      encrypted_or_redacted: raw user id, title, description, source chat/runtime references, graph display labels, trigger summary derived from private configuration, and all user-authored text.
       behavior: lifecycle is persisted for reusable workflows and temporary for chat-created one-time workflows. Temporary workflows are auto-deleted after auto_delete_at unless kept_at is set.
     - collection: workflow_versions
       fields: id, workflow_id, hashed_user_id, version_number, encrypted_graph_blob_ref, graph_hash, created_at, created_by_client, restored_from_version_id, pruned_at, vault_key_ref.
-      behavior: Immutable snapshot used by workflow_runs and the workflow definition time-machine timeline. Full graph JSON, node configs, app-skill inputs, decision operands, notification bodies, variables, and user-authored labels are stored in Automation Vault encrypted blobs; Directus stores only references, hashes, restore provenance, and routing metadata.
+      behavior: Immutable authoritative runtime snapshot used by workflow_runs and the definition timeline. Full graph JSON includes bounded loop/repeat semantics and opaque provider binding references or capability requirements, never credentials or connected-account ids. Directus stores only references, hashes, restore provenance, and routing metadata.
       retention: Keep the newest 25 definition versions by default, always keep the current version, and do not prune versions still referenced by retained workflow_runs. Pruned versions are unavailable for restore but run records that referenced them retain their original version_id metadata.
     - collection: workflow_encrypted_blobs
       fields: id, ref, hashed_user_id, kind, ciphertext, checksum, vault_key_ref, key_version, expires_at, created_at.
       behavior: Stores only Vault Transit ciphertext and integrity/key metadata. The plaintext workflow title, graph, run inputs, node outputs, provider raw responses, and notification bodies are decrypted only on demand for authorized execution or detail rendering and are never persisted in repository record_json, Redis, logs, traces, or long-lived service caches.
     - collection: workflow_triggers
-      fields: id, workflow_id, version_id, trigger_type, schedule_config, webhook_ref, event_config_ref, required_start_input_schema_ref, enabled, next_run_at, last_claimed_at, created_at, updated_at.
-      behavior: Scheduler and event matcher query only plaintext routing metadata. Detailed webhook/event filters and manual start input schemas are encrypted or referenced through Automation Vault when they contain user-authored text.
+      fields: id, workflow_id, version_id, hashed_user_id, trigger_type, source, event_type, enabled, next_run_at, claim_status, claim_token_hash, claimed_at, claim_expires_at, encrypted_schedule_config_ref, encrypted_event_predicate_ref, encrypted_webhook_config_ref, encrypted_required_start_input_schema_ref, created_at, updated_at.
+      plaintext: id, workflow_id, version_id, hashed_user_id, trigger_type, source, event_type, enabled, next_run_at, claim_status, claim token hash, claim timestamps, created_at, updated_at.
+      encrypted_or_redacted: full recurrence schedule_config, webhook secret/config, event predicates and filters, required start-input schemas containing user text, and payload defaults.
+      behavior: Recurrence is authoritative here. Scheduler/event workers query only indexed routing fields, atomically acquire expiring claims, create one accepted run pinned to version_id, then decrypt configuration. No planned workflow_runs are materialized.
     - collection: workflow_runs
-      fields: id, workflow_id, version_id, hashed_user_id, trigger_id, trigger_type, status, started_at, finished_at, cancellation_requested_at, cancelled_at, cancelled_by_hash, cost_summary, error_code, content_retention_mode, content_available, content_storage, content_expires_at, encrypted_content_ref, encrypted_content_checksum.
-      behavior: One durable metadata record per execution. Full run input, outputs, provider responses, notification payloads, report content, and node output summaries are stored only in encrypted run-content blobs according to retention policy. Running runs always reference an immutable version_id; workflow edits and restores create a new version for future runs instead of changing in-flight run behavior.
+      fields: id, workflow_id, version_id, hashed_user_id, trigger_id, trigger_type, acceptance_idempotency_key, claim_token_hash, status, accepted_at, started_at, finished_at, cancellation_requested_at, cancelled_at, cancelled_by_hash, cost_summary, error_code, content_retention_mode, content_available, content_storage, content_expires_at, encrypted_content_ref, encrypted_content_checksum.
+      behavior: Exactly one durable metadata record per claimed/accepted execution, created at acceptance and never for a future occurrence. Full inputs, event payloads retained beyond dispatch, outputs, provider responses, notification payloads, report content, and node summaries are stored only in encrypted run-content blobs according to retention. Runs remain pinned to immutable version_id.
       task_view_projection:
         - Queued/running workflow runs project into Tasks as read-only in_progress cards with cancel and open-run actions.
         - Completed workflow runs project into the default Tasks Done column only when finished_at is within the last seven days.
@@ -1286,6 +1479,16 @@ contracts:
     - collection: workflow_waits
       fields: id, run_id, workflow_id, node_id, wait_type, status, expires_at, resume_token_hash, encrypted_prompt, encrypted_response, created_at, resolved_at.
       behavior: Reserved for ask-user, approval, delay, and callback nodes; V1 may create only delay/test waits.
+    - collection: workflow_event_receipts
+      fields: id, hashed_user_id, trigger_id, event_id, source, event_type, received_at, dispatch_status, run_id, expires_at.
+      plaintext: owner hash, trigger/event ids, source, event_type, timestamps, status, run id.
+      behavior: Durable unique trigger_id plus event_id receipt used for idempotent dispatch and recursion protection. It contains no event payload; transient payloads are discarded after predicate evaluation unless copied into an accepted run's Vault-encrypted content.
+    - collection: workflow_template_projections
+      fields: template_id, workflow_id, hashed_user_id, source_version, projection_schema_version, ciphertext, ciphertext_checksum, owner_wrapped_key, created_at, updated_at, revoked_at.
+      plaintext: stable template_id, workflow_id, owner hash, source_version, schema version, ciphertext/checksum, wrapped key, timestamps, revocation metadata.
+      encrypted_payload_allowlist: portable title, description, trigger template without live secrets, nodes, edges, variable schemas, required capabilities, and binding requirements.
+      forbidden_payload: workflow/run/version/runtime ids or refs, connected-account ids, credentials, grants, webhook secrets, next_run_at, claims, waits, outputs, source chat ids, provider responses, and sender runtime keys.
+      behavior: Client-encrypted one-way sharing projection. Runtime workflow/version remains Automation Vault encrypted and authoritative; source_version exposes stale projections. The persistent ciphertext and owner's wrapped key support cross-device maintenance and offline long-link sharing without two-way sync.
     - collection: workflow_input_sessions
       fields: id, hashed_user_id, status, action_type, selected_workflow_id_hash, selected_project_id_hash, transcript_status, planner_status, draft_graph_ref, draft_diff_ref, committed_mutation_ref, undo_available, cancellation_requested_at, stopped_at, completed_at, failed_at, created_at, updated_at, expires_at.
       plaintext: id, hashed_user_id, status, action_type, selected target hashes, progress/status fields, cancellation/completion timestamps, expires_at.
@@ -1297,10 +1500,10 @@ contracts:
     - collection: workflow_input_mutations
       fields: id, session_id, instruction_id, hashed_user_id, mutation_type, target_type, target_id_hash, encrypted_before_ref, encrypted_after_ref, committed_at, undone_at, undo_status.
       behavior: Audit-safe mutation journal for undo. Undo creates a compensating workflow version or project-item deletion/update instead of rewriting historical workflow_versions, workflow_runs, or event logs.
-    - object: WorkflowTemplateSharePayload
-      fields: template_version, title, description, trigger_template, node_templates, edge_templates, variables_schema, required_app_capabilities, binding_requirements, created_at.
-      behavior: Share/export object only. It is safe to store or pass through share infrastructure because it contains no runtime grants, prior execution content, definition-version history, restore provenance, or sender-owned runtime keys; imports always create recipient-owned workflow ids and remain disabled until rebound.
-      forbidden_recursive_keys: token, refresh_token, access_token, secret, credential, connected_account_id, webhook_secret, api_key, password, vault, run_id, version_id, encrypted_graph_blob_ref, encrypted_content_ref.
+    - object: WorkflowTemplateProjectionPayload
+      fields: template_version, title, description, trigger_template, node_templates, edge_templates, variables_schema, required_capabilities, binding_requirements.
+      behavior: Portable plaintext exists only client-side after decryption. It is recursively allowlisted before encryption and again before import; imported templates create recipient-owned disabled runtime records.
+      forbidden_recursive_keys: token, refresh_token, access_token, secret, credential, connected_account_id, webhook_secret, api_key, password, vault, grant, run_id, version_id, workflow_id, next_run_at, claim, wait, output, encrypted_graph_blob_ref, encrypted_content_ref.
   workflow_graph:
     - WorkflowGraph contains version, trigger_node_id, nodes, edges, variables, limits, and ui_layout.
     - V1 graph must contain exactly one trigger node.
@@ -1309,14 +1512,16 @@ contracts:
     - Action node input mappings reference previous outputs through stable paths such as $nodes.weather.output.summary.
     - Decisions use a JSON-safe predicate AST with operators eq, neq, gt, gte, lt, lte, contains, starts_with, exists, and, or, not.
     - Repeat nodes must include max_iterations, max_duration_seconds, max_credits, and per_iteration_timeout_seconds.
+    - Schedule recurrence is not graph execution history: workflow_triggers owns encrypted recurrence config and next_run_at, while repeat/loop behavior within one run is defined only by this immutable graph.
+    - Provider-backed nodes carry opaque runtime binding references or portable capability/binding requirements only; they never contain credentials, grants, or connected-account identifiers.
     - A workflow branch completes when the current node has no matching outgoing executable edge. End nodes are not required in persisted graphs.
     - Workflow-input generated drafts must pass the same WorkflowGraph validation as manual editor graphs before commit.
     - Workflow-input generated updates are applied as graph patches to the selected/current graph, then normalized into a full WorkflowGraph and validated before persistence.
   node_types:
-    - schedule_trigger: one-time, daily, weekly, interval, and selected weekdays in a user timezone.
-    - manual_trigger: used for test and run-now flows.
-    - webhook_trigger: stored in graph/capability metadata but disabled for execution unless explicitly enabled in a later slice.
-    - event_trigger: represented for chat message, assistant action, app-skill execution, terminal command, remote-dev command, and sandbox command event subscriptions; initially gated behind explicit feature flags.
+    - schedule_trigger: generic schedule kind for one-time, daily, weekly, interval, and selected weekdays in a user timezone; full recurrence config is encrypted on workflow_triggers.
+    - manual_trigger: generic manual kind used for test and run-now flows.
+    - webhook_trigger: generic webhook kind with secret/config encrypted outside the graph; execution remains gated until its authenticated claim contract is implemented.
+    - event_trigger: generic event kind for normalized chat skill use, assistant action, app-skill, terminal, remote-dev, and sandbox command envelopes.
     - app_skill_action: dispatches feature-enabled app skills through SkillRegistry with workflow-safe input/output adapters.
     - decision: evaluates structured predicates over prior node outputs.
     - repeat: bounded container, initially executable only for explicitly implemented safe modes.
@@ -1355,9 +1560,11 @@ contracts:
   ui_states:
     - Empty workflows list with create button and example starter suggestions.
     - Workflow list with enabled/disabled/error statuses, lifecycle badges for persisted and temporary workflows, next run, last run, and action menu.
-    - Shortcuts-style editor with vertical cards, compact app-skill embed previews, sentence-style Decision editor, Repeat container, and selected-node inspector.
+    - Figma-specific Workflow detail header with low-radius gradient, fixed white title/description without shadows, enabled toggle below title, relative Created or applicable next-run metadata, and top-left back arrow plus orange New workflow, Share, and Report Issue actions.
+    - Routed Workflow and Workflow runs tabs at /workflows/{workflow_id} and /workflows/{workflow_id}/runs; no top-right Report Issue button and no duplicate below-header Workflow/status/New workflow row.
+    - Shortcuts-style editor with compact vertical cards matching Figma geometry, app-skill previews, sentence-style Decision editor, and Repeat container; expansion grows the selected card in place on desktop/mobile and never creates a sibling editor panel.
     - Workflow definition time-machine timeline with capped version dots/cards, selected historical date/version, read-only historical graph rendering, current marker, and restore-as-new-version confirmation.
-    - Workflow run-history timeline with completed/failed/cancelled/waiting states, trigger source, duration, cost, node-by-node status, input/output availability, and clear durable/ephemeral/expired/deleted content labels.
+    - Workflow run-history route matching Figma node 5488:39515 with completed/failed/cancelled/waiting states, trigger source, duration, cost, node-by-node status, input/output availability, and clear durable/ephemeral/expired/deleted content labels.
     - Temporary workflow history surface with keep, run manually, disable, and delete controls before auto_delete_at.
     - Assistant pending workflow execution countdown with workflow name, expected actions, cost/permission summary, required inputs, cancel, and approve controls.
     - Manual run input form when a webhook/event-triggered workflow or reusable workflow requires start payload fields.
@@ -1375,31 +1582,37 @@ contracts:
     - Disabled feature state when platform:workflows is off.
     - Validation state for unsupported node type, unsafe action, disabled app skill, invalid mapping, invalid condition, and missing notification preference.
     - Core Workflow composer visually matches the chat input, centers its placeholder, and reveals submit only while focused with valid non-empty text; it creates title-only drafts without chat send behavior.
-    - Workflow detail uses docs/specs/unified-detail-pages/spec.yml for shared editable title/description presentation and metadata persistence.
-    - Workflow detail canvas starts directly below the header and omits the prototype retention picker, duplicate metadata form, run-content pill, and permanent management/test/delete rows.
+    - Workflow detail visual composition is owned by this spec; docs/specs/unified-detail-pages/spec.yml retains only Workflow metadata API/version/encryption contracts.
+    - Workflow detail canvas starts directly below the Workflow-owned header and omits the prototype retention picker, duplicate metadata form, run-content pill, permanent management/test/delete rows, sibling node editor, and duplicate Workflow/status/New workflow row.
+    - Exact nested dimensions remain blocked while Figma API/export returns 403; no implementation or test may invent pixel measurements as approved values.
   privacy_security:
     - Workflows always run on the server; the runner must never depend on browser local storage or connected WebSocket state.
     - Server-readable schedule/routing metadata is minimized to fields needed for ownership checks, scheduler queries, run status, and feature gating.
     - Workflows V1 uses a single cloud workflow model backed by Automation Vault encryption; do not split V1 into separate private-device and cloud workflow product modes.
+    - Unattended server execution cannot be cryptographically inaccessible to the backend. Automation Vault with least-privilege service authorization and audited decrypt operations is the explicit security boundary.
     - Sensitive node config, prompt text, notification bodies, trigger payloads, app-skill raw outputs, decision operand values, report content, and user-authored workflow titles are encrypted with existing Vault Transit encryption functions in Automation Vault blobs or redacted according to collection contracts. Placeholder, reversible obfuscation, hardcoded local keys, or base64-only storage are forbidden for workflow payloads.
-    - Backend runtime decrypt is allowed only for workflow validation, execution, and authorized run-detail retrieval; every durable decrypt path must be auditable.
+    - Backend runtime decrypt is allowed only for authorized validation, claim-time recurrence advancement, event predicate evaluation, execution, and run-detail retrieval; every decrypt path must be least-privilege and auditable.
     - Backend code must decrypt workflow title, graph, version content, and run content on demand only and must not copy plaintext into repository record_json, Directus rows, Redis, logs, traces, analytics, or long-lived service/module caches.
     - run_content_retention defaults to last_5 and keeps only the newest five durable encrypted run-content blobs per workflow.
     - Workflow definition version retention is separate from run-content retention and defaults to the newest 25 definition versions, preserving the current version and versions referenced by retained runs.
     - run_content_retention none must not write permanent run-content blobs; it keeps only the latest run content in encrypted ephemeral cache for at most seven days, while metadata remains for billing and status.
     - Workflow notification actions must respect existing email and push notification preferences and unsubscribe/disable behavior.
-    - Workflow app-skill actions cannot use connected-account provider credentials unless a future explicit offline automation grant exists.
+    - Connected-account credentials remain in the provider credential Vault. Workflow versions carry only opaque binding references or capability requirements, and every run revalidates owner, consent, capability, and current scopes before provider access.
     - Assistant-created workflow proposals must disclose whether the workflow is temporary or persisted, whether AI will run, expected side effects, cost category, and whether it can run offline.
     - Persisted user-created workflows are available to the assistant only as owner-scoped capabilities; workflow matching must not expose one user's workflow metadata to another user.
     - Temporary workflow auto-delete removes workflow definition and sensitive run content after seven days unless kept, while required billing/status/audit metadata may remain according to retention contracts.
-    - Event triggers for chat, assistant, app-skill, terminal, remote-dev, and sandbox events must include source/scope filters and rate limits before they can execute side-effecting actions.
+    - Event triggers consume one authenticated normalized envelope with event_id, owner hash, source, event_type, scope, occurred_at, and payload. Routing uses only owner/source/type; structured encrypted predicates use allowlisted operators and never arbitrary code.
+    - Event payloads remain transient for predicate evaluation and are discarded unless retention is required for an accepted run, in which case they are Vault-encrypted. Logs contain no event payload or user text.
+    - Terminal, remote-dev, and sandbox matching requires explicit user consent and scope, authenticated source identity, input redaction and size/rate limits, no cross-owner/project access, and recursion protection against workflow-generated command events.
     - Custom code nodes are not executable in V1.
     - Workflow execution enforces feature availability for platform:workflows and child app/skill features at run time, not only at edit time.
-    - Every run has idempotency/claiming so scheduled triggers do not double-run under concurrent workers.
+    - Every schedule/webhook/event/manual acceptance has durable idempotency. Scheduler workers atomically claim indexed due triggers, create exactly one run pinned to the trigger version, then decrypt recurrence and advance next_run_at; no future run rows are pre-created.
     - Running workflow runs are immutable. Cancellation requests may change run status/cancellation metadata, but cannot edit node config, graph structure, input payload, or workflow_version for the active run.
     - Runner cancellation is cooperative and checked before each node, before retries, before resuming waits, and after long app-skill/action nodes return.
-    - Workflow sharing is template-only. The exporter must use an allowlisted template builder and recursive sensitive-field guard; it must never serialize definition version history, restore provenance, prior runs, run content, connected-account details, tokens, webhook secrets, scheduler/runtime state, wait/resume tokens, source_chat_id, execution grants, encrypted blob refs, or sender-owned runtime keys.
-    - Imported workflow templates are disabled by default and require the recipient to configure their own account bindings, notification settings, schedule/timezone, webhook secrets if applicable, and required inputs before enabling.
+    - Workflow sharing is template-projection-only. The client maintains a persistent, client-encrypted, recursively allowlisted one-way projection keyed by stable template_id and source_version; runtime state is authoritative and never updated from projection sync.
+    - Short shares use /s/{token}#{shortKey}; offline/API fallback uses /share/workflow-template/{templateId}#key={templateKeyBlob}. The server may store ciphertext, wrapped owner key, lookup, and revocation metadata but never receives fragment keys.
+    - Projection plaintext excludes definition/runtime ids and refs, history, runs/content, connected-account ids, credentials, grants, webhook secrets, next_run_at, claims, waits, outputs, source_chat_id, provider responses, and sender runtime keys.
+    - Imported workflow templates create new recipient-owned disabled runtime workflows and require the recipient to configure their own account bindings, notification settings, schedule/timezone, permissions, webhook secrets if applicable, and required inputs before enabling.
     - Workflow input text, corrected transcripts, OCR/PDF/photo extracted text, location notes, pasted content, and project metadata are untrusted user or external content. They must never override the workflow-input system prompt or backend policy.
     - Backend workflow-input sanitization must remove ASCII-smuggling Unicode tags, bidi controls, zero-width characters, disallowed control characters, and annotation characters before LLM use; frontend sanitization is defense-in-depth only.
     - Extracted attachment content is supplied to the planner as quoted evidence or user-provided context, never as developer/system instructions.
@@ -1409,6 +1622,12 @@ contracts:
     - Workflow input must not log raw input, transcript, extracted attachment text, prompt text, notification body text, draft graph plaintext, provider raw responses, or private target names. Logs may include session ids, event ids, hashed target ids, status, counts, error codes, and sanitized summaries.
     - Workflow input requires credit checks before transcription and planner execution, and rate limits must apply per user/session/action type.
     - Workflow input undo must not restore or expose data the user no longer owns, must not cross project/workflow ownership boundaries, and must not mutate historical workflow_versions or workflow_runs.
+  routing:
+    - /workflows is the Workflow landing/browse route.
+    - /workflows/{workflow_id} is the canonical Workflow tab and detail/editor route.
+    - /workflows/{workflow_id}/runs is the canonical Workflow runs tab and Figma 5488:39515 run-history route.
+    - /s/{token}#{shortKey} is the online default encrypted template share URL; the fragment key is client-only.
+    - /share/workflow-template/{templateId}#key={templateKeyBlob} is the offline/API long-link fallback backed by the persistent encrypted projection.
 
 tests:
   - id: T-PYTEST-001
@@ -1426,9 +1645,7 @@ tests:
       - AC-14
       - AC-15
       - AC-16
-      - AC-17
       - AC-19
-      - AC-20
       - AC-23
       - AC-24
     assertions:
@@ -1527,7 +1744,6 @@ tests:
       - AC-14
       - AC-15
       - AC-16
-      - AC-17
       - AC-18
     assertions:
       - workflows.schedule_once creates a temporary one-time workflow with seven-day auto_delete_at
@@ -1566,7 +1782,6 @@ tests:
       - AC-11
       - AC-14
       - AC-16
-      - AC-17
     assertions:
       - CLI exposes workflow list, show, create, edit, enable, disable, delete, run, runs, run show, and capabilities commands
       - CLI JSON output contains stable workflow and run fields
@@ -1602,7 +1817,6 @@ tests:
       - AC-11
       - AC-14
       - AC-16
-      - AC-17
     assertions:
       - npm SDK exposes typed workflow management and run methods
       - npm SDK exposes temporary lifecycle, keep, pending execution, required input, and event trigger types
@@ -1635,7 +1849,6 @@ tests:
       - AC-11
       - AC-14
       - AC-16
-      - AC-17
     assertions:
       - pip SDK exposes workflow management and run methods
       - pip SDK exposes temporary lifecycle, keep, pending execution, required input, and event trigger fields
@@ -1788,6 +2001,142 @@ tests:
         timestamp: "2026-07-05T00:00:00Z"
         summary: python3 -m pytest packages/openmates-python/tests/test_workflows.py passed 3 tests.
 
+  - id: T-PYTEST-006
+    type: pytest
+    file: backend/tests/test_workflow_scheduler_contract.py
+    command: python3 -m pytest backend/tests/test_workflow_scheduler_contract.py
+    covers: [AC-10, AC-17, AC-39, AC-40, AC-41, AC-42, AC-44, AC-45]
+    assertions:
+      - schemas retain workflows, immutable workflow_versions, workflow_triggers, workflow_runs, workflow_node_runs, and workflow_waits
+      - generic trigger kinds are manual, schedule, webhook, and event
+      - recurrence config is Vault-encrypted on workflow_triggers while next_run_at and minimal claim/routing fields are indexed plaintext
+      - two workers contending for one due trigger produce one atomic claim and exactly one workflow_run pinned to the trigger version
+      - no planned or future workflow_run rows are created
+      - scheduler decrypts recurrence only after claim and atomically advances next_run_at with durable idempotency
+      - repeat/loop behavior comes only from the immutable graph and remains bounded
+      - runtime provider actions resolve opaque bindings and revalidate owner, consent, capability, and current scopes without copying credentials
+      - Automation Vault decrypt operations are least-privilege/audited and logs contain no schedule, payload, credential, or user text
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        summary: New scheduler/model contract; do not reuse prior workflow model or runner green evidence.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+
+  - id: T-PYTEST-007
+    type: pytest
+    file: backend/tests/test_workflow_event_dispatcher_contract.py
+    command: python3 -m pytest backend/tests/test_workflow_event_dispatcher_contract.py
+    covers: [AC-10, AC-17, AC-41, AC-44, AC-45]
+    assertions:
+      - chat skill use, assistant action, app-skill, terminal, remote-dev, and sandbox producers emit one authenticated normalized envelope shape
+      - dispatcher queries indexed owner/source/event_type fields and never routes across owners or projects
+      - encrypted structured predicates support only allowlisted operators and arbitrary predicate code is rejected
+      - event_id plus trigger_id receipts dedupe repeated delivery and create at most one version-pinned run
+      - event payload remains transient unless retained inside an accepted run as Vault ciphertext
+      - terminal/remote-dev/sandbox matching requires explicit consent and scope, authenticated source, redaction, size/rate limits, and recursion protection
+      - logs contain only redacted ids, source/type, status, timing, and error codes
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        summary: New normalized dispatcher contract; existing in-memory matcher green evidence is not applicable.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+
+  - id: T-PYTEST-008
+    type: pytest
+    file: backend/tests/test_workflow_template_projection.py
+    command: python3 -m pytest backend/tests/test_workflow_template_projection.py
+    covers: [AC-10, AC-20, AC-41, AC-42, AC-43]
+    assertions:
+      - each Workflow can persist one client-encrypted projection with stable template_id, source_version, ciphertext, checksum, and owner wrapped key
+      - projection plaintext allowlist contains only portable title/description, trigger template, nodes/edges, variable schemas, capabilities, and binding requirements
+      - recursive validation rejects runtime ids/refs, runs, connected-account ids, credentials, grants, webhook secrets, next_run_at, claims, waits, outputs, and provider responses
+      - source_version exposes stale projection updates and projection state never mutates authoritative runtime workflow/version state
+      - short and long share records never receive fragment keys and revocation blocks future server-mediated retrieval
+      - import creates new recipient-owned disabled runtime ids and requires account, schedule, permission, and secret rebinding
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        summary: New persistent client-encrypted projection contract; prior ephemeral server-built payload evidence is stale.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+
+  - id: T-CLI-003
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows-runtime-contract.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/workflows-runtime-contract.test.ts
+    covers: [AC-17, AC-20, AC-39]
+    assertions:
+      - CLI/API models expose accepted run ids only and never planned/future run records
+      - generic trigger/event envelope fields and typed normalized event errors match backend contracts where publicly exposed
+      - CLI can update/read encrypted template projection metadata, create/revoke a short share, and import a client-decrypted template without sending fragment keys
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+
+  - id: T-NPM-SDK-003
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-workflows-runtime-contract.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/sdk-workflows-runtime-contract.test.ts
+    covers: [AC-17, AC-20, AC-39]
+    assertions:
+      - npm SDK types distinguish trigger recurrence from accepted workflow runs
+      - npm SDK normalized event and projection/share/import methods preserve owner/idempotency fields and never serialize fragment keys to API bodies
+      - imported templates are typed as new recipient-owned disabled workflows with binding requirements
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+
+  - id: T-PIP-SDK-003
+    type: pytest
+    file: packages/openmates-python/tests/test_workflows_runtime_contract.py
+    command: python3 -m pytest packages/openmates-python/tests/test_workflows_runtime_contract.py
+    covers: [AC-17, AC-20, AC-39]
+    assertions:
+      - pip SDK models distinguish trigger recurrence from accepted workflow runs
+      - pip SDK normalized event and projection/share/import methods preserve owner/idempotency fields and never serialize fragment keys to API bodies
+      - imported templates are typed as new recipient-owned disabled workflows with binding requirements
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+
   - id: T-E2E-001
     type: playwright
     file: frontend/apps/web_app/tests/workflows-editor.spec.ts
@@ -1801,16 +2150,15 @@ tests:
       - AC-11
       - AC-12
       - AC-19
-      - AC-37
     assertions:
       - web user can open Workflows workspace when platform:workflows is enabled
-      - opening Daily rain alert uses the canonical Workflow detail route, shared ChatHeader visual marker, and no second workflow-library column
-      - the Figma node canvas begins immediately below the header and exposes Add action, Add decision, workflow on/off, and New workflow in context
+      - opening Daily rain alert uses the canonical Workflow detail route and no second workflow-library column
+      - graph editing exposes Add action and Add decision through the Workflow-owned canvas
       - dirty graph changes show contextual Undo and Save, and those actions disappear after a successful save
       - the page has no retention picker, duplicate title/description form, run-content pill, permanent management toolbar, or permanent test/disable/delete row
       - web user can edit and save the Daily rain alert graph through the Figma-owned node controls
       - decision branches render structured true and false paths
-      - mobile workflow nodes expand inline and remain usable without covering the fixed composer
+      - graph edits persist through the existing Workflow API without relying on generic-header visual approval
       - disabled platform state hides or blocks Workflows access
     red_phase:
       required: true
@@ -1826,15 +2174,17 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed_after_deploy
-        command: python3 scripts/tests.py run -- --spec workflows-editor.spec.ts
-        run_id: "29157625057"
-        subject_commit: 0f82413d8
-        timestamp: "2026-07-11T15:18:45Z"
-        deployment_reference: dpl_FFgFKdYQqDXJibLzTgf4zj6Dp2Pk
-        target: app.dev.openmates.org
-        summary: Canonical Workflow detail routing, shared visual header marker, clean canvas, contextual graph actions, mobile node expansion, and rejected-control absence passed on deployed dev. Editable metadata remains pending under unified-detail-pages.
+        status: pending
+        summary: The functional graph assertions must be rerun after the Workflow-specific UI contract is implemented; prior deployment evidence is retained below but is invalid as visual approval.
       history:
+        - status: rejected
+          command: python3 scripts/tests.py run -- --spec workflows-editor.spec.ts
+          run_id: "29157625057"
+          subject_commit: 0f82413d8
+          timestamp: "2026-07-11T15:18:45Z"
+          deployment_reference: dpl_FFgFKdYQqDXJibLzTgf4zj6Dp2Pk
+          target: app.dev.openmates.org
+          note: The deployed generic Workflow header, top-right report action, duplicate below-header row, and non-Figma composition were explicitly rejected; this run cannot count as Workflow visual approval.
         - status: passed_after_deploy
           run_id: github-actions-28023031745
           timestamp: "2026-06-23T11:33:22Z"
@@ -2010,6 +2360,60 @@ tests:
         status: pending
         summary: Pending deployed implementation.
 
+  - id: T-E2E-004
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
+    command: python3 scripts/tests.py run --spec workflows-figma-detail.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-37, AC-45]
+    assertions:
+      - /workflows/{workflow_id} and /workflows/{workflow_id}/runs render selected routed tabs and survive reload/back navigation
+      - Workflow header has a low-radius gradient with fixed white title/description text and no text shadow
+      - enabled toggle is below the title and metadata shows Created relative time or applicable next-run information
+      - top-left back arrow is followed by an orange New workflow CTA with Share and Report Issue beside it
+      - no top-right Report Issue action and no duplicate below-header Workflow/status/New workflow row exist
+      - compact vertical cards match approved Figma artifact geometry and expansion grows the same card in place on desktop and mobile without a sibling editor panel
+      - /runs composition matches the approved artifact for Figma node 5488:39515
+      - privacy copy accurately describes Automation Vault/backend execution access without claiming cryptographic backend inaccessibility
+      - no exact nested pixel measurements are asserted until Figma export/API access succeeds or the user approves measured deployed artifacts
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        summary: New Workflow-owned routed Figma contract; the rejected generic deployed UI cannot supply red or green evidence.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+
+  - id: T-E2E-005
+    type: playwright
+    file: frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
+    command: python3 scripts/tests.py run --spec workflow-template-sharing.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-20, AC-43]
+    assertions:
+      - runtime edits update a sanitized client-encrypted projection and source_version exposes stale projection state
+      - online share defaults to /s/{token}#{shortKey} and request inspection proves the fragment key is never sent to the server
+      - offline/API fallback produces /share/workflow-template/{templateId}#key={templateKeyBlob} from the persistent projection
+      - revocation blocks future short-share retrieval
+      - import decrypts client-side, rejects forbidden runtime fields, and creates new recipient-owned disabled ids
+      - recipient must rebind accounts, schedule, permissions, webhook secrets, notification preferences, and required inputs before enabling
+      - projection sync is one-way and never overwrites the authoritative runtime workflow/version
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        summary: New client-encrypted Workflow template share/import contract.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+
 verifications:
   - id: V-FIGMA-CORE-UI
     kind: artifact_review
@@ -2019,10 +2423,12 @@ verifications:
       - AC-25
       - AC-37
       - AC-38
-    status: pending
+    status: blocked
     evidence:
-      status: pending
-      summary: Compare deployed landing/detail/run screenshots with Figma nodes 5370:45293, 5420:34107, 5420:34558, 5420:35214, 5422:34561, and 5488:39515; verify the shared ChatHeader CSS, mixed row, restrained composer, clean canvas, and absence of every rejected prototype area.
+      status: blocked
+      summary: The deployed generic Workflow detail artifact was explicitly rejected and is invalid as visual approval. Compare corrected deployed detail/run screenshots with Figma nodes 5420:34107, 5420:34558, 5420:35214, 5422:34561, and 5488:39515, then obtain explicit user approval. Exact nested measurements remain blocked because Figma API/export returns 403 and must not be guessed.
+      timestamp: "2026-07-11T00:00:00Z"
+      next_action: Implement only after contract/plan approval, capture corrected deployed web artifacts, and request explicit user visual approval before Apple work.
   - id: V-APPLE-MULTIPLATFORM
     kind: artifact_review
     phase: final
@@ -2033,753 +2439,608 @@ verifications:
       - AC-36
       - AC-37
       - AC-38
-    status: pending
+    status: blocked
     evidence:
-      status: pending
-      summary: Capture sanitized iPhone, iPad, and macOS home/sidebar/editor/expanded-node/run-history screenshots after web is approved.
+      status: blocked
+      summary: Apple visual work and evidence remain blocked until V-FIGMA-CORE-UI records explicit user approval of corrected deployed web screenshots/artifacts; the rejected generic Workflow deployment does not satisfy this gate.
+      timestamp: "2026-07-11T00:00:00Z"
+      next_action: Recheck only after corrected web artifacts are explicitly approved.
 
 implementation_plan:
   spec_path: docs/specs/workflows-v1/spec.yml
   existing_patterns:
-    - backend/apps/reminder/tasks.py for schedule claim, DB fallback, offline execution, and email fallback patterns.
-    - backend/core/api/app/routers/webhooks.py for trigger-created chats and pending confirmation patterns.
-    - backend/apps/reminder/skills/set_reminder_skill.py for current natural-language reminder inputs that should compile to workflow schedules once workflow-backed reminders are released.
-    - backend/apps/ai/processing/skill_executor.py for assistant skill dispatch and app-skill execution context.
-    - backend/core/api/app/services/feature_availability_service.py for platform and app-skill gating.
-    - backend/core/api/app/services/skill_registry.py for dispatching feature-enabled app skills in-process.
-    - backend/apps/audio/skills/transcribe_skill.py and frontend/packages/ui/src/components/enter_message/embedHandlers.ts for voice recording transcription/correction patterns.
-    - backend/preview/app/services/text_sanitization.py, backend/apps/ai/utils/llm_utils.py, and frontend/packages/ui/src/utils/textSanitizer.ts for ASCII-smuggling and unsafe text cleanup.
-    - backend/core/api/app/routes/projects.py and frontend/packages/ui/src/services/projectService.ts for project_items linking with item_type workflow.
-    - backend/apps/weather/app.yml and backend/apps/news/app.yml for canonical V1 app-skill action nodes.
-    - frontend/packages/ui/src/components/Header.svelte for the gated Workflows tab.
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte remains the landing-only Daily Inspiration surface.
-    - docs/specs/unified-detail-pages/spec.yml owns extraction of the rendered ChatHeader CSS, inline title/description editing, canonical detail routes, metadata version sync, permissions, and Apple header parity.
-    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte for visual and interaction references only; workflow input must extract/reuse safe primitives instead of coupling to chat send/storage services.
-    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte as a starting point for a gated workspace route pattern.
-    - frontend/packages/openmates-cli/src/client.ts and packages/openmates-python/openmates/sdk.py for CLI/SDK API client patterns.
+    - backend/core/api/app/routes/workflows.py and backend/core/api/app/services/workflow_service.py for owner-scoped CRUD, immutable-version persistence, feature gating, and history APIs that remain reusable.
+    - backend/apps/reminder/tasks.py for due-time computation and server-offline scheduling patterns only; workflow claims and records use the new workflow-specific atomic boundary.
+    - backend/core/api/app/services/workflow_app_skill_adapter.py, backend/core/api/app/services/workflow_action_adapter.py, and backend/core/api/app/services/skill_registry.py for real feature-gated execution adapters.
+    - backend/core/api/app/routes/share.py and backend/core/directus/schemas/share_short_links.yml for the existing opaque /v1/share/short-url storage, owner verification, expiry, and resolution path.
+    - frontend/packages/ui/src/services/shareEncryption.ts for existing Web Crypto AES-GCM, URL-safe encoding, token, and fragment-key primitives; extend it rather than creating Workflow cryptography.
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts for the existing workflow list/detail/run cache and mutation boundary.
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte and frontend/packages/ui/src/components/enter_message/MessageInput.svelte as rendered visual references, without importing chat send/storage behavior.
+    - docs/specs/unified-detail-pages/spec.yml for metadata API/version/encryption compatibility only; workflows-v1 owns Workflow header, action, tab, card, run-screen, and Apple visual composition.
+    - frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/sdk.ts, and packages/openmates-python/openmates/sdk.py for cross-client API contract patterns.
   architecture: >
-    Build Workflows as a server-side state machine with durable graph snapshots
-    and run records plus durable workflow-input sessions. The editor creates
-    readable vertical workflow graphs; the workflow-input pipeline creates,
-    updates, links, deletes, stops, follows up, and undoes workflow changes from
-    text or voice through a separate planner that is not the chat pre/main/post
-    pipeline. REST session endpoints are the correctness source of truth, with
-    WebSocket/event polling used only for live step-by-step UI streaming. The
-    runner executes only validated node types through a workflow service, app
-    skill adapter, platform action adapters, scheduler task, assistant workflow
-    skills, and event trigger matcher. The API is shared by web, CLI, npm SDK,
-    pip SDK, and Apple. Sensitive definitions, workflow-input drafts, transcripts,
-    undo payloads, and run content are stored in Automation Vault encrypted blobs,
-    while Directus keeps only minimal scheduler, ownership, lifecycle, billing,
-    expiry, status, and event cursor metadata. For the core UI milestone, extract
-    the monolithic web route into workflow home/editor/run components and add a
-    workspace-navigation provider boundary so every sidebar renders the active
-    workspace list. The landing composes Daily Inspiration and one mixed
-    recent/example row; the focused detail route consumes the shared header
-    contract and renders only the Figma workflow-building hierarchy below it.
-    Web is implemented and visually approved first. Apple then
-    consumes the same contracts through a native store and full vertical editor,
-    using the rendered web surface as its parity target rather than raw Figma
-    values. The Workflow spec does not duplicate header implementation or
-    metadata sync requirements from unified-detail-pages.
+    Correct the core in dependency order instead of extending the prototype.
+    workflow_triggers owns encrypted recurrence/event/webhook configuration plus
+    minimal indexed routing and atomic claim state; workflow_runs is created only
+    at accepted execution and remains pinned to one immutable workflow_version.
+    One scheduler/runtime service accepts manual, schedule, webhook, and event
+    adapters into that boundary. One authenticated normalized event envelope is
+    owner/source/type routed, predicate-evaluated from Vault ciphertext, durably
+    deduplicated by workflow_event_receipts, and protected by consent, scope,
+    rate, size, and loop controls. Provider credentials remain exclusively in the
+    credential Vault and are revalidated per node execution. Sharing is a separate
+    persistent client-encrypted projection and minimally extends the existing
+    /v1/share/short-url path with workflow_template ownership/revocation; the
+    server never receives projection plaintext keys or URL fragment keys. CLI,
+    npm, and pip prove shared runtime/share contracts before web. Web then owns
+    the Workflow-specific Figma routes and composition. Apple begins only after
+    corrected deployed web artifacts receive explicit approval.
+  boundaries:
+    - No planned or future workflow_run records; recurrence state is only workflow_triggers.next_run_at and encrypted recurrence config.
+    - No parallel short-link route, collection, encryption primitive, or Workflow-only resolver; extend /v1/share/short-url and share_short_links.
+    - No provider credential, connected-account id, grant, webhook secret, event payload, schedule body, predicate value, or user text in graph/version/projection plaintext, logs, traces, or analytics.
+    - No generic WorkspaceDetailHeader visual ownership for Workflow detail/runs and no duplicate report/action/status/editor areas.
+    - AI workflow-input planning, assistant temporary workflows, Tasks projections, cooperative cancellation UI, definition timeline, and advanced event producers remain deferred unless a listed required AC cannot be met without them.
+  phases:
+    - id: P1-foundations-red
+      dependencies: []
+      covers: [AC-10, AC-20, AC-39, AC-40, AC-41, AC-42, AC-43, AC-44, AC-45]
+      outcome: Add deterministic failing contracts first, then the trigger claim fields, event receipts, persistent client-encrypted template projection, share ownership metadata, and Vault references. Do not create planned run rows or execute workflows in this slice.
+      verification_ids: [T-PYTEST-006, T-PYTEST-007, T-PYTEST-008]
+    - id: P2-scheduler-runtime
+      dependencies: [P1-foundations-red]
+      covers: [AC-2, AC-3, AC-4, AC-8, AC-10, AC-11, AC-12, AC-13, AC-17, AC-18, AC-19, AC-24, AC-39, AC-40, AC-41, AC-42, AC-44, AC-45]
+      outcome: Implement one atomic acceptance/claim service, generic manual/schedule/webhook/event adapters, immutable-version-pinned execution, post-claim recurrence advancement, normalized authenticated event dispatch, encrypted predicate evaluation, durable receipts, and per-run provider scope revalidation.
+      verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-006, T-PYTEST-007]
+    - id: P3-sharing-cross-client
+      dependencies: [P2-scheduler-runtime]
+      covers: [AC-5, AC-6, AC-10, AC-11, AC-17, AC-20, AC-39, AC-41, AC-42, AC-43]
+      outcome: Persist/update/import projections, extend existing short links with workflow_template and owner-authorized revoke, support offline long links, then prove CLI, npm, and pip contracts in that order before web sharing work.
+      verification_ids: [T-PYTEST-008, T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003]
+    - id: P4-web
+      dependencies: [P3-sharing-cross-client]
+      covers: [AC-1, AC-2, AC-4, AC-8, AC-11, AC-12, AC-19, AC-20, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-43, AC-45]
+      outcome: Implement Workflow-owned /workflows/{workflow_id} and /workflows/{workflow_id}/runs screens, exact approved action hierarchy, compact in-place expanding cards, share/import UI, and workspace navigation. Use source values and rendered review; do not invent nested Figma measurements while 403 persists. Deploy, wait Ready, run Playwright, review screenshots/artifacts, and obtain explicit user approval.
+      verification_ids: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI]
+    - id: P5-apple
+      dependencies: [P4-web, V-FIGMA-CORE-UI]
+      covers: [AC-7, AC-10, AC-11, AC-24, AC-36, AC-37, AC-38]
+      outcome: Build native Workflow-specific composition from the explicitly approved rendered web artifact, then verify models, API, iPhone/iPad/macOS behavior, and visual artifacts.
+      verification_ids: [T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
+    - id: P6-deferred-broad-features
+      dependencies: [P5-apple]
+      covers: [AC-14, AC-15, AC-16, AC-21, AC-22, AC-23, AC-28, AC-29, AC-30, AC-31, AC-32, AC-33, AC-34, AC-35]
+      outcome: Plan separately after the corrected core runtime/share/UI contract; do not pull AI workflow-input planning, assistant temporary workflows, Tasks projections, definition history, or advanced producers into P1-P5 unless a required AC explicitly needs them.
   data_flow:
-    - User changes active workspace; the shared shell selects the matching chat/workflow/project list provider for mobile drawers and persistent sidebars.
-    - User opens Workflow landing; Daily Inspiration renders above one mixed horizontal row with recent workflows first and curated examples after them.
-    - User focuses the centered-placeholder composer and enters Daily school weather; submit appears only for valid non-empty input, and the client creates a disabled empty draft without invoking general AI planning.
-    - The app navigates to the canonical Workflow detail route, whose title/description header behavior is delegated to docs/specs/unified-detail-pages/spec.yml.
-    - The Figma node canvas begins immediately below the shared header; user edits trigger/action/decision nodes locally, dirty state reveals contextual Save/Undo, and leaving requires an explicit choice.
-    - User creates or edits a workflow through web, CLI, SDK, or Apple.
-    - Assistant-created one-time workflow requests use workflows.schedule_once to create a temporary workflow with auto_delete_at, while recurring chat requests use workflows.schedule_recurring to create a persisted workflow.
-    - Backend validates the graph, encrypts the full graph into an Automation Vault blob, stores a workflow metadata row, creates an immutable version, and computes trigger metadata.
-    - Scheduler claims due workflow_triggers server-side and creates workflow_runs.
-    - Manual run requests for any workflow validate and collect required trigger input before execution.
-    - Runner decrypts the workflow graph for execution, executes nodes by graph edges, dispatches app-skill nodes through real adapters, calls platform action adapters, stores workflow_node_run metadata, evaluates decisions, and completes branches naturally when no outgoing edge remains.
-    - Running workflow runs remain tied to their immutable version_id; workflow definition edits create future versions and never mutate in-flight run behavior.
-    - Tasks view reads workflow run projections from workflow run metadata for account-wide running/recent completed automation visibility.
-    - Cancellation requests update run cancellation metadata and the runner cooperatively stops before the next cancellable node/checkpoint.
-    - Runner stores sensitive run content as encrypted durable blobs for last_5 retention, or encrypted ephemeral cache for none retention.
-    - Temporary workflow cleanup deletes expired temporary workflow definitions and sensitive content after seven days unless the user keeps the workflow.
-    - Clients fetch workflow_runs and workflow_node_runs to render history and request encrypted run-content details only when content_available is true.
-    - User submits text, corrected transcript, or voice audio reference to POST /v1/workflows/input.
-    - Backend creates or resumes a durable workflow_input_session, transcribes/corrects voice when needed, sanitizes all input, loads compact owner-scoped workflow/project/capability context server-side, and runs a workflow-specific planner.
-    - Backend streams append-only workflow_input_events for transcription, planning, assumptions, draft node creation, validation, confirmation, commit, stop, follow-up, undo, and failure.
-    - Draft workflow graphs or graph patches are encrypted on the input session and validated before commit; create/update mutations call WorkflowService, and workflow-to-project linking calls the Projects item API/service only after workflow ownership validation.
-    - Stop requests mark cancellation_requested and prevent later draft commit; follow-up requests resume the same session context; undo creates a new workflow version or compensating project-item mutation for the last committed instruction.
+    - "Daily schedule example: an authorized client saves daily at 07:00 in Europe/Berlin into an Automation Vault ciphertext referenced by workflow_triggers; only trigger_type=schedule, enabled=true, version_id, claim fields, and next_run_at=1783832400 (2026-07-12T05:00:00Z) are queryable plaintext."
+    - At due time two workers contend on one trigger; one atomic lease wins, creates one queued workflow_run with one acceptance idempotency key and the claimed version_id, decrypts recurrence, computes the next next_run_at, executes, and finalizes the claim. A retry resolves to that run instead of creating another; no future runs exist.
+    - Manual, webhook, and event adapters normalize into the same accepted-execution boundary; execution decrypts the immutable graph and uses real app-skill/platform adapters. Before every provider call, the opaque binding is resolved from the credential Vault and owner, consent, capability, and current scopes are revalidated.
+    - "Terminal predicate example: an authenticated fictional envelope carries event_id=evt-example-001, owner_hash=<OWNER_HASH>, source=terminal, event_type=command.completed, scope.project_hash=<PROJECT_HASH>, occurred_at=1783832400, and transient payload.command_text='deploy preview'. Indexed routing selects owner/source/type; the Vault-encrypted AST { left: '$event.payload.command_text', op: contains, right: 'deploy' } is evaluated after consent/scope checks. The payload and predicate values never enter receipts or logs."
+    - The dispatcher inserts a unique trigger_id plus event_id receipt before accepting execution; duplicates, excessive owner/source rates, oversized/unredacted command payloads, cross-project scopes, and workflow-origin recursion are rejected without another run.
+    - After an authorized workflow edit, the client recursively allowlists a portable template, encrypts it with a client-generated template key, wraps that key for the owner, and PUTs only template_id, source_version, ciphertext, checksum, schema version, and owner_wrapped_key.
+    - Online sharing generates token, shortKey, and encrypted_url client-side; POST /v1/share/short-url receives content_type=workflow_template plus opaque ciphertext but no fragment key, and the client assembles /s/{token}#{shortKey}. Owner-authorized DELETE revokes retrieval.
+    - Offline sharing reads the persistent local/cross-device projection and emits /share/workflow-template/{templateId}#key={templateKeyBlob}. Import decrypts and validates client-side, then sends the portable allowlisted payload to create a new recipient-owned disabled workflow with rebinding requirements.
+    - Web routes load the same owner-scoped records into the Workflow-owned header/editor or runs screen. Only dirty graph changes reveal Save/Undo. The deployed rendered artifact, not guessed Figma dimensions, is reviewed before Apple composition begins.
   affected_files:
     - path: backend/core/directus/schemas/workflows.yml
-      reason: Durable workflow records.
+      reason: Minimal owner/routing metadata and encrypted title/description references.
     - path: backend/core/directus/schemas/workflow_versions.yml
-      reason: Immutable graph snapshots.
+      reason: Immutable graph snapshots with opaque binding/capability references only.
     - path: backend/core/directus/schemas/workflow_triggers.yml
-      reason: Scheduler query and trigger metadata.
+      reason: Replace plaintext schedule_config with Vault refs and add indexed source/type plus atomic claim lease fields.
     - path: backend/core/directus/schemas/workflow_runs.yml
-      reason: Durable run history.
+      reason: Accepted-execution idempotency, claim linkage, immutable version pin, and no planned runs.
     - path: backend/core/directus/schemas/workflow_node_runs.yml
-      reason: Per-node debug history.
-    - path: backend/core/directus/schemas/workflow_waits.yml
-      reason: Ask-user, approval, delay, and callback wait-state foundation.
-    - path: backend/core/directus/schemas/workflow_input_sessions.yml
-      reason: Durable workflow-input session state for streaming creation/update/link/delete/undo.
-    - path: backend/core/directus/schemas/workflow_input_events.yml
-      reason: Append-only event stream and reconnect cursor for workflow input.
-    - path: backend/core/directus/schemas/workflow_input_mutations.yml
-      reason: Undo journal and committed mutation audit trail.
+      reason: Status/timing/cost metadata with sensitive summaries kept in encrypted run content.
+    - path: backend/core/directus/schemas/workflow_event_receipts.yml
+      reason: New unique trigger_id/event_id receipts for dedupe and recursion protection without payload retention.
+    - path: backend/core/directus/schemas/workflow_template_projections.yml
+      reason: New persistent client-encrypted portable projection, source version, owner wrapped key, and revocation metadata.
+    - path: backend/core/directus/schemas/share_short_links.yml
+      reason: Add workflow_template content type and retain generic opaque lookup/revocation ownership metadata.
     - path: backend/core/api/app/routes/workflows.py
-      reason: Workflow CRUD, run, cancel, capabilities, history, and workflow-input session API.
-    - path: backend/core/api/app/routes/projects.py
-      reason: Owner validation for item_type workflow project links.
+      reason: Accepted manual runs, projection persistence/import, owner checks, and existing CRUD/history contracts.
+    - path: backend/core/api/app/routes/share.py
+      reason: Minimally extend existing short-url ownership validation and add owner-authorized revoke for workflow_template.
     - path: backend/core/api/app/services/workflow_service.py
-      reason: Ownership, validation, versioning, and graph persistence.
-    - path: backend/core/api/app/services/workflow_input_service.py
-      reason: Durable workflow input orchestration, planner dispatch, event persistence, stop/follow-up/undo, and commit coordination.
-    - path: backend/core/api/app/services/workflow_input_planner.py
-      reason: Strict structured LLM command planning for workflow input, separate from chat processing.
-    - path: backend/core/api/app/services/workflow_input_security.py
-      reason: Sanitization, prompt-injection boundaries, strict schema validation, and logging redaction for workflow input.
+      reason: Ownership, immutable versions, trigger/projection coordination, and fail-closed feature gating.
+    - path: backend/core/api/app/services/workflow_models.py
+      reason: Trigger, accepted run, normalized event, receipt, and portable projection schemas.
+    - path: backend/core/api/app/services/workflow_scheduler_service.py
+      reason: New due-trigger query, atomic lease, one-run acceptance, recurrence decrypt/advance, and retry idempotency boundary.
     - path: backend/core/api/app/services/workflow_runner.py
-      reason: Server-side execution engine and cooperative cancellation checkpoints.
-    - path: backend/core/api/app/services/task_view_service.py
-      reason: Workflow run projection data source for the central Tasks view.
+      reason: Execute an already accepted version-pinned run rather than generating/persisting a run after execution.
     - path: backend/core/api/app/services/workflow_app_skill_adapter.py
-      reason: Real app-skill workflow actions and stable output aliases.
+      reason: Resolve opaque bindings and revalidate current owner/consent/capability/scopes per run.
     - path: backend/core/api/app/services/workflow_action_adapter.py
-      reason: Real OpenMates action nodes for notifications, chat/report creation, and deterministic new chats.
-    - path: backend/core/api/app/services/workflow_capability_registry.py
-      reason: Shared node, app-skill, platform-action, and user workflow capabilities for web, CLI, SDKs, Apple, and assistant selection.
+      reason: Real notification/report actions and stable redacted output aliases.
     - path: backend/core/api/app/services/workflow_event_service.py
-      reason: Scoped assistant/chat/app-skill/terminal/sandbox event trigger matching.
-    - path: backend/apps/workflows/skills/*.py
-      reason: Assistant-facing workflow search, run, schedule_once, schedule_recurring, cancel_pending, and keep_temporary skills.
-    - path: backend/apps/workflows/app.yml
-      reason: Workflows app metadata and assistant skill schemas.
+      reason: Authenticated normalized envelope, indexed routing, Vault predicate evaluation, receipts, consent/scope, rate/size, and loop controls.
+    - path: backend/core/api/app/services/workflow_template_service.py
+      reason: New projection metadata ownership/staleness, recursive allowlist validation, disabled recipient import, and no runtime two-way sync.
     - path: backend/core/api/app/tasks/workflow_tasks.py
-      reason: Scheduler, queued run execution, event dispatch, and temporary workflow cleanup.
-    - path: scripts/audit_skill_embed_registry.py
-      reason: Documents internal control-plane workflow skills as non-embed exceptions.
+      reason: Thin scheduler, accepted-run execution, and event dispatch task entry points.
+    - path: backend/tests/test_workflow_scheduler_contract.py
+      reason: Deterministic trigger/Vault/claim/no-planned-run/provider-scope contracts.
+    - path: backend/tests/test_workflow_event_dispatcher_contract.py
+      reason: Normalized event, encrypted predicate, receipt, consent/rate/loop/redaction contracts.
+    - path: backend/tests/test_workflow_template_projection.py
+      reason: Persistent client-encrypted projection, allowlist, stale source, share/revoke, and import contracts.
+    - path: backend/tests/test_share_short_links.py
+      reason: Existing generic short-link regression plus workflow_template ownership and revoke coverage.
     - path: frontend/apps/web_app/src/routes/workflows/+page.svelte
-      reason: Thin Workflows route orchestration after home/editor/run component extraction.
-    - path: frontend/packages/ui/src/components/Header.svelte
-      reason: Workspace switching and active-workspace sidebar selection.
-    - path: frontend/packages/ui/src/components/ChatHistory.svelte
-      reason: Preserve chat-list behavior while extracting reusable workspace sidebar shell boundaries.
-    - path: frontend/packages/ui/src/components/workspace/WorkspaceSidebar.svelte
-      reason: Shared mobile drawer and persistent sidebar chrome with workspace-specific list providers.
-    - path: frontend/packages/ui/src/components/workflows/WorkflowHome.svelte
-      reason: Landing-only Daily Inspiration, mixed recent/example row, Show all mode, and restrained composer composition.
-    - path: frontend/packages/ui/src/components/workflows/WorkflowInput.svelte
-      reason: Workflow-specific composer with chat-like visual affordances, stop/follow-up/undo, and workflow-input endpoints.
-    - path: frontend/packages/ui/src/components/workflows/WorkflowInputStream.svelte
-      reason: Step-by-step streamed draft rendering and reconnect recovery.
-    - path: frontend/packages/ui/src/components/workflows/WorkflowListPage.svelte
-      reason: Workflow list UI.
+      reason: Landing/browse orchestration and restrained title-only draft composer.
+    - path: frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
+      reason: Canonical Workflow-owned detail/editor route.
+    - path: frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.svelte
+      reason: New canonical routed runs screen matching the approved artifact.
+    - path: frontend/apps/web_app/src/routes/share/workflow-template/[templateId]/+page.svelte
+      reason: New offline long-link projection retrieval/decrypt/import route.
+    - path: frontend/packages/ui/src/services/shareEncryption.ts
+      reason: Reuse and minimally generalize Chat token/shortKey/encrypted_url and fragment-key cryptography.
+    - path: frontend/packages/ui/src/services/workflowTemplateService.ts
+      reason: New allowlist, encrypt/decrypt, projection update, short-share/revoke, long-link, and import API orchestration.
+    - path: frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+      reason: Existing workflow detail/run state plus projection source-version updates.
+    - path: frontend/packages/ui/src/stores/workflowTemplateProjectionStore.ts
+      reason: New persistent local/cross-device encrypted projection state needed for offline long links.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+      reason: Replace generic WorkspaceDetailHeader ownership with Workflow-specific action/header/tab composition.
     - path: frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
-      reason: Clean Figma vertical canvas with contextual dirty-state actions and responsive inline node expansion, without rejected prototype management areas.
-    - path: frontend/packages/ui/src/components/workflows/WorkflowHeader.svelte
-      reason: Workflow-specific icon/type/status/next-run content composed through the shared detail-header contract; extraction and metadata editing are owned by unified-detail-pages.
-    - path: docs/specs/unified-detail-pages/spec.yml
-      reason: Required dependency for shared header CSS, canonical route, writable metadata editing, sync, and Apple parity.
+      reason: Compact vertical cards, same-card expansion, Add action/decision, and contextual dirty Save/Undo.
     - path: frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
-      reason: Useful run selection and per-node execution status for retained content.
+      reason: Routed Figma run composition and retained-content states.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowTemplateShare.svelte
+      reason: New projection freshness, online short share, offline long share, revoke, and import/rebind UI.
     - path: frontend/packages/ui/src/components/workflows/nodes/*.svelte
-      reason: Trigger, app skill, decision, repeat, notification, report, new-chat, and event trigger cards.
+      reason: Workflow-specific compact trigger/action/decision card composition without sibling editors.
     - path: frontend/packages/ui/src/i18n/sources/workflows.yml
-      reason: Localized workflow UI strings.
-    - path: frontend/packages/ui/src/i18n/sources/apps.yml
-      reason: Workflows app and internal skill labels.
+      reason: Localized detail, run, sharing, import, rebinding, and privacy copy.
     - path: frontend/packages/openmates-cli/src/client.ts
-      reason: Workflow API client methods.
+      reason: Accepted-run, normalized event, projection/share/revoke/import models and methods.
     - path: frontend/packages/openmates-cli/src/cli.ts
-      reason: Workflow CLI commands.
+      reason: CLI runtime/share contract commands and typed errors.
     - path: frontend/packages/openmates-cli/src/sdk.ts
-      reason: npm SDK workflow methods and types.
+      reason: npm SDK runtime/share facade and types.
     - path: packages/openmates-python/openmates/sdk.py
-      reason: pip SDK workflow methods and types.
-    - path: backend/tests/test_workflow_input_sessions.py
-      reason: Workflow input backend/session/security/undo contract tests.
-    - path: frontend/packages/openmates-cli/tests/workflows.test.ts
-      reason: CLI workflow-management and workflow-input command contracts.
-    - path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      reason: npm SDK workflow-management and workflow-input contracts.
-    - path: packages/openmates-python/tests/test_workflows.py
-      reason: pip SDK workflow-management and workflow-input contracts.
+      reason: pip SDK runtime/share facade and types.
+    - path: frontend/packages/openmates-cli/tests/workflows-runtime-contract.test.ts
+      reason: New CLI accepted-run/event/projection/share/import contract.
+    - path: frontend/packages/openmates-cli/tests/sdk-workflows-runtime-contract.test.ts
+      reason: New npm SDK equivalent contract.
+    - path: packages/openmates-python/tests/test_workflows_runtime_contract.py
+      reason: New pip SDK equivalent contract.
+    - path: frontend/apps/web_app/tests/workflows-editor.spec.ts
+      reason: Corrected functional graph/editor behavior; prior generic-detail green is stale.
+    - path: frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
+      reason: New routed Workflow-owned visual/action/card/run contract.
+    - path: frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
+      reason: New client-key, projection, short/long share, revoke, import, and rebinding contract.
     - path: frontend/apps/web_app/tests/workflows-input.spec.ts
-      reason: Web Workflows home and streaming input UI coverage.
+      reason: Existing landing, mixed row, Show all, and title-only composer contract; no AI planner expansion.
+    - path: frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+      reason: Active-workspace navigation and routed run behavior.
     - path: apple/OpenMates/Sources/App/MainAppView.swift
-      reason: Replace workflow placeholder and make all sidebar modes workspace-aware without default Menu product UI.
+      reason: Workflow workspace navigation and sidebar integration after web approval.
+    - path: apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
+      reason: Native accepted-run/trigger/share contract models.
+    - path: apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
+      reason: Native shared API paths after CLI/npm/pip/web are green.
     - path: apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
-      reason: Native workflow home/detail/editor/run state and mutations.
-    - path: apple/OpenMates/Sources/Features/Workflows/Views/WorkflowHomeView.swift
-      reason: Native recommendation, recent, Show all, search, and title composer surface.
-    - path: apple/OpenMates/Sources/Features/Workflows/Views/WorkflowDetailView.swift
-      reason: Native focused workflow header, status, explicit dirty-state controls, and navigation.
-    - path: apple/OpenMates/Sources/Features/Workflows/Views/WorkflowEditorView.swift
-      reason: Full core native vertical editor with inline node expansion.
-    - path: apple/OpenMates/Sources/Features/Workflows/Views/WorkflowRunHistoryView.swift
-      reason: Native useful run and per-node history.
+      reason: Native owner-scoped list/detail/editor/run/share state after corrected web approval.
+    - path: apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
+      reason: Existing native file to replace with Workflow-specific approved web composition and in-place card editing.
+    - path: apple/OpenMatesTests/WorkflowsParityTests.swift
+      reason: Native model/API parity.
+    - path: apple/OpenMatesUITests/WorkflowsParityUITests.swift
+      reason: Native rendered visibility, clickability, routes/states, and visual artifact evidence.
+  migration_backfill:
+    - Add new nullable claim/Vault reference fields and new receipt/projection collections while platform:workflows remains disabled; deploy schema before readers/writers.
+    - Migrate every existing plaintext workflow_triggers.schedule_config to Automation Vault ciphertext, verify checksum/owner/version association, write encrypted_schedule_config_ref, and clear plaintext only after verified persistence. Revised scheduler stays fail-closed until no enabled trigger depends on plaintext.
+    - Existing workflows receive a workflow_template_projection lazily on the next authorized client edit/share, because client key creation cannot be fabricated by a server migration. Until then sharing reports projection_required; it never falls back to server-built plaintext.
+    - Existing share_short_links rows remain valid; workflow_template is an additive content type and owner-authorized revoke applies generically.
+    - Do not backfill workflow_runs. Existing actual historical executions remain history; no schedule occurrence, missed occurrence, or future occurrence becomes a run row.
+    - Keep platform:workflows gated throughout migration, contract correction, deployed web review, and Apple sequencing.
   verification_strategy:
-    - python3 scripts/spec_validate.py docs/specs/workflows-v1/spec.yml
-    - python3 scripts/spec_verify.py docs/specs/workflows-v1/spec.yml --phase red before implementation
-    - python3 scripts/spec_validate.py docs/specs/workflows-v1/spec.yml
-    - python3 -m pytest backend/tests/test_workflows_models.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_input_sessions.py
-    - cd frontend/packages/openmates-cli && npm run build && npm run test:unit:workflows && npm run test:unit:sdk-workflows
-    - python3 -m pytest packages/openmates-python/tests/test_workflows.py
-    - python3 scripts/audit_sdk_cli_parity.py
-    - Deploy to dev and wait for Vercel Ready before Playwright green.
-    - python3 scripts/tests.py run --spec workflows-editor.spec.ts
-    - python3 scripts/tests.py run --spec workflows-input.spec.ts
-    - python3 scripts/tests.py run --spec workspace-sidebar.spec.ts
-    - python3 scripts/apple_remote.py status
-    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WorkflowsParityTests
-    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/WorkflowsParityUITests
+    - "Plan/spec: python3 scripts/spec_validate.py docs/specs/workflows-v1/spec.yml"
+    - "Red foundations: python3 -m pytest backend/tests/test_workflow_scheduler_contract.py"
+    - "Red events: python3 -m pytest backend/tests/test_workflow_event_dispatcher_contract.py"
+    - "Red projection/share: python3 -m pytest backend/tests/test_workflow_template_projection.py"
+    - "Backend green: python3 -m pytest backend/tests/test_workflows_models.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_event_dispatcher_contract.py backend/tests/test_workflow_template_projection.py backend/tests/test_share_short_links.py"
+    - "CLI first: cd frontend/packages/openmates-cli && npm run build && node --test tests/workflows-runtime-contract.test.ts"
+    - "npm SDK second: cd frontend/packages/openmates-cli && npm run build && node --test tests/sdk-workflows-runtime-contract.test.ts"
+    - "pip SDK third: python3 -m pytest packages/openmates-python/tests/test_workflows_runtime_contract.py"
+    - "Parity audit: python3 scripts/audit_sdk_cli_parity.py"
+    - Deploy the corrected backend/share/web subject to dev with sessions.py, then run python3 backend/scripts/debug.py vercel and wait for Ready before web green evidence.
+    - "Web fourth: python3 scripts/tests.py run --spec workflows-editor.spec.ts"
+    - "Web fourth: python3 scripts/tests.py run --spec workflows-input.spec.ts"
+    - "Web fourth: python3 scripts/tests.py run --spec workspace-sidebar.spec.ts"
+    - "Web fourth: python3 scripts/tests.py run --spec workflows-figma-detail.spec.ts"
+    - "Web fourth: python3 scripts/tests.py run --spec workflow-template-sharing.spec.ts"
+    - Capture desktop/mobile detail, expanded-card, and runs artifacts; compare source values and rendered output to the available Figma references without guessed nested measurements; record explicit user approval in V-FIGMA-CORE-UI.
+    - "Apple fifth, only after V-FIGMA-CORE-UI approval: python3 scripts/apple_remote.py status"
+    - "Apple fifth: python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/WorkflowsParityTests"
+    - "Apple fifth: python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/WorkflowsParityUITests"
+    - "Final evidence: python3 scripts/spec_verify.py docs/specs/workflows-v1/spec.yml"
   verification_order:
-    - Red contract tests for core API ordering/title drafts, web home/editor/sidebar, and real Apple UI behavior.
-    - Backend core UI contracts and OpenMates CLI workflow-management contract.
-    - npm SDK and pip SDK workflow-management contracts.
-    - Deployed web workspace sidebar, corrected landing/mixed row, restrained title composer, shared-header detail, clean focused editor, and run history Playwright.
-    - Shared detail-page web contract and Figma artifact review of the approved rendered web UI.
-    - Apple model/store tests, then iPhone/iPad/macOS editor UI tests and screenshot evidence.
-    - Feature-gated rollout and complete spec verification only after all required evidence is current for the subject commit.
+    - Deterministic backend red contracts and data/privacy foundations.
+    - Backend scheduler/runtime/event/template green contracts.
+    - OpenMates CLI, then npm SDK, then pip SDK.
+    - Deploy and wait for Vercel Ready, then web Playwright and screenshot/artifact review.
+    - Explicit user approval of corrected deployed web artifacts.
+    - Apple models/API, native UI tests, and iPhone/iPad/macOS artifacts.
+    - Final spec verification while platform:workflows remains gated until rollout approval.
+  acceptance_criteria_coverage:
+    - acceptance_criteria: [AC-1, AC-2, AC-4, AC-8, AC-12, AC-19]
+      verification_ids: [T-PYTEST-002, T-E2E-001]
+    - acceptance_criteria: [AC-3, AC-10, AC-13, AC-17, AC-18, AC-24, AC-39, AC-40, AC-41, AC-42, AC-44, AC-45]
+      verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-E2E-004]
+    - acceptance_criteria: [AC-5, AC-6]
+      verification_ids: [T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003]
+    - acceptance_criteria: [AC-11]
+      verification_ids: [T-PYTEST-001, T-CLI-001, T-NPM-SDK-001, T-PIP-SDK-001, T-E2E-001, T-APPLE-001]
+    - acceptance_criteria: [AC-20, AC-43]
+      verification_ids: [T-PYTEST-008, T-CLI-003, T-NPM-SDK-003, T-PIP-SDK-003, T-E2E-005]
+    - acceptance_criteria: [AC-25, AC-26, AC-27, AC-38]
+      verification_ids: [T-PYTEST-005, T-E2E-002, T-APPLE-UI-001, V-FIGMA-CORE-UI]
+    - acceptance_criteria: [AC-36]
+      verification_ids: [T-E2E-003, T-APPLE-UI-001]
+    - acceptance_criteria: [AC-37]
+      verification_ids: [T-E2E-004, V-FIGMA-CORE-UI, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
+    - acceptance_criteria: [AC-7]
+      verification_ids: [T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
+  evidence_validity:
+    - Existing green evidence remains usable only for assertions whose contract and implementation subject did not change.
+    - Prior scheduler/runner green evidence is stale for atomic acceptance, no-planned-run semantics, encrypted trigger configuration, normalized events, receipts, and per-run credential revalidation; T-PYTEST-006 and T-PYTEST-007 replace it.
+    - Prior ephemeral server-built template evidence is stale for persistent client-encrypted projection, fragment-key sharing, revoke, offline long link, and recipient import; T-PYTEST-008 plus CLI/npm/pip and T-E2E-005 replace it.
+    - Prior generic Workflow detail Playwright/artifacts are stale for AC-37 and cannot unlock Apple; T-E2E-004 plus explicit V-FIGMA-CORE-UI approval replace them.
+    - Unchanged landing/title-only composer evidence may remain current where its assertions and subject commit still match AC-25, AC-27, and AC-38.
   rollout:
-    - Keep platform:workflows disabled by default while required core UI checks are red or pending.
-    - Enable for dev test accounts only after backend, CLI, npm SDK, and pip SDK contracts are green.
-    - Enable web discovery after deployed web Playwright and Figma-intent review pass.
-    - Enable Apple discovery only when native feature availability, sidebar, home, editor, and run-history UI evidence pass on iPhone, iPad, and macOS.
+    - Keep platform:workflows disabled by default through schema migration, red/green runtime/share correction, and cross-client verification.
+    - Permit only controlled dev accounts after plaintext schedule migration and backend plus CLI/npm/pip contracts are green.
+    - Keep web gated until deployed Playwright, screenshot/artifact review, and explicit corrected-web approval pass.
+    - Keep Apple gated until that web approval plus native model/UI/artifact evidence pass.
   observability:
-    - Log workflow UI/API failures using sanitized workflow/run id prefixes, operation names, statuses, and durations only.
-    - Never log titles, descriptions, node config, composer text, run input/output, or private sidebar item names.
-    - Record workspace switch, list load, editor save, manual run, and run-detail phase durations through existing web and NativeDiagnostics boundaries.
+    - Emit only redacted/prefixed workflow_id, trigger_id, run_id, receipt id, template_id, source/event type, status/error code, attempt/count, and phase duration.
+    - Audit every Automation Vault decrypt with purpose category, redacted subject id, caller/service identity, key version, success/failure, and timing; never include ciphertext, schedule, predicate, payload, graph, credential, title, or user text.
+    - Measure claim contention/expiry, accepted-run dedupe, scheduler lag, recurrence advancement, event receipt duplicates, rate/loop rejections, provider scope revalidation failures, projection staleness, short-link create/revoke/import outcomes, and web/native load/save/run timings.
+    - Never log event payloads, predicate operands, command text, schedule bodies, projection plaintext, fragment keys, encrypted_url, provider credentials/responses, run input/output, notification bodies, or private UI labels.
   required_assumptions:
     - A-1
     - A-2
     - A-3
+    - A-4
+    - A-5
   open_questions:
-    - none for the clarified core UI alignment milestone; approval is pending after validation
+    - The technical plan requires explicit user approval before implementation resumes.
+    - Exact nested Figma measurements remain externally blocked by 403; source values and corrected rendered artifacts are the only allowed interim basis, and user artifact approval is required before Apple work.
   risks:
-    - Workflow data encryption boundaries may conflict with server-side execution needs; V1 must clearly separate routing metadata from encrypted sensitive payloads.
-    - Automation Vault encryption is weaker than chat-style client-only encryption because the backend must decrypt during execution; product copy must be explicit and retention controls must be conservative.
-    - Notification nodes may depend on partially implemented unified notification work; V1 should reuse the safest existing push/email paths and preserve preferences.
-    - App skill output schemas vary; workflow adapters need conservative summary extraction before broad app-skill automation is safe.
-    - Exposing user-created workflows as assistant-considerable capabilities can become noisy; matching must use owner-scoped metadata, relevance ranking, and countdown/approval gates.
-    - Event triggers can become noisy or dangerous without scope filters, rate limits, and side-effect approval policies.
-    - Replacing reminders with workflow-backed reminders requires a careful transition period because existing reminder records must continue firing until migrated.
-    - Multi-platform parity makes this too large for one implementation slice unless tasks remain independently deployable.
-    - Apple full editor parity is expensive but required for the approved core milestone; split implementation into model/store and view slices without reducing native edit scope.
-    - Workflow implementation must not independently edit or copy the shared detail header while unified-detail-pages is active; sequence ownership to avoid conflicts.
-    - Users may confuse workflow run cards in Tasks with editable user tasks; the UI must label them as workflow runs and expose only open/cancel/run-specific actions.
-    - Cancelling in-progress external calls is inherently cooperative; UI copy must avoid promising rollback of side effects that already started.
-    - Workflow-input prompt injection from transcripts or attachments can cause unsafe graph drafts unless every input is sanitized, quoted, schema-constrained, and validated before commit.
-    - Reusing the full chat MessageInput directly would couple Workflows to chatSyncService, IndexedDB chat drafts, and chat send handlers; the web implementation should reuse smaller primitives and styling instead.
-    - Undo may be mistaken for undoing already-executed external side effects. In V1 undo only reverts OpenMates workflow/project mutations and must label any non-reversible external effects explicitly.
+    - A partial plaintext-schedule migration could cause missed or duplicate execution; the revised scheduler must fail closed until every enabled trigger has verified ciphertext and idempotency state.
+    - Directus atomic-update semantics may be insufficient for leases without an existing transaction/RPC pattern; resolve in P1 before implementation rather than emulating claims in process memory.
+    - Event producers can bypass safety if they do not authenticate owner/source identity; only explicitly integrated producers may dispatch, and advanced producers stay gated.
+    - Client-created projection keys mean legacy workflows cannot become shareable through a server-only backfill; UI must clearly request an authorized client refresh/edit instead of silently weakening encryption.
+    - Reusing share.py must not preserve its current private-id logging for workflow shares; touched paths must emit redacted identifiers only.
+    - Provider scope drift can fail unattended runs; failures must be visible and must never fall back to cached credentials or stale grants.
+    - Figma 403 prevents exact nested measurement verification; guessing would create another stale prototype, so visual completion depends on rendered artifact review and explicit approval.
+    - Apple implementation before corrected web approval would encode the rejected generic composition and is prohibited by the phase dependency.
 
 tasks:
   - id: TASK-1
-    title: Add backend workflow data model and graph validation
-    status: needs_fix
+    title: Write and run deterministic scheduler, event, and projection red contracts
+    status: pending
     phase: working_tasks
     covers:
-      scenarios:
-        - S-7
-        - S-8
-        - S-9
-        - S-10
-        - S-12
-        - S-13
-        - S-15
-      acceptance_criteria:
-        - AC-8
-        - AC-9
-        - AC-10
-        - AC-11
-        - AC-12
-        - AC-13
-        - AC-14
-        - AC-15
-        - AC-17
-        - AC-19
+      scenarios: [S-9, S-15, S-17, S-30, S-31]
+      acceptance_criteria: [AC-10, AC-17, AC-20, AC-39, AC-40, AC-41, AC-42, AC-43, AC-44, AC-45]
+    expected_files:
+      - backend/tests/test_workflow_scheduler_contract.py
+      - backend/tests/test_workflow_event_dispatcher_contract.py
+      - backend/tests/test_workflow_template_projection.py
+    ownership:
+      files:
+        - backend/tests/test_workflow_scheduler_contract.py
+        - backend/tests/test_workflow_event_dispatcher_contract.py
+        - backend/tests/test_workflow_template_projection.py
+      shared_files: []
+    verification: [T-PYTEST-006, T-PYTEST-007, T-PYTEST-008]
+    verification_ids: [T-PYTEST-006, T-PYTEST-007, T-PYTEST-008]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add encrypted workflow storage, claim, receipt, projection, and share schema foundations
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-9, S-15, S-17, S-30, S-31]
+      acceptance_criteria: [AC-10, AC-20, AC-39, AC-41, AC-42, AC-43, AC-44, AC-45]
     expected_files:
       - backend/core/directus/schemas/workflows.yml
       - backend/core/directus/schemas/workflow_versions.yml
       - backend/core/directus/schemas/workflow_triggers.yml
       - backend/core/directus/schemas/workflow_runs.yml
       - backend/core/directus/schemas/workflow_node_runs.yml
-      - backend/core/directus/schemas/workflow_waits.yml
-      - backend/core/api/app/services/workflow_service.py
-      - backend/core/api/app/services/workflow_event_service.py
-      - backend/tests/test_workflows_models.py
+      - backend/core/directus/schemas/workflow_event_receipts.yml
+      - backend/core/directus/schemas/workflow_template_projections.yml
+      - backend/core/directus/schemas/share_short_links.yml
+      - backend/core/api/app/services/workflow_models.py
     ownership:
       files:
+        - backend/core/directus/schemas/workflow_triggers.yml
+        - backend/core/directus/schemas/workflow_event_receipts.yml
+        - backend/core/directus/schemas/workflow_template_projections.yml
+        - backend/core/directus/schemas/share_short_links.yml
         - backend/core/api/app/services/workflow_models.py
-        - backend/core/api/app/services/workflow_service.py
-        - backend/tests/test_workflows_models.py
       shared_files:
         - backend/core/directus/schemas/workflows.yml
         - backend/core/directus/schemas/workflow_versions.yml
-    verification:
-      - T-PYTEST-001
-    verification_ids: [T-PYTEST-001]
-    dependencies: []
-    blockers: []
-    follow_up_tasks: [TASK-10]
-    independently_deployable: false
-
-  - id: TASK-2
-    title: Add workflow runner, real adapters, scheduler, and canonical weather/news workflow execution
-    status: needs_fix
-    phase: working_tasks
-    covers:
-      scenarios:
-        - S-2
-        - S-3
-        - S-16
-        - S-18
-      acceptance_criteria:
-        - AC-2
-        - AC-3
-        - AC-4
-        - AC-8
-        - AC-10
-        - AC-12
-        - AC-18
-        - AC-19
-        - AC-21
-        - AC-22
-    expected_files:
-      - backend/core/api/app/services/workflow_runner.py
-      - backend/core/api/app/services/workflow_app_skill_adapter.py
-      - backend/core/api/app/services/workflow_action_adapter.py
-      - backend/core/api/app/services/task_view_service.py
-      - backend/core/api/app/tasks/workflow_tasks.py
-      - backend/tests/test_workflow_runner.py
-    ownership:
-      files:
-        - backend/core/api/app/services/workflow_runner.py
-        - backend/core/api/app/services/workflow_app_skill_adapter.py
-        - backend/core/api/app/services/workflow_action_adapter.py
-        - backend/tests/test_workflow_runner.py
-      shared_files:
-        - backend/core/api/app/tasks/workflow_tasks.py
-    verification:
-      - T-PYTEST-002
-    verification_ids: [T-PYTEST-002]
+        - backend/core/directus/schemas/workflow_runs.yml
+        - backend/core/directus/schemas/workflow_node_runs.yml
+    verification: [T-PYTEST-006, T-PYTEST-007, T-PYTEST-008]
+    verification_ids: [T-PYTEST-006, T-PYTEST-007, T-PYTEST-008]
     dependencies: [TASK-1]
-    blockers: []
-    follow_up_tasks: [TASK-12]
-    independently_deployable: false
-
-  - id: TASK-6
-    title: Add temporary workflow lifecycle, assistant workflow skills, and event triggers
-    status: pending
-    phase: blocked
-    covers:
-      scenarios:
-        - S-12
-        - S-13
-        - S-14
-        - S-15
-      acceptance_criteria:
-        - AC-14
-        - AC-15
-        - AC-16
-        - AC-17
-    expected_files:
-      - backend/core/api/app/services/workflow_capability_registry.py
-      - backend/core/api/app/services/workflow_event_service.py
-      - backend/apps/workflows/app.yml
-      - backend/apps/workflows/skills/search_skill.py
-      - backend/apps/workflows/skills/run_skill.py
-      - backend/apps/workflows/skills/schedule_once_skill.py
-      - backend/apps/workflows/skills/schedule_recurring_skill.py
-      - backend/apps/workflows/skills/cancel_pending_skill.py
-      - backend/apps/workflows/skills/keep_temporary_skill.py
-      - backend/core/api/app/tasks/workflow_tasks.py
-      - scripts/audit_skill_embed_registry.py
-      - backend/tests/test_workflow_assistant_and_events.py
-    ownership:
-      files:
-        - backend/apps/workflows/skills/search_skill.py
-        - backend/apps/workflows/skills/run_skill.py
-        - backend/apps/workflows/skills/schedule_once_skill.py
-        - backend/apps/workflows/skills/schedule_recurring_skill.py
-        - backend/apps/workflows/skills/cancel_pending_skill.py
-        - backend/apps/workflows/skills/keep_temporary_skill.py
-        - backend/tests/test_workflow_assistant_and_events.py
-      shared_files:
-        - backend/apps/workflows/app.yml
-    verification:
-      - T-PYTEST-003
-      - T-CLI-001
-      - T-NPM-SDK-001
-      - T-PIP-SDK-001
-    verification_ids: [T-PYTEST-003, T-CLI-001, T-NPM-SDK-001, T-PIP-SDK-001]
-    dependencies: [TASK-1, TASK-2, TASK-3]
     blockers:
-      - Deferred from the core UI alignment milestone.
-    follow_up_tasks: []
+      - Migration must fail closed until every enabled plaintext schedule_config has verified Automation Vault ciphertext; workflow_runs receives no backfill.
+    follow_up_tasks: [TASK-3]
     independently_deployable: false
 
   - id: TASK-3
-    title: Add shared workflow API and CLI/SDK parity
-    status: needs_fix
-    phase: working_tasks
-    covers:
-      scenarios:
-        - S-4
-        - S-5
-      acceptance_criteria:
-        - AC-5
-        - AC-6
-        - AC-10
-        - AC-11
-        - AC-13
-    expected_files:
-      - backend/core/api/app/routes/workflows.py
-      - frontend/packages/openmates-cli/src/client.ts
-      - frontend/packages/openmates-cli/src/cli.ts
-      - frontend/packages/openmates-cli/src/sdk.ts
-      - packages/openmates-python/openmates/sdk.py
-      - frontend/packages/openmates-cli/tests/workflows.test.ts
-      - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      - packages/openmates-python/tests/test_workflows.py
-    ownership:
-      files:
-        - frontend/packages/openmates-cli/src/client.ts
-        - frontend/packages/openmates-cli/src/cli.ts
-        - frontend/packages/openmates-cli/src/sdk.ts
-        - packages/openmates-python/openmates/sdk.py
-      shared_files:
-        - backend/core/api/app/routes/workflows.py
-    verification:
-      - T-CLI-001
-      - T-NPM-SDK-001
-      - T-PIP-SDK-001
-    verification_ids: [T-CLI-001, T-NPM-SDK-001, T-PIP-SDK-001]
-    dependencies: [TASK-1]
-    blockers: []
-    follow_up_tasks: [TASK-10]
-    independently_deployable: false
-
-  - id: TASK-7
-    title: Add durable workflow-input architecture and CLI/SDK contract
+    title: Implement atomic accepted-run scheduling and per-run provider binding revalidation
     status: pending
     phase: working_tasks
     covers:
-      scenarios:
-        - S-22
-        - S-23
-        - S-24
-        - S-25
-        - S-26
-      acceptance_criteria:
-        - AC-28
-        - AC-29
-        - AC-30
-        - AC-31
-        - AC-32
-        - AC-33
-        - AC-34
+      scenarios: [S-1, S-2, S-3, S-7, S-9, S-10, S-11, S-16, S-30, S-31]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-8, AC-10, AC-11, AC-12, AC-13, AC-18, AC-19, AC-24, AC-39, AC-40, AC-42, AC-44, AC-45]
     expected_files:
-      - backend/core/directus/schemas/workflow_input_sessions.yml
-      - backend/core/directus/schemas/workflow_input_events.yml
-      - backend/core/directus/schemas/workflow_input_mutations.yml
-      - backend/core/api/app/routes/workflows.py
-      - backend/core/api/app/routes/projects.py
-      - backend/core/api/app/services/workflow_input_service.py
-      - backend/core/api/app/services/workflow_input_planner.py
-      - backend/core/api/app/services/workflow_input_security.py
-      - backend/tests/test_workflow_input_sessions.py
-      - frontend/packages/openmates-cli/src/client.ts
-      - frontend/packages/openmates-cli/src/cli.ts
-      - frontend/packages/openmates-cli/src/sdk.ts
-      - frontend/packages/openmates-cli/tests/workflows.test.ts
-      - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
-      - packages/openmates-python/openmates/sdk.py
-      - packages/openmates-python/tests/test_workflows.py
+      - backend/core/api/app/services/workflow_scheduler_service.py
+      - backend/core/api/app/services/workflow_runner.py
+      - backend/core/api/app/services/workflow_app_skill_adapter.py
+      - backend/core/api/app/services/workflow_action_adapter.py
+      - backend/core/api/app/services/workflow_service.py
+      - backend/core/api/app/tasks/workflow_tasks.py
+      - backend/tests/test_workflows_models.py
+      - backend/tests/test_workflow_runner.py
+      - backend/tests/test_workflow_scheduler_contract.py
     ownership:
       files:
-        - backend/core/api/app/services/workflow_input_service.py
-        - backend/core/api/app/services/workflow_input_security.py
-        - backend/tests/test_workflow_input_sessions.py
+        - backend/core/api/app/services/workflow_scheduler_service.py
+        - backend/core/api/app/services/workflow_runner.py
+        - backend/core/api/app/services/workflow_app_skill_adapter.py
+        - backend/core/api/app/services/workflow_action_adapter.py
+        - backend/tests/test_workflow_scheduler_contract.py
       shared_files:
-        - backend/core/api/app/routes/workflows.py
-        - frontend/packages/openmates-cli/src/client.ts
-        - frontend/packages/openmates-cli/src/cli.ts
-        - frontend/packages/openmates-cli/src/sdk.ts
-        - packages/openmates-python/openmates/sdk.py
-    verification:
-      - T-PYTEST-004
-      - T-CLI-002
-      - T-NPM-SDK-002
-      - T-PIP-SDK-002
-    verification_ids: [T-PYTEST-004, T-CLI-002, T-NPM-SDK-002, T-PIP-SDK-002]
-    dependencies: [TASK-1, TASK-3]
+        - backend/core/api/app/services/workflow_service.py
+        - backend/core/api/app/tasks/workflow_tasks.py
+        - backend/tests/test_workflows_models.py
+        - backend/tests/test_workflow_runner.py
+    verification: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-006]
+    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-006]
+    dependencies: [TASK-2]
     blockers:
-      - General AI planning and voice input are deferred from the core UI milestone; keep current endpoints hidden from core product copy.
-    follow_up_tasks: []
-    independently_deployable: true
+      - Atomic persistence must use a proven transaction or compare-and-set boundary; an in-process claim lock is not acceptable.
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
 
   - id: TASK-4
-    title: Add web Workflows home, input streaming UI, and Shortcuts-style editor integration
-    status: cancelled
-    phase: complete
+    title: Implement normalized authenticated event dispatch with durable safety controls
+    status: pending
+    phase: working_tasks
     covers:
-      scenarios:
-        - S-1
-        - S-3
-        - S-7
-        - S-8
-        - S-10
-        - S-20
-        - S-21
-        - S-22
-        - S-23
-        - S-24
-        - S-25
-      acceptance_criteria:
-        - AC-1
-        - AC-2
-        - AC-4
-        - AC-8
-        - AC-9
-        - AC-11
-        - AC-12
-        - AC-25
-        - AC-26
-        - AC-27
-        - AC-28
-        - AC-29
-        - AC-30
-        - AC-31
-        - AC-32
-        - AC-33
-        - AC-35
+      scenarios: [S-9, S-15]
+      acceptance_criteria: [AC-10, AC-17, AC-41, AC-44, AC-45]
     expected_files:
-      - frontend/apps/web_app/src/routes/workflows/+page.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowHome.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowInput.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowInputStream.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowListPage.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
-      - frontend/packages/ui/src/components/workflows/nodes/*.svelte
-      - frontend/packages/ui/src/i18n/sources/workflows.yml
-      - frontend/apps/web_app/tests/workflows-editor.spec.ts
-      - frontend/apps/web_app/tests/workflows-input.spec.ts
+      - backend/core/api/app/services/workflow_event_service.py
+      - backend/core/api/app/services/workflow_models.py
+      - backend/core/api/app/tasks/workflow_tasks.py
+      - backend/tests/test_workflow_event_dispatcher_contract.py
     ownership:
       files:
-        - frontend/packages/ui/src/components/workflows/WorkflowHome.svelte
-        - frontend/packages/ui/src/components/workflows/WorkflowInput.svelte
-        - frontend/packages/ui/src/components/workflows/WorkflowListPage.svelte
-        - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
-        - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
-        - frontend/apps/web_app/tests/workflows-editor.spec.ts
-        - frontend/apps/web_app/tests/workflows-input.spec.ts
+        - backend/core/api/app/services/workflow_event_service.py
+        - backend/tests/test_workflow_event_dispatcher_contract.py
       shared_files:
-        - frontend/apps/web_app/src/routes/workflows/+page.svelte
-        - frontend/packages/ui/src/components/Header.svelte
-    verification:
-      - T-E2E-001
-      - T-E2E-002
-    verification_ids: [T-E2E-001, T-E2E-002, T-E2E-003, V-FIGMA-CORE-UI]
-    dependencies: [TASK-8, TASK-9, TASK-10]
-    blockers:
-      - Superseded by focused core UI TASK-11/TASK-12; deferred general workflow-input work remains in TASK-7.
-    follow_up_tasks: [TASK-11, TASK-12]
+        - backend/core/api/app/services/workflow_models.py
+        - backend/core/api/app/tasks/workflow_tasks.py
+    verification: [T-PYTEST-007]
+    verification_ids: [T-PYTEST-007]
+    dependencies: [TASK-3]
+    blockers: []
+    follow_up_tasks: [TASK-5]
     independently_deployable: false
 
   - id: TASK-5
-    title: Retire placeholder-only Apple workflow parity attempt
-    status: cancelled
-    phase: complete
+    title: Persist and import encrypted template projections through generic revocable short links
+    status: pending
+    phase: working_tasks
     covers:
-      scenarios:
-        - S-6
-      acceptance_criteria:
-        - AC-7
-        - AC-10
-        - AC-11
+      scenarios: [S-9, S-17, S-31]
+      acceptance_criteria: [AC-10, AC-20, AC-41, AC-42, AC-43]
     expected_files:
-      - docs/specs/workflows-v1/spec.yml
+      - backend/core/api/app/routes/workflows.py
+      - backend/core/api/app/routes/share.py
+      - backend/core/api/app/services/workflow_service.py
+      - backend/core/api/app/services/workflow_template_service.py
+      - backend/tests/test_workflow_template_projection.py
+      - backend/tests/test_share_short_links.py
     ownership:
       files:
-        - docs/specs/workflows-v1/spec.yml
-      shared_files: []
-    verification:
-      - T-APPLE-001
-      - T-APPLE-UI-001
-    verification_ids: [T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
-    dependencies: [TASK-8]
+        - backend/core/api/app/services/workflow_template_service.py
+        - backend/tests/test_workflow_template_projection.py
+        - backend/tests/test_share_short_links.py
+      shared_files:
+        - backend/core/api/app/routes/workflows.py
+        - backend/core/api/app/routes/share.py
+        - backend/core/api/app/services/workflow_service.py
+    verification: [T-PYTEST-008]
+    verification_ids: [T-PYTEST-008]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Prove CLI, npm SDK, and pip SDK workflow runtime and sharing parity in order
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-4, S-5, S-9, S-10, S-15, S-17, S-30]
+      acceptance_criteria: [AC-5, AC-6, AC-10, AC-11, AC-17, AC-20, AC-39]
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - frontend/packages/openmates-cli/tests/workflows.test.ts
+      - frontend/packages/openmates-cli/tests/workflows-runtime-contract.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-workflows-runtime-contract.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_workflows.py
+      - packages/openmates-python/tests/test_workflows_runtime_contract.py
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/tests/workflows-runtime-contract.test.ts
+        - frontend/packages/openmates-cli/tests/sdk-workflows-runtime-contract.test.ts
+        - packages/openmates-python/tests/test_workflows_runtime_contract.py
+      shared_files:
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/tests/cli.test.ts
+        - frontend/packages/openmates-cli/tests/workflows.test.ts
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/tests/test_workflows.py
+        - scripts/audit_sdk_cli_parity.py
+    verification: [T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003]
+    verification_ids: [T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003]
+    dependencies: [TASK-5]
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Build Workflow-owned web detail and runs routes with landing and sidebar regression coverage
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3, S-7, S-9, S-10, S-11, S-20, S-21, S-27, S-28, S-29]
+      acceptance_criteria: [AC-1, AC-2, AC-4, AC-8, AC-11, AC-12, AC-19, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-45]
+    expected_files:
+      - frontend/apps/web_app/src/routes/workflows/+page.svelte
+      - frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
+      - frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+      - frontend/packages/ui/src/components/workflows/nodes/*.svelte
+      - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+      - frontend/packages/ui/src/i18n/sources/workflows.yml
+      - backend/tests/test_workflow_core_ui_contract.py
+      - frontend/apps/web_app/tests/workflows-editor.spec.ts
+      - frontend/apps/web_app/tests/workflows-input.spec.ts
+      - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+      - frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
+    ownership:
+      files:
+        - frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
+        - frontend/apps/web_app/src/routes/workflows/[workflow_id]/runs/+page.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+        - frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
+      shared_files:
+        - frontend/apps/web_app/src/routes/workflows/+page.svelte
+        - frontend/packages/ui/src/components/workflows/nodes/*.svelte
+        - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+        - frontend/packages/ui/src/i18n/sources/workflows.yml
+        - backend/tests/test_workflow_core_ui_contract.py
+        - frontend/apps/web_app/tests/workflows-editor.spec.ts
+        - frontend/apps/web_app/tests/workflows-input.spec.ts
+        - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+    verification: [T-PYTEST-005, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004]
+    verification_ids: [T-PYTEST-005, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004]
+    dependencies: [TASK-6]
     blockers:
-      - Superseded by TASK-13 and TASK-14 because the original task produced only models and shell-launch placeholder evidence.
-    follow_up_tasks: [TASK-13, TASK-14]
+      - Exact nested Figma measurements remain unavailable because API/export requests return 403; use source values and rendered review without guessing dimensions.
+    follow_up_tasks: [TASK-8]
     independently_deployable: false
 
   - id: TASK-8
-    title: Replace stale workflow evidence with red core UI contracts
-    status: done
-    phase: awaiting_approval
+    title: Build web template projection share, revoke, import, and rebinding UI
+    status: pending
+    phase: working_tasks
     covers:
-      scenarios: [S-6, S-20, S-21, S-27, S-28, S-29]
-      acceptance_criteria: [AC-7, AC-11, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38]
+      scenarios: [S-17]
+      acceptance_criteria: [AC-20, AC-43]
     expected_files:
-      - backend/tests/test_workflow_core_ui_contract.py
-      - frontend/apps/web_app/tests/workflows-editor.spec.ts
-      - frontend/apps/web_app/tests/workflows-input.spec.ts
-      - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-      - apple/OpenMatesTests/WorkflowsParityTests.swift
-      - apple/OpenMatesUITests/WorkflowsParityUITests.swift
-      - docs/specs/workflows-v1/spec.yml
+      - frontend/apps/web_app/src/routes/share/workflow-template/[templateId]/+page.svelte
+      - frontend/packages/ui/src/services/shareEncryption.ts
+      - frontend/packages/ui/src/services/workflowTemplateService.ts
+      - frontend/packages/ui/src/stores/workflowTemplateProjectionStore.ts
+      - frontend/packages/ui/src/components/workflows/WorkflowTemplateShare.svelte
+      - frontend/packages/ui/src/i18n/sources/workflows.yml
+      - frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
     ownership:
       files:
-        - backend/tests/test_workflow_core_ui_contract.py
-        - frontend/apps/web_app/tests/workflows-editor.spec.ts
-        - frontend/apps/web_app/tests/workflows-input.spec.ts
-        - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-        - apple/OpenMatesTests/WorkflowsParityTests.swift
-        - apple/OpenMatesUITests/WorkflowsParityUITests.swift
-        - docs/specs/workflows-v1/spec.yml
-      shared_files: []
-    verification_ids: [T-PYTEST-005, T-E2E-001, T-E2E-002, T-E2E-003, T-APPLE-001, T-APPLE-UI-001]
-    dependencies: []
+        - frontend/apps/web_app/src/routes/share/workflow-template/[templateId]/+page.svelte
+        - frontend/packages/ui/src/services/workflowTemplateService.ts
+        - frontend/packages/ui/src/stores/workflowTemplateProjectionStore.ts
+        - frontend/packages/ui/src/components/workflows/WorkflowTemplateShare.svelte
+        - frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
+      shared_files:
+        - frontend/packages/ui/src/services/shareEncryption.ts
+        - frontend/packages/ui/src/i18n/sources/workflows.yml
+    verification: [T-PYTEST-008, T-E2E-005]
+    verification_ids: [T-PYTEST-008, T-E2E-005]
+    dependencies: [TASK-7]
     blockers: []
-    follow_up_tasks: [TASK-9, TASK-10]
-    independently_deployable: true
+    follow_up_tasks: [TASK-9]
+    independently_deployable: false
 
   - id: TASK-9
-    title: Add workspace-aware sidebar providers on web and Apple
+    title: Deploy corrected web, verify Playwright artifacts, and obtain Figma core UI approval
     status: pending
-    phase: working_tasks
+    phase: running_checks
     covers:
-      scenarios: [S-27]
-      acceptance_criteria: [AC-11, AC-36]
+      scenarios: [S-1, S-17, S-20, S-21, S-27, S-28, S-29]
+      acceptance_criteria: [AC-1, AC-20, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-43, AC-45]
     expected_files:
-      - frontend/packages/ui/src/components/workspace/WorkspaceSidebar.svelte
-      - frontend/packages/ui/src/components/Header.svelte
-      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - docs/specs/workflows-v1/spec.yml
+      - frontend/apps/web_app/tests/workflows-editor.spec.ts
+      - frontend/apps/web_app/tests/workflows-input.spec.ts
       - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-      - apple/OpenMates/Sources/App/MainAppView.swift
-      - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+      - frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
+      - frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
     ownership:
       files:
-        - frontend/packages/ui/src/components/workspace/WorkspaceSidebar.svelte
-        - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+        - docs/specs/workflows-v1/spec.yml
       shared_files:
-        - frontend/packages/ui/src/components/Header.svelte
-        - frontend/packages/ui/src/components/ChatHistory.svelte
-        - apple/OpenMates/Sources/App/MainAppView.swift
-        - apple/OpenMatesUITests/WorkflowsParityUITests.swift
-    verification_ids: [T-E2E-003, T-APPLE-UI-001]
+        - frontend/apps/web_app/tests/workflows-editor.spec.ts
+        - frontend/apps/web_app/tests/workflows-input.spec.ts
+        - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+        - frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
+        - frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
+    verification: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI]
+    verification_ids: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI]
     dependencies: [TASK-8]
-    blockers: []
-    follow_up_tasks: [TASK-11, TASK-13]
-    independently_deployable: true
+    blockers:
+      - V-FIGMA-CORE-UI requires explicit user approval of corrected deployed detail, expanded-card, and runs artifacts after Vercel is Ready.
+    follow_up_tasks: [TASK-10]
+    independently_deployable: false
 
   - id: TASK-10
-    title: Correct core workflow list, draft, and cross-client contracts
+    title: Build and verify Apple workflow models, store, and Workflow-specific native UI
     status: pending
-    phase: working_tasks
+    phase: blocked
     covers:
-      scenarios: [S-1, S-3, S-5, S-6, S-20, S-29]
-      acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-7, AC-10, AC-11, AC-12, AC-13, AC-18, AC-19, AC-24, AC-26, AC-38]
-    expected_files:
-      - backend/core/api/app/services/workflow_models.py
-      - backend/core/api/app/services/workflow_service.py
-      - backend/core/api/app/routes/workflows.py
-      - backend/tests/test_workflow_core_ui_contract.py
-      - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
-      - frontend/packages/openmates-cli/src/client.ts
-      - frontend/packages/openmates-cli/src/sdk.ts
-      - packages/openmates-python/openmates/sdk.py
-      - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
-      - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
-    ownership:
-      files:
-        - backend/tests/test_workflow_core_ui_contract.py
-      shared_files:
-        - backend/core/api/app/services/workflow_models.py
-        - backend/core/api/app/services/workflow_service.py
-        - backend/core/api/app/routes/workflows.py
-        - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
-        - frontend/packages/openmates-cli/src/client.ts
-        - frontend/packages/openmates-cli/src/sdk.ts
-        - packages/openmates-python/openmates/sdk.py
-        - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
-        - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
-    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-005, T-CLI-001, T-NPM-SDK-001, T-PIP-SDK-001, T-APPLE-001]
-    dependencies: [TASK-8]
-    blockers: []
-    follow_up_tasks: [TASK-11, TASK-12, TASK-13]
-    independently_deployable: true
-
-  - id: TASK-11
-    title: Build corrected Workflow landing, mixed row, and restrained title composer
-    status: done
-    phase: working_tasks
-    covers:
-      scenarios: [S-20, S-21, S-29]
-      acceptance_criteria: [AC-25, AC-26, AC-27, AC-35, AC-38]
-    expected_files:
-      - frontend/apps/web_app/src/routes/workflows/+page.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowHome.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowInput.svelte
-      - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-      - frontend/packages/ui/src/i18n/sources/workflows.yml
-      - frontend/apps/web_app/tests/workflows-input.spec.ts
-    ownership:
-      files:
-        - frontend/packages/ui/src/components/workflows/WorkflowHome.svelte
-        - frontend/packages/ui/src/components/workflows/WorkflowInput.svelte
-        - frontend/packages/ui/src/i18n/sources/workflows.yml
-        - frontend/apps/web_app/tests/workflows-input.spec.ts
-      shared_files:
-        - frontend/apps/web_app/src/routes/workflows/+page.svelte
-        - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-    verification_ids: [T-PYTEST-005, T-E2E-002, V-FIGMA-CORE-UI]
-    dependencies: [TASK-9, TASK-10]
-    blockers: []
-    follow_up_tasks: [TASK-12]
-    independently_deployable: true
-
-  - id: TASK-12
-    title: Build clean Figma Workflow canvas and useful run history
-    status: in_progress
-    phase: working_tasks
-    covers:
-      scenarios: [S-1, S-3, S-7, S-11, S-28]
-      acceptance_criteria: [AC-1, AC-2, AC-4, AC-8, AC-12, AC-13, AC-19, AC-24, AC-37]
-    expected_files:
-      - frontend/apps/web_app/src/routes/workflows/+page.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
-      - frontend/packages/ui/src/components/workflows/nodes/WorkflowNodeCard.svelte
-      - frontend/apps/web_app/tests/workflows-editor.spec.ts
-      - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-    ownership:
-      files:
-        - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
-        - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
-        - frontend/packages/ui/src/components/workflows/nodes/WorkflowNodeCard.svelte
-        - frontend/apps/web_app/tests/workflows-editor.spec.ts
-      shared_files:
-        - frontend/apps/web_app/src/routes/workflows/+page.svelte
-        - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-    verification_ids: [T-E2E-001, T-E2E-003, V-FIGMA-CORE-UI]
-    dependencies: [TASK-10, TASK-11]
-    blockers:
-      - docs/specs/unified-detail-pages/spec.yml TASK-3 must provide the canonical Workflow detail route and shared editable header before the canvas is integrated.
-    follow_up_tasks: [TASK-13]
-    independently_deployable: true
-
-  - id: TASK-13
-    title: Add Apple workflow store, model parity, and workspace sidebar
-    status: pending
-    phase: working_tasks
-    covers:
-      scenarios: [S-6, S-27]
-      acceptance_criteria: [AC-7, AC-10, AC-11, AC-13, AC-24, AC-36]
+      scenarios: [S-6, S-9, S-10, S-11, S-20, S-21, S-27, S-28, S-29]
+      acceptance_criteria: [AC-7, AC-10, AC-11, AC-24, AC-25, AC-27, AC-36, AC-37, AC-38]
     expected_files:
       - apple/OpenMates/Sources/App/MainAppView.swift
       - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
       - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
       - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+      - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
       - apple/OpenMatesTests/WorkflowsParityTests.swift
       - apple/OpenMatesUITests/WorkflowsParityUITests.swift
     ownership:
@@ -2787,54 +3048,26 @@ tasks:
         - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
         - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
         - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
+        - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
         - apple/OpenMatesTests/WorkflowsParityTests.swift
+        - apple/OpenMatesUITests/WorkflowsParityUITests.swift
       shared_files:
         - apple/OpenMates/Sources/App/MainAppView.swift
-        - apple/OpenMatesUITests/WorkflowsParityUITests.swift
-    verification_ids: [T-APPLE-001, T-APPLE-UI-001]
-    dependencies: [TASK-9, TASK-10, TASK-12]
-    blockers: []
-    follow_up_tasks: [TASK-14]
-    independently_deployable: true
-
-  - id: TASK-14
-    title: Build corrected Apple landing, shared-header detail, editor, and run history
-    status: pending
-    phase: working_tasks
-    covers:
-      scenarios: [S-6, S-20, S-21, S-28, S-29]
-      acceptance_criteria: [AC-7, AC-24, AC-25, AC-27, AC-36, AC-37, AC-38]
-    expected_files:
-      - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowHomeView.swift
-      - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowDetailView.swift
-      - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowEditorView.swift
-      - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowRunHistoryView.swift
-      - apple/OpenMatesUITests/WorkflowsParityUITests.swift
-      - frontend/packages/ui/src/i18n/sources/workflows.yml
-    ownership:
-      files:
-        - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowHomeView.swift
-        - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowDetailView.swift
-        - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowEditorView.swift
-        - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowRunHistoryView.swift
-        - apple/OpenMatesUITests/WorkflowsParityUITests.swift
-      shared_files:
-        - frontend/packages/ui/src/i18n/sources/workflows.yml
-    verification_ids: [T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
-    dependencies: [TASK-13]
+    verification: [V-FIGMA-CORE-UI, T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
+    verification_ids: [V-FIGMA-CORE-UI, T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
+    dependencies: [TASK-9]
     blockers:
-      - Web Workflow detail and V-FIGMA-CORE-UI must be green before native visual parity starts.
-      - Coordinate WorkflowDetailView ownership with docs/specs/unified-detail-pages/spec.yml TASK-5.
-    follow_up_tasks: [TASK-15]
-    independently_deployable: true
+      - Do not begin Apple visual composition until TASK-9 records explicit passed V-FIGMA-CORE-UI approval.
+    follow_up_tasks: [TASK-11]
+    independently_deployable: false
 
-  - id: TASK-15
-    title: Reconcile evidence and release the gated core workflow milestone
+  - id: TASK-11
+    title: Reconcile evidence, rollout gates, and final spec verification
     status: pending
     phase: running_checks
     covers:
-      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-9, S-10, S-11, S-16, S-20, S-21, S-27, S-28, S-29]
-      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-10, AC-11, AC-12, AC-13, AC-18, AC-19, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38]
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-9, S-10, S-11, S-15, S-16, S-17, S-20, S-21, S-27, S-28, S-29, S-30, S-31]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-10, AC-11, AC-12, AC-13, AC-17, AC-18, AC-19, AC-20, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-39, AC-40, AC-41, AC-42, AC-43, AC-44, AC-45]
     expected_files:
       - docs/specs/workflows-v1/spec.yml
       - backend/core/api/app/services/feature_availability_service.py
@@ -2845,8 +3078,51 @@ tasks:
       shared_files:
         - backend/core/api/app/services/feature_availability_service.py
         - frontend/packages/ui/src/config/workspaceFeatureGates.ts
-    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-005, T-CLI-001, T-NPM-SDK-001, T-PIP-SDK-001, T-E2E-001, T-E2E-002, T-E2E-003, T-APPLE-001, T-APPLE-UI-001, V-FIGMA-CORE-UI, V-APPLE-MULTIPLATFORM]
-    dependencies: [TASK-11, TASK-12, TASK-14]
-    blockers: []
-    follow_up_tasks: [TASK-6, TASK-7]
-    independently_deployable: true
+    verification: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-005, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI, T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
+    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-005, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI, T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
+    dependencies: [TASK-10]
+    blockers:
+      - Rollout remains gated until every required verification is current for the final subject commit and both artifact reviews pass.
+    follow_up_tasks: [TASK-12]
+    independently_deployable: false
+
+  - id: TASK-12
+    title: Defer broad planner, assistant, Tasks, definition-history, and advanced-producer features
+    status: pending
+    phase: blocked
+    covers:
+      scenarios: [S-8, S-12, S-13, S-14, S-18, S-19, S-22, S-23, S-24, S-25, S-26]
+      acceptance_criteria: [AC-9, AC-14, AC-15, AC-16, AC-21, AC-22, AC-23, AC-28, AC-29, AC-30, AC-31, AC-32, AC-33, AC-34, AC-35]
+    expected_files:
+      - backend/core/api/app/services/workflow_input_service.py
+      - backend/core/api/app/services/workflow_input_planner.py
+      - backend/core/api/app/services/workflow_input_security.py
+      - backend/core/api/app/services/workflow_capability_registry.py
+      - backend/apps/workflows/app.yml
+      - backend/core/api/app/services/task_view_service.py
+      - backend/tests/test_workflow_assistant_and_events.py
+      - backend/tests/test_workflow_input_sessions.py
+      - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+      - packages/openmates-python/tests/test_workflows.py
+      - frontend/apps/web_app/tests/workflows-input.spec.ts
+    ownership:
+      files:
+        - backend/core/api/app/services/workflow_input_service.py
+        - backend/core/api/app/services/workflow_input_planner.py
+        - backend/core/api/app/services/workflow_input_security.py
+        - backend/tests/test_workflow_input_sessions.py
+      shared_files:
+        - backend/core/api/app/services/workflow_capability_registry.py
+        - backend/apps/workflows/app.yml
+        - backend/core/api/app/services/task_view_service.py
+        - backend/tests/test_workflow_assistant_and_events.py
+        - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+        - packages/openmates-python/tests/test_workflows.py
+        - frontend/apps/web_app/tests/workflows-input.spec.ts
+    verification: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-PYTEST-004, T-CLI-002, T-NPM-SDK-002, T-PIP-SDK-002, T-E2E-002]
+    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-PYTEST-004, T-CLI-002, T-NPM-SDK-002, T-PIP-SDK-002, T-E2E-002]
+    dependencies: [TASK-11]
+    blockers:
+      - Explicitly deferred from P1-P5; plan these features separately after the corrected core milestone and do not make them dependencies of core completion.
+    follow_up_tasks: []
+    independently_deployable: false

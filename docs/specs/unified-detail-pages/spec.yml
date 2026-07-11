@@ -1,31 +1,32 @@
 schema_version: 2
 id: unified-detail-pages
 title: Unified Editable Detail Pages
-status: implementing
+status: clarifying
 
 goal: >
-  Give chats, projects, workflows, tasks, and plans one coherent detail-page
+  Give chats, projects, tasks, and plans one coherent detail-page
   header based on the rendered ChatHeader visual system, while allowing users
   with write access to edit encrypted titles and descriptions inline and have
   the newest accepted metadata version synchronize across their devices. Create
-  the missing Task and Plan detail pages, migrate Project and Workflow details,
-  verify web first, and then implement native Apple parity from the approved web
-  result.
+  the missing Task and Plan detail pages and migrate Project details. Preserve
+  Workflow metadata API/version/encryption contracts while workflows-v1 owns its
+  Figma-specific visual composition. Verify web first, then implement native
+  Apple parity from the approved non-Workflow generic detail result.
 
 scope:
   in:
     - Extract one reusable web detail-header visual primitive from ChatHeader instead of copying its scoped CSS.
     - Preserve ChatHeader loading, media, navigation, incognito, example, and shared-chat behavior while adopting the shared visual primitive.
-    - Use the shared detail header for owned/writable chats, projects, workflows, tasks, and plans.
+    - Use the shared generic detail header for owned/writable chats, projects, tasks, and plans.
     - Create stable, directly addressable web detail pages for projects, workflows, tasks, and plans, including redirects from shipped query-parameter links where needed.
-    - Show the item icon/type, title, description or chat summary, and domain-relevant metadata in the shared header.
+    - Show the item icon/type, title, description or chat summary, and domain-relevant metadata in the shared header for Chat, Project, Task, and Plan.
     - Allow users with write access to click/tap a title or description, or activate its edit affordance with keyboard navigation, to edit inline.
     - Fade an edit icon in and out at the top-right of the hovered or keyboard-focused editable field.
     - Show keyboard instructions while editing, plus a checkmark button to save and an undo button to restore the persisted value after a modification.
     - Title editing saves with Enter; description/summary editing saves with Control-Enter or Command-Enter; Escape cancels either field; clicking outside saves only valid changed content.
     - Encrypt and persist metadata through the owning domain service, increment monotonic metadata versions, and converge devices on the newest server-accepted version.
     - Keep read-only shared content, examples, public previews, and users without write access display-only with no edit icon, hints, or mutation path.
-    - Preserve Report Issue access on workspace landing and detail states for Projects, Workflows, Tasks, and Plans.
+    - Preserve Report Issue access on workspace landing and detail states for Projects, Tasks, and Plans; workflows-v1 owns exact Workflow action placement.
     - Implement equivalent native Apple detail headers and inline editing after web behavior and visual evidence are green.
   out:
     - A generic backend table or universal plaintext metadata endpoint.
@@ -35,6 +36,8 @@ scope:
     - Redesigning chat media headers, teaser video behavior, highlights, or previous/next chat navigation.
     - Completing every feature inside Projects, Tasks, or Plans beyond the detail-page shell and metadata required by this contract.
     - Duplicating ChatHeader CSS into domain-specific header components.
+    - Owning Workflow header geometry, colors, action placement, tabs, node-card composition, or run-screen visuals; docs/specs/workflows-v1/spec.yml is authoritative for those Figma-specific requirements.
+    - Treating the deployed generic Workflow header artifact as visual approval or as a gate that permits Apple Workflow UI work.
 
 context_discovery:
   github_issues:
@@ -57,7 +60,8 @@ context_discovery:
     - backend/core/api/app/routes/projects.py exposes owner-scoped encrypted project name/description updates.
     - backend/core/api/app/routes/user_tasks.py and user_plans.py expose encrypted update payloads with updated_at and version fields.
     - backend/core/api/app/routes/workflows.py exposes workflow title/description updates under the workflow Automation Vault boundary.
-    - Figma nodes 5386:33360 and 5420:34558 show Project and Workflow details using the ChatHeader visual language without the current workflow management form.
+    - Figma node 5386:33360 informs Project detail; Workflow nodes 5420:34107, 5420:34558, 5420:35214, 5422:34561, and 5488:39515 are governed by docs/specs/workflows-v1/spec.yml.
+    - The deployed generic Workflow detail used WorkspaceDetailHeader, a top-right Report Issue button, and a duplicate below-header action row; the user explicitly rejected that artifact as Workflow visual approval.
   tests:
     - frontend/apps/web_app/tests/chat-flow.spec.ts
     - frontend/apps/web_app/tests/workflows-editor.spec.ts
@@ -68,11 +72,10 @@ context_discovery:
     - backend/tests/test_user_plans_api.py
     - backend/tests/test_workflow_core_ui_contract.py
 
-apple_impact:
+  apple_impact:
   affected_files:
     - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
     - apple/OpenMates/Sources/Features/Projects/ProjectDetailView.swift
-    - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
     - apple/OpenMates/Sources/Features/Tasks/TaskDetailView.swift
     - apple/OpenMates/Sources/Features/Plans/PlanDetailView.swift
     - apple/OpenMates/Sources/Shared/Components/WorkspaceDetailHeader.swift
@@ -80,23 +83,23 @@ apple_impact:
     - apple/OpenMatesTests/UnifiedDetailMetadataTests.swift
     - apple/OpenMatesUITests/UnifiedDetailPagesUITests.swift
   parity_expectations:
-    - The approved rendered web header is the visual and interaction source of truth for native detail headers.
+    - The approved rendered web generic header is the visual and interaction source of truth for native Chat, Project, Task, and Plan detail headers.
     - Native title/description editing uses the same permission, save, undo, validation, encryption, version, error, and synchronization contracts as web.
     - Apple uses generated design tokens, AppStrings, OpenMates controls, and a shared native detail-header primitive rather than stock Form/List product chrome.
-    - Apple implementation starts only after deployed web Playwright and artifact review are green.
+    - Generic Apple detail implementation starts only after deployed web Playwright and artifact review are green; Apple Workflow visuals remain independently blocked by workflows-v1 until explicit approval of corrected deployed Workflow artifacts.
   verification:
     - python3 scripts/apple_remote.py status
     - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/UnifiedDetailMetadataTests
     - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/UnifiedDetailPagesUITests
-    - Capture sanitized iPhone, iPad, and macOS screenshots for Chat, Project, Workflow, Task, and Plan details.
+    - Capture sanitized iPhone, iPad, and macOS screenshots for Chat, Project, Task, and Plan details; Workflow artifacts belong to workflows-v1.
   intentional_native_differences:
     - Apple exposes visible touch edit affordances without requiring hover; pointer hover on iPadOS/macOS follows web intent where supported.
     - Native keyboard shortcut labels use platform-appropriate Command or Control glyphs/text while preserving the same save and cancel semantics.
 
-clarification:
+  clarification:
   rounds:
     - question: Should this milestone create the missing Task and Plan detail pages and migrate Project details, or only implement Workflow details?
-      answer: Create the missing Task and Plan detail pages and migrate Project and Workflow details to the same shared header.
+      answer: Create the missing Task and Plan detail pages and migrate Project to the shared generic header. Preserve the canonical Workflow route and metadata API contracts, but workflows-v1 owns its Figma-specific visual composition.
     - question: Should the shared header remain display-only like ChatHeader?
       answer: No. Use this work to add click/tap and keyboard editing for title and description or chat summary, synchronized through the backend across devices.
     - question: How should inline save and cancel work?
@@ -107,13 +110,17 @@ clarification:
       answer: Reuse monotonic versioning with the newest server-accepted metadata version winning; do not add a conflict dialog for the unlikely simultaneous-edit case.
     - question: Is Apple parity included?
       answer: Yes, after web implementation and web tests are complete.
+    - question: Does the generic detail-page contract continue to own Workflow visual composition?
+      answer: No. The user approved narrowing this spec to Workflow metadata API/version/encryption compatibility; workflows-v1 exclusively owns Workflow Figma detail, routed tabs, card expansion, action placement, run visuals, and its separate Apple approval gate.
   vision_summary: >
     Every primary OpenMates content type should open into a recognizable detail
     page whose header is the same product component, not five approximations.
     Writable metadata can be edited directly in that header with explicit
     keyboard and button affordances, while encryption and synchronization remain
-    domain-owned. Web establishes the contract first; Apple follows the approved
-    rendered result.
+    domain-owned. Workflow keeps the same record metadata API guarantees but uses
+    its own Figma-specific visual composition under workflows-v1. Web establishes
+    each applicable contract first; Apple follows only explicitly approved web
+    artifacts.
   approved_by_user: true
 
 implementation_state:
@@ -121,11 +128,13 @@ implementation_state:
 
 approvals:
   product_contract:
-    status: approved
-    approved_at: "2026-07-11T14:29:09Z"
+    status: pending
+    approved_at: ""
+    reason: Architecture direction is approved, but this narrowed executable contract awaits explicit approval.
   implementation_plan:
-    status: approved
-    approved_at: "2026-07-11T14:29:09Z"
+    status: pending
+    approved_at: ""
+    reason: Reconcile the plan after product-contract approval; existing completed non-Workflow metadata evidence remains preserved.
 
 decisions:
   - id: D-1
@@ -148,6 +157,11 @@ decisions:
     decision: Verify and approve web before native Apple implementation.
     reason: The browser-rendered shared component is the source of truth for Apple parity.
     decided_at: "2026-07-11T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Exclude Workflow visual composition from the generic shared-header ownership while retaining Workflow metadata API, encryption, authorization, and monotonic version contracts.
+    reason: The deployed generic Workflow artifact was explicitly rejected; workflows-v1 now owns the Figma-specific surface and Apple gate.
+    decided_at: "2026-07-11T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -162,15 +176,21 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-11T00:00:00Z"
     reason: Separate implementations cannot guarantee the same CSS, responsive behavior, or future maintenance.
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Treat the deployed generic WorkspaceDetailHeader Workflow composition as green visual approval.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    reason: The user rejected the generic Workflow header/action hierarchy; only its record metadata API/version behavior remains within this spec.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Wait for user visual approval of the deployed web headers, then correct the nested WebSocket event classifier in T-WEB-MULTI-DEVICE and rerun before Apple work.
-  command: python3 scripts/tests.py run -- --spec unified-detail-metadata-sync.spec.ts
-  expected_outcome: Title and summary updates converge on the second context and survive a cold boot after the observer classifies payload.event before the outer envelope type.
+  next_action: Obtain approval of the narrowed product contract, then regenerate plan/task ownership before resuming non-Workflow detail work.
+  command: python3 scripts/spec_validate.py docs/specs/unified-detail-pages/spec.yml
+  expected_outcome: The narrowed contract validates while prior valid metadata evidence remains preserved and rejected Workflow visual evidence remains invalid.
   blocker:
-    reason: Apple production work is explicitly blocked until the user approves the web UI; T-WEB-MULTI-DEVICE also remains red because its frame observer records nested chat_title_updated as version zero.
-    next_action: Collect user web UI feedback, then correct and rerun the web observer before Apple implementation.
+    reason: Revised product-contract approval is pending; T-WEB-MULTI-DEVICE remains red, and Workflow Apple work is separately blocked by workflows-v1.
+    next_action: Approve this ownership revision, then regenerate the implementation plan and address the non-Workflow metadata sync observer.
   last_verified_commit: f34ab21b6
 
 assumptions:
@@ -247,15 +267,16 @@ scenarios:
       - The backend rejects any forged mutation request without changing metadata.
 
   - id: S-4
-    title: Each workspace opens a stable shared detail page
+    title: Each workspace opens a stable detail page with explicit visual ownership
     given:
       - Alice owns one Project, Workflow, Task, and Plan.
     when:
       - Alice opens each item from its workspace list and reloads or deep-links to it.
     then:
       - Each item opens at a stable detail URL and survives reload.
-      - Each detail page uses the same header CSS primitive as ChatHeader.
-      - Each header renders domain-specific icon, type, title, description, and useful metadata without duplicating title/description forms below.
+      - Chat, Project, Task, and Plan use the same generic header CSS primitive as ChatHeader.
+      - Workflow uses the Figma-specific composition owned by workflows-v1 rather than this generic visual primitive.
+      - Each domain preserves its owner-scoped metadata API, encryption boundary, and useful record metadata without duplicate persistence forms.
       - Back navigation returns to the correct workspace state.
 
   - id: S-5
@@ -285,31 +306,32 @@ scenarios:
       - Undo still restores the last persisted value.
 
   - id: S-7
-    title: Apple follows the approved web detail contract
+    title: Apple follows the approved applicable web detail contract
     given:
       - Web detail pages, metadata sync tests, and artifact review are green.
-      - Alice opens Chat, Project, Workflow, Task, and Plan details on Apple platforms.
+      - Alice opens Chat, Project, Task, and Plan details on Apple platforms.
     when:
       - Alice edits and saves writable metadata or views read-only content.
     then:
-      - Native headers match the approved web hierarchy, gradient, icon, typography, spacing, metadata, and responsive intent.
+      - Native Chat, Project, Task, and Plan headers match the approved generic web hierarchy, gradient, icon, typography, spacing, metadata, and responsive intent.
       - Native editing follows equivalent save, undo, permission, encryption, version, error, and synchronization behavior.
       - iPhone, iPad, and macOS evidence is captured after web approval.
+      - Workflow native visual evidence is neither implemented nor approved through this scenario and remains gated by workflows-v1.
 
   - id: S-8
     title: Reporting remains available from landing and details
     given:
-      - Alice is in Projects, Workflows, Tasks, or Plans.
+      - Alice is in Projects, Tasks, or Plans.
     when:
       - Alice views the workspace landing or an item detail page.
     then:
-      - Report Issue remains reachable in both states.
+      - Report Issue remains reachable in both states through the generic detail contract.
       - Opening the form includes safe workspace and item context without plaintext private metadata in logs.
 
 acceptance_criteria:
   - id: AC-1
     scenario: S-4
-    text: Chat, Project, Workflow, Task, and Plan details compose one shared web header CSS primitive extracted from ChatHeader; domain-specific components do not copy its visual CSS.
+    text: Chat, Project, Task, and Plan details compose one shared web header CSS primitive extracted from ChatHeader; Workflow visual composition is explicitly excluded and owned by workflows-v1.
     required: true
     status: pending
     coverage_status: covered
@@ -373,7 +395,7 @@ acceptance_criteria:
     verification_ids: [T-WEB-INLINE-EDIT, T-APPLE-DETAILS]
   - id: AC-9
     scenario: S-7
-    text: Apple implements native shared detail headers and metadata editing parity only after web is green, with iPhone, iPad, and macOS test and screenshot evidence.
+    text: Apple implements native Chat, Project, Task, and Plan shared detail headers and metadata editing parity only after applicable web evidence is green, with iPhone, iPad, and macOS evidence; Workflow visual parity remains governed and blocked by workflows-v1.
     required: true
     status: pending
     coverage_status: covered
@@ -381,7 +403,7 @@ acceptance_criteria:
     verification_ids: [T-APPLE-METADATA, T-APPLE-DETAILS, V-APPLE-DETAIL-ARTIFACTS]
   - id: AC-10
     scenario: S-8
-    text: Report Issue remains reachable from landing and detail states in Projects, Workflows, Tasks, and Plans and forwards only safe context.
+    text: Report Issue remains reachable from landing and generic detail states in Projects, Tasks, and Plans and forwards only safe context; workflows-v1 owns Workflow placement beside its New workflow and Share actions.
     required: true
     status: pending
     coverage_status: covered
@@ -425,6 +447,7 @@ contracts:
     - Each detail item exposes a server-authoritative monotonic metadata version in list, detail, mutation, sync, CLI, and SDK responses where that domain is exposed.
     - Latest accepted version wins; ordering never depends on client updated_at values.
     - The UI adapter receives decrypted display values and capability flags but never centralizes plaintext persistence.
+    - Workflow retains its Automation Vault metadata mutation/version response contract for web, CLI, SDK, and Apple consumers even though workflows-v1 owns its visual composition.
   ui_states:
     - Display-only header.
     - Writable hover/focus state with fading edit icon at the field's top-right.
@@ -434,6 +457,7 @@ contracts:
     - Save error state with draft, retry, and undo preserved.
     - Remote-version-applied state after cross-device synchronization.
     - Loading/not-found/forbidden detail state with no stale metadata flash.
+    - Workflow is not a generic-header UI state in this contract; its Figma-specific header, actions, tabs, cards, and run view are defined only by workflows-v1.
   privacy_security:
     - The shared component never sends plaintext directly; it calls the domain adapter that owns encryption and mutation.
     - Server authorization is mandatory even when the client hides editing controls.
@@ -445,6 +469,7 @@ contracts:
     - /workflows/{workflow_id}
     - /tasks/{task_id}
     - /plans/{plan_id}
+    - /workflows/{workflow_id}/runs is owned by workflows-v1; this spec preserves only canonical Workflow record-route and metadata API compatibility.
     - Shipped workflow/project query links redirect to canonical detail URLs while concrete external consumers remain supported.
 
 tests:
@@ -521,7 +546,8 @@ tests:
     covers: [AC-1, AC-5, AC-10, AC-11]
     assertions:
       - Project, Workflow, Task, and Plan detail links open canonical reload-safe URLs
-      - every detail page uses the shared header contract and no duplicate metadata form
+      - Chat, Project, Task, and Plan detail pages use the shared generic header contract and no duplicate metadata form
+      - Workflow canonical record route remains reload-safe but does not claim generic-header visual approval
       - back navigation restores the owning workspace
       - Report Issue is reachable on landing and detail states
       - mobile and desktop layouts preserve header content and touch targets
@@ -541,6 +567,12 @@ tests:
         timestamp: "2026-07-11T18:26:51Z"
         target: app.dev.openmates.org
         deployment_reference: dpl_G3bMBnPjUarjSHUnMjtXGEhS3GYB
+        summary: Stable route/back/reporting behavior and non-Workflow generic detail assertions remain evidence; the Workflow generic visual portion of this deployment is explicitly rejected and invalid as UI approval.
+        history:
+          - status: rejected
+            subject_commit: b5f2b7a88
+            timestamp: "2026-07-11T00:00:00Z"
+            note: The Workflow page's generic shared-header visual, top-right report action, and duplicate below-header row were rejected; workflows-v1 requires new evidence.
   - id: T-WEB-MULTI-DEVICE
     type: playwright
     file: frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
@@ -593,7 +625,7 @@ tests:
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/UnifiedDetailPagesUITests
     covers: [AC-8, AC-9, AC-10, AC-11]
     assertions:
-      - Chat, Project, Workflow, Task, and Plan native details use the shared native header
+      - Chat, Project, Task, and Plan native details use the shared native header
       - writable fields expose edit, save, undo, hints, errors, and accessible focus behavior
       - read-only fields expose no edit affordance
       - Report Issue remains reachable on workspace and detail states
@@ -617,9 +649,9 @@ verifications:
     status: blocked
     evidence:
       status: blocked
-      summary: Deployed desktop and sidebar-closed Chat artifacts are captured; user visual approval is required before Apple work, and Figma API access remains 403.
+      summary: Deployed non-Workflow generic detail artifacts still await approval. The deployed Workflow generic artifact is explicitly rejected/invalid and cannot count as green UI approval; corrected Workflow evidence belongs to workflows-v1. Figma API access remains 403.
       timestamp: "2026-07-11T20:25:22Z"
-      next_action: User reviews app.dev.openmates.org Chat, Project, Workflow, Task, and Plan detail headers and explicitly approves or requests web corrections.
+      next_action: User reviews Chat, Project, Task, and Plan generic detail artifacts; Workflow review proceeds only through workflows-v1 corrected artifacts.
   - id: V-APPLE-DETAIL-ARTIFACTS
     kind: artifact_review
     phase: final
@@ -628,7 +660,7 @@ verifications:
     status: pending
     evidence:
       status: pending
-      summary: Capture sanitized iPhone, iPad, and macOS details only after V-WEB-DETAIL-ARTIFACTS passes.
+      summary: Capture sanitized iPhone, iPad, and macOS Chat, Project, Task, and Plan details only after V-WEB-DETAIL-ARTIFACTS passes; Workflow is excluded.
 
 implementation_plan:
   spec_path: docs/specs/unified-detail-pages/spec.yml
@@ -638,18 +670,21 @@ implementation_plan:
     - backend/core/api/app/routes/projects.py, workflows.py, user_tasks.py, and user_plans.py for domain mutations.
     - frontend/packages/ui/src/components/settings/elements for accessible compact action controls where applicable.
     - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift and generated Swift tokens for native parity.
+    - docs/specs/workflows-v1/spec.yml is the sole visual owner for Workflow detail/runs while this spec retains Workflow metadata API compatibility.
   architecture: >
     Extract a presentation-only WorkspaceDetailHeader from ChatHeader. It renders
     the canonical background, orbs, decorative icon, title, description, metadata,
     responsive geometry, and editable field states. ChatHeader composes its
-    existing chat-only states through this primitive. Project, Workflow, Task,
-    and Plan detail containers provide a common view model plus domain mutation
-    adapters. Each adapter checks write capability, encrypts with its existing
-    domain key or Automation Vault service, submits the current server metadata
-    version, receives the next version, updates local storage, and publishes the
-    normal sync event. Canonical nested routes own detail loading and preserve
+    existing chat-only states through this primitive. Project, Task, and Plan
+    detail containers provide a common view model plus domain mutation adapters.
+    Workflow does not consume this generic visual primitive, but its existing
+    domain adapter still checks write capability, encrypts through Automation
+    Vault, submits the current server metadata version, receives the next version,
+    updates local storage, and publishes the normal sync event. Canonical nested
+    routes own detail loading and preserve
     redirects from shipped links. Web tests and artifact review gate equivalent
-    SwiftUI composition and native adapter work.
+    SwiftUI composition and native adapter work for Chat, Project, Task, and Plan;
+    workflows-v1 independently gates Workflow visuals.
   data_flow:
     - Detail route loads owner-scoped encrypted metadata and capability, then decrypts through the existing domain service.
     - Shared header receives display values, write capability, version, validation constraints, and required save/cancel callbacks.
@@ -667,8 +702,6 @@ implementation_plan:
       reason: Typed presentation-to-domain adapter contract without centralizing encryption.
     - path: frontend/packages/ui/src/components/projects/ProjectDetailPage.svelte
       reason: Canonical Project detail composition.
-    - path: frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
-      reason: Canonical Workflow detail composition.
     - path: frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
       reason: Missing Task detail page.
     - path: frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
@@ -676,7 +709,7 @@ implementation_plan:
     - path: frontend/apps/web_app/src/routes/projects/[project_id]/+page.svelte
       reason: Stable Project detail route.
     - path: frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
-      reason: Stable Workflow detail route.
+      reason: Stable Workflow record route only; visual composition is owned by workflows-v1.
     - path: frontend/apps/web_app/src/routes/tasks/[task_id]/+page.svelte
       reason: Stable Task detail route.
     - path: frontend/apps/web_app/src/routes/plans/[plan_id]/+page.svelte
@@ -718,8 +751,8 @@ implementation_plan:
     - Apple unit and UI tests, then iPhone/iPad/macOS artifacts.
   rollout:
     - Keep existing ChatHeader behavior while the shared primitive is introduced behind deterministic parity tests.
-    - Land web domain pages in independently testable slices but do not mark the contract green until all five headers use the primitive.
-    - Start Apple production changes only after web artifact review passes.
+    - Land web domain pages in independently testable slices but do not mark the generic visual contract green until Chat, Project, Task, and Plan use the primitive; Workflow is excluded.
+    - Start generic Apple detail changes only after applicable web artifact review passes; never use this gate to start Apple Workflow visual work.
   observability:
     - Log domain, operation, sanitized id prefix, incoming/accepted version, duration, and error code only.
     - Never log title, description, summary, ciphertext, keys, or decrypted drafts.
@@ -730,7 +763,7 @@ implementation_plan:
     - Extracting ChatHeader styles can regress chat media/loading/navigation states unless existing chat E2E contracts run unchanged.
     - Silent latest-version-wins can overwrite a nearly simultaneous remote edit; this is an explicitly accepted product tradeoff.
     - A generic UI adapter could accidentally centralize plaintext or encryption logic; domain adapters must remain responsible.
-    - Creating four stable detail routes can break shipped query links without explicit redirects and route tests.
+    - Creating stable detail routes can break shipped query links without explicit redirects and route tests.
     - Apple parity can drift if implementation starts before the web visual contract is approved.
 
 tasks:
@@ -795,7 +828,6 @@ tasks:
       - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
       - frontend/packages/ui/src/components/ChatHeader.svelte
       - frontend/packages/ui/src/components/projects/ProjectDetailPage.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
       - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
       - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
     verification: [T-WEB-INLINE-EDIT, T-WEB-DETAILS]
@@ -805,7 +837,6 @@ tasks:
       files:
         - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
         - frontend/packages/ui/src/components/projects/ProjectDetailPage.svelte
-        - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
         - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
         - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
       shared_files:
