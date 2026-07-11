@@ -63,6 +63,30 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
         attachScreenshot(name: "iPad Apps settings layout smoke")
     }
 
+    func testIPadSettingsShellProducesLightAndDarkReviewArtifacts() {
+        for appearance in ["Light", "Dark"] {
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "--ui-test-disable-auth-cache",
+                "-AppleInterfaceStyle",
+                appearance,
+            ]
+            app.launch()
+
+            XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
+            app.buttons["settings-button"].tap()
+            XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
+            let appsRow = app.descendants(matching: .any)["settings-apps-row"].firstMatch
+            XCTAssertTrue(waitForElement("settings-apps-row", in: app, timeout: 5))
+            assertElementInsideWindow(appsRow, in: app)
+            XCTAssertTrue(appsRow.isHittable)
+            XCTAssertFalse(app.tables.firstMatch.exists)
+            attachScreenshot(name: "iPad Settings shell \(appearance.lowercased())")
+
+            app.terminate()
+        }
+    }
+
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
         let element = app.descendants(matching: .any)[identifier].firstMatch
         if element.waitForExistence(timeout: timeout), visibleElement(identifier, in: app) != nil { return true }

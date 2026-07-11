@@ -75,6 +75,28 @@ final class SettingsFullParityUITests: XCTestCase {
         attachScreenshot(name: "Report issue submission success with simulator logs")
     }
 
+    func testSettingsShellProducesLightAndDarkReviewArtifacts() {
+        for appearance in ["Light", "Dark"] {
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "--ui-test-disable-auth-cache",
+                "-AppleInterfaceStyle",
+                appearance,
+            ]
+            app.launch()
+
+            XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
+            app.buttons["settings-button"].tap()
+            XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
+            XCTAssertTrue(waitForElement("settings-ai-row", in: app, timeout: 5))
+            XCTAssertTrue(app.descendants(matching: .any)["settings-ai-row"].isHittable)
+            XCTAssertFalse(app.tables.firstMatch.exists)
+            attachScreenshot(name: "iPhone Settings shell \(appearance.lowercased())")
+
+            app.terminate()
+        }
+    }
+
     private var guestDestinations: [(row: String, page: String)] {
         [
             ("settings-pricing-row", "settings-pricing-page"),
