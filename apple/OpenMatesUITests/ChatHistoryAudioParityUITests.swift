@@ -8,19 +8,10 @@ import XCTest
 
 @MainActor
 final class ChatHistoryAudioParityUITests: XCTestCase {
-    private var app: XCUIApplication!
-
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-        app = launchFixture()
-    }
-
-    override func tearDownWithError() throws {
-        app?.terminate()
-        app = nil
-    }
-
     func testOrderedSemanticHistoryAndSentAudioSurviveColdBoot() throws {
+        continueAfterFailure = false
+        var app = launchFixture()
+        defer { app.terminate() }
         assertSemanticHistory(in: app)
         assertFinishedAudioInteractions(in: app)
         attachScreenshot(name: "Semantic sent audio preview")
@@ -34,6 +25,9 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
     }
 
     func testSentAudioProcessingAndErrorStatesAreExplicit() throws {
+        continueAfterFailure = false
+        let app = launchFixture()
+        defer { app.terminate() }
         let processing = app.descendants(matching: .any)["recording-processing-state"]
         let error = app.descendants(matching: .any)["recording-error-state"]
 
