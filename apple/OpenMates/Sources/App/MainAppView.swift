@@ -6013,7 +6013,6 @@ private struct WelcomeResumeCompactCard: View {
     let width: CGFloat
     let onTap: () -> Void
     let onLongPress: () -> Void
-    @State private var suppressNextTap = false
 
     var body: some View {
         HStack(spacing: .spacing6) {
@@ -6049,8 +6048,16 @@ private struct WelcomeResumeCompactCard: View {
         )
         .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
         .contentShape(RoundedRectangle(cornerRadius: .radius8))
-        .onLongPressGesture(minimumDuration: 0.6, perform: handleLongPress)
-        .onTapGesture(perform: handleTap)
+        .overlay {
+            #if os(iOS)
+            WelcomeCardInteractionSurface(onTap: onTap, onLongPress: onLongPress)
+            #else
+            Color.clear
+                .contentShape(RoundedRectangle(cornerRadius: .radius8))
+                .onLongPressGesture(minimumDuration: 0.6, perform: onLongPress)
+                .onTapGesture(perform: onTap)
+            #endif
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
         .accessibilityAddTraits(.isButton)
@@ -6058,24 +6065,76 @@ private struct WelcomeResumeCompactCard: View {
         .help(Text(card.title))
         .accessibilityLabel(card.title)
     }
+}
 
-    private func handleTap() {
-        guard !suppressNextTap else {
-            suppressNextTap = false
-            return
-        }
-        onTap()
+#if os(iOS)
+private struct WelcomeCardInteractionSurface: UIViewRepresentable {
+    let onTap: () -> Void
+    let onLongPress: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onTap: onTap, onLongPress: onLongPress)
     }
 
-    private func handleLongPress() {
-        suppressNextTap = true
-        onLongPress()
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(250))
-            suppressNextTap = false
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.backgroundColor = .clear
+        view.isAccessibilityElement = false
+        view.accessibilityElementsHidden = true
+
+        let longPress = UILongPressGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleLongPress(_:))
+        )
+        longPress.minimumPressDuration = 0.6
+        longPress.cancelsTouchesInView = false
+        longPress.delegate = context.coordinator
+
+        let tap = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleTap)
+        )
+        tap.cancelsTouchesInView = false
+        tap.delegate = context.coordinator
+        tap.require(toFail: longPress)
+
+        view.addGestureRecognizer(longPress)
+        view.addGestureRecognizer(tap)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onTap = onTap
+        context.coordinator.onLongPress = onLongPress
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onTap: () -> Void
+        var onLongPress: () -> Void
+
+        init(onTap: @escaping () -> Void, onLongPress: @escaping () -> Void) {
+            self.onTap = onTap
+            self.onLongPress = onLongPress
+        }
+
+        @objc func handleTap() {
+            onTap()
+        }
+
+        @objc func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
+            guard recognizer.state == .began else { return }
+            onLongPress()
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
         }
     }
 }
+#endif
 
 private struct AnimatedCategoryBackground: View {
     let category: String
