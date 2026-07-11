@@ -77,6 +77,9 @@ struct EmbedPreviewCard: View {
                     .accessibilityIdentifier("embed-preview")
                     .accessibilityLabel(embedType?.displayName ?? embed.type)
                     .accessibilityValue(statusAccessibilityValue)
+                    .accessibilityAction {
+                        if embed.status != .processing { onTap() }
+                    }
             } else {
                 Button(action: onTap) {
                     cardSurface
