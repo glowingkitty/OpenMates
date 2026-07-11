@@ -649,7 +649,7 @@ verifications:
     status: blocked
     evidence:
       status: blocked
-      summary: Deployed non-Workflow generic detail artifacts still await approval. The deployed Workflow generic artifact is explicitly rejected/invalid and cannot count as green UI approval; corrected Workflow evidence belongs to workflows-v1. Figma API access remains 403.
+      summary: Deployed non-Workflow generic detail artifacts still await approval. The deployed Workflow generic artifact is explicitly rejected/invalid and cannot count as green UI approval; corrected Workflow evidence belongs to workflows-v1. Figma MCP authentication and Workflow frame exports are now verified; structured node metadata is temporarily rate-limited with HTTP 429.
       timestamp: "2026-07-11T20:25:22Z"
       next_action: User reviews Chat, Project, Task, and Plan generic detail artifacts; Workflow review proceeds only through workflows-v1 corrected artifacts.
   - id: V-APPLE-DETAIL-ARTIFACTS

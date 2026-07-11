@@ -84,14 +84,27 @@ current_milestone:
     - "5422:34561 Expanded node editor"
     - "5486:38468 Definition timeline, deferred from the core milestone"
     - "5488:39515 Workflow run history"
+  figma_export_evidence:
+    verified_at: "2026-07-11T22:45:00Z"
+    export_scale: 1
+    frames:
+      - "5370:45293 Workflows home: 2260x1308"
+      - "5420:34107 New workflow: 2260x1159"
+      - "5420:34558 Compact existing workflow: 2260x1285"
+      - "5420:35214 Expanded workflow graph: 2260x2016"
+      - "5422:34561 In-card node editing: 2260x2274"
+      - "5488:39515 Workflow runs: 2260x2424"
+    note: Native PNG export succeeded through the authenticated Figma MCP. Structured node metadata returned HTTP 429 after the full-file index refresh and should be retried after cooldown.
   design_authority: >
     Figma nodes 5420:34107, 5420:34558, 5420:35214, 5422:34561, and 5488:39515
     govern Workflow-specific detail, expanded-card, and run composition. The
     deployed generic Workflow detail UI was rejected and is not visual approval.
-    Exact nested measurements remain blocked because the Figma API/export returns
-    403; implementation must not guess them. Corrected deployed web screenshots
-    and artifacts require explicit user approval before becoming Apple's visual
-    source of truth.
+    Figma MCP authentication and native image export are verified for all approved
+    Workflow frames. Structured node metadata is temporarily rate-limited with
+    HTTP 429 after a full-file index refresh; implementation may use native exports
+    but must not invent nested values that still require structured inspection.
+    Corrected deployed web screenshots and artifacts require explicit user approval
+    before becoming Apple's visual source of truth.
 
 context_discovery:
   github_issues:
@@ -263,9 +276,10 @@ clarification:
     composition rather than inheriting the generic detail-header visual. Runtime
     records are created only for accepted executions, event routing is normalized
     and authenticated, and sharing uses a separate persistent client-encrypted
-    portable projection. Exact nested Figma measurements remain blocked by 403,
-    and Apple remains blocked until corrected deployed web artifacts receive
-    explicit user approval.
+    portable projection. Native Figma exports are available, while structured
+    nested metadata must be fetched after the temporary API rate limit resets.
+    Apple remains blocked until corrected deployed web artifacts receive explicit
+    user approval.
   approved_by_user: true
 
 implementation_state:
@@ -857,7 +871,7 @@ scenarios:
       - Desktop and mobile render compact vertical cards matching Figma geometry, and expanding a node grows that card in place rather than opening any sibling editor panel.
       - The primary canvas has no run-retention picker, duplicate title/description form, run-content pill, permanent management toolbar, or permanent test/disable/delete button row.
       - The run route follows Figma node 5488:39515.
-      - Exact nested measurements are not asserted or invented while Figma API/export remains blocked with 403.
+      - Native frame exports are available; exact nested values not visible in those exports are not asserted or invented while structured metadata is temporarily rate-limited.
 
   - id: S-30
     title: Scheduler atomically claims one due recurrence and creates one accepted execution
@@ -1584,7 +1598,7 @@ contracts:
     - Core Workflow composer visually matches the chat input, centers its placeholder, and reveals submit only while focused with valid non-empty text; it creates title-only drafts without chat send behavior.
     - Workflow detail visual composition is owned by this spec; docs/specs/unified-detail-pages/spec.yml retains only Workflow metadata API/version/encryption contracts.
     - Workflow detail canvas starts directly below the Workflow-owned header and omits the prototype retention picker, duplicate metadata form, run-content pill, permanent management/test/delete rows, sibling node editor, and duplicate Workflow/status/New workflow row.
-    - Exact nested dimensions remain blocked while Figma API/export returns 403; no implementation or test may invent pixel measurements as approved values.
+    - Native Figma frame exports are available for all approved Workflow states. Structured node metadata must be fetched after the temporary 429 rate limit resets; no implementation or test may invent nested values that have not been inspected.
   privacy_security:
     - Workflows always run on the server; the runner must never depend on browser local storage or connected WebSocket state.
     - Server-readable schedule/routing metadata is minimized to fields needed for ownership checks, scheduler queries, run status, and feature gating.
@@ -2426,7 +2440,7 @@ verifications:
     status: blocked
     evidence:
       status: blocked
-      summary: The deployed generic Workflow detail artifact was explicitly rejected and is invalid as visual approval. Compare corrected deployed detail/run screenshots with Figma nodes 5420:34107, 5420:34558, 5420:35214, 5422:34561, and 5488:39515, then obtain explicit user approval. Exact nested measurements remain blocked because Figma API/export returns 403 and must not be guessed.
+      summary: The deployed generic Workflow detail artifact was explicitly rejected and is invalid as visual approval. Compare corrected deployed detail/run screenshots with native exports of Figma nodes 5420:34107, 5420:34558, 5420:35214, 5422:34561, and 5488:39515, then obtain explicit user approval. Structured metadata not visible in exports must be inspected after the temporary 429 rate limit resets rather than guessed.
       timestamp: "2026-07-11T00:00:00Z"
       next_action: Implement only after contract/plan approval, capture corrected deployed web artifacts, and request explicit user visual approval before Apple work.
   - id: V-APPLE-MULTIPLATFORM
@@ -2500,7 +2514,7 @@ implementation_plan:
     - id: P4-web
       dependencies: [P3-sharing-cross-client]
       covers: [AC-1, AC-2, AC-4, AC-8, AC-11, AC-12, AC-19, AC-20, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-43, AC-45]
-      outcome: Implement Workflow-owned /workflows/{workflow_id} and /workflows/{workflow_id}/runs screens, exact approved action hierarchy, compact in-place expanding cards, share/import UI, and workspace navigation. Use source values and rendered review; do not invent nested Figma measurements while 403 persists. Deploy, wait Ready, run Playwright, review screenshots/artifacts, and obtain explicit user approval.
+      outcome: Implement Workflow-owned /workflows/{workflow_id} and /workflows/{workflow_id}/runs screens, exact approved action hierarchy, compact in-place expanding cards, share/import UI, and workspace navigation. Use native Figma exports plus structured metadata after its temporary rate limit resets; do not invent uninspected nested values. Deploy, wait Ready, run Playwright, review screenshots/artifacts, and obtain explicit user approval.
       verification_ids: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI]
     - id: P5-apple
       dependencies: [P4-web, V-FIGMA-CORE-UI]
@@ -2712,8 +2726,7 @@ implementation_plan:
     - A-4
     - A-5
   open_questions:
-    - The technical plan requires explicit user approval before implementation resumes.
-    - Exact nested Figma measurements remain externally blocked by 403; source values and corrected rendered artifacts are the only allowed interim basis, and user artifact approval is required before Apple work.
+    - Native Figma frame exports are available. Structured node metadata is temporarily rate-limited after the full-file refresh; retry it before implementation needs nested values, and require user artifact approval before Apple work.
   risks:
     - A partial plaintext-schedule migration could cause missed or duplicate execution; the revised scheduler must fail closed until every enabled trigger has verified ciphertext and idempotency state.
     - Directus atomic-update semantics may be insufficient for leases without an existing transaction/RPC pattern; resolve in P1 before implementation rather than emulating claims in process memory.
@@ -2721,7 +2734,7 @@ implementation_plan:
     - Client-created projection keys mean legacy workflows cannot become shareable through a server-only backfill; UI must clearly request an authorized client refresh/edit instead of silently weakening encryption.
     - Reusing share.py must not preserve its current private-id logging for workflow shares; touched paths must emit redacted identifiers only.
     - Provider scope drift can fail unattended runs; failures must be visible and must never fall back to cached credentials or stale grants.
-    - Figma 403 prevents exact nested measurement verification; guessing would create another stale prototype, so visual completion depends on rendered artifact review and explicit approval.
+    - Structured Figma metadata may remain temporarily rate-limited; guessing uninspected values would create another stale prototype, so visual completion depends on native exports, metadata inspection when available, rendered artifact review, and explicit approval.
     - Apple implementation before corrected web approval would encode the rejected generic composition and is prohibited by the phase dependency.
 
 tasks:
@@ -2961,7 +2974,7 @@ tasks:
     verification_ids: [T-PYTEST-005, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004]
     dependencies: [TASK-6]
     blockers:
-      - Exact nested Figma measurements remain unavailable because API/export requests return 403; use source values and rendered review without guessing dimensions.
+      - Native Figma exports are available; retry temporarily rate-limited structured metadata before using nested values that are not visible in those exports.
     follow_up_tasks: [TASK-8]
     independently_deployable: false
 
