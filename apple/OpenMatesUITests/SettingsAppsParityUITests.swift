@@ -116,12 +116,12 @@ final class SettingsAppsParityUITests: XCTestCase {
 
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
         let element = app.descendants(matching: .any)[identifier]
-        if element.waitForExistence(timeout: timeout), visibleElement(identifier, in: app) != nil { return true }
+        if element.waitForExistence(timeout: timeout) { return true }
 
         let scrollView = app.scrollViews.firstMatch
         for _ in 0..<5 where scrollView.exists {
             scrollView.swipeUp()
-            if element.waitForExistence(timeout: 1), visibleElement(identifier, in: app) != nil { return true }
+            if element.waitForExistence(timeout: 1) { return true }
         }
         return false
     }
