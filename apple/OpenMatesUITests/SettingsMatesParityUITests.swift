@@ -38,7 +38,9 @@ final class SettingsMatesParityUITests: XCTestCase {
 
     private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication) {
         for _ in 0..<6 where !element.isHittable {
-            app.scrollViews.lastMatch.swipeUp()
+            let scrollViews = app.scrollViews
+            guard scrollViews.count > 0 else { break }
+            scrollViews.element(boundBy: scrollViews.count - 1).swipeUp()
         }
         XCTAssertTrue(element.isHittable)
     }

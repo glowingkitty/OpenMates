@@ -78,7 +78,9 @@ struct EmbedContentView: View {
             // Code
             case .codeRepoSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "repositories")
-            case .codeRepo, .codeApplication:
+            case .codeRepo:
+                CodeRepoEmbedRenderer(data: rawData, mode: mode)
+            case .codeApplication:
                 GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
             case .codeCode:
                 CodeEmbedRenderer(
@@ -110,8 +112,10 @@ struct EmbedContentView: View {
             // Electronics
             case .electronicsSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "components")
+            case .electronicsPcbSchematic:
+                PcbSchematicEmbedRenderer(data: rawData, mode: mode)
             case .electronicsComponent:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                ElectronicsComponentEmbedRenderer(data: rawData, mode: mode)
 
             // Videos
             case .videosSearch:
@@ -121,7 +125,7 @@ struct EmbedContentView: View {
             case .videosTranscript:
                 TranscriptRenderer(data: rawData, mode: mode)
             case .videosGenerate:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                VideoGenerateEmbedRenderer(data: rawData, mode: mode)
             case .videosCreate:
                 RemotionVideoCreateRenderer(embedId: embed.id, data: rawData, mode: mode)
 
@@ -213,19 +217,19 @@ struct EmbedContentView: View {
 
             // Music
             case .musicGenerate:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                MusicGenerateEmbedRenderer(data: rawData, mode: mode)
 
             // Social media
             case .socialMediaGetPosts, .socialMediaSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "posts")
             case .socialMediaPost:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                SocialMediaPostEmbedRenderer(data: rawData, mode: mode)
 
             // Weather
             case .weatherForecast:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "days")
             case .weatherDay:
-                GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
+                WeatherDayEmbedRenderer(data: rawData, mode: mode)
 
             // Audio
             case .recording:
