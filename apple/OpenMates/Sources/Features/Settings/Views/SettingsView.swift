@@ -252,7 +252,10 @@ struct SettingsView: View {
     }
 
     private var isAuthenticated: Bool { authManager.currentUser != nil || AccountSettingsUITestFixture.enabled }
-    private var isAdmin: Bool { authManager.currentUser?.isAdmin == true }
+    private var isAdmin: Bool {
+        authManager.currentUser?.isAdmin == true
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-admin-settings-fixture")
+    }
 
     var body: some View {
         ZStack {
