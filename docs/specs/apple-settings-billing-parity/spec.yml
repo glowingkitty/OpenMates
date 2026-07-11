@@ -615,7 +615,7 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {status: passed, command: "python3 scripts/tests.py run -- --spec apple-settings-ui-contracts.spec.ts", run_id: "29160946595", subject_commit: "582410119", timestamp: "2026-07-11T17:06:33Z", target: app.dev.openmates.org, deployment_ref: "dpl_A7yKJBJGNX6LA7WhdiJjEGZAkM2P"}
+      evidence: {status: passed, command: "python3 scripts/tests.py run -- --spec apple-settings-ui-contracts.spec.ts", run_id: "29160946595", subject_commit: "582410119", timestamp: "2026-07-11T17:06:33Z", target: app.dev.openmates.org, deployment_reference: "dpl_A7yKJBJGNX6LA7WhdiJjEGZAkM2P"}
   - id: T-WEB-INCOGNITO
     type: playwright
     file: frontend/apps/web_app/tests/incognito-mode.spec.ts
@@ -630,7 +630,7 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {status: passed, command: "python3 scripts/tests.py run -- --spec incognito-mode.spec.ts", run_id: "29160938909", subject_commit: "582410119", timestamp: "2026-07-11T17:06:50Z", target: app.dev.openmates.org, deployment_ref: "dpl_A7yKJBJGNX6LA7WhdiJjEGZAkM2P"}
+      evidence: {status: passed, command: "python3 scripts/tests.py run -- --spec incognito-mode.spec.ts", run_id: "29160938909", subject_commit: "582410119", timestamp: "2026-07-11T17:06:50Z", target: app.dev.openmates.org, deployment_reference: "dpl_A7yKJBJGNX6LA7WhdiJjEGZAkM2P"}
   - id: T-WEB-LEARNING
     type: playwright
     file: frontend/apps/web_app/tests/learning-mode.spec.ts
@@ -645,7 +645,7 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {status: passed, command: "python3 scripts/tests.py run -- --spec learning-mode.spec.ts", run_id: "29160947095", subject_commit: "582410119", timestamp: "2026-07-11T17:06:19Z", target: app.dev.openmates.org, deployment_ref: "dpl_A7yKJBJGNX6LA7WhdiJjEGZAkM2P"}
+      evidence: {status: passed, command: "python3 scripts/tests.py run -- --spec learning-mode.spec.ts", run_id: "29160947095", subject_commit: "582410119", timestamp: "2026-07-11T17:06:19Z", target: app.dev.openmates.org, deployment_reference: "dpl_A7yKJBJGNX6LA7WhdiJjEGZAkM2P"}
   - id: T-CLI-MODES
     type: unit
     file: frontend/packages/openmates-cli/tests/cli.test.ts
@@ -715,7 +715,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: passed, command: "xcodebuild test-without-building ... -only-testing OpenMatesTests/SettingsFullParityTests -only-testing OpenMatesTests/SettingsModesParityTests -only-testing OpenMatesTests/SettingsPrivacyParityTests -only-testing OpenMatesTests/SettingsBillingParityTests -only-testing OpenMatesTests/SettingsMemoriesMatesParityTests", run_id: "remote-ios-settings-unit-37-2026-07-11", subject_commit: "f9a7c1d", timestamp: "2026-07-11T16:55:28Z"}
+      evidence: {status: passed, command: "xcodebuild test-without-building ... -only-testing OpenMatesTests/SettingsFullParityTests -only-testing OpenMatesTests/SettingsModesParityTests -only-testing OpenMatesTests/SettingsPrivacyParityTests -only-testing OpenMatesTests/SettingsBillingParityTests -only-testing OpenMatesTests/SettingsMemoriesMatesParityTests", run_id: "remote-ios-settings-unit-37-2026-07-11", subject_commit: "f9a7c1d", timestamp: "2026-07-11T16:55:28Z", reason: "Verified 37 typed Settings model, route, privacy, billing, mode, memory, and mate contracts."}
   - id: T-IOS-SHELL
     type: manual
     file: apple/OpenMatesUITests/SettingsShellParityUITests.swift
@@ -757,7 +757,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: blocked, command: "xcodebuild test ... CODE_SIGNING_ALLOWED=NO -only-testing OpenMatesMacUITests/SettingsMacShellParityUITests", run_id: "remote-macos-settings-ui-unsigned-2026-07-11", subject_commit: "f9a7c1d", timestamp: "2026-07-11T16:49:00Z", reason: "Unsigned macOS XCTest Runner exited before test launch; no non-interactive signing profile is available.", next_action: "Re-run on a signed macOS test host."}
+      evidence: {status: blocked, command: "xcodebuild test ... CODE_SIGNING_ALLOWED=NO -only-testing OpenMatesMacUITests/SettingsMacShellParityUITests", run_id: "remote-macos-settings-ui-unsigned-2026-07-11", subject_commit: "f9a7c1d", timestamp: "2026-07-11T16:49:00Z", actor: "OpenCode remote Mac", reason: "Unsigned macOS XCTest Runner exited before test launch; no non-interactive signing profile is available.", next_action: "Re-run on a signed macOS test host."}
   - id: T-IOS-MODES
     type: manual
     file: apple/OpenMatesUITests/SettingsModesParityUITests.swift
@@ -846,7 +846,7 @@ tests:
     covers: [AC-5]
     assertions: [apps grids, carousels, details, and examples remain usable on iPad]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test ... -only-testing OpenMatesUITests/SettingsIPadLayoutParityUITests", run_id: "remote-ipad-settings-layout-2026-07-11", subject_commit: "f9a7c1d", timestamp: "2026-07-11T16:47:28Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test ... -only-testing OpenMatesUITests/SettingsIPadLayoutParityUITests", run_id: "remote-ipad-settings-layout-2026-07-11", subject_commit: "f9a7c1d", timestamp: "2026-07-11T16:47:28Z", reason: "Verified Apps navigation and drilldowns on the regular-width iPad layout."}}
   - id: T-MAC-APPS
     type: manual
     file: apple/OpenMatesMacUITests/SettingsMacAppsParityUITests.swift
@@ -879,7 +879,7 @@ tests:
     covers: [AC-6]
     assertions: [native memory examples, CRUD, sync/relaunch, mention, and deletion pass]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test ... -only-testing OpenMatesUITests/SettingsMemoriesParityUITests", run_id: "remote-ios-settings-matrix-2026-07-11", subject_commit: "798f7d2", timestamp: "2026-07-11T19:15:59Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test ... -only-testing OpenMatesUITests/SettingsMemoriesParityUITests", run_id: "remote-ios-settings-matrix-2026-07-11", subject_commit: "798f7d2", timestamp: "2026-07-11T19:15:59Z", reason: "Verified native memory examples and custom Settings chrome."}}
   - id: T-MAC-MEMORIES
     type: manual
     file: apple/OpenMatesMacUITests/SettingsMacMemoriesParityUITests.swift
@@ -903,7 +903,7 @@ tests:
     covers: [AC-7]
     assertions: [mate list/detail/prompt/mention/start-chat behavior passes without browser navigation]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test-without-building ... -only-testing OpenMatesUITests/SettingsMatesParityUITests", run_id: "remote-ios-settings-mates-2026-07-11", subject_commit: "676528da7", timestamp: "2026-07-11T16:30:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test-without-building ... -only-testing OpenMatesUITests/SettingsMatesParityUITests", run_id: "remote-ios-settings-mates-2026-07-11", subject_commit: "676528da7", timestamp: "2026-07-11T16:30:00Z", reason: "Verified native mate list, detail, prompt disclosure, and composer handoff."}}
   - id: T-MAC-MATES
     type: manual
     file: apple/OpenMatesMacUITests/SettingsMacMatesParityUITests.swift
@@ -936,7 +936,7 @@ tests:
     covers: [AC-8]
     assertions: [privacy hub and connected account, retention, deletion, and debug flows pass]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test ... -only-testing OpenMatesUITests/SettingsPrivacyParityUITests", run_id: "remote-ios-settings-matrix-2026-07-11", subject_commit: "798f7d2", timestamp: "2026-07-11T19:18:51Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test ... -only-testing OpenMatesUITests/SettingsPrivacyParityUITests", run_id: "remote-ios-settings-matrix-2026-07-11", subject_commit: "798f7d2", timestamp: "2026-07-11T19:18:51Z", reason: "Verified Privacy hub, connected account, retention, and debug-log drilldowns."}}
   - id: T-MAC-PRIVACY
     type: manual
     file: apple/OpenMatesMacUITests/SettingsMacPrivacyParityUITests.swift
@@ -969,7 +969,7 @@ tests:
     covers: [AC-9]
     assertions: [live-contract balance/usage/invoice plus StoreKit success/cancel/pending/failure/restore/reconciliation states pass]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test-without-building ... -only-testing OpenMatesUITests/SettingsBillingStoreKitParityUITests", run_id: "remote-ios-settings-billing-2026-07-11", subject_commit: "676528da7", timestamp: "2026-07-11T16:30:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test-without-building ... -only-testing OpenMatesUITests/SettingsBillingStoreKitParityUITests", run_id: "remote-ios-settings-billing-2026-07-11", subject_commit: "676528da7", timestamp: "2026-07-11T16:30:00Z", reason: "Verified native Billing and StoreKit route visibility and clickability."}}
   - id: T-MAC-BILLING
     type: manual
     file: apple/OpenMatesMacUITests/SettingsMacBillingParityUITests.swift
