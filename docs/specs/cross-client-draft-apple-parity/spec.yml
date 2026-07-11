@@ -180,16 +180,22 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-11T17:24:54Z"
     reason: CoreSimulator repeatedly died before the XCTest assertion with NSMachErrorDomain code -308 while other Apple sessions were active.
+  - id: ATTEMPT-8
+    task_id: TASK-7
+    approach: Run the live cross-client lifecycle with a 360-second Playwright timeout plus test.slow().
+    outcome: blocked
+    recorded_at: "2026-07-11T18:58:02Z"
+    reason: GitHub Actions run 29164186590 reached draft update traffic, but test.slow tripled the Playwright timeout and the 390-second workflow watchdog killed the browser before Playwright could report the stalled lifecycle phase; teardown then surfaced a misleading write EPIPE.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Include authoritative encrypted draft metadata for draft-only UUID chats in phased sync, then rerun the live web contract.
+  current_task_id: TASK-7
+  next_action: Deploy the bounded diagnostic harness and rerun the live web contract to identify or clear the remaining lifecycle stall.
   command: OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run -- --spec cross-client-draft-sync.spec.ts
-  expected_outcome: CLI refresh decrypts the web-updated ciphertext, then the test advances through clear, send, and missed-deletion reconciliation.
+  expected_outcome: The test either passes create, edit, clear, send, and missed-deletion reconciliation or reports the exact failed phase before the workflow watchdog.
   blocker:
-    reason: Draft-only chats are discoverable but their newer ciphertext is not currently included in the phased-sync metadata payload; Apple UI tests are separately blocked by CoreSimulator -308.
-    next_action: Add focused phased-sync coverage for draft-only ciphertext, verify web green, then retry Apple UI suites after competing simulator sessions finish.
-  last_verified_commit: 5fff9cc49
+    reason: Live run 29164186590 was terminated by the workflow timeout wrapper, masking the primary stalled phase; Apple UI tests are separately blocked by CoreSimulator -308.
+    next_action: Use privacy-safe phase checkpoints and bounded teardown to isolate the web failure, then retry Apple UI suites after competing simulator sessions finish.
+  last_verified_commit: 6455835a9
 
 scenarios:
   - id: S-1
@@ -462,7 +468,7 @@ tests:
       - web edits are visible to CLI/npm/pip on refresh
       - clearing and sending remove the draft everywhere
       - a chat deleted by another client disappears after web cold boot
-    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, run_id: "29164186590", timestamp: "2026-07-11T18:58:02Z" } }
     green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", deployment_ref: "" } }
 
   - id: T-APPLE-001

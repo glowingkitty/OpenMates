@@ -60,24 +60,36 @@ async function runCli(
 		});
 		const stdout: string[] = [];
 		const stderr: string[] = [];
-		child.stdout.on('data', (data: Buffer) => stdout.push(data.toString()));
-		child.stderr.on('data', (data: Buffer) => stderr.push(data.toString()));
+		let settled = false;
 		const timeout = setTimeout(() => {
 			child.kill('SIGTERM');
-			resolve({ code: null, stdout: stdout.join(''), stderr: stderr.join('') });
+			setTimeout(() => {
+				if (child.exitCode === null) child.kill('SIGKILL');
+			}, 1_000).unref();
+			finish(null);
 		}, timeoutMs);
-		child.on('close', (code: number | null) => {
+		const finish = (code: number | null): void => {
+			if (settled) return;
+			settled = true;
 			clearTimeout(timeout);
 			resolve({ code, stdout: stdout.join(''), stderr: stderr.join('') });
+		};
+		child.stdout.on('data', (data: Buffer) => stdout.push(data.toString()));
+		child.stderr.on('data', (data: Buffer) => stderr.push(data.toString()));
+		child.on('error', (error: Error) => {
+			stderr.push(`CLI process error: ${error.message}\n`);
+			finish(null);
 		});
+		child.on('close', finish);
 	});
 }
 
 async function runCliJson(apiUrl: string, args: string[], timeoutMs = 60_000): Promise<any> {
 	const result = await runCli(apiUrl, [...args, '--json'], timeoutMs);
+	const command = args.slice(0, 2).join(' ');
 	expect(
 		result.code,
-		`openmates ${args.join(' ')} failed with ${result.stdout.length} stdout bytes\nstderr:\n${result.stderr}`
+		`openmates ${command} failed with ${result.stdout.length} stdout bytes\nstderr:\n${result.stderr}`
 	).toBe(0);
 	return JSON.parse(result.stdout);
 }
@@ -91,6 +103,7 @@ async function pairCli(page: any, apiUrl: string, baseUrl: string): Promise<void
 	const stderr: string[] = [];
 	child.stdout.on('data', (data: Buffer) => stdout.push(data.toString()));
 	child.stderr.on('data', (data: Buffer) => stderr.push(data.toString()));
+	child.stdin.on('error', (error: Error) => stderr.push(`CLI stdin error: ${error.message}\n`));
 
 	try {
 		const token = await expect
@@ -109,7 +122,12 @@ async function pairCli(page: any, apiUrl: string, baseUrl: string): Promise<void
 		await expect(pinDisplay).toBeVisible({ timeout: 15_000 });
 		const pin = ((await pinDisplay.textContent()) || '').replace(/\s/g, '');
 		expect(pin).toMatch(/^[A-Z0-9]{6}$/);
-		child.stdin.write(`${pin}\n`);
+		await new Promise<void>((resolve, reject) => {
+			child.stdin.write(`${pin}\n`, (error: Error | null | undefined) => {
+				if (error) reject(new Error(`CLI login input failed: ${error.message}`));
+				else resolve();
+			});
+		});
 
 		const exit = await new Promise<{ code: number | null }>((resolve) => {
 			const timeout = setTimeout(() => {
@@ -152,10 +170,9 @@ async function openDraft(page: any, chatId: string, expectedText: string): Promi
 }
 
 test.describe('Cross-client encrypted draft sync', () => {
-	test.setTimeout(360_000);
+	test.setTimeout(300_000);
 
 	test('CLI and web reconcile draft lifecycle and missed chat deletion', async ({ page }: { page: any }) => {
-		test.slow();
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 		const log = createSignupLogger('CROSS_CLIENT_DRAFT_SYNC');
 		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'cross-client-draft-sync' });
@@ -171,16 +188,20 @@ test.describe('Cross-client encrypted draft sync', () => {
 
 		await loginToTestAccount(page, log, screenshot);
 		try {
+			log('Pairing CLI client.');
 			await pairCli(page, apiUrl, baseUrl);
 			cliPaired = true;
+			log('CLI client paired.');
 			await page.goto(baseUrl);
 			await waitForChatReady(page, log);
 
+			log('Creating draft from CLI.');
 			const created = await runCliJson(apiUrl, ['drafts', 'create', initialText]);
 			const draftChatId = String(created.chatId);
 			expect(draftChatId).toMatch(/^[0-9a-f-]{36}$/i);
 			cleanupDraftIds.add(draftChatId);
 			await openDraft(page, draftChatId, initialText);
+			log('CLI-created draft opened in web client.');
 
 			const editor = page.getByTestId('message-editor');
 			await editor.click();
@@ -196,6 +217,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 					intervals: [1_000, 2_000]
 				})
 				.toBe(`${Number(created.draftV) + 1}:${updatedText}`);
+			log('Web draft edit reconciled to CLI.');
 
 			await editor.click();
 			await page.keyboard.press('ControlOrMeta+A');
@@ -208,7 +230,9 @@ test.describe('Cross-client encrypted draft sync', () => {
 				})
 				.toBeNull();
 			cleanupDraftIds.delete(draftChatId);
+			log('Web draft clear reconciled to CLI.');
 
+			log('Creating sendable draft from CLI.');
 			const sendDraft = await runCliJson(apiUrl, ['drafts', 'create', sentText]);
 			const sentChatId = String(sendDraft.chatId);
 			cleanupDraftIds.add(sentChatId);
@@ -225,7 +249,9 @@ test.describe('Cross-client encrypted draft sync', () => {
 				.toBeNull();
 			cleanupDraftIds.delete(sentChatId);
 			cleanupChatIds.add(sentChatId);
+			log('Web send cleared the CLI draft.');
 
+			log('Deleting sent chat while web client is offline.');
 			await page.context().setOffline(true);
 			await runCliJson(apiUrl, ['chats', 'delete', sentChatId, '--yes']);
 			cleanupChatIds.delete(sentChatId);
@@ -234,15 +260,16 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await waitForChatReady(page, log);
 			await openSidebar(page);
 			await expect(chatItem(page, sentChatId)).toHaveCount(0, { timeout: 30_000 });
+			log('Missed chat deletion reconciled after reconnect.');
 		} finally {
-			await page.context().setOffline(false);
+			await page.context().setOffline(false).catch(() => undefined);
 			for (const chatId of cleanupDraftIds) {
-				await runCli(apiUrl, ['drafts', 'clear', chatId]);
+				await runCli(apiUrl, ['drafts', 'clear', chatId], 10_000);
 			}
 			for (const chatId of cleanupChatIds) {
-				await runCli(apiUrl, ['chats', 'delete', chatId, '--yes']);
+				await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 10_000);
 			}
-			if (cliPaired) await runCli(apiUrl, ['logout']);
+			if (cliPaired) await runCli(apiUrl, ['logout'], 10_000);
 		}
 	});
 });
