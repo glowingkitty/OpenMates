@@ -1207,6 +1207,7 @@ struct MainAppView: View {
         }
         .environmentObject(authManager)
         .environmentObject(themeManager)
+        .environmentObject(chatStore)
         .frame(width: width)
         .frame(maxHeight: .infinity)
         .background(Color.grey20)
