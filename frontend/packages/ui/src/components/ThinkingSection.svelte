@@ -26,7 +26,7 @@
 -->
 <script lang="ts">
     import { slide } from 'svelte/transition';
-    import { tick } from 'svelte';
+    import { onMount, tick } from 'svelte';
     import ReadOnlyMessage from './ReadOnlyMessage.svelte';
     import { parse_message } from '../message_parsing/parse_message';
     import { text } from '@repo/ui'; // For i18n translations
@@ -44,6 +44,17 @@
 
     // DOM ref for the content scroll container — used to auto-scroll to bottom
     let contentEl = $state<HTMLDivElement | null>(null);
+    let prefersReducedMotion = $state(false);
+
+    onMount(() => {
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const updateMotionPreference = () => {
+            prefersReducedMotion = motionQuery.matches;
+        };
+        updateMotionPreference();
+        motionQuery.addEventListener('change', updateMotionPreference);
+        return () => motionQuery.removeEventListener('change', updateMotionPreference);
+    });
     
     // Auto-expand while streaming so the user sees thinking content (or placeholder)
     // as it arrives. When streaming finishes, collapse automatically.
@@ -95,7 +106,10 @@
         // Wait for the DOM to update after content change before scrolling
         tick().then(() => {
             if (contentEl) {
-                contentEl.scrollTo({ top: contentEl.scrollHeight, behavior: 'smooth' });
+                contentEl.scrollTo({
+                    top: contentEl.scrollHeight,
+                    behavior: prefersReducedMotion ? 'auto' : 'smooth'
+                });
             }
         });
     });
@@ -109,10 +123,11 @@
 </script>
 
 {#if hasContent || isStreaming}
-    <div class="thinking-section" class:streaming={isStreaming} class:expanded={isExpanded}>
+    <div class="thinking-section" data-testid="thinking-section" class:streaming={isStreaming} class:expanded={isExpanded}>
         <!-- Collapsed Header (always visible) -->
         <button 
             class="thinking-header"
+            data-testid="thinking-header"
             onclick={toggleExpanded}
             aria-expanded={isExpanded}
             aria-label={isExpanded ? $text('chat.thinking.collapse') : $text('chat.thinking.expand')}
@@ -129,7 +144,13 @@
         
         <!-- Expanded Content: Full thinking content visible while streaming or when user expands -->
         {#if isExpanded && parsedThinkingContent}
-            <div class="thinking-content" class:streaming-content={isStreaming} bind:this={contentEl} transition:slide={{ duration: 200 }}>
+            <div
+                class="thinking-content"
+                data-testid="thinking-content"
+                class:streaming-content={isStreaming}
+                bind:this={contentEl}
+                transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
+            >
                 <ReadOnlyMessage 
                     content={parsedThinkingContent}
                     isStreaming={isStreaming}
@@ -255,6 +276,12 @@
     }
     .thinking-content.streaming-content::-webkit-scrollbar {
         display: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .thinking-content.streaming-content {
+            scroll-behavior: auto;
+        }
     }
     
     /* Override ReadOnlyMessage styles for thinking content */

@@ -12379,6 +12379,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         to   { --chat-gradient-angle: 360deg; }
     }
 
+    @media (prefers-reduced-motion: reduce) {
+        .active-chat-container::after {
+            animation: none;
+        }
+    }
+
     /* Outer glow — soft static multi-color bloom that fades in with the border.
      * No color-cycling animation; the spinning border ring provides all the motion. */
     .active-chat-container.ai-typing {

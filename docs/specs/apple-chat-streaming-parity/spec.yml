@@ -579,7 +579,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", run_id: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run -- --spec chat-response-processing-ui.spec.ts
+        run_id: "29148585016"
+        subject_commit: dd0e63b8b
+        reason: The real fixture lifecycle rendered thinking and rainbow state; assertions failed because thinking test IDs and rainbow/thinking Reduce Motion behavior are missing.
+        timestamp: "2026-07-11T10:00:49Z"
     green_phase:
       required: true
       expected: pass_after_deploy
