@@ -225,7 +225,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			log('Web draft emptied; waiting for CLI reconciliation.');
 			await expect
 				.poll(async () => (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft, {
-					timeout: 30_000,
+					timeout: 60_000,
 					intervals: [1_000, 2_000]
 				})
 				.toBeNull();
@@ -236,6 +236,8 @@ test.describe('Cross-client encrypted draft sync', () => {
 			const sendDraft = await runCliJson(apiUrl, ['drafts', 'create', sentText]);
 			const sentChatId = String(sendDraft.chatId);
 			cleanupDraftIds.add(sentChatId);
+			await page.reload();
+			await waitForChatReady(page, log);
 			await openDraft(page, sentChatId, sentText);
 			await editor.click();
 			const sendButton = page.locator('[data-action="send-message"]');

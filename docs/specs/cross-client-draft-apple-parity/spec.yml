@@ -208,16 +208,22 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-07-11T21:55:56Z"
     reason: GitHub Actions run 29169514818 passed create, edit, and clear reconciliation in both attempts, then found no send action because restored drafts intentionally require an explicit editor focus before composer actions appear.
+  - id: ATTEMPT-12
+    task_id: TASK-7
+    approach: Rerun the live lifecycle with explicit restored-draft focus.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-11T22:06:40Z"
+    reason: GitHub Actions run 29169843551 proved clear in one attempt but raced the next CLI-created draft against web navigation after deleting the active chat; the retry exceeded the narrow 30-second asynchronous delete and phased-refresh window.
 
 handoff:
   current_task_id: TASK-7
-  next_action: Focus the restored sendable draft before locating its send action, deploy, and rerun the live web contract.
+  next_action: Use a bounded 60-second clear window and cold-sync before the independent send stage, then rerun the live web contract.
   command: OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run -- --spec cross-client-draft-sync.spec.ts
   expected_outcome: The test either passes create, edit, clear, send, and missed-deletion reconciliation or reports the exact failed phase before the workflow watchdog.
   blocker:
-    reason: Live run 29169514818 proved authoritative clear is fixed but the send stage omitted the user focus required to reveal composer actions; Apple UI tests are separately blocked by CoreSimulator -308.
-    next_action: Verify send and missed deletion with the corrected focus interaction, then retry Apple UI suites after competing simulator sessions finish.
-  last_verified_commit: 7082c1d
+    reason: Live run 29169843551 reached the post-clear send scenario but exposed asynchronous navigation and refresh timing at the boundary between two independent chat lifecycles; Apple UI tests are separately blocked by CoreSimulator -308.
+    next_action: Verify send and missed deletion after a cold sync boundary, then retry Apple UI suites after competing simulator sessions finish.
+  last_verified_commit: d58919d
 
 scenarios:
   - id: S-1
