@@ -25,9 +25,9 @@ final class SettingsModesParityUITests: XCTestCase {
         XCTAssertTrue(enable.exists && enable.isHittable)
         enable.tap()
 
-        XCTAssertTrue(app.buttons["learning-mode-disable-button"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["learning-mode-status-enabled"].firstMatch.waitForExistence(timeout: 5))
         app.buttons["learning-mode-disable-button"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["learning-mode-enable-button"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["learning-mode-status-disabled"].firstMatch.waitForExistence(timeout: 5))
     }
 
     func testAccountLearningModeRendersPasscodeProtectedManagement() {
@@ -36,9 +36,8 @@ final class SettingsModesParityUITests: XCTestCase {
         XCTAssertTrue(learningRow.waitForExistence(timeout: 5))
         tapToggle("learning-mode-toggle-wrapper", in: app)
 
-        XCTAssertTrue(app.descendants(matching: .any)["settings-learning-mode-page"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.secureTextFields["learning-mode-passcode-input"].exists)
-        XCTAssertTrue(app.buttons["learning-mode-enable-button"].firstMatch.exists)
+        XCTAssertTrue(app.secureTextFields["learning-mode-passcode-input"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["learning-mode-enable-button"].firstMatch.waitForExistence(timeout: 5))
     }
 
     func testIncognitoFirstActivationUsesExplainerAndHandledActivationEvent() {
@@ -60,7 +59,8 @@ final class SettingsModesParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["settings-menu"].waitForExistence(timeout: 5))
         tapToggle("incognito-toggle-wrapper", in: app)
         tapToggle("incognito-toggle-wrapper", in: app)
-        XCTAssertFalse(app.descendants(matching: .any)["incognito-info-page"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settings-menu"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["incognito-info-page"].waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["incognito-mode-banner"].waitForExistence(timeout: 8))
     }
 

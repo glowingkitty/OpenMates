@@ -122,6 +122,7 @@ struct SettingsLearningModeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(status.enabled ? Color.warning.opacity(0.1) : Color.grey10)
         .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        .accessibilityIdentifier(status.enabled ? "learning-mode-status-enabled" : "learning-mode-status-disabled")
     }
 
     private var statusDescription: String {
