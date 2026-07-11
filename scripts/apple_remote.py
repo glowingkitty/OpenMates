@@ -28,6 +28,7 @@ LOCAL_CONFIG_PATH = Path.home() / ".config" / "openmates" / "apple-remote.json"
 REMOTE_LABEL = "macos-peer"
 DEFAULT_CONNECT_TIMEOUT_SECONDS = 10
 MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
+SIMULATOR_LOCK_PATH = "/tmp/openmates-apple-simulator.lock"
 DESTRUCTIVE_TOKENS = {
     "rm",
     "shutdown",
@@ -45,6 +46,21 @@ XCODE_CACHE_TARGETS = {
     "simulator-caches": "~/Library/Developer/CoreSimulator/Caches",
     "device-support": "~/Library/Developer/Xcode/iOS DeviceSupport",
 }
+
+SIMULATOR_LOCK_SCRIPT = r'''
+import fcntl
+import subprocess
+import sys
+
+lock_path = sys.argv[1]
+command = sys.argv[2:]
+print("simulator_lock=waiting", flush=True)
+with open(lock_path, "w", encoding="utf-8") as lock_file:
+    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+    print("simulator_lock=acquired", flush=True)
+    result = subprocess.run(command)
+sys.exit(result.returncode)
+'''
 
 
 DEVICE_STATUS_SCRIPT = r'''
@@ -2738,9 +2754,13 @@ def sync_repo_command(branch: str) -> str:
     ])
 
 
+def simulator_locked_command(parts: Sequence[str]) -> str:
+    return shell_join(["python3", "-c", SIMULATOR_LOCK_SCRIPT, SIMULATOR_LOCK_PATH, *parts])
+
+
 def build_ios_command(simulator: str) -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
-    xcodebuild = shell_join([
+    xcodebuild = simulator_locked_command([
         "xcodebuild",
         "-project",
         "apple/OpenMates.xcodeproj",
@@ -2767,7 +2787,11 @@ def test_ios_command(simulator: str, only_testing: str | None) -> str:
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])
-    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {shell_join(parts)}"
+    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {simulator_locked_command(parts)}"
+
+
+def simulator_cleanup_command(simulator: str) -> str:
+    return simulator_locked_command(["xcrun", "simctl", "shutdown", simulator])
 
 
 def build_macos_command() -> str:
@@ -3563,7 +3587,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "cleanup":
             return run_remote(
                 config,
-                shell_join(["xcrun", "simctl", "shutdown", args.simulator]),
+                simulator_cleanup_command(args.simulator),
                 allow_destructive=True,
             )
         if args.command == "xcode-cache-report":
