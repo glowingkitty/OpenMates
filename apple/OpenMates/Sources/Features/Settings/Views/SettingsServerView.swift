@@ -62,7 +62,7 @@ struct SettingsServerView: View {
             }
         }
 
-        @ViewBuilder var view: some View {
+        @MainActor @ViewBuilder var view: some View {
             switch self {
             case .softwareUpdate: ServerSoftwareUpdateView()
             case .stats: ServerStatsView()
@@ -494,6 +494,7 @@ private struct AnonymousBudgetRequest: Encodable {
     let perIdentityDailyCapCredits: Int
 }
 
+@MainActor
 private func budgetPage(
     title: String,
     enabled: Binding<Bool>,

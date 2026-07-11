@@ -60,7 +60,7 @@ struct SettingsDeveloperView: View {
             }
         }
 
-        @ViewBuilder var view: some View {
+        @MainActor @ViewBuilder var view: some View {
             switch self {
             case .apiKeys: SettingsAPIKeysView()
             case .devices: SettingsDevicesView()

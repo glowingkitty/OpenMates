@@ -24,7 +24,7 @@ struct SettingsLogsView: View {
     enum LogFilter: String, CaseIterable, Identifiable {
         case all, warn, error
         var id: String { rawValue }
-        var title: String { L("settings.logs.filter_\(rawValue)") }
+        @MainActor var title: String { L("settings.logs.filter_\(rawValue)") }
     }
 
     struct LogsResponse: Decodable {
