@@ -111,7 +111,13 @@ final class PersistedMessage {
     var updatedAt: String?
     var appId: String?
     var modelName: String?
+    var senderName: String?
+    var category: String?
+    var encryptedSenderName: String?
+    var encryptedCategory: String?
+    var encryptedModelName: String?
     var embedRefsJSON: Data?
+    var renderDocumentJSON: Data?
     var piiMappingsJSON: Data?
     var encryptedPIIMappings: String?
     var encryptedThinkingContent: String?
@@ -130,7 +136,13 @@ final class PersistedMessage {
         self.updatedAt = message.updatedAt
         self.appId = message.appId
         self.modelName = message.modelName
+        self.senderName = message.senderName
+        self.category = message.category
+        self.encryptedSenderName = message.encryptedSenderName
+        self.encryptedCategory = message.encryptedCategory
+        self.encryptedModelName = message.encryptedModelName
         self.embedRefsJSON = try? JSONEncoder().encode(message.embedRefs)
+        self.renderDocumentJSON = try? JSONEncoder().encode(message.renderDocumentForDisplay)
         self.piiMappingsJSON = try? JSONEncoder().encode(message.piiMappings)
         self.encryptedPIIMappings = message.encryptedPIIMappings
         self.encryptedThinkingContent = message.encryptedThinkingContent
@@ -141,6 +153,9 @@ final class PersistedMessage {
     func toMessage() -> Message {
         let embedRefs = embedRefsJSON.flatMap { try? JSONDecoder().decode([EmbedRef].self, from: $0) }
         let piiMappings = piiMappingsJSON.flatMap { try? JSONDecoder().decode([PIIMapping].self, from: $0) }
+        let renderDocument = renderDocumentJSON.flatMap {
+            try? JSONDecoder().decode(ChatHistoryRenderDocument.self, from: $0)
+        }
         return Message(
             id: id, chatId: chatId,
             role: MessageRole(rawValue: role) ?? .user,
@@ -149,11 +164,17 @@ final class PersistedMessage {
             updatedAt: updatedAt, appId: appId,
             isStreaming: false, embedRefs: embedRefs,
             modelName: modelName,
+            senderName: senderName,
+            category: category,
+            encryptedSenderName: encryptedSenderName,
+            encryptedCategory: encryptedCategory,
+            encryptedModelName: encryptedModelName,
             piiMappings: piiMappings,
             encryptedPIIMappings: encryptedPIIMappings,
             encryptedThinkingContent: encryptedThinkingContent,
             encryptedThinkingSignature: encryptedThinkingSignature,
-            thinkingTokenCount: thinkingTokenCount
+            thinkingTokenCount: thinkingTokenCount,
+            renderDocument: renderDocument
         )
     }
 }
@@ -425,7 +446,13 @@ final class OfflineStore: ObservableObject {
                     existing.updatedAt = message.updatedAt
                     existing.appId = message.appId
                     existing.modelName = message.modelName
+                    existing.senderName = message.senderName
+                    existing.category = message.category
+                    existing.encryptedSenderName = message.encryptedSenderName
+                    existing.encryptedCategory = message.encryptedCategory
+                    existing.encryptedModelName = message.encryptedModelName
                     existing.embedRefsJSON = try? encoder.encode(message.embedRefs)
+                    existing.renderDocumentJSON = try? encoder.encode(message.renderDocumentForDisplay)
                 } else {
                     let persisted = PersistedMessage(from: message)
                     persisted.chat = persistedChat

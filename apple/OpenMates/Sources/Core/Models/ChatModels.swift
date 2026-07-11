@@ -340,20 +340,46 @@ struct Message: Identifiable, Decodable, Sendable {
     let id: String
     let chatId: String
     let role: MessageRole
-    var content: String?           // Decrypted content (set client-side after decryption)
+    var content: String? {         // Decrypted content (set client-side after decryption)
+        didSet {
+            guard content != oldValue else { return }
+            renderDocument = ChatHistoryRenderDocument.build(for: self)
+        }
+    }
     let encryptedContent: String?  // AES-GCM encrypted content (base64, IV prepended)
     let createdAt: String
     let updatedAt: String?
     let appId: String?
     let isStreaming: Bool?
     let embedRefs: [EmbedRef]?
-    let modelName: String?
+    var modelName: String? {
+        didSet {
+            guard modelName != oldValue else { return }
+            renderDocument = ChatHistoryRenderDocument.build(for: self)
+        }
+    }
+    var senderName: String? {
+        didSet {
+            guard senderName != oldValue else { return }
+            renderDocument = ChatHistoryRenderDocument.build(for: self)
+        }
+    }
+    var category: String? {
+        didSet {
+            guard category != oldValue else { return }
+            renderDocument = ChatHistoryRenderDocument.build(for: self)
+        }
+    }
+    let encryptedSenderName: String?
+    let encryptedCategory: String?
+    let encryptedModelName: String?
     var piiMappings: [PIIMapping]?
     let encryptedPIIMappings: String?
     var thinkingContent: String?
     let encryptedThinkingContent: String?
     let encryptedThinkingSignature: String?
     let thinkingTokenCount: Int?
+    private(set) var renderDocument: ChatHistoryRenderDocument?
 
     init(
         id: String,
@@ -367,12 +393,18 @@ struct Message: Identifiable, Decodable, Sendable {
         isStreaming: Bool?,
         embedRefs: [EmbedRef]?,
         modelName: String? = nil,
+        senderName: String? = nil,
+        category: String? = nil,
+        encryptedSenderName: String? = nil,
+        encryptedCategory: String? = nil,
+        encryptedModelName: String? = nil,
         piiMappings: [PIIMapping]? = nil,
         encryptedPIIMappings: String? = nil,
         thinkingContent: String? = nil,
         encryptedThinkingContent: String? = nil,
         encryptedThinkingSignature: String? = nil,
-        thinkingTokenCount: Int? = nil
+        thinkingTokenCount: Int? = nil,
+        renderDocument: ChatHistoryRenderDocument? = nil
     ) {
         self.id = id
         self.chatId = chatId
@@ -385,12 +417,21 @@ struct Message: Identifiable, Decodable, Sendable {
         self.isStreaming = isStreaming
         self.embedRefs = embedRefs
         self.modelName = modelName
+        self.senderName = senderName
+        self.category = category
+        self.encryptedSenderName = encryptedSenderName
+        self.encryptedCategory = encryptedCategory
+        self.encryptedModelName = encryptedModelName
         self.piiMappings = piiMappings
         self.encryptedPIIMappings = encryptedPIIMappings
         self.thinkingContent = thinkingContent
         self.encryptedThinkingContent = encryptedThinkingContent
         self.encryptedThinkingSignature = encryptedThinkingSignature
         self.thinkingTokenCount = thinkingTokenCount
+        self.renderDocument = renderDocument
+        if self.renderDocument == nil {
+            self.renderDocument = ChatHistoryRenderDocument.build(for: self)
+        }
     }
 
     init(from decoder: Decoder) throws {
@@ -416,6 +457,15 @@ struct Message: Identifiable, Decodable, Sendable {
             ?? container.decodeIfPresent([EmbedRef].self, forKey: .embedRefsSnake)
         modelName = try container.decodeIfPresent(String.self, forKey: .modelName)
             ?? container.decodeIfPresent(String.self, forKey: .modelNameSnake)
+        senderName = try container.decodeIfPresent(String.self, forKey: .senderName)
+            ?? container.decodeIfPresent(String.self, forKey: .senderNameSnake)
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        encryptedSenderName = try container.decodeIfPresent(String.self, forKey: .encryptedSenderName)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedSenderNameSnake)
+        encryptedCategory = try container.decodeIfPresent(String.self, forKey: .encryptedCategory)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedCategorySnake)
+        encryptedModelName = try container.decodeIfPresent(String.self, forKey: .encryptedModelName)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedModelNameSnake)
         piiMappings = try container.decodeIfPresent([PIIMapping].self, forKey: .piiMappings)
             ?? container.decodeIfPresent([PIIMapping].self, forKey: .piiMappingsSnake)
         encryptedPIIMappings = try container.decodeIfPresent(String.self, forKey: .encryptedPIIMappings)
@@ -428,6 +478,10 @@ struct Message: Identifiable, Decodable, Sendable {
             ?? container.decodeIfPresent(String.self, forKey: .encryptedThinkingSignatureSnake)
         thinkingTokenCount = try container.decodeIfPresent(Int.self, forKey: .thinkingTokenCount)
             ?? container.decodeIfPresent(Int.self, forKey: .thinkingTokenCountSnake)
+        renderDocument = try container.decodeIfPresent(ChatHistoryRenderDocument.self, forKey: .renderDocument)
+        if renderDocument == nil {
+            renderDocument = ChatHistoryRenderDocument.build(for: self)
+        }
     }
 
     enum CodingKeys: String, CodingKey {
@@ -451,6 +505,15 @@ struct Message: Identifiable, Decodable, Sendable {
         case embedRefsSnake = "embed_refs"
         case modelName
         case modelNameSnake = "model_name"
+        case senderName
+        case senderNameSnake = "sender_name"
+        case category
+        case encryptedSenderName
+        case encryptedSenderNameSnake = "encrypted_sender_name"
+        case encryptedCategory
+        case encryptedCategorySnake = "encrypted_category"
+        case encryptedModelName
+        case encryptedModelNameSnake = "encrypted_model_name"
         case piiMappings
         case piiMappingsSnake = "pii_mappings"
         case encryptedPIIMappings
@@ -463,6 +526,7 @@ struct Message: Identifiable, Decodable, Sendable {
         case encryptedThinkingSignatureSnake = "encrypted_thinking_signature"
         case thinkingTokenCount
         case thinkingTokenCountSnake = "thinking_token_count"
+        case renderDocument
     }
 
     private static func decodeFlexibleDateString(
@@ -480,9 +544,13 @@ struct Message: Identifiable, Decodable, Sendable {
         }
         return nil
     }
+
+    var renderDocumentForDisplay: ChatHistoryRenderDocument? {
+        renderDocument
+    }
 }
 
-enum MessageRole: String, Decodable, Sendable {
+enum MessageRole: String, Codable, Sendable {
     case user
     case assistant
     case system
