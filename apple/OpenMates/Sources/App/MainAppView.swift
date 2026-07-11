@@ -5862,6 +5862,7 @@ private struct WelcomeResumeCard: View {
     let height: CGFloat
     let onTap: () -> Void
     let onLongPress: () -> Void
+    @State private var suppressNextTap = false
 
     var body: some View {
         TimelineView(.animation) { timeline in
@@ -5908,14 +5909,32 @@ private struct WelcomeResumeCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 30))
             .simultaneousGesture(
                 LongPressGesture(minimumDuration: 0.6)
-                    .onEnded { _ in onLongPress() }
+                    .onEnded { _ in handleLongPress() }
             )
-            .onTapGesture(perform: onTap)
+            .onTapGesture(perform: handleTap)
             .accessibilityElement(children: .ignore)
             .accessibilityIdentifier("welcome-chat-card-\(card.id)")
             .accessibilityAddTraits(.isButton)
+            .accessibilityAction(perform: onTap)
             .help(Text(card.title))
             .accessibilityLabel(card.title)
+        }
+    }
+
+    private func handleTap() {
+        guard !suppressNextTap else {
+            suppressNextTap = false
+            return
+        }
+        onTap()
+    }
+
+    private func handleLongPress() {
+        suppressNextTap = true
+        onLongPress()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            suppressNextTap = false
         }
     }
 }
@@ -5925,6 +5944,7 @@ private struct WelcomeResumeCompactCard: View {
     let width: CGFloat
     let onTap: () -> Void
     let onLongPress: () -> Void
+    @State private var suppressNextTap = false
 
     var body: some View {
         HStack(spacing: .spacing6) {
@@ -5962,14 +5982,32 @@ private struct WelcomeResumeCompactCard: View {
         .contentShape(RoundedRectangle(cornerRadius: .radius8))
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.6)
-                .onEnded { _ in onLongPress() }
+                .onEnded { _ in handleLongPress() }
         )
-        .onTapGesture(perform: onTap)
+        .onTapGesture(perform: handleTap)
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
         .accessibilityAddTraits(.isButton)
+        .accessibilityAction(perform: onTap)
         .help(Text(card.title))
         .accessibilityLabel(card.title)
+    }
+
+    private func handleTap() {
+        guard !suppressNextTap else {
+            suppressNextTap = false
+            return
+        }
+        onTap()
+    }
+
+    private func handleLongPress() {
+        suppressNextTap = true
+        onLongPress()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            suppressNextTap = false
+        }
     }
 }
 

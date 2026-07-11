@@ -6,8 +6,8 @@
 
 import XCTest
 
-@MainActor
 final class ChatHistoryAudioParityUITests: XCTestCase {
+    @MainActor
     func testOrderedSemanticHistoryAndSentAudioSurviveColdBoot() throws {
         continueAfterFailure = false
         var app = launchFixture()
@@ -24,6 +24,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         attachScreenshot(name: "Semantic sent audio after cold boot")
     }
 
+    @MainActor
     func testSentAudioProcessingAndErrorStatesAreExplicit() throws {
         continueAfterFailure = false
         let app = launchFixture()
@@ -38,6 +39,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Chat product UI must not use default List/table chrome")
     }
 
+    @MainActor
     private func launchFixture() -> XCUIApplication {
         let application = XCUIApplication()
         application.launchArguments = [
@@ -54,6 +56,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         return application
     }
 
+    @MainActor
     private func assertSemanticHistory(in application: XCUIApplication) {
         let paragraph = application.staticTexts["Synthetic ordered introduction"]
         let sourceQuote = application.descendants(matching: .any)["source-quote-block"]
@@ -71,6 +74,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         XCTAssertFalse(systemMessage.label.contains("Synthetic Mate"))
     }
 
+    @MainActor
     private func assertFinishedAudioInteractions(in application: XCUIApplication) {
         let previewPlay = application.descendants(matching: .any)["recording-playback-toggle"]
         XCTAssertTrue(previewPlay.waitForExistence(timeout: 10))
