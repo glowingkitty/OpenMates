@@ -138,7 +138,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: "2814072"
+  subject_commit: "1dfadc4"
 
 approvals:
   product_contract:
@@ -224,6 +224,24 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-11T20:21:00Z"
     evidence: The test failed as expected at 4bd7a1d and passed at 2814072; non-admin fixtures could not discover Server or Logs.
+  - id: ATTEMPT-9
+    task_id: TASK-10
+    approach: Exercise every authenticated-only top-level Settings destination through the existing account fixture.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-11T20:52:51Z"
+    evidence: At 7bc8200, seven destinations opened but Shared terminated before exposing settings-shared-page because the Settings panel did not inject ChatStore.
+  - id: ATTEMPT-10
+    task_id: TASK-10
+    approach: Inject the existing session ChatStore at the Settings panel boundary and rerun authenticated route reachability.
+    outcome: succeeded
+    recorded_at: "2026-07-11T21:03:41Z"
+    evidence: At 1dfadc4, all four SettingsFullParityUITests passed; eight authenticated-only destinations and eight guest destinations opened and returned without stock table chrome.
+  - id: ATTEMPT-11
+    task_id: TASK-3
+    approach: Consolidate macOS shell, route, mode, admin, and visual coverage in the real OpenMatesMacUITests target and compile it without signing.
+    outcome: succeeded
+    recorded_at: "2026-07-11T21:09:19Z"
+    evidence: At ee4baa8, xcodebuild build-for-testing compiled the macOS app and OpenMatesMacUITests bundle; signed runtime execution remains blocked by missing development profiles.
 
 handoff:
   current_task_id: TASK-11
@@ -234,7 +252,7 @@ handoff:
     reason: The remote Mac has no configured Xcode developer account or provisioning profiles; reserved iOS account slot 14 is also unavailable.
     owner: external_test_infrastructure
     next_action: Configure signing on the remote Mac and provision the reserved security-test account without placing credentials in the repository.
-  last_verified_commit: "2814072"
+  last_verified_commit: "ee4baa8"
 
 scenarios:
   - id: S-1
@@ -747,7 +765,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --only-testing OpenMatesUITests/SettingsFullParityUITests", run_id: "remote-ios-settings-full-2026-07-11", subject_commit: "7a5460048", timestamp: "2026-07-11T18:52:13Z", reason: "Verified guest shell navigation, public route drilldowns, report submission, simulator-log attachment, and custom chrome."}
+      evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/SettingsFullParityUITests", run_id: "remote-ios-settings-full-4-2026-07-11", subject_commit: "1dfadc4", timestamp: "2026-07-11T21:03:41Z", reason: "Verified four tests covering guest and authenticated shell navigation, route drilldowns, report submission with redacted simulator logs, custom chrome, and light/dark artifacts."}
   - id: T-IPAD-SHELL
     type: manual
     file: apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
@@ -775,7 +793,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: blocked, command: "python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests", run_id: "remote-macos-settings-signing-2026-07-11", subject_commit: "7a5460048", timestamp: "2026-07-11T20:09:44Z", actor: "OpenCode remote Mac", reason: "Automatic provisioning was requested, but Xcode has no configured developer account or matching app/share-extension profiles.", next_action: "Configure a signed macOS test host and rerun."}
+      evidence: &mac_settings_runtime_blocker {status: blocked, command: "python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests", run_id: "remote-macos-settings-signing-2026-07-11", subject_commit: "ee4baa8", timestamp: "2026-07-11T21:08:19Z", actor: "OpenCode remote Mac", reason: "The app and expanded UI-test bundle compile with signing disabled, but signed execution cannot start because Xcode has no developer account or matching app/share-extension profiles.", next_action: "Configure the macOS development profiles, then rerun the shell, privacy, and security classes."}
   - id: T-IOS-MODES
     type: manual
     file: apple/OpenMatesUITests/SettingsModesParityUITests.swift
@@ -792,42 +810,42 @@ tests:
       evidence: {status: passed, command: "xcodebuild test-without-building ... -only-testing OpenMatesUITests/SettingsModesParityUITests", run_id: "remote-ios-settings-modes-2026-07-11", subject_commit: "676528da7", timestamp: "2026-07-11T16:32:58Z", reason: "Verified all three Incognito and Learning Mode UI flows with visible and clickable controls."}
   - id: T-MAC-MODES
     type: manual
-    file: apple/OpenMatesMacUITests/SettingsMacModesParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacModesParityUITests
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
     covers: [AC-3]
     assertions: [Learning Mode management and state pass on macOS]
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: *mac_settings_runtime_blocker
     green_phase:
       required: true
       expected: pass
       evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
   - id: T-IOS-ROUTES
     type: manual
-    file: apple/OpenMatesUITests/SettingsRouteParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsRouteParityUITests
+    file: apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsFullParityUITests
     covers: [AC-4]
     assertions: [all route and visibility manifest entries are reachable in iOS fixtures or reserved-account state]
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: failed_as_expected, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/SettingsFullParityUITests", run_id: "remote-ios-settings-auth-routes-red-2026-07-11", subject_commit: "7bc8200", timestamp: "2026-07-11T20:52:51Z", reason: "Shared terminated because its required ChatStore environment object was not injected into Settings."}
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/SettingsFullParityUITests", run_id: "remote-ios-settings-full-4-2026-07-11", subject_commit: "1dfadc4", timestamp: "2026-07-11T21:03:41Z", reason: "Verified all guest and authenticated-only top-level destinations; admin visibility remains covered by T-IOS-ADMIN."}
   - id: T-MAC-ROUTES
     type: manual
-    file: apple/OpenMatesMacUITests/SettingsMacRouteParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacRouteParityUITests
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
     covers: [AC-4]
     assertions: [all route and visibility manifest entries are reachable on macOS]
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: *mac_settings_runtime_blocker
     green_phase:
       required: true
       expected: pass
@@ -867,12 +885,12 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test ... -only-testing OpenMatesUITests/SettingsIPadLayoutParityUITests", run_id: "remote-ipad-settings-layout-2026-07-11", subject_commit: "f9a7c1d", timestamp: "2026-07-11T16:47:28Z", reason: "Verified Apps navigation and drilldowns on the regular-width iPad layout."}}
   - id: T-MAC-APPS
     type: manual
-    file: apple/OpenMatesMacUITests/SettingsMacAppsParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacAppsParityUITests
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
     covers: [AC-5]
     assertions: [apps flows pass with pointer, keyboard, and window resizing]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: *mac_settings_runtime_blocker}
   - id: T-MEMORY-CONTRACT
     type: pytest
     file: scripts/tests/test_apple_settings_parity_audit.py
@@ -900,12 +918,12 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test ... -only-testing OpenMatesUITests/SettingsMemoriesParityUITests", run_id: "remote-ios-settings-matrix-2026-07-11", subject_commit: "798f7d2", timestamp: "2026-07-11T19:15:59Z", reason: "Verified native memory examples and custom Settings chrome."}}
   - id: T-MAC-MEMORIES
     type: manual
-    file: apple/OpenMatesMacUITests/SettingsMacMemoriesParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacMemoriesParityUITests
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
     covers: [AC-6]
     assertions: [native memory CRUD and mention flows pass on macOS]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: *mac_settings_runtime_blocker}
   - id: T-MATES-AUDIT
     type: pytest
     file: scripts/tests/test_apple_settings_parity_audit.py
@@ -924,12 +942,12 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test-without-building ... -only-testing OpenMatesUITests/SettingsMatesParityUITests", run_id: "remote-ios-settings-mates-2026-07-11", subject_commit: "676528da7", timestamp: "2026-07-11T16:30:00Z", reason: "Verified native mate list, detail, prompt disclosure, and composer handoff."}}
   - id: T-MAC-MATES
     type: manual
-    file: apple/OpenMatesMacUITests/SettingsMacMatesParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacMatesParityUITests
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
     covers: [AC-7]
     assertions: [mate list/detail/prompt/mention/start-chat behavior passes on macOS]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: *mac_settings_runtime_blocker}
   - id: T-PRIVACY-CONTRACT
     type: pytest
     file: scripts/tests/test_apple_settings_parity_audit.py
@@ -962,7 +980,7 @@ tests:
     covers: [AC-8]
     assertions: [privacy flows pass on macOS]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: *mac_settings_runtime_blocker}
   - id: T-BILLING-CONTRACT
     type: pytest
     file: scripts/tests/test_apple_settings_parity_audit.py
@@ -990,12 +1008,12 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "xcodebuild test-without-building ... -only-testing OpenMatesUITests/SettingsBillingStoreKitParityUITests", run_id: "remote-ios-settings-billing-2026-07-11", subject_commit: "676528da7", timestamp: "2026-07-11T16:30:00Z", reason: "Verified native Billing and StoreKit route visibility and clickability."}}
   - id: T-MAC-BILLING
     type: manual
-    file: apple/OpenMatesMacUITests/SettingsMacBillingParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacBillingParityUITests
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
     covers: [AC-9]
     assertions: [billing, StoreKit, invoice download, usage, and deployment variants pass on macOS]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: *mac_settings_runtime_blocker}
   - id: T-ACCOUNT-CONTRACT
     type: pytest
     file: scripts/tests/test_apple_settings_parity_audit.py
@@ -1028,7 +1046,7 @@ tests:
     covers: [AC-10]
     assertions: [account/security and passkey management flows pass on macOS]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: *mac_settings_runtime_blocker}
   - id: T-OTHER-CONTRACT
     type: pytest
     file: scripts/tests/test_apple_settings_parity_audit.py
@@ -1039,20 +1057,20 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py", run_id: "local-settings-audit-17-2026-07-11", subject_commit: "798f7d2", timestamp: "2026-07-11T16:35:00Z"}}
   - id: T-IOS-OTHER
     type: manual
-    file: apple/OpenMatesUITests/SettingsOtherRoutesParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsOtherRoutesParityUITests
+    file: apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsFullParityUITests
     covers: [AC-11]
     assertions: [AI, Projects, Notifications, Shared, Interface, Developers, Newsletter, Support, and Report Issue pass]
-    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/SettingsFullParityUITests", run_id: "remote-ios-settings-auth-routes-red-2026-07-11", subject_commit: "7bc8200", timestamp: "2026-07-11T20:52:51Z", reason: "Shared could not render before the active ChatStore was provided to Settings."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/SettingsFullParityUITests", run_id: "remote-ios-settings-full-4-2026-07-11", subject_commit: "1dfadc4", timestamp: "2026-07-11T21:03:41Z", reason: "Verified AI, Projects, Notifications, Shared, Interface, Developers, Newsletter, Support, Report Issue, and related top-level routes."}}
   - id: T-MAC-OTHER
     type: manual
-    file: apple/OpenMatesMacUITests/SettingsMacOtherRoutesParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacOtherRoutesParityUITests
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
     covers: [AC-11]
     assertions: [remaining product settings pass on macOS]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: *mac_settings_runtime_blocker}
   - id: T-ADMIN-CONTRACT
     type: pytest
     file: scripts/tests/test_apple_settings_parity_audit.py
@@ -1071,12 +1089,12 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --only-testing OpenMatesUITests/SettingsSensitiveActionsParityUITests", run_id: "remote-ios-settings-admin-2026-07-11", subject_commit: "2814072", timestamp: "2026-07-11T20:20:50Z", reason: "Verified non-admin Server/Logs invisibility and explicit synthetic-admin visibility without stock table chrome."}}
   - id: T-MAC-ADMIN
     type: manual
-    file: apple/OpenMatesMacUITests/SettingsMacAdminParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacAdminParityUITests
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
     covers: [AC-12]
     assertions: [admin/non-admin and managed/self-hosted visibility/actions pass on macOS]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: *mac_settings_runtime_blocker}
   - id: T-IOS-VISUAL
     type: manual
     file: apple/OpenMatesUITests/SettingsFullParityUITests.swift
@@ -1084,7 +1102,7 @@ tests:
     covers: [AC-13]
     assertions: [reviewed iPhone light/dark screenshots and rendered visibility/clickability artifacts exist]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/SettingsFullParityUITests", run_id: "remote-ios-settings-full-4-2026-07-11", subject_commit: "1dfadc4", timestamp: "2026-07-11T21:03:41Z", reason: "Attached retained iPhone Settings shell screenshots in light and dark appearance and verified visible/hittable controls without stock table chrome."}}
   - id: T-IPAD-VISUAL
     type: manual
     file: apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
@@ -1095,12 +1113,12 @@ tests:
     green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPad Pro 13-inch (M5)' --only-testing OpenMatesUITests/SettingsIPadLayoutParityUITests", run_id: "remote-ipad-settings-layout-2026-07-11", subject_commit: "7a5460048", timestamp: "2026-07-11T18:45:00Z", reason: "Verified rendered iPad Apps containment, clickability, drilldowns, custom chrome, and attached screenshot artifact."}}
   - id: T-MAC-VISUAL
     type: manual
-    file: apple/OpenMatesMacUITests/SettingsMacVisualParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacVisualParityUITests
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
     covers: [AC-13]
     assertions: [reviewed narrow/regular/fullscreen macOS light/dark screenshots and interaction artifacts exist]
     red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: *mac_settings_runtime_blocker}
 
 verifications:
   - id: V-PRODUCT-REVIEW
