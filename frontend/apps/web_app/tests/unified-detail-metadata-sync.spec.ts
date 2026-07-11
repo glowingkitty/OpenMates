@@ -215,13 +215,18 @@ test.describe('Unified detail metadata multi-device sync', () => {
 			await headerA.getByTestId('workspace-detail-title-save').click();
 			await expect(headerA.getByTestId('chat-header-title')).toHaveText(savedTitle);
 			await expect
-				.poll(() => latestServerMetadataVersion(serverVersionsA, chatId, ['chat_title_updated']), {
+				.poll(() => latestServerMetadataVersion(serverVersionsA, chatId, ['encrypted_metadata_stored']), {
 					timeout: 30_000
 				})
 				.toBeGreaterThan(initialVersion);
 			const titleVersion = latestServerMetadataVersion(serverVersionsA, chatId, [
-				'chat_title_updated'
+				'encrypted_metadata_stored'
 			]);
+			await expect
+				.poll(() => latestServerMetadataVersion(serverVersionsB, chatId, ['encrypted_chat_metadata']), {
+					timeout: 30_000
+				})
+				.toBeGreaterThanOrEqual(titleVersion);
 			await expect(headerB.getByTestId('chat-header-title')).toHaveText(savedTitle, {
 				timeout: 30_000
 			});
@@ -232,16 +237,12 @@ test.describe('Unified detail metadata multi-device sync', () => {
 			await headerA.getByTestId('workspace-detail-description-save').click();
 			await expect(headerA.getByTestId('chat-header-summary')).toHaveText(savedSummary);
 			await expect
-				.poll(
-					() =>
-						latestServerMetadataVersion(serverVersionsA, chatId, [
-							'post_processing_metadata_stored'
-						]),
-					{ timeout: 30_000 }
-				)
+				.poll(() => latestServerMetadataVersion(serverVersionsA, chatId, ['encrypted_metadata_stored']), {
+					timeout: 30_000
+				})
 				.toBeGreaterThan(titleVersion);
 			const summaryVersion = latestServerMetadataVersion(serverVersionsA, chatId, [
-				'post_processing_metadata_stored'
+				'encrypted_metadata_stored'
 			]);
 			await expect(headerB.getByTestId('chat-header-summary')).toHaveText(savedSummary, {
 				timeout: 30_000
