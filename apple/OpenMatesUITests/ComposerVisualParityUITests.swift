@@ -23,6 +23,9 @@ final class ComposerVisualParityUITests: XCTestCase {
     }
 
     func testChatPreviewComposerUsesSharedIdentifiersAndWidthCap() throws {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening"]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
@@ -35,6 +38,24 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertLessThanOrEqual(editor.frame.width, maxComposerWidth + widthTolerance)
 
         editor.tap()
+        let field = element(in: app, identifier: "message-field")
+        let fullscreenButton = app.buttons["message-input-fullscreen-button"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(fullscreenButton.waitForExistence(timeout: 5))
+        let collapsedPortraitHeight = field.frame.height
+
+        fullscreenButton.tap()
+        XCTAssertTrue(waitForHeight(field, atLeast: collapsedPortraitHeight + 80))
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(fullscreenButton.waitForExistence(timeout: 5))
+        let window = app.windows.firstMatch.frame
+        XCTAssertGreaterThanOrEqual(field.frame.minY, window.minY)
+        XCTAssertLessThanOrEqual(field.frame.maxY, window.maxY)
+        let expandedLandscapeHeight = field.frame.height
+
+        fullscreenButton.tap()
+        XCTAssertLessThan(field.frame.height, expandedLandscapeHeight - 80)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product composer UI must not render default List/table chrome")
 
         attachScreenshot(name: "Shared composer chat preview width cap")
