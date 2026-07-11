@@ -338,6 +338,19 @@ scenarios:
       - Legacy Apple plaintext UserDefaults drafts are read only after unlock, encrypted and decrypt-verified in the approved store, then removed atomically; failed migration preserves recoverability and blocks new plaintext writes.
       - Web-created encrypted fixtures decrypt on Apple and Apple-created fixtures decrypt through the web test implementation without exposing secrets in logs or artifacts.
 
+  - id: S-16
+    title: Composer creation tools and inserted previews match the rendered web app
+    given:
+      - The user opens drawing or location selection from the native Apple composer, or inserts an image or audio recording.
+    when:
+      - The tool is used, the result is inserted, the composer expands or collapses, or the device rotates between portrait and landscape.
+    then:
+      - Drawing provides the web-equivalent canvas, toolbar, eraser, undo, clear, zoom, fullscreen, and disabled-until-drawn save behavior and inserts a real image embed atom.
+      - Location selection provides the web-equivalent map, search results, current-location/privacy controls, pin or area selection, and explicit select action and inserts a real maps location embed atom rather than coordinate text.
+      - Audio, image, and maps location atoms render their type-specific UnifiedEmbed-equivalent preview chrome, content, status, and actions rather than a generic card or bare inline media.
+      - Embed cards are left-aligned in document order and retain valid dimensions, controls, and content after rotation.
+      - Expand fills the available composer container using the web fullscreen gutter contract, collapse restores normal height, and both controls remain visible and hittable after rotation.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -359,7 +372,7 @@ acceptance_criteria:
     scenario: S-3
     text: Supported native attachments render as real web-matched inline previews at their document positions, with editable text before and after and no external pending strip.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-INLINE-EMBED-UI, T-APPLE-VISUAL-PARITY, V-WEB-RENDERED-COMPARISON]
@@ -407,7 +420,7 @@ acceptance_criteria:
     scenario: S-9
     text: Main chat, new chat, macOS quick capture, and iOS/macOS share extensions use one native document/controller contract with capability-driven host differences.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-ALL-HOSTS-UI, T-APPLE-MACOS-HOSTS-UI, T-APPLE-SHARE-HOSTS-UI, T-APPLE-STATIC]
@@ -415,7 +428,7 @@ acceptance_criteria:
     scenario: S-10
     text: Native composer text, mentions, embeds, previews, and actions are localized, VoiceOver-operable, keyboard/pointer-operable, RTL-safe, and responsive without clipping.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-ACCESSIBILITY, T-APPLE-VISUAL-PARITY, T-APPLE-COMPOSER-FOCUS-HEIGHT]
@@ -447,7 +460,7 @@ acceptance_criteria:
     scenario: S-14
     text: Every registered web write-mode embed type has explicit native preview, fixture, lifecycle, and visual coverage; missing coverage blocks cutover.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-RENDERER-COVERAGE, T-APPLE-INLINE-EMBED-UI, V-WEB-RENDERED-COMPARISON]
@@ -459,6 +472,14 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WEB-ENCRYPTION-CONTRACT, T-APPLE-CRYPTO-COMPAT, T-APPLE-DRAFT-ENCRYPTION-MIGRATION, T-APPLE-STATIC, V-SECURITY-REVIEW]
+  - id: AC-16
+    scenario: S-16
+    text: Drawing and map tools, audio/image/location previews, left alignment, rotation relayout, and composer expand/collapse match the rendered web contracts and insert canonical embed atoms.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-INLINE-EMBED-UI, T-APPLE-COMPOSER-TOOLS-UI, T-APPLE-VISUAL-PARITY, V-WEB-RENDERED-COMPARISON]
 
 assumptions:
   - id: A-1
@@ -716,11 +737,13 @@ tests:
     type: unit
     file: apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/NativeComposerInlineEmbedUITests
-    covers: [AC-3, AC-14]
+    covers: [AC-3, AC-14, AC-16]
     assertions:
       - every type in the generated registered renderer manifest renders its native fixture inside message-editor
       - text before and after each preview remains editable in order
       - preview controls are visible and hittable, not accessibility-only diagnostics
+      - audio, image, and maps location use type-specific UnifiedEmbed-equivalent content and chrome rather than generic summaries or bare media
+      - cards are left-aligned and retain non-zero web-contract dimensions after portrait-to-landscape rotation
       - external pending-composer-embed strip and WKWebView are absent
       - canonical send output preserves visual document order
     red_phase:
@@ -735,10 +758,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: passed
-        run_id: "local-and-apple-remote-7afb171"
-        timestamp: "2026-07-10T07:26:00Z"
-        summary: Generated audit passed 54/54 registered write-mode types, focused audit tests passed 9/9, Apple registry contracts passed 5/5, and the simulator renderer gallery passed 1/1 with a screenshot attachment across the exact seven lifecycle states.
+        status: ""
+        run_id: ""
+        timestamp: ""
+        summary: Prior gallery-only evidence was invalidated by TestFlight build 47 because it did not exercise production composer image/audio/location content, left alignment, or rotation relayout.
 
   - id: T-APPLE-UPLOAD-AUDIO-UI
     type: unit
@@ -1019,11 +1042,12 @@ tests:
     type: unit
     file: apple/OpenMatesUITests/ComposerVisualParityUITests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
-    covers: [AC-3, AC-10]
+    covers: [AC-3, AC-10, AC-16]
     assertions:
       - empty, focused, multiline, fullscreen, and embed states attach screenshots
       - preview dimensions, hierarchy, status, and controls match recorded web computed contracts
       - phone and wide layouts do not clip editor, caret, previews, or actions
+      - expand materially increases available height, collapse restores normal height, and both states recalculate after rotation
       - screenshot assertions inspect rendered pixels/frames, not only accessibility labels
     red_phase:
       required: true
@@ -1037,10 +1061,29 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: passed
-        run_id: "apple-remote-568699f-visual-parity"
-        timestamp: "2026-07-10T13:38:22Z"
-        summary: ComposerVisualParityUITests passed 5/5 with screenshot artifacts for the focused welcome composer, shared chat width cap, action visibility and behavior, location insertion, and quick-capture identifier parity.
+        status: ""
+        run_id: ""
+        timestamp: ""
+        summary: Prior evidence was invalidated by TestFlight build 47 because the tests checked control existence and plain coordinate text, not expand/collapse geometry or rendered tool/embed parity.
+
+  - id: T-APPLE-COMPOSER-TOOLS-UI
+    type: unit
+    file: apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
+    covers: [AC-9, AC-10, AC-16]
+    assertions:
+      - drawing save is disabled before a stroke, exposes web-equivalent tools, and inserts a real image embed preview after drawing
+      - map search or deterministic selection requires an explicit select action and inserts a real maps location embed preview without plain coordinate text
+      - drawing, map, image, audio, and location controls and results remain visible and hittable in portrait and landscape
+      - expand and collapse produce materially different valid heights and remain reversible after rotation
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: "", run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", run_id: "", timestamp: "" }
 
   - id: T-APPLE-COMPOSER-FOCUS-HEIGHT
     type: unit
@@ -1392,31 +1435,32 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-3, AC-12]
-    status: passed
+    status: pending
     evidence:
-      status: passed
-      summary: ComposerVisualParityUITests passed 5/5 with retained native screenshots, renderer gallery coverage passed all 54 registered write-mode types, and the live web attachment regression passed in GitHub Actions 29130075792.
-      timestamp: "2026-07-11T01:21:00Z"
+      status: ""
+      summary: TestFlight build 47 user review invalidated the prior comparison for audio, image, maps location, drawing, rotation, alignment, and fullscreen behavior.
+      timestamp: "2026-07-11T01:58:00Z"
   - id: V-CANDIDATE-READY
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-12]
-    status: passed
+    status: pending
     evidence:
-      status: passed
-      summary: Candidate 79e5f6c passed iOS/watchOS/extensions and macOS/share-extension builds, native UI host/share/draft/audio suites, unit security contracts, renderer/static audits, SDK/CLI parity, and the live web regression.
-      timestamp: "2026-07-11T01:21:00Z"
+      status: ""
+      summary: Candidate 79e5f6c/build 47 was rejected during TestFlight validation due to production composer parity and rotation failures.
+      timestamp: "2026-07-11T01:58:00Z"
   - id: V-TESTFLIGHT
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-12]
-    status: passed
+    status: failed
     evidence:
-      status: passed
-      summary: Synchronized internal TestFlight build 47 passed iOS and macOS release archive preflight, provisioning, entitlements, upload, and App Store Connect processing. The iOS artifact includes the watchOS companion; both platform builds report VALID and each has the required five-line en-US What to Test notes.
-      timestamp: "2026-07-11T01:52:00Z"
+      status: failed
+      summary: >-
+        Build 47 processed successfully but failed user validation: audio/image/location previews lacked web parity, rotation broke inline attachments, embeds were not left-aligned, fullscreen toggle geometry was ineffective, and drawing/map tools did not match web behavior.
+      timestamp: "2026-07-11T01:58:00Z"
   - id: V-PRODUCTION-CUTOVER-READY
     kind: user_confirmation
     phase: final
@@ -1718,7 +1762,7 @@ tasks:
 
   - id: TASK-7
     title: Implement complete native composer renderer registry
-    status: done
+    status: needs_fix
     phase: working_tasks
     covers:
       scenarios: [S-3, S-10, S-14]
@@ -1797,7 +1841,7 @@ tasks:
 
   - id: TASK-11
     title: Integrate native composer into main and new chat
-    status: done
+    status: needs_fix
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-4, S-8, S-9, S-13, S-15]
@@ -1851,7 +1895,7 @@ tasks:
 
   - id: TASK-14
     title: Complete visual, accessibility, failure, and performance parity
-    status: done
+    status: needs_fix
     phase: working_tasks
     covers:
       scenarios: [S-10, S-11, S-12, S-14]
@@ -1916,7 +1960,7 @@ tasks:
 
   - id: TASK-16
     title: Run cross-client regressions and candidate security gate
-    status: done
+    status: needs_fix
     phase: running_checks
     covers:
       scenarios: [S-2, S-4, S-11, S-12, S-15]
@@ -1931,7 +1975,7 @@ tasks:
 
   - id: TASK-17
     title: Validate TestFlight candidate and approve production cutover
-    status: in_progress
+    status: blocked
     phase: running_checks
     covers:
       scenarios: [S-12]
@@ -1942,6 +1986,30 @@ tasks:
     blockers: [TASK-16]
     dependencies: [TASK-16]
     follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-19
+    title: Correct production composer tools, previews, rotation, alignment, and fullscreen parity
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-9, S-10, S-12, S-14, S-16]
+      acceptance_criteria: [AC-3, AC-9, AC-10, AC-12, AC-14, AC-16]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentViewProvider.swift
+      - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/PlaceRenderers.swift
+      - apple/OpenMatesUITests/NativeComposerInlineEmbedUITests.swift
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    verification_ids: [T-APPLE-INLINE-EMBED-UI, T-APPLE-COMPOSER-TOOLS-UI, T-APPLE-VISUAL-PARITY, V-WEB-RENDERED-COMPARISON]
+    blockers: []
+    dependencies: [TASK-7, TASK-11, TASK-14]
+    follow_up_tasks: [TASK-16, TASK-17]
     independently_deployable: false
 
 risks:

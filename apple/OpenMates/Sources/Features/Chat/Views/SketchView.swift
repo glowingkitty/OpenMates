@@ -71,6 +71,7 @@ struct SketchComposerOverlay: View {
                 .buttonStyle(.plain)
                 .help(Text(AppStrings.sendAction))
                 .accessibilityLabel(AppStrings.sendAction)
+                .accessibilityIdentifier("sketch-save-button")
             }
             .padding(.horizontal, .spacing5)
             .frame(height: 53)
@@ -135,6 +136,7 @@ struct CanvasRepresentable: UIViewRepresentable {
         canvasView.drawingPolicy = .anyInput
         canvasView.backgroundColor = .systemBackground
         canvasView.tool = PKInkingTool(toolType, color: color, width: width)
+        canvasView.accessibilityIdentifier = "sketch-canvas"
         return canvasView
     }
 

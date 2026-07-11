@@ -4897,7 +4897,7 @@ struct NewChatWelcomeView: View {
     }
 
     private func openSketchOverlay() {
-        guard isAuthenticated else {
+        guard isAuthenticated || isUITestWelcomeSketchEnabled else {
             blockAnonymousAttachment()
             return
         }
@@ -5068,6 +5068,14 @@ struct NewChatWelcomeView: View {
         ProcessInfo.processInfo.environment["UI_TEST_LOCATION_PRESELECTED"] == "1"
     }
 
+    private var isUITestWelcomeSketchEnabled: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-sketch-enabled")
+        #else
+        false
+        #endif
+    }
+
     private func applyWelcomeComposerUITestFlagsIfNeeded() {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
@@ -5079,7 +5087,7 @@ struct NewChatWelcomeView: View {
             addPendingComposerEmbed(
                 filename: "welcome-sketch.png",
                 kind: .image,
-                data: Data(repeating: 0, count: 128)
+                data: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
             )
             addPendingComposerEmbed(filename: "welcome-recording.m4a", kind: .audio, duration: 1)
             isComposerActivated = true
