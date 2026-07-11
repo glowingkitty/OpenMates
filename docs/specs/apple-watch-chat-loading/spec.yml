@@ -1,0 +1,530 @@
+schema_version: 2
+id: apple-watch-chat-loading
+title: Apple Watch Authenticated Chat Loading
+status: implementing
+
+goal: >
+  Let an independently authenticated Apple Watch load and open the same recent
+  saved chats as the iPhone while preserving encrypted content, offline cache,
+  session persistence across app updates, and explicit cleanup after revocation.
+
+scope:
+  in:
+    - A session-authenticated read-only API returns the 20 most recent chats eligible for the normal iPhone chat list.
+    - The response preserves encrypted chat metadata and never decrypts user content on the server.
+    - A session-authenticated read-only API returns encrypted messages only after ownership validation.
+    - Hidden, deleted, and incognito chats are excluded from the Watch recent-chat list.
+    - Ordinary network failures retain encrypted offline cache and the authenticated Watch session.
+    - A backend-confirmed invalid or revoked Watch session clears local user data and returns to pairing.
+    - App updates preserve the Watch session, master key, server profile, and encrypted offline cache.
+  out:
+    - SDK API-key authentication for the Watch.
+    - Sending messages, creating chats, audio upload, or chat-management actions.
+    - Server-side decryption or transfer of plaintext chat content.
+    - Changes to pair-login cryptography or WatchConnectivity.
+    - Changes to iPhone, web, CLI, npm SDK, or pip SDK chat-list behavior.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP authentication returned 401; the existing Apple Watch specs contain no linked chat-loading issue.
+  docs:
+    - docs/specs/apple-watch-support/spec.yml
+    - docs/specs/apple-watch-login-v2/spec.yml
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/apple/sync.md
+    - apple/AGENTS.md
+  code_patterns:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift calls GET /v1/chats and GET /v1/chats/{chat_id}/messages.
+    - The backend exposes neither session-authenticated route; /v1/sdk/chats exists but requires an SDK API key.
+    - WatchChatRuntime converts any initial API failure into offline state and reloads an empty cache, matching the physical screenshot.
+    - WatchAuthStore currently enters authenticated state after refreshSessionToken even when the backend does not authenticate the session.
+    - Existing Directus chat services already load encrypted metadata and messages and enforce ownership in other routes.
+  tests:
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    - backend/tests/test_sdk_routes.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMatesWatch/Sources/WatchRootView.swift
+    - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+  parity_expectations:
+    - Watch receives the same eligible recent saved-chat set and ordering as iPhone, capped at 20.
+    - Watch decrypts content locally with its device-local keys.
+    - Network failures preserve cached chats; confirmed revocation clears Watch-local user data.
+  verification:
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchChatRuntimeTests
+    - python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
+    - python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60
+    - Physical TestFlight Watch chat-list and chat-open confirmation
+  intentional_native_differences:
+    - Watch caps initial chat loading at 20 for its compact client and offline cache.
+
+clarification:
+  rounds:
+    - question: Which chats should the Watch initially load?
+      answer: Match the normal iPhone list with the 20 most recent saved, non-incognito chats; hidden and deleted chats remain excluded.
+    - question: What should happen after backend-confirmed session revocation?
+      answer: Clear Watch user data and return to pairing; ordinary network failures must retain cached data.
+    - question: Should app updates require a new Watch login?
+      answer: No; updates preserve session, master key, server profile, and encrypted offline cache.
+    - question: Does the summarized chat-loading, offline, and revocation behavior match the intended product contract?
+      answer: Approved.
+  vision_summary: >
+    Watch is an independent encrypted client that loads the same eligible recent
+    chats as iPhone. Connectivity loss is recoverable and cache-preserving;
+    explicit session revocation is privacy-sensitive and clears Watch-local data.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: d58919d4e
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-11T21:50:00Z"
+    reason: User explicitly approved the session-authenticated read contract, offline preservation, and revocation cleanup behavior.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-11T21:55:00Z"
+    reason: User approved implementation; the plan introduces no material decision beyond the approved auth, privacy, and revocation contract.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use session-cookie authentication for native Watch read routes rather than SDK API keys.
+    reason: Watch already owns an independent pair-login session and must not provision a separate API key.
+    decided_at: "2026-07-11T21:45:00Z"
+  - id: D-2
+    status: active
+    decision: Return encrypted chat metadata and messages without server-side decryption.
+    reason: Client-side encryption ownership and privacy boundaries remain unchanged.
+    decided_at: "2026-07-11T21:45:00Z"
+  - id: D-3
+    status: active
+    decision: Treat only a confirmed invalid or revoked session as destructive; connectivity failures preserve local data.
+    reason: App updates and temporary outages must not force pairing or erase offline history.
+    decided_at: "2026-07-11T21:45:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Load Watch chats from GET /v1/chats using only fake WatchChatAPI unit tests.
+    outcome: rejected
+    recorded_at: "2026-07-11T21:40:00Z"
+    reason: The production backend has no matching session-authenticated route, so physical Watch displays offline with an empty cache.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Write and run the backend authenticated chat-read contract red.
+  command: python3 -m pytest backend/tests/test_native_chats_api.py
+  expected_outcome: The test fails because the session-authenticated /v1/chats routes do not exist.
+  blocker: null
+  last_verified_commit: d58919d4e
+
+scenarios:
+  - id: S-1
+    title: Newly paired Watch loads recent chats
+    given:
+      - Alice has paired the Watch and has more than 20 saved chats.
+      - Some chats are hidden, deleted, or incognito.
+    when:
+      - The Watch chat shell refreshes for the first time.
+    then:
+      - The Watch receives at most 20 eligible recent chats in iPhone-equivalent order.
+      - Hidden, deleted, and incognito chats are absent.
+      - Encrypted metadata is decrypted only on the Watch.
+
+  - id: S-2
+    title: Watch opens an owned chat
+    given:
+      - Alice loaded an eligible chat from her recent list.
+    when:
+      - Alice opens that chat on the Watch.
+    then:
+      - The API validates ownership before returning encrypted messages.
+      - The Watch decrypts and displays the message window locally.
+      - Another user's chat ID returns not found without metadata leakage.
+
+  - id: S-3
+    title: Temporary outage preserves Watch state
+    given:
+      - Alice has a valid session and cached encrypted chats.
+    when:
+      - The Watch is offline or the API is temporarily unavailable.
+    then:
+      - Cached chats remain available.
+      - The Watch shows offline state without clearing session, keys, server profile, or cache.
+      - A later refresh can recover without pairing again.
+
+  - id: S-4
+    title: Revoked session clears Watch user data
+    given:
+      - Alice's Watch session has been explicitly revoked by the backend.
+    when:
+      - The Watch validates or refreshes that session.
+    then:
+      - The Watch clears cached user metadata, local master key, server profile, cookies, and encrypted chat cache.
+      - The Watch returns to the pairing screen.
+
+  - id: S-5
+    title: App update preserves valid Watch login
+    given:
+      - Alice has a valid Watch session and encrypted offline cache.
+    when:
+      - OpenMates Watch updates and relaunches.
+    then:
+      - Existing valid session, keys, server profile, and cache are restored.
+      - Alice is not asked to pair again.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A session-authenticated Watch loads at most 20 eligible recent saved chats with iPhone-equivalent ordering and encrypted metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PYTEST-001, T-APPLE-001, V-HARDWARE-001]
+  - id: AC-2
+    scenario: S-2
+    text: An authenticated owner can load encrypted messages for a chat, while non-owners receive not found without metadata leakage.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PYTEST-001, T-APPLE-001, V-HARDWARE-001]
+  - id: AC-3
+    scenario: S-3
+    text: Network and transient API failures preserve Watch session material and encrypted offline cache.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-001]
+  - id: AC-4
+    scenario: S-4
+    text: Backend-confirmed session revocation clears Watch-local user data and returns to pairing.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PYTEST-001, T-APPLE-002]
+  - id: AC-5
+    scenario: S-5
+    text: A valid Watch login and encrypted cache survive an app update and relaunch.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-002, V-HARDWARE-001]
+
+assumptions:
+  - id: A-1
+    text: Existing Directus chat services can return encrypted eligible chat metadata and encrypted message windows without server-side decryption.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/services/directus/chat_methods.py
+        summary: Existing chat service methods load user chat metadata, ownership, and messages used by SDK and sync surfaces.
+  - id: A-2
+    text: Existing get_current_user session dependency supports the independent Watch pair-login cookie.
+    category: auth
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/auth_routes/auth_dependencies.py
+        summary: get_current_user authenticates auth_refresh_token cookies, rotates valid refresh tokens, and returns 401 for missing, invalid, or expired sessions.
+
+contracts:
+  api:
+    - route: GET /v1/chats?limit=20
+      auth: Session cookie via get_current_user; no SDK API key required.
+      response: "{ chats: encrypted chat metadata[], limit: integer }"
+      errors:
+        - 401 when the session is invalid or revoked.
+        - 422 when limit is outside the accepted range.
+    - route: GET /v1/chats/{chat_id}/messages
+      auth: Session cookie plus chat ownership.
+      response: Encrypted message metadata array.
+      errors:
+        - 401 when the session is invalid or revoked.
+        - 404 when the chat does not exist or belongs to another user.
+  data:
+    - The server returns existing encrypted fields and timestamps without plaintext decryption.
+    - Hidden-chat classification remains client-side; Watch excludes chat records whose encrypted chat key cannot be unwrapped by the normal master key.
+    - The Watch stores only encrypted offline snapshots plus locally decrypted in-memory display state.
+  ui_states:
+    - Loading recent chats.
+    - Online recent-chat list.
+    - Cached offline chat list.
+    - Empty eligible chat list.
+    - Revoked session returning to pairing.
+  privacy_security:
+    - No cross-user chat existence or metadata disclosure.
+    - No server-side decryption for Watch list or message routes.
+    - Revocation clears cached user metadata, cookies, local master key, server profile, and encrypted chat cache.
+    - Network errors never trigger destructive cleanup.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_native_chats_api.py
+    command: python3 -m pytest backend/tests/test_native_chats_api.py
+    covers: [AC-1, AC-2, AC-4]
+    assertions:
+      - Unauthenticated list and message requests return 401.
+      - Authenticated list returns at most 20 eligible encrypted chats in expected order.
+      - Hidden, deleted, and incognito chats are excluded.
+      - Owned chat messages are returned encrypted.
+      - Another user's chat ID returns 404.
+      - Revoked session returns 401.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-APPLE-001
+    type: unit
+    file: apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchChatRuntimeTests
+    covers: [AC-1, AC-2, AC-3]
+    assertions:
+      - Watch client targets the session-authenticated list and message contracts.
+      - Successful responses populate and persist encrypted offline snapshots.
+      - Transient failures retain cached chats and session state.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-APPLE-002
+    type: unit
+    file: apple/OpenMatesTests/WatchAuthStoreTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchAuthStoreTests
+    covers: [AC-4, AC-5]
+    assertions:
+      - Valid persisted session and keys survive relaunch.
+      - Transient session-refresh errors preserve local data.
+      - Confirmed 401/revocation clears user metadata, master key, server profile, cookies, and offline cache before returning to pairing.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+verifications:
+  - id: V-HARDWARE-001
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-5]
+    status: pending
+    evidence:
+      status: pending
+      summary: User confirms a TestFlight Watch preserves login, loads recent chats, and opens an owned chat on physical hardware.
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/apple-watch-chat-loading/spec.yml
+  existing_patterns:
+    - get_current_user session dependency on authenticated read-only routes.
+    - Directus encrypted chat metadata and ownership methods used by SDK and sync routes.
+    - WatchChatRuntime API abstraction and encrypted offline cache tests.
+  architecture: >
+    Add a focused session-authenticated chats router that reuses get_current_user
+    and the existing Directus encrypted metadata, ownership, and message methods.
+    Keep SDK routes unchanged. On Watch, make chat decryption return no display
+    model when the normal master key cannot unwrap a chat key, which excludes
+    hidden-chat candidates without exposing hidden-chat secrets. Separate
+    transient API failures from explicit 401 revocation so only revocation calls
+    one Watch-local cleanup operation.
+  data_flow:
+    - Watch sends its existing session cookie to the read-only chat route.
+    - Backend validates session and ownership, then returns encrypted records.
+    - Watch decrypts for display and persists an encrypted offline snapshot.
+  affected_files:
+    - path: backend/core/api/app/routes/chats.py
+      reason: Session-authenticated encrypted chat reads.
+    - path: backend/core/api/main.py
+      reason: Register the focused chats router.
+    - path: backend/tests/test_native_chats_api.py
+      reason: Authentication, ordering, encryption, and ownership contract.
+    - path: apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+      reason: Typed API, hidden-key exclusion, and offline/error handling.
+    - path: apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+      reason: Revocation-only destructive cleanup.
+    - path: apple/OpenMatesTests/WatchChatRuntimeTests.swift
+      reason: Live route contract, hidden-key exclusion, and offline cache regression coverage.
+    - path: apple/OpenMatesTests/WatchAuthStoreTests.swift
+      reason: Persistence and revocation cleanup coverage.
+  api_impact:
+    - Add GET /v1/chats with session-cookie auth, bounded limit, and encrypted metadata response.
+    - Add GET /v1/chats/{chat_id}/messages with session-cookie auth and ownership-obscuring 404.
+    - Do not alter /v1/sdk/chats or its API-key scopes.
+  data_impact:
+    - No schema migration or backfill.
+    - No plaintext fields are added; existing encrypted records are returned.
+  ui_impact:
+    - Existing Watch loading, online, offline-cache, empty, and pairing screens are reused.
+    - Hidden chats are omitted rather than rendered as undecryptable rows.
+  privacy_security_impact:
+    - Ownership is checked before message lookup and non-owners receive 404.
+    - Hidden-chat detection remains local and no hidden password material reaches the backend or Watch.
+    - Revocation cleanup removes user metadata, master key, cookies, server profile, and encrypted cache.
+  migration_rollout:
+    - Deploy backend routes before uploading the Watch candidate.
+    - Existing Watch build 53 recovers its list after backend deployment because it already calls the new route path.
+    - Ship Watch cleanup and hidden-chat filtering in the subsequent TestFlight candidate.
+  observability:
+    - Log route outcome counts and sanitized client type without chat titles, message content, ciphertext, cookies, or user identifiers.
+    - Add privacy-safe Watch diagnostics for refresh success, transient failure class, and confirmed revocation cleanup.
+  verification_strategy:
+    - python3 -m pytest backend/tests/test_native_chats_api.py
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchChatRuntimeTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchAuthStoreTests
+    - python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
+    - python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60
+    - Physical TestFlight validation after backend deployment and Apple green evidence.
+  required_assumption_checks:
+    - A-1 is confirmed by existing encrypted Directus chat methods.
+    - A-2 is confirmed by get_current_user cookie authentication and 401 behavior.
+  acceptance_criteria_mapping:
+    - AC-1 -> T-PYTEST-001, T-APPLE-001, V-HARDWARE-001
+    - AC-2 -> T-PYTEST-001, T-APPLE-001, V-HARDWARE-001
+    - AC-3 -> T-APPLE-001
+    - AC-4 -> T-PYTEST-001, T-APPLE-002
+    - AC-5 -> T-APPLE-002, V-HARDWARE-001
+  verification_order:
+    - Backend session and ownership contract first.
+    - Apple runtime and auth-store tests second.
+    - Watch build and simulator startup third.
+    - Physical TestFlight validation last.
+  first_slice: Add and run the failing backend contract proving GET /v1/chats does not exist, then implement only the authenticated encrypted list route.
+  open_questions: []
+  risks:
+    - risk: Taking 20 rows before local hidden-chat exclusion can display fewer than 20 chats.
+      mitigation: Fetch a bounded surplus, filter undecryptable hidden candidates locally, and cap the visible result at 20.
+    - risk: Treating transient network errors as revocation would erase offline data.
+      mitigation: Destructive cleanup is reachable only from explicit HTTP 401/session-invalid classification.
+    - risk: Returning another user's chat metadata leaks existence.
+      mitigation: Ownership failure and missing chat both return the same 404 response.
+
+tasks:
+  - id: TASK-1
+    title: Add session-authenticated encrypted recent-chat route
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1]
+      acceptance_criteria: [AC-1]
+    expected_files:
+      - backend/core/api/app/routes/chats.py
+      - backend/core/api/main.py
+      - backend/tests/test_native_chats_api.py
+    verification: [T-PYTEST-001]
+    verification_ids: [T-PYTEST-001]
+    dependencies: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/chats.py
+        - backend/tests/test_native_chats_api.py
+      shared_files: [backend/core/api/main.py]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Add owned-chat encrypted message read route
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-2]
+      acceptance_criteria: [AC-2]
+    expected_files:
+      - backend/core/api/app/routes/chats.py
+      - backend/tests/test_native_chats_api.py
+    verification: [T-PYTEST-001]
+    verification_ids: [T-PYTEST-001]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/core/api/app/routes/chats.py
+        - backend/tests/test_native_chats_api.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Load and filter encrypted Watch chat snapshots
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    expected_files:
+      - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+      - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    verification: [T-APPLE-001]
+    verification_ids: [T-APPLE-001]
+    dependencies: [TASK-1, TASK-2]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+        - apple/OpenMatesTests/WatchChatRuntimeTests.swift
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Preserve valid sessions and clear revoked Watch data
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-4, S-5]
+      acceptance_criteria: [AC-3, AC-4, AC-5]
+    expected_files:
+      - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+      - apple/OpenMatesTests/WatchAuthStoreTests.swift
+    verification: [T-APPLE-002]
+    verification_ids: [T-APPLE-002]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+        - apple/OpenMatesTests/WatchAuthStoreTests.swift
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Verify and physically validate Watch chat loading
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    expected_files:
+      - docs/specs/apple-watch-chat-loading/spec.yml
+    verification: [T-PYTEST-001, T-APPLE-001, T-APPLE-002, V-HARDWARE-001]
+    verification_ids: [T-PYTEST-001, T-APPLE-001, T-APPLE-002, V-HARDWARE-001]
+    dependencies: [TASK-2, TASK-3, TASK-4]
+    ownership:
+      files: [docs/specs/apple-watch-chat-loading/spec.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
