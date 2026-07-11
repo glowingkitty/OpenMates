@@ -189,7 +189,7 @@ struct ServerSoftwareUpdateView: View {
         )
     }
 
-    private func mutate<Body: Encodable>(
+    private func mutate<Body: Encodable & Sendable>(
         method: HTTPMethod,
         path: String,
         body: Body,
@@ -216,12 +216,12 @@ struct ServerSoftwareUpdateView: View {
     }
 }
 
-private struct SoftwareUpdateConfig: Encodable {
+private struct SoftwareUpdateConfig: Encodable, Sendable {
     let autoCheck: Bool
     let autoInstall: Bool
 }
 
-private struct SoftwareUpdateInstallRequest: Encodable {
+private struct SoftwareUpdateInstallRequest: Encodable, Sendable {
     let clearCache: Bool
 }
 
