@@ -461,48 +461,9 @@ export async function clearCurrentDraft() {
   );
 
   try {
-    // 1. Check if a draft actually exists before attempting to delete.
-    const chatBeforeDraftDeletion = await chatDB.getChat(currentChatId);
-
-    if (
-      chatBeforeDraftDeletion &&
-      (chatBeforeDraftDeletion.encrypted_draft_md ||
-        (chatBeforeDraftDeletion.draft_v &&
-          chatBeforeDraftDeletion.draft_v > 0))
-    ) {
-      console.info(
-        `[DraftService] Draft found for chat ${currentChatId}. Requesting deletion via chatSyncService.`,
-      );
-      // Inform the server to delete the draft
-      // chatSyncService.sendDeleteDraft handles online/offline queuing internally
-      await chatSyncService.sendDeleteDraft(currentChatId); // This will also dispatch 'chatUpdated' with 'draft_deleted'
-    } else {
-      console.info(
-        `[DraftService] No draft found locally for chat ${currentChatId}. Skipping server deletion call. Will clear local draft state if any.`,
-      );
-      // Even if no draft to delete on server, ensure local state is clean.
-      // chatDB.clearCurrentUserChatDraft will ensure draft_json is null and draft_v is 0 or handled appropriately.
-      // This is important if there was a local draft that wasn't synced or if state is inconsistent.
-      const clearedChat = await chatDB.clearCurrentUserChatDraft(currentChatId);
-      if (clearedChat) {
-        console.debug(
-          `[DraftService] Optimistically cleared local draft remnants for chat ${currentChatId}`,
-        );
-        // CRITICAL: Invalidate cache before dispatching event to ensure UI components fetch fresh data
-        // This prevents stale draft previews from appearing in the chat list
-        chatMetadataCache.invalidateChat(currentChatId);
-        console.debug(
-          "[DraftService] Invalidated cache for chat:",
-          currentChatId,
-        );
-        // Dispatch an event similar to what sendDeleteDraft would do for UI consistency
-        window.dispatchEvent(
-          new CustomEvent("chatUpdated", {
-            detail: { chat_id: currentChatId, type: "draft_deleted" },
-          }),
-        );
-      }
-    }
+    // Local draft fields may already be cleared by the editor update. The
+    // authenticated server deletion remains authoritative and is idempotent.
+    await chatSyncService.sendDeleteDraft(currentChatId);
 
     // Update UI state for the draft (version, unsaved changes)
     // No need to update currentUserDraftVersion here if the chat context might change or be cleared.
@@ -529,7 +490,7 @@ export async function clearCurrentDraft() {
       }),
     );
 
-    // 2. Check if the chat itself should be deleted
+    // Check if the chat itself should be deleted
     const chat = await chatDB.getChat(currentChatId); // Re-fetch chat state
     // Check if the chat has any messages by fetching them
     const messages = await chatDB.getMessagesForChat(currentChatId);

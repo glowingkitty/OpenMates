@@ -20,6 +20,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_
     handle_get_draft_versions,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
+    _apply_authoritative_draft_metadata,
     _authoritative_chat_reconciliation,
     _build_draft_only_phase2_wrapper,
     _phase2_metadata_is_current,
@@ -163,6 +164,7 @@ async def test_delete_draft_accepts_canonical_chat_id_and_tombstones_draft_only_
 @pytest.mark.anyio
 async def test_get_draft_versions_does_not_turn_cache_errors_into_deletions() -> None:
     manager = _Manager()
+    websocket = _WebSocket()
 
     class Cache:
         async def get_user_draft_from_cache(self, user_id, chat_id):
@@ -180,7 +182,7 @@ async def test_get_draft_versions_does_not_turn_cache_errors_into_deletions() ->
             return []
 
     await handle_get_draft_versions(
-        websocket=None,
+        websocket=websocket,
         manager=manager,
         cache_service=Cache(),
         directus_service=Directus(),
@@ -193,13 +195,14 @@ async def test_get_draft_versions_does_not_turn_cache_errors_into_deletions() ->
         ]},
     )
 
-    assert manager.sent == [{
+    assert websocket.sent == [{
         "type": "draft_versions_response",
         "payload": {
             "versions": {"available": 3, "deleted": 0},
             "unavailable_chat_ids": ["unknown"],
         },
     }]
+    assert manager.sent == []
 
 
 @pytest.mark.anyio
@@ -267,6 +270,31 @@ def test_phase2_delta_sync_resends_newer_draft_ciphertext() -> None:
         server_versions,
         chat_details,
     )
+
+
+def test_phase2_delta_sync_resends_authoritative_draft_deletion() -> None:
+    server_versions = SimpleNamespace(
+        messages_v=2,
+        title_v=3,
+        metadata_v=3,
+    )
+    chat_details = {"messages_v": 2, "draft_v": 0}
+
+    assert not _phase2_metadata_is_current(
+        {"messages_v": 2, "title_v": 3, "metadata_v": 3, "draft_v": 4},
+        server_versions,
+        chat_details,
+    )
+
+
+def test_phase2_emits_explicit_authoritative_draft_deletion_fields() -> None:
+    chat_details = {"id": "chat-1", "draft_v": 4, "encrypted_draft_md": "stale"}
+
+    _apply_authoritative_draft_metadata(chat_details, None)
+
+    assert chat_details["draft_v"] == 0
+    assert chat_details["encrypted_draft_md"] is None
+    assert chat_details["encrypted_draft_preview"] is None
 
 
 @pytest.mark.anyio

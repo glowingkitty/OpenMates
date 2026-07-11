@@ -122,10 +122,8 @@ async def handle_get_draft_versions(
             logger.debug(
                 f"User {user_id}: get_draft_versions received with empty chats list — sending empty response."
             )
-            await manager.send_personal_message(
-                message={"type": "draft_versions_response", "payload": {"versions": {}}},
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash,
+            await websocket.send_json(
+                {"type": "draft_versions_response", "payload": {"versions": {}}}
             )
             return
 
@@ -176,16 +174,14 @@ async def handle_get_draft_versions(
             f"User {user_id}: Responding to get_draft_versions with {len(versions)} version(s)."
         )
 
-        await manager.send_personal_message(
-            message={
+        await websocket.send_json(
+            {
                 "type": "draft_versions_response",
                 "payload": {
                     "versions": versions,
                     "unavailable_chat_ids": unavailable_chat_ids,
                 },
-            },
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash,
+            }
         )
 
     finally:

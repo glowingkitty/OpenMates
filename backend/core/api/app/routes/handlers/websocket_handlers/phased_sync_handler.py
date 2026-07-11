@@ -43,8 +43,24 @@ def _phase2_metadata_is_current(
         and client_title_v >= server_versions.title_v
         and client_versions.get("metadata_v", client_title_v) >= server_metadata_v
         and client_versions.get("draft_v", 0)
-        >= chat_details.get("draft_v", 0)
+        == chat_details.get("draft_v", 0)
     )
+
+
+def _apply_authoritative_draft_metadata(
+    chat_details: Dict[str, Any],
+    draft: Optional[tuple],
+) -> None:
+    if draft:
+        encrypted_md, draft_v, encrypted_preview = draft
+        chat_details["encrypted_draft_md"] = encrypted_md
+        chat_details["encrypted_draft_preview"] = encrypted_preview
+        chat_details["draft_v"] = draft_v
+        return
+
+    chat_details["encrypted_draft_md"] = None
+    chat_details["encrypted_draft_preview"] = None
+    chat_details["draft_v"] = 0
 
 
 async def _build_draft_only_phase2_wrapper(
@@ -1153,11 +1169,7 @@ async def _handle_phase2_sync(
                     exc_info=True,
                 )
                 continue
-            if draft:
-                encrypted_md, draft_v, encrypted_preview = draft
-                chat_details["encrypted_draft_md"] = encrypted_md
-                chat_details["encrypted_draft_preview"] = encrypted_preview
-                chat_details["draft_v"] = draft_v
+            _apply_authoritative_draft_metadata(chat_details, draft)
 
         # Delta sync: skip chats where client already has up-to-date metadata
         client_chat_ids_set = set(client_chat_ids)

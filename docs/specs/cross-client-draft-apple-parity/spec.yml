@@ -192,16 +192,26 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-07-11T20:57:18Z"
     reason: Both attempts in GitHub Actions run 29167601541 passed CLI create and web edit reconciliation, then timed out after emptying the draft because the test waited for an input-dismiss control that the empty draft-only composer removes during cancellation.
+  - id: ATTEMPT-10
+    task_id: TASK-4
+    approach: Rerun the live lifecycle after following the empty composer cancellation behavior.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-11T21:06:24Z"
+    reason: >
+      GitHub Actions run 29168114122 exposed the product defect: authenticated
+      web clear skipped delete_draft after local fields were removed, phase two
+      treated higher stale client draft_v as current, and explicit server-null
+      draft fields were not applied as deletion metadata.
 
 handoff:
-  current_task_id: TASK-7
-  next_action: Remove the invalid post-empty dismiss click, deploy, and rerun the live web contract.
+  current_task_id: TASK-4
+  next_action: Deploy the authoritative draft deletion fixes and rerun the live web contract.
   command: OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run -- --spec cross-client-draft-sync.spec.ts
   expected_outcome: The test either passes create, edit, clear, send, and missed-deletion reconciliation or reports the exact failed phase before the workflow watchdog.
   blocker:
-    reason: Live run 29167601541 proved create and edit but the clear stage used an invalid test interaction after the empty draft-only composer had already cancelled itself; Apple UI tests are separately blocked by CoreSimulator -308.
-    next_action: Verify clear, send, and missed deletion with the corrected web interaction, then retry Apple UI suites after competing simulator sessions finish.
-  last_verified_commit: e7d3ddb
+    reason: Live run 29168114122 proved local web cancellation did not consistently delete or reconcile the authoritative server draft; Apple UI tests are separately blocked by CoreSimulator -308.
+    next_action: Verify the corrected web clear, CLI refresh, send, and missed deletion flow, then retry Apple UI suites after competing simulator sessions finish.
+  last_verified_commit: a3b91b5
 
 scenarios:
   - id: S-1

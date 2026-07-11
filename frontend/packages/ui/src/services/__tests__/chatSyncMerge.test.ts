@@ -122,6 +122,25 @@ describe("chat sync merge", () => {
     expect(merged.messages_v).toBe(6);
   });
 
+  it("clears local draft ciphertext when server metadata explicitly deletes it", async () => {
+    const localChat = makeChat();
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "local-key-k1",
+      encrypted_draft_md: null,
+      encrypted_draft_preview: null,
+      messages_v: 6,
+      title_v: 10,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.encrypted_draft_md).toBeUndefined();
+    expect(merged.encrypted_draft_preview).toBeUndefined();
+    expect(merged.draft_v).toBe(0);
+  });
+
   it("preserves local encrypted header metadata when Phase 1a sends partial cache data", async () => {
     const localChat = makeChat({
       encrypted_title: "local-title-from-idb",

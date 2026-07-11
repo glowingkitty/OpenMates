@@ -105,6 +105,14 @@ export async function mergeServerChatWithLocal(
   }
 
   const keyMismatch = hasEncryptedChatKeyMismatch(serverChat, localChat);
+  const serverHasDraftMarkdown = Object.prototype.hasOwnProperty.call(
+    serverChat,
+    "encrypted_draft_md",
+  );
+  const serverHasDraftPreview = Object.prototype.hasOwnProperty.call(
+    serverChat,
+    "encrypted_draft_preview",
+  );
   const merged: Chat = {
     chat_id: serverChat.id,
     user_id: localChat.user_id ?? currentUserId,
@@ -126,11 +134,16 @@ export async function mergeServerChatWithLocal(
       serverChat.created_at ??
       localChat.created_at ??
       nowTimestamp,
-    encrypted_draft_md:
-      serverChat.encrypted_draft_md ?? (keyMismatch ? undefined : localChat.encrypted_draft_md),
-    encrypted_draft_preview:
-      serverChat.encrypted_draft_preview ??
-      (keyMismatch ? undefined : localChat.encrypted_draft_preview),
+    encrypted_draft_md: serverHasDraftMarkdown
+      ? serverChat.encrypted_draft_md ?? undefined
+      : keyMismatch
+        ? undefined
+        : localChat.encrypted_draft_md,
+    encrypted_draft_preview: serverHasDraftPreview
+      ? serverChat.encrypted_draft_preview ?? undefined
+      : keyMismatch
+        ? undefined
+        : localChat.encrypted_draft_preview,
     encrypted_chat_key: keyMismatch
       ? localChat.encrypted_chat_key
       : serverChat.encrypted_chat_key ?? localChat.encrypted_chat_key,

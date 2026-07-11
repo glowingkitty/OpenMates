@@ -2579,6 +2579,7 @@ export class OpenMatesClient {
   }
 
   async listDrafts(forceRefresh = false): Promise<DecryptedDraft[]> {
+    if (forceRefresh) await this.reconcileDraftVersions();
     const cache = await this.ensureSynced(forceRefresh);
     const drafts: DecryptedDraft[] = [];
     for (const chat of cache.chats) {
@@ -2589,6 +2590,7 @@ export class OpenMatesClient {
   }
 
   async getDraft(chatId: string, forceRefresh = false): Promise<DecryptedDraft | null> {
+    if (forceRefresh) await this.reconcileDraftVersions();
     const cache = await this.ensureSynced(forceRefresh);
     const chat = cache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
     return chat ? this.decryptCachedDraft(chat) : null;
