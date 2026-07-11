@@ -587,6 +587,19 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
     }
 
+    func testEncryptedUserStorageClaimIsSharedAcrossPipelineInstancesAndRetryableAfterFailure() {
+        let messageId = "claim-\(UUID().uuidString)"
+        let firstPipeline = ChatSendPipeline()
+        let secondPipeline = ChatSendPipeline()
+
+        XCTAssertTrue(firstPipeline.claimEncryptedUserStorage(messageId: messageId))
+        XCTAssertFalse(secondPipeline.claimEncryptedUserStorage(messageId: messageId))
+
+        firstPipeline.releaseEncryptedUserStorage(messageId: messageId)
+        XCTAssertTrue(secondPipeline.claimEncryptedUserStorage(messageId: messageId))
+        secondPipeline.releaseEncryptedUserStorage(messageId: messageId)
+    }
+
     func testIncognitoPayloadUsesRequestScopedHistoryWithoutEncryptedStorageFields() {
         let pipeline = ChatSendPipeline()
         let chat = Chat(

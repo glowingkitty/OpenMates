@@ -30,6 +30,9 @@ import AppKit
 struct MainAppView: View {
     let launchCommand: AppWindowLaunchCommand?
 
+    private static let encryptedUserStorageRetryLimit = 3
+    private static let encryptedUserStorageRetryDelayMilliseconds = 200
+
     private enum ShellSwipeTarget {
         case openChats
         case closeChats
@@ -2664,7 +2667,7 @@ struct MainAppView: View {
             encryptedChatSummary: existing?.encryptedChatSummary,
             encryptedChatKey: payload.encryptedChatKey ?? existing?.encryptedChatKey,
             messagesV: existing?.messagesV,
-            titleV: payload.title == nil ? existing?.titleV : max(existing?.titleV ?? 0, 1),
+            titleV: existing?.titleV,
             draftV: existing?.draftV,
             lastVisibleMessageId: existing?.lastVisibleMessageId,
             parentId: existing?.parentId,
@@ -2672,9 +2675,65 @@ struct MainAppView: View {
             encryptedActiveFocusId: existing?.encryptedActiveFocusId,
             activeFocusId: existing?.activeFocusId
         )
+        chatStore.upsertChat(chat)
+        chat = await persistEncryptedUserStorage(payload: payload, initialChat: chat)
         chat = await decryptChatMetadata(chat)
         chatStore.upsertChat(chat)
         NativeSyncPerfLog.info("phase=typingStartedMetadata chat=\(payload.chatId.prefix(8)) hasTitle=\(payload.title != nil) hasCategory=\(payload.category != nil)")
+    }
+
+    private func persistEncryptedUserStorage(
+        payload: AITypingStartedSyncPayload,
+        initialChat: Chat
+    ) async -> Chat {
+        guard let assistantMessageId = payload.messageId,
+              !assistantMessageId.isEmpty,
+              let userMessageId = payload.userMessageId else {
+            NativeDiagnostics.warning("Encrypted user storage metadata is incomplete", category: "chat_sync")
+            return initialChat
+        }
+        let metadata = StreamingClient.ChatMetadata(
+            title: payload.title,
+            iconNames: payload.iconNames ?? [],
+            category: payload.category,
+            modelName: payload.modelName,
+            providerName: payload.providerName,
+            serverRegion: payload.serverRegion,
+            userMessageId: userMessageId,
+            encryptedChatKey: payload.encryptedChatKey
+        )
+
+        for attempt in 0...Self.encryptedUserStorageRetryLimit {
+            if let userMessage = chatStore.messages(for: payload.chatId).first(where: { $0.id == userMessageId }) {
+                do {
+                    return try await ChatSendPipeline().sendEncryptedUserStoragePackage(
+                        chat: chatStore.chat(for: payload.chatId) ?? initialChat,
+                        userMessage: userMessage,
+                        assistantTaskId: assistantMessageId,
+                        metadata: metadata,
+                        wsManager: wsManager,
+                        chatStore: chatStore
+                    )
+                } catch {
+                    if attempt == Self.encryptedUserStorageRetryLimit {
+                        NativeDiagnostics.error(
+                            "Encrypted user storage retry exhausted errorType=\(type(of: error))",
+                            category: "chat_sync"
+                        )
+                        return initialChat
+                    }
+                }
+            } else if attempt == Self.encryptedUserStorageRetryLimit {
+                NativeDiagnostics.warning(
+                    "Encrypted user storage retry exhausted because the originating message is unavailable",
+                    category: "chat_sync"
+                )
+                return initialChat
+            }
+            try? await Task.sleep(for: .milliseconds(Self.encryptedUserStorageRetryDelayMilliseconds))
+            guard !Task.isCancelled else { return initialChat }
+        }
+        return initialChat
     }
 
     private func applyAssistantCompletion(
@@ -3567,6 +3626,10 @@ private struct AITypingStartedSyncPayload: Decodable {
     let title: String?
     let category: String?
     let iconNames: [String]?
+    let modelName: String?
+    let providerName: String?
+    let serverRegion: String?
+    let userMessageId: String?
     let encryptedChatKey: String?
 }
 
@@ -4565,6 +4628,7 @@ struct NewChatWelcomeView: View {
     @State private var recordHintTask: Task<Void, Never>?
     @State private var draftSaveTask: Task<Void, Never>?
     @State private var suppressNextDraftSave = false
+    @State private var isCreatingChat = false
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @StateObject private var composerRecorder = VoiceRecorder()
     @State private var isFocused = false
@@ -4748,6 +4812,7 @@ struct NewChatWelcomeView: View {
                     canSendAnonymously: canSendAnonymously,
                     piiMatches: activePIIMatches,
                     anonymousAttachmentPending: anonymousAttachmentPending,
+                    isSubmitting: isCreatingChat,
                     pendingComposerEmbeds: pendingComposerEmbeds,
                     recordHintText: recordHintText,
                     recordAttemptActive: recordAttemptActive,
@@ -5678,6 +5743,7 @@ struct NewChatWelcomeView: View {
     }
 
     private func createChatWith(message: String) {
+        guard !isCreatingChat else { return }
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty || !pendingComposerEmbeds.isEmpty else { return }
 
@@ -5694,6 +5760,7 @@ struct NewChatWelcomeView: View {
             excludedIds: piiExclusions,
             options: piiPrivacySettingsStore.detectionOptions()
         )
+        isCreatingChat = true
 
         Task { @MainActor in
             do {
@@ -5715,6 +5782,7 @@ struct NewChatWelcomeView: View {
                 piiExclusions = []
                 onChatCreated(chatId)
             } catch {
+                isCreatingChat = false
                 print("[NewChatWelcome] Failed to create chat: \(error)")
             }
         }
@@ -6154,6 +6222,7 @@ private struct WelcomeComposer: View {
     let canSendAnonymously: Bool
     let piiMatches: [PIIMatch]
     let anonymousAttachmentPending: Bool
+    let isSubmitting: Bool
     let pendingComposerEmbeds: [ComposerPendingEmbed]
     let recordHintText: String?
     let recordAttemptActive: Bool
@@ -6192,8 +6261,8 @@ private struct WelcomeComposer: View {
         hasContent && !isFocused && !isExpanded && !isOverlayActive && !hasPendingComposerEmbeds
     }
 
-    private var canSubmit: Bool {
-        !anonymousAttachmentPending && (isAuthenticated || canSendAnonymously)
+    private var isSubmitBlocked: Bool {
+        anonymousAttachmentPending || isSubmitting
     }
 
     private var shouldShowSendOrAuthButton: Bool {
@@ -6239,7 +6308,10 @@ private struct WelcomeComposer: View {
                         onExcludePII(match)
                     }
                 },
-                onSubmit: { canSubmit ? onSend() : onOpenAuth() },
+                onSubmit: {
+                    guard !isSubmitBlocked else { return }
+                    (isAuthenticated || canSendAnonymously) ? onSend() : onOpenAuth()
+                },
                 inlineFieldContent: nil,
                 preFieldContent: { EmptyView() },
                 overlayContent: {
@@ -6275,8 +6347,12 @@ private struct WelcomeComposer: View {
                         }
                         recordActionControls
                         if shouldShowSendOrAuthButton {
-                            MessageComposerSendButton(title: canSubmit ? AppStrings.sendAction : AppStrings.signUp) {
-                                canSubmit ? onSend() : onOpenAuth()
+                            MessageComposerSendButton(
+                                title: (isAuthenticated || canSendAnonymously) ? AppStrings.sendAction : AppStrings.signUp,
+                                disabled: isSubmitBlocked
+                            ) {
+                                guard !isSubmitBlocked else { return }
+                                (isAuthenticated || canSendAnonymously) ? onSend() : onOpenAuth()
                             }
                         }
                     }

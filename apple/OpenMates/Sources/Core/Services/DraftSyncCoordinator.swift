@@ -228,9 +228,11 @@ final class DraftSyncCoordinator {
         var idsToDelete = Set(deletedChatIds)
         if authoritative {
             let serverIds = Set(authoritativeChatIds)
-            idsToDelete.formUnion(chatStore.chats.map(\.id).filter {
-                ChatStore.isServerSyncChatId($0) && !serverIds.contains($0)
-            })
+            idsToDelete.formUnion(chatStore.chats.filter {
+                ChatStore.isServerSyncChatId($0.id)
+                    && !serverIds.contains($0.id)
+                    && isDraftOnlyChat($0)
+            }.map(\.id))
         }
         for chatId in idsToDelete {
             guard ChatStore.isServerSyncChatId(chatId) else { continue }

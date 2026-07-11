@@ -167,8 +167,6 @@ struct ChatStreamingLifecycleState: Equatable {
 
 @MainActor
 final class ChatViewModel: ObservableObject {
-    private static let encryptedUserStorageRetryLimit = 3
-    private static let encryptedUserStorageRetryDelayMilliseconds = 200
 
     struct ChatOpeningMetrics: Equatable {
         var initialMessagesReceived = 0
@@ -215,7 +213,6 @@ final class ChatViewModel: ObservableObject {
     private var streamTask: Task<Void, Never>?
     private var embedHydrationTask: Task<Void, Never>?
     private var loadGeneration = 0
-    private var pendingUserMessagesById: [String: Message] = [:]
     private var userMessageIdByAssistantMessageId: [String: String] = [:]
     private var assistantMessageCreatedAtById: [String: String] = [:]
     private var assistantCategoryByMessageId: [String: String] = [:]
@@ -728,7 +725,6 @@ final class ChatViewModel: ObservableObject {
                 broadcastToSiblings: broadcastToSiblings
             )
             chat = result.chat
-            pendingUserMessagesById[result.message.id] = result.message
             appendOrReplaceLocalMessage(result.message)
             if broadcastToSiblings {
                 await broadcastMessageToSiblingSubChats(content, piiMappings: mergedPIIMappings)
@@ -759,7 +755,6 @@ final class ChatViewModel: ObservableObject {
                 existingMessages: allMessages
             )
             chat = result.chat
-            pendingUserMessagesById[result.message.id] = result.message
             appendOrReplaceTransientMessage(result.message)
             isStreaming = true
             streamingContent = ""
@@ -998,17 +993,6 @@ final class ChatViewModel: ObservableObject {
             if let modelName = metadata?.modelName {
                 assistantModelNameByMessageId[messageId] = modelName
             }
-            if let metadata {
-                Task { @MainActor in
-                    if !IncognitoChatSession.isIncognitoChatId(chatId) {
-                        await sendEncryptedUserStorageIfPossible(
-                            chatId: chatId,
-                            assistantMessageId: messageId,
-                            metadata: metadata
-                        )
-                    }
-                }
-            }
             ensureStreamingAssistantMessage(chatId: chatId, messageId: messageId, metadata: metadata)
 
         case .chunk(let chatId, let messageId, _, let content, let isFinal, let userMessageId, let category, let modelName, let rejectionReason):
@@ -1197,80 +1181,6 @@ final class ChatViewModel: ObservableObject {
                 userMessageId: userMessageIdByAssistantMessageId[messageId]
             )
         }
-    }
-
-    private func sendEncryptedUserStorageIfPossible(
-        chatId: String,
-        assistantMessageId: String,
-        metadata: StreamingClient.ChatMetadata,
-        retryAttempt: Int = 0
-    ) async {
-        guard !IncognitoChatSession.isIncognitoChatId(chatId) else { return }
-        guard chat?.id == chatId else {
-            await retryEncryptedUserStorageIfNeeded(
-                chatId: chatId,
-                assistantMessageId: assistantMessageId,
-                metadata: metadata,
-                retryAttempt: retryAttempt
-            )
-            return
-        }
-        let userMessageId = metadata.userMessageId ?? userMessageIdByAssistantMessageId[assistantMessageId]
-        guard let userMessageId,
-              let currentChat = chat else {
-            await retryEncryptedUserStorageIfNeeded(
-                chatId: chatId,
-                assistantMessageId: assistantMessageId,
-                metadata: metadata,
-                retryAttempt: retryAttempt
-            )
-            return
-        }
-        guard let userMessage = pendingUserMessagesById[userMessageId] ?? allMessages.first(where: { $0.id == userMessageId }) else {
-            await retryEncryptedUserStorageIfNeeded(
-                chatId: chatId,
-                assistantMessageId: assistantMessageId,
-                metadata: metadata,
-                retryAttempt: retryAttempt
-            )
-            return
-        }
-        do {
-            let updatedChat = try await sendPipeline.sendEncryptedUserStoragePackage(
-                chat: currentChat,
-                userMessage: userMessage,
-                assistantTaskId: assistantMessageId,
-                metadata: metadata,
-                wsManager: wsManager,
-                chatStore: chatStore
-            )
-            chat = updatedChat
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    private func retryEncryptedUserStorageIfNeeded(
-        chatId: String,
-        assistantMessageId: String,
-        metadata: StreamingClient.ChatMetadata,
-        retryAttempt: Int
-    ) async {
-        guard retryAttempt < Self.encryptedUserStorageRetryLimit else {
-            NativeDiagnostics.warning(
-                "Encrypted user storage retry exhausted for chat/message prefix",
-                category: "chat_sync"
-            )
-            return
-        }
-        try? await Task.sleep(for: .milliseconds(Self.encryptedUserStorageRetryDelayMilliseconds))
-        guard !Task.isCancelled else { return }
-        await sendEncryptedUserStorageIfPossible(
-            chatId: chatId,
-            assistantMessageId: assistantMessageId,
-            metadata: metadata,
-            retryAttempt: retryAttempt + 1
-        )
     }
 
     private func persistCompletedAssistantMessage(
@@ -3169,7 +3079,7 @@ enum PublicChatContent {
 @MainActor
 final class ChatSendPipeline {
     private let crypto = CryptoManager.shared
-    private var encryptedUserStorageSent = Set<String>()
+    private static var encryptedUserStorageClaimed = Set<String>()
     private var completedAssistantStorageSent = Set<String>()
 
     struct SendResult {
@@ -3534,7 +3444,13 @@ final class ChatSendPipeline {
         chatStore: ChatStore?
     ) async throws -> Chat {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
-        guard encryptedUserStorageSent.insert(userMessage.id).inserted else { return chat }
+        guard claimEncryptedUserStorage(messageId: userMessage.id) else { return chat }
+        var storageCompleted = false
+        defer {
+            if !storageCompleted {
+                releaseEncryptedUserStorage(messageId: userMessage.id)
+            }
+        }
 
         let keyMaterial = try await ensureChatKey(
             chatId: chat.id,
@@ -3574,8 +3490,6 @@ final class ChatSendPipeline {
             encryptedChatKey: keyMaterial.encryptedChatKey,
             titleV: nextTitleV
         )
-        chatStore?.upsertChat(updatedChat)
-
         var payload: [String: Any] = [
             "chat_id": chat.id,
             "message_id": userMessage.id,
@@ -3597,7 +3511,17 @@ final class ChatSendPipeline {
         if let encryptedUserCategory { payload["encrypted_category"] = encryptedUserCategory }
 
         try await wsManager.send(WSOutboundMessage(type: "encrypted_chat_metadata", payload: payload))
+        chatStore?.upsertChat(updatedChat)
+        storageCompleted = true
         return updatedChat
+    }
+
+    func claimEncryptedUserStorage(messageId: String) -> Bool {
+        Self.encryptedUserStorageClaimed.insert(messageId).inserted
+    }
+
+    func releaseEncryptedUserStorage(messageId: String) {
+        Self.encryptedUserStorageClaimed.remove(messageId)
     }
 
     func persistCompletedAssistantMessage(
