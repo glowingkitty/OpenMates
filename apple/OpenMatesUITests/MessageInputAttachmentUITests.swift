@@ -140,10 +140,12 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let editor = waitForMessageEditor(in: app)
         editor.tap()
         editor.typeText("Image draft")
+        let imagePreview = element(in: app, identifier: "native-composer-preview-image-finished")
+        XCTAssertTrue(imagePreview.waitForExistence(timeout: 8))
         let image = element(in: app, identifier: "native-composer-image-content")
         XCTAssertTrue(image.waitForExistence(timeout: 8))
         XCTAssertFalse(
-            app.staticTexts["Tap to show details"].exists,
+            imagePreview.staticTexts["Tap to show details"].exists,
             "A finished local image uses web image metadata instead of the generic open-details subtitle"
         )
 
@@ -167,7 +169,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
             image.waitForExistence(timeout: 8),
             "The local uploaded image preview must survive background/foreground restoration"
         )
-        XCTAssertFalse(app.staticTexts["Tap to show details"].exists)
+        XCTAssertFalse(imagePreview.staticTexts["Tap to show details"].exists)
         attachScreenshot(name: "Image composer preview restored above iPad keyboard")
     }
 

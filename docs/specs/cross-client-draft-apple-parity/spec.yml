@@ -274,10 +274,16 @@ attempts:
     outcome: planned
     recorded_at: "2026-07-11T23:29:00Z"
     reason: Menu visibility directly proves the compact recent card exposes its custom actions without depending on localized row labels or XCTest element classification.
+  - id: ATTEMPT-23
+    task_id: TASK-6
+    approach: Run the full iPad MessageInputAttachmentUITests suite and scope the open-details subtitle assertion to the finished image preview.
+    outcome: planned
+    recorded_at: "2026-07-11T23:45:00Z"
+    reason: Five of six tests passed. The image renderer already suppresses its finished subtitle; the global assertion matched the separately seeded document or recording preview, where open-details text is valid.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the corrected custom-menu assertion, sync the remote checkout, and rerun both focused phone card tests.
+  next_action: Deploy the scoped image-preview assertion, sync the remote checkout, and rerun the focused iPad image restoration test.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress"
   expected_outcome: The compact recent card renders title-only and opens the custom actions menu on long press.
   blocker:
