@@ -295,6 +295,7 @@
 		C0FFEE000000000000032003 /* AppStrings+RemotionVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */; };
 		C0FFEE000000000000033004 /* InteractiveQuestionsParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */; };
 		C0FFEE000000000000034004 /* EmbedDiffEditingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */; };
+		50AD00000000000000000002 /* ChatHistoryRenderDocumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50AD00000000000000000001 /* ChatHistoryRenderDocumentTests.swift */; };
 		C0FFEE000000000000036003 /* WorkflowModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036001 /* WorkflowModels.swift */; };
 		C0FFEE000000000000036004 /* WorkflowAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036002 /* WorkflowAPI.swift */; };
 		C0FFEE000000000000036007 /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036005 /* WorkflowStore.swift */; };
@@ -1031,6 +1032,7 @@
 		C0FFEE000000000000031001 /* RemotionVideoCreateRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemotionVideoCreateRenderer.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppStrings+RemotionVideo.swift"; sourceTree = "<group>"; };
 		C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedDiffEditingParityTests.swift; sourceTree = "<group>"; };
+		50AD00000000000000000001 /* ChatHistoryRenderDocumentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatHistoryRenderDocumentTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveQuestionsParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036001 /* WorkflowModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowModels.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036002 /* WorkflowAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowAPI.swift; sourceTree = "<group>"; };
@@ -1788,6 +1790,7 @@
 				A22E00000000000000000003 /* SettingsModesParityTests.swift */,
 				C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */,
 				C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */,
+				50AD00000000000000000001 /* ChatHistoryRenderDocumentTests.swift */,
 				C0FFEE000000000000036011 /* WorkflowsParityTests.swift */,
 				C0FFEE000000000000002002 /* Info.plist */,
 			);
@@ -3065,6 +3068,7 @@
 				B70000000000000000000019 /* SettingsPrivacyParityTests.swift in Sources */,
 				C0FFEE000000000000033004 /* InteractiveQuestionsParityTests.swift in Sources */,
 				C0FFEE000000000000034004 /* EmbedDiffEditingParityTests.swift in Sources */,
+				50AD00000000000000000002 /* ChatHistoryRenderDocumentTests.swift in Sources */,
 				C0FFEE000000000000036012 /* WorkflowsParityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
