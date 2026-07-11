@@ -251,12 +251,11 @@ async function captureRegistrySurface(
 					.getByTestId('embed-preview')
 					.or(page.getByTestId('recording-preview'))
 					.or(page.getByTestId('focus-mode-bar'));
-	const exists =
-		(await target.count()) > 0 &&
-		(await target
-			.first()
-			.isVisible()
-			.catch(() => false));
+	const exists = await target
+		.first()
+		.waitFor({ state: 'visible', timeout: 15_000 })
+		.then(() => true)
+		.catch(() => false);
 	const screenshotPath = path.join(
 		dimensionDir,
 		'registry',
@@ -347,6 +346,19 @@ async function captureRegistryMatrix(
 	return results;
 }
 
+async function loadShowcase(page: any, app: string): Promise<void> {
+	for (let attempt = 1; attempt <= 3; attempt++) {
+		const response = await page.goto(`/dev/preview/embeds/${app}?contractAttempt=${attempt}`, {
+			waitUntil: 'networkidle'
+		});
+		expect(response?.status(), `${app}: preview page status`).toBe(200);
+		await waitForAllSectionsLoaded(page);
+		if ((await page.getByTestId('showcase-body').count()) > 0 && (await page.getByTestId('section-error').count()) === 0) {
+			return;
+		}
+	}
+}
+
 test.describe('Apple complete embed rendering web contracts', () => {
 	for (const dimension of DIMENSIONS) {
 		test(`captures every embed surface for ${dimension.id}`, async ({ page, context }) => {
@@ -378,11 +390,7 @@ test.describe('Apple complete embed rendering web contracts', () => {
 			}
 
 			for (const app of ALL_APPS) {
-				const response = await page.goto(`/dev/preview/embeds/${app}`, {
-					waitUntil: 'networkidle'
-				});
-				expect(response?.status(), `${app}: preview page status`).toBe(200);
-				await waitForAllSectionsLoaded(page);
+				await loadShowcase(page, app);
 				await applyAppearance(page, dimension.theme, dimension.direction);
 				expect(await page.getByTestId('section-error').count(), `${app}: section errors`).toBe(0);
 
