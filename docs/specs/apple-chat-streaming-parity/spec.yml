@@ -1,7 +1,7 @@
 schema_version: 2
 id: apple-chat-streaming-parity
 title: Apple Full Chat Processing And Rendering Parity
-status: approved
+status: implementing
 
 goal: >
   Make Apple chat processing match the rendered web product from message submit
@@ -132,7 +132,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b8a51a981946c94bba521ec4af57eddab59946f4
+  subject_commit: 31a381a94
 
 approvals:
   product_contract:
@@ -199,14 +199,21 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-11T10:17:33Z"
     evidence: Run 2026-07-11T10:12:05Z stopped at the Vercel gate because concurrent dev deployment dpl_E3ZhJHXrfVYgzCRkwoKwJ6WWnXDy was canceled before test dispatch.
+  - id: ATTEMPT-5
+    task_id: TASK-9
+    approach: Archive and upload the reviewed lifecycle implementation to TestFlight after rebuilding generated design tokens.
+    outcome: succeeded
+    recorded_at: "2026-07-11T12:05:00Z"
+    evidence: Commit 31a381a94 uploaded as unified build 50; App Store Connect reports VALID for iOS and macOS, with the Watch companion included in the iOS archive and five-line en-US TestFlight notes attached.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Add and run native lifecycle red tests for stale-turn reset and accumulated thinking chunks.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatStreamingLifecycleParityTests
-  expected_outcome: The reducer tests fail because task initiation retains prior-turn state and thinking chunks replace rather than append.
-  blocker: null
-  last_verified_commit: b1c6d8fa67739151617dce90159cefb2aeb9f213
+  current_task_id: TASK-9
+  next_action: Reconcile the remote lifecycle test-discovery gap and record remaining spec evidence without changing the VALID TestFlight subject build.
+  command: python3 scripts/spec_verify.py docs/specs/apple-chat-streaming-parity/spec.yml
+  expected_outcome: Verification identifies the still-unrecorded exhaustive matrix while preserving build 50 as the shipped implementation evidence.
+  blocker:
+    reason: The remote lifecycle class executed seven legacy tests instead of discovering the newly committed reducer tests; one unrelated ChatFlowParityUITests workspace-navigation assertion also failed while seeded chat rendering checks passed.
+  last_verified_commit: 31a381a94
 
 scenarios:
   - id: S-1
