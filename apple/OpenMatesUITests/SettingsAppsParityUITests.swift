@@ -84,8 +84,6 @@ final class SettingsAppsParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-model-detail-page", in: app, timeout: 3))
         app.descendants(matching: .any)["settings-model-detail-back"].tap()
         XCTAssertTrue(waitForElement("settings-skill-mention-button", in: app, timeout: 3))
-        app.descendants(matching: .any)["settings-skill-mention-button"].tap()
-        XCTAssertTrue(waitForElement("settings-skill-mention-inserted", in: app, timeout: 3))
         app.descendants(matching: .any)["settings-skill-detail-back"].tap()
         XCTAssertTrue(waitForElement("settings-app-detail-page", in: app, timeout: 5))
 
@@ -98,9 +96,10 @@ final class SettingsAppsParityUITests: XCTestCase {
         app.descendants(matching: .any)["settings-focus-instructions-toggle"].tap()
         XCTAssertTrue(waitForElement("settings-focus-instructions-text", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-focus-mention-button", in: app, timeout: 3))
-        app.descendants(matching: .any)["settings-focus-mention-button"].tap()
-        XCTAssertTrue(waitForElement("settings-focus-mention-inserted", in: app, timeout: 3))
         XCTAssertFalse(app.tables.firstMatch.exists, "Apps settings must not render default List/table chrome")
+        app.descendants(matching: .any)["settings-focus-mention-button"].tap()
+        XCTAssertTrue(waitForElement("message-composer", in: app, timeout: 8))
+        XCTAssertFalse(app.descendants(matching: .any)["settings-menu"].exists, "Mention insertion should close compact Settings")
 
         attachScreenshot(name: "Apps settings fixture path")
     }
