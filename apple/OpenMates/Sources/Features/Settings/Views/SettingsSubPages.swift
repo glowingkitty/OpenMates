@@ -1146,10 +1146,15 @@ struct SettingsLanguageView: View {
         Task {
             await locManager.setLanguage(language)
             if authManager.currentUser != nil {
-                try? await APIClient.shared.request(
-                    .post, path: "/v1/settings/user/language",
-                    body: ["language": language.code]
-                ) as Data
+                do {
+                    let _: Data = try await APIClient.shared.request(
+                        .post, path: "/v1/settings/user/language",
+                        body: ["language": language.code]
+                    )
+                } catch {
+                    NativeDiagnostics.error("Language setting save failed", category: "settings.interface")
+                    AccessibilityAnnouncement.announce(error.localizedDescription)
+                }
             }
         }
     }
@@ -1158,70 +1163,108 @@ struct SettingsLanguageView: View {
 // MARK: - Notifications
 
 struct SettingsNotificationsView: View {
+    @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var webSocketManager: WebSocketManager
+    @State private var destination: Destination?
     @State private var chatNotifications = true
     @State private var emailNotifications = true
     @State private var isLoaded = false
+    @State private var errorMessage: String?
 
     var body: some View {
-        OMSettingsPage(title: AppStrings.settingsNotifications) {
+        if let destination {
+            VStack(spacing: 0) {
+                OMSettingsRow(title: AppStrings.back, icon: "back", showsChevron: false) {
+                    self.destination = nil
+                }
+                switch destination {
+                case .chat: chatSettings
+                case .backup: SettingsBackupRemindersView()
+                }
+            }
+            .background(Color.grey0)
+        } else {
+            OMSettingsPage(title: AppStrings.settingsNotifications, showsHeader: false) {
+                OMSettingsSection {
+                    OMSettingsRow(
+                        title: L("settings.notifications.chat"),
+                        icon: "notification",
+                        value: chatNotifications || emailNotifications ? AppStrings.enabled : AppStrings.disabled,
+                        accessibilityIdentifier: "settings-notifications-chat-row"
+                    ) { destination = .chat }
+                    OMSettingsRow(
+                        title: L("settings.notifications.backup"),
+                        icon: "download",
+                        accessibilityIdentifier: "settings-notifications-backup-row"
+                    ) { destination = .backup }
+                }
+                if let errorMessage {
+                    Text(errorMessage).font(.omSmall).foregroundStyle(Color.error).padding(.spacing6)
+                }
+            }
+            .task { await load() }
+        }
+    }
+
+    private var chatSettings: some View {
+        OMSettingsPage(title: L("settings.notifications.chat"), showsHeader: false) {
             OMSettingsSection(AppStrings.pushNotifications) {
-                OMSettingsToggleRow(
-                    title: AppStrings.chatMessages,
-                    isOn: $chatNotifications
+                OMSettingsStaticRow(
+                    title: AppStrings.pushNotifications,
+                    value: chatNotifications ? AppStrings.enabled : AppStrings.disabled
                 )
-                .onChange(of: chatNotifications) { _, newValue in
-                    savePushNotifications(newValue)
-                }
+                Text(L("settings.notifications.permission_hint"))
+                    .font(.omXs).foregroundStyle(Color.fontSecondary).padding(.spacing6)
             }
-
             OMSettingsSection(AppStrings.emailNotifications) {
-                OMSettingsToggleRow(
-                    title: AppStrings.emailNotifications,
-                    isOn: $emailNotifications
-                )
-                .onChange(of: emailNotifications) { _, newValue in
-                    saveEmailNotifications(newValue)
-                }
+                OMSettingsToggleRow(title: AppStrings.emailNotifications, isOn: $emailNotifications)
+                    .onChange(of: emailNotifications) { oldValue, _ in saveEmailNotifications(rollbackTo: oldValue) }
             }
-
-            Text(L("settings.notifications.permission_hint"))
-                .font(.omXs).foregroundStyle(Color.fontSecondary)
-                .padding(.horizontal, .spacing6)
         }
-        .task {
-            guard !isLoaded else { return }
+    }
+
+    private func load() async {
+        guard !isLoaded else { return }
+        do {
+            let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
+            chatNotifications = response.user?.pushNotificationEnabled ?? false
+            emailNotifications = response.user?.emailNotificationsEnabled ?? false
+        } catch {
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("Notification settings load failed", category: "settings.notifications")
+        }
+        isLoaded = true
+    }
+
+    private func saveEmailNotifications(rollbackTo: Bool) {
+        Task {
             do {
-                let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
-                chatNotifications = response.user?.pushNotificationEnabled ?? true
-            } catch {}
-            isLoaded = true
+                try await webSocketManager.send(WSOutboundMessage(
+                    type: "email_notification_settings",
+                    payload: [
+                        "enabled": emailNotifications,
+                        "preferences": authManager.currentUser?.emailNotificationPreferences ?? [:]
+                    ]
+                ))
+            } catch {
+                emailNotifications = rollbackTo
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Email notification settings save failed", category: "settings.notifications")
+            }
         }
     }
 
-    private func savePushNotifications(_ enabled: Bool) {
-        Task {
-            try? await APIClient.shared.request(
-                .post, path: "/v1/settings/user/push-notifications",
-                body: ["enabled": enabled]
-            ) as Data
-        }
-    }
-
-    private func saveEmailNotifications(_ enabled: Bool) {
-        Task {
-            try? await APIClient.shared.request(
-                .post, path: "/v1/settings/user/email-notifications",
-                body: ["enabled": enabled]
-            ) as Data
-        }
-    }
+    private enum Destination { case chat, backup }
 }
 
 // MARK: - Backup Reminders
 
 struct SettingsBackupRemindersView: View {
+    @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var webSocketManager: WebSocketManager
     @State private var reminderDays = 30
     @State private var isEnabled = true
+    @State private var errorMessage: String?
 
     var body: some View {
         OMSettingsPage(title: AppStrings.backupReminders) {
@@ -1250,15 +1293,33 @@ struct SettingsBackupRemindersView: View {
             Text(L("settings.backup_reminders.description"))
                 .font(.omXs).foregroundStyle(Color.fontSecondary)
                 .padding(.horizontal, .spacing6)
+            if let errorMessage {
+                Text(errorMessage).font(.omSmall).foregroundStyle(Color.error).padding(.spacing6)
+            }
+        }
+        .onAppear {
+            isEnabled = authManager.currentUser?.emailNotificationPreferences?["backupReminder"] ?? true
+            reminderDays = authManager.currentUser?.backupReminderIntervalDays ?? 30
         }
     }
 
     private func saveBackupReminders() {
         Task {
-            try? await APIClient.shared.request(
-                .post, path: "/v1/settings/user/backup-reminders",
-                body: ["enabled": isEnabled, "interval_days": reminderDays]
-            ) as Data
+            do {
+                var preferences = authManager.currentUser?.emailNotificationPreferences ?? [:]
+                preferences["backupReminder"] = isEnabled
+                try await webSocketManager.send(WSOutboundMessage(
+                    type: "email_notification_settings",
+                    payload: [
+                        "enabled": authManager.currentUser?.emailNotificationsEnabled ?? true,
+                        "preferences": preferences,
+                        "backup_reminder_interval_days": reminderDays
+                    ]
+                ))
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Backup reminder settings save failed", category: "settings.notifications")
+            }
         }
     }
 }

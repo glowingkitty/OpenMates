@@ -389,7 +389,7 @@ struct BillingUsageView: View {
             }
 
             if isLoading { ProgressView().frame(maxWidth: .infinity).padding(.spacing8) }
-            else if let selected {
+            else if selected != nil {
                 OMSettingsSection(AppStrings.billingUsageDetails) {
                     Button(AppStrings.back) { self.selected = nil; details = [] }.buttonStyle(.plain).padding(.spacing5)
                     ForEach(details) { entry in usageEntry(entry) }
@@ -407,7 +407,8 @@ struct BillingUsageView: View {
                         Button { open(summary) } label: {
                             HStack {
                                 VStack(alignment: .leading) {
-                                    Text(summary.identifier).font(.omSmall).foregroundStyle(Color.fontPrimary).lineLimit(1)
+                                    Text(summary.identifier(fallback: AppStrings.billingUnknownUsage))
+                                        .font(.omSmall).foregroundStyle(Color.fontPrimary).lineLimit(1)
                                     Text(summary.month).font(.omXs).foregroundStyle(Color.fontTertiary)
                                 }
                                 Spacer()
@@ -459,8 +460,15 @@ struct BillingUsageView: View {
     private func open(_ summary: UsageSummary) {
         selected = summary
         isLoading = true
+        let unknownUsage = AppStrings.billingUnknownUsage
         Task {
-            do { details = try await BillingService.shared.usageDetails(type: tab.detailType, summary: summary).entries }
+            do {
+                details = try await BillingService.shared.usageDetails(
+                    type: tab.detailType,
+                    summary: summary,
+                    unknownUsage: unknownUsage
+                ).entries
+            }
             catch { self.error = error.localizedDescription }
             isLoading = false
         }
@@ -469,10 +477,9 @@ struct BillingUsageView: View {
     private func usageEntry(_ entry: UsageEntry) -> some View {
         VStack(alignment: .leading, spacing: .spacing1) {
             Text(entry.displayName).font(.omSmall).foregroundStyle(Color.fontPrimary)
-            if let createdAt = entry.createdAt {
-                Text(createdAt.formatted()).font(.omXs).foregroundStyle(Color.fontTertiary)
-            }
-            Text((entry.credits ?? 0).formatted()).font(.omXs).foregroundStyle(Color.fontSecondary)
+            Text(Date(timeIntervalSince1970: TimeInterval(entry.createdAt)).formatted())
+                .font(.omXs).foregroundStyle(Color.fontTertiary)
+            Text(entry.credits.formatted()).font(.omXs).foregroundStyle(Color.fontSecondary)
         }
         .padding(.spacing5)
     }
@@ -729,8 +736,8 @@ private struct UsageSummary: Decodable, Identifiable {
     let apiKeyHash: String?
     let month: String
     let totalCredits: Double
-    var identifier: String { chatId ?? appId ?? apiKeyHash ?? AppStrings.billingUnknownUsage }
-    var id: String { "\(identifier):\(month)" }
+    func identifier(fallback: String) -> String { chatId ?? appId ?? apiKeyHash ?? fallback }
+    var id: String { "\(chatId ?? ""):\(appId ?? ""):\(apiKeyHash ?? ""):\(month)" }
     static func fixture(for tab: UsageTab) -> Self { Self(chatId: tab == .chats ? "fixture-chat" : nil, appId: tab == .apps ? "ai" : nil, apiKeyHash: tab == .api ? "fixture-key" : nil, month: "2026-01", totalCredits: 42) }
 }
 
@@ -812,8 +819,9 @@ private actor BillingService {
         try await APIClient.shared.request(.get, path: "/v1/settings/usage/summaries?type=\(type)&months=3")
     }
 
-    func usageDetails(type: String, summary: UsageSummary) async throws -> UsageDetailsResponse {
-        let identifier = summary.identifier.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? summary.identifier
+    func usageDetails(type: String, summary: UsageSummary, unknownUsage: String) async throws -> UsageDetailsResponse {
+        let rawIdentifier = summary.identifier(fallback: unknownUsage)
+        let identifier = rawIdentifier.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? rawIdentifier
         return try await APIClient.shared.request(.get, path: "/v1/settings/usage/details?type=\(type)&identifier=\(identifier)&year_month=\(summary.month)")
     }
 
@@ -875,6 +883,7 @@ private actor BillingService {
     }
 }
 
+@MainActor
 private func presentFile(_ url: URL) {
     #if os(iOS)
     let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)

@@ -141,13 +141,17 @@ final class SettingsMemoryService: ObservableObject {
             let data: Data = try await api.request(.get, path: "/v1/sdk/memories")
             let response = try decoder.decode(SettingsEncryptedMemoryResponse.self, from: data)
             recordsByID = Dictionary(uniqueKeysWithValues: response.memories.map { ($0.id, $0) })
-            entries = try response.memories.compactMap { record in
+            var decryptedEntries: [SettingsMemoryEntry] = []
+            for record in response.memories {
                 guard categories.contains(where: { $0.appId == record.appId && $0.categoryId == record.itemType }) else {
-                    return nil
+                    continue
                 }
-                let plaintext = try crypto.decryptContent(base64String: record.encryptedItemJson, key: masterKey)
+                let plaintext = try await crypto.decryptContent(
+                    base64String: record.encryptedItemJson,
+                    key: masterKey
+                )
                 let payload = try Self.decodePayload(plaintext, fallbackKey: record.itemKey)
-                return SettingsMemoryEntry(
+                decryptedEntries.append(SettingsMemoryEntry(
                     id: record.id,
                     appId: record.appId,
                     categoryId: record.itemType,
@@ -157,8 +161,9 @@ final class SettingsMemoryService: ObservableObject {
                     updatedAt: record.updatedAt,
                     version: record.itemVersion,
                     isExample: false
-                )
-            }.sorted { $0.updatedAt > $1.updatedAt }
+                ))
+            }
+            entries = decryptedEntries.sorted { $0.updatedAt > $1.updatedAt }
             state = entries.isEmpty ? .empty : .loaded
         } catch {
             NativeDiagnostics.warning(
@@ -212,7 +217,7 @@ final class SettingsMemoryService: ObservableObject {
             guard let payloadJSON = String(data: payloadData, encoding: .utf8) else {
                 throw CryptoManager.CryptoError.invalidUTF8
             }
-            let encrypted = try crypto.encryptWithMasterKey(payloadJSON, masterKey: masterKey)
+            let encrypted = try await crypto.encryptWithMasterKey(payloadJSON, masterKey: masterKey)
             let existing = entry.flatMap { recordsByID[$0.id] }
             let record = SettingsEncryptedMemoryRecord(
                 id: draft.id,
@@ -472,8 +477,8 @@ struct SettingsMemoriesFullView: View {
             OMSettingsSection(category.appName, icon: category.iconName) {
                 OMSettingsRow(
                     title: category.categoryName,
-                    value: AppStrings.entriesCount(service.entries(in: category).count),
                     icon: category.iconName,
+                    value: AppStrings.entriesCount(service.entries(in: category).count),
                     accessibilityIdentifier: "settings-memory-category-\(category.appId)-\(category.categoryId)"
                 ) {
                     selectedCategory = category

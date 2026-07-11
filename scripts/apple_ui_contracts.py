@@ -324,6 +324,19 @@ def _extract_apple_fixture_skill_ids(source: str) -> set[str]:
     return set(re.findall(r"return skill\(id:\s*\"([^\"]+)\"", source))
 
 
+def _extract_generic_embed_cases(source: str) -> set[str]:
+    cases: set[str] = set()
+    for match in re.finditer(
+        r"case\s+(?P<cases>[^:]+):(?P<body>.*?)(?=\n\s*(?:case\s+|default:)|\Z)",
+        source,
+        flags=re.DOTALL,
+    ):
+        if "GenericEmbedRenderer" not in match.group("body"):
+            continue
+        cases.update(re.findall(r"\.([A-Za-z][A-Za-z0-9_]*)", match.group("cases")))
+    return cases
+
+
 def _has_apple_embed_registry_coverage(
     registry_key: str,
     *,
@@ -361,6 +374,7 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     showcase_apps = _extract_showcase_apps(showcase_source)
     apple_apps = _extract_swift_enum_raw_values(fixtures_source, "DevEmbedPreviewApp")
     apple_fixture_skill_ids = _extract_apple_fixture_skill_ids(fixtures_source)
+    generic_embed_cases = _extract_generic_embed_cases(content_view_source)
 
     if not registry_keys:
         errors.append("could not extract web embed registry keys")
@@ -374,6 +388,8 @@ def audit_embeds() -> tuple[list[str], list[str]]:
     missing_showcase_apps = REQUIRED_EMBED_SHOWCASE_APPS - showcase_apps
     extra_missing_from_apple_gallery = REQUIRED_EMBED_SHOWCASE_APPS - apple_apps
     missing_apple_types = registry_keys - apple_types
+    missing_preview_components = fullscreen_keys - preview_keys
+    missing_fullscreen_components = preview_keys - fullscreen_keys
 
     if missing_showcase_apps:
         errors.append(f"web embed showcase missing apps: {', '.join(sorted(missing_showcase_apps))}")
@@ -381,6 +397,27 @@ def audit_embeds() -> tuple[list[str], list[str]]:
         errors.append(f"Apple embed preview gallery missing apps: {', '.join(sorted(extra_missing_from_apple_gallery))}")
     if missing_apple_types:
         errors.append(f"Apple EmbedType missing registry keys: {', '.join(sorted(missing_apple_types))}")
+    if missing_preview_components:
+        errors.append(
+            "web embed registry keys missing preview components: "
+            + ", ".join(sorted(missing_preview_components))
+        )
+    if missing_fullscreen_components:
+        errors.append(
+            "web embed registry keys missing fullscreen components: "
+            + ", ".join(sorted(missing_fullscreen_components))
+        )
+
+    generic_registry_keys = sorted(
+        key
+        for key in registry_keys
+        if apple_type_cases_by_raw_value.get(key) in generic_embed_cases
+    )
+    if generic_registry_keys:
+        errors.append(
+            "known Apple embed types use GenericEmbedRenderer: "
+            + ", ".join(generic_registry_keys)
+        )
 
     for app in sorted(REQUIRED_EMBED_SHOWCASE_APPS):
         if f"case .{_swift_case_name_for_app(app)}" not in fixtures_source:
@@ -393,7 +430,7 @@ def audit_embeds() -> tuple[list[str], list[str]]:
             embed_type_cases_by_raw_value=apple_type_cases_by_raw_value,
             content_view_source=content_view_source,
         ):
-            warnings.append(f"no direct Apple debug fixture id found for registry key: {registry_key}")
+            errors.append(f"missing Apple debug fixture for registry key: {registry_key}")
 
     forbidden_controls = ["Form {", "List {", "NavigationLink {", ".navigationTitle(", ".toolbar {"]
     embed_source_root = REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Features" / "Embeds"

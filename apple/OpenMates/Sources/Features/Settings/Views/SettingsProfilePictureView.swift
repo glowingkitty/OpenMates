@@ -105,6 +105,7 @@ struct SettingsProfilePictureView: View {
         }
     }
 
+    @MainActor
     private static func squareJPEG(from data: Data) throws -> Data {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
@@ -162,18 +163,11 @@ struct SettingsProfilePictureView: View {
     }
 }
 
-private enum ProfileImageError: LocalizedError {
-    case fileTooLarge
-    case wrongFormat
-    case rejected
-    case accountDeleted
+private struct ProfileImageError: LocalizedError {
+    let errorDescription: String?
 
-    var errorDescription: String? {
-        switch self {
-        case .fileTooLarge: return AppStrings.photoFileTooLarge
-        case .wrongFormat: return AppStrings.photoWrongFormat
-        case .rejected: return AppStrings.photoRejected
-        case .accountDeleted: return AppStrings.accountDeleted
-        }
-    }
+    @MainActor static var fileTooLarge: Self { .init(errorDescription: AppStrings.photoFileTooLarge) }
+    @MainActor static var wrongFormat: Self { .init(errorDescription: AppStrings.photoWrongFormat) }
+    @MainActor static var rejected: Self { .init(errorDescription: AppStrings.photoRejected) }
+    @MainActor static var accountDeleted: Self { .init(errorDescription: AppStrings.accountDeleted) }
 }

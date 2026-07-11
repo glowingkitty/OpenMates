@@ -58,7 +58,7 @@ struct SettingsProjectsView: View {
         case alwaysAsk = "always_ask"
         case autoApproveSafeWrites = "auto_approve_safe_writes"
 
-        var title: String {
+        @MainActor var title: String {
             switch self {
             case .alwaysAsk: return L("settings.projects.write_mode_always_ask")
             case .autoApproveSafeWrites: return L("settings.projects.write_mode_safe_writes")

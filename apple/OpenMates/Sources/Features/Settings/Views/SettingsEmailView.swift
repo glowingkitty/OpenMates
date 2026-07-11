@@ -153,10 +153,11 @@ struct SettingsEmailView: View {
                 salt: salt
             )
             let sodium = Sodium()
-            guard let secretBox = sodium.secretBox.seal(
+            let sealedEmail: [UInt8]? = sodium.secretBox.seal(
                 message: Array(normalizedEmail.utf8),
                 secretKey: Array(emailKey)
-            ) else { throw AccountSecurityError.missingAccountData }
+            )
+            guard let sealedEmail else { throw AccountSecurityError.missingAccountData }
             let encryptedWithMasterKey = try await CryptoManager.shared.encryptWithMasterKey(
                 normalizedEmail,
                 masterKey: masterKey
@@ -168,7 +169,7 @@ struct SettingsEmailView: View {
                 body: EmailConfirmRequest(
                     newEmail: normalizedEmail,
                     hashedEmail: hashedNewEmail,
-                    encryptedEmailAddress: Data(secretBox).base64EncodedString(),
+                    encryptedEmailAddress: Data(sealedEmail).base64EncodedString(),
                     encryptedEmailWithMasterKey: encryptedWithMasterKey,
                     authMethod: "password",
                     authCode: ""

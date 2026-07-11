@@ -101,7 +101,11 @@ enum PasskeyRegistrationCoordinator {
             }
 
             let controller = ASAuthorizationController(authorizationRequests: [request])
-            let delegate = RegistrationDelegate(continuation: continuation)
+            let delegate = RegistrationDelegate(
+                continuation: continuation,
+                invalidCredentialError: PasskeyRegistrationError.invalidCredential,
+                missingPRFError: PasskeyRegistrationError.missingPRF
+            )
             controller.delegate = delegate
             controller.presentationContextProvider = delegate
             objc_setAssociatedObject(controller, &RegistrationAssociatedKeys.delegate, delegate, .OBJC_ASSOCIATION_RETAIN)
@@ -170,11 +174,19 @@ private enum RegistrationAssociatedKeys {
 }
 
 private final class RegistrationDelegate: NSObject, ASAuthorizationControllerDelegate,
-                                          ASAuthorizationControllerPresentationContextProviding {
+                                           ASAuthorizationControllerPresentationContextProviding {
     let continuation: CheckedContinuation<RegistrationResult, Error>
+    let invalidCredentialError: PasskeyRegistrationError
+    let missingPRFError: PasskeyRegistrationError
 
-    init(continuation: CheckedContinuation<RegistrationResult, Error>) {
+    init(
+        continuation: CheckedContinuation<RegistrationResult, Error>,
+        invalidCredentialError: PasskeyRegistrationError,
+        missingPRFError: PasskeyRegistrationError
+    ) {
         self.continuation = continuation
+        self.invalidCredentialError = invalidCredentialError
+        self.missingPRFError = missingPRFError
     }
 
     func authorizationController(
@@ -185,13 +197,13 @@ private final class RegistrationDelegate: NSObject, ASAuthorizationControllerDel
             as? ASAuthorizationPlatformPublicKeyCredentialRegistration,
               let attestation = credential.rawAttestationObject
         else {
-            continuation.resume(throwing: PasskeyRegistrationError.invalidCredential)
+            continuation.resume(throwing: invalidCredentialError)
             return
         }
         guard #available(iOS 18.0, macOS 15.0, *),
-              let prf = credential.prf?.first.withUnsafeBytes({ Data($0) })
+              let prf = credential.prf?.first?.withUnsafeBytes({ Data($0) })
         else {
-            continuation.resume(throwing: PasskeyRegistrationError.missingPRF)
+            continuation.resume(throwing: missingPRFError)
             return
         }
         continuation.resume(returning: RegistrationResult(
@@ -221,16 +233,10 @@ private final class RegistrationDelegate: NSObject, ASAuthorizationControllerDel
     }
 }
 
-private enum PasskeyRegistrationError: LocalizedError {
-    case invalidChallenge
-    case invalidCredential
-    case missingPRF
+private struct PasskeyRegistrationError: LocalizedError {
+    let errorDescription: String?
 
-    var errorDescription: String? {
-        switch self {
-        case .invalidChallenge: return AppStrings.passkeyInvalidChallenge
-        case .invalidCredential: return AppStrings.passkeyRegistrationFailed
-        case .missingPRF: return AppStrings.passkeyPRFRequired
-        }
-    }
+    @MainActor static var invalidChallenge: Self { .init(errorDescription: AppStrings.passkeyInvalidChallenge) }
+    @MainActor static var invalidCredential: Self { .init(errorDescription: AppStrings.passkeyRegistrationFailed) }
+    @MainActor static var missingPRF: Self { .init(errorDescription: AppStrings.passkeyPRFRequired) }
 }

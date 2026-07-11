@@ -18,7 +18,7 @@ actor AccountSecurityService {
 
     func passkeys() async throws -> [PasskeyRecord] {
         let response: PasskeyListResponse = try await api.request(.get, path: "/v1/auth/passkeys")
-        guard response.success else { throw AccountSecurityError.server(response.message) }
+        guard response.success else { throw await AccountSecurityError.server(response.message) }
         return response.passkeys
     }
 
@@ -28,7 +28,7 @@ actor AccountSecurityService {
             path: "/v1/auth/passkeys/rename",
             body: PasskeyRenameRequest(passkeyId: id, encryptedDeviceName: encryptedDeviceName)
         )
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func deletePasskey(id: String) async throws {
@@ -37,7 +37,7 @@ actor AccountSecurityService {
             path: "/v1/auth/passkeys/delete",
             body: PasskeyDeleteRequest(passkeyId: id)
         )
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func updatePassword(_ request: PasswordUpdateRequest) async throws {
@@ -46,7 +46,7 @@ actor AccountSecurityService {
             path: "/v1/settings/update-password",
             body: request
         )
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func verifyPasswordReauth(hashedEmail: String, lookupHash: String) async throws {
@@ -60,7 +60,7 @@ actor AccountSecurityService {
                 lookupHash: lookupHash
             )
         )
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func initiateTwoFactor(emailEncryptionKey: String) async throws -> TwoFactorSetupResponse {
@@ -69,7 +69,7 @@ actor AccountSecurityService {
             path: "/v1/auth/2fa/setup/initiate",
             body: ["email_encryption_key": emailEncryptionKey]
         )
-        guard response.success else { throw AccountSecurityError.server(response.message) }
+        guard response.success else { throw await AccountSecurityError.server(response.message) }
         return response
     }
 
@@ -79,7 +79,7 @@ actor AccountSecurityService {
             path: "/v1/auth/2fa/setup/verify-signup",
             body: ["code": code]
         )
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func setTwoFactorProvider(_ provider: String) async throws {
@@ -88,7 +88,7 @@ actor AccountSecurityService {
             path: "/v1/auth/2fa/setup/provider",
             body: ["provider": provider]
         )
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func requestBackupCodes(reset: Bool) async throws -> [String] {
@@ -98,7 +98,7 @@ actor AccountSecurityService {
                 ? "/v1/auth/2fa/setup/reset-backup-codes"
                 : "/v1/auth/2fa/setup/request-backup-codes"
         )
-        guard response.success else { throw AccountSecurityError.server(response.message) }
+        guard response.success else { throw await AccountSecurityError.server(response.message) }
         return response.backupCodes ?? []
     }
 
@@ -108,7 +108,7 @@ actor AccountSecurityService {
             path: "/v1/auth/2fa/setup/confirm-codes-stored",
             body: ["confirmed": true]
         )
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func regenerateRecoveryKey(_ request: RecoveryKeyUpdateRequest) async throws {
@@ -117,7 +117,7 @@ actor AccountSecurityService {
             path: "/v1/auth/recovery-key/regenerate",
             body: request
         )
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func sessions() async throws -> [AccountSession] {
@@ -127,17 +127,17 @@ actor AccountSecurityService {
 
     func revokeSession(id: String) async throws {
         let response: ActionResponse = try await api.request(.delete, path: "/v1/auth/sessions/\(id)")
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func logoutOtherSessions() async throws {
         let response: ActionResponse = try await api.request(.post, path: "/v1/auth/sessions/logout-others")
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func logoutAllDevices() async throws {
         let response: ActionResponse = try await api.request(.post, path: "/v1/auth/sessions/logout-all-devices")
-        try requireSuccess(response)
+        try await requireSuccess(response)
     }
 
     func chatCount() async throws -> Int {
@@ -209,7 +209,7 @@ actor AccountSecurityService {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let decoded = try decoder.decode(ProfileImageUploadResponse.self, from: data)
         guard (200...299).contains(httpResponse.statusCode) else {
-            throw AccountSecurityError.server(decoded.detail)
+            throw await AccountSecurityError.server(decoded.detail)
         }
         return decoded
     }
@@ -228,8 +228,8 @@ actor AccountSecurityService {
         )
     }
 
-    private func requireSuccess(_ response: ActionResponse) throws {
-        guard response.success else { throw AccountSecurityError.server(response.message) }
+    private func requireSuccess(_ response: ActionResponse) async throws {
+        guard response.success else { throw await AccountSecurityError.server(response.message) }
     }
 }
 
@@ -369,16 +369,16 @@ struct ProfileImageUploadResponse: Decodable {
     let detail: String?
 }
 
-enum AccountSecurityError: LocalizedError {
-    case missingAccountData
-    case server(String?)
+struct AccountSecurityError: LocalizedError {
+    let errorDescription: String?
 
-    var errorDescription: String? {
-        switch self {
-        case .missingAccountData:
-            return AppStrings.accountSecurityMissingData
-        case .server(let message):
-            return message ?? AppStrings.accountSecurityRequestFailed
-        }
+    @MainActor
+    static var missingAccountData: Self {
+        .init(errorDescription: AppStrings.accountSecurityMissingData)
+    }
+
+    @MainActor
+    static func server(_ message: String?) -> Self {
+        .init(errorDescription: message ?? AppStrings.accountSecurityRequestFailed)
     }
 }

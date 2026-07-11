@@ -257,7 +257,7 @@ def test_other_settings_use_current_native_contracts() -> None:
     newsletter_source = NEWSLETTER_VIEW.read_text(encoding="utf-8")
     projects_source = PROJECTS_VIEW.read_text(encoding="utf-8")
 
-    assert "case projects" in settings_source
+    assert "projects, mates" in settings_source
     assert "SettingsProjectsView()" in settings_source
     assert '"projects"' in settings_source
     assert '"apps"' in settings_source
@@ -266,8 +266,8 @@ def test_other_settings_use_current_native_contracts() -> None:
     assert 'path: "/v1/settings/ai-model-defaults"' in ai_source
     assert "/v1/settings/ai-models" not in ai_source
     assert "/v1/settings/ai-providers/" not in ai_source
-    assert "default_ai_model_simple" in ai_source
-    assert "default_ai_model_complex" in ai_source
+    assert "defaultAiModelSimple" in ai_source
+    assert "defaultAiModelComplex" in ai_source
 
     assert 'path: "/v1/settings/api-keys"' in developer_source
     assert 'path: "/v1/webhooks"' in developer_source
