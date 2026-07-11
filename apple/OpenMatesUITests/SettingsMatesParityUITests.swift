@@ -7,6 +7,10 @@ import XCTest
 
 @MainActor
 final class SettingsMatesParityUITests: XCTestCase {
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
     func testMateDetailsPromptAndNativeStartChatHandoff() {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache"]
@@ -15,6 +19,9 @@ final class SettingsMatesParityUITests: XCTestCase {
         XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
         app.buttons["settings-button"].tap()
         let matesRow = app.descendants(matching: .any)["settings-mates-row"]
+        if !matesRow.waitForExistence(timeout: 8) {
+            app.buttons["settings-button"].tap()
+        }
         XCTAssertTrue(matesRow.waitForExistence(timeout: 8))
         matesRow.tap()
 
