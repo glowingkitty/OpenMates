@@ -6,11 +6,18 @@
 //          frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.svelte
 // CSS:     frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import Combine
 import SwiftUI
 
 struct AppSkillUseRenderer: View {
@@ -68,6 +75,10 @@ struct AppSkillUseRenderer: View {
 
     private var isFitnessSearchSkill: Bool {
         appId == "fitness" && (skillId == "search_locations" || skillId == "search_classes")
+    }
+
+    private var isCalendarActionSkill: Bool {
+        appId == "calendar" && ["get-events", "create-event", "update-event", "delete-event"].contains(skillId)
     }
 
     private var childEmbeds: [EmbedRecord] {
@@ -161,8 +172,12 @@ struct AppSkillUseRenderer: View {
             return AnyView(CodeGetDocsEmbedRenderer(data: data, mode: .preview))
         } else if appId == "events", skillId == "search" {
             return AnyView(EventsSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if isCalendarActionSkill {
+            return AnyView(CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .preview))
         } else if isFitnessSearchSkill {
             return AnyView(FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .preview))
+        } else if appId == "weather", skillId == "rain_radar" {
+            return AnyView(WeatherRainRadarEmbedRenderer(embed: embed, data: data, mode: .preview))
         } else if appId == "travel", skillId == "search_connections" {
             return AnyView(TravelSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "travel", skillId == "search_stays" {
@@ -256,8 +271,12 @@ struct AppSkillUseRenderer: View {
             CodeGetDocsEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "events", skillId == "search" {
             EventsSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if isCalendarActionSkill {
+            CalendarActionEmbedRenderer(embed: embed, data: data, skillId: skillId, mode: .fullscreen)
         } else if isFitnessSearchSkill {
             FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen)
+        } else if appId == "weather", skillId == "rain_radar" {
+            WeatherRainRadarEmbedRenderer(embed: embed, data: data, mode: .fullscreen)
         } else if appId == "travel", skillId == "search_connections" {
             TravelSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "travel", skillId == "search_stays" {
@@ -631,6 +650,495 @@ private struct ImageResultFullscreenCard: View {
     }
 }
 
+private struct CalendarActionEmbedRenderer: View {
+    let embed: EmbedRecord
+    let data: [String: AnyCodable]
+    let skillId: String
+    let mode: EmbedDisplayMode
+
+    private var model: CalendarActionValue {
+        CalendarActionValue(data: data, skillId: skillId)
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            CalendarActionPreview(model: model, isError: embed.status == .error, isProcessing: embed.status == .processing)
+        case .fullscreen:
+            CalendarActionFullscreen(model: model, isError: embed.status == .error, isProcessing: embed.status == .processing)
+        }
+    }
+}
+
+private struct CalendarActionPreview: View {
+    let model: CalendarActionValue
+    let isError: Bool
+    let isProcessing: Bool
+
+    private var detail: String? {
+        if isError { return model.error ?? AppStrings.genericProcessingError }
+        if let summary = model.summary { return summary }
+        return isProcessing ? AppStrings.loading : nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            HStack(spacing: .spacing3) {
+                Icon("calendar", size: .iconSizeSm)
+                    .foregroundStyle(LinearGradient.appCalendar)
+                Text(model.title)
+                    .font(.omP.weight(.bold))
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(2)
+            }
+
+            if let detail {
+                Text(detail)
+                    .font(.omSmall)
+                    .foregroundStyle(isError ? Color.error : Color.fontSecondary)
+                    .lineLimit(3)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+private struct CalendarActionFullscreen: View {
+    let model: CalendarActionValue
+    let isError: Bool
+    let isProcessing: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            if isError {
+                Text(model.error ?? AppStrings.genericProcessingError)
+                    .font(.omP)
+                    .foregroundStyle(Color.error)
+            } else if !model.items.isEmpty {
+                LazyVStack(spacing: .spacing3) {
+                    ForEach(model.items) { item in
+                        VStack(alignment: .leading, spacing: .spacing2) {
+                            Text(item.title)
+                                .font(.omP.weight(.bold))
+                                .foregroundStyle(Color.fontPrimary)
+                            if let detail = item.detail {
+                                Text(detail)
+                                    .font(.omP)
+                                    .foregroundStyle(Color.fontSecondary)
+                            }
+                        }
+                        .padding(.spacing4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.grey0)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: .radius4)
+                                .stroke(Color.grey20, lineWidth: 1)
+                        }
+                    }
+                }
+            } else {
+                Text(model.summary ?? (isProcessing ? AppStrings.loading : model.title))
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+        }
+        .padding(.spacing4)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+@MainActor
+private struct CalendarActionValue {
+    let title: String
+    let summary: String?
+    let error: String?
+    let items: [CalendarActionItem]
+
+    init(data: [String: AnyCodable], skillId: String) {
+        let fallbackTitle = AppStrings.calendarSkillTitle(skillId)
+        title = EmbedFieldReader.string(data, keys: ["title"]) ?? fallbackTitle
+        summary = EmbedFieldReader.string(data, keys: ["summary", "message"])
+        error = EmbedFieldReader.string(data, keys: ["error"])
+        let values = EmbedFieldReader.dictionaryArray(data, key: "events").isEmpty
+            ? EmbedFieldReader.dictionaryArray(data, key: "results")
+            : EmbedFieldReader.dictionaryArray(data, key: "events")
+        items = values.enumerated().map { index, value in
+            CalendarActionItem(index: index, data: value, fallbackTitle: fallbackTitle)
+        }
+    }
+}
+
+private struct CalendarActionItem: Identifiable {
+    let id: String
+    let title: String
+    let detail: String?
+
+    init(index: Int, data: [String: Any], fallbackTitle: String) {
+        id = data.string("event_id") ?? "calendar-item-\(index)"
+        title = data.string("summary") ?? data.string("title") ?? data.string("event_id") ?? fallbackTitle
+        detail = data.string("start") ?? data.string("start_time") ?? data.string("status") ?? data.string("html_link")
+    }
+}
+
+private struct WeatherRainRadarEmbedRenderer: View {
+    let embed: EmbedRecord
+    let data: [String: AnyCodable]
+    let mode: EmbedDisplayMode
+
+    private var model: RainRadarValue { RainRadarValue(data: data) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            RainRadarPreview(model: model, status: embed.status)
+        case .fullscreen:
+            RainRadarFullscreen(model: model)
+        }
+    }
+}
+
+private struct RainRadarPreview: View {
+    let model: RainRadarValue
+    let status: EmbedStatus
+
+    var body: some View {
+        if status == .error {
+            Text(AppStrings.genericProcessingError)
+                .font(.omSmall)
+                .foregroundStyle(Color.error)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        } else if status == .processing {
+            Text(AppStrings.loading)
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: .spacing6) { radar; copy }
+                VStack(alignment: .leading, spacing: .spacing4) { radar; copy }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
+    }
+
+    private var radar: some View {
+        RainRadarMap(frame: model.previewFrame, compact: true)
+            .frame(minWidth: 120, maxWidth: .infinity, minHeight: 96)
+    }
+
+    private var copy: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(model.locationName ?? AppStrings.rainRadar)
+                .font(.omSmall.weight(.bold))
+                .foregroundStyle(Color.grey100)
+                .lineLimit(2)
+            Text(model.summaryInTenMinutes ?? AppStrings.rainRadarNoRain)
+                .font(.omXs)
+                .foregroundStyle(Color.grey70)
+                .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct RainRadarFullscreen: View {
+    let model: RainRadarValue
+
+    @State private var selectedIndex = 0
+    @State private var isPlaying = false
+    private let playbackTimer = Timer.publish(every: 0.85, on: .main, in: .common).autoconnect()
+
+    private var selectedFrame: RainRadarFrame? {
+        guard model.timeline.indices.contains(selectedIndex) else { return model.timeline.first }
+        return model.timeline[selectedIndex]
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: .spacing10) {
+                if model.isUnavailable {
+                    summaryCard(unavailable: true)
+                } else {
+                    radarStage
+                    summaryCard(unavailable: false)
+                    timelineCard
+                }
+            }
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing12)
+            .padding(.bottom, .spacing20 * 3)
+            .frame(maxWidth: 1040)
+            .frame(maxWidth: .infinity)
+        }
+        .onReceive(playbackTimer) { _ in
+            guard isPlaying, model.timeline.count > 1 else { return }
+            selectedIndex = (selectedIndex + 1) % model.timeline.count
+        }
+        .onAppear {
+            selectedIndex = model.previewIndex
+        }
+        .onChange(of: model.previewIndex) { _, previewIndex in
+            selectedIndex = previewIndex
+        }
+    }
+
+    private var radarStage: some View {
+        RainRadarMap(frame: selectedFrame, compact: false)
+            .frame(minHeight: 320)
+            .padding(.spacing6)
+            .background(Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1) }
+            .shadow(color: .black.opacity(0.10), radius: .spacing10, x: 0, y: .spacing4)
+    }
+
+    private func summaryCard(unavailable: Bool) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: .spacing10) {
+                summaryCopy(unavailable: unavailable)
+                Spacer(minLength: .spacing8)
+                metrics
+            }
+            VStack(alignment: .leading, spacing: .spacing8) {
+                summaryCopy(unavailable: unavailable)
+                metrics
+            }
+        }
+        .padding(.spacing10)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1) }
+        .shadow(color: .black.opacity(0.10), radius: .spacing10, x: 0, y: .spacing4)
+    }
+
+    private func summaryCopy(unavailable: Bool) -> some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            if let locationName = model.locationName {
+                Text(locationName).font(.omSmall).foregroundStyle(Color.grey70)
+            }
+            Text(model.summaryInTenMinutes ?? (unavailable ? AppStrings.rainRadarUnavailable : AppStrings.rainRadarNoRain))
+                .font(.omH1.weight(.bold))
+                .foregroundStyle(Color.grey100)
+            if let nextTwoHours = model.summaryNextTwoHours {
+                Text(nextTwoHours).font(.omSmall).foregroundStyle(Color.grey70)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var metrics: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            if let peakIntensity = model.peakIntensity {
+                Text("\(AppStrings.rainRadarPeak): \(peakIntensity)")
+            }
+            if let rain = selectedFrame?.rainAtLocation {
+                Text("\(AppStrings.rainRadarAtLocation): \(rain.formatted())")
+            }
+        }
+        .font(.omSmall)
+        .foregroundStyle(Color.grey70)
+    }
+
+    private var timelineCard: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            HStack(spacing: .spacing6) {
+                Button {
+                    isPlaying.toggle()
+                } label: {
+                    HStack(spacing: .spacing2) {
+                        Icon(isPlaying ? "pause" : "play", size: .iconSizeXs)
+                        Text(isPlaying ? AppStrings.rainRadarPause : AppStrings.rainRadarPlay)
+                    }
+                    .font(.omSmall.weight(.bold))
+                    .foregroundStyle(Color.grey100)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.vertical, .spacing4)
+                    .background(LinearGradient.appWeather.opacity(0.16))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+                Text(AppStrings.rainRadarFrameCount(model.timeline.count))
+                    .font(.omSmall)
+                    .foregroundStyle(Color.grey70)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: .spacing4) {
+                    ForEach(Array(model.timeline.enumerated()), id: \.element.id) { index, frame in
+                        Button {
+                            selectedIndex = index
+                            isPlaying = false
+                        } label: {
+                            VStack(alignment: .leading, spacing: .spacing1) {
+                                if let label = frame.label {
+                                    Text(label).lineLimit(1)
+                                }
+                                if let intensity = frame.maxIntensity {
+                                    Text(intensity).fontWeight(.bold).lineLimit(1)
+                                }
+                            }
+                            .font(.omXs)
+                            .foregroundStyle(index == selectedIndex ? Color.grey0 : Color.grey100)
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing4)
+                            .frame(minWidth: 76, alignment: .leading)
+                            .background {
+                                Capsule()
+                                    .fill(LinearGradient.appWeather)
+                                    .opacity(index == selectedIndex ? 1 : 0.16)
+                            }
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(.spacing8)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .overlay { RoundedRectangle(cornerRadius: .radius8).stroke(Color.grey20, lineWidth: 1) }
+        .shadow(color: .black.opacity(0.10), radius: .spacing10, x: 0, y: .spacing4)
+    }
+}
+
+private struct RainRadarMap: View {
+    let frame: RainRadarFrame?
+    let compact: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                LinearGradient.appWeather.opacity(0.18)
+                grid(size: geometry.size)
+                Capsule()
+                    .fill(LinearGradient.appWeather)
+                    .opacity(rainOpacity(base: 0.20, contribution: (frame?.rainAreaPercent ?? 0) / 100))
+                    .frame(width: geometry.size.width * 0.54, height: geometry.size.height * 0.48)
+                    .offset(x: -geometry.size.width * 0.12, y: -geometry.size.height * 0.10)
+                Capsule()
+                    .fill(LinearGradient.appWeather)
+                    .opacity(rainOpacity(base: 0.15, contribution: frame?.rainAtLocation ?? 0))
+                    .frame(width: geometry.size.width * 0.34, height: geometry.size.height * 0.34)
+                    .offset(x: geometry.size.width * 0.20, y: geometry.size.height * 0.18)
+                Circle()
+                    .fill(Color.grey100)
+                    .frame(width: compact ? 12 : 16, height: compact ? 12 : 16)
+                    .overlay(Circle().stroke(Color.grey0, lineWidth: compact ? 2 : 3))
+                    .shadow(color: .black.opacity(0.12), radius: compact ? 4 : 6)
+
+                if !compact, let frame {
+                    VStack(alignment: .trailing, spacing: .spacing1) {
+                        if let label = frame.label { Text(label) }
+                        if let timestamp = frame.formattedTimestamp { Text(timestamp).fontWeight(.bold) }
+                    }
+                    .font(.omXs)
+                    .foregroundStyle(Color.grey100)
+                    .padding(.spacing5)
+                    .background(Color.grey0.opacity(0.86))
+                    .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(.spacing8)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .overlay {
+            RoundedRectangle(cornerRadius: .radius8)
+                .stroke(Color.grey20, lineWidth: 1)
+        }
+    }
+
+    private func grid(size: CGSize) -> some View {
+        Canvas { context, _ in
+            let step: CGFloat = compact ? 18 : 28
+            var path = Path()
+            stride(from: CGFloat.zero, through: size.width, by: step).forEach {
+                path.move(to: CGPoint(x: $0, y: 0))
+                path.addLine(to: CGPoint(x: $0, y: size.height))
+            }
+            stride(from: CGFloat.zero, through: size.height, by: step).forEach {
+                path.move(to: CGPoint(x: 0, y: $0))
+                path.addLine(to: CGPoint(x: size.width, y: $0))
+            }
+            context.stroke(path, with: .color(Color.grey100.opacity(0.08)), lineWidth: 1)
+        }
+    }
+
+    private func rainOpacity(base: Double, contribution: Double) -> Double {
+        guard frame?.normalizedIntensity != "none" else { return 0.05 }
+        return min(compact ? 0.85 : 0.90, base + contribution)
+    }
+}
+
+private struct RainRadarValue {
+    let locationName: String?
+    let summaryInTenMinutes: String?
+    let summaryNextTwoHours: String?
+    let peakIntensity: String?
+    let previewFrameId: String?
+    let timeline: [RainRadarFrame]
+    let isUnavailable: Bool
+
+    init(data: [String: AnyCodable]) {
+        let location = data.dictionary("location")
+        let summary = data.dictionary("summary")
+        let coverage = data.dictionary("coverage")
+        locationName = location.string("name") ?? EmbedFieldReader.string(data, keys: ["location_name"])
+        summaryInTenMinutes = summary.string("in_10_min")
+        summaryNextTwoHours = summary.string("next_2_hours")
+        peakIntensity = summary.string("peak_intensity")
+        previewFrameId = summary.string("preview_frame_id")
+        timeline = EmbedFieldReader.dictionaryArray(data, key: "timeline").enumerated().map { index, frame in
+            RainRadarFrame(index: index, data: frame)
+        }
+        isUnavailable = coverage.string("status") == "unavailable"
+    }
+
+    var previewIndex: Int {
+        if let previewFrameId, let index = timeline.firstIndex(where: { $0.id == previewFrameId }) { return index }
+        if let index = timeline.firstIndex(where: { $0.kind == "forecast" }) { return index }
+        return 0
+    }
+
+    var previewFrame: RainRadarFrame? {
+        timeline.indices.contains(previewIndex) ? timeline[previewIndex] : timeline.first
+    }
+}
+
+private struct RainRadarFrame: Identifiable {
+    let id: String
+    let timestamp: String?
+    let kind: String?
+    let label: String?
+    let rainAtLocation: Double?
+    let maxIntensity: String?
+    let rainAreaPercent: Double?
+
+    init(index: Int, data: [String: Any]) {
+        id = data.string("frame_id") ?? "radar-frame-\(index)"
+        timestamp = data.string("timestamp")
+        kind = data.string("kind")
+        label = data.string("label")
+        rainAtLocation = data.double("rain_at_location_mm_5min")
+        maxIntensity = data.string("max_intensity")
+        rainAreaPercent = data.double("rain_area_pct")
+    }
+
+    var normalizedIntensity: String {
+        maxIntensity?.lowercased() ?? "none"
+    }
+
+    var formattedTimestamp: String? {
+        guard let timestamp else { return nil }
+        guard let date = ISO8601DateFormatter().date(from: timestamp) else { return timestamp }
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+}
+
 private struct FitnessSearchEmbedRenderer: View {
     let embed: EmbedRecord
     let data: [String: AnyCodable]?
@@ -877,14 +1385,39 @@ private struct FitnessSearchGroup {
     let results: [FitnessResultSummary]
 
     init(data: [String: AnyCodable]) {
-        let firstGroup = EmbedFieldReader.dictionaryArray(data, key: "results").first ?? [:]
-        provider = firstGroup.string("provider") ?? EmbedFieldReader.string(data, keys: ["provider"]) ?? "Urban Sports Club"
-        query = EmbedFieldReader.string(data, keys: ["query", "title"])
-        summary = firstGroup.string("summary")
-        error = firstGroup.string("error")
-        resultCount = firstGroup.int("result_count") ?? firstGroup.dictionaryArray("results").count
-        filters = firstGroup.dictionary("filters")
-        results = firstGroup.dictionaryArray("results").enumerated().map { index, item in
+        let rawResults = EmbedFieldReader.dictionaryArray(data, key: "results")
+        let firstGroup = rawResults.first ?? [:]
+        let hasGroupedResults = firstGroup["results"] is [Any]
+        let normalizedResults = hasGroupedResults
+            ? firstGroup.dictionaryArray("results")
+            : (rawResults.isEmpty ? EmbedFieldReader.dictionaryArray(data, key: "preview_results") : rawResults)
+        let explicitFilters = hasGroupedResults ? firstGroup.dictionary("filters") : data.dictionary("filters")
+        var fallbackFilters: [String: Any] = [:]
+        for (key, sourceKeys) in [
+            ("address", ["address", "location"]),
+            ("city", ["city"]),
+            ("radius_km", ["radius_km"]),
+            ("plan", ["plan"]),
+            ("attendance_mode", ["attendance_mode"])
+        ] {
+            if let value = EmbedFieldReader.string(data, keys: sourceKeys) {
+                fallbackFilters[key] = value
+            }
+        }
+
+        provider = (hasGroupedResults ? firstGroup.string("provider") : nil)
+            ?? EmbedFieldReader.string(data, keys: ["provider"])
+            ?? "Urban Sports Club"
+        query = EmbedFieldReader.string(data, keys: ["query", "location", "address", "city", "title"])
+        summary = (hasGroupedResults ? firstGroup.string("summary") : nil)
+            ?? EmbedFieldReader.string(data, keys: ["summary"])
+        error = (hasGroupedResults ? firstGroup.string("error") : nil)
+            ?? EmbedFieldReader.string(data, keys: ["error"])
+        resultCount = (hasGroupedResults ? firstGroup.int("result_count") : nil)
+            ?? EmbedFieldReader.int(data, keys: ["result_count"])
+            ?? normalizedResults.count
+        filters = explicitFilters.isEmpty ? fallbackFilters : explicitFilters
+        results = normalizedResults.enumerated().map { index, item in
             FitnessResultSummary(index: index, data: item)
         }
     }
@@ -958,6 +1491,13 @@ private extension Dictionary where Key == String, Value == Any {
         return nil
     }
 
+    func double(_ key: String) -> Double? {
+        if let value = self[key] as? Double { return value }
+        if let value = self[key] as? Int { return Double(value) }
+        if let value = self[key] as? String { return Double(value) }
+        return nil
+    }
+
     func dictionary(_ key: String) -> [String: Any] {
         if let value = self[key] as? [String: Any] { return value }
         if let value = self[key] as? [String: AnyCodable] { return value.mapValues(\.value) }
@@ -972,6 +1512,10 @@ private extension Dictionary where Key == String, Value == Any {
 
     func stringArray(_ key: String) -> [String]? {
         if let value = self[key] as? [String] { return value }
+        if let value = self[key] as? String {
+            let strings = value.split(separator: "|").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            return strings.isEmpty ? nil : strings
+        }
         if let value = self[key] as? [Any] {
             let strings = value.compactMap { $0 as? String }
             return strings.isEmpty ? nil : strings
@@ -988,6 +1532,39 @@ private extension Dictionary where Key == String, Value == Any {
     func chip(_ key: String, prefix: String = "", suffix: String = "") -> String? {
         guard let value = string(key), !value.isEmpty else { return nil }
         return "\(prefix)\(value)\(suffix)"
+    }
+}
+
+private extension Dictionary where Key == String, Value == AnyCodable {
+    func dictionary(_ key: String) -> [String: Any] {
+        if let value = self[key]?.value as? [String: Any] { return value }
+        if let value = self[key]?.value as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return [:]
+    }
+}
+
+private extension AppStrings {
+    static func calendarSkillTitle(_ skillId: String) -> String {
+        let key: String
+        switch skillId {
+        case "create-event": key = "app_skills.calendar.create_event"
+        case "update-event": key = "app_skills.calendar.update_event"
+        case "delete-event": key = "app_skills.calendar.delete_event"
+        default: key = "app_skills.calendar.get_events"
+        }
+        return LocalizationManager.shared.text(key)
+    }
+
+    static var rainRadar: String { LocalizationManager.shared.text("apps.weather.rain_radar") }
+    static var rainRadarNoRain: String { LocalizationManager.shared.text("embeds.weather.rain_radar.no_rain") }
+    static var rainRadarUnavailable: String { LocalizationManager.shared.text("embeds.weather.rain_radar.unavailable") }
+    static var rainRadarPeak: String { LocalizationManager.shared.text("embeds.weather.rain_radar.peak") }
+    static var rainRadarAtLocation: String { LocalizationManager.shared.text("embeds.weather.rain_radar.at_location") }
+    static var rainRadarPlay: String { LocalizationManager.shared.text("embeds.weather.rain_radar.play") }
+    static var rainRadarPause: String { LocalizationManager.shared.text("embeds.weather.rain_radar.pause") }
+
+    static func rainRadarFrameCount(_ count: Int) -> String {
+        "\(count) \(LocalizationManager.shared.text("embeds.weather.rain_radar.frames"))"
     }
 }
 
