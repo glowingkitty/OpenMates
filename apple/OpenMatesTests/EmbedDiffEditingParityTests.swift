@@ -7,6 +7,56 @@ import XCTest
 @testable import OpenMates
 
 final class EmbedDiffEditingParityTests: XCTestCase {
+    func testRelatedRecordsDeduplicateLatestPayloadWhilePreservingFirstSeenOrder() throws {
+        let parent = embed(
+            id: "parent",
+            type: "app-skill-use",
+            data: ["type": "app_skill_use"],
+            embedIds: "child-one|child-two"
+        )
+        let staleChild = embed(id: "child-one", type: "web-website", data: ["title": "Stale"])
+        let secondChild = embed(id: "child-two", type: "web-website", data: ["title": "Second"])
+        let currentChild = embed(id: "child-one", type: "web-website", data: ["title": "Current"])
+
+        let related = EmbedRecord.relatedRecords(
+            referencedIds: [parent.id],
+            from: [parent, staleChild, secondChild, currentChild],
+            context: "test.relatedRecords.deduplication"
+        )
+
+        XCTAssertEqual(related.map(\.id), ["parent", "child-one", "child-two"])
+        XCTAssertEqual(related[1].rawData?["title"]?.value as? String, "Current")
+    }
+
+    func testRelatedRecordsResolveParentAndChildrenFromEitherRelationshipDirection() throws {
+        let parent = embed(
+            id: "parent",
+            type: "app-skill-use",
+            data: ["type": "app_skill_use"],
+            embedIds: "declared-child"
+        )
+        let declaredChild = embed(id: "declared-child", type: "web-website")
+        let reverseLinkedChild = embed(
+            id: "reverse-child",
+            type: "web-website",
+            parentEmbedId: parent.id
+        )
+
+        let fromParent = EmbedRecord.relatedRecords(
+            referencedIds: [parent.id],
+            from: [parent, declaredChild, reverseLinkedChild],
+            context: "test.relatedRecords.fromParent"
+        )
+        let fromChild = EmbedRecord.relatedRecords(
+            referencedIds: [reverseLinkedChild.id],
+            from: [parent, declaredChild, reverseLinkedChild],
+            context: "test.relatedRecords.fromChild"
+        )
+
+        XCTAssertEqual(fromParent.map(\.id), ["parent", "declared-child", "reverse-child"])
+        XCTAssertEqual(fromChild.map(\.id), ["parent", "declared-child", "reverse-child"])
+    }
+
     func testEmbedRecordDecodesVersionMetadataFromWebPayload() throws {
         let json = """
         {
@@ -43,5 +93,25 @@ final class EmbedDiffEditingParityTests: XCTestCase {
 
         XCTAssertEqual(object?["embed_id"] as? String, "embed-1")
         XCTAssertEqual(object?["version_number"] as? Int, 1)
+    }
+
+    private func embed(
+        id: String,
+        type: String,
+        data: [String: Any] = [:],
+        parentEmbedId: String? = nil,
+        embedIds: String? = nil
+    ) -> EmbedRecord {
+        EmbedRecord(
+            id: id,
+            type: type,
+            status: .finished,
+            data: data.isEmpty ? nil : .raw(data.mapValues { AnyCodable($0) }),
+            parentEmbedId: parentEmbedId,
+            appId: nil,
+            skillId: nil,
+            embedIds: embedIds,
+            createdAt: nil
+        )
     }
 }

@@ -1,0 +1,951 @@
+schema_version: 2
+id: apple-chat-history-full-parity
+title: Apple Chat History And Embed Full Web Parity
+status: implementing
+
+goal: >
+  Make stable and restored chat history in the Apple app match the rendered web
+  product across iPhone, iPad, and macOS. Apple must preserve the web message
+  document's semantic order, identity, rich text, citations, media, app-skill
+  groups, system states, banner, layout, interactions, accessibility, and
+  composer clearance. Every embed type and app-skill variant registered by the
+  web app must have dedicated native preview and fullscreen rendering; known
+  web-supported types may not pass parity through a generic fallback.
+
+scope:
+  in:
+    - Stable, completed, loaded, restored, shared, public, example, and cold-boot Apple chat-history rendering.
+    - User, assistant, and system message roles plus sender name, mate category, model identity, thinking summary, PII display state, and message actions.
+    - A canonical native ordered render document for web-supported markdown, Tiptap semantic nodes, inline entities, mentions, source quotes, embed references, app-skill groups, and system content.
+    - Authoritative embed deduplication, parent-child relationship resolution, ownership, ordering, decryption state, and message association.
+    - Dedicated web and Apple preview and fullscreen rendering for every current product embed registry key and app-skill variant; a missing web baseline surface must be implemented before Apple parity can pass.
+    - A complete generated surface manifest covering registry entries, app-skill variants, showcase-only inline/quote replicas, grouped variants, status variants, platforms, and color schemes.
+    - Inline, compact, large, grouped, processing, finished, empty, unavailable, and error embed states where the web product exposes them.
+    - Sent audio recording preview and fullscreen behavior, including playback, duration normalization, transcript selection, model/status information, and unavailable states.
+    - Verified source quote rendering, source identity, fullscreen navigation, and quote highlighting.
+    - Chat banner/header states, mate profile identity, message bubble geometry, responsive transcript layout, composer and keyboard clearance, RTL behavior, Reduce Motion, and accessibility.
+    - Browser-computed contracts and paired web/native screenshots in light and dark modes for iPhone, iPad, and macOS-equivalent layouts.
+    - Deterministic registry, fixture, dispatch, identifier, fallback, artifact, and unresolved-visual-drift audits.
+  out:
+    - Active send, WebSocket event reduction, cancellation, and streaming lifecycle ownership already governed by `docs/specs/apple-chat-streaming-parity/spec.yml`, except the completed-turn handoff into stable history.
+    - Bounded history pagination and initial large-chat performance already governed by `docs/specs/apple-chat-opening-parity/spec.yml`, except preserving render-document and embed relationship integrity across loading.
+    - Composer editing semantics governed by `docs/specs/apple-tiptap-webview-composer/spec.yml` and native composer specs.
+    - watchOS chat-history parity.
+    - Replacing native chat history with a WebView.
+    - Rewriting the complete app shell or transcript in UIKit/AppKit without measured SwiftUI performance evidence.
+    - Exact screenshot pixel hashes as the visual completion authority.
+    - Backend provider calls or private user content in committed fixtures.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP authentication returned 401 during discovery.
+    - gh CLI fallback found no matching Apple chat-history/embed parity issue.
+    - User-reported dev issue LJ9D3 is the motivating report; private report data and identifiers are not committed in this spec.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/specs/apple-example-chat-visual-parity/spec.yml
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/messaging/message-previews-grouping.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - .claude/rules/apple-ui.md
+  code_patterns:
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - scripts/apple_ui_contracts.py
+    - scripts/apple_chat_parity_audit.py
+    - scripts/apple_parity_audit.py
+  tests:
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/source-quote-verification.spec.ts
+    - frontend/apps/web_app/tests/skill-videos-transcript.spec.ts
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+  verified_findings:
+    - Issue telemetry reached native embed loading with referenced composite parents, zero reachable children, and unresolvedComposite=true after successful sync.
+    - Native sync applied duplicate embed IDs before history rendering.
+    - Native app-skill cards are lifted above markdown and fixed to 300 by 200 points instead of preserving document position and container-driven variants.
+    - Native sent-audio preview omits transcript, model/status, correction state, and preview playback and only decodes numeric duration.
+    - Native markdown treats verified source quotes as ordinary blockquotes.
+    - Native Message lacks web sender-name and per-message category fields and official mate identity uses a chat-ID allowlist.
+    - The embed coverage audit currently reports missing web registry keys and fixtures; the chat parity audit currently reports identifier drift.
+    - Existing embed UI evidence proves gallery execution but has no completed paired agent visual-review evidence.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/*.swift
+    - apple/OpenMates/Sources/DevPreview/*.swift
+    - apple/OpenMatesTests/*.swift
+    - apple/OpenMatesUITests/*.swift
+  parity_expectations:
+    - Browser-rendered web DOM, computed CSS, content order, and interaction state are the final owned-product source of truth.
+    - Every current product embed key has web and native preview and fullscreen classification, renderer dispatch, fixture, and reviewed artifact pairs; no known key may be classified as preview-only, fullscreen-only, placeholder, web-only, or native-only at completion.
+    - Known web-supported message and embed types never rely on generic native fallback for completion.
+    - iPhone, iPad, and macOS satisfy equivalent semantic, responsive, accessible, light-mode, and dark-mode contracts.
+    - SwiftUI remains the default composition layer; UIKit/AppKit is limited to measured transcript or media performance hot paths.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - Remote OpenMates_iOS builds and targeted tests on iPhone and iPad simulators.
+    - Remote OpenMates_macOS build and native test/screenshot verification at narrow and wide window sizes.
+    - Paired web/native screenshot review for full chat history plus every embed preview/fullscreen registry entry.
+  intentional_native_differences:
+    - Native status bars, safe areas, text rasterization, scrolling physics, and OS-owned media or permission surfaces may differ when they do not obscure or materially alter OpenMates product UI.
+    - XCTest/XCUITest replaces Playwright for native interaction proof.
+    - SwiftData and native media frameworks may replace browser storage/media APIs while preserving the same visible and privacy contracts.
+
+clarification:
+  rounds:
+    - question: What should full parity mean for this implementation?
+      answer: Complete history surface, including all message, embed, banner, responsive, accessibility, and composer-clearance states.
+    - question: May known web-supported types use generic native fallback?
+      answer: No. Missing dedicated rendering blocks parity completion.
+    - question: May Apple reuse the web history renderer in a WebView?
+      answer: No. Chat history remains fully native.
+    - question: Which Apple targets block completion?
+      answer: iPhone, iPad, and macOS.
+    - question: Does complete embed parity include every web embed preview and fullscreen view?
+      answer: Yes. Every web embed type must be fully implemented in both native preview and fullscreen forms.
+  vision_summary: >
+    Apple chat history is a fully native product surface that must preserve the
+    semantic content, ordering, identity, interactions, layout, and visual design
+    of web across iPhone, iPad, and macOS. Completion requires dedicated preview
+    and fullscreen support for every current web embed type and app-skill variant,
+    with deterministic coverage gates and paired visual review rather than
+    generic fallback or source-only claims.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-11T14:05:50Z"
+    reason: The user explicitly approved the validated executable contract and requested implementation.
+  implementation_plan:
+    status: not_required
+    reason: >
+      The approved product contract already fixes the material architecture
+      decisions: fully native ordered render documents, complete web/native
+      preview/fullscreen surfaces, no known-type fallback, and all three Apple
+      targets.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep chat history fully native and introduce a canonical normalized native render document.
+    reason: The user selected fully native rendering and Apple rules require product UI parity through native OpenMates primitives.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Treat every current web embed preview and fullscreen registry entry as blocking native scope.
+    reason: The user explicitly requires complete preview and fullscreen implementation for all web embed types.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Generic fallback is permitted only for genuinely unknown future types and cannot satisfy known-type parity.
+    reason: Silent generic cards currently conceal missing product behavior.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Require iPhone, iPad, and macOS plus light and dark modes for completion.
+    reason: The user selected all shipping Apple chat-history targets.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Extend and consume existing embed/example-chat contract infrastructure instead of building a competing screenshot pipeline.
+    reason: Existing specs and scripts already define registry capture, artifact pairing, and agent review, but their completion gates are unfinished.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: This spec supersedes the placeholder, documented-exception, and web-only completion paths in `apple-embed-rendering-parity` for known product embed types.
+    reason: Full parity requires both web and Apple preview/fullscreen implementations; exceptions remain valid only for genuinely unknown future payloads or OS-owned inner media surfaces.
+    decided_at: "2026-07-11T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Treat the issue as a bubble-spacing or card-sizing defect.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    evidence: Issue telemetry and source inspection show unresolved composite embeds, missing semantic renderers, incomplete message metadata, and document-order divergence.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Treat isolated embed-gallery execution as proof of production chat-history parity.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    evidence: Existing evidence lacks production mixed-content ordering, message ownership, composer clearance, and completed paired visual review.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Allow known web embed types to pass through a generic native renderer.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    evidence: The user explicitly requires every web embed preview and fullscreen view to be fully implemented.
+
+handoff:
+  current_task_id: TASK-3
+  next_action: Add and run the red embed-graph normalization tests before changing production embed hydration.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/EmbedGraphNormalizationTests
+  expected_outcome: The new tests fail because current normalization does not expose ordered bidirectional relationship resolution and unresolved-known classification as one contract.
+  blocker: null
+  last_verified_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4
+
+scenarios:
+  - id: S-1
+    title: A restored mixed-content turn preserves web document order and identity
+    given:
+      - A completed chat contains a user audio message and an assistant response with mate identity, prose, inline entities, source quotes, and multiple app-skill groups.
+      - The chat is loaded from encrypted local persistence after a cold boot.
+    when:
+      - The same chat is opened on iPhone, iPad, and macOS.
+    then:
+      - Sender name, category, avatar, model identity, role, and message ownership match web.
+      - Rich text, citations, app-skill groups, and embeds appear in the same semantic order as web.
+      - No content is duplicated, reassigned to another message, lifted to the top of the message, or lost during restoration.
+
+  - id: S-2
+    title: Composite embeds hydrate once with authoritative relationships
+    given:
+      - A message references app-skill parent embeds whose children are represented through parent IDs, child ID lists, legacy aliases, or synchronized duplicate records.
+    when:
+      - Apple normalizes and hydrates the visible message's embed graph.
+    then:
+      - Duplicate IDs resolve deterministically without duplicate cards.
+      - Parent-child relationships resolve in both directions and preserve server/document order.
+      - Known unresolved composites display an explicit unavailable/error state and diagnostic category rather than an incorrect generic success card.
+
+  - id: S-3
+    title: Native rich history supports every web semantic message node
+    given:
+      - A completed web message contains supported headings, paragraphs, lists, tables, code, links, mentions, wiki entities, embed references, verified source quotes, and system content.
+    when:
+      - Apple creates and renders its cached native render document.
+    then:
+      - Every supported node retains its meaning, order, styling, interaction, and accessibility role.
+      - Verified source quotes resolve source identity and open the correct fullscreen source with quote highlighting.
+      - System content never receives assistant mate chrome.
+
+  - id: S-4
+    title: Sent audio matches web preview and fullscreen behavior
+    given:
+      - A finished sent recording has encrypted media metadata, duration as either a number or formatted string, original and corrected transcripts, model information, and status.
+    when:
+      - The recording appears in chat history and the user opens it fullscreen.
+    then:
+      - Preview shows the web-equivalent title, duration/status, transcript snippet, correction state, model information, and play/pause control.
+      - Fullscreen exposes playback and the complete selected transcript with explicit loading and unavailable states.
+      - Audio decryption failures are visible and privacy-safe rather than silently hidden.
+
+  - id: S-5
+    title: Every product embed has dedicated web and native preview and fullscreen rendering
+    given:
+      - A generated manifest inventories registry entries, app-skill variants, showcase-only inline and quote replicas, grouped variants, and processing, finished, empty, unavailable, and error states.
+    when:
+      - The registry coverage audit and Apple artifact tests run.
+    then:
+      - Every known product key maps to dedicated web and native preview dispatch, dedicated web and native fullscreen dispatch, native type normalization, synthetic fixtures, and reviewed artifact pairs.
+      - Inline, quote, grouped, status, platform, and color-scheme variants are represented explicitly in the manifest.
+      - Any known key routed to generic fallback, classified as placeholder or platform-only, missing either surface, missing a fixture, or missing review fails completion.
+
+  - id: S-6
+    title: Header, transcript, and composer match responsive web layout
+    given:
+      - Equivalent web and Apple chats expose loaded, loading, credits-error, shared, example, highlight, media, and signup banner states.
+      - The transcript contains short, long, and media-heavy messages.
+    when:
+      - The views render at compact, regular, split-view, narrow-window, wide-window, LTR, and RTL sizes.
+    then:
+      - Header content, bubble geometry, avatar layout, typography, colors, spacing, tails, embed sizing, and composer width match browser-computed contracts.
+      - The final message and all interactive content remain fully visible above the composer and keyboard.
+      - Container measurements, not size-class assumptions alone, select responsive variants.
+
+  - id: S-7
+    title: Chat history remains independently accessible and interactive
+    given:
+      - A message contains a clickable mate identity, links, source quotes, audio controls, app-skill cards, embeds, and message actions.
+    when:
+      - VoiceOver, keyboard navigation, pointer interaction, and XCUITest inspect the message.
+    then:
+      - Interactive children remain individually discoverable and operable.
+      - Accessibility identifiers align with equivalent web test IDs where the product concept is shared.
+      - Reduce Motion removes nonessential movement without hiding state or content.
+
+  - id: S-8
+    title: Paired visual evidence blocks material parity drift
+    given:
+      - Sanitized web contracts and native screenshots exist for the mixed-content history fixture and every embed surface.
+    when:
+      - Artifact pairing and agent visual review run for iPhone, iPad, and macOS in light and dark modes.
+    then:
+      - Every required pair is reviewed for content, hierarchy, clipping, geometry, typography, color, iconography, chrome, and interaction affordance.
+      - Missing or unreviewed artifacts and unresolved high or critical product differences fail verification.
+      - Platform-only differences are recorded separately and do not block unless they obscure product UI.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Stable and cold-boot-restored Apple messages preserve web sender identity, semantic block order, message ownership, and complete visible content without duplication.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-UNIT-RENDER-DOCUMENT, T-APPLE-HISTORY-UI]
+  - id: AC-2
+    scenario: S-2
+    text: Apple deterministically deduplicates embed records and resolves complete ordered parent-child graphs for current and legacy relationship representations.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-UNIT-EMBED-GRAPH]
+  - id: AC-3
+    scenario: S-3
+    text: Every web-supported semantic history node has a native semantic renderer and interaction contract, including verified source quotes and dedicated system messages.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WEB-HISTORY-CONTRACTS, T-APPLE-HISTORY-UI]
+  - id: AC-4
+    scenario: S-4
+    text: Sent audio preview and fullscreen match web content, playback, transcript, correction, model, duration, loading, and unavailable-state behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WEB-HISTORY-CONTRACTS, T-APPLE-AUDIO-UI]
+  - id: AC-5
+    scenario: S-5
+    text: Every current product embed, app-skill, inline, quote, grouped, and status variant has dedicated web and native preview/fullscreen implementation, fixtures, dispatch, and reviewed iPhone, iPad, and macOS light/dark evidence; missing surfaces and known generic fallback fail.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-EMBED-COVERAGE-AUDIT, T-WEB-EMBED-CONTRACTS, T-APPLE-EMBED-UI, T-APPLE-MACOS-HISTORY, V-AGENT-VISUAL-REVIEW]
+  - id: AC-6
+    scenario: S-6
+    text: Header, messages, embeds, and composer match browser-computed responsive contracts and keep final content clear of composer and keyboard across required layouts and directions.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WEB-HISTORY-CONTRACTS, T-APPLE-HISTORY-UI, T-APPLE-MACOS-HISTORY]
+  - id: AC-7
+    scenario: S-7
+    text: Interactive history content remains independently accessible, identifier-aligned, keyboard/pointer operable, and informative under Reduce Motion.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CHAT-PARITY-AUDIT, T-APPLE-HISTORY-UI, T-APPLE-MACOS-HISTORY]
+  - id: AC-8
+    scenario: S-8
+    text: Paired iPhone, iPad, and macOS light/dark artifacts receive agent review and no required pair or unresolved high/critical product drift remains.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [V-AGENT-VISUAL-REVIEW]
+
+assumptions:
+  - id: A-1
+    text: Existing encrypted message payloads or sync schemas expose sender name and per-message category metadata needed for native identity parity.
+    category: data_contract
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/types/chat.ts
+        summary: Web Message includes sender-name, category, model, and encrypted equivalents.
+      - source: backend/core/api/app/schemas/chat.py
+        summary: Existing message schemas already expose encrypted_sender_name, encrypted_category, and encrypted_model_name.
+      - source: apple/OpenMatesShared/BackgroundChatSender.swift
+        summary: Apple already sends encrypted sender/category metadata, so no production API change is required.
+  - id: A-2
+    text: The generated web embed registry, app-skill dispatch, and showcase manifest together can form the complete current product embed surface inventory.
+    category: coverage
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/data/embedRegistry.generated.ts
+        summary: Generated registry is the canonical preview/fullscreen component inventory.
+      - source: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+        summary: App-skill parent and child variants add semantic dispatch requirements.
+      - source: frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+        summary: Showcase-only inline, quote, grouped, and status variants must join the generated manifest.
+  - id: A-3
+    text: The existing Apple UI contract pipeline can be extended to full history and macOS without introducing private runtime data into fixtures.
+    category: testing
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: scripts/apple_ui_contracts.py
+        summary: Existing validation and audit paths already sanitize and classify web/native contract artifacts.
+
+contracts:
+  api:
+    - No production API change is approved by this spec.
+    - If native identity or embed relationship fields are absent from existing encrypted sync payloads, implementation must stop and amend the approved contract before adding or changing an API.
+  data:
+    - Native Message represents decrypted and encrypted sender name, per-message category, model identity, role, content, thinking, PII mappings, and ordered embed references required by web history.
+    - A cached message-scoped render document represents ordered semantic blocks and is built outside frequently evaluated SwiftUI body paths.
+    - Embed normalization produces one record per ID, canonical type/app/skill identifiers, ordered parent-child relationships, explicit decryption state, explicit unsupported state, and stable message ownership.
+    - Known web registry keys carry explicit preview and fullscreen support classifications; generic fallback is reserved for unknown future keys.
+    - A generated embed-surface manifest records product key, registry or showcase source, app/skill variant, preview/fullscreen dispatch, inline/grouped variants, status variants, native renderer, fixture IDs, platform/theme artifacts, and review status.
+    - A generated semantic-node manifest records every registered read-only Tiptap extension and supported markdown block with web renderer, native renderer, interaction contract, fixture, and artifact coverage.
+    - Committed fixtures use only synthetic public content and placeholder identifiers.
+  ui_states:
+    - User, assistant, and system messages.
+    - Loading, stable, restored, truncated, error, and unavailable history content.
+    - Mate identity, official identity, generated-by, thinking, PII revealed/hidden, and message actions.
+    - Rich text, code, tables, mentions, wiki entities, links, source quotes, app-skill groups, and embed groups.
+    - Every registered embed preview and fullscreen processing, finished, empty, and error variant exposed by web fixtures.
+    - Chat banner loading, loaded, credits error, shared, example, highlights, media, signup, and incognito states.
+    - iPhone compact, iPad regular/split-view, macOS narrow/wide, light/dark, LTR/RTL, keyboard shown, and Reduce Motion.
+  privacy_security:
+    - Message plaintext, transcripts, encryption keys, media keys/nonces, credentials, private chat IDs, private emails, and private screenshots never enter committed contracts or diagnostics.
+    - Native diagnostics report counts, sanitized type categories, unresolved relationship counts, and durations only.
+    - Audio and embed decryption remains local and explicit failures are user-visible without exposing cryptographic details.
+    - Visual fixtures and screenshots use synthetic public content only.
+
+tests:
+  - id: T-WEB-HISTORY-CONTRACTS
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts
+    command: python3 scripts/tests.py run --spec apple-chat-history-contracts.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-3, AC-4, AC-6]
+    assertions:
+      - Captures mixed-content history DOM order, visible text, test IDs, computed styles, bounds, interaction states, and screenshots at required web viewports and color schemes.
+      - Includes user audio, mate identity, semantic rich text, source quotes, app-skill groups, header variants, and composer clearance.
+      - Captures shared, public, example, and restored history states plus LTR and RTL layout at the required viewports.
+      - Writes only sanitized synthetic contract artifacts.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+        target: app.dev.openmates.org
+        deployment_ref: ""
+
+  - id: T-WEB-EMBED-CONTRACTS
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    command: python3 scripts/tests.py run --spec apple-embed-rendering-contracts.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-5]
+    assertions:
+      - Captures dedicated preview, fullscreen, grouped, inline, quote, and status variants for every current product registry, app-skill, and showcase key.
+      - Fails when a known product type lacks either a web preview or web fullscreen implementation, rendered fixture, or artifact.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+        target: app.dev.openmates.org
+        deployment_ref: ""
+
+  - id: T-APPLE-UNIT-RENDER-DOCUMENT
+    type: unit
+    file: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatHistoryRenderDocumentTests
+    covers: [AC-1]
+    assertions:
+      - Preserves ordered semantic blocks, sender identity, system roles, message ownership, and cold-boot decoding.
+      - Does not parse or normalize the same stable document repeatedly during view rendering.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-APPLE-UNIT-EMBED-GRAPH
+    type: unit
+    file: apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/EmbedDiffEditingParityTests
+    covers: [AC-2]
+    assertions:
+      - Deduplicates current and legacy records deterministically.
+      - Resolves parent and child links bidirectionally while preserving order and message ownership.
+      - Classifies unresolved known composites explicitly.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-EMBED-COVERAGE-AUDIT
+    type: lint
+    file: scripts/apple_ui_contracts.py
+    command: python3 scripts/apple_ui_contracts.py audit --surface embeds
+    covers: [AC-5]
+    assertions:
+      - Every registry, app-skill, and showcase-only key has web/native preview and fullscreen dispatch, native type normalization, inline/group/status classification, fixtures, platform/theme artifacts, and review classification.
+      - Missing web baseline surfaces, documented placeholders, web-only/native-only classifications, and any known type reaching generic fallback fail.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 scripts/apple_ui_contracts.py audit --surface embeds", run_id: "local-session-2568", subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4, timestamp: "2026-07-11T00:00:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-CHAT-PARITY-AUDIT
+    type: lint
+    file: scripts/apple_chat_parity_audit.py
+    command: python3 scripts/apple_chat_parity_audit.py --surface chat-flow
+    covers: [AC-7]
+    assertions:
+      - Shared web test IDs have matching native accessibility identifiers.
+      - Forbidden native controls, known message fallback paths, and stale chat-history mappings fail.
+      - Every registered read-only Tiptap extension and supported markdown block appears in the semantic-node manifest with web/native renderers and fixtures.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 scripts/apple_chat_parity_audit.py --surface chat-flow", run_id: "local-session-2568", subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4, timestamp: "2026-07-11T00:00:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-APPLE-HISTORY-UI
+    type: manual
+    file: apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatHistoryFullParityUITests
+    covers: [AC-1, AC-3, AC-6, AC-7]
+    assertions:
+      - Renders the mixed-content fixture on iPhone and iPad in light and dark modes.
+      - Verifies shared, public, example, restored, LTR, and RTL visible ordered content, independent interactions, responsive states, and composer/keyboard clearance.
+      - Exports sanitized screenshot artifacts.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-APPLE-AUDIO-UI
+    type: manual
+    file: apple/OpenMatesUITests/ChatHistoryAudioParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatHistoryAudioParityUITests
+    covers: [AC-4]
+    assertions:
+      - Preview and fullscreen expose expected transcript, duration, correction, model/status, playback, loading, and unavailable states.
+      - Playback controls are visibly reachable and clickable.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-APPLE-EMBED-UI
+    type: manual
+    file: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/EmbedRenderingParityUITests
+    covers: [AC-5]
+    assertions:
+      - Every required registry, app-skill, inline, quote, group, and status key renders dedicated preview and fullscreen content on iPhone and iPad in light and dark modes.
+      - Known generic fallback, missing visible fixture content, missing identifiers, or missing screenshots fail.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-APPLE-MACOS-HISTORY
+    type: manual
+    file: apple/OpenMatesUITests/ChatHistoryMacParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/ChatHistoryMacParityUITests
+    covers: [AC-5, AC-6, AC-7]
+    assertions:
+      - Mixed-content history and every required embed preview/fullscreen surface render at narrow and wide macOS window sizes in light and dark modes.
+      - Keyboard, pointer, scrolling, fullscreen, and composer clearance remain operable.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+verifications:
+  - id: V-AGENT-VISUAL-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-5, AC-8]
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+    requirements:
+      - Pair every required web/native chat-history and embed preview/fullscreen artifact by source commit, registry/app-skill/showcase key, surface, inline/group/status variant, device class, and color scheme.
+      - Record severity and likely source for every material difference.
+      - Fail while any pair is missing or unreviewed or any high/critical product drift remains unresolved.
+
+implementation_plan:
+  spec_path: docs/specs/apple-chat-history-full-parity/spec.yml
+  existing_patterns:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/specs/apple-example-chat-visual-parity/spec.yml
+    - scripts/apple_ui_contracts.py
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+  architecture: >
+    Add two narrow normalization seams rather than replacing the transcript. A
+    message-scoped `ChatHistoryRenderDocument` converts decrypted stable content
+    into ordered native blocks before SwiftUI rendering. An `EmbedGraph` consumes
+    deduplicated authoritative records, canonicalizes aliases, resolves ordered
+    parent-child relationships in both directions, and exposes explicit known,
+    unsupported, and unresolved states. Existing OpenMates SwiftUI primitives,
+    `EmbedPreviewCard`, `EmbedFullscreenView`, and per-family renderers consume
+    these models. The generated web registry plus app-skill/showcase manifest is
+    the coverage source; deterministic audits reject missing web/native preview
+    or fullscreen dispatch and known generic fallback.
+  data_flow:
+    - Sync decodes encrypted message identity fields and embed records without plaintext logging.
+    - Message metadata decrypts with the chat key and persists encrypted plus decrypted-at-runtime identity fields through `PersistedMessage`.
+    - "`EmbedGraph` deduplicates by stable ID, resolves relationship aliases, preserves declared/document order, and reports unresolved known composites."
+    - "`ChatHistoryRenderDocument` parses one stable message into ordered semantic blocks that reference normalized embed graph nodes."
+    - "`MessageBubble` renders blocks in order and delegates embed preview/fullscreen content to dedicated family renderers."
+    - Web contract capture emits semantic-node and embed-surface manifests; Apple fixtures consume equivalent synthetic data.
+    - iPhone, iPad, and macOS tests export light/dark artifacts that are paired and reviewed before completion.
+  boundaries:
+    - Active streaming reduction remains in `apple-chat-streaming-parity`; this spec begins when a turn becomes stable or restored.
+    - Large-chat pagination remains in `apple-chat-opening-parity`; loaded windows must preserve render-document and embed-graph integrity.
+    - No production API change is planned because encrypted identity fields already exist in shared schemas and Apple send payloads.
+    - UIKit/AppKit transcript virtualization requires measured jank and a spec decision amendment; it is not part of the first slices.
+  affected_files:
+    - path: apple/OpenMates/Sources/Core/Models/ChatModels.swift
+      reason: Native message identity and render-document inputs.
+    - path: apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      reason: Canonical embed graph normalization and registry coverage.
+    - path: apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      reason: Persist encrypted message identity fields needed after cold boot.
+    - path: apple/OpenMates/Sources/Shared/Components/ChatHistoryRenderDocument.swift
+      reason: Cached ordered semantic history model shared by transcript renderers.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      reason: Ordered message rendering, identity, layout, accessibility, and clearance.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/*.swift
+      reason: Complete dedicated preview and fullscreen renderer parity.
+    - path: scripts/apple_ui_contracts.py
+      reason: Blocking complete-registry and visual artifact gates.
+    - path: frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts
+      reason: Browser-rendered mixed-content and semantic-node source contracts.
+    - path: apple/OpenMatesTests/EmbedGraphNormalizationTests.swift
+      reason: Red/green relationship, deduplication, ordering, and unresolved-state contracts.
+    - path: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+      reason: Red/green ordered message semantics and identity contracts.
+  migration_rollout:
+    - SwiftData optional message identity fields are additive; existing persisted rows remain readable and derive conservative identity only when historical ciphertext is absent.
+    - No plaintext backfill is allowed. Synced ciphertext populates fields on later refresh; legacy records without metadata remain explicit unknown identity rather than silently using an unrelated chat category.
+    - Renderer families may deploy incrementally, but the all-registry completion gate remains red until every required surface is implemented and reviewed.
+  observability:
+    - Extend NativeSyncPerfLog with counts only for duplicate IDs, unresolved known composites, normalized nodes, and renderer classification; never log content or keys.
+    - Deterministic audits print missing product keys and exact missing preview/fullscreen/fixture/platform/theme dimensions.
+  first_slice:
+    - Add embed-graph tests and normalization for the LJ9D3 duplicate/unresolved composite failure.
+    - Preserve current rendering while switching hydration and app-skill child lookup to the normalized graph.
+    - Prove no duplicate cards, bidirectional child discovery, stable ordering, and explicit unresolved-known classification before broader renderer changes.
+  verification_strategy:
+    - Run red tests before production implementation in contract order.
+    - Verify deterministic and native unit contracts before UI artifact runs.
+    - Deploy web contract changes before Playwright green evidence.
+    - Run iPhone, iPad, then macOS native evidence and paired visual review.
+    - Run python3 scripts/spec_verify.py docs/specs/apple-chat-history-full-parity/spec.yml before completion.
+  verification_order:
+    - Deterministic registry and chat audits.
+    - Native render-document and embed-graph unit tests.
+    - Web Playwright contract capture after deployment.
+    - iPhone and iPad UI and screenshot tests.
+    - macOS UI and screenshot tests.
+    - Paired agent visual review.
+
+tasks:
+  - id: TASK-1
+    title: Approve and technically plan the full parity contract
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    expected_files: [docs/specs/apple-chat-history-full-parity/spec.yml]
+    verification: [T-CHAT-PARITY-AUDIT]
+    verification_ids: [T-CHAT-PARITY-AUDIT]
+    dependencies: []
+    ownership:
+      files: [docs/specs/apple-chat-history-full-parity/spec.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: true
+  - id: TASK-2
+    title: Generate implementation slices and red-phase test ownership
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    expected_files: [docs/specs/apple-chat-history-full-parity/spec.yml]
+    verification: [T-WEB-HISTORY-CONTRACTS, T-WEB-EMBED-CONTRACTS, T-APPLE-UNIT-RENDER-DOCUMENT, T-APPLE-UNIT-EMBED-GRAPH, T-EMBED-COVERAGE-AUDIT, T-CHAT-PARITY-AUDIT, T-APPLE-HISTORY-UI, T-APPLE-AUDIO-UI, T-APPLE-EMBED-UI, T-APPLE-MACOS-HISTORY, V-AGENT-VISUAL-REVIEW]
+    verification_ids: [T-WEB-HISTORY-CONTRACTS, T-WEB-EMBED-CONTRACTS, T-APPLE-UNIT-RENDER-DOCUMENT, T-APPLE-UNIT-EMBED-GRAPH, T-EMBED-COVERAGE-AUDIT, T-CHAT-PARITY-AUDIT, T-APPLE-HISTORY-UI, T-APPLE-AUDIO-UI, T-APPLE-EMBED-UI, T-APPLE-MACOS-HISTORY, V-AGENT-VISUAL-REVIEW]
+    dependencies: [TASK-1]
+    ownership:
+      files: [docs/specs/apple-chat-history-full-parity/spec.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9, TASK-10]
+    independently_deployable: true
+  - id: TASK-3
+    title: Normalize authoritative embed graphs for restored messages
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    expected_files:
+      - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    verification: [T-APPLE-UNIT-EMBED-GRAPH]
+    verification_ids: [T-APPLE-UNIT-EMBED-GRAPH]
+    dependencies: [TASK-2]
+    ownership:
+      files: [apple/OpenMates/Sources/Core/Models/EmbedModels.swift, apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift, apple/OpenMatesTests/EmbedDiffEditingParityTests.swift]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: true
+  - id: TASK-4
+    title: Preserve message identity and ordered render documents across cold boot
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3]
+      acceptance_criteria: [AC-1, AC-3]
+    expected_files:
+      - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+      - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      - apple/OpenMates/Sources/Shared/Components/ChatHistoryRenderDocument.swift
+      - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    verification: [T-APPLE-UNIT-RENDER-DOCUMENT]
+    verification_ids: [T-APPLE-UNIT-RENDER-DOCUMENT]
+    dependencies: [TASK-3]
+    ownership:
+      files: [apple/OpenMates/Sources/Core/Models/ChatModels.swift, apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift, apple/OpenMates/Sources/Shared/Components/ChatHistoryRenderDocument.swift, apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: true
+  - id: TASK-5
+    title: Render source quotes, system messages, and sent audio semantically
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-4]
+      acceptance_criteria: [AC-3, AC-4]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+      - apple/OpenMatesUITests/ChatHistoryAudioParityUITests.swift
+    verification: [T-APPLE-UNIT-RENDER-DOCUMENT, T-APPLE-AUDIO-UI]
+    verification_ids: [T-APPLE-UNIT-RENDER-DOCUMENT, T-APPLE-AUDIO-UI]
+    dependencies: [TASK-4]
+    ownership:
+      files: [apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift, apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift, apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift, apple/OpenMatesUITests/ChatHistoryAudioParityUITests.swift]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: true
+  - id: TASK-6
+    title: Generate complete semantic-node and embed-surface coverage manifests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-5]
+      acceptance_criteria: [AC-3, AC-5]
+    expected_files:
+      - scripts/apple_ui_contracts.py
+      - scripts/apple_chat_parity_audit.py
+      - backend/tests/test_apple_ui_contracts.py
+      - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts
+      - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    verification: [T-CHAT-PARITY-AUDIT, T-EMBED-COVERAGE-AUDIT, T-WEB-HISTORY-CONTRACTS, T-WEB-EMBED-CONTRACTS]
+    verification_ids: [T-CHAT-PARITY-AUDIT, T-EMBED-COVERAGE-AUDIT, T-WEB-HISTORY-CONTRACTS, T-WEB-EMBED-CONTRACTS]
+    dependencies: [TASK-2]
+    ownership:
+      files: [scripts/apple_ui_contracts.py, scripts/apple_chat_parity_audit.py, backend/tests/test_apple_ui_contracts.py, frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts, frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    independently_deployable: true
+  - id: TASK-7
+    title: Implement all missing web and native embed preview renderers
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-5]
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/**/*.svelte
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/*.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    verification: [T-EMBED-COVERAGE-AUDIT, T-WEB-EMBED-CONTRACTS, T-APPLE-EMBED-UI]
+    verification_ids: [T-EMBED-COVERAGE-AUDIT, T-WEB-EMBED-CONTRACTS, T-APPLE-EMBED-UI]
+    dependencies: [TASK-6]
+    ownership:
+      files: [frontend/packages/ui/src/components/embeds, apple/OpenMates/Sources/Features/Embeds/Renderers, apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift, apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    independently_deployable: false
+  - id: TASK-8
+    title: Implement all missing web and native embed fullscreen renderers
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-5]
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/**/*.svelte
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/*.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+      - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    verification: [T-EMBED-COVERAGE-AUDIT, T-WEB-EMBED-CONTRACTS, T-APPLE-EMBED-UI, T-APPLE-MACOS-HISTORY]
+    verification_ids: [T-EMBED-COVERAGE-AUDIT, T-WEB-EMBED-CONTRACTS, T-APPLE-EMBED-UI, T-APPLE-MACOS-HISTORY]
+    dependencies: [TASK-7]
+    ownership:
+      files: [frontend/packages/ui/src/components/embeds, apple/OpenMates/Sources/Features/Embeds/Renderers, apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift, apple/OpenMatesUITests/EmbedRenderingParityUITests.swift]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-9]
+    independently_deployable: false
+  - id: TASK-9
+    title: Match history banner, responsive layout, accessibility, and clearance
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-6, S-7]
+      acceptance_criteria: [AC-6, AC-7]
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift
+      - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift
+      - apple/OpenMatesUITests/ChatHistoryMacParityUITests.swift
+    verification: [T-CHAT-PARITY-AUDIT, T-APPLE-HISTORY-UI, T-APPLE-MACOS-HISTORY]
+    verification_ids: [T-CHAT-PARITY-AUDIT, T-APPLE-HISTORY-UI, T-APPLE-MACOS-HISTORY]
+    dependencies: [TASK-5, TASK-8]
+    ownership:
+      files: [apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift, apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift, apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift, apple/OpenMatesUITests/ChatHistoryMacParityUITests.swift]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-10]
+    independently_deployable: false
+  - id: TASK-10
+    title: Pair and review all required visual artifacts
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-8]
+      acceptance_criteria: [AC-8]
+    expected_files:
+      - docs/specs/apple-chat-history-full-parity/spec.yml
+      - test-results/apple-ui-contracts
+    verification: [V-AGENT-VISUAL-REVIEW]
+    verification_ids: [V-AGENT-VISUAL-REVIEW]
+    dependencies: [TASK-9]
+    ownership:
+      files: [docs/specs/apple-chat-history-full-parity/spec.yml]
+      shared_files: [test-results/apple-ui-contracts]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - The native message payload may not currently expose all encrypted identity fields used by web; this must be confirmed before implementation and may require a separately approved API amendment.
+  - The web registry, app-skill dispatcher, stored legacy types, and native enum use different aliases; raw-string equality would create false coverage or missing coverage.
+  - Complete registry parity is large and must be delivered in independently verified renderer families without weakening the final all-registry gate.
+  - A bespoke native rich-text parser can drift from Tiptap semantics; normalization fixtures must cover supported node structure rather than visual strings alone.
+  - Screenshot runs across three platforms and two color schemes can become slow; tests may shard while preserving one complete manifest and final review gate.
+  - Concurrent Apple sessions are modifying adjacent files; task ownership and fresh reads are required before each implementation slice.
+  - SwiftUI transcript performance may degrade with rich blocks; profiling must precede any focused UIKit/AppKit virtualization change.
+
+open_questions:
+  - none
