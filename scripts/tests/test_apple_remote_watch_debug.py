@@ -58,7 +58,9 @@ def test_watch_startup_verifier_builds_installs_launches_and_collects_evidence()
     assert '"xcrun", "simctl", "launch"' in command
     assert "org.openmates.app.watch" in command
     assert '"xcrun", "simctl", "spawn"' in command
-    assert '"launchctl", "print"' in command
+    assert '"launchctl", "procinfo", pid' in command
+    assert '"pgrep"' not in command
+    assert 'f"system/{bundle_id}"' not in command
     assert "DiagnosticReports" in command
     assert "screenshot_5s" in command
     assert "screenshot_30s" in command

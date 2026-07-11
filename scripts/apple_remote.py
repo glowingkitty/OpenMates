@@ -367,6 +367,9 @@ try:
             pid = token
     if pid:
         print(f"launch_pid={pid}")
+    else:
+        print("startup_status=missing_launch_pid")
+        sys.exit(5)
 
     screenshot_points = {5: "screenshot_5s", 30: "screenshot_30s"}
     deadline = time.monotonic() + duration
@@ -386,19 +389,18 @@ try:
                 print(f"{label}={'passed' if shot.returncode == 0 else 'failed'}")
                 captured.add(point)
 
-        launchctl = subprocess.run(
-            ["xcrun", "simctl", "spawn", simulator, "launchctl", "print", f"system/{bundle_id}"],
+        procinfo = subprocess.run(
+            ["xcrun", "simctl", "spawn", simulator, "launchctl", "procinfo", pid],
             capture_output=True,
             text=True,
             timeout=30,
         )
-        pgrep = subprocess.run(
-            ["xcrun", "simctl", "spawn", simulator, "pgrep", "-f", bundle_id],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if launchctl.returncode != 0 and pgrep.returncode != 0:
+        procinfo_text = procinfo.stdout + procinfo.stderr
+        if (
+            procinfo.returncode != 0
+            or "No such process" in procinfo_text
+            or "not managed by launchd" in procinfo_text
+        ):
             status = "process_exited"
             break
 
