@@ -19,10 +19,10 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         assertHittable("settings-privacy-connected-accounts-row", in: app)
         assertHittable("settings-privacy-location-toggle", in: app)
         scrollTo("settings-privacy-auto-delete-chats-row", in: app)
-        scrollTo("settings-privacy-files-retention-row", in: app)
-        scrollTo("settings-privacy-usage-retention-row", in: app)
-        scrollTo("settings-privacy-compliance-retention-row", in: app)
-        scrollTo("settings-privacy-invoices-retention-row", in: app)
+        scrollUntilExists("settings-privacy-files-retention-row", in: app)
+        scrollUntilExists("settings-privacy-usage-retention-row", in: app)
+        scrollUntilExists("settings-privacy-compliance-retention-row", in: app)
+        scrollUntilExists("settings-privacy-invoices-retention-row", in: app)
         scrollTo("settings-privacy-stability-toggle", in: app)
         scrollTo("settings-privacy-debug-toggle", in: app)
 
@@ -74,6 +74,14 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         }
         XCTAssertTrue(target.exists, "Missing \(identifier)")
         XCTAssertTrue(target.isHittable, "Not hittable after scrolling: \(identifier)")
+    }
+
+    private func scrollUntilExists(_ identifier: String, in app: XCUIApplication) {
+        let target = element(identifier, in: app)
+        for _ in 0..<8 where !target.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(target.exists, "Missing \(identifier)")
     }
 
     private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {

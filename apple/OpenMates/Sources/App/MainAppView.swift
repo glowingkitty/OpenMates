@@ -5867,8 +5867,7 @@ private struct WelcomeResumeCard: View {
         TimelineView(.animation) { timeline in
             let time = timeline.date.timeIntervalSinceReferenceDate
 
-            Button(action: onTap) {
-                ZStack {
+            ZStack {
                     AnimatedCategoryBackground(category: card.category, iconName: card.iconName, time: time)
 
                     VStack(spacing: .spacing2) {
@@ -5902,15 +5901,24 @@ private struct WelcomeResumeCard: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                             .padding(.spacing4)
                     }
-                }
-                .frame(width: width, height: height)
-                .clipShape(RoundedRectangle(cornerRadius: 30))
-                .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
-                .contentShape(RoundedRectangle(cornerRadius: 30))
-                .onLongPressGesture(perform: onLongPress)
             }
-            .buttonStyle(.plain)
+            .frame(width: width, height: height)
+            .clipShape(RoundedRectangle(cornerRadius: 30))
+            .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
+            .contentShape(RoundedRectangle(cornerRadius: 30))
+            .gesture(
+                LongPressGesture(minimumDuration: 0.6)
+                    .exclusively(before: TapGesture())
+                    .onEnded { result in
+                        switch result {
+                        case .first(true): onLongPress()
+                        case .first(false): break
+                        case .second: onTap()
+                        }
+                    }
+            )
             .accessibilityIdentifier("welcome-chat-card-\(card.id)")
+            .accessibilityAddTraits(.isButton)
             .help(Text(card.title))
             .accessibilityLabel(card.title)
         }
@@ -5924,8 +5932,7 @@ private struct WelcomeResumeCompactCard: View {
     let onLongPress: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: .spacing6) {
+        HStack(spacing: .spacing6) {
                 WelcomeCardIcon(name: card.iconName, size: 18)
                     .frame(width: 18, height: 18)
 
@@ -5945,23 +5952,32 @@ private struct WelcomeResumeCompactCard: View {
                 LucideNativeIcon("chevron-right", size: 16)
                     .foregroundStyle(.white.opacity(0.88))
                     .frame(width: 16, height: 16)
-            }
-            .padding(.horizontal, .spacing8)
-            .padding(.vertical, .spacing5)
-            .frame(width: width)
-            .frame(minHeight: 44)
-            .background(CategoryMapping.gradient(for: card.category))
-            .clipShape(RoundedRectangle(cornerRadius: .radius8))
-            .overlay(
-                RoundedRectangle(cornerRadius: .radius8)
-                    .stroke(.white.opacity(0.14), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
-            .contentShape(RoundedRectangle(cornerRadius: .radius8))
-            .onLongPressGesture(perform: onLongPress)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, .spacing8)
+        .padding(.vertical, .spacing5)
+        .frame(width: width)
+        .frame(minHeight: 44)
+        .background(CategoryMapping.gradient(for: card.category))
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius8)
+                .stroke(.white.opacity(0.14), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
+        .contentShape(RoundedRectangle(cornerRadius: .radius8))
+        .gesture(
+            LongPressGesture(minimumDuration: 0.6)
+                .exclusively(before: TapGesture())
+                .onEnded { result in
+                    switch result {
+                    case .first(true): onLongPress()
+                    case .first(false): break
+                    case .second: onTap()
+                    }
+                }
+        )
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
+        .accessibilityAddTraits(.isButton)
         .help(Text(card.title))
         .accessibilityLabel(card.title)
     }
