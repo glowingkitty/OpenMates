@@ -79,7 +79,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: d58919d4e
+  subject_commit: e270cb7f0
 
 approvals:
   product_contract:
@@ -117,12 +117,14 @@ attempts:
     reason: The production backend has no matching session-authenticated route, so physical Watch displays offline with an empty cache.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Write and run the backend authenticated chat-read contract red.
-  command: python3 -m pytest backend/tests/test_native_chats_api.py
-  expected_outcome: The test fails because the session-authenticated /v1/chats routes do not exist.
-  blocker: null
-  last_verified_commit: d58919d4e
+  current_task_id: TASK-5
+  next_action: Promote the backend route to the environment used by the physical Watch, then upload and validate the TestFlight candidate.
+  command: python3 scripts/apple_remote.py upload-testflight-watch
+  expected_outcome: A physical Watch preserves login, loads recent chats, and opens an owned chat against the matching backend deployment.
+  blocker:
+    reason: The physical Watch is paired to production, while the new session-authenticated chat route is currently deployed only from dev.
+    next_action: Release the backend route to production or pair a test Watch to the dev server before hardware validation.
+  last_verified_commit: e270cb7f0
 
 scenarios:
   - id: S-1
@@ -285,11 +287,21 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: .venv/bin/python3 -m pytest backend/tests/test_native_chats_api.py
+        run_id: local-pytest-missing-native-chats-router
+        subject_commit: 52b5ae0
+        timestamp: "2026-07-11T22:05:00Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: .venv/bin/python3 -m pytest backend/tests/test_native_chats_api.py
+        run_id: local-pytest-native-chats-4-passed
+        subject_commit: e270cb7f0
+        timestamp: "2026-07-11T22:41:00Z"
 
   - id: T-APPLE-001
     type: unit
@@ -303,11 +315,21 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchChatRuntimeTests
+        run_id: remote-watch-chat-hidden-contract-red
+        subject_commit: 1730ebd
+        timestamp: "2026-07-11T22:25:00Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchChatRuntimeTests
+        run_id: remote-watch-chat-runtime-10-passed
+        subject_commit: e270cb7f0
+        timestamp: "2026-07-11T22:45:00Z"
 
   - id: T-APPLE-002
     type: unit
@@ -321,13 +343,50 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchAuthStoreTests
+        run_id: remote-watch-auth-policy-red
+        subject_commit: 43c57e9
+        timestamp: "2026-07-11T22:30:00Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchAuthStoreTests
+        run_id: remote-watch-auth-store-2-passed
+        subject_commit: e270cb7f0
+        timestamp: "2026-07-11T22:35:00Z"
 
 verifications:
+  - id: V-WATCH-BUILD-001
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
+      run_id: remote-watch-build-e270cb7f0
+      subject_commit: e270cb7f0
+      summary: OpenMatesWatch simulator build succeeded.
+      timestamp: "2026-07-11T22:36:00Z"
+  - id: V-WATCH-STARTUP-001
+    kind: artifact_review
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-3, AC-5]
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60
+      run_id: remote-watch-startup-e270cb7f0
+      subject_commit: e270cb7f0
+      summary: Build, install, launch, 5-second and 30-second screenshots, and log capture passed without startup crash.
+      reason: The deterministic startup verifier produced simulator screenshots and a sanitized log artifact for review.
+      timestamp: "2026-07-11T22:45:00Z"
   - id: V-HARDWARE-001
     kind: user_confirmation
     phase: final
@@ -427,7 +486,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add session-authenticated encrypted recent-chat route
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1]
@@ -449,7 +508,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Add owned-chat encrypted message read route
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-2]
@@ -470,7 +529,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Load and filter encrypted Watch chat snapshots
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3]
@@ -491,7 +550,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Preserve valid sessions and clear revoked Watch data
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-3, S-4, S-5]
@@ -512,8 +571,8 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Verify and physically validate Watch chat loading
-    status: pending
-    phase: running_checks
+    status: blocked
+    phase: blocked
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5]
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
@@ -525,6 +584,7 @@ tasks:
     ownership:
       files: [docs/specs/apple-watch-chat-loading/spec.yml]
       shared_files: []
-    blockers: []
+    blockers:
+      - Physical Watch uses production, but the required backend route is currently available only from dev deployment.
     follow_up_tasks: []
     independently_deployable: false
