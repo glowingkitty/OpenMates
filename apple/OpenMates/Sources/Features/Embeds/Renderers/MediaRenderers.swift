@@ -794,10 +794,10 @@ struct RecordingRenderer: View {
             case .preview:
                 recordingContent(compact: true)
                     .padding(.spacing6)
-                    .accessibilityIdentifier("recording-preview")
             case .fullscreen:
                 recordingContent(compact: false)
                     .padding(.spacing12)
+                    .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("recording-fullscreen")
             }
         }
