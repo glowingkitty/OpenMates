@@ -1084,14 +1084,18 @@ final class ChatViewModel: ObservableObject {
         case .thinkingComplete(_, _):
             isStreaming = true
 
-        case .messageReady(_, _):
+        case .messageReady(let chatId, let messageId):
+            completePartialAssistantIfNeeded(chatId: chatId, messageId: messageId)
             isStreaming = false
             streamingLifecycle.queuedMessageText = nil
 
         case .preprocessingStep(_, _, _):
             isStreaming = true
 
-        case .typingEnded(_, _):
+        case .typingEnded(let chatId, let messageId):
+            if let messageId {
+                completePartialAssistantIfNeeded(chatId: chatId, messageId: messageId)
+            }
             isStreaming = false
             streamingLifecycle.queuedMessageText = nil
 
@@ -1158,6 +1162,41 @@ final class ChatViewModel: ObservableObject {
             embedRefs: nil,
             modelName: metadata?.modelName
         ))
+    }
+
+    private func completePartialAssistantIfNeeded(chatId: String, messageId: String) {
+        guard let partial = messages.first(where: {
+            $0.id == messageId && $0.isStreaming == true && ($0.content?.isEmpty == false)
+        }) else { return }
+        let completed = Message(
+            id: partial.id,
+            chatId: partial.chatId,
+            role: partial.role,
+            content: partial.content,
+            encryptedContent: partial.encryptedContent,
+            createdAt: partial.createdAt,
+            updatedAt: partial.updatedAt,
+            appId: partial.appId,
+            isStreaming: false,
+            embedRefs: partial.embedRefs,
+            modelName: partial.modelName,
+            piiMappings: partial.piiMappings,
+            encryptedPIIMappings: partial.encryptedPIIMappings,
+            thinkingContent: streamingLifecycle.thinkingContent.isEmpty
+                ? partial.thinkingContent
+                : streamingLifecycle.thinkingContent,
+            encryptedThinkingContent: partial.encryptedThinkingContent,
+            encryptedThinkingSignature: partial.encryptedThinkingSignature,
+            thinkingTokenCount: partial.thinkingTokenCount
+        )
+        appendOrReplaceTransientMessage(completed)
+        guard !IncognitoChatSession.isIncognitoChatId(chatId) else { return }
+        Task { @MainActor in
+            await persistCompletedAssistantMessage(
+                completed,
+                userMessageId: userMessageIdByAssistantMessageId[messageId]
+            )
+        }
     }
 
     private func sendEncryptedUserStorageIfPossible(
