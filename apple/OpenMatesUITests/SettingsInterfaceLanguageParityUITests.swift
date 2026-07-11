@@ -60,6 +60,10 @@ final class SettingsInterfaceLanguageParityUITests: XCTestCase {
         let backButton = app.descendants(matching: .any)["settings-language-back"]
         if backButton.waitForExistence(timeout: 2) {
             backButton.tap()
+        } else if app.buttons["settings-language-page"].firstMatch.exists {
+            app.buttons["settings-language-page"].firstMatch.tap()
+        } else if app.buttons["settings-interface-page"].firstMatch.exists {
+            app.buttons["settings-interface-page"].firstMatch.tap()
         }
         XCTAssertTrue(waitForElement("settings-interface-language-row", in: app, timeout: 5))
         XCTAssertTrue(waitForText(expectedText, in: app, timeout: 5))
