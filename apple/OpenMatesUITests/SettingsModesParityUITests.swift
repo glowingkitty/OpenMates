@@ -19,15 +19,15 @@ final class SettingsModesParityUITests: XCTestCase {
         XCTAssertTrue(learningRow.waitForExistence(timeout: 5))
         tapToggle("learning-mode-toggle-wrapper", in: app)
 
-        XCTAssertTrue(app.descendants(matching: .any)["learning-mode-settings-page"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settings-learning-mode-page"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["learning-mode-age-group-dropdown"].exists)
-        let enable = app.descendants(matching: .any)["learning-mode-enable-button"]
+        let enable = app.buttons["learning-mode-enable-button"].firstMatch
         XCTAssertTrue(enable.exists && enable.isHittable)
         enable.tap()
 
-        XCTAssertTrue(app.descendants(matching: .any)["learning-mode-disable-button"].waitForExistence(timeout: 5))
-        app.descendants(matching: .any)["learning-mode-disable-button"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["learning-mode-enable-button"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["learning-mode-disable-button"].firstMatch.waitForExistence(timeout: 5))
+        app.buttons["learning-mode-disable-button"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["learning-mode-enable-button"].firstMatch.waitForExistence(timeout: 5))
     }
 
     func testAccountLearningModeRendersPasscodeProtectedManagement() {
@@ -36,9 +36,9 @@ final class SettingsModesParityUITests: XCTestCase {
         XCTAssertTrue(learningRow.waitForExistence(timeout: 5))
         tapToggle("learning-mode-toggle-wrapper", in: app)
 
-        XCTAssertTrue(app.descendants(matching: .any)["learning-mode-settings-page"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settings-learning-mode-page"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.secureTextFields["learning-mode-passcode-input"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["learning-mode-enable-button"].exists)
+        XCTAssertTrue(app.buttons["learning-mode-enable-button"].firstMatch.exists)
     }
 
     func testIncognitoFirstActivationUsesExplainerAndHandledActivationEvent() {
@@ -49,8 +49,8 @@ final class SettingsModesParityUITests: XCTestCase {
         tapToggle("incognito-toggle-wrapper", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["incognito-info-page"].waitForExistence(timeout: 5))
 
-        let activate = app.descendants(matching: .any)["incognito-activate-button"]
-        XCTAssertTrue(activate.exists && activate.isHittable)
+        let activate = app.buttons["incognito-activate-button"].firstMatch
+        scrollToHittable(activate, in: app)
         activate.tap()
 
         XCTAssertTrue(app.descendants(matching: .any)["incognito-mode-banner"].waitForExistence(timeout: 8))
@@ -79,5 +79,13 @@ final class SettingsModesParityUITests: XCTestCase {
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         XCTAssertTrue(toggle.isHittable)
         toggle.tap()
+    }
+
+    private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<6 where !element.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(element.exists)
+        XCTAssertTrue(element.isHittable)
     }
 }
