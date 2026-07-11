@@ -1,0 +1,869 @@
+schema_version: 2
+id: models3d-generate
+title: 3D Models Generate Skill And Model Embed
+status: approved
+
+goal: >
+  Add a canonical `models3d` app whose Generate skill creates encrypted,
+  downloadable, and interactively viewable 3D models from text, one image, or
+  ordered multi-view images. Hi3D is the only 3D provider in V1; text requests
+  first reuse the regular images.generate default-model path to create a visible
+  reference image. Preserve a high-fidelity GLB master, derive a lightweight web
+  preview and poster, and offer validated STL and 3MF print exports on demand.
+
+scope:
+  in:
+    - Rename the unused internal app placeholder from `3d` to the stable app ID `models3d`; display the app as "3D models" and reuse the existing `3dmodels` icon and gradient.
+    - Add `models3d/generate` for text, one reference image, and two-to-four ordered front/back/left/right reference images.
+    - Reuse the same configured default image model and provider-selection path as `images.generate` when converting text to a reference image; do not hardcode a second image default.
+    - Use Hi3D v2.1 as the only V1 3D provider and normalize its authentication, balance, submit, poll, failure, and refund behavior in a pure shared provider wrapper.
+    - Show the generated reference image in text-to-3D results so users can understand and reproduce the two-stage generation.
+    - Create a processing/error/cancelled/finished `model3d` app-skill embed with compact encrypted metadata and encrypted S3 artifacts.
+    - Preserve the provider GLB as an immutable master and generate a separately encrypted Meshopt/KTX2 optimized GLB plus poster image for web preview.
+    - Render only the poster and metadata in the chat embed; load/decrypt the optimized interactive model only after fullscreen opens.
+    - Support rotate, pan, zoom, reset-camera, loading progress, accessibility fallback, GLB download, and print-export actions in web fullscreen.
+    - Generate binary STL and 3MF derivatives on demand after geometry, units, manifoldness, and printability validation; label STL as geometry-only and 3MF as the preferred color/material print format.
+    - Use a versioned chunked authenticated-encryption format for large master/print artifacts so server downloads do not buffer a 30-100 MB plaintext file in memory; optimized previews remain separate bounded objects.
+    - Apply existing account storage billing, upload_files indexing, chat/embed deletion, account deletion, and shared-content safety behavior to every artifact.
+    - Expose equivalent Generate contracts through OpenMates CLI, npm SDK, and pip SDK before beginning web implementation.
+    - Deploy and verify web only after CLI/npm/pip contracts are green.
+    - Begin Apple implementation only after the user explicitly confirms the deployed web flow and artifacts work correctly.
+    - Add provider/privacy/training disclosures and explicit first-use confirmation because Hi3D licenses inputs and outputs for model improvement while per-task deletion and exact API retention remain unverified.
+  out:
+    - The later `models3d/search` skill and online marketplace/platform search.
+    - CAD creation, parametric CAD source, model editing, mesh sculpting, rigging, or animation.
+    - Arbitrary user-uploaded GLB, glTF, STL, OBJ, FBX, USDZ, or 3MF files in V1.
+    - Automatic interactive 3D loading inside chat messages.
+    - Treating STL as a color/material-preserving format or promising that PBR appearance maps exactly to physical print materials.
+    - Supporting a second 3D provider or exposing provider selection in V1.
+    - Apple implementation before explicit user approval of the deployed web implementation.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP authentication returned 401. `gh issue list` searches for `3D model generate Hi3D`, `3dmodels`, and `3D models` returned no matching issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/add-embed-type.md
+    - docs/contributing/guides/testing.md
+    - docs/architecture/infrastructure/file-upload-pipeline.md
+    - docs/architecture/core/security.md
+    - docs/architecture/messaging/embeds.md
+  code_patterns:
+    - backend/apps/3d/app.yml
+    - backend/apps/images/skills/generate_skill.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/apps/videos/skills/generate_skill.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/shared/python_utils/generated_assets/service.py
+    - backend/core/api/app/routes/generated_assets_api.py
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    - frontend/packages/ui/static/icons/3dmodels.svg
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+  tests:
+    - backend/tests/test_video_generate_task.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - frontend/apps/web_app/tests/skill-music-generate.spec.ts
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/SkillApplicationParityUITests.swift
+  design:
+    - "Figma node 3643:41959 defines the 3D models app card."
+    - "Figma node I3643:42022;148:1420 defines the Create skill card; V1 uses the user-approved skill ID `generate`."
+    - "Figma node 2173:19358 contains the existing 3D-file-in-message concept."
+  external_research:
+    - "Hi3D pricing verified at https://docs.hi3d.ai/en/api/getting-started/pricing: v2.1 fast PBR costs 25 provider credits ($0.50 list)."
+    - "Hi3D create-task docs support one image or up to four ordered views and GLB output; the documented API has no text prompt input."
+    - "A live smoke test authenticated through Vault, started with 200 trial credits, generated a 25.3 MB v2.1-fast PBR GLB, validated the download, and posted temporary result links to Discord."
+    - "Hi3D privacy policy URL https://docs.hi3d.ai/en/api/resources/privacy-policy returned HTTP 200 and title Privacy Policy on 2026-07-11."
+    - "Hi3D terms grant a model-improvement license over inputs and outputs; public API docs do not verify per-task deletion or exact retention, so V1 requires explicit disclosure and consent."
+    - "Khronos glTF/GLB, EXT_meshopt_compression, and KHR_texture_basisu support the proposed single-file optimized web preview contract."
+    - "Google model-viewer supports GLB, poster images, lazy reveal, progress events, and camera controls."
+    - "3MF Consortium and slicer documentation support 3MF for units, color/material, and multi-part printing; STL remains geometry-only."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/S3MediaClient.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/Model3DGenerateRenderer.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/SkillApplicationParityUITests.swift
+  parity_expectations:
+    - Apple shows the same poster, status, provider/model metadata, source/reference summary, and download/print actions as approved web.
+    - Apple fullscreen provides native interactive 3D only after the deployed web implementation receives explicit user approval.
+    - An Apple-compatible encrypted preview derivative such as USDZ may be generated from the GLB master without replacing the canonical master.
+    - All native strings use AppStrings and all visual values use generated tokens.
+  verification:
+    - Do not start Apple source changes until V-WEB-USER-APPROVAL passes.
+    - After approval, run `python3 scripts/apple_remote.py status` and targeted model/embed tests before `build-ios` or `test-ios`.
+    - Capture sanitized simulator evidence proving poster visibility, fullscreen interaction, and download/share clickability.
+  intentional_native_differences:
+    - Apple may use RealityKit/Quick Look and an encrypted USDZ derivative while web uses model-viewer and optimized GLB.
+    - OS share sheets and native camera gestures may differ while actions and information architecture remain equivalent.
+
+clarification:
+  rounds:
+    - question: Which provider behavior should the Generate skill use for V1?
+      answer: Hi3D only for now.
+    - question: How should V1 fulfill text-to-3D while Hi3D has no documented text input?
+      answer: Generate a reference image first, then submit it to Hi3D.
+    - question: Which downloadable derivatives should V1 expose?
+      answer: Keep GLB and generate print files on demand.
+    - question: Which stable internal app ID should the spec define?
+      answer: Use `models3d` while displaying "3D models".
+    - question: How should the embed preview and fullscreen load?
+      answer: Show only the preview image in the chat embed and load the interactive viewer only in fullscreen.
+  vision_summary: >
+    `models3d/generate` is a Hi3D-backed async generator for text, single-image,
+    and ordered multi-view input. Text generation transparently uses the regular
+    images.generate default model to create a retained reference before Hi3D.
+    Generated models remain private encrypted artifacts: chat shows a poster,
+    web fullscreen loads a bounded optimized GLB, the immutable master stays
+    downloadable, and validated STL/3MF exports are generated only on demand.
+    CLI and both SDKs precede web; Apple is blocked on explicit user approval of
+    the deployed working web flow.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 0970110720c7a3a9f9fff69abf2056c4b24cf268
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-11T22:19:04Z"
+    reason: The user approved the provider, text-reference, artifact, app-ID, preview-loading, and sequencing decisions.
+  implementation_plan:
+    status: not_required
+    reason: The implementation ordering and material storage/privacy decisions are already part of the approved product contract; Apple still has a separate artifact approval gate.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use `models3d` as the canonical app ID and `generate` as the skill ID.
+    reason: Numeric-leading IDs break ergonomic generated Python/TypeScript SDK access; the existing `3d` placeholder is unused.
+    decided_at: "2026-07-11T22:19:04Z"
+  - id: D-2
+    status: active
+    decision: Use Hi3D v2.1 as the only V1 3D provider.
+    reason: The user chose Hi3D-only after a successful live API smoke test.
+    decided_at: "2026-07-11T22:19:04Z"
+  - id: D-3
+    status: active
+    decision: Text input first uses the regular images.generate default model-selection path and retains the resulting reference image.
+    reason: Hi3D has no documented text input and the user requires text-to-3D without a second 3D provider.
+    decided_at: "2026-07-11T22:19:04Z"
+  - id: D-4
+    status: active
+    decision: Preserve master GLB, optimized web GLB, and poster as separate encrypted artifacts.
+    reason: A 30-100 MB whole-object AES-GCM model is unsuitable for automatic chat rendering.
+    decided_at: "2026-07-11T22:19:04Z"
+  - id: D-5
+    status: active
+    decision: Generate STL and 3MF only on demand from the immutable master.
+    reason: This avoids unnecessary conversion/storage while providing monochrome and color/material print workflows.
+    decided_at: "2026-07-11T22:19:04Z"
+  - id: D-6
+    status: active
+    decision: Require the configured image-provider consent and explicit Hi3D processing/training disclosure before each applicable stage.
+    reason: Text generation invokes the image provider before Hi3D, and Hi3D model-improvement use plus deletion/retention limitations must be disclosed.
+    decided_at: "2026-07-11T22:19:04Z"
+  - id: D-7
+    status: active
+    decision: Complete CLI, npm SDK, and pip SDK before web; gate Apple on explicit user approval of deployed web evidence.
+    reason: The user explicitly required this sequence.
+    decided_at: "2026-07-11T22:19:04Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-2
+    approach: Authenticate, query balance, and submit Hi3D v2.1-fast PBR generation using Vault credentials and a public chair reference.
+    outcome: succeeded
+    recorded_at: "2026-07-11T21:30:00Z"
+    reason: The task returned a valid 25.3 MB GLB and poster; both URLs were validated and sent to Discord.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Write provider and storage red-phase tests before implementation.
+  command: python3 -m pytest backend/tests/test_hi3d_provider.py
+  expected_outcome: Contract tests fail because the Hi3D provider wrapper and models3d app do not exist yet.
+  blocker: null
+  last_verified_commit: 0970110720c7a3a9f9fff69abf2056c4b24cf268
+
+scenarios:
+  - id: S-1
+    title: Text prompt becomes a visible reference and 3D model
+    given:
+      - Alice has enough OpenMates credits and has accepted the Hi3D disclosure.
+    when:
+      - Alice asks, "Generate a small orange retro desk lamp as a 3D model."
+    then:
+      - OpenMates uses the current default images.generate model to create one reference image.
+      - The reference image is retained and shown in the model result.
+      - Hi3D receives that image and produces one PBR GLB.
+      - The result records combined image-generation and Hi3D cost metadata without secrets.
+  - id: S-2
+    title: Single image generates a model directly
+    given:
+      - Alice attaches one supported image of an isolated chair.
+    when:
+      - The mate calls `models3d/generate` with that image embed reference.
+    then:
+      - The worker resolves the encrypted input through cache with database fallback, decrypts it only in memory, and sends it to Hi3D.
+      - No intermediate generated reference image or image-generation charge is created.
+  - id: S-3
+    title: Ordered multi-view images improve reconstruction
+    given:
+      - Alice supplies front, back, left, and right images of one object.
+    when:
+      - The skill submits a multi-view generation.
+    then:
+      - The request preserves view order and rejects duplicate/missing labels or more than four images.
+      - Hi3D receives the supported ordered multipart request.
+  - id: S-4
+    title: Processing and provider failure remain visible
+    given:
+      - A generation has been accepted asynchronously.
+    when:
+      - Hi3D queues, processes, succeeds, fails, times out, or returns insufficient balance.
+    then:
+      - The embed transitions through typed processing states and ends in finished or actionable error.
+      - Failed/refunded provider tasks are not billed as successful model generations.
+      - Credentials, bearer tokens, provider URLs with expired signatures, and input plaintext never enter logs or traces.
+  - id: S-5
+    title: Finished result stores private artifacts
+    given:
+      - Hi3D returns a valid PBR GLB.
+    when:
+      - The generation worker finalizes the result.
+    then:
+      - The worker validates size, MIME, glTF structure, and configured extension allowlist before storage.
+      - It stores an immutable encrypted master, bounded optimized preview, and poster, then indexes each artifact for storage billing/deletion.
+      - Embed content contains only compact metadata, wrapped/client keys, and S3 references.
+  - id: S-6
+    title: Chat preview never loads the 3D payload
+    given:
+      - Alice sees a finished model embed in chat.
+    when:
+      - The message renders or scrolls into view.
+    then:
+      - Only the decrypted poster and compact metadata load.
+      - No GLB viewer code or model bytes load until fullscreen opens.
+  - id: S-7
+    title: Web fullscreen loads an optimized interactive model
+    given:
+      - Alice opens a finished model embed in fullscreen.
+    when:
+      - The optimized preview decrypts successfully.
+    then:
+      - A lazily loaded model viewer shows progress and supports rotate, pan, zoom, and reset.
+      - Failure or memory constraints fall back to poster plus download rather than crashing the chat.
+  - id: S-8
+    title: User downloads the original GLB
+    given:
+      - A master GLB is 30-100 MB.
+    when:
+      - Alice selects Download original GLB.
+    then:
+      - A short-lived authorized route streams independently authenticated chunks without buffering the full plaintext file.
+      - The downloaded bytes match the validated provider master.
+  - id: S-9
+    title: User requests print exports
+    given:
+      - Alice has a finished GLB master.
+    when:
+      - Alice requests STL or 3MF.
+    then:
+      - OpenMates performs a queued on-demand conversion and printability check.
+      - STL is binary and geometry-only; declared units are stored in embed/download metadata because STL has no standard units field.
+      - 3MF preserves validated units, parts, and supported color/material data with a warning that PBR appearance is not guaranteed in slicers.
+      - Failed non-manifold conversion returns diagnostics and no fake print-ready file.
+  - id: S-10
+    title: First provider use requires informed confirmation
+    given:
+      - Alice has not previously accepted current Hi3D processing terms.
+    when:
+      - A text or image generation would send content to Hi3D.
+    then:
+      - Text requests first satisfy the configured image-provider disclosure/consent contract.
+      - OpenMates identifies Hi3D, the data sent, model-improvement use, unverified per-task deletion/retention, estimated cost, and privacy-policy link.
+      - Alice can cancel without provider invocation or charge.
+  - id: S-11
+    title: CLI and SDK contracts precede web
+    given:
+      - Backend provider, task, storage, and download contracts are green.
+    when:
+      - Cross-client implementation proceeds.
+    then:
+      - CLI text/image generation and downloads pass first, then npm SDK, then pip SDK.
+      - Web implementation does not begin until all three are green.
+  - id: S-12
+    title: Apple waits for approved deployed web behavior
+    given:
+      - CLI, SDK, and deployed web checks are green.
+    when:
+      - Web screenshots and real-model evidence are presented.
+    then:
+      - Apple work remains blocked until the user explicitly confirms the web implementation works.
+      - After confirmation, Apple matches approved behavior using a native-compatible derivative where needed.
+  - id: S-13
+    title: Deletion removes every model artifact
+    given:
+      - A model has master, preview, poster, and optional print derivatives.
+    when:
+      - The embed/chat/account is deleted under existing retention rules.
+    then:
+      - Every indexed S3 object and upload_files record is removed exactly once and storage counters are reconciled.
+
+acceptance_criteria:
+  - {id: AC-1, scenario: S-1, text: "`models3d/generate` accepts text and reuses the current images.generate default model path before Hi3D.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-002, T-CLI-001]}
+  - {id: AC-2, scenario: S-2, text: "Single encrypted image references are resolved with cache plus database fallback and sent to Hi3D without an intermediate image generation.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-002, T-CLI-002]}
+  - {id: AC-3, scenario: S-3, text: "Two-to-four ordered multi-view images are validated and submitted in Hi3D front/back/left/right order.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-001, T-CLI-002]}
+  - {id: AC-4, scenario: S-4, text: "Hi3D authentication, balance, submit, poll, timeout, failure, and refund states use typed errors without secret leakage.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-001]}
+  - {id: AC-5, scenario: S-5, text: "Validated master GLB, optimized preview GLB, and poster are encrypted, indexed, billed for storage, and referenced by compact embed metadata.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-002, T-BENCH-001]}
+  - {id: AC-6, scenario: S-6, text: "The chat preview loads only poster and metadata and never imports viewer code or fetches GLB bytes.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001]}
+  - {id: AC-7, scenario: S-7, text: "Web fullscreen lazily renders the optimized GLB with loading progress and camera controls plus a safe fallback.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001]}
+  - {id: AC-8, scenario: S-8, text: "Large master downloads use versioned chunked authenticated encryption and streaming decryption with byte-for-byte integrity.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-003, T-BENCH-001]}
+  - {id: AC-9, scenario: S-9, text: "On-demand binary STL is geometry-only, carries declared units in embed/download metadata, and only passes when printability checks succeed.", required: true, status: pending, coverage_status: covered, verification_scope: full_ci, verification_ids: [T-PYTEST-004, V-PRINT-ARTIFACTS]}
+  - {id: AC-10, scenario: S-9, text: "On-demand 3MF preserves supported units/parts/color metadata and is clearly labeled as the preferred multicolor export without promising PBR fidelity.", required: true, status: pending, coverage_status: covered, verification_scope: full_ci, verification_ids: [T-PYTEST-004, V-PRINT-ARTIFACTS]}
+  - {id: AC-11, scenario: S-10, text: "Text generation satisfies configured image-provider consent, and first Hi3D use requires current-version disclosure acceptance before content leaves OpenMates.", required: true, status: pending, coverage_status: covered, verification_scope: full_ci, verification_ids: [T-PYTEST-005, T-E2E-002]}
+  - {id: AC-12, scenario: S-10, text: "Privacy policy, provider training policy, legal links, and verified Hi3D privacy URL are updated together.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-AUDIT-001]}
+  - {id: AC-13, scenario: S-1, text: "Billing preflights configured combined cost and charges successful image and 3D stages without charging failed/refunded stages.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-002]}
+  - {id: AC-14, scenario: S-11, text: "CLI text/image generation and download contracts pass before npm and pip SDK contracts, and all pass before web work starts.", required: true, status: pending, coverage_status: covered, verification_scope: full_ci, verification_ids: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-ORDER-001]}
+  - {id: AC-15, scenario: S-12, text: "Apple source implementation is blocked until explicit user approval of deployed web screenshots and real-model evidence.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [T-ORDER-001, V-WEB-USER-APPROVAL]}
+  - {id: AC-16, scenario: S-12, text: "After approval, Apple provides poster, fullscreen interaction, and download/export parity using generated tokens and localized strings.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-001, V-APPLE-ARTIFACTS]}
+  - {id: AC-17, scenario: S-13, text: "Deletion removes master, preview, poster, and print derivatives and reconciles storage exactly once.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-003]}
+  - {id: AC-18, scenario: S-5, text: "Provider downloads enforce configured streamed-byte, MIME, glTF-validation, and decompression/resource limits before persistence.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-001, T-PYTEST-002]}
+  - {id: AC-19, scenario: S-1, text: "`models3d` is the only registered 3D-model app ID and the obsolete `backend/apps/3d` placeholder no longer registers.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-AUDIT-001]}
+
+assumptions:
+  - id: A-1
+    text: Hi3D v2.1 fast remains available at 25 provider credits and returns GLB plus poster through the documented async API.
+    category: provider
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: Live smoke test on 2026-07-11
+        summary: Vault-backed request generated and downloaded a 25.3 MB GLB successfully.
+  - id: A-2
+    text: The images.generate default-model selection can be extracted/reused without one skill importing another skill.
+    category: architecture
+    required_before: implementation
+    status: checking
+    evidence:
+      - source: backend/apps/images/skills/generate_skill.py
+        summary: Existing selection is currently coupled to image generation and needs a shared-service seam confirmed by a red contract test.
+  - id: A-3
+    text: Meshopt plus KTX2 can reduce representative Hi3D models to the preview budget without unacceptable visible loss.
+    category: performance
+    required_before: task_execution
+    status: checking
+    evidence:
+      - source: T-BENCH-001
+        summary: Benchmark three representative 30-100 MB models before fullscreen implementation.
+  - id: A-4
+    text: A maintained conversion stack can produce standards-valid STL and 3MF with units and supported color metadata from Hi3D GLB.
+    category: printing
+    required_before: task_execution
+    status: checking
+    evidence:
+      - source: V-PRINT-ARTIFACTS
+        summary: Validate sample outputs in PrusaSlicer and Bambu Studio before exposing print-ready labels.
+  - id: A-5
+    text: Hi3D deletion/API retention controls are sufficient to end the model-improvement license when OpenMates deletes provider content.
+    category: privacy
+    required_before: implementation
+    status: blocked
+    blocker:
+      reason: Public docs describe deletion rights but no verified per-task deletion API or exact API retention period.
+      next_action: Obtain written provider confirmation or document the limitation explicitly in consent and privacy policy.
+  - id: A-6
+    text: Apple can render a generated USDZ derivative with acceptable fidelity after web approval.
+    category: apple
+    required_before: task_execution
+    status: checking
+    evidence:
+      - source: V-WEB-USER-APPROVAL
+        summary: Native format/tool evaluation begins only after this gate passes.
+
+contracts:
+  api:
+    - name: Models3D Generate
+      route: POST /v1/apps/models3d/skills/generate
+      request: "{ prompt?: string, image_embed_refs?: string[], image_views?: {embed_ref: string, view: front|back|left|right}[] }"
+      response: "{ task_id: string, embed_id: string, status: processing, estimated_credits: integer }"
+      errors:
+        - 400 when input modes conflict or view ordering is invalid
+        - 402 when OpenMates credit headroom is insufficient
+        - 409 when current Hi3D disclosure is not accepted
+        - 503 for provider unavailability or unavailable provider balance
+    - name: Hi3D Token
+      route: POST https://api.hitem3d.ai/open-api/v1/auth/token
+      auth: Basic access_key:secret_key from kv/data/providers/hi3d
+    - name: Hi3D Submit And Poll
+      route: POST /open-api/v1/submit-task then GET /open-api/v1/query-task
+      auth: Bearer token held in process memory only
+    - name: Print Export
+      route: POST /v1/generated-assets/{upload_file_id}/exports
+      request: "{ format: stl|3mf }"
+      response: "{ task_id: string, status: processing|existing }"
+    - name: Generated Asset Download
+      route: GET /v1/generated-assets/download/{token}
+      response: streamed decrypted GLB, STL, or 3MF with attachment headers
+  data:
+    app_id: models3d
+    skill_id: generate
+    embed_id: model3d_generate
+    master_format: glb
+    preview_format: glb with Meshopt geometry and KTX2/Basis textures
+    poster_format: webp
+    print_formats: [stl, 3mf]
+    preview_budget:
+      target_transfer_bytes: 15728640
+      hard_transfer_bytes: 26214400
+      max_texture_dimension: 2048
+    master_encryption: chunked-aes-256-gcm-v1
+    preview_encryption: existing whole-object aes-256-gcm for bounded artifacts
+    content_fields:
+      - status
+      - input_mode
+      - prompt
+      - reference_image_embed_ids
+      - provider
+      - provider_model
+      - quality
+      - master_file
+      - preview_file
+      - poster_file
+      - print_exports
+      - bounds
+      - units
+      - face_count
+      - material_count
+      - validation_summary
+      - cost_summary
+  ui_states:
+    - awaiting_provider_consent
+    - generating_reference_image
+    - queued
+    - generating_geometry
+    - optimizing_preview
+    - finished
+    - exporting_print_file
+    - cancelled
+    - error
+  privacy_security:
+    - User images, generated references, provider outputs, credentials, tokens, signed provider URLs, and decrypted model bytes never enter logs, traces, analytics, or persistent plaintext storage.
+    - Provider output URLs are downloaded promptly, validated, encrypted into OpenMates S3, and not persisted as durable client URLs.
+    - Consent is versioned to the disclosed Hi3D privacy/terms version and can be withdrawn for future calls.
+    - Large-file parser and converter processes run with CPU, memory, time, file-count, extension, and output-size limits.
+    - GLB and 3MF container entries are validated against path traversal, oversized expansion, unsupported extensions, and malformed metadata.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_hi3d_provider.py
+    command: python3 -m pytest backend/tests/test_hi3d_provider.py
+    covers: [AC-3, AC-4, AC-18]
+    assertions:
+      - Vault credentials authenticate without logging secret fragments
+      - single and ordered multi-view multipart bodies match the documented API
+      - balance, queue, processing, success, failure, timeout, and refunded failure normalize to typed results
+      - streamed provider downloads reject oversize, wrong MIME, malformed GLB, and unsupported extensions
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_models3d_generate_task.py
+    command: python3 -m pytest backend/tests/test_models3d_generate_task.py
+    covers: [AC-1, AC-2, AC-5, AC-13, AC-18]
+    assertions:
+      - text uses shared images.generate default selection and retains reference
+      - direct image skips image generation
+      - cache miss falls back to persisted embed metadata
+      - billing preflight and success/failure charging are correct
+      - master, preview, and poster are encrypted and indexed
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_generated_model_storage.py
+    command: python3 -m pytest backend/tests/test_generated_model_storage.py
+    covers: [AC-8, AC-17]
+    assertions:
+      - chunked master round trip is byte-identical across first/middle/last chunks
+      - streaming download has bounded peak memory and correct attachment metadata
+      - deletion removes every variant once and reconciles storage
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PYTEST-004
+    type: pytest
+    file: backend/tests/test_models3d_print_exports.py
+    command: python3 -m pytest backend/tests/test_models3d_print_exports.py
+    covers: [AC-9, AC-10]
+    assertions:
+      - valid master produces standards-valid binary STL and records declared units outside the STL payload
+      - valid color master produces standards-valid 3MF with supported color/material fields
+      - non-manifold or invalid output returns diagnostics and no print-ready artifact
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PYTEST-005
+    type: pytest
+    file: backend/tests/test_models3d_provider_consent.py
+    command: python3 -m pytest backend/tests/test_models3d_provider_consent.py
+    covers: [AC-11]
+    assertions:
+      - provider call is blocked before current consent
+      - cancellation sends no content and charges nothing
+      - accepted consent is versioned and future withdrawal blocks new calls
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-AUDIT-001
+    type: lint
+    file: scripts/audit_app_provider_contracts.py
+    command: python3 scripts/audit_app_provider_contracts.py
+    covers: [AC-12, AC-19]
+    assertions:
+      - Hi3D provider metadata and privacy/training disclosures are complete
+      - verified privacy URL and all legal source surfaces agree
+      - models3d is registered and the stale 3d app placeholder is absent
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-BENCH-001
+    type: lint
+    file: scripts/api_tests/benchmark_models3d_assets.py
+    command: python3 scripts/api_tests/benchmark_models3d_assets.py --fixtures 30mb,60mb,100mb
+    covers: [AC-5, AC-8]
+    assertions:
+      - preview meets target or records explicit hard-cap fallback
+      - visual comparison, decode time, peak memory, and output validation are recorded
+      - master streaming stays within the configured memory budget
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: python3 scripts/verify_parity.py --run --cli models3d-generate-text --skip-web --apple skip --skip-apple "Web and Apple are later gated phases"
+    covers: [AC-1, AC-14]
+    assertions:
+      - text generation reaches finished and exposes reference, metadata, and GLB download
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CLI-002
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: python3 scripts/verify_parity.py --run --cli models3d-generate-image --skip-web --apple skip --skip-apple "Web and Apple are later gated phases"
+    covers: [AC-2, AC-3, AC-14]
+    assertions:
+      - single and multi-view requests finish and download valid GLB
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-NPM-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: python3 scripts/tests.py run --suite cli-integration --test npm-sdk-models3d-generate
+    covers: [AC-14]
+    assertions:
+      - client.apps.models3d.generate maps exact request and async result contract
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PIP-001
+    type: unit
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 scripts/tests.py run --suite cli-integration --test pip-sdk-models3d-generate
+    covers: [AC-14]
+    assertions:
+      - Python SDK maps exact request and async result contract
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-models3d-generate.spec.ts
+    command: python3 scripts/tests.py run --spec skill-models3d-generate.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-6, AC-7]
+    assertions:
+      - chat preview requests poster but no GLB
+      - chat preview does not dynamically import or request model-viewer code
+      - fullscreen requests optimized GLB and supports camera controls and download
+      - oversized/failed preview falls back without chat failure
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-models3d-generate.spec.ts
+    command: python3 scripts/tests.py run --spec skill-models3d-generate.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-11]
+    assertions:
+      - text input satisfies configured image-provider consent before reference generation
+      - first Hi3D use shows complete disclosure and cancel sends no request
+      - acceptance permits generation and is not requested again for the same version
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-APPLE-001
+    type: build
+    file: apple/OpenMatesTests/SkillApplicationParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/SkillApplicationParityTests
+    covers: [AC-16]
+    assertions:
+      - approved model3d fixture decodes and routes to native poster/fullscreen/download renderer
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: blocked
+        reason: Apple work waits for explicit deployed web approval.
+        timestamp: "2026-07-11T22:19:04Z"
+        actor: user
+        next_action: Recheck after V-WEB-USER-APPROVAL passes.
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-ORDER-001
+    type: lint
+    file: scripts/verify_parity.py
+    command: python3 scripts/verify_parity.py --check-order models3d-generate
+    covers: [AC-14, AC-15]
+    assertions:
+      - CLI green evidence precedes npm and pip SDK green evidence
+      - npm and pip SDK evidence precedes web source work and Playwright green evidence
+      - explicit web user approval precedes Apple source work and evidence
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+verifications:
+  - id: V-PRINT-ARTIFACTS
+    kind: artifact_review
+    phase: green
+    required_for_done: true
+    covers: [AC-9, AC-10]
+    status: pending
+    evidence:
+      status: pending
+      summary: Validate representative STL and 3MF in PrusaSlicer and Bambu Studio, including units, manifoldness, parts, and supported color behavior.
+  - id: V-WEB-USER-APPROVAL
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-15]
+    status: pending
+    evidence:
+      status: pending
+      summary: Apple implementation is prohibited until the user explicitly confirms deployed web text/image generation, poster preview, fullscreen interaction, and downloads work.
+  - id: V-APPLE-ARTIFACTS
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-16]
+    status: blocked
+    evidence:
+      status: blocked
+      summary: Await V-WEB-USER-APPROVAL before native implementation or evidence collection.
+      reason: The user requires confirmed working web behavior before any Apple implementation.
+      timestamp: "2026-07-11T22:19:04Z"
+      actor: user
+      next_action: Recheck only after explicit web approval.
+
+implementation_plan:
+  spec_path: docs/specs/models3d-generate/spec.yml
+  existing_patterns:
+    - images.generate for encrypted reference resolution and the default image-model path.
+    - videos.generate for async jobs, billing preflight/finalization, generated assets, and embed updates.
+    - generated_assets/service.py for upload_files indexing, storage counters, and signed downloads.
+    - UnifiedEmbedPreview and UnifiedEmbedFullscreen for all web embed chrome.
+  architecture: >
+    Build one pure Hi3D provider, one shared reference-image orchestration seam,
+    and one models3d async worker. The worker validates provider output, preserves
+    a chunk-encrypted immutable GLB master, derives bounded web preview/poster
+    artifacts, and emits a compact encrypted model3d embed. Print conversion is
+    a separate idempotent task. CLI and SDKs prove the backend contract before
+    web; web uses a lazily imported model-viewer only in fullscreen. Apple is a
+    separate final phase gated by explicit approval of deployed web evidence.
+  boundaries:
+    - No skill imports from images skills; shared default-model/orchestration behavior moves to backend/shared or BaseSkill.
+    - No raw provider URL becomes durable embed content.
+    - No model bytes or base64 data enter TOON, Directus fields, logs, traces, analytics, or task broker payloads.
+    - No automatic inline interactive preview.
+    - No print-ready claim before conversion validation and slicer artifact review.
+  phases:
+    - id: P1-provider-storage-red
+      dependencies: []
+      covers: [AC-4, AC-5, AC-8, AC-11, AC-12, AC-17, AC-18]
+      outcome: Add red provider, consent, storage, security, optimization, and print contracts; resolve privacy deletion blocker and conversion tooling before provider implementation.
+      verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001, T-BENCH-001]
+    - id: P2-backend-generate
+      dependencies: [P1-provider-storage-red]
+      covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-13, AC-17, AC-18]
+      outcome: Implement Hi3D wrapper, shared image-default seam, async models3d task, encrypted artifacts, billing, and master downloads. Print exports remain P3/TASK-3.
+      verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-PYTEST-005, T-BENCH-001]
+    - id: P3-cli-sdk
+      dependencies: [P2-backend-generate]
+      covers: [AC-1, AC-2, AC-3, AC-14]
+      outcome: Implement and prove CLI first, npm SDK second, and pip SDK third. Do not begin web until all are green.
+      verification_ids: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-ORDER-001]
+    - id: P4-web
+      dependencies: [P3-cli-sdk]
+      covers: [AC-6, AC-7, AC-9, AC-10, AC-11, AC-12]
+      outcome: Implement poster-only preview and lazy fullscreen viewer/export UI, deploy, wait for Ready, run Playwright, and present real artifacts for user confirmation.
+      verification_ids: [T-E2E-001, T-E2E-002, T-ORDER-001, V-PRINT-ARTIFACTS, V-WEB-USER-APPROVAL]
+    - id: P5-apple
+      dependencies: [P4-web]
+      covers: [AC-15, AC-16]
+      outcome: Only after explicit approval, add native derivative/rendering parity and capture remote Mac evidence.
+      verification_ids: [T-APPLE-001, V-APPLE-ARTIFACTS]
+  data_flow:
+    - Text input resolves the current images.generate default, creates and stores a normal image result/reference, then passes its decrypted bytes to the models3d worker.
+    - Direct image/multi-view input resolves embed metadata with cache plus database fallback, unwraps keys, downloads encrypted objects, and decrypts only in worker memory.
+    - Hi3D receives images, returns a temporary GLB URL, and OpenMates streams, validates, encrypts, and persists the file before the provider URL expires.
+    - Optimization derives web GLB and poster from the immutable master; fullscreen fetches only the optimized object.
+    - Print requests idempotently reuse or create encrypted STL/3MF derivatives and update the existing embed.
+  verification_strategy:
+    - Red backend/security/performance contracts before provider source.
+    - CLI then npm then pip proof before any web implementation.
+    - Deploy before Playwright green evidence.
+    - Explicit user confirmation after web green and before Apple source changes.
+  verification_order:
+    - Provider/backend/storage/print contracts
+    - OpenMates CLI
+    - npm SDK
+    - pip SDK
+    - Deployed web Playwright and artifact review
+    - Explicit user confirmation
+    - Apple tests and artifacts
+  affected_files:
+    - {path: backend/apps/3d/app.yml, reason: Rename unused placeholder to canonical models3d metadata and Generate contract}
+    - {path: backend/apps/models3d/skills/generate_skill.py, reason: LLM-facing Generate schema and async dispatch}
+    - {path: backend/apps/models3d/tasks/generate_task.py, reason: Two-stage generation, validation, billing, and artifacts}
+    - {path: backend/shared/providers/hi3d/, reason: Pure token/balance/task provider wrapper}
+    - {path: backend/shared/python_utils/generated_assets/service.py, reason: Chunked large-artifact encryption and streaming download support}
+    - {path: frontend/packages/ui/src/components/embeds/models3d/, reason: Unified poster preview and fullscreen viewer}
+    - {path: frontend/packages/openmates-cli/, reason: CLI/npm SDK and text renderer contracts}
+    - {path: packages/openmates-python/, reason: pip SDK contract}
+    - {path: shared/docs/privacy_policy.yml, reason: Hi3D processing and training disclosure}
+    - {path: frontend/packages/ui/src/legal/documents/privacy-policy.ts, reason: Privacy policy lastUpdated metadata}
+    - {path: apple/OpenMates/Sources/Features/Embeds/Renderers/, reason: Post-approval Apple parity}
+  required_assumptions: [A-1, A-2, A-3, A-4, A-5, A-6]
+  open_questions:
+    - Hi3D lacks a verified per-task deletion API and exact API retention period; resolve A-5 before implementation.
+    - Select and validate the GLB-to-3MF toolchain before promising color/material export.
+  risks:
+    - Hi3D training terms may be unacceptable for sensitive reference images; consent and provider deletion limitations must be explicit.
+    - AI-generated geometry may look correct but be non-manifold or dimensionally unsuitable for printing.
+    - KTX2/Meshopt optimization can alter appearance or unsupported glTF extensions; preserve master and compare renders.
+    - Chunked encryption is security-sensitive and must use independent nonces/authentication with deterministic corruption tests.
+    - Large parsing/conversion jobs can exhaust worker memory/CPU without strict sandbox and size limits.
+    - Starting Apple before explicit web approval would violate the user-required sequence.
+
+tasks:
+  - id: TASK-1
+    title: Add red provider, privacy, storage, optimization, and print contracts
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-4, S-5, S-8, S-9, S-10, S-13], acceptance_criteria: [AC-4, AC-5, AC-8, AC-9, AC-10, AC-11, AC-12, AC-17, AC-18, AC-19]}
+    expected_files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py, backend/tests/test_models3d_provider_consent.py, scripts/api_tests/benchmark_models3d_assets.py]
+    verification: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001, T-BENCH-001]
+    verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001, T-BENCH-001]
+    dependencies: []
+    ownership: {files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py, backend/tests/test_models3d_provider_consent.py], shared_files: [scripts/audit_app_provider_contracts.py]}
+    blockers: [Resolve A-5 provider deletion/retention before production source implementation.]
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement Hi3D provider and models3d backend generation
+    status: pending
+    phase: blocked
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-8, S-13], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-13, AC-17, AC-18]}
+    expected_files: [backend/shared/providers/hi3d/client.py, backend/shared/providers/hi3d/models.py, backend/apps/models3d/app.yml, backend/apps/models3d/skills/generate_skill.py, backend/apps/models3d/tasks/generate_task.py, backend/shared/python_utils/generated_assets/service.py]
+    verification: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-BENCH-001]
+    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-BENCH-001]
+    dependencies: [TASK-1]
+    ownership: {files: [backend/shared/providers/hi3d/client.py, backend/shared/providers/hi3d/models.py, backend/apps/models3d/app.yml, backend/apps/models3d/skills/generate_skill.py, backend/apps/models3d/tasks/generate_task.py], shared_files: [backend/shared/python_utils/generated_assets/service.py]}
+    blockers: [A-2, A-3, A-5]
+    follow_up_tasks: [TASK-3, TASK-4]
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement on-demand STL and 3MF export
+    status: pending
+    phase: blocked
+    covers: {scenarios: [S-9], acceptance_criteria: [AC-9, AC-10]}
+    expected_files: [backend/apps/models3d/tasks/export_print_task.py, backend/core/api/app/routes/generated_assets_api.py, backend/tests/test_models3d_print_exports.py]
+    verification: [T-PYTEST-004, V-PRINT-ARTIFACTS]
+    verification_ids: [T-PYTEST-004, V-PRINT-ARTIFACTS]
+    dependencies: [TASK-2]
+    ownership: {files: [backend/apps/models3d/tasks/export_print_task.py, backend/tests/test_models3d_print_exports.py], shared_files: [backend/core/api/app/routes/generated_assets_api.py]}
+    blockers: [A-4]
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+  - id: TASK-4
+    title: Update Hi3D privacy, consent, provider metadata, and docs
+    status: pending
+    phase: blocked
+    covers: {scenarios: [S-10], acceptance_criteria: [AC-11, AC-12]}
+    expected_files: [shared/docs/privacy_policy.yml, shared/docs/provider_training_policies.yml, frontend/packages/ui/src/i18n/sources/legal/privacy.yml, frontend/packages/ui/src/legal/buildLegalContent.ts, frontend/packages/ui/src/legal/documents/privacy-policy.ts, frontend/packages/ui/src/config/links.ts, backend/providers/hi3d.yml]
+    verification: [T-PYTEST-005, T-AUDIT-001]
+    verification_ids: [T-PYTEST-005, T-AUDIT-001]
+    dependencies: [TASK-1]
+    ownership: {files: [backend/providers/hi3d.yml, shared/docs/provider_training_policies.yml], shared_files: [shared/docs/privacy_policy.yml, frontend/packages/ui/src/i18n/sources/legal/privacy.yml, frontend/packages/ui/src/legal/buildLegalContent.ts, frontend/packages/ui/src/legal/documents/privacy-policy.ts, frontend/packages/ui/src/config/links.ts]}
+    blockers: [A-5]
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Implement and verify CLI, npm SDK, and pip SDK in order
+    status: pending
+    phase: blocked
+    covers: {scenarios: [S-1, S-2, S-3, S-11], acceptance_criteria: [AC-1, AC-2, AC-3, AC-14]}
+    expected_files: [frontend/packages/openmates-cli/src/generated/appSkills.ts, frontend/packages/openmates-cli/src/embedRenderers.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/sdk.test.ts, packages/openmates-python/openmates/generated/app_skills.py, packages/openmates-python/tests/test_sdk.py]
+    verification: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-ORDER-001]
+    verification_ids: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-ORDER-001]
+    dependencies: [TASK-2, TASK-4]
+    ownership: {files: [frontend/packages/openmates-cli/src/embedRenderers.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/sdk.test.ts, packages/openmates-python/tests/test_sdk.py], shared_files: [frontend/packages/openmates-cli/src/generated/appSkills.ts, packages/openmates-python/openmates/generated/app_skills.py]}
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+  - id: TASK-6
+    title: Implement deployed web poster preview and fullscreen viewer
+    status: pending
+    phase: blocked
+    covers: {scenarios: [S-6, S-7, S-9, S-10], acceptance_criteria: [AC-6, AC-7, AC-9, AC-10, AC-11]}
+    expected_files: [frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte, frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte, frontend/apps/web_app/tests/skill-models3d-generate.spec.ts]
+    verification: [T-E2E-001, T-E2E-002, T-ORDER-001, V-PRINT-ARTIFACTS, V-WEB-USER-APPROVAL]
+    verification_ids: [T-E2E-001, T-E2E-002, T-ORDER-001, V-PRINT-ARTIFACTS, V-WEB-USER-APPROVAL]
+    dependencies: [TASK-3, TASK-5]
+    ownership: {files: [frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte, frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte, frontend/apps/web_app/tests/skill-models3d-generate.spec.ts], shared_files: [frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts, frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts, frontend/packages/ui/src/services/embedPreviewRegistry.ts]}
+    blockers: [CLI, npm SDK, and pip SDK evidence must all be green before source work begins.]
+    follow_up_tasks: [TASK-7]
+    independently_deployable: false
+  - id: TASK-7
+    title: Obtain explicit deployed web approval
+    status: pending
+    phase: blocked
+    covers: {scenarios: [S-12], acceptance_criteria: [AC-15]}
+    expected_files: [docs/specs/models3d-generate/spec.yml]
+    verification: [V-WEB-USER-APPROVAL]
+    verification_ids: [V-WEB-USER-APPROVAL]
+    dependencies: [TASK-6]
+    ownership: {files: [docs/specs/models3d-generate/spec.yml], shared_files: []}
+    blockers: [Requires explicit user confirmation after deployed web evidence is presented.]
+    follow_up_tasks: [TASK-8]
+    independently_deployable: false
+  - id: TASK-8
+    title: Implement Apple model embed parity after approval
+    status: pending
+    phase: blocked
+    covers: {scenarios: [S-12], acceptance_criteria: [AC-15, AC-16]}
+    expected_files: [apple/OpenMates/Sources/Features/Embeds/Renderers/Model3DGenerateRenderer.swift, apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift, apple/OpenMates/Sources/Core/Models/EmbedModels.swift, apple/OpenMatesTests/SkillApplicationParityTests.swift, apple/OpenMatesUITests/SkillApplicationParityUITests.swift]
+    verification: [T-APPLE-001, V-APPLE-ARTIFACTS]
+    verification_ids: [T-APPLE-001, V-APPLE-ARTIFACTS]
+    dependencies: [TASK-7]
+    ownership: {files: [apple/OpenMates/Sources/Features/Embeds/Renderers/Model3DGenerateRenderer.swift, apple/OpenMatesTests/SkillApplicationParityTests.swift, apple/OpenMatesUITests/SkillApplicationParityUITests.swift], shared_files: [apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift, apple/OpenMates/Sources/Core/Models/EmbedModels.swift]}
+    blockers: [V-WEB-USER-APPROVAL]
+    follow_up_tasks: []
+    independently_deployable: false
