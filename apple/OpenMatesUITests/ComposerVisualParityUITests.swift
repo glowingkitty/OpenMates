@@ -41,7 +41,9 @@ final class ComposerVisualParityUITests: XCTestCase {
     }
 
     func testFocusedWelcomeComposerScreenshotShowsActionButtons() throws {
-        let app = launchFocusedWelcomeComposer()
+        let app = launchFocusedWelcomeComposer(
+            extraArguments: ["--ui-test-welcome-seed-pending-content"]
+        )
 
         XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
         let screenshot = XCUIScreen.main.screenshot()
@@ -95,9 +97,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
 
-        let app = launchFocusedWelcomeComposer(
-            extraArguments: ["--ui-test-welcome-seed-pending-content"]
-        )
+        let app = launchFocusedWelcomeComposer()
         let field = element(in: app, identifier: "message-field")
         let image = element(in: app, identifier: "native-composer-image-content")
         let audio = element(in: app, identifier: "native-composer-audio-content")
@@ -122,9 +122,7 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         defer { XCUIDevice.shared.orientation = .portrait }
 
-        let app = launchFocusedWelcomeComposer(
-            extraArguments: ["--ui-test-welcome-seed-pending-content"]
-        )
+        let app = launchFocusedWelcomeComposer()
         let field = element(in: app, identifier: "message-field")
         let button = app.buttons["message-input-fullscreen-button"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
@@ -183,7 +181,6 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
         for identifier in [
             "sketch-eraser-button",
-            "sketch-undo-button",
             "sketch-clear-button",
             "sketch-zoom-in-button",
             "sketch-fullscreen-button",
@@ -192,6 +189,20 @@ final class ComposerVisualParityUITests: XCTestCase {
             XCTAssertTrue(control.waitForExistence(timeout: 2), "Missing web-parity drawing control: \(identifier)")
             XCTAssertTrue(control.isHittable, "Drawing control is clipped: \(identifier)")
         }
+
+        let undo = app.buttons["sketch-undo-button"]
+        let save = app.buttons["sketch-save-button"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 2))
+        XCTAssertTrue(save.waitForExistence(timeout: 2))
+        XCTAssertFalse(undo.isHittable, "Undo must stay disabled until the canvas has a stroke")
+        XCTAssertFalse(save.isHittable, "Save must stay disabled until the canvas has a stroke")
+
+        let strokeStart = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.35))
+        let strokeEnd = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.65))
+        strokeStart.press(forDuration: 0.1, thenDragTo: strokeEnd)
+
+        XCTAssertTrue(waitForHittable(undo), "Undo must become actionable after drawing")
+        XCTAssertTrue(waitForHittable(save), "Save must become actionable after drawing")
     }
 
     func testQuickCaptureComposerUsesSameSharedIdentifierContract() throws {
@@ -244,6 +255,12 @@ final class ComposerVisualParityUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         return false
+    }
+
+    private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "isHittable == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
     private func assertEmbed(
