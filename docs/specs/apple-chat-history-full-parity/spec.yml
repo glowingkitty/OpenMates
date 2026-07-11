@@ -532,7 +532,12 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/EmbedDiffEditingParityTests
+        run_id: "remote-mac-red-20260711T141612Z"
+        subject_commit: 6883c92b4
+        timestamp: "2026-07-11T14:16:46Z"
     green_phase:
       required: true
       expected: pass

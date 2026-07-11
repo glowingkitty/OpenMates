@@ -25,7 +25,8 @@ final class EmbedDiffEditingParityTests: XCTestCase {
         )
 
         XCTAssertEqual(related.map(\.id), ["parent", "child-one", "child-two"])
-        XCTAssertEqual(related[1].rawData?["title"]?.value as? String, "Current")
+        let child = try XCTUnwrap(related.first { $0.id == "child-one" })
+        XCTAssertEqual(child.rawData?["title"]?.value as? String, "Current")
     }
 
     func testRelatedRecordsResolveParentAndChildrenFromEitherRelationshipDirection() throws {
@@ -55,6 +56,62 @@ final class EmbedDiffEditingParityTests: XCTestCase {
 
         XCTAssertEqual(fromParent.map(\.id), ["parent", "declared-child", "reverse-child"])
         XCTAssertEqual(fromChild.map(\.id), ["parent", "declared-child", "reverse-child"])
+    }
+
+    func testUnresolvedCompositeParentsRequireTheirDeclaredOrLinkedChildren() {
+        let missingChildren = embed(
+            id: "missing-parent",
+            type: "app-skill-use",
+            data: ["type": "app_skill_use"],
+            embedIds: "missing-child"
+        )
+        let linkedParent = embed(
+            id: "linked-parent",
+            type: "app-skill-use",
+            data: ["type": "app_skill_use"]
+        )
+        let linkedChild = embed(
+            id: "linked-child",
+            type: "web-website",
+            parentEmbedId: linkedParent.id
+        )
+        let leafSkill = embed(
+            id: "leaf-skill",
+            type: "app-skill-use",
+            data: ["type": "app_skill_use"],
+            appId: "math",
+            skillId: "calculate"
+        )
+        let inlinePreview = embed(
+            id: "inline-preview",
+            type: "app-skill-use",
+            data: ["type": "app_skill_use", "preview_results": [["title": "Preview"]]],
+            appId: "web",
+            skillId: "search"
+        )
+
+        XCTAssertEqual(
+            EmbedRecord.unresolvedCompositeParentIds(
+                referencedIds: [missingChildren.id],
+                from: [missingChildren],
+                context: "test.unresolved.missing"
+            ),
+            [missingChildren.id]
+        )
+        XCTAssertTrue(
+            EmbedRecord.unresolvedCompositeParentIds(
+                referencedIds: [linkedParent.id],
+                from: [linkedParent, linkedChild],
+                context: "test.unresolved.linked"
+            ).isEmpty
+        )
+        XCTAssertTrue(
+            EmbedRecord.unresolvedCompositeParentIds(
+                referencedIds: [leafSkill.id, inlinePreview.id],
+                from: [leafSkill, inlinePreview],
+                context: "test.unresolved.inline"
+            ).isEmpty
+        )
     }
 
     func testEmbedRecordDecodesVersionMetadataFromWebPayload() throws {
@@ -100,6 +157,8 @@ final class EmbedDiffEditingParityTests: XCTestCase {
         type: String,
         data: [String: Any] = [:],
         parentEmbedId: String? = nil,
+        appId: String? = nil,
+        skillId: String? = nil,
         embedIds: String? = nil
     ) -> EmbedRecord {
         EmbedRecord(
@@ -108,8 +167,8 @@ final class EmbedDiffEditingParityTests: XCTestCase {
             status: .finished,
             data: data.isEmpty ? nil : .raw(data.mapValues { AnyCodable($0) }),
             parentEmbedId: parentEmbedId,
-            appId: nil,
-            skillId: nil,
+            appId: appId,
+            skillId: skillId,
             embedIds: embedIds,
             createdAt: nil
         )

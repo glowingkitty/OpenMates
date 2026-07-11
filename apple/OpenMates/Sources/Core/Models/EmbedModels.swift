@@ -128,12 +128,21 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         context: String
     ) -> [EmbedRecord] {
         guard !referencedIds.isEmpty, !embeds.isEmpty else { return [] }
-        _ = dictionaryById(embeds, context: context)
+        let records = deduplicatedById(embeds, context: context)
         var includedIds = referencedIds
         var changed = true
         while changed {
             changed = false
-            for embed in embeds {
+            for embed in records {
+                if includedIds.contains(embed.id) {
+                    if let parentEmbedId = embed.parentEmbedId,
+                       includedIds.insert(parentEmbedId).inserted {
+                        changed = true
+                    }
+                    for childEmbedId in embed.childEmbedIds where includedIds.insert(childEmbedId).inserted {
+                        changed = true
+                    }
+                }
                 let referencesIncludedParent = embed.parentEmbedId.map { includedIds.contains($0) } ?? false
                 let referencesIncludedChild = !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
                 if (referencesIncludedParent || referencesIncludedChild), includedIds.insert(embed.id).inserted {
@@ -141,11 +150,37 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
                 }
             }
         }
-        return embeds.filter { embed in
-            includedIds.contains(embed.id) ||
-            (embed.parentEmbedId.map { includedIds.contains($0) } ?? false) ||
-            !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
-        }
+        return records.filter { includedIds.contains($0.id) }
+    }
+
+    static func unresolvedCompositeParentIds(
+        referencedIds: Set<String>,
+        from embeds: [EmbedRecord],
+        context: String
+    ) -> Set<String> {
+        let related = relatedRecords(referencedIds: referencedIds, from: embeds, context: context)
+        let availableIds = Set(related.map(\.id))
+        let childIdsByParent: [String: Set<String>] = Dictionary(grouping: related.compactMap { child in
+            child.parentEmbedId.map { ($0, child.id) }
+        }, by: \.0).mapValues { Set($0.map(\.1)) }
+        return Set(related.compactMap { parent in
+            guard parent.isAppSkillUse else { return nil }
+            let declaredChildren = Set(parent.childEmbedIds)
+            let linkedChildren = childIdsByParent[parent.id] ?? []
+            let appId = parent.appId ?? parent.rawData?["app_id"]?.value as? String
+            let skillId = parent.skillId ?? parent.rawData?["skill_id"]?.value as? String
+            let semanticType = appId.flatMap { appId in
+                skillId.flatMap { EmbedType.normalized(rawValue: "app:\(appId):\($0)") }
+            }
+            let hasInlinePreviewResults = parent.rawData?["preview_results"] != nil
+            let requiresExternalChildren = !declaredChildren.isEmpty ||
+                (semanticType?.isComposite == true && !hasInlinePreviewResults)
+            guard requiresExternalChildren else { return nil }
+            if declaredChildren.isEmpty {
+                return linkedChildren.isEmpty ? parent.id : nil
+            }
+            return declaredChildren.isSubset(of: availableIds) ? nil : parent.id
+        })
     }
 
     init(
