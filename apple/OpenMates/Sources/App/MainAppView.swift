@@ -2651,15 +2651,15 @@ struct MainAppView: View {
         let now = ISO8601DateFormatter().string(from: Date())
         var chat = Chat(
             id: payload.chatId,
-            title: payload.title ?? existing?.title,
+            title: existing?.title,
             lastMessageAt: existing?.lastMessageAt ?? now,
             createdAt: existing?.createdAt ?? now,
             updatedAt: now,
             isArchived: existing?.isArchived ?? false,
             isPinned: existing?.isPinned ?? false,
             appId: existing?.appId ?? "ai",
-            category: payload.category ?? existing?.category,
-            icon: payload.iconNames?.first ?? existing?.icon,
+            category: existing?.category,
+            icon: existing?.icon,
             chatSummary: existing?.chatSummary,
             encryptedTitle: existing?.encryptedTitle,
             encryptedCategory: existing?.encryptedCategory,
