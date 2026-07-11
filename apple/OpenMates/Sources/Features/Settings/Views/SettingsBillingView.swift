@@ -477,9 +477,9 @@ struct BillingUsageView: View {
     private func usageEntry(_ entry: UsageEntry) -> some View {
         VStack(alignment: .leading, spacing: .spacing1) {
             Text(entry.displayName).font(.omSmall).foregroundStyle(Color.fontPrimary)
-            Text(Date(timeIntervalSince1970: TimeInterval(entry.createdAt)).formatted())
+            Text(entry.createdAt.map { Date(timeIntervalSince1970: TimeInterval($0)).formatted() } ?? AppStrings.none)
                 .font(.omXs).foregroundStyle(Color.fontTertiary)
-            Text(entry.credits.formatted()).font(.omXs).foregroundStyle(Color.fontSecondary)
+            Text(entry.credits?.formatted() ?? AppStrings.none).font(.omXs).foregroundStyle(Color.fontSecondary)
         }
         .padding(.spacing5)
     }
@@ -688,7 +688,7 @@ struct SettingsReferralCodeView: View {
 
 // MARK: - Typed backend contracts
 
-private struct BillingOverviewResponse: Decodable {
+struct BillingOverviewResponse: Decodable {
     let paymentTier: Int
     var autoTopupEnabled: Bool
     let autoTopupThreshold: Int
@@ -700,7 +700,7 @@ private struct BillingOverviewResponse: Decodable {
     static let fixture = Self(paymentTier: 1, autoTopupEnabled: true, autoTopupThreshold: 100, autoTopupAmount: 10_000, autoTopupCurrency: "eur", invoices: [])
 }
 
-private struct BillingInvoice: Decodable, Identifiable {
+struct BillingInvoice: Decodable, Identifiable {
     let id: String
     let orderId: String?
     let date: String
@@ -724,13 +724,13 @@ private struct BillingInvoice: Decodable, Identifiable {
     static let fixture = Self(id: "fixture", orderId: nil, date: "2026-01-01", amount: "599", creditsPurchased: 1_000, filename: "Invoice.pdf", isGiftCard: false, refundedAt: nil, refundStatus: "none", currency: "eur", provider: "apple", bankTransferReference: nil, transactionStatus: nil, documentStatus: "ready")
 }
 
-private struct InvoicesListResponse: Decodable { let invoices: [BillingInvoice] }
+struct InvoicesListResponse: Decodable { let invoices: [BillingInvoice] }
 
-private struct UsageSummaryResponse: Decodable { let summaries: [UsageSummary] }
-private struct UsageDetailsResponse: Decodable { let entries: [UsageEntry] }
-private struct DailyUsageResponse: Decodable { let days: [UsageDay] }
+struct UsageSummaryResponse: Decodable { let summaries: [UsageSummary] }
+struct UsageDetailsResponse: Decodable { let entries: [UsageEntry] }
+struct DailyUsageResponse: Decodable { let days: [UsageDay] }
 
-private struct UsageSummary: Decodable, Identifiable {
+struct UsageSummary: Decodable, Identifiable {
     let chatId: String?
     let appId: String?
     let apiKeyHash: String?
@@ -741,17 +741,17 @@ private struct UsageSummary: Decodable, Identifiable {
     static func fixture(for tab: UsageTab) -> Self { Self(chatId: tab == .chats ? "fixture-chat" : nil, appId: tab == .apps ? "ai" : nil, apiKeyHash: tab == .api ? "fixture-key" : nil, month: "2026-01", totalCredits: 42) }
 }
 
-private struct UsageEntry: Decodable, Identifiable {
+struct UsageEntry: Decodable, Identifiable {
     let id: String
     let type: String
     let appId: String?
     let skillId: String?
-    let credits: Double
-    let createdAt: Int
+    let credits: Double?
+    let createdAt: Int?
     var displayName: String { [appId, skillId].compactMap { $0 }.joined(separator: " / ").nonEmpty ?? type }
 }
 
-private struct UsageDay: Decodable, Identifiable {
+struct UsageDay: Decodable, Identifiable {
     let date: String
     let totalCredits: Double
     var id: String { date }

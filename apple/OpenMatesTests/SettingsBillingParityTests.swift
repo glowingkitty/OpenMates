@@ -88,7 +88,7 @@ final class SettingsBillingParityTests: XCTestCase {
             """
         )
 
-        XCTAssertEqual(summaries.summaries.first?.identifier, "ai")
+        XCTAssertEqual(summaries.summaries.first?.identifier(fallback: "unknown"), "ai")
         XCTAssertNil(details.entries.first?.credits)
         XCTAssertEqual(daily.days.first?.totalCredits, 12.5)
     }
