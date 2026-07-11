@@ -263,7 +263,12 @@ final class PrivacyConnectedAccountsController: ObservableObject {
                 .get,
                 path: PrivacyAPIContract.connectedAccountsPath
             )
-            summaries = try await response.rows.asyncMap { try await Self.summarize($0, masterKey: masterKey) }
+            var decryptedSummaries: [ConnectedAccountSummary] = []
+            decryptedSummaries.reserveCapacity(response.rows.count)
+            for row in response.rows {
+                decryptedSummaries.append(try await Self.summarize(row, masterKey: masterKey))
+            }
+            summaries = decryptedSummaries
         } catch {
             NativeDiagnostics.error("Connected accounts load failed: \(type(of: error))", category: "privacy")
             errorMessage = AppStrings.privacyConnectedAccountsLoadError
@@ -330,14 +335,5 @@ enum PrivacySettingsError: Error {
 enum PrivacySettingsUITestFixture {
     static var enabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-privacy-settings-fixture")
-    }
-}
-
-private extension Array {
-    func asyncMap<T>(_ transform: (Element) async throws -> T) async rethrows -> [T] {
-        var values: [T] = []
-        values.reserveCapacity(count)
-        for element in self { values.append(try await transform(element)) }
-        return values
     }
 }
