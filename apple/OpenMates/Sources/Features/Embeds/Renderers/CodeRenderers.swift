@@ -10,6 +10,8 @@
 //          frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -1838,6 +1840,178 @@ private struct ElectronicsComponentFullscreen: View {
     }
 }
 
+struct PcbSchematicEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var schematic: PcbSchematicSummary { PcbSchematicSummary(data: data ?? [:]) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            PcbSchematicPreview(schematic: schematic)
+        case .fullscreen:
+            PcbSchematicFullscreen(schematic: schematic)
+        }
+    }
+}
+
+private struct PcbSchematicPreview: View {
+    let schematic: PcbSchematicSummary
+
+    var body: some View {
+        if schematic.code.isEmpty {
+            VStack(spacing: .spacing4) {
+                Icon("pcbdesign", size: .spacing16)
+                    .foregroundStyle(LinearGradient.appElectronics)
+                Text(AppStrings.pcbSchematicTitle)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            CodeLinesView(
+                code: schematic.previewCode,
+                language: schematic.language,
+                showsLineNumbers: true,
+                fontSize: 12,
+                clipsLongLines: true
+            )
+            .padding(.top, .spacing5)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .clipped()
+        }
+    }
+}
+
+private struct PcbSchematicFullscreen: View {
+    let schematic: PcbSchematicSummary
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    var body: some View {
+        Group {
+            if horizontalSizeClass == .compact {
+                VStack(spacing: .spacing6) {
+                    sourcePanel
+                    compilePanel
+                }
+            } else {
+                HStack(alignment: .top, spacing: .spacing6) {
+                    sourcePanel
+                    compilePanel
+                        .frame(minWidth: 280, maxWidth: 360)
+                }
+            }
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.top, .spacing8)
+        .padding(.bottom, .spacing8)
+    }
+
+    private var sourcePanel: some View {
+        ScrollView([.horizontal, .vertical], showsIndicators: true) {
+            CodeLinesView(
+                code: schematic.code,
+                language: schematic.language,
+                showsLineNumbers: true,
+                fontSize: 14,
+                clipsLongLines: false,
+                gutterWidth: 56
+            )
+            .padding(.vertical, .spacing6)
+            .padding(.trailing, .spacing8)
+        }
+        .frame(maxWidth: .infinity, minHeight: 420, alignment: .topLeading)
+        .background(Color.grey20)
+        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .accessibilityIdentifier("pcb-schematic-source-panel")
+    }
+
+    private var compilePanel: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: .spacing6) {
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    Text(AppStrings.pcbSchematicPrepareFiles)
+                        .font(.omSmall)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontPrimary)
+                    if let status = schematic.compileStatus {
+                        Text(status)
+                            .font(.omXs)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontPrimary)
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, .spacing2)
+                            .background(Color.grey25)
+                            .clipShape(Capsule())
+                    }
+                    Text(AppStrings.pcbSchematicSafetyNote)
+                        .font(.omXs)
+                        .foregroundStyle(Color.grey70)
+                        .lineSpacing(.spacing1)
+                    if let compileError = schematic.compileError {
+                        Text(compileError)
+                            .font(.omXs)
+                            .foregroundStyle(Color.error)
+                            .textSelection(.enabled)
+                    }
+                }
+
+                if !schematic.artifacts.isEmpty {
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        Text(AppStrings.pcbSchematicArtifacts)
+                            .font(.omSmall)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontPrimary)
+                        ForEach(schematic.artifacts) { artifact in
+                            VStack(alignment: .leading, spacing: .spacing1) {
+                                Text(artifact.name)
+                                    .font(.omXs)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.fontPrimary)
+                                if let type = artifact.type {
+                                    Text(type)
+                                        .font(.omXs)
+                                        .foregroundStyle(Color.grey70)
+                                }
+                            }
+                            .padding(.spacing3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.grey10)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                        }
+                    }
+                    .accessibilityIdentifier("pcb-schematic-artifacts")
+                }
+
+                if let logs = schematic.logs {
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        Text(AppStrings.pcbSchematicLogs)
+                            .font(.omSmall)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontPrimary)
+                        Text(logs)
+                            .font(.omXs)
+                            .monospaced()
+                            .foregroundStyle(Color.grey0)
+                            .textSelection(.enabled)
+                            .padding(.spacing4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.grey100)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                    }
+                    .accessibilityIdentifier("pcb-schematic-logs")
+                }
+            }
+            .padding(.spacing6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color.grey20)
+        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .accessibilityIdentifier("pcb-schematic-compile-panel")
+    }
+}
+
 private struct ElectronicsDetailSection: View {
     let title: String
     let metrics: [NativeEmbedMetric]
@@ -1928,6 +2102,51 @@ private struct NativeEmbedMetric: Identifiable {
     let label: String
     let value: String
     var id: String { label }
+}
+
+private struct PcbSchematicArtifact: Identifiable {
+    let id: String
+    let name: String
+    let type: String?
+}
+
+@MainActor private struct PcbSchematicSummary {
+    let code: String
+    let language: String
+    let compileStatus: String?
+    let compileError: String?
+    let logs: String?
+    let artifacts: [PcbSchematicArtifact]
+
+    init(data: [String: AnyCodable]) {
+        code = (EmbedFieldReader.string(data, keys: ["code", "codeContent"]) ?? "")
+            .replacingOccurrences(of: #"\""#, with: #"""#)
+            .replacingOccurrences(of: #"\/"#, with: "/")
+        language = EmbedFieldReader.string(data, keys: ["language"]) ?? "atopile"
+        compileStatus = EmbedFieldReader.string(data, keys: ["compile_status"])
+        compileError = EmbedFieldReader.string(data, keys: ["compile_error", "error"])
+        logs = EmbedFieldReader.string(data, keys: ["compile_logs"])
+        artifacts = Self.artifacts(from: data)
+    }
+
+    var previewCode: String {
+        code.components(separatedBy: "\n").prefix(8).joined(separator: "\n")
+    }
+
+    private static func artifacts(from data: [String: AnyCodable]) -> [PcbSchematicArtifact] {
+        guard let manifest = data["artifact_manifest"]?.value as? [String: Any],
+              let files = manifest["files"] as? [[String: Any]]
+        else { return [] }
+
+        return files.compactMap { file in
+            guard let name = CodeRendererValue.string(file, key: "name") else { return nil }
+            return PcbSchematicArtifact(
+                id: CodeRendererValue.string(file, key: "id") ?? name,
+                name: name,
+                type: CodeRendererValue.string(file, key: "type")
+            )
+        }
+    }
 }
 
 private struct NativeEmbedLink: Identifiable {

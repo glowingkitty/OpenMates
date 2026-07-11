@@ -801,6 +801,11 @@ enum AppStrings {
     static var codeRunShowOutput: String { L("app_skills.code.run.show_output") }
     static var codeRunHideOutput: String { L("app_skills.code.run.hide_output") }
     static var codeRunRequiredFile: String { L("app_skills.code.run.required_file") }
+    static var pcbSchematicTitle: String { L("embeds.electronics.pcb_schematic.title") }
+    static var pcbSchematicPrepareFiles: String { L("embeds.electronics.pcb_schematic.prepare_files") }
+    static var pcbSchematicArtifacts: String { L("embeds.electronics.pcb_schematic.artifacts") }
+    static var pcbSchematicLogs: String { L("embeds.electronics.pcb_schematic.logs") }
+    static var pcbSchematicSafetyNote: String { L("embeds.electronics.pcb_schematic.safety_note") }
     static var reportBadAnswer: String { L("chat.report_bad_answer.button_text") }
     static var fitnessSearchLocations: String { L("app_skills.fitness.search_locations") }
     static var fitnessSearchClasses: String { L("app_skills.fitness.search_classes") }
