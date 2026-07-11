@@ -6051,6 +6051,7 @@ private struct WelcomeResumeCompactCard: View {
         .overlay {
             #if os(iOS)
             WelcomeCardInteractionSurface(onTap: onTap, onLongPress: onLongPress)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             #else
             Color.clear
                 .contentShape(RoundedRectangle(cornerRadius: .radius8))
@@ -6079,6 +6080,7 @@ private struct WelcomeCardInteractionSurface: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
         view.backgroundColor = .clear
+        view.isUserInteractionEnabled = true
         view.isAccessibilityElement = false
         view.accessibilityElementsHidden = true
 
