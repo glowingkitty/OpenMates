@@ -113,6 +113,10 @@ final class PersistedMessage {
     var embedRefsJSON: Data?
     var piiMappingsJSON: Data?
     var encryptedPIIMappings: String?
+    var thinkingContent: String?
+    var encryptedThinkingContent: String?
+    var encryptedThinkingSignature: String?
+    var thinkingTokenCount: Int?
 
     var chat: PersistedChat?
 
@@ -129,6 +133,10 @@ final class PersistedMessage {
         self.embedRefsJSON = try? JSONEncoder().encode(message.embedRefs)
         self.piiMappingsJSON = try? JSONEncoder().encode(message.piiMappings)
         self.encryptedPIIMappings = message.encryptedPIIMappings
+        self.thinkingContent = message.thinkingContent
+        self.encryptedThinkingContent = message.encryptedThinkingContent
+        self.encryptedThinkingSignature = message.encryptedThinkingSignature
+        self.thinkingTokenCount = message.thinkingTokenCount
     }
 
     func toMessage() -> Message {
@@ -143,7 +151,11 @@ final class PersistedMessage {
             isStreaming: false, embedRefs: embedRefs,
             modelName: modelName,
             piiMappings: piiMappings,
-            encryptedPIIMappings: encryptedPIIMappings
+            encryptedPIIMappings: encryptedPIIMappings,
+            thinkingContent: thinkingContent,
+            encryptedThinkingContent: encryptedThinkingContent,
+            encryptedThinkingSignature: encryptedThinkingSignature,
+            thinkingTokenCount: thinkingTokenCount
         )
     }
 }

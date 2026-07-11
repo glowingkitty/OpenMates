@@ -43,6 +43,25 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertTrue(state.isThinkingStreaming)
     }
 
+    func testStaleAndDuplicateChunksAreRejected() {
+        var state = ChatStreamingLifecycleState()
+        let newest = StreamingClient.StreamEvent.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 2,
+            content: "newest", isFinal: false, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        )
+        let stale = StreamingClient.StreamEvent.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 1,
+            content: "stale", isFinal: false, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        )
+
+        XCTAssertTrue(state.apply(newest))
+        XCTAssertFalse(state.apply(stale))
+        XCTAssertFalse(state.apply(newest))
+        XCTAssertEqual(state.phase, .streaming)
+    }
+
     func testReplacingStreamKeepsNewestSubscriberRegistered() async {
         let chatId = "fixture-stream-replacement-\(UUID().uuidString)"
         let firstStream = await StreamingClient.shared.streamForChat(chatId)

@@ -31,6 +31,7 @@ struct ChatStreamingLifecycleState: Equatable {
     var isThinkingStreaming = false
     var queuedMessageText: String?
     var errorMessage: String?
+    private var lastSequenceByMessageId: [String: Int] = [:]
 
     var isActive: Bool {
         switch phase {
@@ -49,9 +50,11 @@ struct ChatStreamingLifecycleState: Equatable {
         isThinkingStreaming || !thinkingContent.isEmpty
     }
 
-    mutating func apply(_ event: StreamingClient.StreamEvent) {
+    @discardableResult
+    mutating func apply(_ event: StreamingClient.StreamEvent) -> Bool {
         switch event {
         case .taskInitiated(let chatId, let taskId, let userMessageId):
+            reset()
             self.chatId = chatId
             self.taskId = taskId
             self.userMessageId = userMessageId.isEmpty ? nil : userMessageId
@@ -73,8 +76,11 @@ struct ChatStreamingLifecycleState: Equatable {
 
         case .thinkingChunk(let chatId, let messageId, let content):
             self.chatId = chatId
+            if self.messageId != messageId {
+                thinkingContent = ""
+            }
             self.messageId = messageId
-            thinkingContent = content
+            thinkingContent += content
             isThinkingStreaming = true
             phase = .thinking
 
@@ -86,7 +92,11 @@ struct ChatStreamingLifecycleState: Equatable {
                 phase = .typing
             }
 
-        case .chunk(let chatId, let messageId, _, _, let isFinal, let userMessageId, _, _, _):
+        case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, _, _, _):
+            if let lastSequence = lastSequenceByMessageId[messageId], sequence <= lastSequence {
+                return false
+            }
+            lastSequenceByMessageId[messageId] = sequence
             self.chatId = chatId
             self.messageId = messageId
             if let userMessageId, !userMessageId.isEmpty {
@@ -139,6 +149,7 @@ struct ChatStreamingLifecycleState: Equatable {
             isThinkingStreaming = false
             queuedMessageText = nil
         }
+        return true
     }
 
     mutating func reset() {
@@ -547,6 +558,13 @@ final class ChatViewModel: ObservableObject {
                let mappingsData = decryptedMappings.data(using: .utf8),
                let mappings = try? JSONDecoder().decode([PIIMapping].self, from: mappingsData) {
                 msg.piiMappings = mappings
+            }
+            if msg.thinkingContent == nil,
+               let encryptedThinkingContent = msg.encryptedThinkingContent {
+                msg.thinkingContent = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId,
+                    encryptedContent: encryptedThinkingContent
+                )
             }
             result.append(msg)
         }
@@ -963,7 +981,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func handleStreamEvent(_ event: StreamingClient.StreamEvent) {
-        streamingLifecycle.apply(event)
+        guard streamingLifecycle.apply(event) else { return }
         switch event {
         case .taskInitiated(_, _, _):
             isStreaming = true
@@ -991,6 +1009,7 @@ final class ChatViewModel: ObservableObject {
                     }
                 }
             }
+            ensureStreamingAssistantMessage(chatId: chatId, messageId: messageId, metadata: metadata)
 
         case .chunk(let chatId, let messageId, _, let content, let isFinal, let userMessageId, let category, let modelName, let rejectionReason):
             streamingMessageId = messageId
@@ -1015,7 +1034,8 @@ final class ChatViewModel: ObservableObject {
                     content: content, encryptedContent: nil,
                     createdAt: createdAtForAssistantMessage(messageId),
                     updatedAt: nil, appId: resolvedCategory, isStreaming: false, embedRefs: nil,
-                    modelName: resolvedModelName
+                    modelName: resolvedModelName,
+                    thinkingContent: streamingLifecycle.thinkingContent.isEmpty ? nil : streamingLifecycle.thinkingContent
                 )
                 let embedded = PublicChatContent.attachEmbeds(to: [rawAssistantMessage])
                 for (id, record) in embedded.records {
@@ -1049,15 +1069,17 @@ final class ChatViewModel: ObservableObject {
                     content: displayContent, encryptedContent: nil,
                     createdAt: createdAtForAssistantMessage(messageId),
                     updatedAt: nil, appId: resolvedCategory, isStreaming: true, embedRefs: nil,
-                    modelName: resolvedModelName
+                    modelName: resolvedModelName,
+                    thinkingContent: streamingLifecycle.thinkingContent.isEmpty ? nil : streamingLifecycle.thinkingContent
                 )
                 appendOrReplaceTransientMessage(partialAssistantMessage)
                 isStreaming = true
             }
 
-        case .thinkingChunk(_, let messageId, _):
+        case .thinkingChunk(let chatId, let messageId, _):
             streamingMessageId = messageId
             isStreaming = true
+            ensureStreamingAssistantMessage(chatId: chatId, messageId: messageId, metadata: nil)
 
         case .thinkingComplete(_, _):
             isStreaming = true
@@ -1115,6 +1137,27 @@ final class ChatViewModel: ObservableObject {
             streamingLifecycle.queuedMessageText = nil
             queuedMessageClearTask = nil
         }
+    }
+
+    private func ensureStreamingAssistantMessage(
+        chatId: String,
+        messageId: String,
+        metadata: StreamingClient.ChatMetadata?
+    ) {
+        guard !messages.contains(where: { $0.id == messageId }) else { return }
+        appendOrReplaceTransientMessage(Message(
+            id: messageId,
+            chatId: chatId,
+            role: .assistant,
+            content: "",
+            encryptedContent: nil,
+            createdAt: createdAtForAssistantMessage(messageId),
+            updatedAt: nil,
+            appId: metadata?.category,
+            isStreaming: true,
+            embedRefs: nil,
+            modelName: metadata?.modelName
+        ))
     }
 
     private func sendEncryptedUserStorageIfPossible(
@@ -3541,6 +3584,7 @@ final class ChatSendPipeline {
         }
         let encryptedCategory = try await encryptOptional(message.appId, key: keyMaterial.key)
         let encryptedModelName = try await encryptOptional(message.modelName, key: keyMaterial.key)
+        let encryptedThinkingContent = try await encryptOptional(message.thinkingContent, key: keyMaterial.key)
         let createdAtUnix = Self.unixSeconds(from: message.createdAt)
         let persisted = Message(
             id: message.id,
@@ -3555,7 +3599,11 @@ final class ChatSendPipeline {
             embedRefs: message.embedRefs,
             modelName: message.modelName,
             piiMappings: message.piiMappings,
-            encryptedPIIMappings: message.encryptedPIIMappings
+            encryptedPIIMappings: message.encryptedPIIMappings,
+            thinkingContent: message.thinkingContent,
+            encryptedThinkingContent: encryptedThinkingContent,
+            encryptedThinkingSignature: message.encryptedThinkingSignature,
+            thinkingTokenCount: message.thinkingTokenCount
         )
 
         chatStore?.appendMessage(persisted, to: message.chatId)
@@ -3589,6 +3637,7 @@ final class ChatSendPipeline {
                 encryptedContent: encryptedContent,
                 encryptedCategory: encryptedCategory,
                 encryptedModelName: encryptedModelName,
+                encryptedThinkingContent: encryptedThinkingContent,
                 createdAtUnix: createdAtUnix,
                 currentMessagesV: chat.messagesV,
                 localMessageCountAfterAppendingAssistant: localMessageCountAfterAppend
@@ -3654,6 +3703,7 @@ final class ChatSendPipeline {
         encryptedContent: String,
         encryptedCategory: String?,
         encryptedModelName: String?,
+        encryptedThinkingContent: String? = nil,
         createdAtUnix: Int,
         currentMessagesV: Int?,
         localMessageCountAfterAppendingAssistant: Int
@@ -3669,6 +3719,7 @@ final class ChatSendPipeline {
         if let userMessageId { messagePayload["user_message_id"] = userMessageId }
         if let encryptedCategory { messagePayload["encrypted_category"] = encryptedCategory }
         if let encryptedModelName { messagePayload["encrypted_model_name"] = encryptedModelName }
+        if let encryptedThinkingContent { messagePayload["encrypted_thinking_content"] = encryptedThinkingContent }
         return [
             "chat_id": message.chatId,
             "message": messagePayload,

@@ -314,6 +314,13 @@ struct ChatView: View {
                 chatContainerWidth = width
             }
         }
+        .overlay {
+            if viewModel.streamingLifecycle.isActive {
+                ChatProcessingRing()
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .chatKeyboardShortcuts(
             onStopStreaming: { viewModel.stopStreaming() },
             onToggleIncognito: {
@@ -702,6 +709,11 @@ struct ChatView: View {
                                         embeds: displayedEmbeds(for: message),
                                         allEmbedRecords: displayedEmbedRecords,
                                         streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
+                                        thinkingContent: message.id == viewModel.streamingLifecycle.messageId
+                                            ? viewModel.streamingLifecycle.thinkingContent
+                                            : message.thinkingContent,
+                                        isThinkingStreaming: message.id == viewModel.streamingLifecycle.messageId
+                                            && viewModel.streamingLifecycle.isThinkingStreaming,
                                         piiMappings: cumulativePIIMappings,
                                         isPIIRevealed: isPIIRevealed,
                                         containerWidth: scrollGeo.size.width,
@@ -735,16 +747,6 @@ struct ChatView: View {
                                         .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 86 : 0)
                                         .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 12 : 0)
                                         .id("processing-details")
-                                }
-
-                                if viewModel.streamingLifecycle.shouldShowThinkingDetails {
-                                    ThinkingSectionView(
-                                        content: viewModel.streamingLifecycle.thinkingContent,
-                                        isStreaming: viewModel.streamingLifecycle.isThinkingStreaming
-                                    )
-                                    .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 86 : 0)
-                                    .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 12 : 0)
-                                    .id("thinking-section")
                                 }
 
                                 if viewModel.isStreaming && viewModel.streamingContent.isEmpty && !viewModel.streamingLifecycle.shouldShowThinkingDetails {
@@ -2497,6 +2499,43 @@ struct ChatView: View {
     }
 }
 
+private struct ChatProcessingRing: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var rotation = 0.0
+
+    private var gradient: AngularGradient {
+        AngularGradient(
+            colors: [
+                .chatRainbowRed,
+                .chatRainbowOrange,
+                .chatRainbowYellow,
+                .chatRainbowGreen,
+                .chatRainbowCyan,
+                .chatRainbowPurple,
+                .chatRainbowRed
+            ],
+            center: .center,
+            angle: .degrees(rotation)
+        )
+    }
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 17)
+            .strokeBorder(gradient, lineWidth: 2)
+            .blur(radius: 1.5)
+            .shadow(color: Color.chatRainbowPurple.opacity(colorScheme == .dark ? 0.70 : 0.42), radius: 9)
+            .shadow(color: Color.chatRainbowCyan.opacity(colorScheme == .dark ? 0.55 : 0.32), radius: 5)
+            .padding(1)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
+                    rotation = 360
+                }
+            }
+    }
+}
+
 private struct AssistantResponseFeedbackView: View {
     @Binding var selectedRating: Int?
     let submitted: Bool
@@ -2588,6 +2627,8 @@ struct MessageBubble: View {
     let embeds: [EmbedRecord]
     let allEmbedRecords: [String: EmbedRecord]
     let streamingContent: String?
+    let thinkingContent: String?
+    let isThinkingStreaming: Bool
     let piiMappings: [PIIMapping]
     let isPIIRevealed: Bool
     let containerWidth: CGFloat
@@ -2748,7 +2789,7 @@ struct MessageBubble: View {
 
     private var userBubble: some View {
         VStack(alignment: .trailing, spacing: .spacing3) {
-            if !displayContent.isEmpty {
+            if !displayContent.isEmpty || thinkingContent?.isEmpty == false {
                 RichMarkdownView(
                     content: displayContent,
                     isUserMessage: true,
@@ -2782,6 +2823,14 @@ struct MessageBubble: View {
                             .fontWeight(.medium)
                             .foregroundStyle(LinearGradient.primary)
                             .padding(.bottom, .spacing1)
+
+                        if let thinkingContent, !thinkingContent.isEmpty {
+                            ThinkingSectionView(
+                                content: thinkingContent,
+                                isStreaming: isThinkingStreaming
+                            )
+                            .accessibilityIdentifier("thinking-section")
+                        }
 
                         if !topLevelAppSkillEmbeds.isEmpty {
                             VStack(alignment: .leading, spacing: .spacing3) {

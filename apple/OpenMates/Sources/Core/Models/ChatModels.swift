@@ -350,6 +350,10 @@ struct Message: Identifiable, Decodable, Sendable {
     let modelName: String?
     var piiMappings: [PIIMapping]?
     let encryptedPIIMappings: String?
+    var thinkingContent: String?
+    let encryptedThinkingContent: String?
+    let encryptedThinkingSignature: String?
+    let thinkingTokenCount: Int?
 
     init(
         id: String,
@@ -364,7 +368,11 @@ struct Message: Identifiable, Decodable, Sendable {
         embedRefs: [EmbedRef]?,
         modelName: String? = nil,
         piiMappings: [PIIMapping]? = nil,
-        encryptedPIIMappings: String? = nil
+        encryptedPIIMappings: String? = nil,
+        thinkingContent: String? = nil,
+        encryptedThinkingContent: String? = nil,
+        encryptedThinkingSignature: String? = nil,
+        thinkingTokenCount: Int? = nil
     ) {
         self.id = id
         self.chatId = chatId
@@ -379,6 +387,10 @@ struct Message: Identifiable, Decodable, Sendable {
         self.modelName = modelName
         self.piiMappings = piiMappings
         self.encryptedPIIMappings = encryptedPIIMappings
+        self.thinkingContent = thinkingContent
+        self.encryptedThinkingContent = encryptedThinkingContent
+        self.encryptedThinkingSignature = encryptedThinkingSignature
+        self.thinkingTokenCount = thinkingTokenCount
     }
 
     init(from decoder: Decoder) throws {
@@ -408,6 +420,14 @@ struct Message: Identifiable, Decodable, Sendable {
             ?? container.decodeIfPresent([PIIMapping].self, forKey: .piiMappingsSnake)
         encryptedPIIMappings = try container.decodeIfPresent(String.self, forKey: .encryptedPIIMappings)
             ?? container.decodeIfPresent(String.self, forKey: .encryptedPIIMappingsSnake)
+        thinkingContent = try container.decodeIfPresent(String.self, forKey: .thinkingContent)
+            ?? container.decodeIfPresent(String.self, forKey: .thinkingContentSnake)
+        encryptedThinkingContent = try container.decodeIfPresent(String.self, forKey: .encryptedThinkingContent)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedThinkingContentSnake)
+        encryptedThinkingSignature = try container.decodeIfPresent(String.self, forKey: .encryptedThinkingSignature)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedThinkingSignatureSnake)
+        thinkingTokenCount = try container.decodeIfPresent(Int.self, forKey: .thinkingTokenCount)
+            ?? container.decodeIfPresent(Int.self, forKey: .thinkingTokenCountSnake)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -435,6 +455,14 @@ struct Message: Identifiable, Decodable, Sendable {
         case piiMappingsSnake = "pii_mappings"
         case encryptedPIIMappings
         case encryptedPIIMappingsSnake = "encrypted_pii_mappings"
+        case thinkingContent
+        case thinkingContentSnake = "thinking_content"
+        case encryptedThinkingContent
+        case encryptedThinkingContentSnake = "encrypted_thinking_content"
+        case encryptedThinkingSignature
+        case encryptedThinkingSignatureSnake = "encrypted_thinking_signature"
+        case thinkingTokenCount
+        case thinkingTokenCountSnake = "thinking_token_count"
     }
 
     private static func decodeFlexibleDateString(

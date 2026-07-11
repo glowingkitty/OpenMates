@@ -43,6 +43,12 @@ semantic:
   # both themes: the yellow overlay must remain recognisable on any background.
   highlight-yellow:        { light: "rgba(255, 213, 0, 0.4)", dark: "rgba(255, 213, 0, 0.4)" }
   highlight-yellow-solid:  { light: "#ffd500", dark: "#ffd500" }
+  chat-rainbow-red:        { light: "#ff2d55", dark: "#ff2d55" }
+  chat-rainbow-orange:     { light: "#ff6b2b", dark: "#ff6b2b" }
+  chat-rainbow-yellow:     { light: "#ffd60a", dark: "#ffd60a" }
+  chat-rainbow-green:      { light: "#30d158", dark: "#30d158" }
+  chat-rainbow-cyan:       { light: "#32ade6", dark: "#32ade6" }
+  chat-rainbow-purple:     { light: "#bf5af2", dark: "#bf5af2" }
 
 button:
   primary:           { value: "#ff553b" }
