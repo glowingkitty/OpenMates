@@ -19,10 +19,10 @@ describe("npm SDK drafts", () => {
           response.end(JSON.stringify({ key_wrapper: {} }));
         } else if (request.method === "GET" && request.url === "/v1/sdk/drafts") {
           response.end(JSON.stringify({ drafts: [{ chat_id: "chat-1", encrypted_draft_md: "cipher-1", draft_v: 2 }] }));
-        } else if (request.method === "GET") {
-          response.end(JSON.stringify({ draft: null }));
-        } else {
+        } else if (request.method === "GET" && request.url === "/v1/sdk/drafts/chat-1") {
           response.end(JSON.stringify({ draft: { chat_id: "chat-1", encrypted_draft_md: "cipher-1", draft_v: 2 } }));
+        } else {
+          response.end(JSON.stringify({ draft: null }));
         }
       });
     });
