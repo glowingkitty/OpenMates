@@ -304,7 +304,7 @@ test.describe('Apple stable chat-history web contracts', () => {
 						'message-assistant',
 						'mate-profile',
 						'mate-message-content',
-						'new-chat-cta-fullwidth'
+						'message-field'
 					],
 					path.join(dimensionDir, 'example-stable.png')
 				)
@@ -323,7 +323,7 @@ test.describe('Apple stable chat-history web contracts', () => {
 						'chat-header-banner',
 						'message-assistant',
 						'mate-message-content',
-						'new-chat-cta-fullwidth'
+						'message-field'
 					],
 					path.join(dimensionDir, 'example-restored.png')
 				)
