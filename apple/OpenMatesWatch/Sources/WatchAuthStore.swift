@@ -85,7 +85,7 @@ final class WatchAuthStore: ObservableObject {
 
     private func clearRevokedSession(for userId: String) async {
         try? await CryptoManager.shared.deleteMasterKey(for: userId)
-        try? await WatchChatOfflineCache().clearSnapshot()
+        try? await WatchChatOfflineCache().removeSnapshot()
         UserDefaults.standard.removeObject(forKey: Self.cachedUserDefaultsKey)
         OpenMatesSharedEnvironment.defaults.removeObject(forKey: Self.cachedUserDefaultsKey)
         OpenMatesSharedEnvironment.cookieStorage.removeCookies()
