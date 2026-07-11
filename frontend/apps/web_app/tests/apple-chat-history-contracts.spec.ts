@@ -24,6 +24,7 @@ const OUTPUT_DIR = path.resolve(
 const EXAMPLE_CHAT_PATH = '/#chat-id=example-artemis-ii-mission';
 const AUDIO_SHARED_CHAT_URL = 'https://app.dev.openmates.org/s/zuygP79v#BUw56h';
 const SOURCE_QUOTE_SHARED_CHAT_URL = 'https://app.dev.openmates.org/s/aUc6RjnR#bIiNzh';
+// Public shared chats retain their banner while exposing the regular composer and New chat action.
 
 const DIMENSIONS = [
 	{
