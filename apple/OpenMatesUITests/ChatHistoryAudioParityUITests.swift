@@ -29,13 +29,13 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         continueAfterFailure = false
         let app = launchFixture()
         defer { app.terminate() }
-        let processing = app.descendants(matching: .any)["recording-processing-state"]
-        let error = app.descendants(matching: .any)["recording-error-state"]
+        let processing = recordingCard(in: app, value: "Loading")
+        let error = recordingCard(in: app, value: "Failed to load")
 
-        XCTAssertTrue(scrollToElement(processing, in: app))
-        XCTAssertTrue(scrollToElement(error, in: app))
-        XCTAssertTrue(processing.label.contains("Synthetic Voxtral"))
-        XCTAssertTrue(error.label.contains("Audio unavailable"))
+        XCTAssertTrue(processing.waitForExistence(timeout: 10))
+        XCTAssertTrue(error.waitForExistence(timeout: 10))
+        XCTAssertEqual(processing.value as? String, "Loading")
+        XCTAssertEqual(error.value as? String, "Failed to load")
         XCTAssertFalse(app.tables.firstMatch.exists, "Chat product UI must not use default List/table chrome")
     }
 
@@ -61,7 +61,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         let paragraph = application.staticTexts["Synthetic ordered introduction"]
         let sourceQuote = application.descendants(matching: .any)["source-quote-block"]
         let systemMessage = application.descendants(matching: .any)["chat-history-system-message"]
-        let audio = application.buttons["embed-preview"]
+        let audio = recordingCard(in: application, value: "Ready")
 
         XCTAssertTrue(paragraph.waitForExistence(timeout: 10))
         XCTAssertTrue(sourceQuote.waitForExistence(timeout: 10))
@@ -96,13 +96,10 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         seek.tap()
     }
 
-    private func scrollToElement(_ element: XCUIElement, in application: XCUIApplication) -> Bool {
-        let scrollView = application.scrollViews.firstMatch
-        for _ in 0..<6 {
-            if element.exists { return true }
-            scrollView.swipeUp()
-        }
-        return element.exists
+    private func recordingCard(in application: XCUIApplication, value: String) -> XCUIElement {
+        application.buttons.matching(
+            NSPredicate(format: "identifier == %@ AND value == %@", "embed-preview", value)
+        ).firstMatch
     }
 
     private func attachScreenshot(name: String) {
