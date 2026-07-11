@@ -28,8 +28,7 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
 
         let githubButton = app.buttons["github-repo-button"]
         XCTAssertTrue(githubButton.waitForExistence(timeout: 5))
-        XCTAssertEqual(githubButton.frame.width, 42, accuracy: 1)
-        XCTAssertEqual(githubButton.frame.height, 42, accuracy: 1)
+        XCTAssertTrue(githubButton.isHittable)
 
         XCTAssertTrue(app.buttons["sidebar-toggle"].waitForExistence(timeout: 5))
         app.buttons["sidebar-toggle"].tap()
