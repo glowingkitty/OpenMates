@@ -60,7 +60,6 @@ struct EmbedContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            Group {
             if shouldUseCompositeRenderer {
                 AppSkillUseRenderer(embed: embed, allEmbedRecords: allEmbedRecords, mode: mode, onOpenEmbed: onOpenEmbed)
             } else {
@@ -249,7 +248,6 @@ struct EmbedContentView: View {
 
             default:
                 GenericEmbedRenderer(data: rawData, mode: mode, type: embed.type)
-            }
             }
             }
 
