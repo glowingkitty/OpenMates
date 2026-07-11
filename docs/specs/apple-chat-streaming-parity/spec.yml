@@ -201,10 +201,10 @@ attempts:
     evidence: Run 2026-07-11T10:12:05Z stopped at the Vercel gate because concurrent dev deployment dpl_E3ZhJHXrfVYgzCRkwoKwJ6WWnXDy was canceled before test dispatch.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Add and run native stream broker red tests for replacement identity and stop-resend delivery.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/StreamingClientParityTests
-  expected_outcome: The replacement test fails because the old continuation termination removes the newer per-chat subscriber.
+  current_task_id: TASK-4
+  next_action: Add and run native lifecycle red tests for stale-turn reset and accumulated thinking chunks.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatStreamingLifecycleParityTests
+  expected_outcome: The reducer tests fail because task initiation retains prior-turn state and thinking chunks replace rather than append.
   blocker: null
   last_verified_commit: b1c6d8fa67739151617dce90159cefb2aeb9f213
 
@@ -636,7 +636,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatStreamingLifecycleParityTests
+        run_id: remote:stream-replacement-green-20260711T1044Z
+        subject_commit: 0755ba9
+        timestamp: "2026-07-11T10:44:47Z"
   - id: T-SWIFT-STREAM-BROKER
     type: unit
     file: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
@@ -988,7 +993,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Fix stream subscriber replacement and stop-resend delivery
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-7]
@@ -1009,7 +1014,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Make lifecycle reduction sequence-aware and message-owned
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-4, S-6, S-8]

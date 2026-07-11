@@ -9,6 +9,40 @@ import XCTest
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    func testNewTaskClearsPreviousTurnLifecycleState() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.preprocessingStep(chatId: "chat-1", step: "model_selected", data: nil))
+        state.apply(.thinkingChunk(chatId: "chat-1", messageId: "assistant-old", content: "Old reasoning"))
+        state.apply(.messageQueued(
+            chatId: "chat-1",
+            taskId: "task-old",
+            userMessageId: "user-old",
+            message: "Old queued text"
+        ))
+
+        state.apply(.taskInitiated(chatId: "chat-1", taskId: "task-new", userMessageId: "user-new"))
+
+        XCTAssertEqual(state.phase, .sending)
+        XCTAssertEqual(state.taskId, "task-new")
+        XCTAssertEqual(state.userMessageId, "user-new")
+        XCTAssertNil(state.messageId)
+        XCTAssertNil(state.preprocessingStep)
+        XCTAssertEqual(state.thinkingContent, "")
+        XCTAssertFalse(state.isThinkingStreaming)
+        XCTAssertNil(state.queuedMessageText)
+    }
+
+    func testThinkingChunksAccumulateForOneAssistantMessage() {
+        var state = ChatStreamingLifecycleState()
+
+        state.apply(.thinkingChunk(chatId: "chat-1", messageId: "assistant-1", content: "First "))
+        state.apply(.thinkingChunk(chatId: "chat-1", messageId: "assistant-1", content: "second"))
+
+        XCTAssertEqual(state.thinkingContent, "First second")
+        XCTAssertEqual(state.messageId, "assistant-1")
+        XCTAssertTrue(state.isThinkingStreaming)
+    }
+
     func testReplacingStreamKeepsNewestSubscriberRegistered() async {
         let chatId = "fixture-stream-replacement-\(UUID().uuidString)"
         let firstStream = await StreamingClient.shared.streamForChat(chatId)
