@@ -20,6 +20,7 @@ const OUTPUT_DIR = path.resolve(
 	'apple-ui-contracts',
 	'chat-history'
 );
+// The badge contract belongs to hardcoded example chats, not intro/demo chats.
 const EXAMPLE_CHAT_PATH = '/#chat-id=example-artemis-ii-mission';
 const AUDIO_SHARED_CHAT_URL = 'https://app.dev.openmates.org/s/zuygP79v#BUw56h';
 const SOURCE_QUOTE_SHARED_CHAT_URL = 'https://app.dev.openmates.org/s/aUc6RjnR#bIiNzh';
