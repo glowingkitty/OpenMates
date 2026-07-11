@@ -5944,7 +5944,7 @@ private struct WelcomeResumeCompactCard: View {
     let width: CGFloat
     let onTap: () -> Void
     let onLongPress: () -> Void
-    @State private var suppressNextTap = false
+    @State private var lastLongPressAt: Date?
 
     var body: some View {
         Button(action: handleTap) {
@@ -5995,20 +5995,16 @@ private struct WelcomeResumeCompactCard: View {
     }
 
     private func handleTap() {
-        guard !suppressNextTap else {
-            suppressNextTap = false
+        if let lastLongPressAt, Date().timeIntervalSince(lastLongPressAt) < 1 {
+            self.lastLongPressAt = nil
             return
         }
         onTap()
     }
 
     private func handleLongPress() {
-        suppressNextTap = true
+        lastLongPressAt = Date()
         onLongPress()
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(250))
-            suppressNextTap = false
-        }
     }
 }
 
