@@ -5917,6 +5917,7 @@ private struct WelcomeResumeCard: View {
                         }
                     }
             )
+            .accessibilityElement(children: .ignore)
             .accessibilityIdentifier("welcome-chat-card-\(card.id)")
             .accessibilityAddTraits(.isButton)
             .help(Text(card.title))
@@ -5976,6 +5977,7 @@ private struct WelcomeResumeCompactCard: View {
                     }
                 }
         )
+        .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
         .accessibilityAddTraits(.isButton)
         .help(Text(card.title))
