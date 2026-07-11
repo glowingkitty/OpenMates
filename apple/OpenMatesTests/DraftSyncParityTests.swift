@@ -334,9 +334,10 @@ final class DraftSyncParityTests: XCTestCase {
             deletedChatIds: []
         )
 
+        let storedRecord = try await repository.record(chatId: "optimistic-chat")
         XCTAssertNotNil(chatStore.chat(for: "optimistic-chat"))
         XCTAssertEqual(chatStore.messages(for: "optimistic-chat").map(\.id), ["user-1"])
-        XCTAssertNotNil(try await repository.record(chatId: "optimistic-chat"))
+        XCTAssertNotNil(storedRecord)
         XCTAssertTrue(offline.cascadedChatIds.isEmpty)
     }
 
