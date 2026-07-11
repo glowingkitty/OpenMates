@@ -255,6 +255,7 @@ private struct SettingsMateDetailView: View {
             }
         }
         .frame(maxHeight: 620)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("settings-mate-detail")
     }
 }

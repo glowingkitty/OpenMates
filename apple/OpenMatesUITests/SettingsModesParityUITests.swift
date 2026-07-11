@@ -17,7 +17,7 @@ final class SettingsModesParityUITests: XCTestCase {
 
         let learningRow = app.descendants(matching: .any)["learning-mode-toggle-wrapper"]
         XCTAssertTrue(learningRow.waitForExistence(timeout: 5))
-        tapToggle(in: learningRow)
+        tapToggle("learning-mode-toggle-wrapper", in: app)
 
         XCTAssertTrue(app.descendants(matching: .any)["learning-mode-settings-page"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["learning-mode-age-group-dropdown"].exists)
@@ -34,7 +34,7 @@ final class SettingsModesParityUITests: XCTestCase {
         let app = launchSettingsFixture(extraArguments: ["--ui-test-account-settings-fixture"])
         let learningRow = app.descendants(matching: .any)["learning-mode-toggle-wrapper"]
         XCTAssertTrue(learningRow.waitForExistence(timeout: 5))
-        tapToggle(in: learningRow)
+        tapToggle("learning-mode-toggle-wrapper", in: app)
 
         XCTAssertTrue(app.descendants(matching: .any)["learning-mode-settings-page"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.secureTextFields["learning-mode-passcode-input"].exists)
@@ -46,7 +46,7 @@ final class SettingsModesParityUITests: XCTestCase {
 
         let row = app.descendants(matching: .any)["incognito-toggle-wrapper"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
-        tapToggle(in: row)
+        tapToggle("incognito-toggle-wrapper", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["incognito-info-page"].waitForExistence(timeout: 5))
 
         let activate = app.descendants(matching: .any)["incognito-activate-button"]
@@ -58,8 +58,8 @@ final class SettingsModesParityUITests: XCTestCase {
 
         app.buttons["settings-button"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["settings-menu"].waitForExistence(timeout: 5))
-        tapToggle(in: app.descendants(matching: .any)["incognito-toggle-wrapper"])
-        tapToggle(in: app.descendants(matching: .any)["incognito-toggle-wrapper"])
+        tapToggle("incognito-toggle-wrapper", in: app)
+        tapToggle("incognito-toggle-wrapper", in: app)
         XCTAssertFalse(app.descendants(matching: .any)["incognito-info-page"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["incognito-mode-banner"].waitForExistence(timeout: 8))
     }
@@ -74,7 +74,10 @@ final class SettingsModesParityUITests: XCTestCase {
         return app
     }
 
-    private func tapToggle(in row: XCUIElement) {
-        row.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    private func tapToggle(_ identifier: String, in app: XCUIApplication) {
+        let toggle = app.switches.matching(identifier: identifier).firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(toggle.isHittable)
+        toggle.tap()
     }
 }
