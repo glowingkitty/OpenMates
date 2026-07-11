@@ -246,7 +246,9 @@ async function captureRegistrySurface(
 	const renderError = page.getByTestId('render-error');
 	const target =
 		surface === 'fullscreen'
-			? page.getByTestId('embed-fullscreen-overlay')
+			? page
+					.getByTestId('embed-fullscreen-overlay')
+					.or(page.getByTestId('fitness-search-fullscreen'))
 			: page
 					.getByTestId('embed-preview')
 					.or(page.getByTestId('recording-preview'))
