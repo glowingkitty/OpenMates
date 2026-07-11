@@ -29,7 +29,11 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-show-all-apps-row", in: app, timeout: 5))
         assertElementInsideWindow(app.descendants(matching: .any)["settings-show-all-apps-row"], in: app)
         XCTAssertTrue(waitForElement("app-card-weather", in: app, timeout: 5))
-        assertElementInsideWindow(app.descendants(matching: .any)["app-card-weather"].firstMatch, in: app)
+        guard let visibleWeather = visibleElement("app-card-weather", in: app) else {
+            XCTFail("Expected a visible Weather card in an iPad category carousel")
+            return
+        }
+        assertElementInsideWindow(visibleWeather, in: app)
 
         app.descendants(matching: .any)["settings-show-all-apps-row"].tap()
         XCTAssertTrue(waitForElement("settings-all-apps-page", in: app, timeout: 8))
@@ -61,14 +65,21 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
 
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
         let element = app.descendants(matching: .any)[identifier].firstMatch
-        if element.waitForExistence(timeout: timeout), isElementInsideWindow(element, in: app) { return true }
+        if element.waitForExistence(timeout: timeout), visibleElement(identifier, in: app) != nil { return true }
 
         let scrollView = app.scrollViews.firstMatch
         for _ in 0..<6 where scrollView.exists {
             scrollView.swipeUp()
-            if element.waitForExistence(timeout: 1), isElementInsideWindow(element, in: app) { return true }
+            if element.waitForExistence(timeout: 1), visibleElement(identifier, in: app) != nil { return true }
         }
         return element.exists
+    }
+
+    private func visibleElement(_ identifier: String, in app: XCUIApplication) -> XCUIElement? {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@", identifier))
+            .allElementsBoundByIndex
+            .first { isElementInsideWindow($0, in: app) }
     }
 
     private func assertElementInsideWindow(_ element: XCUIElement, in app: XCUIApplication) {
