@@ -6,10 +6,12 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Header, ProjectsPage, Settings, Notification, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
+  import { page } from '$app/state';
+  import { Header, ProjectDetailPage, ProjectsPage, Settings, Notification, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let projectsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:projects'] !== true && $featureAvailabilityStore.disabledById !== null);
+  let routeProjectId = $derived(page.params.project_id ?? null);
 
   onMount(() => {
     initialize().catch((error) => {
@@ -42,7 +44,7 @@
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="projects-container" class:menu-open={$panelState.isSettingsOpen}>
       <div class="projects-wrapper" id="main-projects" tabindex="-1">
-        <ProjectsPage />
+        {#if routeProjectId}<ProjectDetailPage projectId={routeProjectId} />{:else}<ProjectsPage />{/if}
       </div>
       <div class="settings-wrapper">
         <Settings isLoggedIn={$authStore.isAuthenticated} />

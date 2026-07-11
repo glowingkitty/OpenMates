@@ -47,6 +47,7 @@ export type WorkflowSummary = {
   current_version_id: string;
   created_at?: number | null;
   updated_at?: number | null;
+  version?: number;
 };
 
 export type WorkflowDetail = WorkflowSummary & { graph: WorkflowGraph };

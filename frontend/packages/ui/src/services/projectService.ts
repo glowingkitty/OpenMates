@@ -47,6 +47,7 @@ export interface EncryptedProjectRecord {
   updated_at: number;
   last_opened_at: number;
   item_count?: number;
+  version?: number;
 }
 
 export interface ProjectFolderRecord {
@@ -234,6 +235,29 @@ export async function listProjects(): Promise<ProjectViewModel[]> {
   const data = await requestJson<{ projects: EncryptedProjectRecord[] }>("/v1/projects");
   const decrypted = await Promise.all(data.projects.map(decryptProject));
   return decrypted.filter((project): project is ProjectViewModel => project !== null);
+}
+
+export async function getProject(projectId: string): Promise<ProjectViewModel> {
+  const data = await requestJson<{ project: EncryptedProjectRecord }>(`/v1/projects/${encodeURIComponent(projectId)}`);
+  const project = await decryptProject(data.project);
+  if (!project) throw new Error("Project could not be decrypted");
+  return project;
+}
+
+export async function updateProjectMetadata(
+  project: ProjectViewModel,
+  patch: { name?: string; description?: string },
+): Promise<ProjectViewModel> {
+  const body: Record<string, unknown> = { version: project.encrypted.version ?? 1 };
+  if (patch.name !== undefined) body.encrypted_name = await encryptWithEmbedKey(patch.name, project.projectKey);
+  if (patch.description !== undefined) body.encrypted_description = await encryptWithEmbedKey(patch.description, project.projectKey);
+  const data = await requestJson<{ project: EncryptedProjectRecord }>(`/v1/projects/${encodeURIComponent(project.project_id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  const updated = await decryptProject(data.project);
+  if (!updated) throw new Error("Updated project could not be decrypted");
+  return updated;
 }
 
 export async function createProject(name: string): Promise<ProjectViewModel> {

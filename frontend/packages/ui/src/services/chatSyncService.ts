@@ -1663,6 +1663,9 @@ export class ChatSynchronizationService extends EventTarget {
   public async sendUpdateTitle(chat_id: string, new_title: string) {
     await senders.sendUpdateTitleImpl(this, chat_id, new_title);
   }
+  public async sendUpdateSummary(chat_id: string, new_summary: string) {
+    await senders.sendUpdateSummaryImpl(this, chat_id, new_summary);
+  }
   public async sendUpdateDraft(
     chat_id: string,
     draft_content: string | null,

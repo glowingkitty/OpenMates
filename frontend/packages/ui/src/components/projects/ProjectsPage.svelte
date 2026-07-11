@@ -13,6 +13,7 @@
   import ProjectBrowserItem from './ProjectBrowserItem.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
   import TasksPage from '../tasks/TasksPage.svelte';
+  import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { notificationStore } from '../../stores/notificationStore';
   import { panelState } from '../../stores/panelStateStore';
@@ -396,16 +397,17 @@
   {:else}
     <div class="project-list" data-testid="project-list">
       {#each sortedProjects as project (project.project_id)}
-        <button
+        <article
           class:active={selectedProject?.project_id === project.project_id}
           class="project-card"
           data-testid="project-card"
-          onclick={() => selectProject(project)}
-          type="button"
         >
-          <span>{project.name || 'Untitled project'}</span>
-          <small>{project.encrypted.item_count ?? 0} items</small>
-        </button>
+          <button type="button" onclick={() => selectProject(project)}>
+            <span>{project.name || 'Untitled project'}</span>
+            <small>{project.encrypted.item_count ?? 0} items</small>
+          </button>
+          <a href={`/projects/${encodeURIComponent(project.project_id)}`} data-testid="project-detail-link">Open</a>
+        </article>
       {/each}
     </div>
   {/if}
@@ -561,6 +563,7 @@
   </aside>
 {:else}
   <section class="projects-page" data-testid="projects-page">
+    <div class="workspace-report-action"><WorkspaceReportIssueButton /></div>
     <main class="project-main">
       <div class="daily-inspiration-area">
         <DailyInspirationBanner
@@ -635,6 +638,7 @@
 
 <style>
   .projects-page {
+    position: relative;
     flex: 1;
     min-width: 0;
     height: 100%;
@@ -770,7 +774,31 @@
     border: 0;
     border-radius: var(--radius-3);
     text-align: left;
-    padding: 12px 15px;
+    padding: 0;
+  }
+
+  .project-card > button {
+    display: flex;
+    flex: 1;
+    justify-content: space-between;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+  }
+
+  .project-card > a {
+    min-width: 44px;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+    color: var(--color-font-primary);
+  }
+
+  .workspace-report-action {
+    position: absolute;
+    z-index: var(--z-index-raised-3);
+    top: var(--spacing-5);
+    right: var(--spacing-5);
   }
 
   .project-card.active {

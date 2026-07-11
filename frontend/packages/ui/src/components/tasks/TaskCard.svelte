@@ -73,6 +73,7 @@
   </footer>
 
   <div class="task-actions" aria-label="Move task">
+    <a href={`/tasks/${encodeURIComponent(task.task_id)}`} data-testid="task-detail-link">Open</a>
     {#each statuses as status}
       {#if status !== task.status}
         <button type="button" onclick={() => onMove(task, status)} data-testid={`task-move-${status}`}>{formatStatus(status)}</button>
@@ -186,6 +187,17 @@
     font: inherit;
     font-size: 0.75rem;
     cursor: pointer;
+  }
+
+  .task-actions a {
+    display: grid;
+    min-width: 44px;
+    min-height: 44px;
+    place-items: center;
+    border-radius: var(--radius-full);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-xs);
   }
 
   .task-actions .ai-action {

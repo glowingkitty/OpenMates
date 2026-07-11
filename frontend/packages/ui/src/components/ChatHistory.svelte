@@ -72,6 +72,7 @@
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
   import { panelState } from '../stores/panelStateStore';
+  import { chatSyncService } from '../services/chatSyncService';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -1240,6 +1241,23 @@
   //   c) isNewChatCreditsError is true (credits error state), or
   //   d) isIncognito is true (always show the incognito header immediately)
   let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle);
+  let chatHeaderWritable = $derived(
+    !!currentChatId &&
+    !isIncognito &&
+    !isExampleChat &&
+    !isSharedChat &&
+    !isPublicChat(currentChatId)
+  );
+
+  async function saveChatHeaderTitle(title: string): Promise<void> {
+    if (!currentChatId || !chatHeaderWritable) throw new Error('Chat title is read-only');
+    await chatSyncService.sendUpdateTitle(currentChatId, title);
+  }
+
+  async function saveChatHeaderSummary(summary: string): Promise<void> {
+    if (!currentChatId || !chatHeaderWritable) throw new Error('Chat summary is read-only');
+    await chatSyncService.sendUpdateSummary(currentChatId, summary);
+  }
 
   $effect(() => {
     const requestId = ++headerImageBubbleRequestId;
@@ -2280,6 +2298,9 @@
                 onHighlightJump={handleHighlightJump}
                 {autoplayVideo}
                 {showSignupCta}
+                writable={chatHeaderWritable}
+                onSaveTitle={saveChatHeaderTitle}
+                onSaveDescription={saveChatHeaderSummary}
             />
             {/key}
         </div>

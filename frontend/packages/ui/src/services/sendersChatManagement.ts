@@ -18,6 +18,7 @@ import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
 import { getApiEndpoint } from "../config/api";
 import type {
+	ChatComponentVersions,
 	UpdateTitlePayload,
 	DeleteChatPayload,
 	DeleteMessagePayload,
@@ -39,17 +40,17 @@ export async function sendUpdateTitleImpl(
 			`[ChatSyncService:Senders] No chat key available for title encryption (chat ${chat_id})`
 		);
 		notificationStore.error("Failed to encrypt title - chat key not available");
-		return;
+		throw new Error("Chat title update failed: chat key unavailable");
 	}
 	if (!(await ensureChatKeySafeForWrite(chat_id, chatKey, "manual title update encryption"))) {
-		return;
+		throw new Error("Chat title update failed: chat key is not safe for writes");
 	}
 
 	// Encrypt title with chat-specific key for server storage/syncing
 	const encryptedTitle = await encryptWithChatKey(new_title, chatKey);
 	if (!encryptedTitle) {
 		notificationStore.error("Failed to encrypt title - encryption returned null");
-		return;
+		throw new Error("Chat title update failed: encryption returned no ciphertext");
 	}
 
 	// OPE-314: Include encrypted_chat_key for server-side key validation.
@@ -62,38 +63,65 @@ export async function sendUpdateTitleImpl(
 	if (chatRecord?.encrypted_chat_key) {
 		payload.encrypted_chat_key = chatRecord.encrypted_chat_key;
 	}
-	const tx = await chatDB.getTransaction(chatDB["CHATS_STORE_NAME"], "readwrite");
-	try {
-		const chat = await chatDB.getChat(chat_id, tx);
-		if (chat) {
-			// Update encrypted title and version
-			chat.encrypted_title = encryptedTitle;
-			chat.title_v = (chat.title_v || 0) + 1; // Frontend increments title_v
-			chat.updated_at = Math.floor(Date.now() / 1000);
-			await chatDB.updateChat(chat, tx); // This will encrypt for IndexedDB storage
-			tx.oncomplete = () => {
-				serviceInstance.dispatchEvent(
-					new CustomEvent("chatUpdated", {
-						detail: { chat_id, type: "title_updated", chat }
-					})
-				);
-			};
-			tx.onerror = () =>
-				console.error(
-					"[ChatSyncService:Senders] Error in sendUpdateTitle optimistic transaction:",
-					tx.error
-				);
-		} else {
-			if (tx.abort) tx.abort();
-		}
-	} catch (error) {
-		console.error(
-			"[ChatSyncService:Senders] Error in sendUpdateTitle optimistic update:",
-			error
-		);
-		if (tx.abort && !tx.error) tx.abort();
-	}
+	if (!chatRecord) throw new Error("Chat title update failed: chat not found locally");
 	await webSocketService.sendMessage("update_title", payload);
+	chatRecord.encrypted_title = encryptedTitle;
+	chatRecord.title_v = (chatRecord.title_v || 0) + 1;
+	chatRecord.updated_at = Math.floor(Date.now() / 1000);
+	await chatDB.updateChat(chatRecord);
+	serviceInstance.dispatchEvent(
+		new CustomEvent("chatUpdated", {
+			detail: { chat_id, type: "post_processing_metadata", chat: chatRecord }
+		})
+	);
+}
+
+export async function sendUpdateSummaryImpl(
+	serviceInstance: ChatSynchronizationService,
+	chat_id: string,
+	new_summary: string
+): Promise<void> {
+	let chatKey = chatKeyManager.getKeySync(chat_id);
+	if (!chatKey) chatKey = await chatKeyManager.getKey(chat_id);
+	if (!chatKey) throw new Error("Chat summary update failed: chat key unavailable");
+	if (!(await ensureChatKeySafeForWrite(chat_id, chatKey, "manual summary update encryption"))) {
+		throw new Error("Chat summary update failed: chat key is not safe for writes");
+	}
+
+	const encryptedSummary = await encryptWithChatKey(new_summary, chatKey);
+	if (!encryptedSummary) {
+		throw new Error("Chat summary update failed: encryption returned no ciphertext");
+	}
+
+	const chat = await chatDB.getChat(chat_id);
+	if (!chat) throw new Error("Chat summary update failed: chat not found locally");
+	if (!chat.encrypted_chat_key) {
+		throw new Error("Chat summary update failed: encrypted chat key unavailable");
+	}
+
+	const currentMetadataVersion = chat.metadata_v ?? chat.title_v ?? 0;
+	const versions: ChatComponentVersions = {
+		messages_v: chat.messages_v || 0,
+		title_v: chat.title_v || 0,
+		metadata_v: currentMetadataVersion,
+		draft_v: chat.draft_v || 0
+	};
+	await webSocketService.sendMessage("update_post_processing_metadata", {
+		chat_id,
+		encrypted_chat_summary: encryptedSummary,
+		encrypted_chat_key: chat.encrypted_chat_key,
+		versions
+	});
+
+	chat.encrypted_chat_summary = encryptedSummary;
+	chat.metadata_v = currentMetadataVersion + 1;
+	chat.updated_at = Math.floor(Date.now() / 1000);
+	await chatDB.updateChat(chat);
+	serviceInstance.dispatchEvent(
+		new CustomEvent("chatUpdated", {
+			detail: { chat_id, type: "post_processing_metadata", chat }
+		})
+	);
 }
 
 /**

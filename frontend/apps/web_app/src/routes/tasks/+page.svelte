@@ -6,11 +6,13 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import {
     Header,
     Notification,
     Settings,
     TasksPage,
+    TaskDetailPage,
     authStore,
     featureAvailabilityStore,
     initialize,
@@ -21,6 +23,7 @@
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let tasksEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:tasks'] !== true && $featureAvailabilityStore.disabledById !== null);
+  let routeTaskId = $derived(page.params.task_id ?? null);
 
   onMount(() => {
     initialize().catch((error) => {
@@ -46,7 +49,7 @@
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="tasks-container" class:menu-open={$panelState.isSettingsOpen}>
       <div class="tasks-wrapper" id="main-tasks" tabindex="-1">
-        <TasksPage />
+        {#if routeTaskId}<TaskDetailPage taskId={routeTaskId} />{:else}<TasksPage />{/if}
       </div>
       <div class="settings-wrapper">
         <Settings isLoggedIn={$authStore.isAuthenticated} />

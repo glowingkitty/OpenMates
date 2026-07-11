@@ -7,6 +7,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import TaskBoard from './TaskBoard.svelte';
+  import WorkspaceReportIssueButton from '../workspace/WorkspaceReportIssueButton.svelte';
   import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
   import { notificationStore } from '../../stores/notificationStore';
   import {
@@ -310,6 +311,7 @@
   </section>
 {:else}
 <section class="tasks-page" class:compact data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'}>
+  {#if !compact}<div class="workspace-report-action"><WorkspaceReportIssueButton /></div>{/if}
   {#if !compact}
     <header class="tasks-hero">
       <div>
@@ -361,6 +363,7 @@
               {/if}
             </div>
             <div class="plan-actions">
+              <a href={`/plans/${encodeURIComponent(plan.plan_id)}`} data-testid="plan-detail-link">Open</a>
               {#if plan.status === 'draft' || plan.status === 'awaiting_confirmation'}
                 <button type="button" disabled={planActionId === plan.plan_id} onclick={() => void handleActivatePlan(plan)} data-testid="plan-activate-button">
                   {planActionId === plan.plan_id ? 'Activating...' : 'Activate'}
@@ -478,6 +481,7 @@
 
 <style>
   .tasks-page {
+    position: relative;
     flex: 1;
     min-width: 0;
     height: 100%;
@@ -604,6 +608,24 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .plan-actions a {
+    display: grid;
+    min-width: 44px;
+    min-height: 44px;
+    place-items: center;
+    border-radius: var(--radius-full);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-xs);
+  }
+
+  .workspace-report-action {
+    position: absolute;
+    z-index: var(--z-index-raised-3);
+    top: var(--spacing-5);
+    right: var(--spacing-5);
   }
 
   .eyebrow {

@@ -12,7 +12,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { ChatHeader, Header, Settings, Notification, WorkspaceHomeShell, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, workflowWorkspaceStore } from '@repo/ui';
+  import { Header, Settings, Notification, WorkspaceHomeShell, WorkspaceReportIssueButton, WorkflowDetailPage, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, workflowDetailAdapter, workflowWorkspaceStore } from '@repo/ui';
   import { userProfile } from '@repo/ui/stores/userProfile';
   import type { DailyInspiration, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowRun, WorkflowSummary } from '@repo/ui';
 
@@ -273,6 +273,18 @@
     } finally {
       saving = false;
     }
+  }
+
+  async function saveWorkflowHeaderTitle(title: string): Promise<void> {
+    if (!selectedWorkflow) return;
+    const workflow = await workflowDetailAdapter.saveTitle(selectedWorkflow, title);
+    resetEditor(workflow);
+  }
+
+  async function saveWorkflowHeaderDescription(description: string): Promise<void> {
+    if (!selectedWorkflow) return;
+    const workflow = await workflowDetailAdapter.saveDescription(selectedWorkflow, description);
+    resetEditor(workflow);
   }
 
   function rainAlertGraph(): WorkflowGraph {
@@ -631,6 +643,7 @@
         }} />
       </div>
       <main class="active-chat-container workflows-start" class:management-view={showManageView} data-testid="workflows-page">
+        {#if !showManageView}<div class="workspace-report-action"><WorkspaceReportIssueButton /></div>{/if}
         {#if error}
           <div class="error-banner" data-testid="workflows-error">{error}</div>
         {/if}
@@ -689,16 +702,13 @@
             <section class="workflow-detail" data-testid="workflow-detail">
 
           {#if selectedWorkflow}
-            <div class="workspace-detail-header" data-testid="workspace-detail-header" data-header-system="workspace-detail">
-              <ChatHeader
-                title={editorTitle || selectedWorkflow.title}
-                titleTestId="workspace-detail-title"
-                category="productivity"
-                icon="workflow"
-                summary={editorDescription || selectedWorkflow.description || selectedWorkflow.trigger_summary || 'Manual workflow'}
-                chatCreatedAt={selectedWorkflow.created_at}
-              />
-            </div>
+            <WorkflowDetailPage
+              title={editorTitle || selectedWorkflow.title}
+              description={editorDescription || selectedWorkflow.description || selectedWorkflow.trigger_summary || 'Manual workflow'}
+              createdAt={selectedWorkflow.created_at}
+              onSaveTitle={saveWorkflowHeaderTitle}
+              onSaveDescription={saveWorkflowHeaderDescription}
+            />
             <div class="workflow-context-actions">
               <span>Workflow</span>
               <div>
@@ -928,6 +938,12 @@
 </div>
 
 <style>
+  .workspace-report-action {
+    position: absolute;
+    z-index: var(--z-index-raised-3);
+    top: var(--spacing-5);
+    right: var(--spacing-5);
+  }
   .workflows-route-state {
     min-height: calc(100vh - 90px);
     display: grid;
@@ -1072,10 +1088,6 @@
 
   .workflow-detail {
     padding: 0;
-  }
-
-  .workspace-detail-header {
-    width: 100%;
   }
 
   .workflow-context-actions {
