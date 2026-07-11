@@ -32,8 +32,12 @@ final class WatchAuthStore: ObservableObject {
             return
         }
         currentUser = user
-        await refreshSessionToken()
-        state = .authenticated
+        switch await refreshSessionToken() {
+        case .authenticated, .transientFailure:
+            state = .authenticated
+        case .revoked:
+            await clearRevokedSession(for: user.id)
+        }
     }
 
     func completePairLogin(_ result: PairLoginResult) async throws {
@@ -52,7 +56,7 @@ final class WatchAuthStore: ObservableObject {
         state = .authenticated
     }
 
-    private func refreshSessionToken() async {
+    private func refreshSessionToken() async -> WatchSessionRefreshDisposition {
         do {
             let response: SessionResponse = try await api.request(
                 .post,
@@ -65,16 +69,33 @@ final class WatchAuthStore: ObservableObject {
             guard response.isAuthenticated, let user = response.user else {
                 webSocketToken = nil
                 errorMessage = response.reAuthReason ?? response.reAuthRequired ?? response.message
-                return
+                return .revoked
             }
             currentUser = user
             webSocketToken = response.wsToken
             cacheAuthenticatedUser(user)
             errorMessage = nil
+            return .authenticated
         } catch {
             webSocketToken = nil
             errorMessage = error.localizedDescription
+            return WatchSessionRefreshPolicy.disposition(for: error)
         }
+    }
+
+    private func clearRevokedSession(for userId: String) async {
+        try? await CryptoManager.shared.deleteMasterKey(for: userId)
+        try? await WatchChatOfflineCache().clearSnapshot()
+        UserDefaults.standard.removeObject(forKey: Self.cachedUserDefaultsKey)
+        OpenMatesSharedEnvironment.defaults.removeObject(forKey: Self.cachedUserDefaultsKey)
+        OpenMatesSharedEnvironment.cookieStorage.removeCookies()
+        WatchCompatibleSession.resetNativeSessionId()
+        WatchServerProfileStore().resetToProduction()
+        ServerConfiguration.current = ServerProfile.production.endpointConfiguration
+        currentUser = nil
+        webSocketToken = nil
+        errorMessage = nil
+        state = .unauthenticated
     }
 
     private func cacheAuthenticatedUser(_ user: UserProfile) {
@@ -87,5 +108,13 @@ final class WatchAuthStore: ObservableObject {
         guard let data = OpenMatesSharedEnvironment.defaults.data(forKey: cachedUserDefaultsKey)
             ?? UserDefaults.standard.data(forKey: cachedUserDefaultsKey) else { return nil }
         return try? JSONDecoder().decode(UserProfile.self, from: data)
+    }
+}
+
+private extension HTTPCookieStorage {
+    func removeCookies() {
+        for cookie in cookies ?? [] {
+            deleteCookie(cookie)
+        }
     }
 }

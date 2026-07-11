@@ -764,3 +764,18 @@ enum WatchCompatibleSession {
         #endif
     }
 }
+
+enum WatchSessionRefreshDisposition: Equatable {
+    case authenticated
+    case transientFailure
+    case revoked
+}
+
+enum WatchSessionRefreshPolicy {
+    static func disposition(for error: Error) -> WatchSessionRefreshDisposition {
+        if case APIError.httpError(status: 401, message: _) = error {
+            return .revoked
+        }
+        return .transientFailure
+    }
+}

@@ -54,6 +54,23 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(cached.chats.map(\.id), ["pinned", "older"])
     }
 
+    func testRefreshExcludesChatsThatNormalMasterKeyCannotDecrypt() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let runtime = WatchChatRuntime(
+            api: FakeWatchChatAPI(chats: [
+                Self.remoteChat(id: "visible", title: "Visible", lastMessageAt: "2026-07-06T10:00:00Z"),
+                Self.remoteChat(id: "hidden", title: nil, lastMessageAt: "2026-07-06T11:00:00Z"),
+            ]),
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto(omittedChatIds: ["hidden"])
+        )
+
+        await runtime.refresh()
+
+        XCTAssertEqual(runtime.chats.map(\.id), ["visible"])
+    }
+
     func testRefreshFallsBackToCachedChatsWhenAPIThrows() async throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -394,13 +411,16 @@ private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
 @MainActor
 private final class FakeWatchChatCrypto: WatchChatCrypto {
     private let decryptedValues: [String: String]
+    private let omittedChatIds: Set<String>
 
-    init(decryptedValues: [String: String] = [:]) {
+    init(decryptedValues: [String: String] = [:], omittedChatIds: Set<String> = []) {
         self.decryptedValues = decryptedValues
+        self.omittedChatIds = omittedChatIds
     }
 
-    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary {
-        WatchChatSummary(
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
+        guard !omittedChatIds.contains(chat.id) else { return nil }
+        return WatchChatSummary(
             id: chat.id,
             title: chat.encryptedTitle.flatMap { decryptedValues[$0] } ?? chat.title,
             lastMessageAt: chat.lastMessageAt ?? chat.updatedAt,

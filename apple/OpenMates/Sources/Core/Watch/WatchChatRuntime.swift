@@ -279,7 +279,7 @@ protocol WatchChatSyncSocket: AnyObject {
 
 @MainActor
 protocol WatchChatCrypto: AnyObject {
-    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary?
     func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage
     func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String
 }
@@ -514,7 +514,9 @@ final class WatchChatRuntime: ObservableObject {
         var result: [WatchChatSummary] = []
         result.reserveCapacity(remoteChats.count)
         for chat in remoteChats {
-            result.append(await crypto.decryptChat(chat))
+            if let decrypted = await crypto.decryptChat(chat) {
+                result.append(decrypted)
+            }
         }
         return result
     }
@@ -751,8 +753,10 @@ private final class WatchChatCryptoService: WatchChatCrypto {
         self.currentUserId = currentUserId
     }
 
-    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary {
-        let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
+        guard let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey) else {
+            return nil
+        }
         let title = await decrypt(chat.encryptedTitle, key: key) ?? chat.title
         let preview = await decrypt(chat.encryptedChatSummary, key: key) ?? chat.chatSummary
         return WatchChatSummary(
