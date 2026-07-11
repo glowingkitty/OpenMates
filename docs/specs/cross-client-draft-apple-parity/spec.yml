@@ -225,17 +225,23 @@ attempts:
     approach: Run the full ChatFlowParityUITests class on an iPad and rerun compact-card coverage on iPhone.
     outcome: failed_as_expected
     recorded_at: "2026-07-11T22:48:21Z"
-    reason: The iPad run mixed phone-only assertions with unrelated chat tests, while the focused iPhone run proved the compact recent-card fixture was unreachable because unauthenticated card selection discarded the debug-seeded recent chats.
+    reason: The iPad run mixed phone-only assertions with unrelated chat tests. The first focused iPhone reruns remained on stale remote commit e270cb7f0 because test-ios does not implicitly sync the remote checkout.
+  - id: ATTEMPT-15
+    task_id: TASK-6
+    approach: Select debug-seeded recent cards from inside NewChatWelcomeView after explicitly syncing the remote checkout.
+    outcome: rejected
+    recorded_at: "2026-07-11T22:55:00Z"
+    reason: The synced build caught a scope error because the launch flag belongs to MainAppView. The parent already passes authenticated fixture state to NewChatWelcomeView, so the selection override was unnecessary; the compact accessibility element instead lacked the button trait required by the interaction contract.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Expose debug-seeded recent chats to the compact-card fixture, deploy, and rerun the focused phone UI tests.
+  next_action: Preserve the compact card as a button in the accessibility hierarchy, deploy, sync the remote checkout, and rerun the focused phone UI tests.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress"
   expected_outcome: The compact recent card renders title-only and opens the custom actions menu on long press.
   blocker:
-    reason: The Apple compact-card fixture does not select its debug-seeded recent chats for an unauthenticated test launch.
-    next_action: Keep the override debug-only, verify both compact card and overflow on iPhone, then run the remaining device-appropriate Apple checks.
-  last_verified_commit: a2d0bac
+    reason: The compact card is visually a Button but its outer accessibility element is missing the button trait, so XCTest cannot find it through app.buttons.
+    next_action: Verify both compact card and overflow on iPhone, then run the remaining device-appropriate Apple checks.
+  last_verified_commit: 854dd73
 
 scenarios:
   - id: S-1

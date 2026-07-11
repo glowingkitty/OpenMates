@@ -4687,7 +4687,6 @@ struct NewChatWelcomeView: View {
     }
 
     private var shownChatCards: [WelcomeChatCardData] {
-        if isWelcomeRecentOverflowUITestEnabled { return recentChatCards }
         if shouldShowGuestInterestTags { return [] }
         return isAuthenticated ? recentChatCards : nonAuthChatCards
     }
@@ -6059,6 +6058,7 @@ private struct WelcomeResumeCompactCard: View {
         )
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
+        .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: Text(AppStrings.openChat), onTap)
         .help(Text(card.title))
         .accessibilityLabel(card.title)
