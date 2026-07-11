@@ -590,6 +590,21 @@ def build_translations():
     print("translations_status=passed")
 
 
+def build_tokens():
+    print("tokens_status=started")
+    result = subprocess.run(
+        ["npm", "run", "build:tokens"],
+        cwd="frontend/packages/ui",
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    if result.returncode != 0:
+        print_tail("tokens_status", result.stdout + result.stderr, limit=120)
+        sys.exit(result.returncode)
+    print("tokens_status=passed")
+
+
 def b64url(data):
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
@@ -1343,6 +1358,7 @@ def assert_ios_archive_embeds_watch_companion():
 
 preflight_signing()
 build_translations()
+build_tokens()
 if has_app_store_connect_api_auth():
     clean_openmates_provisioning_profiles()
     sync_bundle_capabilities()
