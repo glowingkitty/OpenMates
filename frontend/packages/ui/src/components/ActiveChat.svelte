@@ -3650,7 +3650,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (!hasHeaderMetadata) return;
 
             const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
-            let chatKey: Uint8Array | null = await chatKeyManager.getKey(chatId);
+            let chatKey: Uint8Array | null = await chatKeyManager.getKey(chatId) ?? chatDB.getChatKey(chatId);
             if (!chatKey && storedChat.encrypted_chat_key) {
                 try {
                     chatKey = await decryptChatKeyWithMasterKey(storedChat.encrypted_chat_key);
@@ -8243,7 +8243,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           //      master key and populate the cache.
                           //   3. Only generate a new key if there is genuinely no stored key
                           //      (brand-new chat created on this device before server confirmed).
-                          let chatKey: Uint8Array | null = await chatKeyManager.getKey(chatForHeader.chat_id);
+                           let chatKey: Uint8Array | null = await chatKeyManager.getKey(chatForHeader.chat_id) ?? chatDB.getChatKey(chatForHeader.chat_id);
                           if (!chatKey && chatForHeader.encrypted_chat_key) {
                               try {
                                   const k = await decryptChatKeyWithMasterKey(chatForHeader.encrypted_chat_key);
@@ -8286,7 +8286,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               if (chatForHeader.encrypted_chat_summary) {
                                   try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, { chatId: chatForHeader.chat_id, fieldName: 'encrypted_chat_summary' }); } catch { /* keep null */ }
                               }
-                              if (t && c) {
+                               if (t) {
                                   activeChatDecryptedTitle = t;
                                   activeChatDecryptedCategory = c;
                                   activeChatDecryptedIcon = ic;
