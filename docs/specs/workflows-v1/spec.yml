@@ -50,16 +50,21 @@ scope:
 current_milestone:
   id: core-ui-alignment
   goal: >
-    Release a Figma-informed core workflow loop across web and Apple with a
-    chat-like home, workspace-aware sidebar, title-first draft creation, focused
-    vertical editor, explicit Save/Undo, enable/disable, manual run, and useful
-    run history.
+    Release a Figma-correct core workflow loop across web and Apple with a
+    chat-like landing page, one mixed recent/example row, workspace-aware
+    sidebar, restrained title-first draft creation, a unified editable detail
+    header, focused vertical workflow canvas, contextual dirty-state actions,
+    and useful run history.
   in:
-    - Web and Apple workflow home, recommendations, recent workflows, Show all, and search.
-    - A fixed bottom workflow composer that creates a new draft workflow from the entered title only.
-    - A focused workflow canvas that replaces the home while keeping global app chrome.
+    - Web and Apple workflow landing with Daily Inspiration and one horizontal row containing recently edited workflows first followed by curated example workflows.
+    - Show all browsing plus a visible non-functional Search affordance whose future behavior is not implied.
+    - A bottom workflow composer that visually matches the message input, centers its placeholder, and shows its submit action only while focused with non-empty valid text.
+    - Title-only draft creation from the landing composer; general workflow AI planning and voice remain deferred.
+    - A stable focused Workflow detail page that replaces the landing while keeping global app chrome and uses docs/specs/unified-detail-pages/spec.yml for its editable header.
+    - The Figma workflow canvas starts immediately after the shared header with type/status metadata, Add action, Add decision, contextual dirty-state Save/Undo, workflow on/off, and New workflow in their designed locations.
+    - Removal from the primary detail canvas of the run-retention picker, duplicate title/description form, run-content pill, permanent management toolbar, and permanent test/disable/delete button row shown in the rejected prototype.
     - Manual trigger/action/decision editing with inline node expansion on desktop and mobile.
-    - Explicit dirty state with Undo and Save; graph edits are never auto-saved.
+    - Explicit dirty state with contextual Undo and Save only after graph changes; graph edits are never auto-saved.
     - Full native Apple creation and vertical editor parity for the core node set.
     - Workspace-aware sidebar content in mobile drawers and persistent desktop/tablet sidebars.
     - Useful run history with run status and per-node execution state for retained content.
@@ -68,6 +73,7 @@ current_milestone:
     - Workflow definition time-machine UI and restore controls.
     - Public workflow marketplace and advanced graph canvas editing.
     - Assistant-created temporary workflows, event triggers, Tasks projections, and cooperative cancellation unless required by the core UI contracts.
+    - Natural-language modification from the Figma detail composer until the durable workflow-input planner is implemented; the core UI must not show a fake functional change composer.
   figma_references:
     - "5370:45293 Workflows home and recommendation cards"
     - "5420:34107 New workflow"
@@ -76,15 +82,18 @@ current_milestone:
     - "5486:38468 Definition timeline, deferred from the core milestone"
     - "5488:39515 Workflow run history"
   design_authority: >
-    Figma provides directional product and interaction intent. The approved web
-    implementation becomes the rendered visual source of truth for Apple; no
-    one-to-one Figma/code token parity is required.
+    Figma nodes 5370:45293, 5420:34558, 5420:35214, and 5422:34561 define the
+    required landing/detail information hierarchy and which controls belong in
+    the primary canvas. ChatHeader and docs/specs/unified-detail-pages/spec.yml
+    define the exact shared header CSS and editing behavior. The approved web
+    implementation becomes the rendered visual source of truth for Apple.
 
 context_discovery:
   github_issues:
     - "GitHub MCP issue search failed with bad credentials. gh issue searches for workflow automation, platform workflows, outgoing webhooks, and trigger reminder webhook automation returned no dedicated workflows issue."
     - "2026-07-10 gh fallback searches for workflows UI and workflow editor found no dedicated workflows implementation issue; #442 is related to multi-step chat plans but is not a workflow workspace contract."
   docs:
+    - docs/specs/unified-detail-pages/spec.yml
     - docs/specs/simplified-feature-availability/spec.yml
     - docs/specs/unified-notifications/spec.yml
     - docs/specs/sdk-cli-parity-v1/spec.yml
@@ -106,11 +115,12 @@ context_discovery:
     - backend/apps/news/app.yml and backend/apps/news/skills/search_skill.py provide a real current-news app skill and news embed previews.
     - backend/core/api/app/services/push_notification_service.py and backend/core/api/app/tasks/email_tasks/reminder_notification_email_task.py provide notification delivery patterns.
     - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts already contains planned workflow-surface inspiration copy but no editor or route.
-    - frontend/apps/web_app/src/routes/workflows/+page.svelte is a monolithic 1,805-line prototype with home and manage query-param modes.
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte is a monolithic prototype that combines landing, detail, retention, duplicate metadata, permanent management actions, node canvas, and run history in one route.
     - frontend/packages/ui/src/components/Header.svelte hard-disables the web workspace switcher while Apple always exposes workspace tabs.
     - apple/OpenMates/Sources/App/MainAppView.swift renders Workflows through WorkspacePlaceholderView and keeps the chat sidebar in every workspace.
     - apple/OpenMates/Sources/Features/Workflows contains unused iOS-only API models and no production workflow views.
     - test-results/recordings and the current Playwright sources prove that prior green evidence covered a dense admin-style editor, not the full Figma-aligned UI assertions recorded below.
+    - frontend/packages/ui/src/components/ChatHeader.svelte owns component-scoped CSS, so exact reuse requires the shared visual primitive specified by docs/specs/unified-detail-pages/spec.yml rather than copied Workflow CSS.
   tests:
     - backend/tests/test_feature_availability_service.py
     - backend/tests/test_feature_availability_enforcement.py
@@ -138,6 +148,7 @@ apple_impact:
     - Apple implements the full core vertical editor rather than a read-only or limited-edit first slice.
     - The workspace sidebar shows workflow navigation in Workflows mode on iPhone, iPad, and macOS instead of retaining the chat list.
     - Apple must use localized strings and generated design tokens; no hardcoded user-visible English strings.
+    - Apple Workflow details consume the shared native detail-header contract only after the corresponding deployed web header and canvas are approved.
   verification:
     - Run or attempt python3 scripts/apple_remote.py status.
     - Run or attempt python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WorkflowsParityTests.
@@ -191,6 +202,28 @@ clarification:
       answer: Graph edits use explicit Save and Undo, and mobile node details expand inline in the vertical timeline.
     - question: Does workspace-specific sidebar content apply only to the hamburger drawer?
       answer: No. Mobile drawers and persistent desktop/tablet sidebars show chats in Chat mode, workflows in Workflows mode, projects in Projects mode, and the matching list for every registered workspace.
+    - question: Which current Workflow controls belong on the corrected detail page?
+      answer: >
+        Remove every yellow-scribbled prototype area: the top retention/example
+        management row, duplicate title/description form, run-content pill, and
+        permanent Undo/Save/disable/test/delete toolbar. Use the Figma detail
+        hierarchy and show contextual Save/Undo only when graph changes are dirty.
+    - question: How should Workflow, Project, Task, and Plan detail headers relate to ChatHeader?
+      answer: >
+        They use the same extracted CSS primitive as ChatHeader. The shared
+        header also supports writable inline title and description editing under
+        docs/specs/unified-detail-pages/spec.yml.
+    - question: How should the corrected Workflow landing row be composed?
+      answer: >
+        Keep Daily Inspiration on the landing only. Follow it with one horizontal
+        row where recently edited workflows appear first and curated examples
+        continue in the same row; do not render a separate recent section.
+    - question: How should the core landing composer behave visually?
+      answer: >
+        Match the message input, center the placeholder, and reveal the submit
+        action only when the field is focused and contains valid non-empty text.
+        The core milestone still creates title-only drafts and does not pretend
+        to provide the deferred AI/voice planner.
   vision_summary: >
     Workflows V1 is a real product section, not a mock. It exposes durable
     server-side workflow graph and run models, a manual vertical editor, and a
@@ -201,20 +234,26 @@ clarification:
     tested before the web and Apple UI surfaces. The current core UI milestone
     uses title-only draft creation instead of general AI planning, provides full
     manual editors on web and Apple, opens workflows in a focused canvas, uses
-    explicit Save/Undo, expands mobile nodes inline, and makes every sidebar or
-    hamburger list reflect the active workspace.
+    contextual Save/Undo only for dirty graph state, expands mobile nodes inline,
+    and makes every sidebar or hamburger list reflect the active workspace. The
+    corrected landing keeps Daily Inspiration and one mixed recent/example row;
+    the corrected detail page uses the shared editable ChatHeader visual system
+    and removes duplicate retention, metadata, and management controls that are
+    absent from Figma.
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 568699f68eb30e2ab48aec0a16b6c0693884a16d
+  subject_commit: 6883c92b49a0463f9372b633d87a821935d923c4
 
 approvals:
   product_contract:
     status: approved
-    approved_at: "2026-07-10T13:31:07Z"
+    approved_at: "2026-07-11T14:29:09Z"
+    reason: User approved the revised Workflow and unified-detail contracts.
   implementation_plan:
     status: approved
-    approved_at: "2026-07-10T13:54:49Z"
+    approved_at: "2026-07-11T14:29:09Z"
+    reason: User approved the revised implementation sequence with web verification before Apple parity.
 
 decisions:
   - id: D-1
@@ -249,9 +288,24 @@ decisions:
     decided_at: "2026-07-10T13:31:07Z"
   - id: D-7
     status: active
-    decision: Reuse DailyInspirationBanner for workflow recommendations and extract the smallest reusable visual shell from ChatHeader for the workflow header.
-    reason: Workflow alignment must preserve the established OpenMates visual language without copying gradient, spacing, typography, responsive, or action-layout code.
+    decision: Reuse DailyInspirationBanner on the Workflow landing and adopt the shared editable detail header owned by docs/specs/unified-detail-pages/spec.yml.
+    reason: Workflow alignment must preserve the exact OpenMates header visual language without copying gradient, spacing, typography, responsive, editing, or action-layout code.
     decided_at: "2026-07-10T13:54:49Z"
+  - id: D-8
+    status: active
+    decision: Render one horizontal landing row with recently edited workflows first and curated examples immediately after them.
+    reason: The separate recent row was explicitly rejected and is absent from the approved landing composition.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: Remove prototype retention, duplicate metadata, and permanent management/test/delete controls from the primary Workflow detail canvas.
+    reason: The annotated screenshot rejects these areas and Figma places only workflow-building and contextual dirty-state actions in the main detail hierarchy.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-10
+    status: active
+    decision: Keep the landing composer title-only in the core milestone and do not render a fake detail change composer before the durable workflow-input planner exists.
+    reason: Visual Figma alignment must not misrepresent deferred AI/voice functionality as implemented.
+    decided_at: "2026-07-11T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -275,11 +329,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-8
-  next_action: Add and run red contract tests for workspace-aware sidebars and the Figma-aligned core workflow UI before product-source changes.
+  next_action: Approve the revised Workflow and unified-detail product contracts, then update red landing/detail tests before product-source changes.
   command: python3 scripts/spec_verify.py docs/specs/workflows-v1/spec.yml --phase red
-  expected_outcome: Red-phase evidence records missing web and Apple core workflow surfaces without accepting prior shell-only or contradictory evidence.
+  expected_outcome: Red evidence records the missing mixed landing row, restrained composer, shared detail header, clean Figma canvas, and Apple parity.
   blocker: null
-  last_verified_commit: 568699f68eb30e2ab48aec0a16b6c0693884a16d
+  last_verified_commit: 6883c92b49a0463f9372b633d87a821935d923c4
 
 assumptions:
   - id: A-1
@@ -585,22 +639,24 @@ scenarios:
       - Alice opens the Workflows workspace.
     then:
       - The screen uses the same basic layout model as the chat screen.
-      - A recommendation area appears first, initially using curated example workflows and later personalized workflow recommendations based on user interests and chats.
-      - Recent workflows appear under the recommendation area.
-      - Active enabled workflows are listed first, sorted by soonest next_run_at.
-      - Disabled, draft, manual-only, or unscheduled workflows follow, sorted by updated_at newest first.
+      - Daily Inspiration appears at the top of the landing state and never inside a Workflow detail page.
+      - One horizontal workflow row follows Daily Inspiration.
+      - Recently edited workflows appear first in that row, sorted by updated_at newest first.
+      - Curated example workflows continue immediately after the recent items in the same row.
+      - No separate Continue where you left off or recent-workflows section is rendered.
       - Workflow cards show Next run when next_run_at exists and fall back to Last run, Draft, or Manual only when it does not.
-      - A bottom title composer remains visible for title-only draft creation in the core milestone; text/voice workflow planning is deferred.
+      - Search remains visible but does not claim or simulate search behavior in this milestone.
+      - A bottom title composer visually matches the message input, centers its placeholder, and hides its submit action until focused with valid non-empty text.
 
   - id: S-21
     title: User switches to Show all workflow browsing mode
     given:
       - Alice is on the Workflows home.
-      - Alice can see workflow recommendations and recent workflows.
+      - Alice can see Daily Inspiration and the mixed recent/example workflow row.
     when:
       - Alice selects Show all.
     then:
-      - The recommendation area and recent-workflows carousel move out of view.
+      - Daily Inspiration and the mixed workflow row move out of view.
       - The screen shows a vertical scrollable grid of all workflows.
       - The same ordering is used as the recent list unless search or filters are active.
       - The bottom workflow input remains visible.
@@ -698,31 +754,38 @@ scenarios:
       - No workspace silently keeps rendering the chat list after the workspace changes.
 
   - id: S-28
-    title: User edits a workflow in a focused explicit-save canvas
+    title: User edits a workflow in a clean focused Figma canvas
     given:
       - Alice opens Daily Weather check from the workflow home or workspace sidebar.
     when:
-      - The focused editor replaces the workflow home in the main canvas.
-      - Alice changes the description, trigger, or an expanded node.
+      - The canonical Workflow detail route replaces the landing in the main canvas.
+      - Alice edits title or description through the shared detail header.
+      - Alice changes the trigger or an expanded workflow node.
     then:
       - The global app chrome and active-workspace sidebar remain available without a second workflow-library column.
-      - A visible dirty state offers Undo and Save.
+      - The detail header uses the exact shared ChatHeader CSS and editable metadata contract from docs/specs/unified-detail-pages/spec.yml.
+      - The vertical node canvas begins immediately after the header with the Figma Workflow label and Add action/Add decision controls.
+      - Workflow on/off and New workflow appear in their designed contextual locations.
+      - A dirty graph state offers contextual Undo and Save; those actions are absent before a graph edit.
       - Leaving with unsaved graph changes requires an explicit decision rather than silently discarding or auto-saving.
       - Desktop and mobile render the flow vertically, and mobile node details expand inline.
+      - The primary canvas has no run-retention picker, duplicate title/description form, run-content pill, permanent management toolbar, or permanent test/disable/delete button row.
 
   - id: S-29
-    title: User creates a titled draft from the fixed workflow composer
+    title: User creates a titled draft from the restrained workflow composer
     given:
       - Alice is on the workflow home or focused workflow editor.
       - General workflow AI planning and voice input are not part of the core milestone.
     when:
       - Alice enters "Daily school weather" in the composer fixed to the bottom of the viewport.
+      - The submit action appears only after focus and valid non-empty input.
       - Alice submits the title.
     then:
       - OpenMates creates a disabled draft named Daily school weather without adding assumed trigger or action nodes.
       - The new draft opens in the focused manual editor.
       - The composer does not claim to understand or execute a complex natural-language workflow instruction.
       - The composer remains visible and reachable without covering workflow cards, flow nodes, or run history.
+      - Its placeholder is centered and its styling follows the message-input visual language.
 
 acceptance_criteria:
   - id: AC-1
@@ -919,7 +982,7 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-001, T-E2E-003, T-APPLE-UI-001]
   - id: AC-25
     scenario: S-20
-    text: Web Workflows home uses the chat-like layout with recommendation examples, recent workflows, and a bottom workflow input.
+    text: Web Workflows landing keeps Daily Inspiration and one horizontal row with recently edited workflows first followed by curated examples, with no separate recent section.
     required: true
     status: pending
     coverage_status: covered
@@ -927,7 +990,7 @@ acceptance_criteria:
     verification_ids: [T-E2E-002]
   - id: AC-26
     scenario: S-20
-    text: Workflow summaries include and render next_run_at where available, ordering active workflows by soonest next run before disabled, draft, manual-only, or unscheduled workflows sorted by updated_at.
+    text: Workflow cards render next_run_at where available and recent user workflows in the mixed row are ordered by updated_at newest first before example cards.
     required: true
     status: pending
     coverage_status: covered
@@ -935,7 +998,7 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-005, T-E2E-002]
   - id: AC-27
     scenario: S-21
-    text: Show all mode hides recommendations and recents, shows a vertical scrollable all-workflows grid, preserves the bottom workflow input, and uses the same default ordering unless search or filters are active.
+    text: Show all mode hides Daily Inspiration and the mixed recent/example row, shows a vertical scrollable all-workflows grid, and preserves the restrained bottom workflow input.
     required: true
     status: pending
     coverage_status: covered
@@ -1015,7 +1078,7 @@ acceptance_criteria:
     verification_ids: [T-E2E-003, T-APPLE-UI-001]
   - id: AC-37
     scenario: S-28
-    text: Web and Apple open a workflow in a focused vertical editor without a second workflow-library column, expose explicit Undo and Save for dirty graph changes, and expand node details inline on mobile.
+    text: Web and Apple open a stable Workflow detail page using the shared editable ChatHeader visual contract, render the Figma vertical canvas immediately below it, show Save/Undo only for dirty graph state, and contain none of the rejected duplicate retention/metadata/management areas.
     required: true
     status: pending
     coverage_status: covered
@@ -1023,7 +1086,7 @@ acceptance_criteria:
     verification_ids: [T-E2E-001, T-APPLE-UI-001, V-FIGMA-CORE-UI]
   - id: AC-38
     scenario: S-29
-    text: The fixed bottom composer creates a disabled empty draft using only the entered title and makes no general AI or voice-processing claim in the core milestone.
+    text: The bottom composer matches message-input styling, centers its placeholder, reveals submit only while focused with valid non-empty input, creates a disabled title-only draft, and makes no general AI or voice-processing claim.
     required: true
     status: pending
     coverage_status: covered
@@ -1298,9 +1361,10 @@ contracts:
     - Temporary workflow history surface with keep, run manually, disable, and delete controls before auto_delete_at.
     - Assistant pending workflow execution countdown with workflow name, expected actions, cost/permission summary, required inputs, cancel, and approve controls.
     - Manual run input form when a webhook/event-triggered workflow or reusable workflow requires start payload fields.
-    - Chat-like Workflows home with workflow recommendation examples, recent workflow carousel/list, Show all action, search affordance, and bottom workflow input.
-    - Recent workflow cards ordered by active soonest next_run_at first, then disabled/draft/manual-only/unscheduled newest updated_at; cards render Next run, Last run, Draft, or Manual only as appropriate.
-    - Show all browsing mode hides recommendations and recents, renders a vertical scrollable grid of all workflows, and keeps the bottom workflow input visible.
+    - Chat-like Workflow landing with Daily Inspiration followed by one horizontal row containing recent user workflows by updated_at newest first and curated examples after them.
+    - No separate recent/continue section; cards render Next run, Last run, Draft, or Manual only as appropriate.
+    - Visible non-functional Search affordance that makes no search-result claim in the core milestone.
+    - Show all browsing mode hides Daily Inspiration and the mixed row, renders a vertical scrollable grid of all workflows, and keeps the bottom workflow input visible.
     - Workflow input running state with stop button, transcript progress, streamed assumptions, draft nodes appearing step by step, validation markers, commit result, follow-up input, and undo affordance.
     - Workflow input clarification state with inline question, Try again, and Start chat to clarify options when the request is too broad for the workflow surface.
     - Workflow input stopped state with partial draft visible, plus Continue, Discard, and follow-up controls.
@@ -1310,7 +1374,9 @@ contracts:
     - Tasks-section workflow run card with read-only Done state for runs completed in the last seven days and Open workflow run only.
     - Disabled feature state when platform:workflows is off.
     - Validation state for unsupported node type, unsafe action, disabled app skill, invalid mapping, invalid condition, and missing notification preference.
-    - Workflow-specific composer visually matches the chat input affordances but sends to workflow-input endpoints and avoids chatSyncService, chatDB, chat drafts, and chat message send handlers.
+    - Core Workflow composer visually matches the chat input, centers its placeholder, and reveals submit only while focused with valid non-empty text; it creates title-only drafts without chat send behavior.
+    - Workflow detail uses docs/specs/unified-detail-pages/spec.yml for shared editable title/description presentation and metadata persistence.
+    - Workflow detail canvas starts directly below the header and omits the prototype retention picker, duplicate metadata form, run-content pill, and permanent management/test/delete rows.
   privacy_security:
     - Workflows always run on the server; the runner must never depend on browser local storage or connected WebSocket state.
     - Server-readable schedule/routing metadata is minimized to fields needed for ownership checks, scheduler queries, run status, and feature gating.
@@ -1738,9 +1804,11 @@ tests:
       - AC-37
     assertions:
       - web user can open Workflows workspace when platform:workflows is enabled
-      - opening Daily rain alert replaces workflow home with a focused editor and no second workflow-library column
-      - web user can build, explicitly save, undo, test-run, enable, disable, edit, and delete Daily rain alert
-      - dirty graph changes show Undo and Save and block silent navigation loss
+      - opening Daily rain alert uses the canonical Workflow detail route, shared editable header, and no second workflow-library column
+      - the Figma node canvas begins immediately below the header and exposes Add action, Add decision, workflow on/off, and New workflow in context
+      - dirty graph changes show contextual Undo and Save and block silent navigation loss
+      - the page has no retention picker, duplicate title/description form, run-content pill, permanent management toolbar, or permanent test/disable/delete row
+      - web user can build, save, undo, enable, disable, and edit Daily rain alert through Figma-owned controls and secondary actions where appropriate
       - web user can build and test-run AI news brief through the same editor components
       - web editor does not require or persist an explicit end node
       - decision editor stores structured rules and displays branch output
@@ -1776,10 +1844,13 @@ tests:
       - AC-35
       - AC-38
     assertions:
-      - Workflows home shows recommendation examples, recent workflows, Show all, search affordance, and bottom workflow input
-      - recent workflow cards order active workflows by next_run_at before disabled/draft/manual-only/unscheduled workflows
-      - Show all hides recommendations/recents and renders the all-workflows grid while preserving the bottom workflow input
+      - Workflow landing shows Daily Inspiration and one mixed row with recent workflows before curated examples
+      - no separate Continue where you left off or recent-workflows section is rendered
+      - recent workflow cards are ordered by updated_at newest first before examples
+      - Show all hides Daily Inspiration/the mixed row and renders the all-workflows grid while preserving the bottom workflow input
+      - Search is visible but does not claim functional results in the core milestone
       - workflow composer remains fixed to the bottom without covering home cards or Show all results
+      - workflow composer centers its placeholder and reveals submit only when focused with valid non-empty input
       - submitting Daily school weather creates a disabled empty draft with that exact title and opens the focused editor
       - the core composer exposes no voice control or general AI workflow-processing claim
       - workflow composer matches chat input visual affordances without using chat message send behavior
@@ -1847,8 +1918,9 @@ tests:
     assertions:
       - Apple user opens a real Workflows home instead of WorkspacePlaceholderView
       - Apple workspace sidebar shows workflows instead of chats in mobile, tablet, and desktop modes
-      - Apple user creates a title-only draft and edits trigger/action/decision nodes in the focused vertical editor
-      - dirty native edits expose Undo and Save and mobile node details expand inline
+      - Apple landing shows Daily Inspiration plus one mixed recent/example row and the restrained title composer after web is approved
+      - Apple user creates a title-only draft and opens a shared-header Workflow detail page with the Figma vertical editor
+      - dirty native graph edits expose contextual Undo and Save, mobile node details expand inline, and rejected prototype controls are absent
       - Apple user disables, re-enables, manually runs, and inspects useful per-node run history
       - disabled platform:workflows hides or blocks native workflow navigation consistently with web
     red_phase:
@@ -1877,7 +1949,7 @@ tests:
       - AC-26
       - AC-38
     assertions:
-      - workflow list ordering places enabled scheduled workflows by next_run_at before draft/manual/disabled workflows by updated_at
+      - workflow summaries provide updated_at and next_run_at so landing recents and Show all can apply their separate approved orderings
       - title-only draft creation stores the exact title, enabled false, and an empty graph shell without assumed trigger/action nodes
       - description and core run-summary fields round-trip through owner-scoped API responses
     red_phase:
@@ -1932,7 +2004,7 @@ verifications:
     status: pending
     evidence:
       status: pending
-      summary: Compare deployed web workflow home/editor/run screenshots with approved intent from Figma nodes 5370:45293, 5420:34107, 5420:34558, 5422:34561, and 5488:39515; do not require token equality.
+      summary: Compare deployed landing/detail/run screenshots with Figma nodes 5370:45293, 5420:34107, 5420:34558, 5420:35214, 5422:34561, and 5488:39515; verify the shared ChatHeader CSS, mixed row, restrained composer, clean canvas, and absence of every rejected prototype area.
   - id: V-APPLE-MULTIPLATFORM
     kind: artifact_review
     phase: final
@@ -1962,8 +2034,8 @@ implementation_plan:
     - backend/core/api/app/routes/projects.py and frontend/packages/ui/src/services/projectService.ts for project_items linking with item_type workflow.
     - backend/apps/weather/app.yml and backend/apps/news/app.yml for canonical V1 app-skill action nodes.
     - frontend/packages/ui/src/components/Header.svelte for the gated Workflows tab.
-    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte already supports workspace surfaces and is reused directly for workflow recommendations instead of recreating its carousel/style.
-    - frontend/packages/ui/src/components/ChatHeader.svelte provides the rendered gradient detail-header style; extract only the reusable visual shell needed by both chat and workflow headers rather than copying its CSS or chat-specific state.
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte remains the landing-only Daily Inspiration surface.
+    - docs/specs/unified-detail-pages/spec.yml owns extraction of the rendered ChatHeader CSS, inline title/description editing, canonical detail routes, metadata version sync, permissions, and Apple header parity.
     - frontend/packages/ui/src/components/enter_message/MessageInput.svelte for visual and interaction references only; workflow input must extract/reuse safe primitives instead of coupling to chat send/storage services.
     - frontend/packages/ui/src/components/projects/ProjectsPage.svelte as a starting point for a gated workspace route pattern.
     - frontend/packages/openmates-cli/src/client.ts and packages/openmates-python/openmates/sdk.py for CLI/SDK API client patterns.
@@ -1984,17 +2056,20 @@ implementation_plan:
     expiry, status, and event cursor metadata. For the core UI milestone, extract
     the monolithic web route into workflow home/editor/run components and add a
     workspace-navigation provider boundary so every sidebar renders the active
-    workspace list. Web is implemented and visually approved first. Apple then
+    workspace list. The landing composes Daily Inspiration and one mixed
+    recent/example row; the focused detail route consumes the shared header
+    contract and renders only the Figma workflow-building hierarchy below it.
+    Web is implemented and visually approved first. Apple then
     consumes the same contracts through a native store and full vertical editor,
     using the rendered web surface as its parity target rather than raw Figma
-    values. Workflow recommendations compose DailyInspirationBanner with the
-    workflows surface. The workflow header and ChatHeader share an extracted
-    gradient/header-layout primitive while keeping chat media/navigation state
-    and workflow status/actions in their owning components.
+    values. The Workflow spec does not duplicate header implementation or
+    metadata sync requirements from unified-detail-pages.
   data_flow:
     - User changes active workspace; the shared shell selects the matching chat/workflow/project list provider for mobile drawers and persistent sidebars.
-    - User enters Daily school weather in the fixed workflow composer; the client creates a disabled empty draft with that exact title and opens the focused editor without invoking general AI planning.
-    - User edits trigger/action/decision nodes locally; dirty state remains client-side until Save, while Undo restores the last persisted graph and leaving requires an explicit choice.
+    - User opens Workflow landing; Daily Inspiration renders above one mixed horizontal row with recent workflows first and curated examples after them.
+    - User focuses the centered-placeholder composer and enters Daily school weather; submit appears only for valid non-empty input, and the client creates a disabled empty draft without invoking general AI planning.
+    - The app navigates to the canonical Workflow detail route, whose title/description header behavior is delegated to docs/specs/unified-detail-pages/spec.yml.
+    - The Figma node canvas begins immediately below the shared header; user edits trigger/action/decision nodes locally, dirty state reveals contextual Save/Undo, and leaving requires an explicit choice.
     - User creates or edits a workflow through web, CLI, SDK, or Apple.
     - Assistant-created one-time workflow requests use workflows.schedule_once to create a temporary workflow with auto_delete_at, while recurring chat requests use workflows.schedule_recurring to create a persisted workflow.
     - Backend validates the graph, encrypts the full graph into an Automation Vault blob, stores a workflow metadata row, creates an immutable version, and computes trigger metadata.
@@ -2072,7 +2147,7 @@ implementation_plan:
     - path: frontend/packages/ui/src/components/workspace/WorkspaceSidebar.svelte
       reason: Shared mobile drawer and persistent sidebar chrome with workspace-specific list providers.
     - path: frontend/packages/ui/src/components/workflows/WorkflowHome.svelte
-      reason: Recommendation examples, recent workflows, Show all mode, and ordering behavior.
+      reason: Landing-only Daily Inspiration, mixed recent/example row, Show all mode, and restrained composer composition.
     - path: frontend/packages/ui/src/components/workflows/WorkflowInput.svelte
       reason: Workflow-specific composer with chat-like visual affordances, stop/follow-up/undo, and workflow-input endpoints.
     - path: frontend/packages/ui/src/components/workflows/WorkflowInputStream.svelte
@@ -2080,13 +2155,11 @@ implementation_plan:
     - path: frontend/packages/ui/src/components/workflows/WorkflowListPage.svelte
       reason: Workflow list UI.
     - path: frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
-      reason: Focused explicit-save vertical editor with responsive inline node expansion.
+      reason: Clean Figma vertical canvas with contextual dirty-state actions and responsive inline node expansion, without rejected prototype management areas.
     - path: frontend/packages/ui/src/components/workflows/WorkflowHeader.svelte
-      reason: Workflow-specific title, description, status, next-run, and actions composed on the shared chat-header visual shell.
-    - path: frontend/packages/ui/src/components/workspace/WorkspaceHeroHeader.svelte
-      reason: Small reusable gradient/header layout extracted from ChatHeader for chat and workflow composition without duplicating CSS.
-    - path: frontend/packages/ui/src/components/ChatHeader.svelte
-      reason: Adopt the shared hero-header shell while preserving existing chat states, media, navigation, and rendered behavior.
+      reason: Workflow-specific icon/type/status/next-run content composed through the shared detail-header contract; extraction and metadata editing are owned by unified-detail-pages.
+    - path: docs/specs/unified-detail-pages/spec.yml
+      reason: Required dependency for shared header CSS, canonical route, writable metadata editing, sync, and Apple parity.
     - path: frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
       reason: Useful run selection and per-node execution status for retained content.
     - path: frontend/packages/ui/src/components/workflows/nodes/*.svelte
@@ -2144,8 +2217,8 @@ implementation_plan:
     - Red contract tests for core API ordering/title drafts, web home/editor/sidebar, and real Apple UI behavior.
     - Backend core UI contracts and OpenMates CLI workflow-management contract.
     - npm SDK and pip SDK workflow-management contracts.
-    - Deployed web workspace sidebar, home, title composer, focused editor, and run history Playwright.
-    - Figma-intent artifact review of the approved rendered web UI.
+    - Deployed web workspace sidebar, corrected landing/mixed row, restrained title composer, shared-header detail, clean focused editor, and run history Playwright.
+    - Shared detail-page web contract and Figma artifact review of the approved rendered web UI.
     - Apple model/store tests, then iPhone/iPad/macOS editor UI tests and screenshot evidence.
     - Feature-gated rollout and complete spec verification only after all required evidence is current for the subject commit.
   rollout:
@@ -2162,7 +2235,7 @@ implementation_plan:
     - A-2
     - A-3
   open_questions:
-    - none for the approved core UI alignment milestone
+    - none for the clarified core UI alignment milestone; approval is pending after validation
   risks:
     - Workflow data encryption boundaries may conflict with server-side execution needs; V1 must clearly separate routing metadata from encrypted sensitive payloads.
     - Automation Vault encryption is weaker than chat-style client-only encryption because the backend must decrypt during execution; product copy must be explicit and retention controls must be conservative.
@@ -2173,6 +2246,7 @@ implementation_plan:
     - Replacing reminders with workflow-backed reminders requires a careful transition period because existing reminder records must continue firing until migrated.
     - Multi-platform parity makes this too large for one implementation slice unless tasks remain independently deployable.
     - Apple full editor parity is expensive but required for the approved core milestone; split implementation into model/store and view slices without reducing native edit scope.
+    - Workflow implementation must not independently edit or copy the shared detail header while unified-detail-pages is active; sequence ownership to avoid conflicts.
     - Users may confuse workflow run cards in Tasks with editable user tasks; the UI must label them as workflow runs and expose only open/cancel/run-specific actions.
     - Cancelling in-progress external calls is inherently cooperative; UI copy must avoid promising rollback of side effects that already started.
     - Workflow-input prompt injection from transcripts or attachments can cause unsafe graph drafts unless every input is sanitized, quoted, schema-constrained, and validated before commit.
@@ -2618,7 +2692,7 @@ tasks:
     independently_deployable: true
 
   - id: TASK-11
-    title: Build Figma-aligned web workflow home and title composer
+    title: Build corrected Workflow landing, mixed row, and restrained title composer
     status: pending
     phase: working_tasks
     covers:
@@ -2647,7 +2721,7 @@ tasks:
     independently_deployable: true
 
   - id: TASK-12
-    title: Build focused web editor and useful run history
+    title: Build clean Figma Workflow canvas and useful run history
     status: pending
     phase: working_tasks
     covers:
@@ -2655,31 +2729,24 @@ tasks:
       acceptance_criteria: [AC-1, AC-2, AC-4, AC-8, AC-12, AC-13, AC-19, AC-24, AC-37]
     expected_files:
       - frontend/apps/web_app/src/routes/workflows/+page.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowDetailView.svelte
-      - frontend/packages/ui/src/components/workflows/WorkflowHeader.svelte
       - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
       - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
       - frontend/packages/ui/src/components/workflows/nodes/WorkflowNodeCard.svelte
-      - frontend/packages/ui/src/components/workspace/WorkspaceHeroHeader.svelte
-      - frontend/packages/ui/src/components/ChatHeader.svelte
       - frontend/apps/web_app/tests/workflows-editor.spec.ts
       - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
     ownership:
       files:
-        - frontend/packages/ui/src/components/workflows/WorkflowDetailView.svelte
-        - frontend/packages/ui/src/components/workflows/WorkflowHeader.svelte
         - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
         - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
         - frontend/packages/ui/src/components/workflows/nodes/WorkflowNodeCard.svelte
-        - frontend/packages/ui/src/components/workspace/WorkspaceHeroHeader.svelte
         - frontend/apps/web_app/tests/workflows-editor.spec.ts
       shared_files:
         - frontend/apps/web_app/src/routes/workflows/+page.svelte
         - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-        - frontend/packages/ui/src/components/ChatHeader.svelte
     verification_ids: [T-E2E-001, T-E2E-003, V-FIGMA-CORE-UI]
     dependencies: [TASK-10, TASK-11]
-    blockers: []
+    blockers:
+      - docs/specs/unified-detail-pages/spec.yml TASK-3 must provide the canonical Workflow detail route and shared editable header before the canvas is integrated.
     follow_up_tasks: [TASK-13]
     independently_deployable: true
 
@@ -2713,7 +2780,7 @@ tasks:
     independently_deployable: true
 
   - id: TASK-14
-    title: Build full Apple core home, editor, and run history
+    title: Build corrected Apple landing, shared-header detail, editor, and run history
     status: pending
     phase: working_tasks
     covers:
@@ -2737,7 +2804,9 @@ tasks:
         - frontend/packages/ui/src/i18n/sources/workflows.yml
     verification_ids: [T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
     dependencies: [TASK-13]
-    blockers: []
+    blockers:
+      - Web Workflow detail and V-FIGMA-CORE-UI must be green before native visual parity starts.
+      - Coordinate WorkflowDetailView ownership with docs/specs/unified-detail-pages/spec.yml TASK-5.
     follow_up_tasks: [TASK-15]
     independently_deployable: true
 

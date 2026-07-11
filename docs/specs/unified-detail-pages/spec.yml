@@ -1,0 +1,819 @@
+schema_version: 2
+id: unified-detail-pages
+title: Unified Editable Detail Pages
+status: implementing
+
+goal: >
+  Give chats, projects, workflows, tasks, and plans one coherent detail-page
+  header based on the rendered ChatHeader visual system, while allowing users
+  with write access to edit encrypted titles and descriptions inline and have
+  the newest accepted metadata version synchronize across their devices. Create
+  the missing Task and Plan detail pages, migrate Project and Workflow details,
+  verify web first, and then implement native Apple parity from the approved web
+  result.
+
+scope:
+  in:
+    - Extract one reusable web detail-header visual primitive from ChatHeader instead of copying its scoped CSS.
+    - Preserve ChatHeader loading, media, navigation, incognito, example, and shared-chat behavior while adopting the shared visual primitive.
+    - Use the shared detail header for owned/writable chats, projects, workflows, tasks, and plans.
+    - Create stable, directly addressable web detail pages for projects, workflows, tasks, and plans, including redirects from shipped query-parameter links where needed.
+    - Show the item icon/type, title, description or chat summary, and domain-relevant metadata in the shared header.
+    - Allow users with write access to click/tap a title or description, or activate its edit affordance with keyboard navigation, to edit inline.
+    - Fade an edit icon in and out at the top-right of the hovered or keyboard-focused editable field.
+    - Show keyboard instructions while editing, plus a checkmark button to save and an undo button to restore the persisted value after a modification.
+    - Title editing saves with Enter; description/summary editing saves with Control-Enter or Command-Enter; Escape cancels either field; clicking outside saves only valid changed content.
+    - Encrypt and persist metadata through the owning domain service, increment monotonic metadata versions, and converge devices on the newest server-accepted version.
+    - Keep read-only shared content, examples, public previews, and users without write access display-only with no edit icon, hints, or mutation path.
+    - Preserve Report Issue access on workspace landing and detail states for Projects, Workflows, Tasks, and Plans.
+    - Implement equivalent native Apple detail headers and inline editing after web behavior and visual evidence are green.
+  out:
+    - A generic backend table or universal plaintext metadata endpoint.
+    - Server-side decryption of chat, project, task, or plan title/description content.
+    - Simultaneous collaborative text editing, merge UI, conflict dialogs, CRDTs, or field-level history browsing.
+    - Editing example chats, public previews, read-only shares, or content without write permission.
+    - Redesigning chat media headers, teaser video behavior, highlights, or previous/next chat navigation.
+    - Completing every feature inside Projects, Tasks, or Plans beyond the detail-page shell and metadata required by this contract.
+    - Duplicating ChatHeader CSS into domain-specific header components.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials on 2026-07-11. gh issue searches for unified detail headers and workflow Figma details returned no matching issue."
+  docs:
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/plans-v1/spec.yml
+    - docs/specs/projects-remote-sources/spec.yml
+    - docs/specs/apple-workspace-reporting-parity/spec.yml
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/contributing/guides/spec-driven-development.md
+    - .claude/rules/apple-ui.md
+  code_patterns:
+    - frontend/packages/ui/src/components/ChatHeader.svelte owns the rendered gradient, orb, typography, summary, time, responsive, and decorative-icon styles as component-scoped CSS.
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte already renders ChatHeader but adds duplicate retention, title, description, save, test, disable, run, and delete controls below it.
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte uses a separate project-header implementation and selects projects without a canonical detail route.
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte renders task and plan creation/list surfaces but has no standalone Task or Plan detail component.
+    - frontend/packages/ui/src/services/sendersChatManagement.ts and encrypted_chat_metadata provide an existing encrypted chat metadata/version synchronization path.
+    - backend/core/api/app/routes/projects.py exposes owner-scoped encrypted project name/description updates.
+    - backend/core/api/app/routes/user_tasks.py and user_plans.py expose encrypted update payloads with updated_at and version fields.
+    - backend/core/api/app/routes/workflows.py exposes workflow title/description updates under the workflow Automation Vault boundary.
+    - Figma nodes 5386:33360 and 5420:34558 show Project and Workflow details using the ChatHeader visual language without the current workflow management form.
+  tests:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - backend/tests/test_sync_api.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_workflow_core_ui_contract.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectDetailView.swift
+    - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskDetailView.swift
+    - apple/OpenMates/Sources/Features/Plans/PlanDetailView.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspaceDetailHeader.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMatesTests/UnifiedDetailMetadataTests.swift
+    - apple/OpenMatesUITests/UnifiedDetailPagesUITests.swift
+  parity_expectations:
+    - The approved rendered web header is the visual and interaction source of truth for native detail headers.
+    - Native title/description editing uses the same permission, save, undo, validation, encryption, version, error, and synchronization contracts as web.
+    - Apple uses generated design tokens, AppStrings, OpenMates controls, and a shared native detail-header primitive rather than stock Form/List product chrome.
+    - Apple implementation starts only after deployed web Playwright and artifact review are green.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/UnifiedDetailMetadataTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/UnifiedDetailPagesUITests
+    - Capture sanitized iPhone, iPad, and macOS screenshots for Chat, Project, Workflow, Task, and Plan details.
+  intentional_native_differences:
+    - Apple exposes visible touch edit affordances without requiring hover; pointer hover on iPadOS/macOS follows web intent where supported.
+    - Native keyboard shortcut labels use platform-appropriate Command or Control glyphs/text while preserving the same save and cancel semantics.
+
+clarification:
+  rounds:
+    - question: Should this milestone create the missing Task and Plan detail pages and migrate Project details, or only implement Workflow details?
+      answer: Create the missing Task and Plan detail pages and migrate Project and Workflow details to the same shared header.
+    - question: Should the shared header remain display-only like ChatHeader?
+      answer: No. Use this work to add click/tap and keyboard editing for title and description or chat summary, synchronized through the backend across devices.
+    - question: How should inline save and cancel work?
+      answer: Title uses Enter to save; description uses Control-Enter or Command-Enter; Escape exits; clicking outside saves valid changes; show key hints, a checkmark save button, and an undo button when modified.
+    - question: Who can see and use editing affordances?
+      answer: Only users with write access. Read-only shares, examples, public previews, and users without write permission stay display-only.
+    - question: How should cross-device concurrent metadata updates behave?
+      answer: Reuse monotonic versioning with the newest server-accepted metadata version winning; do not add a conflict dialog for the unlikely simultaneous-edit case.
+    - question: Is Apple parity included?
+      answer: Yes, after web implementation and web tests are complete.
+  vision_summary: >
+    Every primary OpenMates content type should open into a recognizable detail
+    page whose header is the same product component, not five approximations.
+    Writable metadata can be edited directly in that header with explicit
+    keyboard and button affordances, while encryption and synchronization remain
+    domain-owned. Web establishes the contract first; Apple follows the approved
+    rendered result.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 6883c92b49a0463f9372b633d87a821935d923c4
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-11T14:29:09Z"
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-11T14:29:09Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Extract one WorkspaceDetailHeader visual primitive from ChatHeader and compose domain-specific content around it.
+    reason: Svelte component-scoped CSS cannot be safely shared by copying selectors; one primitive prevents visual drift and keeps ChatHeader the source of truth.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Keep persistence, authorization, encryption, and version synchronization in domain adapters.
+    reason: Chats, projects, tasks, and plans are client-encrypted while workflows use Automation Vault; a generic persistence layer would weaken existing boundaries.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Use monotonically increasing server-accepted versions with newest accepted save winning.
+    reason: This matches the requested existing synchronization model without adding an unrealistic concurrent-edit conflict workflow.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Verify and approve web before native Apple implementation.
+    reason: The browser-rendered shared component is the source of truth for Apple parity.
+    decided_at: "2026-07-11T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Reuse ChatHeader directly inside Workflow details while adding a separate management form below it.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    reason: The result duplicated metadata and controls, copied no reusable contract to other domains, and visibly contradicted Figma.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Keep separate custom project, workflow, task, and plan headers that merely approximate ChatHeader.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    reason: Separate implementations cannot guarantee the same CSS, responsive behavior, or future maintenance.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Write shared visual and metadata-adapter red contracts before changing production components.
+  command: python3 scripts/spec_verify.py docs/specs/unified-detail-pages/spec.yml --phase red
+  expected_outcome: Required red evidence identifies the missing reusable header, editable metadata, stable detail routes, and Apple parity.
+  blocker: null
+  last_verified_commit: 6883c92b49a0463f9372b633d87a821935d923c4
+
+assumptions:
+  - id: A-1
+    text: Existing per-domain keys and mutation services can encrypt and persist title plus description/summary without introducing durable server plaintext.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/projects.py, user_tasks.py, user_plans.py, workflows.py and encrypted_chat_metadata_handler.py
+        summary: Each domain already accepts encrypted or Automation Vault-owned metadata fields through an authenticated mutation boundary.
+  - id: A-2
+    text: Existing domain version fields can be normalized behind a UI adapter so the newest server-accepted save converges across devices.
+    category: sync
+    required_before: implementation
+    status: checking
+    blocker: Chat exposes title_v but summary versioning needs an explicit metadata-version contract; Projects currently exposes updated_at rather than the same version field as Tasks and Plans.
+    next_action: TASK-2 defines and tests the minimum monotonic version contract without changing encryption ownership.
+  - id: A-3
+    text: Users can be classified as writable or read-only before the header renders editing affordances.
+    category: permissions
+    required_before: implementation
+    status: checking
+    blocker: Shared/public/example chat states exist, but Project, Workflow, Task, and Plan write-capability adapters must expose one explicit boolean contract.
+    next_action: TASK-2 adds owner/write-capability contract tests for every domain.
+  - id: A-4
+    text: Remote Apple verification remains reachable after web is green.
+    category: apple
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: docs/specs/workflows-v1/spec.yml
+        summary: The workflow milestone recorded successful remote iOS model and UI test execution before this contract revision.
+
+scenarios:
+  - id: S-1
+    title: Writable chat metadata is edited inline and synchronizes
+    given:
+      - Alice owns a chat and has its decrypted title and summary.
+      - The shared detail header is visible on desktop.
+    when:
+      - Alice hovers or focuses the title and activates the edit icon.
+      - Alice changes the title and presses Enter or the checkmark.
+      - Alice edits the summary and presses Command-Enter or the checkmark.
+    then:
+      - The header showed the relevant save and exit key hints while editing.
+      - The changed field showed checkmark and undo controls.
+      - The client encrypted the changed metadata with the chat key before sending it.
+      - The accepted metadata version appeared on Alice's second device without reload.
+
+  - id: S-2
+    title: User cancels or restores an inline edit
+    given:
+      - Alice has write access to a Project detail page.
+      - Alice changed the project description but has not saved it.
+    when:
+      - Alice presses Escape or activates undo.
+    then:
+      - The persisted description is restored immediately.
+      - No metadata mutation is sent.
+      - Focus returns to the edited field or its edit affordance accessibly.
+
+  - id: S-3
+    title: Read-only content exposes no mutation affordance
+    given:
+      - Bob opens an example chat, public preview, or shared item without write access.
+    when:
+      - Bob hovers, taps, tabs through, or attempts the metadata mutation API.
+    then:
+      - No edit icon, edit hint, checkmark, or undo control appears.
+      - The field cannot enter edit mode.
+      - The backend rejects any forged mutation request without changing metadata.
+
+  - id: S-4
+    title: Each workspace opens a stable shared detail page
+    given:
+      - Alice owns one Project, Workflow, Task, and Plan.
+    when:
+      - Alice opens each item from its workspace list and reloads or deep-links to it.
+    then:
+      - Each item opens at a stable detail URL and survives reload.
+      - Each detail page uses the same header CSS primitive as ChatHeader.
+      - Each header renders domain-specific icon, type, title, description, and useful metadata without duplicating title/description forms below.
+      - Back navigation returns to the correct workspace state.
+
+  - id: S-5
+    title: Latest accepted metadata version wins across devices
+    given:
+      - Alice has the same writable Task open on two devices.
+      - Device A and Device B started from metadata version 4.
+    when:
+      - Device A saves a title and the server accepts version 5.
+      - Device B later explicitly saves a different title and the server accepts the next version.
+    then:
+      - The server serializes accepted saves into monotonically increasing versions.
+      - Version 6 becomes current on both devices.
+      - Clients never choose a winner from untrusted local clock timestamps.
+      - The UI does not show a conflict dialog.
+
+  - id: S-6
+    title: Save failure remains visible and recoverable
+    given:
+      - Alice edits a Plan description while the network is unavailable or the server rejects the update.
+    when:
+      - Alice activates save.
+    then:
+      - The field remains in edit mode with Alice's draft intact.
+      - A visible localized error and retry action appear.
+      - The UI does not claim that synchronization succeeded.
+      - Undo still restores the last persisted value.
+
+  - id: S-7
+    title: Apple follows the approved web detail contract
+    given:
+      - Web detail pages, metadata sync tests, and artifact review are green.
+      - Alice opens Chat, Project, Workflow, Task, and Plan details on Apple platforms.
+    when:
+      - Alice edits and saves writable metadata or views read-only content.
+    then:
+      - Native headers match the approved web hierarchy, gradient, icon, typography, spacing, metadata, and responsive intent.
+      - Native editing follows equivalent save, undo, permission, encryption, version, error, and synchronization behavior.
+      - iPhone, iPad, and macOS evidence is captured after web approval.
+
+  - id: S-8
+    title: Reporting remains available from landing and details
+    given:
+      - Alice is in Projects, Workflows, Tasks, or Plans.
+    when:
+      - Alice views the workspace landing or an item detail page.
+    then:
+      - Report Issue remains reachable in both states.
+      - Opening the form includes safe workspace and item context without plaintext private metadata in logs.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-4
+    text: Chat, Project, Workflow, Task, and Plan details compose one shared web header CSS primitive extracted from ChatHeader; domain-specific components do not copy its visual CSS.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-DETAILS, V-WEB-DETAIL-ARTIFACTS]
+  - id: AC-2
+    scenario: S-1
+    text: Writable title and description or chat-summary fields support click, tap, keyboard focus, fading edit icon, explicit key hints, checkmark save, and undo restore behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-INLINE-EDIT]
+  - id: AC-3
+    scenario: S-1
+    text: Title saves with Enter, description saves with Control-Enter or Command-Enter, Escape cancels, and outside click saves only valid changed content.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-INLINE-EDIT]
+  - id: AC-4
+    scenario: S-3
+    text: Edit affordances and mutation paths are unavailable without write access, including examples, public previews, and read-only shares.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-BACKEND-METADATA, T-WEB-INLINE-EDIT]
+  - id: AC-5
+    scenario: S-4
+    text: Projects, Workflows, Tasks, and Plans have stable directly addressable detail URLs that survive reload and preserve workspace back navigation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-DETAILS]
+  - id: AC-6
+    scenario: S-5
+    text: Every accepted metadata save increments a server-authoritative monotonic version and the newest accepted version converges across devices without client-clock ordering or a conflict dialog.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-BACKEND-METADATA, T-WEB-MULTI-DEVICE, T-APPLE-METADATA]
+  - id: AC-7
+    scenario: S-1
+    text: Chat, Project, Task, and Plan metadata remains client-encrypted; Workflow metadata remains within its approved Automation Vault boundary; plaintext is absent from durable server records and logs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-BACKEND-METADATA, T-WEB-MULTI-DEVICE, T-APPLE-METADATA]
+  - id: AC-8
+    scenario: S-6
+    text: Failed saves preserve the local draft, show a localized error and retry action, never claim success, and retain undo to the last persisted value.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-INLINE-EDIT, T-APPLE-DETAILS]
+  - id: AC-9
+    scenario: S-7
+    text: Apple implements native shared detail headers and metadata editing parity only after web is green, with iPhone, iPad, and macOS test and screenshot evidence.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-METADATA, T-APPLE-DETAILS, V-APPLE-DETAIL-ARTIFACTS]
+  - id: AC-10
+    scenario: S-8
+    text: Report Issue remains reachable from landing and detail states in Projects, Workflows, Tasks, and Plans and forwards only safe context.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-WEB-DETAILS, T-APPLE-DETAILS]
+  - id: AC-11
+    scenario: S-4
+    text: Shared detail headers meet keyboard, screen-reader, touch-target, responsive, reduced-motion, and visible-focus requirements on mobile and desktop.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-WEB-INLINE-EDIT, T-WEB-DETAILS, T-APPLE-DETAILS]
+
+contracts:
+  api:
+    - surface: chat encrypted metadata synchronization
+      request: "{ chat_id, encrypted_title?, encrypted_chat_summary?, versions: { metadata_v } }"
+      behavior:
+        - Owner/write authorization is checked server-side.
+        - The server accepts only client ciphertext and advances a monotonic metadata version.
+        - Existing title_v compatibility is migrated without losing shipped chat data.
+    - route: PATCH /v1/projects/{project_id}
+      request: "{ encrypted_name?, encrypted_description?, version? }"
+      behavior:
+        - Require owner/write permission and advance a server-authoritative version.
+    - route: PATCH /v1/workflows/{workflow_id}
+      request: "{ title?, description?, version? }"
+      behavior:
+        - Preserve Automation Vault encryption and owner authorization while advancing the workflow metadata version.
+    - route: PATCH /v1/user-tasks/{task_id}
+      request: "{ encrypted_title?, encrypted_description?, version? }"
+      behavior:
+        - Require write permission and client ciphertext; accepted update returns the new version.
+    - route: PATCH /v1/user-plans/{plan_id}
+      request: "{ encrypted_title?, encrypted_summary?, version? }"
+      behavior:
+        - Require write permission and client ciphertext; accepted update returns the new version.
+  data:
+    - Domain records keep their existing encryption model and ownership model.
+    - Each detail item exposes a server-authoritative monotonic metadata version in list, detail, mutation, sync, CLI, and SDK responses where that domain is exposed.
+    - Latest accepted version wins; ordering never depends on client updated_at values.
+    - The UI adapter receives decrypted display values and capability flags but never centralizes plaintext persistence.
+  ui_states:
+    - Display-only header.
+    - Writable hover/focus state with fading edit icon at the field's top-right.
+    - Editing unchanged state with key hints and cancel behavior.
+    - Editing dirty state with checkmark and undo controls.
+    - Saving state with duplicate submission blocked.
+    - Save error state with draft, retry, and undo preserved.
+    - Remote-version-applied state after cross-device synchronization.
+    - Loading/not-found/forbidden detail state with no stale metadata flash.
+  privacy_security:
+    - The shared component never sends plaintext directly; it calls the domain adapter that owns encryption and mutation.
+    - Server authorization is mandatory even when the client hides editing controls.
+    - Logs and traces may include domain type, operation, version, duration, and redacted identifier prefix, never title, description, summary, keys, ciphertext, or private route fragments.
+    - Public/read-only/example surfaces cannot enter edit mode through keyboard, DOM manipulation, or forged API calls.
+    - Offline/error handling must not silently discard a user's draft or report a save that was not accepted.
+  routing:
+    - /projects/{project_id}
+    - /workflows/{workflow_id}
+    - /tasks/{task_id}
+    - /plans/{plan_id}
+    - Shipped workflow/project query links redirect to canonical detail URLs while concrete external consumers remain supported.
+
+tests:
+  - id: T-BACKEND-METADATA
+    type: pytest
+    file: backend/tests/test_unified_detail_metadata.py
+    command: python3 -m pytest backend/tests/test_unified_detail_metadata.py
+    covers: [AC-4, AC-6, AC-7]
+    assertions:
+      - each domain rejects unauthenticated and read-only metadata writes
+      - chat/project/task/plan routes persist ciphertext only
+      - workflow metadata preserves Automation Vault encryption
+      - accepted updates return monotonic versions and later accepted saves become current
+      - client timestamps cannot make an older accepted version overwrite a newer server version
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-WEB-INLINE-EDIT
+    type: playwright
+    file: frontend/apps/web_app/tests/unified-detail-header.spec.ts
+    command: python3 scripts/tests.py run --spec unified-detail-header.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-2, AC-3, AC-4, AC-8, AC-11]
+    assertions:
+      - edit icon appears on hover and keyboard focus only for writable fields
+      - tap and keyboard activation enter inline edit mode
+      - key hints, checkmark, and undo controls match title and multiline-description semantics
+      - Escape/undo restore persisted values without mutation
+      - failure preserves draft and exposes retry
+      - read-only/example/shared content has no mutation affordance
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+  - id: T-WEB-DETAILS
+    type: playwright
+    file: frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    command: python3 scripts/tests.py run --spec unified-detail-pages.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-5, AC-10, AC-11]
+    assertions:
+      - Project, Workflow, Task, and Plan detail links open canonical reload-safe URLs
+      - every detail page uses the shared header contract and no duplicate metadata form
+      - back navigation restores the owning workspace
+      - Report Issue is reachable on landing and detail states
+      - mobile and desktop layouts preserve header content and touch targets
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+  - id: T-WEB-MULTI-DEVICE
+    type: playwright
+    file: frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    command: python3 scripts/tests.py run --spec unified-detail-metadata-sync.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-6, AC-7]
+    assertions:
+      - a save in one authenticated context updates another context through normal sync
+      - a later explicit save receives a higher version and converges on both contexts
+      - cold boot loads the newest encrypted metadata version
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+  - id: T-APPLE-METADATA
+    type: unit
+    file: apple/OpenMatesTests/UnifiedDetailMetadataTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/UnifiedDetailMetadataTests
+    covers: [AC-6, AC-7, AC-9]
+    assertions:
+      - native domain adapters encrypt with the correct key boundary and submit versions
+      - newest accepted metadata versions replace older local values
+      - read-only capability blocks native mutation
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+  - id: T-APPLE-DETAILS
+    type: unit
+    file: apple/OpenMatesUITests/UnifiedDetailPagesUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/UnifiedDetailPagesUITests
+    covers: [AC-8, AC-9, AC-10, AC-11]
+    assertions:
+      - Chat, Project, Workflow, Task, and Plan native details use the shared native header
+      - writable fields expose edit, save, undo, hints, errors, and accessible focus behavior
+      - read-only fields expose no edit affordance
+      - Report Issue remains reachable on workspace and detail states
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+
+verifications:
+  - id: V-WEB-DETAIL-ARTIFACTS
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-1]
+    status: pending
+    evidence:
+      status: pending
+      summary: Compare deployed desktop and mobile Chat, Project, Workflow, Task, and Plan headers against rendered ChatHeader and Figma nodes 5386:33360 and 5420:34558.
+  - id: V-APPLE-DETAIL-ARTIFACTS
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-9]
+    status: pending
+    evidence:
+      status: pending
+      summary: Capture sanitized iPhone, iPad, and macOS details only after V-WEB-DETAIL-ARTIFACTS passes.
+
+implementation_plan:
+  spec_path: docs/specs/unified-detail-pages/spec.yml
+  existing_patterns:
+    - frontend/packages/ui/src/components/ChatHeader.svelte for the canonical rendered header.
+    - frontend/packages/ui/src/services/sendersChatManagement.ts and chat sync services for encrypted chat metadata synchronization.
+    - backend/core/api/app/routes/projects.py, workflows.py, user_tasks.py, and user_plans.py for domain mutations.
+    - frontend/packages/ui/src/components/settings/elements for accessible compact action controls where applicable.
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift and generated Swift tokens for native parity.
+  architecture: >
+    Extract a presentation-only WorkspaceDetailHeader from ChatHeader. It renders
+    the canonical background, orbs, decorative icon, title, description, metadata,
+    responsive geometry, and editable field states. ChatHeader composes its
+    existing chat-only states through this primitive. Project, Workflow, Task,
+    and Plan detail containers provide a common view model plus domain mutation
+    adapters. Each adapter checks write capability, encrypts with its existing
+    domain key or Automation Vault service, submits the current server metadata
+    version, receives the next version, updates local storage, and publishes the
+    normal sync event. Canonical nested routes own detail loading and preserve
+    redirects from shipped links. Web tests and artifact review gate equivalent
+    SwiftUI composition and native adapter work.
+  data_flow:
+    - Detail route loads owner-scoped encrypted metadata and capability, then decrypts through the existing domain service.
+    - Shared header receives display values, write capability, version, validation constraints, and required save/cancel callbacks.
+    - User enters edit mode; the component stores an ephemeral local draft and never mutates persisted state before save.
+    - Domain adapter validates, encrypts, submits the accepted current version, and receives a new server version.
+    - Local store/IndexedDB/native persistence records ciphertext and version; existing sync propagates the new version to other devices.
+    - Later accepted saves receive higher server versions and become current without using client clock ordering.
+    - Web green and visual approval unlock native Apple implementation and evidence.
+  affected_files:
+    - path: frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+      reason: Shared canonical header and inline edit state.
+    - path: frontend/packages/ui/src/components/ChatHeader.svelte
+      reason: Compose existing chat behavior through the shared primitive.
+    - path: frontend/packages/ui/src/components/workspace/detailMetadataAdapters.ts
+      reason: Typed presentation-to-domain adapter contract without centralizing encryption.
+    - path: frontend/packages/ui/src/components/projects/ProjectDetailPage.svelte
+      reason: Canonical Project detail composition.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+      reason: Canonical Workflow detail composition.
+    - path: frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+      reason: Missing Task detail page.
+    - path: frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+      reason: Missing Plan detail page.
+    - path: frontend/apps/web_app/src/routes/projects/[project_id]/+page.svelte
+      reason: Stable Project detail route.
+    - path: frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
+      reason: Stable Workflow detail route.
+    - path: frontend/apps/web_app/src/routes/tasks/[task_id]/+page.svelte
+      reason: Stable Task detail route.
+    - path: frontend/apps/web_app/src/routes/plans/[plan_id]/+page.svelte
+      reason: Stable Plan detail route.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+      reason: Unified chat title/summary metadata version acceptance.
+    - path: backend/core/api/app/routes/projects.py
+      reason: Project metadata version response contract.
+    - path: backend/core/api/app/routes/workflows.py
+      reason: Workflow metadata version response contract.
+    - path: backend/core/api/app/routes/user_tasks.py
+      reason: Task metadata version response contract.
+    - path: backend/core/api/app/routes/user_plans.py
+      reason: Plan metadata version response contract.
+    - path: frontend/packages/ui/src/i18n/sources/common.yml
+      reason: Shared edit, keyboard hint, save, undo, retry, and error strings.
+    - path: apple/OpenMates/Sources/Shared/Components/WorkspaceDetailHeader.swift
+      reason: Native parity primitive after web approval.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/unified-detail-pages/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/unified-detail-pages/spec.yml --phase red
+    - python3 -m pytest backend/tests/test_unified_detail_metadata.py
+    - python3 scripts/audit_sdk_cli_parity.py
+    - Deploy to dev and wait for Vercel Ready.
+    - python3 scripts/tests.py run --spec unified-detail-header.spec.ts
+    - python3 scripts/tests.py run --spec unified-detail-pages.spec.ts
+    - python3 scripts/tests.py run --spec unified-detail-metadata-sync.spec.ts
+    - Complete V-WEB-DETAIL-ARTIFACTS.
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/UnifiedDetailMetadataTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/UnifiedDetailPagesUITests
+    - Complete V-APPLE-DETAIL-ARTIFACTS.
+    - python3 scripts/spec_verify.py docs/specs/unified-detail-pages/spec.yml
+  verification_order:
+    - Backend metadata/version/encryption contracts.
+    - CLI, npm SDK, and pip SDK parity audit for affected public metadata methods.
+    - Deployed web inline-edit, route, reporting, and multi-device sync contracts.
+    - Web desktop/mobile artifact approval.
+    - Apple unit and UI tests, then iPhone/iPad/macOS artifacts.
+  rollout:
+    - Keep existing ChatHeader behavior while the shared primitive is introduced behind deterministic parity tests.
+    - Land web domain pages in independently testable slices but do not mark the contract green until all five headers use the primitive.
+    - Start Apple production changes only after web artifact review passes.
+  observability:
+    - Log domain, operation, sanitized id prefix, incoming/accepted version, duration, and error code only.
+    - Never log title, description, summary, ciphertext, keys, or decrypted drafts.
+  required_assumptions: [A-1, A-2, A-3, A-4]
+  open_questions:
+    - none
+  risks:
+    - Extracting ChatHeader styles can regress chat media/loading/navigation states unless existing chat E2E contracts run unchanged.
+    - Silent latest-version-wins can overwrite a nearly simultaneous remote edit; this is an explicitly accepted product tradeoff.
+    - A generic UI adapter could accidentally centralize plaintext or encryption logic; domain adapters must remain responsible.
+    - Creating four stable detail routes can break shipped query links without explicit redirects and route tests.
+    - Apple parity can drift if implementation starts before the web visual contract is approved.
+
+tasks:
+  - id: TASK-1
+    title: Add red shared-header and detail-route contracts
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-6, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-10, AC-11]
+    expected_files:
+      - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+      - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+    verification: [T-WEB-INLINE-EDIT, T-WEB-DETAILS]
+    verification_ids: [T-WEB-INLINE-EDIT, T-WEB-DETAILS]
+    dependencies: []
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/unified-detail-header.spec.ts
+        - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-2, TASK-3]
+    independently_deployable: false
+  - id: TASK-2
+    title: Normalize encrypted metadata version and permission contracts
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3, S-5, S-6]
+      acceptance_criteria: [AC-4, AC-6, AC-7, AC-8]
+    expected_files:
+      - backend/tests/test_unified_detail_metadata.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+      - backend/core/api/app/routes/projects.py
+      - backend/core/api/app/routes/workflows.py
+      - backend/core/api/app/routes/user_tasks.py
+      - backend/core/api/app/routes/user_plans.py
+    verification: [T-BACKEND-METADATA]
+    verification_ids: [T-BACKEND-METADATA]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/tests/test_unified_detail_metadata.py
+      shared_files:
+        - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+        - backend/core/api/app/routes/projects.py
+        - backend/core/api/app/routes/workflows.py
+        - backend/core/api/app/routes/user_tasks.py
+        - backend/core/api/app/routes/user_plans.py
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: true
+  - id: TASK-3
+    title: Implement shared web header and domain detail pages
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-6, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-7, AC-8, AC-10, AC-11]
+    expected_files:
+      - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+      - frontend/packages/ui/src/components/ChatHeader.svelte
+      - frontend/packages/ui/src/components/projects/ProjectDetailPage.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+      - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+      - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+    verification: [T-WEB-INLINE-EDIT, T-WEB-DETAILS]
+    verification_ids: [T-WEB-INLINE-EDIT, T-WEB-DETAILS]
+    dependencies: [TASK-1, TASK-2]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
+        - frontend/packages/ui/src/components/projects/ProjectDetailPage.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+        - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+        - frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+      shared_files:
+        - frontend/packages/ui/src/components/ChatHeader.svelte
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Verify deployed web visuals and cross-device metadata sync
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-4, S-5, S-6, S-8]
+      acceptance_criteria: [AC-1, AC-5, AC-6, AC-7, AC-8, AC-10, AC-11]
+    expected_files:
+      - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+    verification: [T-WEB-MULTI-DEVICE, V-WEB-DETAIL-ARTIFACTS]
+    verification_ids: [T-WEB-MULTI-DEVICE, V-WEB-DETAIL-ARTIFACTS]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Implement and verify Apple detail-page parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3, S-5, S-6, S-7, S-8]
+      acceptance_criteria: [AC-4, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Components/WorkspaceDetailHeader.swift
+      - apple/OpenMatesTests/UnifiedDetailMetadataTests.swift
+      - apple/OpenMatesUITests/UnifiedDetailPagesUITests.swift
+    verification: [T-APPLE-METADATA, T-APPLE-DETAILS, V-APPLE-DETAIL-ARTIFACTS]
+    verification_ids: [T-APPLE-METADATA, T-APPLE-DETAILS, V-APPLE-DETAIL-ARTIFACTS]
+    dependencies: [TASK-4]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Shared/Components/WorkspaceDetailHeader.swift
+        - apple/OpenMatesTests/UnifiedDetailMetadataTests.swift
+        - apple/OpenMatesUITests/UnifiedDetailPagesUITests.swift
+      shared_files:
+        - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+        - apple/OpenMates.xcodeproj/project.pbxproj
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

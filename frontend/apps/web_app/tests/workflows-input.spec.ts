@@ -2,9 +2,9 @@
 /**
  * Workflows input home coverage.
  *
- * Purpose: verifies the deployed Workflows home keeps its recommendations,
- * recents, and Show all mode while the fixed composer creates manual drafts
- * without using the workflow-input planning endpoint.
+ * Purpose: verifies the deployed Workflows landing keeps Daily Inspiration,
+ * renders one mixed recent/example row, and uses a restrained composer to
+ * create manual drafts without invoking workflow-input planning.
  * Security: uses the shared E2E account and deletes only workflows created by
  * this spec run.
  */
@@ -95,14 +95,20 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
 			await expect(page.getByTestId('workflows-workspace-center')).toContainText('Hey');
 			await expect(page.getByTestId('workflows-workspace-center')).toContainText('What do you want to automate next?');
-			await expect(page.getByTestId('workflow-recommendations')).toBeVisible();
-			await expect(page.getByTestId('recent-workflows')).toBeVisible();
+			const mixedRow = page.getByTestId('workflow-mixed-row');
+			await expect(mixedRow).toBeVisible();
+			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
+			await expect(page.getByText('Continue where you left off', { exact: true })).toHaveCount(0);
+			const mixedCards = mixedRow.getByTestId('workflow-landing-card');
+			expect(await mixedCards.count()).toBeGreaterThan(6);
+			await expect(mixedCards.first()).toHaveAttribute('data-card-source', 'recent');
+			await expect(mixedCards.last()).toHaveAttribute('data-card-source', 'example');
 			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
 			await expect(page.getByTestId('workflows-search')).toBeDisabled();
-			await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
-			await expect(page.getByTestId('workflow-input-submit')).toBeDisabled();
+			await expect(page.getByTestId('workflow-input-submit')).toHaveCount(0);
 			await expect(page.getByTestId('message-editor')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-input-textarea')).toHaveCSS('text-align', 'center');
 
 			const startScreenBox = await page.getByTestId('workflows-start-screen').boundingBox();
 			const composerBox = await page.getByTestId('workflow-input-composer').boundingBox();
@@ -113,14 +119,14 @@ test.describe('Workflows input home', () => {
 			expect(centerBox.y + centerBox.height).toBeLessThan(composerBox.y);
 
 			await page.getByTestId('workflows-show-all').click();
-			await expect(page.getByTestId('workflow-recommendations')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-mixed-row')).toHaveCount(0);
 			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
 			await expect(page.getByTestId('all-workflows-grid')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 
 			await page.getByTestId('workflows-show-all').click();
-			await expect(page.getByTestId('workflow-recommendations')).toBeVisible();
-			await expect(page.getByTestId('recent-workflows')).toBeVisible();
+			await expect(page.getByTestId('workflow-mixed-row')).toBeVisible();
+			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
 			await expect(page.getByTestId('all-workflows-grid')).toHaveCount(0);
 
 			page.on('request', recordWorkflowInputRequest);
@@ -128,14 +134,18 @@ test.describe('Workflows input home', () => {
 				(response) => new URL(response.url()).pathname === '/v1/workflows' && response.request().method() === 'POST' && response.ok(),
 				{ timeout: 30000 }
 			);
+			await page.getByTestId('workflow-input-textarea').focus();
+			await expect(page.getByTestId('workflow-input-submit')).toHaveCount(0);
 			await page.getByTestId('workflow-input-textarea').fill('Daily school weather');
+			await expect(page.getByTestId('workflow-input-submit')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-submit')).toBeEnabled();
 			await page.getByTestId('workflow-input-submit').click();
 			const draftData = await createDraftResponse;
 			const draft = (await draftData.json()).workflow;
 			createdWorkflowIds.add(draft.id);
 			await expect(page.getByTestId('workflow-editor')).toBeVisible({ timeout: 30000 });
-			await expect(page.getByTestId('workflow-title-input')).toHaveValue('Daily school weather');
+			await expect(page).toHaveURL(new RegExp(`/workflows/${draft.id}(?:[?#]|$)`));
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily school weather');
 			expect(draft.title).toBe('Daily school weather');
 			expect(draft.enabled).toBe(false);
 			expect(draft.graph.nodes).toHaveLength(1);
