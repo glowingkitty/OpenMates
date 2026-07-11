@@ -9,6 +9,37 @@ import XCTest
 
 @MainActor
 final class ChatStreamingLifecycleParityTests: XCTestCase {
+    func testReplacingStreamKeepsNewestSubscriberRegistered() async {
+        let chatId = "fixture-stream-replacement-\(UUID().uuidString)"
+        let firstStream = await StreamingClient.shared.streamForChat(chatId)
+        let firstConsumer = Task {
+            for await _ in firstStream {}
+        }
+        let secondStream = await StreamingClient.shared.streamForChat(chatId)
+        let received = expectation(description: "Newest stream receives chat event")
+        let secondConsumer = Task {
+            for await event in secondStream {
+                if case .messageReady(let receivedChatId, _) = event,
+                   receivedChatId == chatId {
+                    received.fulfill()
+                    break
+                }
+            }
+        }
+
+        // Let the first continuation's asynchronous termination callback run.
+        try? await Task.sleep(for: .milliseconds(50))
+        await StreamingClient.shared.dispatch(
+            .messageReady(chatId: chatId, messageId: "fixture-assistant-1"),
+            for: chatId
+        )
+
+        await fulfillment(of: [received], timeout: 1)
+        firstConsumer.cancel()
+        secondConsumer.cancel()
+        await StreamingClient.shared.removeStream(chatId)
+    }
+
     func testLifecycleTransitionsThroughProcessingThinkingStreamingAndFinal() {
         var state = ChatStreamingLifecycleState()
 
