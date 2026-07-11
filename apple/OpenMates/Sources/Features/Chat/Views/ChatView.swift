@@ -1127,16 +1127,17 @@ struct ChatView: View {
     // MARK: - Input bar
 
     private var exampleChatInputRow: some View {
-        VStack(spacing: isInputFocused ? .spacing3 : 0) {
+        let composerOpen = isInputFocused || isComposerExpanded
+        return VStack(spacing: composerOpen ? .spacing3 : 0) {
             HStack(alignment: .bottom, spacing: .spacing3) {
                 newChatInlineButton
-                    .frame(width: isInputFocused ? 0 : (useCompactInlineNewChat ? 48 : nil), height: 48)
-                    .opacity(isInputFocused ? 0 : 1)
+                    .frame(width: composerOpen ? 0 : (useCompactInlineNewChat ? 48 : nil), height: 48)
+                    .opacity(composerOpen ? 0 : 1)
                     .clipped()
-                    .allowsHitTesting(!isInputFocused)
+                    .allowsHitTesting(!composerOpen)
 
                 inputField(
-                    compact: !isInputFocused && messageText.isEmpty,
+                    compact: !composerOpen && messageText.isEmpty,
                     placeholder: AppStrings.typeFollowup,
                     expandedMinHeight: MessageComposerMetric.expandedMinHeight
                 )
