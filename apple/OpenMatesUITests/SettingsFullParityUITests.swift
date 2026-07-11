@@ -36,6 +36,26 @@ final class SettingsFullParityUITests: XCTestCase {
         attachScreenshot(name: "Guest settings submenu smoke")
     }
 
+    func testAuthenticatedSettingsSubmenusOpenAndReturn() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-account-settings-fixture",
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
+        app.buttons["settings-button"].tap()
+        XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
+
+        for destination in authenticatedDestinations {
+            openDestination(destination, in: app)
+            XCTAssertFalse(app.tables.firstMatch.exists, "Settings destination must not render default List/table chrome")
+            app.descendants(matching: .any)["settings-destination-back"].tap()
+            XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 5))
+        }
+    }
+
     func testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -107,6 +127,19 @@ final class SettingsFullParityUITests: XCTestCase {
             ("settings-newsletter-row", "settings-newsletter-page"),
             ("settings-support-row", "settings-support-page"),
             ("settings-report-issue-row", "settings-report-issue-page"),
+        ]
+    }
+
+    private var authenticatedDestinations: [(row: String, page: String)] {
+        [
+            ("settings-memories-row", "settings-memories-page"),
+            ("settings-privacy-row", "settings-privacy-page"),
+            ("settings-projects-row", "settings-projects-page"),
+            ("settings-billing-row", "settings-billing-page"),
+            ("settings-notifications-row", "settings-notifications-page"),
+            ("settings-shared-row", "settings-shared-page"),
+            ("settings-account-row", "settings-account-page"),
+            ("settings-developers-row", "settings-developers-page"),
         ]
     }
 
