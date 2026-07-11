@@ -20,7 +20,7 @@
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { mount, unmount } from "svelte";
-import FocusModeActivationEmbed from "../../../embeds/FocusModeActivationEmbed.svelte";
+import FocusModeActivationEmbed from "../../../embeds/focus_mode/FocusModeActivationEmbed.svelte";
 import { activeChatStore } from "../../../../stores/activeChatStore";
 import { chatMetadataCache } from "../../../../services/chatMetadataCache";
 import { chatKeyManager } from "../../../../services/encryption/ChatKeyManager";

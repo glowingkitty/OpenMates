@@ -10,8 +10,8 @@
 
 <script lang="ts">
   import { text } from '@repo/ui';
-  import type { EmbedFullscreenRawData } from '../../types/embedFullscreen';
-  import UnifiedEmbedFullscreen from './UnifiedEmbedFullscreen.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
 
   interface Props {
     data: EmbedFullscreenRawData;

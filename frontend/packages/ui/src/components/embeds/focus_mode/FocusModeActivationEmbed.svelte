@@ -1,5 +1,5 @@
 <!--
-  frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte
+  frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
   
   Focus mode activation indicator embed.
   Renders a compact bar (styled like BasicInfosBar) showing:
