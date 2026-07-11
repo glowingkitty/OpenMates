@@ -6126,7 +6126,7 @@ private struct WelcomeComposer: View {
                 if overlayContent == nil && isOpen {
                     Button {
                         isExpanded.toggle()
-                        isFocused = true
+                        isFocused = false
                     } label: {
                         Icon(isExpanded ? "minimize" : "fullscreen", size: 20)
                             .foregroundStyle(LinearGradient.primary)
