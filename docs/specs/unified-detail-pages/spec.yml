@@ -164,12 +164,14 @@ attempts:
     reason: Separate implementations cannot guarantee the same CSS, responsive behavior, or future maintenance.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Add committed red contracts for editable shared headers and Project/Task/Plan canonical detail routes.
-  command: python3 scripts/tests.py run -- --spec unified-detail-header.spec.ts
-  expected_outcome: The deployed app fails because editable shared fields and non-Workflow canonical detail pages do not exist yet.
-  blocker: null
-  last_verified_commit: 6883c92b49a0463f9372b633d87a821935d923c4
+  current_task_id: TASK-4
+  next_action: Wait for user visual approval of the deployed web headers, then correct the nested WebSocket event classifier in T-WEB-MULTI-DEVICE and rerun before Apple work.
+  command: python3 scripts/tests.py run -- --spec unified-detail-metadata-sync.spec.ts
+  expected_outcome: Title and summary updates converge on the second context and survive a cold boot after the observer classifies payload.event before the outer envelope type.
+  blocker:
+    reason: Apple production work is explicitly blocked until the user approves the web UI; T-WEB-MULTI-DEVICE also remains red because its frame observer records nested chat_title_updated as version zero.
+    next_action: Collect user web UI feedback, then correct and rerun the web observer before Apple implementation.
+  last_verified_commit: f34ab21b6
 
 assumptions:
   - id: A-1
@@ -184,16 +186,18 @@ assumptions:
     text: Existing domain version fields can be normalized behind a UI adapter so the newest server-accepted save converges across devices.
     category: sync
     required_before: implementation
-    status: checking
-    blocker: Chat exposes title_v but summary versioning needs an explicit metadata-version contract; Projects currently exposes updated_at rather than the same version field as Tasks and Plans.
-    next_action: TASK-2 defines and tests the minimum monotonic version contract without changing encryption ownership.
+    status: confirmed
+    evidence:
+      - source: commit 89cfd38
+        summary: Chat metadata_v and Project, Workflow, Task, and Plan server-authoritative versions are implemented without changing encryption ownership.
   - id: A-3
     text: Users can be classified as writable or read-only before the header renders editing affordances.
     category: permissions
     required_before: implementation
-    status: checking
-    blocker: Shared/public/example chat states exist, but Project, Workflow, Task, and Plan write-capability adapters must expose one explicit boolean contract.
-    next_action: TASK-2 adds owner/write-capability contract tests for every domain.
+    status: confirmed
+    evidence:
+      - source: backend/tests/test_unified_detail_metadata.py and frontend/apps/web_app/tests/unified-detail-header.spec.ts
+        summary: Owner-scoped APIs reject foreign writes, while example/shared/incognito chat headers render without edit affordances.
   - id: A-4
     text: Remote Apple verification remains reachable after web is green.
     category: apple
@@ -469,7 +473,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
+        status: passed
+        command: python3 -m pytest backend/tests/test_unified_detail_metadata.py
+        run_id: local-domain-4-passed-plus-api-container-chat-4-passed-20260711
+        subject_commit: 89cfd38
+        timestamp: "2026-07-11T17:04:31Z"
+        summary: Project, Workflow, Task, and Plan contracts passed locally; four Chat authorization, ciphertext, title/summary version, persistence, and broadcast contracts passed in the API container.
   - id: T-WEB-INLINE-EDIT
     type: playwright
     file: frontend/apps/web_app/tests/unified-detail-header.spec.ts
@@ -497,7 +506,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        command: python3 scripts/tests.py run -- --spec unified-detail-header.spec.ts
+        run_id: "29162984045"
+        subject_commit: c58e26d7b
+        timestamp: "2026-07-11T18:12:53Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_1eNzsSXedLeNUVsCLpbo8zimcGki
   - id: T-WEB-DETAILS
     type: playwright
     file: frontend/apps/web_app/tests/unified-detail-pages.spec.ts
@@ -519,7 +534,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        command: python3 scripts/tests.py run -- --spec unified-detail-pages.spec.ts
+        run_id: "29163346894"
+        subject_commit: b5f2b7a88
+        timestamp: "2026-07-11T18:26:51Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_G3bMBnPjUarjSHUnMjtXGEhS3GYB
   - id: T-WEB-MULTI-DEVICE
     type: playwright
     file: frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
@@ -539,7 +560,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: failed
+        command: python3 scripts/tests.py run -- --spec unified-detail-metadata-sync.spec.ts
+        run_id: "29166851035"
+        subject_commit: f34ab21b6
+        timestamp: "2026-07-11T20:25:22Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_5Mr4zpeejqByvPverB9yUXgqHfj9
+        summary: Deployed title and summary UI rendered, but the test frame observer classified nested chat_title_updated broadcasts by the outer envelope and recorded metadata_v as zero; peer convergence and cold boot remain unverified.
   - id: T-APPLE-METADATA
     type: unit
     file: apple/OpenMatesTests/UnifiedDetailMetadataTests.swift
@@ -586,10 +614,12 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-1]
-    status: pending
+    status: blocked
     evidence:
-      status: pending
-      summary: Compare deployed desktop and mobile Chat, Project, Workflow, Task, and Plan headers against rendered ChatHeader and Figma nodes 5386:33360 and 5420:34558.
+      status: blocked
+      summary: Deployed desktop and sidebar-closed Chat artifacts are captured; user visual approval is required before Apple work, and Figma API access remains 403.
+      timestamp: "2026-07-11T20:25:22Z"
+      next_action: User reviews app.dev.openmates.org Chat, Project, Workflow, Task, and Plan detail headers and explicitly approves or requests web corrections.
   - id: V-APPLE-DETAIL-ARTIFACTS
     kind: artifact_review
     phase: final
@@ -706,7 +736,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add red shared-header and detail-route contracts
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-6, S-8]
@@ -727,7 +757,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Normalize encrypted metadata version and permission contracts
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-5, S-6]
@@ -756,7 +786,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Implement shared web header and domain detail pages
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-6, S-8]
@@ -785,7 +815,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Verify deployed web visuals and cross-device metadata sync
-    status: pending
+    status: needs_fix
     phase: working_tasks
     covers:
       scenarios: [S-1, S-4, S-5, S-6, S-8]
@@ -799,7 +829,9 @@ tasks:
       files:
         - frontend/apps/web_app/tests/unified-detail-metadata-sync.spec.ts
       shared_files: []
-    blockers: []
+    blockers:
+      - T-WEB-MULTI-DEVICE frame observer must classify payload.event before the outer message type.
+      - V-WEB-DETAIL-ARTIFACTS requires explicit user approval.
     follow_up_tasks: [TASK-5]
     independently_deployable: false
   - id: TASK-5
@@ -824,6 +856,8 @@ tasks:
       shared_files:
         - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
         - apple/OpenMates.xcodeproj/project.pbxproj
-    blockers: []
+    blockers:
+      - User explicitly requires web UI approval before any Apple production code changes.
+      - TASK-4 must return green first.
     follow_up_tasks: []
     independently_deployable: false
