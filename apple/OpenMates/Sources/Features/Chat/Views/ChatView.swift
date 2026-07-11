@@ -239,10 +239,13 @@ struct ChatView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
+                #if DEBUG
                 Color.clear
                     .accessibilityElement()
+                    .accessibilityLabel(AppStrings.chat)
                     .accessibilityIdentifier("chat-view-\(chatId)")
                     .allowsHitTesting(false)
+                #endif
 
                 VStack(spacing: 0) {
                     if bannerState == nil {
