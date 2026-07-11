@@ -280,10 +280,16 @@ attempts:
     outcome: planned
     recorded_at: "2026-07-11T23:45:00Z"
     reason: Five of six tests passed. The image renderer already suppresses its finished subtitle; the global assertion matched the separately seeded document or recording preview, where open-details text is valid.
+  - id: ATTEMPT-24
+    task_id: TASK-6
+    approach: Run the full iPhone ChatFlowParityUITests suite and update its Workflows assertion to the shipped workspace.
+    outcome: planned
+    recorded_at: "2026-07-11T23:53:00Z"
+    reason: Nine of ten tests passed. The cold-boot test expected the retired workspace-placeholder-workflows even though Workflows V1 now correctly renders workflows-home.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the scoped image-preview assertion, sync the remote checkout, and rerun the focused iPad image restoration test.
+  next_action: Deploy the real Workflows home assertion, sync the remote checkout, and rerun the focused cold-boot test followed by the full iPhone chat-flow suite.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress"
   expected_outcome: The compact recent card renders title-only and opens the custom actions menu on long press.
   blocker:

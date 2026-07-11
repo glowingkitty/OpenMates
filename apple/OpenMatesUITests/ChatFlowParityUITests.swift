@@ -64,7 +64,7 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-plans"].waitForExistence(timeout: 5))
 
         openWorkspace("workflows", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-workflows"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["workflows-home"].waitForExistence(timeout: 5))
 
         openWorkspace("chats", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 5))
