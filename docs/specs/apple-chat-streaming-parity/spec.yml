@@ -132,7 +132,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: af9cf203b693bd3e06b04e68ee9852ae674f1007
+  subject_commit: b1c6d8fa67739151617dce90159cefb2aeb9f213
 
 approvals:
   product_contract:
@@ -195,12 +195,12 @@ attempts:
     evidence: Repository rules define browser-computed output and simulator artifacts as the final visual contract.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Generate the implementation plan and task ownership from the approved migrated contract.
-  command: python3 scripts/spec_validate.py docs/specs/apple-chat-streaming-parity/spec.yml
-  expected_outcome: After invoking the plan-from-spec skill, the updated technical plan still validates and sequences deterministic web contract extraction before Apple implementation.
+  current_task_id: TASK-2
+  next_action: Add the shared synthetic lifecycle fixture and a web Playwright contract that fails on current thinking, terminal-state, and Reduce Motion gaps.
+  command: python3 scripts/tests.py run --spec chat-response-processing-ui.spec.ts
+  expected_outcome: The deployed current web app fails the new contract for the expected missing selectors, terminal-state distinctions, and rainbow/thinking Reduce Motion behavior.
   blocker: null
-  last_verified_commit: af9cf203b693bd3e06b04e68ee9852ae674f1007
+  last_verified_commit: b1c6d8fa67739151617dce90159cefb2aeb9f213
 
 scenarios:
   - id: S-1
@@ -464,8 +464,12 @@ assumptions:
     text: A deterministic web and Apple lifecycle fixture can represent intermediate states without relying exclusively on a real provider response.
     category: testing
     required_before: implementation
-    status: unchecked
-    blocker: Confirm the narrowest existing fixture/harness seam during plan-from-spec.
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/app.ts and frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+        summary: The dev-host e2e chat seed hook plus a spec-local WebSocket wrapper can inject staged synthetic inbound events through real web handlers without backend persistence.
+      - source: apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift and apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+        summary: The DEBUG chat-opening preview renders real ChatView/ChatViewModel state and can dispatch staged synthetic events through the buffered shared stream broker.
 
 contracts:
   websocket:
@@ -535,7 +539,12 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/spec_validate.py docs/specs/apple-chat-streaming-parity/spec.yml
+        run_id: local:spec-validate-task-1
+        subject_commit: b1c6d8fa67739151617dce90159cefb2aeb9f213
+        timestamp: "2026-07-11T09:47:52Z"
   - id: T-FIXTURE-SEAM
     type: manual
     covers: [AC-1]
@@ -550,7 +559,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: Source review of existing web e2e seed/WebSocket interception and Apple DEBUG chat-opening preview/StreamingClient seams
+        run_id: manual:shared-chat-lifecycle-fixture-seam
+        subject_commit: b1c6d8fa67739151617dce90159cefb2aeb9f213
+        reason: Both clients can consume one staged synthetic wire-event JSON fixture while exercising their real lifecycle reducers and views without provider calls or private data.
+        timestamp: "2026-07-11T09:47:52Z"
   - id: T-WEB-RENDER-CONTRACT
     type: playwright
     file: frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
@@ -911,7 +926,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Select and prove the deterministic lifecycle fixture seam
-    status: pending
+    status: done
     phase: drafting
     covers:
       scenarios: [S-1]
@@ -929,7 +944,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Capture deterministic rendered web lifecycle contract
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-8, S-11, S-12]
