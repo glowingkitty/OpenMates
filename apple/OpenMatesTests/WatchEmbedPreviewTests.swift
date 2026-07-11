@@ -26,6 +26,7 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "watch-pair-self-host-connect-button",
             "watch-pair-self-host-cancel-button",
             "watch-pair-self-host-error",
+            "watch-pair-use-production-button",
         ])
         XCTAssertNoDuplicates(WatchUIContract.pairLoginIdentifiers)
         XCTAssertFalse(WatchUIContract.pairLoginIdentifiers.contains("watch-pair-server-production-button"))

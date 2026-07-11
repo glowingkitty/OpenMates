@@ -92,7 +92,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: e1009993a
+  subject_commit: e71101477
 
 approvals:
   product_contract:
@@ -141,12 +141,12 @@ attempts:
     reason: The crash report lacks symbols; source-line attribution requires the matching dSYM or a deterministic reproduction.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Write and run the state-machine and UI contract tests against current source.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests --only-testing OpenMatesTests/WatchEmbedPreviewTests
-  expected_outcome: Tests fail because the production-first attempt model and simplified UI contract do not exist yet.
+  current_task_id: TASK-2
+  next_action: Commit the implementation revision, sync the remote Mac checkout, and run the targeted Apple tests.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
+  expected_outcome: The production-first attempt, persistence, approval eligibility, and payload tests pass.
   blocker: null
-  last_verified_commit: e1009993a
+  last_verified_commit: e71101477
 
 scenarios:
   - id: S-1
@@ -351,11 +351,11 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: missing_test
-        command: ""
-        run_id: ""
-        subject_commit: e1009993a
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
+        run_id: "remote=macos-peer exit_code=65"
+        subject_commit: e71101477
+        timestamp: "2026-07-11T18:13:00Z"
     green_phase:
       required: true
       expected: pass
@@ -381,7 +381,7 @@ tests:
         status: missing_test
         command: ""
         run_id: ""
-        subject_commit: e1009993a
+        subject_commit: e71101477
         timestamp: ""
     green_phase:
       required: true
@@ -404,11 +404,11 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: missing_test
-        command: ""
-        run_id: ""
-        subject_commit: e1009993a
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
+        run_id: "remote=macos-peer exit_code=65"
+        subject_commit: e71101477
+        timestamp: "2026-07-11T18:13:00Z"
     green_phase:
       required: true
       expected: pass
@@ -433,7 +433,7 @@ tests:
         status: blocked
         command: ""
         run_id: ""
-        subject_commit: e1009993a
+        subject_commit: e71101477
         timestamp: "2026-07-11T17:45:00Z"
         reason: Matching build-49 dSYM has not yet been located.
     green_phase:
@@ -462,7 +462,7 @@ tests:
         status: ""
         command: ""
         run_id: ""
-        subject_commit: e1009993a
+        subject_commit: e71101477
         timestamp: ""
     green_phase:
       required: true
@@ -581,7 +581,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add revised pairing state-machine and UI contract tests
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
@@ -602,7 +602,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Implement production-first and optional self-hosted Watch pairing
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-6]

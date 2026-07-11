@@ -47,6 +47,21 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertEqual(custom.webSocketBaseURL.absoluteString, "wss://api.selfhosted.example/v1/ws")
     }
 
+    func testSelfHostedURLValidationAcceptsHTTPSAndRejectsInsecureURLs() throws {
+        XCTAssertEqual(
+            try ServerProfile.validatedSelfHostedURL("app.dev.openmates.org"),
+            ServerProfile.custom(domain: "app.dev.openmates.org")
+        )
+        XCTAssertEqual(
+            try ServerProfile.validatedSelfHostedURL("https://app.selfhosted.example"),
+            ServerProfile.custom(domain: "app.selfhosted.example")
+        )
+        XCTAssertThrowsError(try ServerProfile.validatedSelfHostedURL("http://app.selfhosted.example"))
+        XCTAssertThrowsError(try ServerProfile.validatedSelfHostedURL("https://app.selfhosted.example:8443"))
+        XCTAssertThrowsError(try ServerProfile.validatedSelfHostedURL("https://app.selfhosted.example/login"))
+        XCTAssertThrowsError(try ServerProfile.validatedSelfHostedURL(""))
+    }
+
     func testPairCompleteFailureNormalizesBackendMessages() {
         XCTAssertEqual(PairLoginRuntime.failureKind(for: "too_many_attempts"), .tooManyAttempts)
         XCTAssertEqual(PairLoginRuntime.failureKind(for: "invalid_pin:2"), .invalidPIN(attemptsRemaining: "2"))
@@ -113,6 +128,18 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
 
         XCTAssertTrue(WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(request, currentProfile: .production))
         XCTAssertFalse(WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(request, currentProfile: .development))
+
+        let manuallyEnteredDevelopment = WatchPairLoginRequest(
+            token: "def456",
+            pairURLString: "https://app.dev.openmates.org/#pair=DEF456",
+            deviceName: "OpenMates Apple Watch app",
+            serverProfile: .custom(domain: "app.dev.openmates.org"),
+            createdAt: 1_777_777_780
+        )
+        XCTAssertTrue(WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(
+            manuallyEnteredDevelopment,
+            currentProfile: .development
+        ))
     }
 
     func testWatchPairAttemptDefaultsToOneImmutableProductionAttempt() throws {
@@ -182,17 +209,26 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertTrue(WatchPairLoginConnectivityPayload.shouldOfferApproval(
             for: request,
             currentProfile: .production,
-            isAuthenticated: true
+            isAuthenticated: true,
+            now: request.createdAt
         ))
         XCTAssertFalse(WatchPairLoginConnectivityPayload.shouldOfferApproval(
             for: request,
             currentProfile: .development,
-            isAuthenticated: true
+            isAuthenticated: true,
+            now: request.createdAt
         ))
         XCTAssertFalse(WatchPairLoginConnectivityPayload.shouldOfferApproval(
             for: request,
             currentProfile: .production,
-            isAuthenticated: false
+            isAuthenticated: false,
+            now: request.createdAt
+        ))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.shouldOfferApproval(
+            for: request,
+            currentProfile: .production,
+            isAuthenticated: true,
+            now: request.createdAt + 301
         ))
     }
 

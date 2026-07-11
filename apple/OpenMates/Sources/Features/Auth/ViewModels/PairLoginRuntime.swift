@@ -59,6 +59,43 @@ struct WatchPairLoginApproval: Equatable {
     let pin: String
 }
 
+struct WatchPairAttemptState: Equatable {
+    private(set) var generation = 0
+    private(set) var serverProfile = ServerProfile.production
+    private(set) var token: String?
+    private(set) var pairURLString: String?
+
+    mutating func begin(serverProfile: ServerProfile) -> Int {
+        generation += 1
+        self.serverProfile = serverProfile
+        token = nil
+        pairURLString = nil
+        return generation
+    }
+
+    mutating func ensureCurrentAttempt(serverProfile: ServerProfile) -> Int {
+        guard generation > 0, self.serverProfile == serverProfile else {
+            return begin(serverProfile: serverProfile)
+        }
+        return generation
+    }
+
+    mutating func accept(
+        _ initiation: PairLoginInitiation,
+        generation: Int,
+        serverProfile: ServerProfile
+    ) -> Bool {
+        guard accepts(generation: generation, serverProfile: serverProfile) else { return false }
+        token = initiation.token.uppercased()
+        pairURLString = initiation.pairURLString
+        return true
+    }
+
+    func accepts(generation: Int, serverProfile: ServerProfile) -> Bool {
+        self.generation == generation && self.serverProfile == serverProfile
+    }
+}
+
 enum PairLoginRuntime {
     private static let diagnosticsCategory = "pair_login"
 
@@ -128,7 +165,7 @@ enum PairLoginRuntime {
                 pairURLString: pairURLString
             )
         } catch {
-            logError("phase=initiate.failed \(serverDiagnostics(serverProfile)) errorType=\(type(of: error)) error=\(error.localizedDescription)")
+            logError("phase=initiate.failed \(serverDiagnostics(serverProfile)) errorType=\(type(of: error))")
             throw error
         }
     }
@@ -145,7 +182,7 @@ enum PairLoginRuntime {
             }
             return response
         } catch {
-            logError("phase=poll.failed \(serverDiagnostics(serverProfile)) errorType=\(type(of: error)) error=\(error.localizedDescription)")
+            logError("phase=poll.failed \(serverDiagnostics(serverProfile)) errorType=\(type(of: error))")
             throw error
         }
     }
@@ -166,7 +203,7 @@ enum PairLoginRuntime {
                 body: PairCompleteRequest(pin: pin)
             )
         } catch {
-            logError("phase=complete.failed \(serverDiagnostics(serverProfile)) step=completeRequest errorType=\(type(of: error)) error=\(error.localizedDescription)")
+            logError("phase=complete.failed \(serverDiagnostics(serverProfile)) step=completeRequest errorType=\(type(of: error))")
             throw error
         }
 
@@ -195,7 +232,7 @@ enum PairLoginRuntime {
                 )
             )
         } catch {
-            logError("phase=complete.failed \(serverDiagnostics(serverProfile)) step=loginRequest errorType=\(type(of: error)) error=\(error.localizedDescription)")
+            logError("phase=complete.failed \(serverDiagnostics(serverProfile)) step=loginRequest errorType=\(type(of: error))")
             throw error
         }
         logInfo("phase=complete.success \(serverDiagnostics(serverProfile)) loginSuccess=\(loginResponse.success) needsDeviceVerification=\(loginResponse.needsDeviceVerification ?? false)")
@@ -276,9 +313,7 @@ enum PairLoginRuntime {
     }
 
     private static func serverDiagnostics(_ profile: ServerProfile) -> String {
-        let apiHost = profile.apiBaseURL.host() ?? "unknown"
-        let webHost = profile.webBaseURL.host() ?? "unknown"
-        return "serverProfile=\(profile.id) displayDomain=\(profile.displayDomain) apiHost=\(apiHost) webHost=\(webHost)"
+        "serverKind=\(profile.diagnosticsKind)"
     }
 
     private static func logInfo(_ message: String) {
@@ -295,6 +330,7 @@ enum PairLoginRuntime {
 }
 
 enum WatchPairLoginConnectivityPayload {
+    private static let requestValiditySeconds = 300
     static let kindKey = "kind"
     static let tokenKey = "token"
     static let pairURLKey = "pair_url"
@@ -307,7 +343,6 @@ enum WatchPairLoginConnectivityPayload {
     static let pinKey = "pin"
     static let watchLoginRequestKind = "openmates.watch.pair_login.request"
     static let watchLoginApprovalKind = "openmates.watch.pair_login.approval"
-    static let watchServerProfileKind = "openmates.watch.server_profile"
     static let forbiddenSecretKeys = [
         "master_key",
         "master_key_exported",
@@ -345,20 +380,21 @@ enum WatchPairLoginConnectivityPayload {
     }
 
     static func requestMatchesCurrentServer(_ request: WatchPairLoginRequest, currentProfile: ServerProfile) -> Bool {
-        request.serverProfile.id == currentProfile.id
-            && request.serverProfile.webBaseURL == currentProfile.webBaseURL
+        request.serverProfile.webBaseURL == currentProfile.webBaseURL
             && request.serverProfile.apiBaseURL == currentProfile.apiBaseURL
     }
 
-    static func serverProfileMessage(_ profile: ServerProfile) -> [String: Any] {
-        var message = serverProfileFields(profile)
-        message[kindKey] = watchServerProfileKind
-        return message
-    }
-
-    static func parseServerProfile(_ message: [String: Any]) -> ServerProfile? {
-        guard message[kindKey] as? String == watchServerProfileKind else { return nil }
-        return serverProfile(from: message)
+    static func shouldOfferApproval(
+        for request: WatchPairLoginRequest,
+        currentProfile: ServerProfile,
+        isAuthenticated: Bool,
+        now: Int = Int(Date().timeIntervalSince1970)
+    ) -> Bool {
+        let requestAge = now - request.createdAt
+        return isAuthenticated
+            && requestAge >= 0
+            && requestAge <= requestValiditySeconds
+            && requestMatchesCurrentServer(request, currentProfile: currentProfile)
     }
 
     private static func serverProfileFields(_ profile: ServerProfile) -> [String: Any] {
@@ -411,14 +447,8 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
 
     private let diagnosticsCategory = "watch_pair_login"
 
-    private var approvalHandler: ((WatchPairLoginApproval) -> Void)?
-    private var serverProfileHandler: ((ServerProfile) -> Void)?
-
-    func start(
-        onServerProfile: @escaping (ServerProfile) -> Void,
-        onApproval: @escaping (WatchPairLoginApproval) -> Void
-    ) {
-        serverProfileHandler = onServerProfile
+    private var approvalHandler: (@MainActor (WatchPairLoginApproval) -> Void)?
+    func start(onApproval: @escaping @MainActor (WatchPairLoginApproval) -> Void) {
         approvalHandler = onApproval
         guard WCSession.isSupported() else {
             NativeDiagnostics.warning("phase=bridge.start unsupported=watchConnectivity", category: diagnosticsCategory)
@@ -432,13 +462,6 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             "phase=bridge.start activationState=\(session.activationState.rawValue) reachable=\(session.isReachable)",
             category: diagnosticsCategory
         )
-        if let profile = WatchPairLoginConnectivityPayload.parseServerProfile(session.receivedApplicationContext) {
-            NativeDiagnostics.info(
-                "phase=bridge.start.receivedServerProfile serverProfile=\(profile.id) displayDomain=\(profile.displayDomain)",
-                category: diagnosticsCategory
-            )
-            serverProfileHandler?(profile)
-        }
     }
 
     @discardableResult
@@ -447,7 +470,7 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             isPhoneReachable = false
             didSendRequest = false
             NativeDiagnostics.warning(
-                "phase=bridge.send.skipped reason=notReachable supported=\(WCSession.isSupported()) serverProfile=\(request.serverProfile.id)",
+                "phase=bridge.send.skipped reason=notReachable supported=\(WCSession.isSupported()) serverKind=\(request.serverProfile.diagnosticsKind)",
                 category: diagnosticsCategory
             )
             return false
@@ -455,7 +478,7 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         isPhoneReachable = true
         didSendRequest = true
         NativeDiagnostics.info(
-            "phase=bridge.send.start serverProfile=\(request.serverProfile.id) reachable=\(WCSession.default.isReachable)",
+            "phase=bridge.send.start serverKind=\(request.serverProfile.diagnosticsKind) reachable=\(WCSession.default.isReachable)",
             category: diagnosticsCategory
         )
         WCSession.default.sendMessage(
@@ -478,25 +501,21 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     }
 
     private nonisolated func dispatchToMain(_ work: @MainActor @escaping (WatchPhoneLoginBridge) -> Void) {
-        DispatchQueue.main.async { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                work(self)
-            }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            work(self)
         }
     }
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         let isReachable = session.isReachable
-        let profile = WatchPairLoginConnectivityPayload.parseServerProfile(session.receivedApplicationContext)
         dispatchToMain { bridge in
-            let errorLabel = error.map { " errorType=\(type(of: $0)) error=\($0.localizedDescription)" } ?? ""
+            let errorLabel = error.map { " errorType=\(type(of: $0))" } ?? ""
             NativeDiagnostics.info(
-                "phase=bridge.activationComplete state=\(activationState.rawValue) reachable=\(isReachable) hasProfile=\(profile != nil)\(errorLabel)",
+                "phase=bridge.activationComplete state=\(activationState.rawValue) reachable=\(isReachable)\(errorLabel)",
                 category: bridge.diagnosticsCategory
             )
             bridge.isPhoneReachable = isReachable
-            if let profile { bridge.serverProfileHandler?(profile) }
         }
     }
 
@@ -519,16 +538,6 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         }
     }
 
-    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-        guard let profile = WatchPairLoginConnectivityPayload.parseServerProfile(applicationContext) else { return }
-        dispatchToMain { bridge in
-            NativeDiagnostics.info(
-                "phase=bridge.receivedServerProfile serverProfile=\(profile.id) displayDomain=\(profile.displayDomain)",
-                category: bridge.diagnosticsCategory
-            )
-            bridge.serverProfileHandler?(profile)
-        }
-    }
 }
 #endif
 
@@ -542,20 +551,14 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
 
     private let diagnosticsCategory = "watch_pair_login"
 
-    private var serverConfigurationObserver: NSObjectProtocol?
+    private var isAuthenticatedProvider: (@MainActor () -> Bool)?
 
     private override init() {
         super.init()
-        serverConfigurationObserver = NotificationCenter.default.addObserver(
-            forName: ServerConfiguration.didChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.syncServerProfileToWatch() }
-        }
     }
 
-    func start() {
+    func start(isAuthenticated: @escaping @MainActor () -> Bool) {
+        isAuthenticatedProvider = isAuthenticated
         guard WCSession.isSupported() else {
             NativeDiagnostics.warning("phase=phoneBridge.start unsupported=watchConnectivity", category: diagnosticsCategory)
             return
@@ -567,37 +570,6 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             "phase=phoneBridge.start activationState=\(session.activationState.rawValue) reachable=\(session.isReachable) paired=\(session.isPaired) watchAppInstalled=\(session.isWatchAppInstalled)",
             category: diagnosticsCategory
         )
-        syncServerProfileToWatch()
-    }
-
-    func syncServerProfileToWatch() {
-        guard WCSession.isSupported() else {
-            NativeDiagnostics.warning("phase=phoneBridge.syncServerProfile skipped=unsupported", category: diagnosticsCategory)
-            return
-        }
-        let session = WCSession.default
-        guard session.activationState == .activated else {
-            NativeDiagnostics.debug(
-                "phase=phoneBridge.syncServerProfile skipped=notActivated state=\(session.activationState.rawValue)",
-                category: diagnosticsCategory
-            )
-            return
-        }
-        do {
-            try session.updateApplicationContext(
-                WatchPairLoginConnectivityPayload.serverProfileMessage(ServerProfile.current())
-            )
-            NativeDiagnostics.info(
-                "phase=phoneBridge.syncServerProfile.sent serverProfile=\(ServerProfile.current().id)",
-                category: diagnosticsCategory
-            )
-        } catch {
-            lastError = error.localizedDescription
-            NativeDiagnostics.warning(
-                "phase=phoneBridge.syncServerProfile.failed errorType=\(type(of: error)) error=\(error.localizedDescription)",
-                category: diagnosticsCategory
-            )
-        }
     }
 
     func denyPendingRequest() {
@@ -609,7 +581,7 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         guard let request = pendingRequest else { return }
         let currentProfile = ServerProfile.current()
         NativeDiagnostics.info(
-            "phase=phoneBridge.approve.start requestProfile=\(request.serverProfile.id) currentProfile=\(currentProfile.id)",
+            "phase=phoneBridge.approve.start requestServerKind=\(request.serverProfile.diagnosticsKind) currentServerKind=\(currentProfile.diagnosticsKind)",
             category: diagnosticsCategory
         )
         guard WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(request, currentProfile: currentProfile) else {
@@ -621,7 +593,7 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             )
             lastError = mismatch.localizedDescription
             NativeDiagnostics.warning(
-                "phase=phoneBridge.approve.failed reason=serverMismatch requestProfile=\(request.serverProfile.id) currentProfile=\(currentProfile.id)",
+                "phase=phoneBridge.approve.failed reason=serverMismatch requestServerKind=\(request.serverProfile.diagnosticsKind) currentServerKind=\(currentProfile.diagnosticsKind)",
                 category: diagnosticsCategory
             )
             throw mismatch
@@ -648,15 +620,37 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         pendingRequest = nil
         lastError = nil
         NativeDiagnostics.info(
-            "phase=phoneBridge.approve.success requestProfile=\(request.serverProfile.id) sentViaReachableSession=\(WCSession.isSupported() && WCSession.default.isReachable)",
+            "phase=phoneBridge.approve.success requestServerKind=\(request.serverProfile.diagnosticsKind) sentViaReachableSession=\(WCSession.isSupported() && WCSession.default.isReachable)",
             category: diagnosticsCategory
         )
     }
 
     private func receive(_ request: WatchPairLoginRequest) {
+        let currentProfile = ServerProfile.current()
+        guard WatchPairLoginConnectivityPayload.shouldOfferApproval(
+            for: request,
+            currentProfile: currentProfile,
+            isAuthenticated: isAuthenticatedProvider?() ?? false
+        ) else {
+            NativeDiagnostics.info(
+                "phase=phoneBridge.request.ignored reason=ineligible requestServerKind=\(request.serverProfile.diagnosticsKind) currentServerKind=\(currentProfile.diagnosticsKind)",
+                category: diagnosticsCategory
+            )
+            return
+        }
+        if let pendingRequest {
+            guard pendingRequest.token != request.token else { return }
+            guard pendingRequest.createdAt <= request.createdAt else {
+                NativeDiagnostics.info(
+                    "phase=phoneBridge.request.ignored reason=olderThanPending",
+                    category: diagnosticsCategory
+                )
+                return
+            }
+        }
         pendingRequest = request
         NativeDiagnostics.info(
-            "phase=phoneBridge.request.received serverProfile=\(request.serverProfile.id) displayDomain=\(request.serverProfile.displayDomain)",
+            "phase=phoneBridge.request.received serverKind=\(request.serverProfile.diagnosticsKind)",
             category: diagnosticsCategory
         )
         requestNotification(for: request)
@@ -683,8 +677,7 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     }
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        Task { @MainActor in self.syncServerProfileToWatch() }
-        let errorLabel = error.map { " errorType=\(type(of: $0)) error=\($0.localizedDescription)" } ?? ""
+        let errorLabel = error.map { " errorType=\(type(of: $0))" } ?? ""
         let isReachable = session.isReachable
         let isPaired = session.isPaired
         let isWatchAppInstalled = session.isWatchAppInstalled

@@ -50,6 +50,7 @@ enum WatchLocalization {
 @MainActor
 enum WatchStrings {
     static var back: String { WatchLocalization.text("common.back") }
+    static var cancel: String { WatchLocalization.text("common.cancel") }
     static var clientEncrypted: String { WatchLocalization.text("embeds.stored_encrypted") }
     static var loadingChats: String { WatchLocalization.text("activity.loading_chats") }
     static var loginFailed: String { WatchLocalization.text("login.login_failed") }
@@ -60,14 +61,13 @@ enum WatchStrings {
     static var pairWaiting: String { WatchLocalization.text("settings.sessions.pair_waiting") }
     static var pairConfirmOnIphone: String { WatchLocalization.text("settings.sessions.pair_confirm_on_iphone") }
     static var pairConfirmOnIphoneDescription: String { WatchLocalization.text("settings.sessions.pair_confirm_on_iphone_description") }
-    static var pairLoginWithoutIphone: String { WatchLocalization.text("settings.sessions.pair_login_without_iphone") }
     static var pairShowQRCode: String { WatchLocalization.text("settings.sessions.pair_show_qr_code") }
     static var pairFullURLLabel: String { WatchLocalization.text("settings.sessions.pair_full_url_label") }
-    static var pairServerLabel: String { WatchLocalization.text("settings.sessions.pair_server_label") }
-    static var pairServerProduction: String { WatchLocalization.text("settings.sessions.pair_server_production") }
-    static var pairServerDevelopment: String { WatchLocalization.text("settings.sessions.pair_server_development") }
-    static var pairServerCustomPlaceholder: String { WatchLocalization.text("settings.sessions.pair_server_custom_placeholder") }
-    static var pairServerUseCustom: String { WatchLocalization.text("settings.sessions.pair_server_use_custom") }
+    static var pairSelfHostedEdition: String { WatchLocalization.text("settings.sessions.pair_self_hosted_edition") }
+    static var pairSelfHostedPlaceholder: String { WatchLocalization.text("settings.sessions.pair_self_hosted_placeholder") }
+    static var pairSelfHostedConnect: String { WatchLocalization.text("settings.sessions.pair_self_hosted_connect") }
+    static var pairSelfHostedInvalidURL: String { WatchLocalization.text("settings.sessions.pair_self_hosted_invalid_url") }
+    static var pairUseProduction: String { WatchLocalization.text("settings.sessions.pair_use_production") }
     static var pairGenerating: String { WatchLocalization.text("settings.sessions.pair_generating") }
     static var pairExpired: String { WatchLocalization.text("settings.sessions.pair_expired") }
     static var pairRefresh: String { WatchLocalization.text("settings.sessions.pair_refresh") }

@@ -25,17 +25,23 @@ final class WatchPairLoginState: ObservableObject {
     @Published var pin = ""
     @Published var errorMessage: String?
     @Published var isSubmitting = false
-    @Published var serverProfile = ServerProfile.current()
+    @Published var serverProfile = WatchServerProfileStore().currentProfile()
     @Published var customDomain = ""
 
+    var attemptState = WatchPairAttemptState()
+    var initiationTask: Task<Void, Never>?
     var pollTask: Task<Void, Never>?
 
     deinit {
+        initiationTask?.cancel()
         pollTask?.cancel()
     }
 
-    func reset() {
+    @discardableResult
+    func beginAttempt(serverProfile: ServerProfile) -> Int {
+        initiationTask?.cancel()
         pollTask?.cancel()
+        initiationTask = nil
         pollTask = nil
         token = nil
         activeTokenServerProfile = nil
@@ -44,6 +50,8 @@ final class WatchPairLoginState: ObservableObject {
         pin = ""
         errorMessage = nil
         isSubmitting = false
+        self.serverProfile = serverProfile
+        return attemptState.begin(serverProfile: serverProfile)
     }
 }
 
@@ -51,8 +59,9 @@ struct WatchPairLoginView: View {
     @ObservedObject var authStore: WatchAuthStore
     @StateObject private var pairState = WatchPairLoginState()
     @StateObject private var phoneBridge = WatchPhoneLoginBridge()
-    @State private var showManualFallback = false
     @State private var showFullScreenQRCode = false
+    @State private var showSelfHostedInput = false
+    @State private var selfHostedError: String?
 
     var body: some View {
         ZStack {
@@ -60,16 +69,18 @@ struct WatchPairLoginView: View {
 
             ScrollView {
                 VStack(spacing: .spacing4) {
-                    serverSelectionView
                     statusView
 
                     if pairState.status == .waiting,
-                       phoneBridge.isPhoneReachable,
-                       !showManualFallback {
+                       phoneBridge.isPhoneReachable {
                         confirmOnIPhoneView
-                    } else if pairState.pairURLString != nil {
+                    }
+
+                    if pairState.pairURLString != nil {
                         manualFallbackView
                     }
+
+                    selfHostedConnectionView
 
                     if pairState.status == .ready {
                         pinSection
@@ -77,7 +88,7 @@ struct WatchPairLoginView: View {
 
                     if pairState.status == .expired || pairState.status == .failed {
                         Button {
-                            Task { await initiatePairing(force: true) }
+                            startPairing(force: true)
                         } label: {
                             Text(WatchStrings.pairRefresh)
                                 .font(.omSmall)
@@ -105,11 +116,8 @@ struct WatchPairLoginView: View {
             }
         }
         .task {
-            phoneBridge.start(
-                onServerProfile: { profile in handleServerProfile(profile) },
-                onApproval: { approval in handlePhoneApproval(approval) }
-            )
-            await initiatePairingIfNeeded()
+            phoneBridge.start(onApproval: { approval in handlePhoneApproval(approval) })
+            startPairingIfNeeded()
         }
         .onChange(of: phoneBridge.isPhoneReachable) { _, isReachable in
             if isReachable { sendPhoneLoginRequestIfPossible() }
@@ -197,86 +205,99 @@ struct WatchPairLoginView: View {
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier("watch-pair-confirm-iphone-description")
 
-            Button {
-                showManualFallback = true
-            } label: {
-                Text(WatchStrings.pairLoginWithoutIphone)
-                    .font(.omSmall)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontButton)
-                    .padding(.horizontal, .spacing4)
-                    .padding(.vertical, .spacing2)
-                    .background(LinearGradient.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("watch-pair-login-without-iphone-button")
         }
         .padding(.spacing3)
         .background(Color.grey80.opacity(0.55))
         .clipShape(RoundedRectangle(cornerRadius: .radius4))
     }
 
-    private var serverSelectionView: some View {
+    private var selfHostedConnectionView: some View {
         VStack(spacing: .spacing2) {
-            Text("\(WatchStrings.pairServerLabel): \(pairState.serverProfile.displayDomain)")
-                .font(.omTiny)
-                .foregroundStyle(Color.grey0.opacity(0.72))
-                .multilineTextAlignment(.center)
-                .accessibilityIdentifier("watch-pair-server-label")
-
-            HStack(spacing: .spacing2) {
-                serverButton(WatchStrings.pairServerProduction, profile: .production)
-                serverButton(WatchStrings.pairServerDevelopment, profile: .development)
-            }
-
-            TextField(WatchStrings.pairServerCustomPlaceholder, text: $pairState.customDomain)
-                .font(.omTiny)
-                .foregroundStyle(Color.fontPrimary)
-                .multilineTextAlignment(.center)
-                .padding(.vertical, .spacing1)
-                .padding(.horizontal, .spacing2)
-                .background(Color.grey0)
-                .clipShape(RoundedRectangle(cornerRadius: .radius4))
-                .accessibilityIdentifier("watch-pair-custom-server-input")
-
-            Button {
-                applyServerProfile(.custom(domain: pairState.customDomain))
-            } label: {
-                Text(WatchStrings.pairServerUseCustom)
+            if showSelfHostedInput {
+                TextField(WatchStrings.pairSelfHostedPlaceholder, text: $pairState.customDomain)
                     .font(.omTiny)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.fontButton)
-                    .padding(.horizontal, .spacing3)
-                    .padding(.vertical, .spacing1)
-                    .background(LinearGradient.primary)
+                    .foregroundStyle(Color.fontPrimary)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, .spacing2)
+                    .padding(.horizontal, .spacing2)
+                    .background(Color.grey0)
                     .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                    .accessibilityIdentifier("watch-pair-self-host-input")
+
+                if let selfHostedError {
+                    Text(selfHostedError)
+                        .font(.omTiny)
+                        .foregroundStyle(Color.error)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("watch-pair-self-host-error")
+                }
+
+                Button {
+                    connectSelfHostedServer()
+                } label: {
+                    compactButtonLabel(WatchStrings.pairSelfHostedConnect)
+                }
+                .buttonStyle(.plain)
+                .disabled(pairState.customDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("watch-pair-self-host-connect-button")
+
+                Button {
+                    showSelfHostedInput = false
+                    selfHostedError = nil
+                } label: {
+                    Text(WatchStrings.cancel)
+                        .font(.omTiny)
+                        .foregroundStyle(Color.grey0.opacity(0.82))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("watch-pair-self-host-cancel-button")
+            } else {
+                Button {
+                    pairState.customDomain = pairState.serverProfile == .production
+                        ? ""
+                        : pairState.serverProfile.displayDomain
+                    showSelfHostedInput = true
+                    selfHostedError = nil
+                } label: {
+                    compactButtonLabel(WatchStrings.pairSelfHostedEdition)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("watch-pair-self-host-button")
+
+                if pairState.serverProfile != .production {
+                    Text(pairState.serverProfile.displayDomain)
+                        .font(.omTiny)
+                        .foregroundStyle(Color.grey0.opacity(0.72))
+                        .multilineTextAlignment(.center)
+
+                    Button {
+                        WatchServerProfileStore().resetToProduction()
+                        startPairing(serverProfile: .production, force: true)
+                    } label: {
+                        Text(WatchStrings.pairUseProduction)
+                            .font(.omTiny)
+                            .foregroundStyle(Color.grey0.opacity(0.82))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("watch-pair-use-production-button")
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(pairState.customDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .accessibilityIdentifier("watch-pair-use-custom-server-button")
         }
         .padding(.spacing2)
         .background(Color.grey80.opacity(0.35))
         .clipShape(RoundedRectangle(cornerRadius: .radius4))
-        .accessibilityIdentifier("watch-pair-server-selector")
     }
 
-    private func serverButton(_ title: String, profile: ServerProfile) -> some View {
-        Button {
-            applyServerProfile(profile)
-        } label: {
-            Text(title)
-                .font(.omTiny)
-                .fontWeight(.semibold)
-                .foregroundStyle(pairState.serverProfile == profile ? Color.fontButton : Color.grey0)
-                .padding(.horizontal, .spacing2)
-                .padding(.vertical, .spacing1)
-                .background(pairState.serverProfile == profile ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.grey70))
-                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("watch-pair-server-\(profile.id)-button")
+    private func compactButtonLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.omTiny)
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.fontButton)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, .spacing3)
+            .padding(.vertical, .spacing2)
+            .background(LinearGradient.primary)
+            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
     }
 
     private var manualFallbackView: some View {
@@ -336,70 +357,87 @@ struct WatchPairLoginView: View {
             .clipShape(RoundedRectangle(cornerRadius: .radius4))
     }
 
-    private func initiatePairingIfNeeded() async {
+    private func startPairingIfNeeded() {
         NativeDiagnostics.info(
             "phase=view.initiateIfNeeded hasToken=\(pairState.token != nil) status=\(pairState.status)",
             category: watchPairLoginDiagnosticsCategory
         )
         if let token = pairState.token {
             if pairState.status == .waiting, pairState.pollTask == nil {
-                startPolling(token: token, serverProfile: pairState.serverProfile)
+                startPolling(
+                    token: token,
+                    serverProfile: pairState.serverProfile,
+                    generation: pairState.attemptState.generation
+                )
             }
             return
         }
-        await initiatePairing(force: false)
+        guard pairState.initiationTask == nil else { return }
+        startPairing(force: false)
     }
 
-    private func initiatePairing(force: Bool) async {
-        if !force, pairState.token != nil { return }
-        pairState.reset()
-        let serverProfile = pairState.serverProfile
+    private func startPairing(serverProfile: ServerProfile? = nil, force: Bool) {
+        if !force, pairState.token != nil || pairState.initiationTask != nil { return }
+        let serverProfile = serverProfile ?? pairState.serverProfile
+        let generation = pairState.beginAttempt(serverProfile: serverProfile)
         NativeDiagnostics.info(
-            "phase=view.initiate.start force=\(force) serverProfile=\(serverProfile.id) displayDomain=\(serverProfile.displayDomain)",
+            "phase=view.initiate.start generation=\(generation) force=\(force) serverKind=\(serverProfile.diagnosticsKind)",
             category: watchPairLoginDiagnosticsCategory
         )
 
-        do {
-            let initiation = try await PairLoginRuntime.initiate(serverProfile: serverProfile)
-            guard pairState.serverProfile == serverProfile else {
-                NativeDiagnostics.warning(
-                    "phase=view.initiate.ignored reason=serverProfileChanged requested=\(serverProfile.id) current=\(pairState.serverProfile.id)",
+        pairState.initiationTask = Task {
+            do {
+                let initiation = try await PairLoginRuntime.initiate(serverProfile: serverProfile)
+                guard !Task.isCancelled,
+                      pairState.attemptState.accept(
+                        initiation,
+                        generation: generation,
+                        serverProfile: serverProfile
+                      ) else {
+                    NativeDiagnostics.warning(
+                        "phase=view.initiate.ignored reason=stale generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
+                        category: watchPairLoginDiagnosticsCategory
+                    )
+                    return
+                }
+                pairState.initiationTask = nil
+                pairState.token = initiation.token
+                pairState.activeTokenServerProfile = serverProfile
+                pairState.pairURLString = initiation.pairURLString
+                pairState.status = .waiting
+                NativeDiagnostics.info(
+                    "phase=view.initiate.success generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
                     category: watchPairLoginDiagnosticsCategory
                 )
-                return
-            }
-            pairState.token = initiation.token
-            pairState.activeTokenServerProfile = serverProfile
-            pairState.pairURLString = initiation.pairURLString
-            pairState.status = .waiting
-            let pairHost = serverProfile.webBaseURL.host() ?? "unknown"
-            NativeDiagnostics.info(
-                "phase=view.initiate.success serverProfile=\(serverProfile.id) pairHost=\(pairHost)",
-                category: watchPairLoginDiagnosticsCategory
-            )
-            startPolling(token: initiation.token, serverProfile: serverProfile)
-            sendPhoneLoginRequestIfPossible()
-        } catch {
-            guard pairState.serverProfile == serverProfile else {
-                NativeDiagnostics.warning(
-                    "phase=view.initiate.failureIgnored reason=serverProfileChanged requested=\(serverProfile.id) current=\(pairState.serverProfile.id)",
+                startPolling(token: initiation.token, serverProfile: serverProfile, generation: generation)
+                sendPhoneLoginRequestIfPossible()
+            } catch {
+                guard !Task.isCancelled,
+                      pairState.attemptState.accepts(
+                        generation: generation,
+                        serverProfile: serverProfile
+                      ) else {
+                    NativeDiagnostics.warning(
+                        "phase=view.initiate.failureIgnored reason=stale generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
+                        category: watchPairLoginDiagnosticsCategory
+                    )
+                    return
+                }
+                pairState.initiationTask = nil
+                NativeDiagnostics.error(
+                    "phase=view.initiate.failed generation=\(generation) serverKind=\(serverProfile.diagnosticsKind) errorType=\(type(of: error))",
                     category: watchPairLoginDiagnosticsCategory
                 )
-                return
+                pairState.errorMessage = error.localizedDescription
+                pairState.status = .failed
             }
-            NativeDiagnostics.error(
-                "phase=view.initiate.failed serverProfile=\(serverProfile.id) errorType=\(type(of: error)) error=\(error.localizedDescription)",
-                category: watchPairLoginDiagnosticsCategory
-            )
-            pairState.errorMessage = error.localizedDescription
-            pairState.status = .failed
         }
     }
 
-    private func startPolling(token: String, serverProfile: ServerProfile) {
+    private func startPolling(token: String, serverProfile: ServerProfile, generation: Int) {
         pairState.pollTask?.cancel()
         NativeDiagnostics.info(
-            "phase=view.poll.start serverProfile=\(serverProfile.id)",
+            "phase=view.poll.start generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
             category: watchPairLoginDiagnosticsCategory
         )
         pairState.pollTask = Task {
@@ -409,38 +447,34 @@ struct WatchPairLoginView: View {
 
                 do {
                     let response = try await PairLoginRuntime.poll(token: token, serverProfile: serverProfile)
-                    await MainActor.run {
-                        guard !Task.isCancelled,
-                              pairState.token == token,
-                              pairState.activeTokenServerProfile == serverProfile else { return }
-                        if response.status == "ready" {
-                            pairState.status = .ready
-                            NativeDiagnostics.info(
-                                "phase=view.poll.ready serverProfile=\(serverProfile.id)",
-                                category: watchPairLoginDiagnosticsCategory
-                            )
-                            if pairState.pin.count == 6 { submitPinIfReady() }
-                        } else if response.status == "expired" {
-                            pairState.status = .expired
-                            NativeDiagnostics.warning(
-                                "phase=view.poll.expired serverProfile=\(serverProfile.id)",
-                                category: watchPairLoginDiagnosticsCategory
-                            )
-                        }
+                    guard !Task.isCancelled,
+                          pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile),
+                          pairState.token == token else { return }
+                    if response.status == "ready" {
+                        pairState.status = .ready
+                        NativeDiagnostics.info(
+                            "phase=view.poll.ready generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
+                            category: watchPairLoginDiagnosticsCategory
+                        )
+                        if pairState.pin.count == 6 { submitPinIfReady() }
+                    } else if response.status == "expired" {
+                        pairState.status = .expired
+                        NativeDiagnostics.warning(
+                            "phase=view.poll.expired generation=\(generation) serverKind=\(serverProfile.diagnosticsKind)",
+                            category: watchPairLoginDiagnosticsCategory
+                        )
                     }
                     if response.status == "ready" || response.status == "expired" { return }
                 } catch {
-                    await MainActor.run {
-                        guard !Task.isCancelled,
-                              pairState.token == token,
-                              pairState.activeTokenServerProfile == serverProfile else { return }
-                        NativeDiagnostics.error(
-                            "phase=view.poll.failed serverProfile=\(serverProfile.id) errorType=\(type(of: error)) error=\(error.localizedDescription)",
-                            category: watchPairLoginDiagnosticsCategory
-                        )
-                        pairState.errorMessage = error.localizedDescription
-                        pairState.status = .failed
-                    }
+                    guard !Task.isCancelled,
+                          pairState.attemptState.accepts(generation: generation, serverProfile: serverProfile),
+                          pairState.token == token else { return }
+                    NativeDiagnostics.error(
+                        "phase=view.poll.failed generation=\(generation) serverKind=\(serverProfile.diagnosticsKind) errorType=\(type(of: error))",
+                        category: watchPairLoginDiagnosticsCategory
+                    )
+                    pairState.errorMessage = error.localizedDescription
+                    pairState.status = .failed
                     return
                 }
             }
@@ -477,7 +511,7 @@ struct WatchPairLoginView: View {
         )
         let sent = phoneBridge.sendLoginRequest(request)
         NativeDiagnostics.info(
-            "phase=view.phoneRequest.sent sent=\(sent) serverProfile=\(serverProfile.id) reachable=\(phoneBridge.isPhoneReachable)",
+            "phase=view.phoneRequest.sent sent=\(sent) serverKind=\(serverProfile.diagnosticsKind) reachable=\(phoneBridge.isPhoneReachable)",
             category: watchPairLoginDiagnosticsCategory
         )
     }
@@ -498,27 +532,15 @@ struct WatchPairLoginView: View {
         if pairState.status == .ready { submitPinIfReady() }
     }
 
-    private func handleServerProfile(_ profile: ServerProfile) {
-        guard pairState.serverProfile != profile else { return }
-        let shouldRestart = pairState.token != nil || pairState.status != .generating
-        NativeDiagnostics.info(
-            "phase=view.serverProfile.received incoming=\(profile.id) current=\(pairState.serverProfile.id) shouldRestart=\(shouldRestart)",
-            category: watchPairLoginDiagnosticsCategory
-        )
-        pairState.serverProfile = profile
-        if shouldRestart {
-            Task { await initiatePairing(force: true) }
+    private func connectSelfHostedServer() {
+        do {
+            let profile = try ServerProfile.validatedSelfHostedURL(pairState.customDomain)
+            selfHostedError = nil
+            showSelfHostedInput = false
+            startPairing(serverProfile: profile, force: true)
+        } catch {
+            selfHostedError = WatchStrings.pairSelfHostedInvalidURL
         }
-    }
-
-    private func applyServerProfile(_ profile: ServerProfile) {
-        guard pairState.serverProfile != profile else { return }
-        NativeDiagnostics.info(
-            "phase=view.serverProfile.applied incoming=\(profile.id) current=\(pairState.serverProfile.id)",
-            category: watchPairLoginDiagnosticsCategory
-        )
-        pairState.serverProfile = profile
-        Task { await initiatePairing(force: true) }
     }
 
     private func submitPinIfReady() {

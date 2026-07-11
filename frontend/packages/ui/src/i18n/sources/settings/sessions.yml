@@ -856,6 +856,31 @@ pair_server_use_custom:
   en: Use custom
 
   verified_by_human: []
+pair_self_hosted_edition:
+  context: Optional Apple Watch action that reveals manual server URL entry
+  en: Connect self-hosted edition
+
+  verified_by_human: []
+pair_self_hosted_placeholder:
+  context: Apple Watch text field placeholder for a self-hosted OpenMates web URL
+  en: Server URL
+
+  verified_by_human: []
+pair_self_hosted_connect:
+  context: Apple Watch button that starts pairing with the entered self-hosted server
+  en: Connect
+
+  verified_by_human: []
+pair_self_hosted_invalid_url:
+  context: Apple Watch validation error for an invalid or insecure self-hosted server URL
+  en: Enter a valid HTTPS server URL.
+
+  verified_by_human: []
+pair_use_production:
+  context: Apple Watch action that clears a remembered self-hosted server and pairs with OpenMates production
+  en: Use OpenMates.org
+
+  verified_by_human: []
 pair_connect_apple_watch_title:
   context: iPhone approval screen title for logging in a paired Apple Watch
   en: Connect Apple Watch

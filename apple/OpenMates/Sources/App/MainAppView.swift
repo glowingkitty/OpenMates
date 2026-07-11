@@ -366,7 +366,7 @@ struct MainAppView: View {
         #endif
         .task {
             #if os(iOS)
-            phoneWatchLoginBridge.start()
+            phoneWatchLoginBridge.start(isAuthenticated: { authManager.state == .authenticated })
             #endif
             await runStartupTask()
             if let fixture = workflowUITestFixture {

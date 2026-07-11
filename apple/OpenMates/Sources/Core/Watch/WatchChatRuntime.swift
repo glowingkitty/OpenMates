@@ -14,7 +14,6 @@ enum WatchUIContract {
         "watch-pair-login",
         "watch-pair-confirm-iphone-title",
         "watch-pair-confirm-iphone-description",
-        "watch-pair-login-without-iphone-button",
         "watch-pair-manual-fallback",
         "watch-pair-token",
         "watch-pair-url",
@@ -25,6 +24,12 @@ enum WatchUIContract {
         "watch-pair-waiting-label",
         "watch-pair-pin-input",
         "watch-pair-refresh-button",
+        "watch-pair-self-host-button",
+        "watch-pair-self-host-input",
+        "watch-pair-self-host-connect-button",
+        "watch-pair-self-host-cancel-button",
+        "watch-pair-self-host-error",
+        "watch-pair-use-production-button",
     ]
 
     static let chatFlowIdentifiers = [
