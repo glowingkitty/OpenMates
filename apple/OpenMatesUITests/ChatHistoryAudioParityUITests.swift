@@ -87,7 +87,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
 
         let fullscreen = application.descendants(matching: .any)["recording-fullscreen"]
         let fullscreenPlay = application.descendants(matching: .any)["recording-fullscreen-playback-toggle"]
-        let seek = application.descendants(matching: .any)["recording-seek"]
+        let seek = application.descendants(matching: .any)["recording-fullscreen-seek"]
         XCTAssertTrue(fullscreen.waitForExistence(timeout: 5))
         XCTAssertTrue(fullscreenPlay.isHittable)
         XCTAssertTrue(seek.isHittable)

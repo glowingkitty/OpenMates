@@ -898,7 +898,7 @@ struct RecordingRenderer: View {
                 RecordingSeekBar(
                     progress: progress,
                     onSeek: seek,
-                    accessibilityIdentifier: "recording-seek"
+                    accessibilityIdentifier: compact ? "recording-seek" : "recording-fullscreen-seek"
                 )
                 Text("\(Self.formatDuration(elapsed)) / \(Self.formatDuration(effectiveDuration))")
                     .font(.omMicro)
