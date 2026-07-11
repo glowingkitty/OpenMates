@@ -290,7 +290,7 @@ struct SettingsView: View {
         }
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("--ui-test-reset-incognito-explainer") {
-                IncognitoExplainerSeenState().resetForUITesting()
+                IncognitoExplainerSeenState().resetForUITestingOnce()
             }
             if isAuthenticated {
                 Task { await accountLearningMode.loadAccountStatus() }

@@ -198,6 +198,7 @@ struct AnonymousLearningModeContext: Encodable, Equatable, Sendable {
 
 struct IncognitoExplainerSeenState {
     private static let key = "openmates.apple.incognito_explainer_seen"
+    @MainActor private static var didResetForUITesting = false
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -212,7 +213,10 @@ struct IncognitoExplainerSeenState {
         defaults.set(true, forKey: Self.key)
     }
 
-    func resetForUITesting() {
+    @MainActor
+    func resetForUITestingOnce() {
+        guard !Self.didResetForUITesting else { return }
+        Self.didResetForUITesting = true
         defaults.removeObject(forKey: Self.key)
     }
 }
