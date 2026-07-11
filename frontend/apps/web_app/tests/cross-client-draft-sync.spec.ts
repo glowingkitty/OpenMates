@@ -188,11 +188,14 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await page.keyboard.insertText(updatedText);
 			await page.getByTestId('input-dismiss-button').click();
 			await expect
-				.poll(async () => (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft?.markdown, {
+				.poll(async () => {
+					const draft = (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft;
+					return `${draft?.draftV ?? 0}:${draft?.markdown ?? ''}`;
+				}, {
 					timeout: 30_000,
 					intervals: [1_000, 2_000]
 				})
-				.toBe(updatedText);
+				.toBe(`${Number(created.draftV) + 1}:${updatedText}`);
 
 			await editor.click();
 			await page.keyboard.press('ControlOrMeta+A');

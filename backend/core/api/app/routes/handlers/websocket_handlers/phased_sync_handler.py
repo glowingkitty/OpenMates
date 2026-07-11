@@ -1062,6 +1062,7 @@ async def _handle_phase2_sync(
                     user_id, limit=100
                 )
 
+        draft_only_added = 0
         try:
             existing_chat_ids = {
                 str(wrapper.get("chat_details", {}).get("id"))
@@ -1079,6 +1080,7 @@ async def _handle_phase2_sync(
                 if draft_wrapper:
                     all_recent_chats.append(draft_wrapper)
                     existing_chat_ids.add(draft_chat_id)
+                    draft_only_added += 1
                     await cache_service.add_chat_to_ids_versions(
                         user_id,
                         draft_chat_id,
@@ -1091,6 +1093,7 @@ async def _handle_phase2_sync(
                 draft_only_error,
                 exc_info=True,
             )
+        logger.info("Phase 2: Added %d draft-only metadata entries", draft_only_added)
 
         if not all_recent_chats:
             logger.info(f"Phase 2: No chats found for user {user_id}")
@@ -1182,7 +1185,22 @@ async def _handle_phase2_sync(
 
             chats_to_send.append(chat_wrapper)
 
-        logger.info(f"Phase 2: Sending {len(chats_to_send)}/{len(all_recent_chats)} metadata-only chats (skipped {chats_skipped})")
+        newer_drafts_sent = sum(
+            1
+            for wrapper in chats_to_send
+            if wrapper.get("chat_details", {}).get("draft_v", 0)
+            > client_chat_versions.get(
+                str(wrapper.get("chat_details", {}).get("id", "")),
+                {},
+            ).get("draft_v", 0)
+        )
+        logger.info(
+            "Phase 2: Sending %d/%d metadata-only chats (skipped %d, newer drafts %d)",
+            len(chats_to_send),
+            len(all_recent_chats),
+            chats_skipped,
+            newer_drafts_sent,
+        )
 
         # Send metadata-only payload (no messages, no embeds, no embed_keys)
         await manager.send_personal_message(
