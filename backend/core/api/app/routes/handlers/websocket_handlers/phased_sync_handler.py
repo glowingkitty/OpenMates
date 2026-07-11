@@ -47,6 +47,39 @@ def _phase2_metadata_is_current(
     )
 
 
+async def _build_draft_only_phase2_wrapper(
+    cache_service: CacheService,
+    user_id: str,
+    chat_id: str,
+) -> Optional[Dict[str, Any]]:
+    draft = await cache_service.get_user_draft_from_cache(user_id, chat_id)
+    if not draft:
+        return None
+    encrypted_md, draft_v, encrypted_preview = draft
+    if not encrypted_md or encrypted_md == "null":
+        return None
+
+    timestamp = int(time.time())
+    return {
+        "chat_details": {
+            "id": chat_id,
+            "type": "new_chat",
+            "messages_v": 0,
+            "title_v": 0,
+            "metadata_v": 0,
+            "draft_v": draft_v,
+            "last_edited_overall_timestamp": timestamp,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "encrypted_title": None,
+            "encrypted_draft_md": encrypted_md,
+            "encrypted_draft_preview": encrypted_preview,
+            "unread_count": 0,
+            "user_id": user_id,
+        }
+    }
+
+
 async def _fetch_new_chat_suggestions(
     cache_service: CacheService,
     directus_service: DirectusService,
@@ -1028,6 +1061,36 @@ async def _handle_phase2_sync(
                 all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
                     user_id, limit=100
                 )
+
+        try:
+            existing_chat_ids = {
+                str(wrapper.get("chat_details", {}).get("id"))
+                for wrapper in all_recent_chats
+                if wrapper.get("chat_details", {}).get("id")
+            }
+            for draft_chat_id in await cache_service.get_all_user_draft_chat_ids(user_id):
+                if draft_chat_id in existing_chat_ids:
+                    continue
+                draft_wrapper = await _build_draft_only_phase2_wrapper(
+                    cache_service,
+                    user_id,
+                    draft_chat_id,
+                )
+                if draft_wrapper:
+                    all_recent_chats.append(draft_wrapper)
+                    existing_chat_ids.add(draft_chat_id)
+                    await cache_service.add_chat_to_ids_versions(
+                        user_id,
+                        draft_chat_id,
+                        draft_wrapper["chat_details"]["last_edited_overall_timestamp"],
+                    )
+        except Exception as draft_only_error:
+            logger.warning(
+                "Phase 2: Draft-only metadata discovery failed for user %s: %s",
+                user_id,
+                draft_only_error,
+                exc_info=True,
+            )
 
         if not all_recent_chats:
             logger.info(f"Phase 2: No chats found for user {user_id}")

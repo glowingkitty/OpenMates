@@ -21,6 +21,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
     _authoritative_chat_reconciliation,
+    _build_draft_only_phase2_wrapper,
     _phase2_metadata_is_current,
 )
 
@@ -267,6 +268,21 @@ def test_phase2_delta_sync_resends_newer_draft_ciphertext() -> None:
         server_versions,
         chat_details,
     )
+
+
+@pytest.mark.anyio
+async def test_phase2_synthesizes_encrypted_draft_only_chat_metadata() -> None:
+    class Cache:
+        async def get_user_draft_from_cache(self, user_id, chat_id):
+            return "cipher-md", 5, "cipher-preview"
+
+    wrapper = await _build_draft_only_phase2_wrapper(Cache(), "user-1", "chat-1")
+
+    assert wrapper["chat_details"]["id"] == "chat-1"
+    assert wrapper["chat_details"]["draft_v"] == 5
+    assert wrapper["chat_details"]["encrypted_draft_md"] == "cipher-md"
+    assert wrapper["chat_details"]["encrypted_draft_preview"] == "cipher-preview"
+    assert "plaintext" not in str(wrapper).lower()
 
 
 async def _async(value):
