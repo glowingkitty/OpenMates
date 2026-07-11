@@ -27,6 +27,26 @@ PHASE1_REQUIRED_ENCRYPTED_FIELDS = (
 )
 
 
+def _phase2_metadata_is_current(
+    client_versions: Dict[str, int],
+    server_versions: Any,
+    chat_details: Dict[str, Any],
+) -> bool:
+    client_title_v = client_versions.get("title_v", 0)
+    server_metadata_v = server_versions.metadata_v
+    if server_metadata_v is None:
+        server_metadata_v = server_versions.title_v
+
+    return (
+        client_versions.get("messages_v", 0)
+        >= max(server_versions.messages_v, chat_details.get("messages_v", 0))
+        and client_title_v >= server_versions.title_v
+        and client_versions.get("metadata_v", client_title_v) >= server_metadata_v
+        and client_versions.get("draft_v", 0)
+        >= max(server_versions.draft_v, chat_details.get("draft_v", 0))
+    )
+
+
 async def _fetch_new_chat_suggestions(
     cache_service: CacheService,
     directus_service: DirectusService,
@@ -1089,20 +1109,10 @@ async def _handle_phase2_sync(
                 client_versions = client_chat_versions.get(chat_id, {})
 
                 if cached_server_versions:
-                    client_messages_v = client_versions.get("messages_v", 0)
-                    client_title_v = client_versions.get("title_v", 0)
-                    client_metadata_v = client_versions.get("metadata_v", client_title_v)
-                    chat_details_messages_v = chat_wrapper["chat_details"].get("messages_v", 0)
-                    server_messages_v = max(cached_server_versions.messages_v, chat_details_messages_v)
-                    server_title_v = cached_server_versions.title_v
-                    server_metadata_v = cached_server_versions.metadata_v
-                    if server_metadata_v is None:
-                        server_metadata_v = server_title_v
-
-                    if (
-                        client_messages_v >= server_messages_v
-                        and client_title_v >= server_title_v
-                        and client_metadata_v >= server_metadata_v
+                    if _phase2_metadata_is_current(
+                        client_versions,
+                        cached_server_versions,
+                        chat_wrapper["chat_details"],
                     ):
                         chats_skipped += 1
                         continue

@@ -21,6 +21,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
     _authoritative_chat_reconciliation,
+    _phase2_metadata_is_current,
 )
 
 
@@ -245,6 +246,27 @@ def test_authoritative_reconciliation_requires_a_complete_server_set() -> None:
         "authoritative_chat_ids": ["kept"],
         "deleted_chat_ids": ["deleted"],
     }
+
+
+def test_phase2_delta_sync_resends_newer_draft_ciphertext() -> None:
+    server_versions = SimpleNamespace(
+        messages_v=2,
+        title_v=3,
+        metadata_v=3,
+        draft_v=4,
+    )
+    chat_details = {"messages_v": 2, "draft_v": 4}
+
+    assert not _phase2_metadata_is_current(
+        {"messages_v": 2, "title_v": 3, "metadata_v": 3, "draft_v": 3},
+        server_versions,
+        chat_details,
+    )
+    assert _phase2_metadata_is_current(
+        {"messages_v": 2, "title_v": 3, "metadata_v": 3, "draft_v": 4},
+        server_versions,
+        chat_details,
+    )
 
 
 async def _async(value):
