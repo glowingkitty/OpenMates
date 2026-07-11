@@ -3100,6 +3100,10 @@ struct MessageBubble: View {
     }
 
     private var assistantDisplayName: String {
+        if let senderName = message.senderName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !senderName.isEmpty {
+            return senderName
+        }
         if isOpenMatesOfficial {
             return AppStrings.openMatesName
         }
@@ -3148,6 +3152,7 @@ struct MessageBubble: View {
                             .fontWeight(.medium)
                             .foregroundStyle(LinearGradient.primary)
                             .padding(.bottom, .spacing1)
+                            .accessibilityIdentifier("message-sender-name")
 
                         if let thinkingContent, !thinkingContent.isEmpty {
                             ThinkingSectionView(
@@ -3246,6 +3251,7 @@ struct MessageBubble: View {
             .padding(.top, .spacing3)
             .padding(.leading, .spacing6)
             .padding(.bottom, .spacing5)
+            .accessibilityIdentifier("message-model-attribution")
     }
 
     var body: some View {
