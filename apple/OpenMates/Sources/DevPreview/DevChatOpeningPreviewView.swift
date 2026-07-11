@@ -46,7 +46,6 @@ struct DevChatOpeningPreviewView: View {
             }
         }
         .background(Color.grey0.ignoresSafeArea())
-        .accessibilityIdentifier("dev-chat-opening-preview")
         .onAppear(perform: seedIfNeeded)
         .task {
             await updatePerformanceMetricsForUITest()
