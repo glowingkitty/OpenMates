@@ -48,7 +48,10 @@ final class ChatHistoryFullParityUITests: XCTestCase {
     func testRTLAndAccessibilityDynamicTypePreserveSemanticOrderAndClearance() throws {
         let app = launchFixture(
             extraArguments: ["-AppleLanguages", "(ar)", "-AppleLocale", "ar"],
-            environment: ["UIPreferredContentSizeCategoryName": "UICTContentSizeCategoryAccessibilityXL"]
+            environment: [
+                "UIPreferredContentSizeCategoryName": "UICTContentSizeCategoryAccessibilityXL",
+                "UI_TEST_LAYOUT_DIRECTION": "rtl"
+            ]
         )
         let metrics = element(in: app, identifier: "chat-history-layout-metrics")
         XCTAssertTrue(metrics.waitForExistence(timeout: 12), app.debugDescription)

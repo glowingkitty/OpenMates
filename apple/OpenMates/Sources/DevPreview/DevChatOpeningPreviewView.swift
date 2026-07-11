@@ -18,6 +18,7 @@ import SwiftUI
 struct DevChatOpeningPreviewView: View {
     private let fixture = DevChatOpeningFixture.make()
     private let forceRecordingOverlay: Bool
+    @Environment(\.layoutDirection) private var layoutDirection
     @StateObject private var chatStore = ChatStore()
     @StateObject private var uiTestRecorder = VoiceRecorder()
     @State private var seeded = false
@@ -77,6 +78,7 @@ struct DevChatOpeningPreviewView: View {
                         chatStore: chatStore,
                         onReportIssue: { reportIssuePrefill = $0 }
                     )
+                    .environment(\.layoutDirection, uiTestLayoutDirection)
                 } else {
                     ProgressView()
                         .tint(.fontSecondary)
@@ -119,6 +121,12 @@ struct DevChatOpeningPreviewView: View {
                 .allowsHitTesting(false)
             }
         }
+    }
+
+    private var uiTestLayoutDirection: LayoutDirection {
+        ProcessInfo.processInfo.environment["UI_TEST_LAYOUT_DIRECTION"] == "rtl"
+            ? .rightToLeft
+            : layoutDirection
     }
 
     private var isUITestMessageEditFixtureEnabled: Bool {
