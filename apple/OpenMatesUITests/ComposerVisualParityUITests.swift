@@ -41,7 +41,10 @@ final class ComposerVisualParityUITests: XCTestCase {
         let field = element(in: app, identifier: "message-field")
         let fullscreenButton = app.buttons["message-input-fullscreen-button"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
-        XCTAssertTrue(fullscreenButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            fullscreenButton.waitForExistence(timeout: 5),
+            "Expected the focused production composer to expose fullscreen. Visible UI: \(app.debugDescription)"
+        )
         let collapsedPortraitHeight = field.frame.height
 
         fullscreenButton.tap()
