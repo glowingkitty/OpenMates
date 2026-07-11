@@ -1,101 +1,107 @@
-// Admin logs viewer — live stream of backend and client console logs.
-// Mirrors the web app's SettingsLogs.svelte: filter by level (all/warn/error),
-// search by keyword, auto-scroll with newest entries at the bottom.
+// Admin diagnostics viewer for native and backend log snapshots.
+// Filters and search mirror the web logs surface without stock toolbar/search chrome.
+// Backend data uses the current admin debug logs response and explicit error states.
+// Local diagnostics remain privacy-sanitized by NativeClientLogCollector.
+
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsLogs.svelte
+// CSS:     frontend/packages/ui/src/components/settings/SettingsLogs.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
 struct SettingsLogsView: View {
-    @State private var logs: [LogEntry] = []
+    @State private var backendLines: [LogLine] = []
     @State private var filter: LogFilter = .all
     @State private var searchText = ""
     @State private var isLoading = true
     @State private var autoRefresh = true
+    @State private var errorMessage: String?
     @State private var refreshTask: Task<Void, Never>?
 
-    enum LogFilter: String, CaseIterable {
-        case all = "All"
-        case warn = "Warnings"
-        case error = "Errors"
+    enum LogFilter: String, CaseIterable, Identifiable {
+        case all, warn, error
+        var id: String { rawValue }
+        var title: String { L("settings.logs.filter_\(rawValue)") }
     }
 
-    struct LogEntry: Identifiable, Decodable {
-        let id: String
-        let timestamp: String?
-        let level: String?
-        let message: String?
-        let service: String?
-        let source: String?
+    struct LogsResponse: Decodable {
+        let logs: String
+        let servicesQueried: [String]
+        let timestamp: String
     }
 
-    private var filteredLogs: [LogEntry] {
-        var result = logs
+    struct LogLine: Identifiable {
+        let id = UUID()
+        let text: String
 
-        switch filter {
-        case .warn:
-            result = result.filter { $0.level == "warn" || $0.level == "WARNING" }
-        case .error:
-            result = result.filter { $0.level == "error" || $0.level == "ERROR" || $0.level == "CRITICAL" }
-        case .all:
-            break
+        var level: LogFilter {
+            let lowered = text.lowercased()
+            if lowered.contains("error") || lowered.contains("critical") { return .error }
+            if lowered.contains("warn") { return .warn }
+            return .all
         }
+    }
 
-        if !searchText.isEmpty {
-            let query = searchText.lowercased()
-            result = result.filter { ($0.message?.lowercased().contains(query) ?? false) }
+    private var filteredLines: [LogLine] {
+        backendLines.filter { line in
+            let matchesLevel = filter == .all || line.level == filter
+            let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            return matchesLevel && (query.isEmpty || line.text.localizedCaseInsensitiveContains(query))
         }
-
-        return result
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            filterBar
+        OMSettingsPage(title: AppStrings.logs, showsHeader: false) {
+            OMSettingsSection {
+                VStack(spacing: .spacing5) {
+                    OMSegmentedControl(
+                        items: LogFilter.allCases.map { .init(id: $0, title: $0.title) },
+                        selection: $filter
+                    )
+                    TextField(L("settings.logs.search"), text: $searchText)
+                        .textFieldStyle(OMTextFieldStyle())
+                        .accessibilityIdentifier("settings-logs-search")
+                    OMSettingsToggleRow(
+                        title: L("settings.logs.auto_refresh"),
+                        isOn: $autoRefresh
+                    )
+                    .onChange(of: autoRefresh) { _, enabled in
+                        if enabled { startPolling() } else { stopPolling() }
+                    }
+                    Button(L("common.refresh")) { Task { await loadLogs() } }
+                        .buttonStyle(OMPrimaryButtonStyle())
+                        .accessibilityIdentifier("settings-logs-refresh")
+                }
+                .padding(.spacing6)
+            }
 
-            if isLoading {
-                Spacer()
-                ProgressView("Loading logs...")
-                Spacer()
-            } else if filteredLogs.isEmpty {
-                Spacer()
-                ContentUnavailableView(
-                    "No Logs",
-                    systemImage: "doc.text.magnifyingglass",
-                    description: Text(LocalizationManager.shared.text("settings.logs.no_entries"))
-                )
-                Spacer()
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 1) {
-                            ForEach(filteredLogs) { log in
-                                LogRow(entry: log)
-                                    .id(log.id)
-                            }
-                        }
-                        .padding(.horizontal, .spacing2)
-                    }
-                    .onChange(of: filteredLogs.count) { _, _ in
-                        if let last = filteredLogs.last {
-                            withAnimation {
-                                proxy.scrollTo(last.id, anchor: .bottom)
-                            }
-                        }
+            OMSettingsSection(AppStrings.logs) {
+                if isLoading {
+                    ProgressView().frame(maxWidth: .infinity).padding(.spacing8)
+                } else if filteredLines.isEmpty {
+                    Text(L("settings.logs.no_entries"))
+                        .font(.omSmall).foregroundStyle(Color.fontSecondary).padding(.spacing6)
+                } else {
+                    ForEach(filteredLines) { line in
+                        Text(line.text)
+                            .font(.omXs.monospaced())
+                            .foregroundStyle(line.level == .error ? Color.error : Color.fontPrimary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing2)
                     }
                 }
             }
-        }
-        .navigationTitle("Logs")
-        .searchable(text: $searchText, prompt: "Search logs")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Toggle(isOn: $autoRefresh) {
-                    Label("Auto-refresh", systemImage: autoRefresh ? "arrow.clockwise.circle.fill" : "arrow.clockwise.circle")
-                }
-                .onChange(of: autoRefresh) { _, newValue in
-                    if newValue { startPolling() } else { stopPolling() }
-                }
+
+            if let errorMessage {
+                Text(errorMessage).font(.omSmall).foregroundStyle(Color.error).padding(.spacing6)
             }
         }
+        .accessibilityIdentifier("settings-logs-page")
         .task {
             await loadLogs()
             if autoRefresh { startPolling() }
@@ -103,28 +109,16 @@ struct SettingsLogsView: View {
         .onDisappear { stopPolling() }
     }
 
-    // MARK: - Filter bar
-
-    private var filterBar: some View {
-        Picker("Filter", selection: $filter) {
-            ForEach(LogFilter.allCases, id: \.self) { f in
-                Text(f.rawValue).tag(f)
-            }
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal)
-        .padding(.vertical, .spacing2)
-    }
-
-    // MARK: - Data loading
-
     private func loadLogs() async {
         do {
-            logs = try await APIClient.shared.request(
-                .get, path: "/v1/admin/logs?limit=200"
+            let response: LogsResponse = try await APIClient.shared.request(
+                .get, path: "/v1/admin/debug/logs?limit=200"
             )
+            backendLines = response.logs.split(separator: "\n").map { LogLine(text: String($0)) }
+            errorMessage = nil
         } catch {
-            print("[Admin] Logs load error: \(error)")
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("Admin log snapshot failed", category: "settings.admin")
         }
         isLoading = false
     }
@@ -133,8 +127,12 @@ struct SettingsLogsView: View {
         stopPolling()
         refreshTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                guard !Task.isCancelled else { break }
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled else { return }
                 await loadLogs()
             }
         }
@@ -146,63 +144,5 @@ struct SettingsLogsView: View {
     }
 }
 
-// MARK: - Log row
-
-struct LogRow: View {
-    let entry: SettingsLogsView.LogEntry
-
-    private var levelColor: Color {
-        switch entry.level?.lowercased() {
-        case "error", "critical": return Color.error
-        case "warn", "warning": return .orange
-        case "info": return Color.fontSecondary
-        case "debug": return Color.fontTertiary
-        default: return Color.fontPrimary
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: .spacing2) {
-                Text(entry.level?.uppercased().prefix(4) ?? "LOG")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundStyle(levelColor)
-                    .frame(width: 36, alignment: .leading)
-
-                if let ts = entry.timestamp {
-                    Text(formatTimestamp(ts))
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(Color.fontTertiary)
-                }
-
-                if let service = entry.service {
-                    Text(service)
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color.buttonPrimary.opacity(0.7))
-                }
-            }
-
-            Text(entry.message ?? "")
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(Color.fontPrimary)
-                .lineLimit(4)
-                .textSelection(.enabled)
-        }
-        .padding(.vertical, 3)
-        .padding(.horizontal, .spacing2)
-        .background(
-            entry.level?.lowercased() == "error" || entry.level?.lowercased() == "critical"
-                ? Color.error.opacity(0.05)
-                : Color.clear
-        )
-    }
-
-    private func formatTimestamp(_ ts: String) -> String {
-        // Trim to HH:MM:SS.mmm from ISO format
-        if let tIndex = ts.firstIndex(of: "T") {
-            let time = ts[ts.index(after: tIndex)...]
-            return String(time.prefix(12))
-        }
-        return String(ts.suffix(12))
-    }
-}
+@MainActor
+private func L(_ key: String) -> String { LocalizationManager.shared.text(key) }

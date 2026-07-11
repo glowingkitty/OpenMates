@@ -103,10 +103,14 @@ struct SettingsSupportView: View {
 // MARK: - One-time contribution
 
 struct SupportOneTimeView: View {
+    @EnvironmentObject private var authManager: AuthManager
     @State private var selectedAmount: Int?
     @State private var customAmount = ""
+    @State private var supportEmail = ""
     @State private var isProcessing = false
     @State private var success = false
+    @State private var transfer: SupportTransferResponse?
+    @State private var errorMessage: String?
 
     private let presetAmounts = [5, 10, 25, 50, 100]
 
@@ -150,6 +154,13 @@ struct SupportOneTimeView: View {
                 }
                 .padding(.horizontal, .spacing5)
                 .padding(.bottom, .spacing5)
+
+                TextField(AppStrings.email, text: $supportEmail)
+                    .textContentType(.emailAddress)
+                    .textFieldStyle(OMTextFieldStyle())
+                    .autocorrectionDisabled()
+                    .padding(.horizontal, .spacing5)
+                    .padding(.bottom, .spacing5)
             }
 
             OMSettingsSection {
@@ -167,7 +178,7 @@ struct SupportOneTimeView: View {
                         Spacer()
                     }
                 }
-                .disabled(selectedAmount == nil && customAmount.isEmpty)
+                .disabled((selectedAmount == nil && customAmount.isEmpty) || supportEmail.isEmpty || isProcessing)
                 .buttonStyle(OMPrimaryButtonStyle())
                 .accessibleButton(LocalizationManager.shared.text("settings.support.contribute"))
                 .padding(.spacing5)
@@ -185,7 +196,20 @@ struct SupportOneTimeView: View {
                     .padding(.spacing5)
                 }
             }
+
+            if let transfer {
+                OMSettingsSection(LocalizationManager.shared.text("settings.support.bank_transfer")) {
+                    OMSettingsStaticRow(title: LocalizationManager.shared.text("settings.support.reference"), value: transfer.reference)
+                    OMSettingsStaticRow(title: LocalizationManager.shared.text("settings.support.iban"), value: transfer.iban)
+                    OMSettingsStaticRow(title: LocalizationManager.shared.text("settings.support.amount"), value: transfer.amountEur)
+                }
+            }
+
+            if let errorMessage {
+                Text(errorMessage).font(.omSmall).foregroundStyle(Color.error).padding(.spacing6)
+            }
         }
+        .onAppear { supportEmail = authManager.currentUser?.email ?? "" }
     }
 
     private func processPayment() {
@@ -194,14 +218,21 @@ struct SupportOneTimeView: View {
 
         isProcessing = true
         Task {
-            let url = await APIClient.shared.webAppURL
-                .appendingPathComponent("settings/support/one-time")
-                .appending(queryItems: [URLQueryItem(name: "amount", value: "\(amount)")])
-            #if os(iOS)
-            await UIApplication.shared.open(url)
-            #elseif os(macOS)
-            NSWorkspace.shared.open(url)
-            #endif
+            do {
+                transfer = try await APIClient.shared.request(
+                    .post,
+                    path: "/v1/payments/create-support-bank-transfer-order",
+                    body: SupportTransferRequest(
+                        amount: amount * 100,
+                        currency: "eur",
+                        supportEmail: supportEmail
+                    )
+                )
+                success = true
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Support contribution order failed", category: "settings.support")
+            }
             isProcessing = false
         }
     }
@@ -211,8 +242,7 @@ struct SupportOneTimeView: View {
 
 struct SupportMonthlyView: View {
     @State private var selectedTier: Int?
-    @State private var isActive = false
-    @State private var currentAmount: Int?
+    @State private var errorMessage: String?
 
     private let tiers = [
         (5, "Supporter", "Help keep the lights on"),
@@ -223,35 +253,8 @@ struct SupportMonthlyView: View {
 
     var body: some View {
         OMSettingsPage(title: LocalizationManager.shared.text("settings.support.monthly"), showsHeader: false) {
-            if isActive, let amount = currentAmount {
-                OMSettingsSection {
-                    HStack {
-                        Icon("check", size: 18)
-                            .foregroundStyle(Color.buttonPrimary)
-                        Text(LocalizationManager.shared.text("settings.support.active_subscription"))
-                            .font(.omSmall)
-                            .foregroundStyle(Color.fontPrimary)
-                        Spacer()
-                        Text("$\(amount)/month")
-                            .font(.omSmall).fontWeight(.medium)
-                    }
-                    .padding(.spacing5)
-
-                    Button("Manage on Web") {
-                        openWebSupport()
-                    }
-                    .buttonStyle(OMPrimaryButtonStyle())
-                    .padding(.horizontal, .spacing5)
-
-                    Button(role: .destructive) {
-                        openWebSupport()
-                    } label: {
-                        Text(LocalizationManager.shared.text("settings.support.cancel_subscription"))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color.error)
-                    .padding(.spacing5)
-                }
+            if let errorMessage {
+                Text(errorMessage).font(.omSmall).foregroundStyle(Color.error).padding(.spacing6)
             }
 
             OMSettingsSection(LocalizationManager.shared.text("settings.support.monthly_tiers")) {
@@ -281,42 +284,22 @@ struct SupportMonthlyView: View {
                 }
             }
         }
-        .task { await loadStatus() }
-    }
-
-    private func loadStatus() async {
-        do {
-            let response: [String: AnyCodable] = try await APIClient.shared.request(
-                .get, path: "/v1/settings/support/monthly/status"
-            )
-            isActive = response["active"]?.value as? Bool ?? false
-            currentAmount = response["amount"]?.value as? Int
-        } catch {
-            // No subscription — that's fine
-        }
     }
 
     private func openMonthlyPayment(_ amount: Int) {
-        Task {
-            let url = await APIClient.shared.webAppURL
-                .appendingPathComponent("settings/support/monthly")
-                .appending(queryItems: [URLQueryItem(name: "tier", value: "\(amount)")])
-            #if os(iOS)
-            await UIApplication.shared.open(url)
-            #elseif os(macOS)
-            NSWorkspace.shared.open(url)
-            #endif
-        }
+        selectedTier = amount
+        errorMessage = LocalizationManager.shared.text("settings.support.monthly_native_management_unavailable")
     }
+}
 
-    private func openWebSupport() {
-        Task {
-            let url = await APIClient.shared.webAppURL.appendingPathComponent("settings/support/monthly")
-            #if os(iOS)
-            await UIApplication.shared.open(url)
-            #elseif os(macOS)
-            NSWorkspace.shared.open(url)
-            #endif
-        }
-    }
+private struct SupportTransferRequest: Encodable {
+    let amount: Int
+    let currency: String
+    let supportEmail: String
+}
+
+private struct SupportTransferResponse: Decodable {
+    let reference: String
+    let iban: String
+    let amountEur: String
 }

@@ -1,5 +1,12 @@
 // Full AI settings — native reproduction of SettingsAI.svelte.
-// Uses OpenMates settings primitives and provider metadata parity, never default iOS List/Form controls.
+// Uses OpenMates settings primitives and the authenticated profile/default-model endpoint contract.
+
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsAI.svelte
+// Data:    frontend/packages/ui/src/data/modelsMetadata.ts
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
@@ -13,6 +20,11 @@ struct SettingsAIFullView: View {
     @State private var isLoading = true
     @State private var searchText = ""
     @State private var sortBy: AIModelSort = .performance
+    @State private var followUpSuggestionsEnabled = true
+    @State private var quickTipsEnabled = true
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @State private var selectedDetail: AIDetail?
 
     struct AIModel: Identifiable, Decodable {
         let id: String
@@ -108,7 +120,13 @@ struct SettingsAIFullView: View {
                         icon: "search",
                         isOn: $autoSelectModel
                     )
-                    .onChange(of: autoSelectModel) { _, _ in saveDefaults() }
+                    .onChange(of: autoSelectModel) { _, enabled in
+                        if enabled {
+                            defaultSimpleModel = ""
+                            defaultComplexModel = ""
+                        }
+                        saveDefaults()
+                    }
                     .accessibleToggle(AppStrings.autoSelectModel, isOn: autoSelectModel)
 
                     Text(AppStrings.autoSelectDescription)
@@ -140,6 +158,24 @@ struct SettingsAIFullView: View {
                         .foregroundStyle(Color.fontSecondary)
                         .padding(.horizontal, .spacing5)
                         .padding(.top, .spacing2)
+                }
+            }
+
+            if isAuthenticated {
+                OMSettingsSection(LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.experience"), icon: "settings") {
+                    OMSettingsToggleRow(
+                        title: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.follow_up_suggestions"),
+                        isOn: $followUpSuggestionsEnabled,
+                        disabled: isSaving
+                    )
+                    .onChange(of: followUpSuggestionsEnabled) { oldValue, _ in saveDefaults(rollbackFollowUpsTo: oldValue) }
+
+                    OMSettingsToggleRow(
+                        title: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.quick_tips"),
+                        isOn: $quickTipsEnabled,
+                        disabled: isSaving
+                    )
+                    .onChange(of: quickTipsEnabled) { oldValue, _ in saveDefaults(rollbackQuickTipsTo: oldValue) }
                 }
             }
 
@@ -209,8 +245,23 @@ struct SettingsAIFullView: View {
                     .padding(.leading, .spacing5)
                 }
             }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.error)
+                    .padding(.horizontal, .spacing6)
+                    .accessibilityIdentifier("settings-ai-error")
+            }
         }
         .task { await loadModelPreferences() }
+        .overlay {
+            if let selectedDetail {
+                aiDetailView(selectedDetail)
+                    .background(Color.grey0)
+                    .accessibilityIdentifier("settings-ai-detail-page")
+            }
+        }
     }
 
     private var isAuthenticated: Bool {
@@ -359,7 +410,7 @@ struct SettingsAIFullView: View {
 
     private func modelRow(_ model: AIModel) -> some View {
         Button {
-            // Model detail routes are still web-only; keep row behavior visual without invoking native navigation.
+            selectedDetail = .model(model)
         } label: {
             HStack(spacing: .spacing6) {
                 ProviderLogo(name: model.logo)
@@ -378,15 +429,9 @@ struct SettingsAIFullView: View {
 
                 Spacer()
 
-                if isAuthenticated {
-                    OMToggle(
-                        isOn: Binding(
-                            get: { model.isEnabled != false },
-                            set: { _ in toggleModel(model.id) }
-                        )
-                    )
-                    .accessibilityHidden(true)
-                }
+                Text(model.isEnabled == false ? AppStrings.disabled : AppStrings.enabled)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
             }
             .padding(.horizontal, .spacing8)
             .padding(.vertical, .spacing5)
@@ -401,7 +446,7 @@ struct SettingsAIFullView: View {
 
     private func providerRow(_ provider: AIProvider) -> some View {
         Button {
-            // Provider detail routes are still web-only; preserve clickable row styling.
+            selectedDetail = .provider(provider)
         } label: {
             HStack(spacing: .spacing6) {
                 ProviderLogo(name: provider.logo)
@@ -420,15 +465,9 @@ struct SettingsAIFullView: View {
 
                 Spacer()
 
-                if isAuthenticated {
-                    OMToggle(
-                        isOn: Binding(
-                            get: { displayProviders.first(where: { $0.id == provider.id })?.isEnabled ?? provider.isEnabled },
-                            set: { toggleProvider(provider.id, enabled: $0) }
-                        )
-                    )
-                    .accessibilityHidden(true)
-                }
+                Text(provider.isEnabled ? AppStrings.enabled : AppStrings.disabled)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
             }
             .padding(.horizontal, .spacing8)
             .padding(.vertical, .spacing5)
@@ -449,81 +488,107 @@ struct SettingsAIFullView: View {
 
     private func regionLabel(_ region: String) -> String {
         switch region {
-        case "EU": return "EU Server"
-        case "US": return "US Server"
-        case "global": return "Global"
+        case "EU": return LocalizationManager.shared.text("settings.ai.provider_region_eu")
+        case "US": return LocalizationManager.shared.text("settings.ai.provider_region_us")
+        case "global": return LocalizationManager.shared.text("settings.ai.provider_region_global")
         default: return region
+        }
+    }
+
+    private func aiDetailView(_ detail: AIDetail) -> some View {
+        OMSettingsPage(title: detail.title, showsHeader: false) {
+            OMSettingsSection {
+                OMSettingsRow(title: AppStrings.back, icon: "back", showsChevron: false) {
+                    selectedDetail = nil
+                }
+            }
+            switch detail {
+            case .model(let model):
+                OMSettingsSection(model.name) {
+                    OMSettingsStaticRow(
+                        title: LocalizationManager.shared.text("enter_message.mention_dropdown.from_provider_label"),
+                        value: model.providerName
+                    )
+                    OMSettingsStaticRow(
+                        title: LocalizationManager.shared.text("settings.ai_ask.ai_ask_settings.release_date"),
+                        value: model.releaseDate
+                    )
+                    Text(model.description)
+                        .font(.omSmall).foregroundStyle(Color.fontSecondary).padding(.spacing6)
+                }
+            case .provider(let provider):
+                OMSettingsSection(provider.name) {
+                    OMSettingsStaticRow(
+                        title: LocalizationManager.shared.text("settings.ai.available_providers_region"),
+                        value: regionLabel(provider.region)
+                    )
+                    OMSettingsStaticRow(
+                        title: LocalizationManager.shared.text("common.status"),
+                        value: provider.isEnabled ? AppStrings.enabled : AppStrings.disabled
+                    )
+                }
+            }
+        }
+    }
+
+    private enum AIDetail {
+        case model(AIModel)
+        case provider(AIProvider)
+
+        var title: String {
+            switch self {
+            case .model(let model): return model.name
+            case .provider(let provider): return provider.name
+            }
         }
     }
 
     private func loadModelPreferences() async {
         do {
-            let response: [String: AnyCodable] = try await APIClient.shared.request(
-                .get, path: "/v1/settings/ai-models"
-            )
-            if let models = response["models"]?.value as? [[String: Any]] {
-                serverModels = models.compactMap { dict in
-                    guard let id = dict["id"] as? String else { return nil }
-                    var model = Self.catalogModels.first { $0.id == id }
-                    model?.isEnabled = dict["is_enabled"] as? Bool
-                    return model
-                }
-            }
-            if let providerList = response["providers"]?.value as? [[String: Any]] {
-                serverProviders = providerList.compactMap { dict in
-                    guard let id = dict["id"] as? String else { return nil }
-                    var provider = displayProviders.first { $0.id == id }
-                    provider?.isEnabled = dict["is_enabled"] as? Bool ?? true
-                    return provider
-                }
-            }
-            autoSelectModel = response["auto_select"]?.value as? Bool ?? true
-            defaultSimpleModel = response["default_simple"]?.value as? String ?? ""
-            defaultComplexModel = response["default_complex"]?.value as? String ?? ""
+            let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
+            defaultSimpleModel = response.user?.defaultAiModelSimple ?? ""
+            defaultComplexModel = response.user?.defaultAiModelComplex ?? ""
+            autoSelectModel = defaultSimpleModel.isEmpty && defaultComplexModel.isEmpty
+            followUpSuggestionsEnabled = response.user?.followUpSuggestionsEnabled ?? true
+            quickTipsEnabled = response.user?.quickTipsEnabled ?? true
         } catch {
-            print("[Settings] Failed to load AI model preferences: \(error)")
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("AI preference load failed", category: "settings.ai")
         }
         isLoading = false
     }
 
-    private func saveDefaults() {
+    private func saveDefaults(rollbackFollowUpsTo: Bool? = nil, rollbackQuickTipsTo: Bool? = nil) {
+        guard isAuthenticated, !isSaving else { return }
+        isSaving = true
+        errorMessage = nil
         Task {
-            try? await APIClient.shared.request(
-                .post, path: "/v1/settings/ai-model-defaults",
-                body: [
-                    "auto_select": autoSelectModel,
-                    "default_simple": defaultSimpleModel,
-                    "default_complex": defaultComplexModel
-                ]
-            ) as Data
-        }
-    }
-
-    private func toggleModel(_ modelId: String) {
-        guard let index = serverModels.firstIndex(where: { $0.id == modelId }) else {
-            if var model = Self.catalogModels.first(where: { $0.id == modelId }) {
-                model.isEnabled = false
-                serverModels.append(model)
+            do {
+                let _: Data = try await APIClient.shared.request(
+                    .post, path: "/v1/settings/ai-model-defaults",
+                    body: AIModelDefaultsRequest(
+                        defaultAiModelSimple: autoSelectModel || defaultSimpleModel.isEmpty ? nil : defaultSimpleModel,
+                        defaultAiModelComplex: autoSelectModel || defaultComplexModel.isEmpty ? nil : defaultComplexModel,
+                        followUpSuggestionsEnabled: followUpSuggestionsEnabled,
+                        quickTipsEnabled: quickTipsEnabled
+                    )
+                )
+            } catch {
+                if let rollbackFollowUpsTo { followUpSuggestionsEnabled = rollbackFollowUpsTo }
+                if let rollbackQuickTipsTo { quickTipsEnabled = rollbackQuickTipsTo }
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("AI preference save failed", category: "settings.ai")
             }
-            return
+            isSaving = false
         }
-        serverModels[index].isEnabled = !(serverModels[index].isEnabled ?? true)
     }
+}
 
-    private func toggleProvider(_ providerId: String, enabled: Bool) {
-        if let index = serverProviders.firstIndex(where: { $0.id == providerId }) {
-            serverProviders[index].isEnabled = enabled
-        } else if var provider = displayProviders.first(where: { $0.id == providerId }) {
-            provider.isEnabled = enabled
-            serverProviders.append(provider)
-        }
-        Task {
-            try? await APIClient.shared.request(
-                .post, path: "/v1/settings/ai-providers/\(providerId)/toggle",
-                body: ["enabled": enabled]
-            ) as Data
-        }
-    }
+private struct AIModelDefaultsRequest: Encodable {
+    let defaultAiModelSimple: String?
+    let defaultAiModelComplex: String?
+    let followUpSuggestionsEnabled: Bool
+    let quickTipsEnabled: Bool
 }
 
 private struct AIModelSearchSortBar: View {
@@ -604,14 +669,11 @@ private struct AIMemoryAppStoreCard: View {
     let category: SettingsAIFullView.AIMemoryCategory
 
     var body: some View {
-        Button {
-            // Category detail route parity can hook into the settings router once native nested memory pages are wired.
-        } label: {
-            VStack(alignment: .leading, spacing: .spacing5) {
+        VStack(alignment: .leading, spacing: .spacing5) {
                 Icon(category.icon, size: 26)
                     .foregroundStyle(Color.fontButton)
                     .frame(width: 44, height: 44)
-                    .background(LinearGradient(colors: [Color(hex: 0xD80ABF), Color(hex: 0xFF3361)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .background(LinearGradient.primary)
                     .overlay(
                         RoundedRectangle(cornerRadius: .radius4)
                             .stroke(Color.fontButton.opacity(0.9), lineWidth: 2)
@@ -632,11 +694,10 @@ private struct AIMemoryAppStoreCard: View {
             }
             .padding(.spacing8)
             .frame(width: 250, height: 150, alignment: .topLeading)
-            .background(LinearGradient(colors: [Color(hex: 0xC9653D), Color(hex: 0xE58A63)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .background(LinearGradient.primary)
             .clipShape(RoundedRectangle(cornerRadius: .radius6))
-        }
-        .buttonStyle(.plain)
-        .accessibleButton(LocalizationManager.shared.text(category.titleKey))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(LocalizationManager.shared.text(category.titleKey))
     }
 }
 
