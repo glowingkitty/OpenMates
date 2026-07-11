@@ -43,7 +43,7 @@ def _phase2_metadata_is_current(
         and client_title_v >= server_versions.title_v
         and client_versions.get("metadata_v", client_title_v) >= server_metadata_v
         and client_versions.get("draft_v", 0)
-        >= max(server_versions.draft_v, chat_details.get("draft_v", 0))
+        >= chat_details.get("draft_v", 0)
     )
 
 

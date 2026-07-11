@@ -254,7 +254,6 @@ def test_phase2_delta_sync_resends_newer_draft_ciphertext() -> None:
         messages_v=2,
         title_v=3,
         metadata_v=3,
-        draft_v=4,
     )
     chat_details = {"messages_v": 2, "draft_v": 4}
 
