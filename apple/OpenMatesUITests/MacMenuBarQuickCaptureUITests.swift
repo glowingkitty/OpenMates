@@ -79,6 +79,12 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
             "Expected Dock activation to restore the regular OpenMates window"
         )
         XCTAssertEqual(app.windows.count, 1, "Expected Dock activation to restore exactly one regular window")
+
+        let restoredWindow = app.windows.firstMatch
+        restoredWindow.typeKey("m", modifierFlags: .command)
+        app.activate()
+        XCTAssertTrue(restoredWindow.isHittable, "Expected Dock activation to restore a minimized regular window")
+        XCTAssertEqual(app.windows.count, 1, "Expected reactivation not to duplicate a minimized regular window")
     }
 
     private func launchQuickCapturePreview(seedAttachment: Bool = false) -> XCUIApplication {

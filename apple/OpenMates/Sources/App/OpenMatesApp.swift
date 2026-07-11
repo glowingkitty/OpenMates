@@ -315,8 +315,16 @@ private final class AppWindowCommandCenter {
 
     var openMainWindow: ((AppWindowLaunchCommand) -> Void)?
 
-    var hasVisibleMainWindow: Bool {
-        NSApp.windows.contains { $0.isVisible && !($0 is NSPanel) }
+    func restoreMainWindow() -> Bool {
+        guard let window = NSApp.windows.first(where: { !($0 is NSPanel) }) else {
+            return false
+        }
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        return true
     }
 
     func openNewWindow() {
@@ -1101,10 +1109,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if AppWindowCommandCenter.shared.hasVisibleMainWindow {
-            return true
+        if !AppWindowCommandCenter.shared.restoreMainWindow() {
+            AppWindowCommandCenter.shared.openNewWindow()
         }
-        AppWindowCommandCenter.shared.openNewWindow()
         return false
     }
 
