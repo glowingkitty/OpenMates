@@ -148,7 +148,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 620cbe17a
+  subject_commit: 0d0504d29
 
 approvals:
   product_contract:
@@ -220,16 +220,28 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-11T14:25:03Z"
     evidence: The build stopped before tests because unrelated commit 7c196b5f0 left Yams, ZIPFoundation, and Sodium unresolved and the Watch link failed.
+  - id: ATTEMPT-5
+    task_id: TASK-6
+    approach: Run the complete browser embed registry contract sequentially for every registry route in every visual dimension.
+    outcome: rejected
+    recorded_at: "2026-07-11T20:45:00Z"
+    evidence: Run 29167048641 duplicated structural route checks hundreds of times and was canceled after exceeding 30 minutes. Registry routes now run once with bounded concurrency while every app showcase still runs in all six dimensions.
+  - id: ATTEMPT-6
+    task_id: TASK-9
+    approach: Execute ChatHistoryMacParityUITests on the remote macOS host.
+    outcome: blocked
+    recorded_at: "2026-07-11T19:30:00Z"
+    evidence: The test target compiled, but execution requires unavailable development provisioning profiles for the app and share extension.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Re-run the green embed-graph unit test after the unrelated Apple package/project regression from commit 7c196b5f0 is fixed.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/EmbedDiffEditingParityTests
-  expected_outcome: All EmbedDiffEditingParityTests pass on implementation commit 620cbe17a.
+  current_task_id: TASK-10
+  next_action: Provision the remote Mac, retain all native screenshot payloads, and run final browser/native checks against one stable subject revision before completing paired review.
+  command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/ChatHistoryMacParityUITests
+  expected_outcome: Native macOS history tests execute with valid provisioning and produce the missing review artifacts.
   blocker:
-    reason: Unrelated Apple project integration commit 7c196b5f0 does not resolve Yams, ZIPFoundation, or Sodium and also fails the Watch link before tests execute.
-    next_action: The owning Apple integration session must restore package/project consistency, then this task can rerun unchanged.
-  last_verified_commit: 6883c92b4
+    reason: The remote Mac lacks development provisioning profiles, locally retained native artifacts omit required pair classes, and automated evidence currently spans subject revisions 2b6a360f5, 0d0504d29, and 43c57e9fa because concurrent dev commits advanced between runs.
+    next_action: Provision the remote Mac, rerun final checks during a stable dev revision, and retain native screenshot payloads for paired review.
+  last_verified_commit: 0d0504d29
 
 scenarios:
   - id: S-1
@@ -327,7 +339,7 @@ acceptance_criteria:
     scenario: S-1
     text: Stable and cold-boot-restored Apple messages preserve web sender identity, semantic block order, message ownership, and complete visible content without duplication.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-UNIT-RENDER-DOCUMENT, T-APPLE-HISTORY-UI]
@@ -335,7 +347,7 @@ acceptance_criteria:
     scenario: S-2
     text: Apple deterministically deduplicates embed records and resolves complete ordered parent-child graphs for current and legacy relationship representations.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-UNIT-EMBED-GRAPH]
@@ -343,7 +355,7 @@ acceptance_criteria:
     scenario: S-3
     text: Every web-supported semantic history node has a native semantic renderer and interaction contract, including verified source quotes and dedicated system messages.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WEB-HISTORY-CONTRACTS, T-APPLE-HISTORY-UI]
@@ -351,7 +363,7 @@ acceptance_criteria:
     scenario: S-4
     text: Sent audio preview and fullscreen match web content, playback, transcript, correction, model, duration, loading, and unavailable-state behavior.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WEB-HISTORY-CONTRACTS, T-APPLE-AUDIO-UI]
@@ -359,7 +371,7 @@ acceptance_criteria:
     scenario: S-5
     text: Every current product embed, app-skill, inline, quote, grouped, and status variant has dedicated web and native preview/fullscreen implementation, fixtures, dispatch, and reviewed iPhone, iPad, and macOS light/dark evidence; missing surfaces and known generic fallback fail.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-EMBED-COVERAGE-AUDIT, T-WEB-EMBED-CONTRACTS, T-APPLE-EMBED-UI, T-APPLE-MACOS-HISTORY, V-AGENT-VISUAL-REVIEW]
@@ -367,7 +379,7 @@ acceptance_criteria:
     scenario: S-6
     text: Header, messages, embeds, and composer match browser-computed responsive contracts and keep final content clear of composer and keyboard across required layouts and directions.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WEB-HISTORY-CONTRACTS, T-APPLE-HISTORY-UI, T-APPLE-MACOS-HISTORY]
@@ -375,7 +387,7 @@ acceptance_criteria:
     scenario: S-7
     text: Interactive history content remains independently accessible, identifier-aligned, keyboard/pointer operable, and informative under Reduce Motion.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-CHAT-PARITY-AUDIT, T-APPLE-HISTORY-UI, T-APPLE-MACOS-HISTORY]
@@ -383,7 +395,7 @@ acceptance_criteria:
     scenario: S-8
     text: Paired iPhone, iPad, and macOS light/dark artifacts receive agent review and no required pair or unresolved high/critical product drift remains.
     required: true
-    status: pending
+    status: blocked
     coverage_status: covered
     verification_scope: manual
     verification_ids: [V-AGENT-VISUAL-REVIEW]
@@ -464,22 +476,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec apple-chat-history-contracts.spec.ts
+        run_id: "29164607878"
+        subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4
+        timestamp: "2026-07-11T16:00:00Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec apple-chat-history-contracts.spec.ts
+        run_id: "29165888223"
+        subject_commit: 2b6a360f5
+        timestamp: "2026-07-11T19:45:00Z"
         target: app.dev.openmates.org
-        deployment_ref: ""
+        deployment_reference: 2b6a360f5
 
   - id: T-WEB-EMBED-CONTRACTS
     type: playwright
@@ -494,22 +506,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec apple-embed-rendering-contracts.spec.ts
+        run_id: "29168121422"
+        subject_commit: 916c188b0
+        timestamp: "2026-07-11T21:18:41Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/tests.py run --spec apple-embed-rendering-contracts.spec.ts
+        run_id: "29169900716"
+        subject_commit: 0d0504d29
+        timestamp: "2026-07-11T22:18:50Z"
         target: app.dev.openmates.org
-        deployment_ref: ""
+        deployment_reference: dpl_8c7c4ygemvzjk195FLY7jLZLNx9G
 
   - id: T-APPLE-UNIT-RENDER-DOCUMENT
     type: unit
@@ -522,11 +534,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: missing_test, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/ChatHistoryRenderDocumentTests", run_id: "pre-implementation-discovery", subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4, timestamp: "2026-07-11T14:00:00Z", reason: "The focused render-document test did not exist before implementation."}
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/ChatHistoryRenderDocumentTests", run_id: "remote-ios-render-document-20260712T002614", subject_commit: 43c57e9fa, timestamp: "2026-07-11T22:26:16Z", notes: "4 tests passed on the final worktree revision."}
 
   - id: T-APPLE-UNIT-EMBED-GRAPH
     type: unit
@@ -550,12 +562,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: blocked
+        status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/EmbedDiffEditingParityTests
-        run_id: "remote-mac-green-blocked-20260711T142400Z"
-        subject_commit: 620cbe17a
-        timestamp: "2026-07-11T14:25:03Z"
-        notes: Build stopped before test execution because unrelated commit 7c196b5f0 left Yams, ZIPFoundation, and Sodium unresolved and the Watch link failed.
+        run_id: "remote-ios-embed-graph-20260712T002734"
+        subject_commit: 43c57e9fa
+        timestamp: "2026-07-11T22:27:34Z"
+        notes: "5 tests passed after the unrelated package/project regression was resolved."
 
   - id: T-EMBED-COVERAGE-AUDIT
     type: lint
@@ -572,7 +584,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 scripts/apple_ui_contracts.py audit --surface embeds", run_id: "local-session-6d57", subject_commit: 0d0504d29, timestamp: "2026-07-11T22:20:00Z"}
 
   - id: T-CHAT-PARITY-AUDIT
     type: lint
@@ -590,7 +602,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 scripts/apple_chat_parity_audit.py --surface chat-flow", run_id: "local-session-6d57", subject_commit: 0d0504d29, timestamp: "2026-07-11T22:20:00Z"}
 
   - id: T-APPLE-HISTORY-UI
     type: manual
@@ -604,11 +616,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: missing_test, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/ChatHistoryFullParityUITests", run_id: "pre-implementation-discovery", subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4, timestamp: "2026-07-11T14:00:00Z", reason: "The focused history parity UI target did not exist before implementation."}
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/ChatHistoryFullParityUITests", run_id: "remote-ios-history-parity-20260711", subject_commit: 19992658d, timestamp: "2026-07-11T19:10:00Z", reason: "3 targeted history parity tests passed with persisted sender and model attribution evidence."}
 
   - id: T-APPLE-AUDIO-UI
     type: manual
@@ -621,11 +633,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: missing_test, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/ChatHistoryAudioParityUITests", run_id: "pre-implementation-discovery", subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4, timestamp: "2026-07-11T14:00:00Z", reason: "The focused audio parity UI target did not exist before implementation."}
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/ChatHistoryAudioParityUITests", run_id: "remote-ios-audio-parity-20260711", subject_commit: 19992658d, timestamp: "2026-07-11T19:15:00Z", reason: "2 targeted audio parity tests passed, including fullscreen seek and transcript states."}
 
   - id: T-APPLE-EMBED-UI
     type: manual
@@ -638,11 +650,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: missing_test, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/EmbedRenderingParityUITests", run_id: "pre-implementation-discovery", subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4, timestamp: "2026-07-11T14:00:00Z", reason: "The all-category native embed UI target did not exist before implementation."}
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/EmbedRenderingParityUITests", run_id: "remote-ios-embed-gallery-20260711", subject_commit: 19992658d, timestamp: "2026-07-11T19:20:00Z", reason: "2 targeted gallery tests passed across every native app category and fullscreen interaction."}
 
   - id: T-APPLE-MACOS-HISTORY
     type: manual
@@ -655,11 +667,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: missing_test, command: "python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/ChatHistoryMacParityUITests", run_id: "pre-implementation-discovery", subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4, timestamp: "2026-07-11T14:00:00Z", reason: "The focused macOS history parity target did not exist before implementation."}
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence: {status: blocked, command: "python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/ChatHistoryMacParityUITests", run_id: "remote-macos-signing-blocked-20260711", subject_commit: 19992658d, timestamp: "2026-07-11T19:30:00Z", reason: "The target compiles, but execution is blocked by missing development provisioning profiles for the app and share extension.", actor: "external remote Mac provisioning", next_action: "Provision the remote Mac and rerun the unchanged target."}
 
 verifications:
   - id: V-AGENT-VISUAL-REVIEW
@@ -667,11 +679,14 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-5, AC-8]
-    status: pending
+    status: blocked
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: blocked
+      summary: No high or critical drift was confirmed in the available browser and iPhone samples. Native iPad, dedicated fullscreen, dark/RTL, and macOS PNG pairs are not retained locally, so complete pair approval cannot be claimed.
+      timestamp: "2026-07-11T22:25:00Z"
+      reason: Required native artifact pair classes are missing and macOS execution remains provisioning-blocked.
+      actor: "external remote Mac provisioning and artifact retention"
+      next_action: Rerun native visual suites with retained artifacts after provisioning the remote Mac, then review every remaining pair.
     requirements:
       - Pair every required web/native chat-history and embed preview/fullscreen artifact by source commit, registry/app-skill/showcase key, surface, inline/group/status variant, device class, and color scheme.
       - Record severity and likely source for every material difference.
@@ -792,8 +807,8 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Normalize authoritative embed graphs for restored messages
-    status: blocked
-    phase: blocked
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2]
       acceptance_criteria: [AC-1, AC-2]
@@ -806,14 +821,13 @@ tasks:
     ownership:
       files: [apple/OpenMates/Sources/Core/Models/EmbedModels.swift, apple/OpenMatesTests/EmbedDiffEditingParityTests.swift]
       shared_files: []
-    blockers:
-      - Green verification is blocked by unrelated Apple package/project failures introduced in commit 7c196b5f0.
+    blockers: []
     follow_up_tasks: [TASK-4]
     independently_deployable: true
   - id: TASK-4
     title: Preserve message identity and ordered render documents across cold boot
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-3]
       acceptance_criteria: [AC-1, AC-3]
@@ -833,8 +847,8 @@ tasks:
     independently_deployable: true
   - id: TASK-5
     title: Render source quotes, system messages, and sent audio semantically
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-3, S-4]
       acceptance_criteria: [AC-3, AC-4]
@@ -854,8 +868,8 @@ tasks:
     independently_deployable: true
   - id: TASK-6
     title: Generate complete semantic-node and embed-surface coverage manifests
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-3, S-5]
       acceptance_criteria: [AC-3, AC-5]
@@ -876,8 +890,8 @@ tasks:
     independently_deployable: true
   - id: TASK-7
     title: Implement all missing web and native embed preview renderers
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-5]
       acceptance_criteria: [AC-5]
@@ -897,8 +911,8 @@ tasks:
     independently_deployable: false
   - id: TASK-8
     title: Implement all missing web and native embed fullscreen renderers
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-5]
       acceptance_criteria: [AC-5]
@@ -918,8 +932,8 @@ tasks:
     independently_deployable: false
   - id: TASK-9
     title: Match history banner, responsive layout, accessibility, and clearance
-    status: pending
-    phase: working_tasks
+    status: blocked
+    phase: blocked
     covers:
       scenarios: [S-6, S-7]
       acceptance_criteria: [AC-6, AC-7]
@@ -934,13 +948,14 @@ tasks:
     ownership:
       files: [apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift, apple/OpenMates/Sources/Features/Chat/Views/ChatBannerView.swift, apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift, apple/OpenMatesUITests/ChatHistoryMacParityUITests.swift]
       shared_files: []
-    blockers: []
+    blockers:
+      - macOS execution is blocked by unavailable development provisioning profiles.
     follow_up_tasks: [TASK-10]
     independently_deployable: false
   - id: TASK-10
     title: Pair and review all required visual artifacts
-    status: pending
-    phase: running_checks
+    status: blocked
+    phase: blocked
     covers:
       scenarios: [S-8]
       acceptance_criteria: [AC-8]
@@ -953,7 +968,8 @@ tasks:
     ownership:
       files: [docs/specs/apple-chat-history-full-parity/spec.yml]
       shared_files: [test-results/apple-ui-contracts]
-    blockers: []
+    blockers:
+      - Native iPad, fullscreen, dark/RTL, and macOS PNG pairs are not retained for complete artifact review.
     follow_up_tasks: []
     independently_deployable: false
 
