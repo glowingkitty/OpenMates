@@ -1470,11 +1470,6 @@ struct ChatView: View {
                     .zIndex(10)
                 }
             }
-            .simultaneousGesture(
-                TapGesture().onEnded {
-                    isInputFocused = true
-                }
-            )
 
             if let queuedMessageText = viewModel.streamingLifecycle.queuedMessageText {
                 Text(queuedMessageText)

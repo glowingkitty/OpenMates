@@ -29,6 +29,12 @@ struct NativeComposerEditorView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UITextView {
         let textView = context.coordinator.adapter.makePlatformView()
+        let tapRecognizer = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleEditorTap)
+        )
+        tapRecognizer.cancelsTouchesInView = false
+        textView.addGestureRecognizer(tapRecognizer)
         textView.backgroundColor = .clear
         textView.isScrollEnabled = true
         textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
@@ -56,7 +62,7 @@ struct NativeComposerEditorView: UIViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator {
+    final class Coordinator: NSObject {
         let adapter: NativeComposerTextView
         var onFocusChange: (Bool) -> Void = { _ in }
         var onSubmit: () -> Void = { }
@@ -74,8 +80,13 @@ struct NativeComposerEditorView: UIViewRepresentable {
                 onFocusChange: { _ in },
                 onSubmit: { }
             )
+            super.init()
             adapter.onFocusChange = { [weak self] focused in self?.onFocusChange(focused) }
             adapter.onSubmit = { [weak self] in self?.onSubmit() }
+        }
+
+        @objc func handleEditorTap() {
+            onFocusChange(true)
         }
     }
 }
