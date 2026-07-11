@@ -6049,10 +6049,7 @@ private struct WelcomeResumeCompactCard: View {
         )
         .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
         .contentShape(RoundedRectangle(cornerRadius: .radius8))
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.6)
-                .onEnded { _ in handleLongPress() }
-        )
+        .onLongPressGesture(minimumDuration: 0.6, perform: handleLongPress)
         .onTapGesture(perform: handleTap)
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")

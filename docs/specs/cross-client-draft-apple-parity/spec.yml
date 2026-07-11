@@ -244,10 +244,16 @@ attempts:
     outcome: planned
     recorded_at: "2026-07-11T23:04:00Z"
     reason: The user approved this distinct architecture after both simultaneous and high-priority Button gesture variants failed.
+  - id: ATTEMPT-18
+    task_id: TASK-6
+    approach: Verify the non-Button compact interaction surface on iPhone, then replace its manually composed simultaneous long press with SwiftUI's dedicated onLongPressGesture recognizer.
+    outcome: planned
+    recorded_at: "2026-07-11T23:07:00Z"
+    reason: Commit 897aa44 retained button accessibility but XCTest did not drive the manually composed long-press gesture; this is the second and final attempt for the approved non-Button interaction architecture.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the large-card interaction pattern for compact cards, sync the remote checkout, and rerun both focused phone card tests.
+  next_action: Deploy the dedicated long-press recognizer, sync the remote checkout, and rerun the focused phone card test.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress"
   expected_outcome: The compact recent card renders title-only and opens the custom actions menu on long press.
   blocker:
