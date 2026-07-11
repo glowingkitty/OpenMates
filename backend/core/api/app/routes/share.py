@@ -75,6 +75,16 @@ class UnshareChatRequest(BaseModel):
 
 # --- Helper Functions ---
 
+SHARED_SUB_CHAT_FIELDS = (
+    "id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,"
+    "last_edited_overall_timestamp,unread_count,encrypted_chat_summary,"
+    "encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent"
+)
+SHARED_SUB_CHAT_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
+    field for field in SHARED_SUB_CHAT_FIELDS.split(",") if field != "metadata_v"
+)
+
+
 def generate_dummy_encrypted_data(chat_id: str) -> Dict[str, Any]:
     """
     Generate deterministic dummy encrypted data for a chat ID.
@@ -117,6 +127,36 @@ async def get_shared_chat_or_dummy(chat_id: str, directus_service: DirectusServi
         dummy_data.pop("is_dummy", None)
         return None, dummy_data
     return chat, None
+
+
+async def get_shared_sub_chats(
+    chat_id: str,
+    directus_service: DirectusService,
+) -> List[Dict[str, Any]]:
+    base_params = {
+        "filter[parent_id][_eq]": chat_id,
+        "sort": "created_at",
+        "limit": -1,
+    }
+    for fields in (
+        SHARED_SUB_CHAT_FIELDS,
+        SHARED_SUB_CHAT_FIELDS_WITHOUT_METADATA_VERSION,
+    ):
+        params = dict(base_params)
+        params["fields"] = fields
+        response = await directus_service.get_items(
+            "chats",
+            params=params,
+            admin_required=True,
+            return_none_on_403=True,
+        )
+        if response is not None:
+            return response or []
+    logger.warning(
+        "Shared sub-chat metadata remained permission-denied after field fallback for chat %s",
+        chat_id,
+    )
+    return []
 
 def sanitize_shared_pii(messages: List[Any], share_pii: bool) -> List[Any]:
     if share_pii or not messages:
@@ -175,16 +215,7 @@ async def get_shared_chat_auxiliary_payload(
         },
         admin_required=True,
     ) or []
-    sub_chats = await directus_service.get_items(
-        "chats",
-        params={
-            "filter[parent_id][_eq]": chat_id,
-            "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
-            "sort": "created_at",
-            "limit": -1,
-        },
-        admin_required=True,
-    ) or []
+    sub_chats = await get_shared_sub_chats(chat_id, directus_service)
     return {
         "embeds": embeds or [],
         "embed_keys": embed_keys or [],
@@ -320,16 +351,7 @@ async def get_shared_chat(
             admin_required=True,
         ) or []
 
-        sub_chats = await directus_service.get_items(
-            "chats",
-            params={
-                "filter[parent_id][_eq]": chat_id,
-                "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
-                "sort": "created_at",
-                "limit": -1,
-            },
-            admin_required=True,
-        ) or []
+        sub_chats = await get_shared_sub_chats(chat_id, directus_service)
         
         return {
             "chat_id": chat_id,

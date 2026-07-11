@@ -69,6 +69,7 @@ get_shared_chat_message_window = getattr(
     "__wrapped__",
     share_routes.get_shared_chat_message_window,
 )
+get_shared_sub_chats = share_routes.get_shared_sub_chats
 
 
 class FakeEmbedMethods:
@@ -154,7 +155,13 @@ class FakeDirectusService:
         self.chat = FakeChatMethods()
         self.embed = FakeEmbedMethods()
 
-    async def get_items(self, collection: str, params: dict, admin_required: bool = False):
+    async def get_items(
+        self,
+        collection: str,
+        params: dict,
+        admin_required: bool = False,
+        return_none_on_403: bool = False,
+    ):
         if collection == "message_highlights":
             return [{"id": "highlight-1", "chat_id": "chat-shared"}]
         if collection == "code_run_outputs":
@@ -259,3 +266,37 @@ async def test_shared_chat_window_preserves_non_enumeration_dummy_response():
     assert messages["chat_id"] == "missing-chat"
     assert messages["messages"]
     assert messages["has_more"] is False
+
+
+@pytest.mark.asyncio
+async def test_shared_sub_chats_retry_without_metadata_v_on_directus_permission_denial():
+    class MetadataDeniedDirectus(FakeDirectusService):
+        def __init__(self) -> None:
+            super().__init__()
+            self.requested_fields: list[str] = []
+
+        async def get_items(
+            self,
+            collection: str,
+            params: dict,
+            admin_required: bool = False,
+            return_none_on_403: bool = False,
+        ):
+            if collection != "chats":
+                return await super().get_items(
+                    collection, params, admin_required, return_none_on_403
+                )
+            self.requested_fields.append(params["fields"])
+            if "metadata_v" in params["fields"]:
+                assert return_none_on_403 is True
+                return None
+            return [{"id": "sub-chat-1", "title_v": 1}]
+
+    directus = MetadataDeniedDirectus()
+
+    sub_chats = await get_shared_sub_chats("chat-shared", directus)
+
+    assert sub_chats == [{"id": "sub-chat-1", "title_v": 1}]
+    assert len(directus.requested_fields) == 2
+    assert "metadata_v" in directus.requested_fields[0]
+    assert "metadata_v" not in directus.requested_fields[1]
