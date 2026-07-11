@@ -1,7 +1,7 @@
 schema_version: 2
 id: apple-watch-login-v2
 title: Apple Watch Production-First Pair Login
-status: implementing
+status: verified
 
 goal: >
   Make Apple Watch login simple and crash-safe: start on OpenMates production,
@@ -92,7 +92,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 19992658d
+  subject_commit: 3d02b3a
 
 approvals:
   product_contract:
@@ -165,19 +165,17 @@ attempts:
   - id: ATTEMPT-6
     task_id: TASK-4
     approach: Symbolicate build 52 from its distribution dSYM, add a no-reply-handler contract test, and remove the redundant dictionary reply callback before another upload.
-    outcome: planned
+    outcome: succeeded
     recorded_at: "2026-07-11T21:00:00Z"
-    reason: This directly covers the symbolicated physical-only callback path that the unpaired Watch simulator cannot execute.
+    reason: The red/green callback contract passed, TestFlight build 53 included the fix, and physical Watch launch plus pairing passed.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Run the new no-reply-handler contract red against the current implementation.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests/testWatchSendLoginRequestDoesNotInstallOffActorReplyHandler
-  expected_outcome: The test fails because sendLoginRequest still installs a dictionary reply closure.
-  blocker:
-    reason: Physical WatchConnectivity callbacks are not reproduced by the unpaired Watch simulator.
-    next_action: Require the symbolicated callback contract test before another physical TestFlight validation.
-  last_verified_commit: 19992658d
+  next_action: No remaining implementation action; monitor future TestFlight crash submissions.
+  command: python3 scripts/spec_verify.py docs/specs/apple-watch-login-v2/spec.yml --phase complete
+  expected_outcome: All required automated and physical verification evidence passes.
+  blocker: null
+  last_verified_commit: 3d02b3a
 
 scenarios:
   - id: S-1
@@ -289,7 +287,7 @@ acceptance_criteria:
     scenario: S-5
     text: Callback ordering and repeated lifecycle events maintain one active attempt and do not crash the Watch process.
     required: true
-    status: failed
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-004, T-APPLE-005, T-APPLE-006, T-SCRIPT-001]
@@ -395,9 +393,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
-        run_id: "remote=macos-peer exit_code=0; 15 tests"
-        subject_commit: 19992658d
-        timestamp: "2026-07-11T20:27:29Z"
+        run_id: "remote=macos-peer exit_code=0; 16 tests"
+        subject_commit: 3d02b3a
+        timestamp: "2026-07-11T21:13:42Z"
   - id: T-APPLE-002
     type: unit
     file: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
@@ -424,8 +422,8 @@ tests:
         status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
         run_id: "remote=macos-peer exit_code=0; 7 tests"
-        subject_commit: 19992658d
-        timestamp: "2026-07-11T20:28:15Z"
+        subject_commit: 3d02b3a
+        timestamp: "2026-07-11T21:14:39Z"
   - id: T-APPLE-003
     type: unit
     file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
@@ -449,9 +447,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
-        run_id: "remote=macos-peer exit_code=0; 15 tests"
-        subject_commit: 19992658d
-        timestamp: "2026-07-11T20:27:29Z"
+        run_id: "remote=macos-peer exit_code=0; 16 tests"
+        subject_commit: 3d02b3a
+        timestamp: "2026-07-11T21:13:42Z"
   - id: T-APPLE-004
     type: manual
     file: supplied TestFlight build-49 crash report and matching archive dSYM
@@ -506,8 +504,8 @@ tests:
         status: passed
         command: python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60
         run_id: "remote=macos-peer exit_code=0; screenshots=5s,30s; startup_status=passed"
-        subject_commit: 19992658d
-        timestamp: "2026-07-11T20:29:00Z"
+        subject_commit: 3d02b3a
+        timestamp: "2026-07-11T21:16:00Z"
   - id: T-SCRIPT-001
     type: pytest
     file: scripts/tests/test_apple_remote_watch_debug.py
@@ -532,8 +530,8 @@ tests:
         status: passed
         command: python3 -m pytest scripts/tests/test_apple_remote_watch_debug.py
         run_id: "3 passed"
-        subject_commit: 19992658d
-        timestamp: "2026-07-11T20:44:00Z"
+        subject_commit: 3d02b3a
+        timestamp: "2026-07-11T21:14:40Z"
   - id: T-APPLE-006
     type: unit
     file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
@@ -557,9 +555,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests/testWatchSendLoginRequestDoesNotInstallOffActorReplyHandler
-        run_id: "remote=macos-peer exit_code=0; 1 test"
-        subject_commit: 37b4559
-        timestamp: "2026-07-11T21:06:50Z"
+        run_id: "remote=macos-peer exit_code=0; 16-test suite includes focused callback contract"
+        subject_commit: 3d02b3a
+        timestamp: "2026-07-11T21:13:42Z"
 
 verifications:
   - id: V-USER-001
@@ -567,15 +565,14 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
-    status: failed
+    status: passed
     evidence:
-      status: failed
-      summary: TestFlight build 52 crashed immediately at launch on physical Apple Watch hardware.
-      reason: The distribution dSYM resolves the crash to the sendLoginRequest dictionary reply closure and thunk on a WatchConnectivity utility queue.
+      status: user_confirmed
+      summary: User confirmed TestFlight build 53 launches and pairing passes on physical Apple Watch hardware.
+      reason: Build 53 contains the symbolicated reply-callback fix from 37b4559 and the strengthened regression contract from 3d02b3a.
       actor: User on physical Apple Watch
-      build: "52"
-      incident_id: 41FA617B-186B-4BCC-AD0F-5E266B630751
-      timestamp: "2026-07-11T20:57:08Z"
+      build: "53"
+      timestamp: "2026-07-11T21:29:00Z"
 
 implementation_plan:
   spec_path: docs/specs/apple-watch-login-v2/spec.yml
@@ -739,7 +736,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Symbolicate build 49 and verify Watch pairing runtime
-    status: in_progress
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-1, S-5]
