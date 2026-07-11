@@ -191,8 +191,8 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertTrue(toolbar.waitForExistence(timeout: 2))
         XCTAssertTrue(undo.waitForExistence(timeout: 2))
         XCTAssertTrue(save.waitForExistence(timeout: 2))
-        XCTAssertFalse(undo.isHittable, "Undo must stay disabled until the canvas has a stroke")
-        XCTAssertFalse(save.isHittable, "Save must stay disabled until the canvas has a stroke")
+        XCTAssertFalse(undo.isEnabled, "Undo must stay disabled until the canvas has a stroke")
+        XCTAssertFalse(save.isEnabled, "Save must stay disabled until the canvas has a stroke")
 
         let strokeStart = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.35))
         let strokeEnd = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.65))
@@ -204,8 +204,8 @@ final class ComposerVisualParityUITests: XCTestCase {
             XCTAssertTrue(control.waitForExistence(timeout: 2), "Missing web-parity drawing control: \(identifier)")
             XCTAssertTrue(control.isHittable, "Drawing control remains unreachable after scrolling: \(identifier)")
         }
-        XCTAssertTrue(waitForHittable(undo), "Undo must become actionable after drawing")
-        XCTAssertTrue(waitForHittable(save), "Save must become actionable after drawing")
+        XCTAssertTrue(waitForEnabled(undo), "Undo must become actionable after drawing")
+        XCTAssertTrue(waitForEnabled(save), "Save must become actionable after drawing")
     }
 
     func testQuickCaptureComposerUsesSameSharedIdentifierContract() throws {
@@ -260,8 +260,8 @@ final class ComposerVisualParityUITests: XCTestCase {
         return false
     }
 
-    private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
-        let predicate = NSPredicate(format: "isHittable == true")
+    private func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "isEnabled == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
