@@ -3706,8 +3706,7 @@ private struct OpenMatesWebHeader: View {
             HStack(alignment: .center, spacing: .spacing4) {
                 if !isChatsPanelOpen {
                     Button(action: onToggleChats) {
-                        // Web: uses the same branded icon treatment as the top-right settings affordance.
-                        WebHamburgerIcon(isOpen: isChatsPanelOpen)
+                        Icon("menu", size: 25)
                             .foregroundStyle(LinearGradient.primary)
                             .frame(width: 25, height: 25)
                     }
@@ -4194,27 +4193,6 @@ private struct MacWindowTitleUpdater: NSViewRepresentable {
     }
 }
 #endif
-
-private struct WebHamburgerIcon: View {
-    let isOpen: Bool
-
-    var body: some View {
-        VStack(spacing: .spacing2) {
-            Capsule()
-                .frame(width: 22, height: 2)
-                .rotationEffect(.degrees(isOpen ? 45 : 0))
-                .offset(y: isOpen ? 7 : 0)
-            Capsule()
-                .frame(width: 22, height: 2)
-                .opacity(isOpen ? 0 : 1)
-            Capsule()
-                .frame(width: 22, height: 2)
-                .rotationEffect(.degrees(isOpen ? -45 : 0))
-                .offset(y: isOpen ? -7 : 0)
-        }
-        .animation(.easeInOut(duration: 0.18), value: isOpen)
-    }
-}
 
 private struct WebMenuDotsIcon: View {
     var body: some View {

@@ -26,6 +26,11 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
         XCTAssertFalse(try boolMetric("chat-panel-open", in: initialLabel))
         XCTAssertTrue(try boolMetric("active-chat-visible", in: initialLabel))
 
+        let githubButton = app.buttons["github-repo-button"]
+        XCTAssertTrue(githubButton.waitForExistence(timeout: 5))
+        XCTAssertEqual(githubButton.frame.width, 42, accuracy: 1)
+        XCTAssertEqual(githubButton.frame.height, 42, accuracy: 1)
+
         XCTAssertTrue(app.buttons["sidebar-toggle"].waitForExistence(timeout: 5))
         app.buttons["sidebar-toggle"].tap()
 
