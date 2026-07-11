@@ -193,7 +193,7 @@ final class StoreManager: ObservableObject {
             body: body
         )
         guard response.success else {
-            throw StoreError.fulfillmentRejected
+            throw StoreError.fulfillmentRejected(AppStrings.billingFulfillmentDelayed)
         }
     }
 
@@ -218,17 +218,14 @@ final class StoreManager: ObservableObject {
 
 enum StoreError: LocalizedError {
     case verificationFailed(String)
-    case productNotFound
-    case fulfillmentRejected
+    case fulfillmentRejected(String)
 
     var errorDescription: String? {
         switch self {
         case .verificationFailed(let reason):
-            return "Transaction verification failed: \(reason)"
-        case .productNotFound:
-            return AppStrings.billingProductNotFound
-        case .fulfillmentRejected:
-            return AppStrings.billingFulfillmentDelayed
+            return reason
+        case .fulfillmentRejected(let message):
+            return message
         }
     }
 }

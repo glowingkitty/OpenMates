@@ -22,10 +22,11 @@ enum SettingsRouteInventory {
     static let webBaseRoutes: Set<String> = [
         "pricing",
         "ai",
-        "app_store",
-        "app_store/all",
+        "apps",
+        "apps/all",
         "settings_memories",
         "privacy",
+        "privacy/connected-accounts",
         "privacy/hide-personal-data",
         "privacy/hide-personal-data/add-name",
         "privacy/hide-personal-data/add-address",
@@ -34,6 +35,7 @@ enum SettingsRouteInventory {
         "privacy/auto-deletion/chats",
         "privacy/auto-deletion/files",
         "privacy/share-debug-logs",
+        "projects",
         "mates",
         "billing",
         "billing/buy-credits",
@@ -64,6 +66,7 @@ enum SettingsRouteInventory {
         "interface/font",
         "account",
         "account/timezone",
+        "account/interests",
         "account/username",
         "account/email",
         "account/security",
@@ -91,6 +94,7 @@ enum SettingsRouteInventory {
         "account/delete",
         "developers",
         "developers/api-keys",
+        "developers/api-keys/create",
         "developers/devices",
         "developers/webhooks",
         "newsletter",
@@ -106,6 +110,7 @@ enum SettingsRouteInventory {
         "server/stats",
         "server/gift-cards",
         "server/free-testing-credits",
+        "server/anonymous-free-usage",
         "server/tests",
         "logs",
     ]
@@ -113,27 +118,11 @@ enum SettingsRouteInventory {
     static let nativeRoutes: Set<String> = [
         "pricing",
         "ai",
-        "app_store",
+        "apps",
+        "apps/all",
         "settings_memories",
         "privacy",
-        "mates",
-        "billing",
-        "notifications",
-        "shared",
-        "interface",
-        "account",
-        "developers",
-        "newsletter",
-        "support",
-        "report_issue",
-        "incognito/info",
-        "learning-mode/setup",
-        "server",
-        "logs",
-    ]
-
-    static let nativeEquivalentOrPlannedRoutes: Set<String> = [
-        "app_store/all",
+        "privacy/connected-accounts",
         "privacy/hide-personal-data",
         "privacy/hide-personal-data/add-name",
         "privacy/hide-personal-data/add-address",
@@ -142,6 +131,9 @@ enum SettingsRouteInventory {
         "privacy/auto-deletion/chats",
         "privacy/auto-deletion/files",
         "privacy/share-debug-logs",
+        "projects",
+        "mates",
+        "billing",
         "billing/buy-credits",
         "billing/buy-credits/payment",
         "billing/buy-credits/confirmation",
@@ -157,15 +149,20 @@ enum SettingsRouteInventory {
         "billing/gift-cards/buy",
         "billing/gift-cards/buy/payment",
         "billing/gift-cards/buy/confirmation",
+        "notifications",
         "notifications/chat",
         "notifications/backup",
+        "shared",
         "shared/share",
         "shared/tip",
         "fork",
+        "interface",
         "interface/language",
         "interface/dark_mode",
         "interface/font",
+        "account",
         "account/timezone",
+        "account/interests",
         "account/username",
         "account/email",
         "account/security",
@@ -191,21 +188,31 @@ enum SettingsRouteInventory {
         "account/storage/other",
         "account/profile-picture",
         "account/delete",
+        "developers",
         "developers/api-keys",
+        "developers/api-keys/create",
         "developers/devices",
         "developers/webhooks",
+        "newsletter",
+        "support",
         "support/one-time",
         "support/monthly",
+        "report_issue",
         "report_issue/confirmation",
+        "incognito/info",
+        "learning-mode/setup",
+        "server",
         "server/software-update",
         "server/stats",
         "server/gift-cards",
         "server/free-testing-credits",
+        "server/anonymous-free-usage",
         "server/tests",
+        "logs",
     ]
 
     static var coveredWebBaseRoutes: Set<String> {
-        nativeRoutes.union(nativeEquivalentOrPlannedRoutes)
+        nativeRoutes
     }
 }
 
@@ -353,6 +360,7 @@ struct SettingsView: View {
                     if isAuthenticated {
                         row(.memories, AppStrings.settingsMemories, icon: "settings_memories")
                         row(.privacy, AppStrings.settingsPrivacy, icon: "privacy")
+                        row(.projects, AppStrings.projects, icon: "project")
                     }
 
                     row(.mates, AppStrings.settingsMates, icon: "mates")
@@ -720,7 +728,7 @@ struct SettingsView: View {
     @MainActor
     private enum SettingsDestination: Hashable {
         // Top-level menu items (matching web settingsRoutes.ts order)
-        case pricing, ai, memories, apps, privacy, mates
+        case pricing, ai, memories, apps, privacy, projects, mates
         case billing, notifications, shared, interface, learningMode
         case account, developers, newsletter, support, reportIssue
         case serverConnection
@@ -735,6 +743,7 @@ struct SettingsView: View {
             case .memories: return AppStrings.settingsMemories
             case .apps: return AppStrings.settingsApps
             case .privacy: return AppStrings.settingsPrivacy
+            case .projects: return AppStrings.projects
             case .mates: return AppStrings.settingsMates
             case .billing: return AppStrings.settingsBilling
             case .notifications: return AppStrings.settingsNotifications
@@ -762,6 +771,7 @@ struct SettingsView: View {
             case .memories: return "settings_memories"
             case .apps: return "app_store"
             case .privacy: return "privacy"
+            case .projects: return "project"
             case .mates: return "mates"
             case .billing: return "billing"
             case .notifications: return "notifications"
@@ -795,6 +805,7 @@ struct SettingsView: View {
             case .memories: return "memories"
             case .apps: return "apps"
             case .privacy: return "privacy"
+            case .projects: return "projects"
             case .mates: return "mates"
             case .billing: return "billing"
             case .notifications: return "notifications"
@@ -822,6 +833,7 @@ struct SettingsView: View {
             case .memories: return LocalizationManager.shared.text("settings.settings_memories.description")
             case .apps: return LocalizationManager.shared.text("settings.app_store.description")
             case .privacy: return LocalizationManager.shared.text("settings.privacy.description")
+            case .projects: return LocalizationManager.shared.text("settings.projects.loading_description")
             case .mates: return LocalizationManager.shared.text("settings.mates.description")
             case .billing: return LocalizationManager.shared.text("settings.billing.description")
             case .notifications: return LocalizationManager.shared.text("settings.notifications.description")
@@ -849,6 +861,7 @@ struct SettingsView: View {
             case .memories: SettingsMemoriesFullView()
             case .apps: SettingsAppsFullView()
             case .privacy: SettingsPrivacySubPage()
+            case .projects: SettingsProjectsView()
             case .mates: SettingsMatesView()
             case .billing: SettingsBillingView(referralCodeRequest: referralCodeRequest)
             case .notifications: SettingsNotificationsView()

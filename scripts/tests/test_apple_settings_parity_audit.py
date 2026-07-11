@@ -15,6 +15,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BILLING_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift"
 STORE_MANAGER = REPO_ROOT / "apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift"
 SETTINGS_SUBPAGES = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift"
+SETTINGS_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift"
+AI_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift"
+DEVELOPER_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift"
+DEVICES_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift"
+NEWSLETTER_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/NewsletterSettingsView.swift"
+PROJECTS_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift"
+LOGS_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsLogsView.swift"
+SERVER_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift"
 
 
 WEB_ROUTES = """
@@ -60,6 +68,10 @@ def test_matching_reachable_routes_pass() -> None:
     """
 
     assert apple_settings_parity_audit.audit_route_contract(WEB_ROUTES, apple_source) == []
+
+
+def test_repository_route_inventory_matches_current_web_routes() -> None:
+    assert apple_settings_parity_audit.audit_repository_routes() == []
 
 
 def test_forbidden_settings_controls_and_stale_endpoints_are_rejected() -> None:
@@ -235,3 +247,69 @@ def test_storekit_finishes_only_after_backend_fulfillment_succeeds() -> None:
         finish = source.index("transaction.finish()", block_start)
         fulfillment = source.index("fulfillOnBackend", block_start)
         assert fulfillment < finish
+
+
+def test_other_settings_use_current_native_contracts() -> None:
+    settings_source = SETTINGS_VIEW.read_text(encoding="utf-8")
+    ai_source = AI_VIEW.read_text(encoding="utf-8")
+    developer_source = DEVELOPER_VIEW.read_text(encoding="utf-8")
+    devices_source = DEVICES_VIEW.read_text(encoding="utf-8")
+    newsletter_source = NEWSLETTER_VIEW.read_text(encoding="utf-8")
+    projects_source = PROJECTS_VIEW.read_text(encoding="utf-8")
+
+    assert "case projects" in settings_source
+    assert "SettingsProjectsView()" in settings_source
+    assert '"projects"' in settings_source
+    assert '"apps"' in settings_source
+    assert '"app_store"' not in apple_settings_parity_audit.extract_swift_string_set(settings_source, "nativeRoutes")
+
+    assert 'path: "/v1/settings/ai-model-defaults"' in ai_source
+    assert "/v1/settings/ai-models" not in ai_source
+    assert "/v1/settings/ai-providers/" not in ai_source
+    assert "default_ai_model_simple" in ai_source
+    assert "default_ai_model_complex" in ai_source
+
+    assert 'path: "/v1/settings/api-keys"' in developer_source
+    assert 'path: "/v1/webhooks"' in developer_source
+    assert 'path: "/v1/settings/api-key-devices"' in devices_source
+    assert "UIApplication.shared.open" not in developer_source
+    assert "NSWorkspace.shared.open" not in developer_source
+
+    for endpoint in (
+        "/v1/newsletter/subscribe",
+        "/v1/newsletter/categories",
+    ):
+        assert endpoint in newsletter_source
+    assert "/v1/settings/newsletter" not in newsletter_source
+
+    for endpoint in (
+        "/v1/projects",
+        "/sources",
+        "/settings",
+    ):
+        assert endpoint in projects_source
+
+
+def test_admin_settings_use_current_routes_and_custom_product_ui() -> None:
+    logs_source = LOGS_VIEW.read_text(encoding="utf-8")
+    server_source = SERVER_VIEW.read_text(encoding="utf-8")
+
+    assert 'path: "/v1/admin/debug/logs?limit=200"' in logs_source
+    assert "/v1/admin/logs" not in logs_source
+    for endpoint in (
+        "/v1/settings/software_update/check",
+        "/v1/settings/software_update/versions",
+        "/v1/settings/software_update/config",
+        "/v1/settings/software_update/install",
+        "/v1/settings/software_update/install_status",
+        "/v1/admin/server-stats",
+        "/v1/admin/generate-gift-cards",
+        "/v1/admin/gift-cards",
+        "/v1/admin/free-testing-credits-budget",
+        "/v1/admin/anonymous-free-usage-budget",
+        "/v1/admin/test-results",
+    ):
+        assert endpoint in server_source
+
+    for path, source in ((LOGS_VIEW, logs_source), (SERVER_VIEW, server_source)):
+        assert apple_settings_parity_audit.audit_swift_source(source, path=path.name) == []

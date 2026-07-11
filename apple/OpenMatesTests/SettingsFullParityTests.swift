@@ -17,11 +17,13 @@ final class SettingsFullParityTests: XCTestCase {
         let missing = SettingsRouteInventory.webBaseRoutes.subtracting(SettingsRouteInventory.coveredWebBaseRoutes)
         XCTAssertTrue(missing.isEmpty, "Missing native settings route coverage: \(missing.sorted())")
 
-        XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("app_store"))
+        XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("apps"))
+        XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("apps/all"))
+        XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("projects"))
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("billing"))
         XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("server"))
-        XCTAssertTrue(SettingsRouteInventory.nativeEquivalentOrPlannedRoutes.contains("app_store/all"))
-        XCTAssertTrue(SettingsRouteInventory.nativeEquivalentOrPlannedRoutes.contains("account/security/recovery-key"))
+        XCTAssertTrue(SettingsRouteInventory.nativeRoutes.contains("account/security/recovery-key"))
+        XCTAssertEqual(SettingsRouteInventory.webBaseRoutes, SettingsRouteInventory.nativeRoutes)
     }
 
     func testEnhancedPIIModelSettingsLifecycle() async {
