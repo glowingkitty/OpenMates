@@ -18,6 +18,12 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         assertHittable("settings-privacy-policy-link", in: app)
         assertHittable("settings-privacy-connected-accounts-row", in: app)
         assertHittable("settings-privacy-location-toggle", in: app)
+
+        element("settings-privacy-connected-accounts-row", in: app).tap()
+        XCTAssertTrue(element("privacy-connected-accounts-page", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element("privacy-connected-account-row", in: app).exists)
+        element("settings-privacy-subpage-back", in: app).tap()
+
         scrollTo("settings-privacy-auto-delete-chats-row", in: app)
         scrollUntilExists("settings-privacy-files-retention-row", in: app)
         scrollUntilExists("settings-privacy-usage-retention-row", in: app)
@@ -25,11 +31,6 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         scrollUntilExists("settings-privacy-invoices-retention-row", in: app)
         scrollTo("settings-privacy-stability-toggle", in: app)
         scrollTo("settings-privacy-debug-toggle", in: app)
-
-        element("settings-privacy-connected-accounts-row", in: app).tap()
-        XCTAssertTrue(element("privacy-connected-accounts-page", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(element("privacy-connected-account-row", in: app).exists)
-        element("settings-privacy-subpage-back", in: app).tap()
 
         scrollTo("settings-privacy-auto-delete-chats-row", in: app)
         element("settings-privacy-auto-delete-chats-row", in: app).tap()

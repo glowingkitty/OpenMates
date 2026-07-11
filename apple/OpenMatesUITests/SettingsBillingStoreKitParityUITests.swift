@@ -75,7 +75,12 @@ final class SettingsBillingStoreKitParityUITests: XCTestCase {
     }
 
     private func returnToBillingHub(in app: XCUIApplication) {
-        app.descendants(matching: .any)["settings-billing-subview-back"].tap()
+        let explicitBack = app.buttons["settings-billing-subview-back"].firstMatch
+        if explicitBack.exists {
+            explicitBack.tap()
+        } else {
+            app.buttons["settings-billing-page"].firstMatch.tap()
+        }
         XCTAssertTrue(waitForElement("settings-billing-hub", in: app, timeout: 5))
     }
 
