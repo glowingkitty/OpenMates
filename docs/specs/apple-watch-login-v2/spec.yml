@@ -546,11 +546,11 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests/testWatchSendLoginRequestDoesNotInstallOffActorReplyHandler
+        run_id: "remote=macos-peer exit_code=65; 1 test, 2 assertion failures"
+        subject_commit: cf6ef29
+        timestamp: "2026-07-11T21:04:34Z"
     green_phase:
       required: true
       expected: pass

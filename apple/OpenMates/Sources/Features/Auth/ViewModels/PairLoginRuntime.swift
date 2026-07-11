@@ -443,7 +443,6 @@ enum WatchPairLoginConnectivityPayload {
 @MainActor
 final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate {
     @Published private(set) var isPhoneReachable = false
-    @Published private(set) var didSendRequest = false
 
     private let diagnosticsCategory = "watch_pair_login"
 
@@ -468,7 +467,6 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     func sendLoginRequest(_ request: WatchPairLoginRequest) -> Bool {
         guard WCSession.isSupported(), WCSession.default.isReachable else {
             isPhoneReachable = false
-            didSendRequest = false
             NativeDiagnostics.warning(
                 "phase=bridge.send.skipped reason=notReachable supported=\(WCSession.isSupported()) serverKind=\(request.serverProfile.diagnosticsKind)",
                 category: diagnosticsCategory
@@ -476,26 +474,14 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             return false
         }
         isPhoneReachable = true
-        didSendRequest = true
         NativeDiagnostics.info(
             "phase=bridge.send.start serverKind=\(request.serverProfile.diagnosticsKind) reachable=\(WCSession.default.isReachable)",
             category: diagnosticsCategory
         )
         WCSession.default.sendMessage(
             WatchPairLoginConnectivityPayload.requestMessage(request),
-            replyHandler: { message in
-                guard let approval = WatchPairLoginConnectivityPayload.parseApproval(message) else { return }
-                self.dispatchToMain { bridge in
-                    NativeDiagnostics.info("phase=bridge.send.replyApproval", category: bridge.diagnosticsCategory)
-                    bridge.approvalHandler?(approval)
-                }
-            },
-            errorHandler: { _ in
-                self.dispatchToMain { bridge in
-                    bridge.didSendRequest = false
-                    NativeDiagnostics.warning("phase=bridge.send.failed reason=sendMessageError", category: bridge.diagnosticsCategory)
-                }
-            }
+            replyHandler: nil,
+            errorHandler: nil
         )
         return true
     }

@@ -258,7 +258,9 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         let methodSource = source[methodStart.lowerBound..<methodEnd.lowerBound]
 
         XCTAssertTrue(methodSource.contains("replyHandler: nil"))
+        XCTAssertTrue(methodSource.contains("errorHandler: nil"))
         XCTAssertFalse(methodSource.contains("replyHandler: {"))
+        XCTAssertFalse(methodSource.contains("errorHandler: {"))
     }
 
     func testDecryptLoginBundleReturnsBundleAndMasterKey() async throws {
