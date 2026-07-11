@@ -20,7 +20,11 @@ final class SettingsAppsParityUITests: XCTestCase {
 
         XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
         XCTAssertTrue(waitForElement("settings-apps-row", in: app, timeout: 5))
-        app.descendants(matching: .any)["settings-apps-row"].tap()
+        let appsRow = app.descendants(matching: .any)["settings-apps-row"].firstMatch
+        appsRow.tap()
+        if !app.descendants(matching: .any)["settings-app-store-page"].waitForExistence(timeout: 3) {
+            appsRow.tap()
+        }
 
         XCTAssertTrue(waitForElement("settings-app-store-page", in: app, timeout: 10))
         XCTAssertTrue(waitForElement("settings-show-all-apps-row", in: app, timeout: 5))
