@@ -6013,33 +6013,30 @@ private struct WelcomeResumeCompactCard: View {
     let width: CGFloat
     let onTap: () -> Void
     let onLongPress: () -> Void
-    @State private var lastLongPressAt: Date?
+    @State private var suppressNextTap = false
 
     var body: some View {
-        Button(action: handleTap) {
-            HStack(spacing: .spacing6) {
-                WelcomeCardIcon(name: card.iconName, size: 18)
-                    .frame(width: 18, height: 18)
+        HStack(spacing: .spacing6) {
+            WelcomeCardIcon(name: card.iconName, size: 18)
+                .frame(width: 18, height: 18)
 
-                Text(card.title)
-                    .font(.custom("Lexend Deca", size: 16).weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.96))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+            Text(card.title)
+                .font(.custom("Lexend Deca", size: 16).weight(.semibold))
+                .foregroundStyle(.white.opacity(0.96))
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                if card.isPinned {
-                    Icon("pin", size: 14)
-                        .foregroundStyle(.white.opacity(0.9))
-                        .frame(width: 18, height: 18)
-                }
-
-                LucideNativeIcon("chevron-right", size: 16)
-                    .foregroundStyle(.white.opacity(0.88))
-                    .frame(width: 16, height: 16)
+            if card.isPinned {
+                Icon("pin", size: 14)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .frame(width: 18, height: 18)
             }
+
+            LucideNativeIcon("chevron-right", size: 16)
+                .foregroundStyle(.white.opacity(0.88))
+                .frame(width: 16, height: 16)
         }
-        .buttonStyle(.plain)
         .padding(.horizontal, .spacing8)
         .padding(.vertical, .spacing5)
         .frame(width: width)
@@ -6052,10 +6049,11 @@ private struct WelcomeResumeCompactCard: View {
         )
         .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
         .contentShape(RoundedRectangle(cornerRadius: .radius8))
-        .highPriorityGesture(
+        .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.6)
                 .onEnded { _ in handleLongPress() }
         )
+        .onTapGesture(perform: handleTap)
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
         .accessibilityAddTraits(.isButton)
@@ -6065,16 +6063,20 @@ private struct WelcomeResumeCompactCard: View {
     }
 
     private func handleTap() {
-        if let lastLongPressAt, Date().timeIntervalSince(lastLongPressAt) < 1 {
-            self.lastLongPressAt = nil
+        guard !suppressNextTap else {
+            suppressNextTap = false
             return
         }
         onTap()
     }
 
     private func handleLongPress() {
-        lastLongPressAt = Date()
+        suppressNextTap = true
         onLongPress()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            suppressNextTap = false
+        }
     }
 }
 

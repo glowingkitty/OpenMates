@@ -238,10 +238,16 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-07-11T22:57:42Z"
     reason: The card became discoverable and title-only rendering passed, but simultaneous long press allowed the tap action to win on release. The assertion also expected Pin even though the deterministic first fixture card is pinned and correctly exposes Unpin.
+  - id: ATTEMPT-17
+    task_id: TASK-6
+    approach: Replace the compact card's conflicting SwiftUI Button gesture stack with the proven large-card tap and long-press interaction surface while preserving button accessibility semantics.
+    outcome: planned
+    recorded_at: "2026-07-11T23:04:00Z"
+    reason: The user approved this distinct architecture after both simultaneous and high-priority Button gesture variants failed.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Give compact-card long press priority over tap, assert the pinned fixture's Unpin action, deploy, sync, and rerun the focused phone UI test.
+  next_action: Deploy the large-card interaction pattern for compact cards, sync the remote checkout, and rerun both focused phone card tests.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress"
   expected_outcome: The compact recent card renders title-only and opens the custom actions menu on long press.
   blocker:
