@@ -115,6 +115,87 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertFalse(WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(request, currentProfile: .development))
     }
 
+    func testWatchPairAttemptDefaultsToOneImmutableProductionAttempt() throws {
+        var state = WatchPairAttemptState()
+
+        let generation = state.begin(serverProfile: .production)
+        let duplicateGeneration = state.ensureCurrentAttempt(serverProfile: .production)
+        let initiation = PairLoginInitiation(
+            token: "abc123",
+            pairURLString: "https://openmates.org/#pair=ABC123"
+        )
+
+        XCTAssertEqual(generation, 1)
+        XCTAssertEqual(duplicateGeneration, generation)
+        XCTAssertTrue(state.accept(initiation, generation: generation, serverProfile: .production))
+        XCTAssertEqual(state.serverProfile, .production)
+        XCTAssertEqual(state.token, "ABC123")
+        XCTAssertEqual(state.pairURLString, "https://openmates.org/#pair=ABC123")
+    }
+
+    func testWatchPairAttemptRejectsStaleCallbacksAfterSelfHostedReplacement() {
+        var state = WatchPairAttemptState()
+        let productionGeneration = state.begin(serverProfile: .production)
+        let development = ServerProfile.custom(domain: "app.dev.openmates.org")
+        let developmentGeneration = state.begin(serverProfile: development)
+
+        XCTAssertFalse(state.accept(
+            PairLoginInitiation(token: "old111", pairURLString: "https://openmates.org/#pair=OLD111"),
+            generation: productionGeneration,
+            serverProfile: .production
+        ))
+        XCTAssertTrue(state.accept(
+            PairLoginInitiation(token: "new222", pairURLString: "https://app.dev.openmates.org/#pair=NEW222"),
+            generation: developmentGeneration,
+            serverProfile: development
+        ))
+        XCTAssertEqual(state.serverProfile, development)
+        XCTAssertEqual(state.token, "NEW222")
+    }
+
+    func testWatchServerProfileStorePersistsOnlyExplicitSuccessfulLogin() throws {
+        let suiteName = "WatchPairLoginRuntimeTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = WatchServerProfileStore(defaults: defaults)
+        let development = ServerProfile.custom(domain: "app.dev.openmates.org")
+
+        XCTAssertEqual(store.currentProfile(), .production)
+        XCTAssertEqual(store.currentProfile(), .production, "Selecting a server must not persist it before login succeeds")
+
+        store.saveSuccessfulProfile(development)
+        XCTAssertEqual(store.currentProfile(), development)
+
+        store.resetToProduction()
+        XCTAssertEqual(store.currentProfile(), .production)
+    }
+
+    func testIPhoneApprovalEligibilityRequiresAuthenticationAndExactServer() {
+        let request = WatchPairLoginRequest(
+            token: "abc123",
+            pairURLString: "https://openmates.org/#pair=ABC123",
+            deviceName: "OpenMates Apple Watch app",
+            serverProfile: .production,
+            createdAt: 1_777_777_779
+        )
+
+        XCTAssertTrue(WatchPairLoginConnectivityPayload.shouldOfferApproval(
+            for: request,
+            currentProfile: .production,
+            isAuthenticated: true
+        ))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.shouldOfferApproval(
+            for: request,
+            currentProfile: .development,
+            isAuthenticated: true
+        ))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.shouldOfferApproval(
+            for: request,
+            currentProfile: .production,
+            isAuthenticated: false
+        ))
+    }
+
     func testWatchConnectivityApprovalPayloadContainsOnlyPinAndToken() {
         let approval = WatchPairLoginApproval(token: "abc123", pin: "A3F8Q6")
 

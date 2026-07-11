@@ -1,455 +1,477 @@
+schema_version: 2
 id: apple-watch-login-v2
-title: Apple Watch Login V2 Server Profiles And Crash-Safe Startup
-status: implementing
+title: Apple Watch Production-First Pair Login
+status: approved
 
 goal: >
-  Make Apple Watch login reliable across production, dev, and self-hosted
-  OpenMates servers by introducing an explicit server-profile contract shared
-  between iPhone and Watch, preventing environment-mismatched pair approvals,
-  supporting custom domains for self-hosters, and requiring deterministic
-  Watch startup/crash evidence before TestFlight uploads.
+  Make Apple Watch login simple and crash-safe: start on OpenMates production,
+  keep self-hosting behind one optional manual URL action, always expose the
+  regular pair code and optional QR code, and use iPhone approval only when the
+  phone is reachable and authenticated to the exact same server.
 
 scope:
   in:
-    - A reusable Apple `ServerProfile` contract for production, dev, and custom self-hosted servers.
-    - Watch server selection when no iPhone profile is available, including custom domain entry.
-    - iPhone-to-Watch synchronization of the iPhone app's active logged-in server profile through WatchConnectivity.
-    - Pair-login token creation, pair URL display, iPhone approval, and Watch completion all bound to the same server profile.
-    - Explicit iPhone approval UI that blocks environment mismatches and expired/missing pair tokens with actionable messages.
-    - Watch startup behavior that survives network errors, token creation failures, missing localization/fonts, unreachable iPhone, and invalid server profiles without crashing.
-    - Remote Mac/TestFlight debugging workflow for Watch startup crashes, device logs, screenshots, and crash reports.
-    - Deterministic `apple_remote.py` verification command for Watch startup/login idle stability before upload.
+    - Production pair login starts automatically when an unauthenticated Watch has no remembered self-hosted profile.
+    - One "Connect self-hosted edition" action reveals a manual HTTPS URL field; app.dev.openmates.org uses this path.
+    - A validated self-hosted URL starts a fresh pair attempt and is remembered after successful login.
+    - Every active attempt shows its six-character pair code and a "Show QR code" action without waiting for iPhone detection.
+    - A matching reachable iPhone may offer explicit approval in parallel with code and QR pairing.
+    - A mismatched iPhone never changes the Watch server, restarts pairing, or hides the regular fallback.
+    - WatchConnectivity callbacks, server changes, network failures, and repeated view lifecycle events cannot crash or create overlapping attempts.
+    - Build-49 crash symbolication and deterministic Watch startup/pairing verification remain required evidence.
   out:
-    - Silent iPhone approval or automatic login without explicit user consent.
-    - Separate watchOS-only TestFlight distribution as the primary shipping path.
-    - Native signup, password login, passkey login, recovery-key login, or billing on Watch.
-    - CloudKit, iCloud Keychain, or Apple account-based transfer of OpenMates encryption keys.
-    - Full self-host installer changes beyond optional discovery metadata consumed by Apple clients.
-    - Sending raw auth cookies, session tokens, WebSocket tokens, encrypted bundles, plaintext master keys, or private user data over WatchConnectivity.
+    - Production and development server selector buttons on the default Watch login screen.
+    - iPhone-to-Watch server-profile overrides or automatic server switching.
+    - Silent iPhone approval without explicit consent.
+    - Native signup, password, passkey, recovery-key, or billing flows on Watch.
+    - New backend auth endpoints or changed pair-login cryptography.
+    - Sending auth cookies, session tokens, encrypted bundles, plaintext master keys, or private user data over WatchConnectivity.
 
 context_discovery:
   github_issues:
-    - "GitHub MCP get_me returned 401 Bad credentials in this session."
-    - "Existing Watch specs record previous GitHub issue searches with no matching public issues."
+    - "GitHub MCP authentication returned 401; gh issue search for Watch pair login, WatchConnectivity, Apple Watch login, and QR login returned no matches."
   docs:
     - docs/specs/apple-watch-support/spec.yml
     - docs/specs/apple-watch-auto-login/spec.yml
-    - docs/architecture/platforms/cli-package.md
-    - docs/self-hosting/setup.md
-    - docs/contributing/guides/git-and-deployment.md
     - docs/contributing/guides/spec-driven-development.md
-    - "Apple Developer Documentation: Acquiring crash reports and diagnostic logs"
+    - docs/self-hosting/setup.md
+    - apple/AGENTS.md
   code_patterns:
-    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift already persists a selected web domain and derives API URLs for prod, dev, and app.* custom domains.
-    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift currently uses `APIClient.shared` and `APIClient.shared.webAppURL`, so Watch pair token creation and iPhone approval can accidentally target different environments.
-    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift WatchConnectivity request payload currently contains token, pair URL, device name, and timestamp only; it does not include server profile identity or endpoint metadata.
-    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift initiates a pair token immediately on task start and sends iPhone requests when reachable, but has no pre-token server selection state.
-    - apple/OpenMates/Sources/App/MainAppView.swift presents pending iPhone Watch approval but currently surfaces raw backend 404 failures for mismatched or expired tokens.
-    - scripts/apple_remote.py can build/test/install/launch via the remote Mac wrapper but lacks a single deterministic Watch startup verifier that collects crash logs and screenshots.
-    - CLI pair-auth docs derive app URL from API URL for self-hosted installs, and installed self-host configs already model API targeting priority.
+    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift currently starts token creation on task entry, renders Production and Dev buttons plus a custom-domain field, and may restart when an iPhone application context supplies another profile.
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift owns both pair API sequencing and WatchConnectivity bridges.
+    - WatchPhoneLoginBridge currently accepts iPhone application-context server profiles and invokes the view callback from WatchConnectivity lifecycle callbacks.
+    - ServerProfile already derives production, app.dev.openmates.org, and app.* self-hosted web/API/WebSocket endpoints.
+    - scripts/apple_remote.py already verifies Watch startup lifetime, crash reports, screenshots, and logs.
+    - The supplied TestFlight build-49 report is EXC_BREAKPOINT/SIGTRAP on a WatchConnectivity utility queue with two unsymbolicated OpenMatesWatch frames; this implicates the handoff path but does not prove a source line without the matching dSYM.
   tests:
     - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
     - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
-    - scripts/tests/test_apple_remote_testflight.py
+    - scripts/tests/test_apple_remote_watch_debug.py
 
 apple_impact:
   affected_files:
     - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
     - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
     - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
-    - apple/OpenMatesWatch/Sources/WatchRootView.swift
     - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
-    - apple/OpenMates/Sources/App/MainAppView.swift
     - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
     - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
     - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
     - scripts/apple_remote.py
-    - scripts/tests/test_apple_remote_testflight.py
     - scripts/tests/test_apple_remote_watch_debug.py
   parity_expectations:
-    - Watch and iPhone must use the same selected OpenMates server for one login attempt.
-    - Dev, prod, and self-hosted server selection follows the same intent as CLI/API URL targeting while remaining native and explicit on Watch.
-    - Watch remains an independent client after login; iPhone only supplies server-profile context and explicit pair-login approval.
-    - Native UI stays OpenMates-styled and must not introduce stock product chrome for app-owned login states.
+    - Pair-login API and cryptographic behavior remains identical to web, CLI, and iPhone pair login.
+    - Watch owns the selected server for its attempt; iPhone reachability is an optional approval transport, not configuration authority.
+    - Watch remains an independent authenticated client after login.
+    - Product UI uses generated OpenMates tokens and custom controls rather than stock product chrome.
   verification:
-    - python3 scripts/spec_validate.py docs/specs/apple-watch-login-v2/spec.yml
-    - python3 -m pytest scripts/tests/test_apple_remote_testflight.py scripts/tests/test_apple_remote_watch_debug.py
     - python3 scripts/apple_remote.py status
-    - python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
     - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
     - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
+    - python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
     - python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60
   intentional_native_differences:
-    - Watch may use a compact custom server picker instead of the full iPhone settings screen.
-    - Custom self-host profile setup can use native text fields and confirmation dialogs, but not default `Form`, `List`, or stock sheets.
+    - Watch uses a full-screen QR view sized for scanning.
+    - The self-hosted URL field is compact for Watch but preserves the same server endpoint semantics.
 
 clarification:
   rounds:
-    - question: Should users be able to select a custom/self-hosted domain on Apple Watch, and should a connected iPhone send the actual logged-in account domain to Watch?
-      answer: Yes. Users must be able to select a custom domain for self-hosting, and the connected phone should submit the actual domain used for the logged-in account to the Watch.
+    - question: What should happen when the reachable iPhone is logged into a different server?
+      answer: Keep the Watch server and use the regular code/QR fallback; the iPhone must not override it.
+    - question: When should code and QR fallback become available?
+      answer: Always show the code immediately while trying a matching iPhone in parallel.
+    - question: Should a successfully used self-hosted server be remembered?
+      answer: Yes; remember it until the user explicitly changes or clears the Watch login server.
+    - question: Does the production-first, optional self-host URL, always-visible fallback flow match the intended product experience?
+      answer: Approved.
   vision_summary: >
-    Watch login must be environment-aware. If the iPhone is connected and logged
-    into dev, prod, or a self-hosted server, Watch uses that same server profile
-    for token creation, fallback URL display, and iPhone approval. If the Watch
-    is standalone, users can choose OpenMates production, OpenMates dev in debug
-    builds, or add a custom HTTPS self-hosted server profile before creating a
-    pair token.
+    Pairing has one default path and one optional server override. Production
+    starts automatically, self-host users enter one URL, code and QR are always
+    available, and a matching iPhone adds explicit approval without controlling
+    the Watch server or pairing lifecycle.
   approved_by_user: true
+
+implementation_state:
+  subject_commit: e1009993a
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-11T17:45:00Z"
+    reason: User explicitly approved the summarized production-first and matching-iPhone-only flow.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-11T17:55:00Z"
+    reason: User explicitly approved the immutable Watch-owned attempt state machine and test-first verification plan.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: The Watch owns server selection; iPhone application context cannot replace it.
+    reason: Server overrides make pairing unpredictable and can restart an active attempt.
+    decided_at: "2026-07-11T17:45:00Z"
+  - id: D-2
+    status: active
+    decision: Production is the implicit default and self-hosting is one optional manual URL flow.
+    reason: Most users need no server decision, while self-host users retain explicit control.
+    decided_at: "2026-07-11T17:45:00Z"
+  - id: D-3
+    status: active
+    decision: Pair code and QR remain visible while matching-iPhone approval is attempted in parallel.
+    reason: Pairing must not depend on unreliable reachability timing or hidden fallback controls.
+    decided_at: "2026-07-11T17:45:00Z"
+  - id: D-4
+    status: active
+    decision: Persist a self-hosted profile only after successful login.
+    reason: A mistyped or unreachable URL must not replace the last known working server.
+    decided_at: "2026-07-11T17:45:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-2
+    approach: Show Production, Dev, and custom server controls while starting pairing immediately and accepting iPhone profile overrides.
+    outcome: rejected
+    recorded_at: "2026-07-11T17:45:00Z"
+    reason: User reports dev selection creates no code and production crashes; the flow also permits overlapping server and connectivity transitions.
+  - id: ATTEMPT-2
+    task_id: TASK-3
+    approach: Treat the build-49 utility-queue crash as proven to be a specific callback implementation without symbolication.
+    outcome: rejected
+    recorded_at: "2026-07-11T17:45:00Z"
+    reason: The crash report lacks symbols; source-line attribution requires the matching dSYM or a deterministic reproduction.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Write and run the state-machine and UI contract tests against current source.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests --only-testing OpenMatesTests/WatchEmbedPreviewTests
+  expected_outcome: Tests fail because the production-first attempt model and simplified UI contract do not exist yet.
+  blocker: null
+  last_verified_commit: e1009993a
 
 scenarios:
   - id: S-1
-    title: Connected iPhone provides active server profile to Watch
+    title: Production pairing starts with code and QR available
     given:
-      - Alice is logged into the iPhone app on `app.dev.openmates.org`.
-      - Alice opens the unauthenticated Watch app and the paired iPhone is reachable.
+      - Alice opens an unauthenticated Watch with no remembered self-hosted profile.
     when:
-      - WatchConnectivity activates.
+      - The login view becomes active.
     then:
-      - The iPhone sends its active `ServerProfile` to Watch through application context or direct message.
-      - The profile identifies the dev web, API, WebSocket, and upload endpoints.
-      - The Watch displays the dev server label and creates pair tokens only against the dev API.
+      - Exactly one token is created against api.openmates.org.
+      - The six-character code is visible as soon as initiation succeeds.
+      - A "Show QR code" button opens the production pair URL.
+      - No Production or Dev selector is shown.
+
   - id: S-2
-    title: Watch uses selected custom self-hosted server without iPhone
+    title: Self-hosted URL starts a fresh stable attempt
     given:
-      - Bob runs a self-hosted OpenMates server at `https://chat.example.com`.
-      - Bob opens the Watch app while no iPhone profile is reachable.
+      - Bob needs app.dev.openmates.org or another HTTPS self-hosted server.
     when:
-      - Bob chooses Add Custom Server and enters the custom domain.
+      - Bob taps "Connect self-hosted edition", enters the URL, and confirms it.
     then:
-      - Watch validates HTTPS and resolves endpoints through discovery or explicit advanced fields.
-      - Watch stores the custom `ServerProfile` locally.
-      - Watch creates the pair token and QR/fallback URL for that self-hosted profile.
+      - The URL is validated before token creation.
+      - Any production attempt is cancelled before one self-hosted attempt starts.
+      - Code and QR use the self-hosted web URL and API endpoint.
+      - The profile is persisted only after successful login.
+
   - id: S-3
-    title: iPhone blocks mismatched environment approval
+    title: Matching iPhone offers explicit approval in parallel
     given:
-      - The iPhone is logged into `app.dev.openmates.org`.
-      - The Watch sends or displays a pair request for `openmates.org`.
+      - The Watch has an active production or self-hosted token.
+      - A reachable iPhone is authenticated to the exact same server.
     when:
-      - Alice opens the iPhone approval sheet.
+      - WatchConnectivity delivers the request.
     then:
-      - The iPhone shows a mismatch message naming both environments.
-      - The Allow button is disabled or replaced by a Start New Watch Request action.
-      - The iPhone does not call pair authorize against either environment.
+      - The iPhone offers explicit approval.
+      - The Watch continues showing code and QR while waiting.
+      - Approval returns only PIN and non-secret status metadata.
+      - Watch completes login against the server that created the token.
+
   - id: S-4
-    title: iPhone approval succeeds for same-profile fresh token
+    title: Mismatched or unavailable iPhone does not alter pairing
     given:
-      - The iPhone and Watch both use the same `ServerProfile`.
-      - The Watch created a fresh pair token on that profile.
+      - The Watch has an active token for one server.
+      - The iPhone is unreachable or authenticated to another server.
     when:
-      - Alice explicitly taps Allow Watch Login on iPhone.
+      - Reachability or application context changes.
     then:
-      - The iPhone authorizes the token against the same API base URL.
-      - The Watch receives only the generated PIN/status metadata and completes pair login against the same API base URL.
-      - The Watch stores its own session and master key locally.
+      - The Watch server and active token remain unchanged.
+      - No replacement token is created due to iPhone state.
+      - Code and QR pairing remains available.
+
   - id: S-5
-    title: Expired or missing token is recoverable and not raw backend copy
+    title: Pairing transitions cannot crash or overlap
     given:
-      - The iPhone approval sheet is opened after the token expired or against a server where the token does not exist.
+      - WatchConnectivity activation, reachability, application-context, SwiftUI task, and network callbacks may arrive in any order.
     when:
-      - The iPhone attempts to validate or authorize the request.
+      - The login view starts, restarts, changes to self-hosted, or receives iPhone callbacks.
     then:
-      - The UI says the Watch request expired or is no longer valid.
-      - The UI asks the user to start a new request on Watch.
-      - The raw backend text `Pair token not found or expired` is not shown as the primary user-facing error.
+      - State mutation occurs on the required actor.
+      - At most one initiation and one polling task are active.
+      - Stale callbacks cannot mutate the current attempt.
+      - The Watch process remains alive and errors are recoverable.
+
   - id: S-6
-    title: Watch startup remains alive for crash-debug window
+    title: Remembered self-hosted login restores the correct server
     given:
-      - The Watch app is installed from the same archive/TestFlight candidate that will be uploaded.
+      - Bob previously completed login against a validated self-hosted profile.
     when:
-      - The remote verifier launches the Watch app and waits 60 seconds.
+      - The Watch restores its session or later returns to unauthenticated pairing.
     then:
-      - The Watch process remains alive or exits only through an expected user/system action recorded by the verifier.
-      - No crash, watchdog, invalid-signature, or jetsam report is generated for the launch window.
-      - Screenshots and logs prove the visible state at 5 seconds and 30 seconds.
-  - id: S-7
-    title: TestFlight Watch crash diagnostics are collectable
-    given:
-      - A tester reports a Watch crash from TestFlight.
-    when:
-      - The team investigates the report.
-    then:
-      - The team checks Xcode Organizer crashes for the TestFlight build.
-      - If Organizer lacks the report, the tester can retrieve Watch crash logs from the paired iPhone diagnostics or share analytics data.
-      - For live reproduction, the team can install Apple's watchOS logging profile on the paired iPhone, use Console.app, and collect filtered logs.
+      - The successful self-hosted profile is restored.
+      - Failed URL attempts never replace it.
+      - An explicit server reset returns pairing to production.
 
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: A connected logged-in iPhone sends the exact active server profile to Watch, and Watch pair-token creation uses that profile's API endpoint.
+    text: A fresh unauthenticated Watch creates exactly one production token and immediately exposes code and QR without server selector buttons.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-001, T-APPLE-002, T-APPLE-005]
+  - id: AC-2
+    scenario: S-2
+    text: The optional self-hosted URL flow validates HTTPS, cancels the prior attempt, and creates one profile-scoped replacement attempt.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-002]
-  - id: AC-2
-    scenario: S-2
-    text: Watch supports custom HTTPS self-hosted server profiles through discovery or explicit advanced endpoint fields before pair-token creation.
+  - id: AC-3
+    scenario: S-3
+    text: A matching iPhone can explicitly approve while code and QR remain available, and WatchConnectivity contains no forbidden secrets.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-003]
-  - id: AC-3
-    scenario: S-3
-    text: iPhone approval blocks server-profile mismatches and does not authorize tokens across prod/dev/custom boundaries.
-    required: true
-    status: pending
-    coverage_status: covered
-    verification_scope: apple
-    verification_ids: [T-APPLE-002]
   - id: AC-4
     scenario: S-4
-    text: Same-profile iPhone approval authorizes and completes Watch pair login without sending forbidden secrets over WatchConnectivity.
+    text: Unreachable or mismatched iPhone state never changes the Watch server, token, or fallback visibility.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: apple
-    verification_ids: [T-APPLE-002]
+    verification_ids: [T-APPLE-001, T-APPLE-003]
   - id: AC-5
     scenario: S-5
-    text: Expired or missing token states are actionable and do not expose raw backend 404 wording as the primary user-facing message.
+    text: Callback ordering and repeated lifecycle events maintain one active attempt and do not crash the Watch process.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: apple
-    verification_ids: [T-APPLE-002, T-APPLE-004]
+    verification_ids: [T-APPLE-001, T-APPLE-004, T-APPLE-005]
   - id: AC-6
     scenario: S-6
-    text: Watch startup verifier proves the app remains alive for 60 seconds and collects logs, crash-report scan results, and screenshots before TestFlight upload.
+    text: Only a successfully authenticated self-hosted profile is persisted, restored, and removable through explicit reset.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: apple
-    verification_ids: [T-SCRIPT-001, T-APPLE-005]
-  - id: AC-7
-    scenario: S-7
-    text: The debugging workflow documents Organizer, paired-iPhone diagnostics, Console.app logging profile, and simulator crash-log collection for Watch crashes.
-    required: true
-    status: pending
-    coverage_status: covered
-    verification_scope: custom
-    verification_ids: [T-SCRIPT-001]
+    verification_ids: [T-APPLE-001]
 
 assumptions:
   - id: A-1
-    text: Existing Apple `ServerConfiguration` can be extended into a richer `ServerProfile` without changing backend auth endpoints.
+    text: The existing pair initiate, poll, authorize, complete, and login endpoints require no backend changes.
     category: architecture
     required_before: implementation
     status: confirmed
     evidence:
-      - source: apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
-        summary: Current code already stores selected/custom domains and derives API URLs for prod, dev, and app.* custom domains.
+      - source: apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+        summary: Current production, dev, and custom profile calls already use the existing pair endpoints.
   - id: A-2
-    text: Custom self-hosted servers may not yet expose a discovery document, so advanced manual endpoint entry is required for V2.
+    text: app.* self-hosted domains can continue deriving api.* endpoints through ServerProfile for this slice.
     category: self_hosting
     required_before: implementation
     status: confirmed
     evidence:
-      - source: docs/self-hosting/setup.md
-        summary: Self-hosting docs describe local API targets and CLI server config but no mandatory Apple discovery document.
+      - source: apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+        summary: Existing tests and configuration derive app.dev to api.dev and app.<host> to api.<host>.
   - id: A-3
-    text: TestFlight Watch crash reports may be delayed or absent from Organizer, so direct device/simulator log collection remains required.
+    text: Exact build-49 source attribution requires the matching archived dSYM.
     category: debugging
-    required_before: implementation
-    status: confirmed
+    required_before: completion
+    status: checking
     evidence:
-      - source: Apple Developer Documentation, Acquiring crash reports and diagnostic logs
-        summary: Organizer collects TestFlight crashes, but watchdog, invalid-signature, thermal, and jetsam events require direct device logs.
+      - source: supplied TestFlight crash report
+        summary: Binary UUID and offsets are present, but app frames are not symbolicated.
 
 contracts:
   api:
     - route: POST /v1/auth/pair/initiate
-      behavior: Called by Watch against the selected `ServerProfile.apiBaseURL` only.
+      behavior: Called once per current Watch attempt against that attempt's immutable server profile.
       errors:
-        - Network or 4xx/5xx errors keep Watch on a recoverable server/login state and do not crash.
+        - Network and HTTP errors render a recoverable retry state and do not persist the attempted profile.
+    - route: GET /v1/auth/pair/poll/{token}
+      behavior: Polling is scoped to the current token and immutable server profile; stale results are ignored.
     - route: POST /v1/auth/pair/authorize/{token}
-      behavior: Called by iPhone against the request profile only after profile match and explicit user consent.
-      errors:
-        - 404 or expired token maps to a restart-request message.
+      behavior: Called by iPhone only after exact profile match and explicit user approval.
     - route: POST /v1/auth/pair/complete/{token}
-      behavior: Called by Watch against the same profile after receiving PIN approval.
+      behavior: Called by Watch against the same profile that created the token.
   data:
-    - name: ServerProfile
+    - name: WatchPairAttempt
       fields:
-        id: "Stable identifier such as `prod`, `dev`, or custom UUID."
-        display_name: "User-visible label, for example `OpenMates`, `OpenMates Dev`, or `Self-hosted example.com`."
-        web_base_url: HTTPS web app URL used for pair links.
-        api_base_url: HTTPS API URL used for pair endpoints and future API calls.
-        ws_base_url: WSS URL used after login.
-        upload_base_url: HTTPS upload URL when available; may default to API/upload for self-hosted profiles.
-        source: "`builtin`, `iphone`, `discovery`, or `manual`."
-        verified: Whether discovery or iPhone context confirmed the profile.
-    - name: WatchConnectivity login request
-      fields:
-        - kind
-        - token
-        - token_hash_prefix
-        - pair_url
-        - device_name
-        - created_at
-        - server_profile
-      forbidden_fields:
-        - master_key
-        - master_key_exported
-        - session_token
-        - ws_token
-        - cookie
-        - auth_cookie
-        - encrypted_bundle
+        attempt_id: Unique local identity used to reject stale callbacks.
+        server_profile: Immutable production or validated self-hosted profile.
+        token: Current uppercase pair token after initiation.
+        pair_url: Pair URL derived from the immutable profile.
+        phase: idle, initiating, waiting, completing, failed, or expired.
+    - name: WatchConnectivity request
+      fields: [kind, token, pair_url, device_name, created_at, server_profile]
+      forbidden_fields: [master_key, master_key_exported, session_token, ws_token, cookie, auth_cookie, encrypted_bundle]
   ui_states:
-    - Watch server selection before token creation.
-    - Watch connected-iPhone profile received.
-    - Watch custom server validation/discovery loading.
-    - Watch custom server validation error.
-    - Watch pair token creating.
-    - Watch waiting for iPhone confirmation.
-    - Watch manual fallback URL/token/QR.
-    - iPhone profile mismatch approval blocked.
-    - iPhone expired token restart request.
-    - iPhone approved/denied/error.
+    - Production initiation loading.
+    - Code and "Show QR code" visible for every active attempt.
+    - Matching-iPhone approval available without hiding fallback.
+    - '"Connect self-hosted edition" collapsed and expanded URL-entry states.'
+    - Self-host URL validation and network error states.
+    - Expired attempt with explicit retry.
   privacy_security:
-    - Server profile sync is not an auth grant; it only selects endpoints.
-    - iPhone approval remains explicit.
-    - WatchConnectivity payloads never include auth secrets or encrypted login bundles.
-    - Logs include token hash prefix and profile ID only, never full token, cookies, master keys, user plaintext, or private self-host credentials.
+    - Server selection is not an auth grant.
+    - iPhone approval remains explicit and exact-profile only.
+    - No forbidden auth or encryption secret crosses WatchConnectivity.
+    - Diagnostics never log full tokens, pair URLs, credentials, private paths, or self-host secrets.
 
 tests:
   - id: T-APPLE-001
     type: unit
     file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
-    covers: [AC-1, AC-2]
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
     assertions:
-      - ServerProfile maps prod, dev, app.* self-host, and explicit custom endpoints to the expected web/api/ws/upload URLs.
-      - Watch pair URL generation uses the selected profile web URL.
-      - Pair initiate/complete helpers can be injected with a profile-specific API client instead of using a global mismatched endpoint.
+      - Fresh state chooses production and one immutable attempt.
+      - app.dev.openmates.org is accepted through self-host URL entry and resolves expected endpoints.
+      - A server change cancels the prior attempt and stale callbacks are rejected by attempt identity.
+      - iPhone profiles never replace Watch selection; exact profile match only controls approval eligibility.
+      - Repeated activation, reachability, and lifecycle events are idempotent.
+      - Successful self-host login persists the profile; failed initiation does not.
+      - Connectivity request and approval payloads contain no forbidden secrets.
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: missing_test
+        command: ""
         run_id: ""
+        subject_commit: e1009993a
         timestamp: ""
     green_phase:
       required: true
       expected: pass
       evidence:
         status: ""
+        command: ""
         run_id: ""
+        subject_commit: ""
         timestamp: ""
   - id: T-APPLE-002
     type: unit
-    file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
-    covers: [AC-1, AC-3, AC-4, AC-5]
+    file: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
+    covers: [AC-1, AC-2]
     assertions:
-      - WatchConnectivity request payload includes non-secret server profile metadata.
-      - Mismatched iPhone and Watch profiles block authorization before any backend authorize call.
-      - Same-profile approval returns PIN/status only and contains no forbidden secret keys.
-      - Expired or missing token maps to restart-request copy, not raw backend 404 copy.
+      - UI contract includes code, QR, and collapsed/expanded self-host controls.
+      - UI contract excludes production and development selector identifiers.
+      - Code and QR are not conditional on phone reachability.
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: missing_test
+        command: ""
         run_id: ""
+        subject_commit: e1009993a
         timestamp: ""
     green_phase:
       required: true
       expected: pass
       evidence:
         status: ""
+        command: ""
         run_id: ""
+        subject_commit: ""
         timestamp: ""
   - id: T-APPLE-003
     type: unit
-    file: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
-    covers: [AC-2]
+    file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
+    covers: [AC-3, AC-4]
     assertions:
-      - Watch login UI exposes server picker, selected profile label, custom domain input, manual advanced endpoint input, fallback URL, token, and QR identifiers.
-      - Custom domain validation errors are represented by stable UI contract identifiers.
+      - Matching profile permits explicit approval.
+      - Mismatched profile produces no authorization input and no Watch state mutation.
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: missing_test
+        command: ""
         run_id: ""
+        subject_commit: e1009993a
         timestamp: ""
     green_phase:
       required: true
       expected: pass
       evidence:
         status: ""
+        command: ""
         run_id: ""
+        subject_commit: ""
         timestamp: ""
   - id: T-APPLE-004
-    type: unit
-    file: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
+    type: manual
+    file: supplied TestFlight build-49 crash report and matching archive dSYM
+    command: python3 scripts/apple_remote.py testflight-crashes --bundle-id org.openmates.app.watch --limit 3 --platform IOS
     covers: [AC-5]
     assertions:
-      - iPhone approval UI contract includes mismatch, expired, restart, allow-disabled, and selected-server labels.
+      - Build-49 app offsets are symbolicated when the matching dSYM is available.
+      - Root-cause claims distinguish symbolicated fact from callback-ordering hypothesis.
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: blocked
+        command: ""
         run_id: ""
-        timestamp: ""
+        subject_commit: e1009993a
+        timestamp: "2026-07-11T17:45:00Z"
+        reason: Matching build-49 dSYM has not yet been located.
     green_phase:
-      required: true
-      expected: pass
+      required: false
+      expected: not_applicable
       evidence:
         status: ""
+        command: ""
         run_id: ""
-        timestamp: ""
-  - id: T-SCRIPT-001
-    type: pytest
-    file: scripts/tests/test_apple_remote_watch_debug.py
-    command: python3 -m pytest scripts/tests/test_apple_remote_watch_debug.py
-    covers: [AC-6, AC-7]
-    assertions:
-      - apple_remote exposes verify-watch-startup with simulator and duration arguments.
-      - The generated remote command installs, launches, polls process lifetime, scans DiagnosticReports, captures screenshots, and prints sanitized evidence keys.
-      - TestFlight upload docs or guard references the startup verifier as required pre-upload evidence for Watch changes.
-    red_phase:
-      required: true
-      expected: fail
-      evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
-    green_phase:
-      required: true
-      expected: pass
-      evidence:
-        status: ""
-        run_id: ""
+        subject_commit: ""
         timestamp: ""
   - id: T-APPLE-005
     type: build
     file: scripts/apple_remote.py
     command: python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60
-    covers: [AC-6]
+    covers: [AC-1, AC-5]
     assertions:
-      - Watch process remains alive for 60 seconds.
-      - Crash report scan reports none for the launch window.
-      - Screenshots at 5 seconds and 30 seconds are saved or summarized with sanitized artifact paths.
-      - Logs include startup breadcrumbs through visible login/server-selection state.
+      - Watch remains alive through startup and pairing idle state.
+      - No crash report is generated.
+      - Screenshots show code and QR action without server selector buttons.
+      - Diagnostics show one current attempt and no stale callback mutation.
     red_phase:
       required: true
       expected: fail
       evidence:
         status: ""
+        command: ""
         run_id: ""
+        subject_commit: e1009993a
         timestamp: ""
     green_phase:
       required: true
       expected: pass
       evidence:
         status: ""
+        command: ""
         run_id: ""
+        subject_commit: ""
         timestamp: ""
 
 verifications:
@@ -457,123 +479,191 @@ verifications:
     kind: user_confirmation
     phase: final
     required_for_done: true
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
     status: pending
     evidence:
       status: ""
-      summary: "User confirms the Watch login flow meets the server-profile and self-hosting expectations."
+      summary: User confirms the production-first Watch pairing flow on TestFlight hardware.
       timestamp: ""
 
 implementation_plan:
+  spec_path: docs/specs/apple-watch-login-v2/spec.yml
   existing_patterns:
-    - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift domain persistence and API derivation.
-    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift pair-login cryptography and WatchConnectivity payload helpers.
-    - scripts/apple_remote.py remote Mac build/test/upload wrapper.
+    - PairLoginRuntime profile-scoped API requests and encrypted bundle completion.
+    - ServerProfile endpoint derivation and persistence.
+    - WatchPairLoginConnectivityPayload exact-profile validation and forbidden-key audit.
   architecture: >
-    Extract the native endpoint selection into a `ServerProfile` model that can
-    be serialized over WatchConnectivity and used to construct profile-scoped
-    API clients for pair-login. The iPhone sends its active logged-in profile to
-    Watch when reachable; Watch uses a local profile picker otherwise. Pair-login
-    approval compares profiles before authorization. Remote verification gains a
-    startup verifier that fails on crash, process exit, or missing diagnostics.
+    Add a small pure WatchPairAttempt model beside PairLoginRuntime so iOS-hosted
+    XCTest can prove transition ordering without importing the Watch UI target.
+    WatchPairLoginState remains the MainActor owner of one attempt generation,
+    one initiation task, and one poll task. Each async result carries the
+    generation and immutable ServerProfile and is discarded when either differs.
+    WatchPhoneLoginBridge reports reachability and approval PINs only; it no
+    longer reads or forwards iPhone application-context profiles. The iPhone
+    keeps exact-profile validation and does not expose a mismatched request for
+    approval.
+  boundaries:
+    - No backend route, payload cryptography, or login bundle change.
+    - Watch server selection is local Watch state, not WCSession application context.
+    - Existing iPhone ServerConfiguration remains authoritative for iPhone requests only.
+    - The self-host profile is committed to Watch persistence only from completePairLogin success.
   data_flow:
-    - iPhone app selects and persists active ServerProfile for the logged-in account.
-    - iPhone publishes active ServerProfile to Watch via WatchConnectivity application context.
-    - Watch displays profile selection or received profile before creating a token.
-    - Watch initiates pair login against profile.api_base_url and displays profile.web_base_url/#pair=TOKEN.
-    - iPhone receives Watch request with profile metadata and blocks if it differs from active profile.
-    - iPhone authorizes fresh same-profile token after explicit approval and returns PIN only.
-    - Watch completes pair login against the same profile and stores session/master key locally with profile metadata.
+    - A fresh Watch resolves production; a Watch with a prior successful self-host login resolves that local profile.
+    - Generation 1 initiates against api.openmates.org and renders CODE01 plus https://openmates.org/#pair=CODE01.
+    - The same request is offered to a reachable iPhone, but code and QR stay rendered regardless of reply timing.
+    - If the user confirms app.dev.openmates.org, generation 1 is cancelled before generation 2 initiates against api.dev.openmates.org.
+    - A late generation-1 poll, approval, or reachability callback is ignored by identity checks.
+    - A matching iPhone explicitly authorizes generation 2 and returns PIN metadata; a production iPhone ignores the dev request.
+    - Successful Watch completion persists the dev profile; initiation, polling, validation, or completion failure leaves prior persistence unchanged.
+  api_impact:
+    - Existing pair endpoints receive the same request and response schemas.
+    - Every request uses the immutable profile captured by its WatchPairAttempt.
+  data_impact:
+    - Add one Watch-local encoded successful ServerProfile value and one explicit reset operation.
+    - Do not migrate the current transient selector value because unsuccessful selections are not trusted.
+  ui_impact:
+    - Remove Production and Dev selector buttons and always-visible custom-domain field.
+    - Keep code and QR action visible whenever initiation succeeds.
+    - Add one collapsed self-host action, URL entry, validation error, and cancel/confirm controls.
+  privacy_security_impact:
+    - Keep exact-profile authorization and the existing forbidden-key payload audit.
+    - Do not log raw manual URLs beyond sanitized host labels, pair tokens, PINs, or pair URL fragments.
+  migration_rollout:
+    - Existing authenticated Watch sessions continue unchanged.
+    - Existing unauthenticated server-selector state is intentionally discarded; production is used unless a prior successful self-host profile exists.
+    - Gate TestFlight upload on targeted tests, Watch build, startup verifier, and no new crash report in the verification window.
+  observability:
+    - Log attempt generation, sanitized profile ID/host class, transition name, and stale-result rejection through NativeDiagnostics.
+    - Preserve the startup verifier crash scan and screenshots at its existing checkpoints.
+    - Symbolicate build 49 when its dSYM is available; do not block test-first implementation on unavailable historical symbols.
   affected_files:
-    - path: apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
-      reason: Add ServerProfile model, discovery/manual custom endpoint validation, and serialization.
-    - path: apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
-      reason: Make pair-login profile-scoped and add profile-aware WC payload validation.
     - path: apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
-      reason: Add server picker/custom domain state before token creation and profile-aware fallback display.
-    - path: apple/OpenMates/Sources/App/MainAppView.swift
-      reason: Route profile-aware Watch approval and block mismatches.
-    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
-      reason: Show selected server, mismatch, expired, and restart-request approval states.
-    - path: scripts/apple_remote.py
-      reason: Add deterministic Watch startup/crash verification command.
-    - path: scripts/tests/test_apple_remote_watch_debug.py
-      reason: Guard the new remote Watch debug workflow.
+      reason: Simplify UI and route all transitions through one attempt state.
+    - path: apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+      reason: Add the pure attempt transition contract, remove iPhone server override, and make connectivity callbacks idempotent.
+    - path: apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+      reason: Validate and persist only successful self-host profiles.
+    - path: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+      reason: Add state-machine, mismatch, lifecycle, and persistence regression tests.
+    - path: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+      reason: Lock the simplified Watch login UI contract.
   verification_strategy:
-    - Run red phase for listed tests before implementation.
-    - Implement profile model and tests first.
-    - Implement Watch UI/server selection and approval mismatch handling.
-    - Add remote startup verifier before any TestFlight upload.
-    - Run green verification in pytest -> Apple unit tests -> Watch build -> Watch startup verifier order.
+    - Run T-APPLE-001, T-APPLE-002, and T-APPLE-003 red against the current source before production changes.
+    - Run the same targeted unit tests green after the state model and UI changes.
+    - Run `python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"`.
+    - Run T-APPLE-005 to verify startup plus pairing idle stability and collect screenshots/crash scan.
+    - Run `python3 scripts/spec_verify.py docs/specs/apple-watch-login-v2/spec.yml` before completion.
+  required_assumption_checks:
+    - A-1 and A-2 are confirmed from current source and do not block implementation.
+    - A-3 must be rechecked from the release archive before final root-cause reporting but does not block the replacement flow.
+  acceptance_criteria_mapping:
+    - AC-1 -> T-APPLE-001, T-APPLE-002, T-APPLE-005
+    - AC-2 -> T-APPLE-001, T-APPLE-002
+    - AC-3 -> T-APPLE-001, T-APPLE-003
+    - AC-4 -> T-APPLE-001, T-APPLE-003
+    - AC-5 -> T-APPLE-001, T-APPLE-004, T-APPLE-005
+    - AC-6 -> T-APPLE-001
   verification_order:
-    - python3 -m pytest scripts/tests/test_apple_remote_watch_debug.py
-    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
-    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
-    - python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
-    - python3 scripts/apple_remote.py verify-watch-startup --simulator "Apple Watch Series 11 (46mm)" --duration 60
+    - Apple unit contract tests because this behavior is native-only.
+    - Watch build.
+    - Watch startup/pairing runtime verification.
+    - TestFlight hardware confirmation.
+  first_slice: Add pure transition tests proving one production attempt, immutable server ownership, and stale callback rejection.
+  open_questions: []
+  risks:
+    - risk: WCSession reachability can change before activation completes.
+      mitigation: Reachability only controls optional request delivery and never creates or mutates an attempt.
+    - risk: SwiftUI task re-entry can create duplicate network work.
+      mitigation: Attempt generation and stored task ownership make startup idempotent and cancellation explicit.
+    - risk: Historical crash symbols may remain unavailable.
+      mitigation: Keep the report as a bounded hypothesis and require deterministic no-crash runtime evidence for the replacement flow.
 
 tasks:
   - id: TASK-1
-    title: Add ServerProfile model and profile-scoped pair login tests
-    status: pending
+    title: Add revised pairing state-machine and UI contract tests
+    status: in_progress
     phase: working_tasks
     covers:
-      scenarios: [S-1, S-2, S-3, S-4]
-      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
     expected_files:
-      - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
-      - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
       - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
-    verification: [T-APPLE-001, T-APPLE-002]
-    verification_ids: [T-APPLE-001, T-APPLE-002]
+      - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    verification: [T-APPLE-001, T-APPLE-002, T-APPLE-003]
+    verification_ids: [T-APPLE-001, T-APPLE-002, T-APPLE-003]
+    dependencies: []
+    ownership:
+      files:
+        - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+        - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+      shared_files: []
     blockers: []
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-2
-    title: Add Watch server picker and self-host custom domain UI
+    title: Implement production-first and optional self-hosted Watch pairing
     status: pending
     phase: working_tasks
     covers:
-      scenarios: [S-1, S-2]
-      acceptance_criteria: [AC-1, AC-2]
+      scenarios: [S-1, S-2, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-6]
     expected_files:
       - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
-      - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
-    verification: [T-APPLE-003]
-    verification_ids: [T-APPLE-003]
+      - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+      - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+      - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+    verification: [T-APPLE-001, T-APPLE-002]
+    verification_ids: [T-APPLE-001, T-APPLE-002]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+        - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+        - apple/OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+        - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+      shared_files: []
     blockers: []
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-3
-    title: Add profile-aware iPhone approval states
+    title: Make matching-iPhone handoff idempotent and crash-safe
     status: pending
     phase: working_tasks
     covers:
       scenarios: [S-3, S-4, S-5]
       acceptance_criteria: [AC-3, AC-4, AC-5]
     expected_files:
-      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
       - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
-      - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
-      - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
-    verification: [T-APPLE-002, T-APPLE-004]
-    verification_ids: [T-APPLE-002, T-APPLE-004]
+    verification: [T-APPLE-001, T-APPLE-003]
+    verification_ids: [T-APPLE-001, T-APPLE-003]
+    dependencies: [TASK-1, TASK-2]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+      shared_files:
+        - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
     blockers: []
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-4
-    title: Add deterministic Watch startup crash verifier
+    title: Symbolicate build 49 and verify Watch pairing runtime
     status: pending
-    phase: working_tasks
+    phase: running_checks
     covers:
-      scenarios: [S-6, S-7]
-      acceptance_criteria: [AC-6, AC-7]
+      scenarios: [S-1, S-5]
+      acceptance_criteria: [AC-1, AC-5]
     expected_files:
-      - scripts/apple_remote.py
-      - scripts/tests/test_apple_remote_watch_debug.py
-      - scripts/tests/test_apple_remote_testflight.py
-    verification: [T-SCRIPT-001, T-APPLE-005]
-    verification_ids: [T-SCRIPT-001, T-APPLE-005]
-    blockers: []
+      - docs/specs/apple-watch-login-v2/spec.yml
+    verification: [T-APPLE-004, T-APPLE-005]
+    verification_ids: [T-APPLE-004, T-APPLE-005]
+    dependencies: [TASK-2, TASK-3]
+    ownership:
+      files:
+        - docs/specs/apple-watch-login-v2/spec.yml
+      shared_files:
+        - scripts/apple_remote.py
+    blockers:
+      - Matching build-49 dSYM may require archive access on the release Mac or App Store Connect.
     follow_up_tasks: []
-    independently_deployable: true
+    independently_deployable: false

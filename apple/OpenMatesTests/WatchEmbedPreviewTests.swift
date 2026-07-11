@@ -11,7 +11,6 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "watch-pair-login",
             "watch-pair-confirm-iphone-title",
             "watch-pair-confirm-iphone-description",
-            "watch-pair-login-without-iphone-button",
             "watch-pair-manual-fallback",
             "watch-pair-token",
             "watch-pair-url",
@@ -22,8 +21,16 @@ final class WatchEmbedPreviewTests: XCTestCase {
             "watch-pair-waiting-label",
             "watch-pair-pin-input",
             "watch-pair-refresh-button",
+            "watch-pair-self-host-button",
+            "watch-pair-self-host-input",
+            "watch-pair-self-host-connect-button",
+            "watch-pair-self-host-cancel-button",
+            "watch-pair-self-host-error",
         ])
         XCTAssertNoDuplicates(WatchUIContract.pairLoginIdentifiers)
+        XCTAssertFalse(WatchUIContract.pairLoginIdentifiers.contains("watch-pair-server-production-button"))
+        XCTAssertFalse(WatchUIContract.pairLoginIdentifiers.contains("watch-pair-server-development-button"))
+        XCTAssertFalse(WatchUIContract.pairLoginIdentifiers.contains("watch-pair-server-selector"))
     }
 
     func testWatchChatAndAudioComposerUIContractIdentifiersAreStable() {
