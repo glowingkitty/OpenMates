@@ -2827,6 +2827,7 @@ def test_macos_command(only_testing: str | None) -> str:
         "OpenMates_macOS",
         "-destination",
         "platform=macOS",
+        "-allowProvisioningUpdates",
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])

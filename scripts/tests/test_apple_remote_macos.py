@@ -39,6 +39,7 @@ def test_macos_commands_use_the_shared_scheme_and_native_destination() -> None:
         assert "-destination platform=macOS" in command
         assert "/Users/" not in command
     assert "-only-testing OpenMatesMacUITests/SettingsMacShellParityUITests" in test
+    assert "-allowProvisioningUpdates" in test
 
 
 def test_macos_parser_exposes_build_and_targeted_test_commands() -> None:

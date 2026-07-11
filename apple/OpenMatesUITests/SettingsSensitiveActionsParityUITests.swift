@@ -53,6 +53,20 @@ final class SettingsSensitiveActionsParityUITests: XCTestCase {
         XCTAssertFalse(app.alerts.firstMatch.exists)
     }
 
+    func testAdminRoutesAreFailClosedWithoutAdminFixture() {
+        let accountApp = launchAccountSettingsFixture()
+        openSettingsMenu(in: accountApp)
+        XCTAssertFalse(waitForButton("settings-server-row", in: accountApp, timeout: 1))
+        XCTAssertFalse(waitForButton("settings-logs-row", in: accountApp, timeout: 1))
+        accountApp.terminate()
+
+        let adminApp = launchAccountSettingsFixture(extraArguments: ["--ui-test-admin-settings-fixture"])
+        openSettingsMenu(in: adminApp)
+        XCTAssertTrue(waitForButton("settings-server-row", in: adminApp, timeout: 5))
+        XCTAssertTrue(waitForButton("settings-logs-row", in: adminApp, timeout: 5))
+        XCTAssertFalse(adminApp.tables.firstMatch.exists)
+    }
+
     private var sensitiveAccountRows: [String] {
         [
             "settings-account-passkeys-row",
@@ -72,11 +86,15 @@ final class SettingsSensitiveActionsParityUITests: XCTestCase {
     }
 
     private func openSettingsAccountEntry(in app: XCUIApplication) {
+        openSettingsMenu(in: app)
+        XCTAssertTrue(waitForButton("settings-account-row", in: app, timeout: 8))
+        app.buttons["settings-account-row"].tap()
+    }
+
+    private func openSettingsMenu(in app: XCUIApplication) {
         XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
         app.buttons["settings-button"].tap()
         XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
-        XCTAssertTrue(waitForButton("settings-account-row", in: app, timeout: 8))
-        app.buttons["settings-account-row"].tap()
     }
 
     private func openSettingsAccountPage(in app: XCUIApplication) {
