@@ -5906,12 +5906,13 @@ private struct WelcomeResumeCard: View {
                 .frame(width: width, height: height)
                 .clipShape(RoundedRectangle(cornerRadius: 30))
                 .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
+                .contentShape(RoundedRectangle(cornerRadius: 30))
+                .onLongPressGesture(perform: onLongPress)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("welcome-chat-card-\(card.id)")
             .help(Text(card.title))
             .accessibilityLabel(card.title)
-            .onLongPressGesture(perform: onLongPress)
         }
     }
 }
@@ -5957,12 +5958,12 @@ private struct WelcomeResumeCompactCard: View {
             )
             .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
             .contentShape(RoundedRectangle(cornerRadius: .radius8))
+            .onLongPressGesture(perform: onLongPress)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
         .help(Text(card.title))
         .accessibilityLabel(card.title)
-        .onLongPressGesture(perform: onLongPress)
     }
 }
 

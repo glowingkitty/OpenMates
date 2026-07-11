@@ -325,7 +325,9 @@ def _extract_swift_enum_raw_value_to_case(source: str, enum_name: str) -> dict[s
 
 
 def _extract_apple_fixture_skill_ids(source: str) -> set[str]:
-    return set(re.findall(r"return skill\(id:\s*\"([^\"]+)\"", source))
+    direct = re.findall(r"return skill\(id:\s*\"([^\"]+)\"", source)
+    helper_calls = re.findall(r"calendarAction\(id:\s*\"([^\"]+)\"", source)
+    return set(direct + helper_calls)
 
 
 def _extract_generic_embed_cases(source: str) -> set[str]:
