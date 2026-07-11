@@ -13,6 +13,7 @@ from .service import (
     index_generated_asset,
     validate_download_token,
 )
+from .chunked_encryption import decrypt_chunked_stream, encrypt_chunked_stream
 
 __all__ = [
     "GeneratedAssetVariant",
@@ -21,4 +22,6 @@ __all__ = [
     "create_download_token",
     "index_generated_asset",
     "validate_download_token",
+    "decrypt_chunked_stream",
+    "encrypt_chunked_stream",
 ]

@@ -1,7 +1,7 @@
 schema_version: 2
 id: models3d-generate
 title: 3D Models Generate Skill And Model Embed
-status: approved
+status: implementing
 
 goal: >
   Add a canonical `models3d` app whose Generate skill creates encrypted,
@@ -135,7 +135,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 0970110720c7a3a9f9fff69abf2056c4b24cf268
+  subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
 
 approvals:
   product_contract:
@@ -197,7 +197,7 @@ handoff:
   command: python3 -m pytest backend/tests/test_hi3d_provider.py
   expected_outcome: Contract tests fail because the Hi3D provider wrapper and models3d app do not exist yet.
   blocker: null
-  last_verified_commit: 0970110720c7a3a9f9fff69abf2056c4b24cf268
+  last_verified_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
 
 scenarios:
   - id: S-1
@@ -479,7 +479,16 @@ tests:
       - single and ordered multi-view multipart bodies match the documented API
       - balance, queue, processing, success, failure, timeout, and refunded failure normalize to typed results
       - streamed provider downloads reject oversize, wrong MIME, malformed GLB, and unsupported extensions
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        run_id: local-pytest-models3d-red-20260711T231222Z
+        subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
+        timestamp: "2026-07-11T23:12:22Z"
+        summary: Collection failed because backend.shared.providers.hi3d does not exist.
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-PYTEST-002
     type: pytest
@@ -503,7 +512,16 @@ tests:
       - chunked master round trip is byte-identical across first/middle/last chunks
       - streaming download has bounded peak memory and correct attachment metadata
       - deletion removes every variant once and reconciles storage
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        run_id: local-pytest-models3d-red-20260711T231222Z
+        subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
+        timestamp: "2026-07-11T23:12:22Z"
+        summary: Collection failed because chunked generated-asset helpers do not exist.
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-PYTEST-004
     type: pytest
@@ -514,7 +532,16 @@ tests:
       - valid master produces standards-valid binary STL and records declared units outside the STL payload
       - valid color master produces standards-valid 3MF with supported color/material fields
       - non-manifold or invalid output returns diagnostics and no print-ready artifact
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        run_id: local-pytest-models3d-red-20260711T231222Z
+        subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
+        timestamp: "2026-07-11T23:12:22Z"
+        summary: Collection failed because models3d print-export validators do not exist.
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-PYTEST-005
     type: pytest
@@ -525,7 +552,16 @@ tests:
       - provider call is blocked before current consent
       - cancellation sends no content and charges nothing
       - accepted consent is versioned and future withdrawal blocks new calls
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        run_id: local-pytest-models3d-red-20260711T231222Z
+        subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
+        timestamp: "2026-07-11T23:12:22Z"
+        summary: Collection failed because the models3d provider-consent gate does not exist.
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-AUDIT-001
     type: lint
@@ -547,7 +583,16 @@ tests:
       - preview meets target or records explicit hard-cap fallback
       - visual comparison, decode time, peak memory, and output validation are recorded
       - master streaming stays within the configured memory budget
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/api_tests/benchmark_models3d_assets.py --fixtures 30mb,60mb,100mb
+        run_id: local-models3d-benchmark-red-20260711T231222Z
+        subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
+        timestamp: "2026-07-11T23:12:22Z"
+        summary: The harness reports missing licensed 30 MB, 60 MB, and 100 MB GLB fixtures.
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-CLI-001
     type: unit
@@ -765,7 +810,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add red provider, privacy, storage, optimization, and print contracts
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-1, S-4, S-5, S-8, S-9, S-10, S-13], acceptance_criteria: [AC-4, AC-5, AC-8, AC-9, AC-10, AC-11, AC-12, AC-17, AC-18, AC-19]}
     expected_files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py, backend/tests/test_models3d_provider_consent.py, scripts/api_tests/benchmark_models3d_assets.py]
