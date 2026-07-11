@@ -6050,7 +6050,16 @@ private struct WelcomeComposer: View {
     }
 
     private var expandedHeight: CGFloat {
-        max(400, availableHeight - 20)
+        maximumViewportFieldHeight
+    }
+
+    private var overlayHeight: CGFloat {
+        min(400, maximumViewportFieldHeight)
+    }
+
+    private var maximumViewportFieldHeight: CGFloat {
+        // Match the web fullscreen top gutter while retaining the native composer's bottom inset.
+        max(MessageComposerMetric.expandedMinHeight, availableHeight - .spacing20)
     }
 
     var body: some View {
@@ -6067,7 +6076,7 @@ private struct WelcomeComposer: View {
                 compactHeight: 60,
                 compactCornerRadius: 24,
                 showActionButtonsWhenCompact: isOpen,
-                expandedMinHeight: isExpanded ? expandedHeight : (isOverlayActive ? 400 : MessageComposerMetric.expandedMinHeight),
+                expandedMinHeight: isExpanded ? expandedHeight : (isOverlayActive ? overlayHeight : MessageComposerMetric.expandedMinHeight),
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() },
@@ -6143,7 +6152,7 @@ private struct WelcomeComposer: View {
                     .zIndex(10)
                 }
             }
-            if isOpen && !isFocused {
+            if isOpen && !isFocused && !isExpanded && !isOverlayActive {
                 Button {
                     onDismiss()
                 } label: {
