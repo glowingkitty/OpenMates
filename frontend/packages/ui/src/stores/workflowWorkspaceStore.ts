@@ -163,8 +163,8 @@ function setSelectedFromCaches(workflowId: string | null): void {
     return {
       ...state,
       selectedWorkflowId: workflowId,
-      selectedWorkflow: state.detailsById[workflowId] ?? state.selectedWorkflow,
-      runs: state.runsByWorkflowId[workflowId] ?? state.runs,
+      selectedWorkflow: state.detailsById[workflowId] ?? null,
+      runs: state.runsByWorkflowId[workflowId] ?? [],
     };
   });
 }

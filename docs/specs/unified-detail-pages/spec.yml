@@ -165,9 +165,9 @@ attempts:
 
 handoff:
   current_task_id: TASK-1
-  next_action: Write shared visual and metadata-adapter red contracts before changing production components.
-  command: python3 scripts/spec_verify.py docs/specs/unified-detail-pages/spec.yml --phase red
-  expected_outcome: Required red evidence identifies the missing reusable header, editable metadata, stable detail routes, and Apple parity.
+  next_action: Add committed red contracts for editable shared headers and Project/Task/Plan canonical detail routes.
+  command: python3 scripts/tests.py run -- --spec unified-detail-header.spec.ts
+  expected_outcome: The deployed app fails because editable shared fields and non-Workflow canonical detail pages do not exist yet.
   blocker: null
   last_verified_commit: 6883c92b49a0463f9372b633d87a821935d923c4
 

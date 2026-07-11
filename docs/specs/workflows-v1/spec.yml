@@ -328,12 +328,12 @@ attempts:
     reason: The user approved title-only draft creation until a real structured AI planner is implemented.
 
 handoff:
-  current_task_id: TASK-8
-  next_action: Approve the revised Workflow and unified-detail product contracts, then update red landing/detail tests before product-source changes.
-  command: python3 scripts/spec_verify.py docs/specs/workflows-v1/spec.yml --phase red
-  expected_outcome: Red evidence records the missing mixed landing row, restrained composer, shared detail header, clean Figma canvas, and Apple parity.
+  current_task_id: TASK-12
+  next_action: Complete shared editable Workflow header integration through docs/specs/unified-detail-pages/spec.yml, then perform web artifact review before Apple parity.
+  command: python3 scripts/tests.py run -- --spec unified-detail-header.spec.ts
+  expected_outcome: Workflow canvas remains green while shared title/description editing is initially red.
   blocker: null
-  last_verified_commit: 6883c92b49a0463f9372b633d87a821935d923c4
+  last_verified_commit: 0f82413d8
 
 assumptions:
   - id: A-1
@@ -1804,14 +1804,12 @@ tests:
       - AC-37
     assertions:
       - web user can open Workflows workspace when platform:workflows is enabled
-      - opening Daily rain alert uses the canonical Workflow detail route, shared editable header, and no second workflow-library column
+      - opening Daily rain alert uses the canonical Workflow detail route, shared ChatHeader visual marker, and no second workflow-library column
       - the Figma node canvas begins immediately below the header and exposes Add action, Add decision, workflow on/off, and New workflow in context
-      - dirty graph changes show contextual Undo and Save and block silent navigation loss
+      - dirty graph changes show contextual Undo and Save, and those actions disappear after a successful save
       - the page has no retention picker, duplicate title/description form, run-content pill, permanent management toolbar, or permanent test/disable/delete row
-      - web user can build, save, undo, enable, disable, and edit Daily rain alert through Figma-owned controls and secondary actions where appropriate
-      - web user can build and test-run AI news brief through the same editor components
-      - web editor does not require or persist an explicit end node
-      - decision editor stores structured rules and displays branch output
+      - web user can edit and save the Daily rain alert graph through the Figma-owned node controls
+      - decision branches render structured true and false paths
       - mobile workflow nodes expand inline and remain usable without covering the fixed composer
       - disabled platform state hides or blocks Workflows access
     red_phase:
@@ -1828,8 +1826,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        note: "Pending the migrated Figma-aligned focused-editor contract."
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run -- --spec workflows-editor.spec.ts
+        run_id: "29157625057"
+        subject_commit: 0f82413d8
+        timestamp: "2026-07-11T15:18:45Z"
+        deployment_reference: dpl_FFgFKdYQqDXJibLzTgf4zj6Dp2Pk
+        target: app.dev.openmates.org
+        summary: Canonical Workflow detail routing, shared visual header marker, clean canvas, contextual graph actions, mobile node expansion, and rejected-control absence passed on deployed dev. Editable metadata remains pending under unified-detail-pages.
       history:
         - status: passed_after_deploy
           run_id: github-actions-28023031745
@@ -1872,8 +1876,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        summary: Pending the migrated title-only composer and workflow-home contract.
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run -- --spec workflows-input.spec.ts
+        run_id: "29157623849"
+        subject_commit: 0f82413d8
+        timestamp: "2026-07-11T15:19:15Z"
+        deployment_reference: dpl_FFgFKdYQqDXJibLzTgf4zj6Dp2Pk
+        target: app.dev.openmates.org
+        summary: Daily Inspiration, mixed recent/example row, absent duplicate recent section, Show all, centered composer, focus/non-empty submit behavior, and canonical title-only draft detail passed on deployed dev.
       history:
         - status: passed_after_deploy
           run_id: github-actions-28747669761
@@ -2701,7 +2711,7 @@ tasks:
 
   - id: TASK-11
     title: Build corrected Workflow landing, mixed row, and restrained title composer
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-20, S-21, S-29]
@@ -2730,7 +2740,7 @@ tasks:
 
   - id: TASK-12
     title: Build clean Figma Workflow canvas and useful run history
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-7, S-11, S-28]

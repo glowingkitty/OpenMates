@@ -892,7 +892,7 @@
             <div class="runs-panel" data-testid="workflow-runs">
               <h3>Run history</h3>
               {#if runs.length === 0}
-                <p class="empty-copy">No runs yet. Use "Run test" to execute this workflow on the server.</p>
+                <p class="empty-copy">No workflow runs yet.</p>
               {:else}
                 {#each runs as run (run.id)}
                   <div class="run-row" data-testid="workflow-run-row">
