@@ -220,16 +220,22 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-07-11T22:18:51Z"
     reason: GitHub Actions run 29170159013 passed create, edit, clear, and send in both attempts, then failed parsing chats delete output because that command emits human-readable success text even when --json is present.
+  - id: ATTEMPT-14
+    task_id: TASK-6
+    approach: Run the full ChatFlowParityUITests class on an iPad and rerun compact-card coverage on iPhone.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-11T22:48:21Z"
+    reason: The iPad run mixed phone-only assertions with unrelated chat tests, while the focused iPhone run proved the compact recent-card fixture was unreachable because unauthenticated card selection discarded the debug-seeded recent chats.
 
 handoff:
-  current_task_id: TASK-7
-  next_action: Assert the existing chats delete exit code and success summary instead of parsing unsupported JSON, then rerun the live web contract.
-  command: OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run -- --spec cross-client-draft-sync.spec.ts
-  expected_outcome: The test either passes create, edit, clear, send, and missed-deletion reconciliation or reports the exact failed phase before the workflow watchdog.
+  current_task_id: TASK-6
+  next_action: Expose debug-seeded recent chats to the compact-card fixture, deploy, and rerun the focused phone UI tests.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress"
+  expected_outcome: The compact recent card renders title-only and opens the custom actions menu on long press.
   blocker:
-    reason: Live run 29170159013 proved all draft lifecycle stages and reached offline chat deletion, where the test incorrectly assumed chats delete supports pure JSON output; Apple UI tests are separately blocked by CoreSimulator -308.
-    next_action: Verify missed deletion using the CLI command's supported text contract, then retry Apple UI suites after competing simulator sessions finish.
-  last_verified_commit: 0970110
+    reason: The Apple compact-card fixture does not select its debug-seeded recent chats for an unauthenticated test launch.
+    next_action: Keep the override debug-only, verify both compact card and overflow on iPhone, then run the remaining device-appropriate Apple checks.
+  last_verified_commit: a2d0bac
 
 scenarios:
   - id: S-1
@@ -503,7 +509,7 @@ tests:
       - clearing and sending remove the draft everywhere
       - a chat deleted by another client disappears after web cold boot
     red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, run_id: "29164186590", timestamp: "2026-07-11T18:58:02Z" } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", deployment_ref: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run -- --spec cross-client-draft-sync.spec.ts", run_id: "29170502807", subject_commit: "a2d0bac", timestamp: "2026-07-11T22:29:07Z", deployment_ref: "7082c1d" } }
 
   - id: T-APPLE-001
     type: unit
@@ -521,7 +527,7 @@ tests:
   - id: T-APPLE-002
     type: unit
     file: apple/OpenMatesTests/NativeComposerDocumentTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M4)" --only-testing "OpenMatesTests/NativeComposerDocumentTests"
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesTests/NativeComposerDocumentTests"
     covers: [AC-13, AC-14]
     assertions:
       - external state synchronization does not replace equivalent attributed content or reset input traits
@@ -533,7 +539,7 @@ tests:
   - id: T-APPLE-UI-001
     type: unit
     file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M4)" --only-testing "OpenMatesUITests/ChatFlowParityUITests"
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests"
     covers: [AC-6, AC-7, AC-8, AC-9, AC-10, AC-13, AC-14]
     assertions:
       - shell bottom gap, settings drag, inspiration height, card actions, compact card, focus placeholder, compact draft, capitalization, and PII interactions match web
@@ -543,7 +549,7 @@ tests:
   - id: T-APPLE-UI-002
     type: unit
     file: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M4)" --only-testing "OpenMatesUITests/MessageInputAttachmentUITests"
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/MessageInputAttachmentUITests"
     covers: [AC-11, AC-12]
     assertions:
       - image preview survives backgrounding

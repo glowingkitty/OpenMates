@@ -4687,6 +4687,7 @@ struct NewChatWelcomeView: View {
     }
 
     private var shownChatCards: [WelcomeChatCardData] {
+        if isWelcomeRecentOverflowUITestEnabled { return recentChatCards }
         if shouldShowGuestInterestTags { return [] }
         return isAuthenticated ? recentChatCards : nonAuthChatCards
     }
