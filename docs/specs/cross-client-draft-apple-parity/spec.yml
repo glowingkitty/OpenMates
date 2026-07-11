@@ -186,16 +186,22 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-11T18:58:02Z"
     reason: GitHub Actions run 29164186590 reached draft update traffic, but test.slow tripled the Playwright timeout and the 390-second workflow watchdog killed the browser before Playwright could report the stalled lifecycle phase; teardown then surfaced a misleading write EPIPE.
+  - id: ATTEMPT-9
+    task_id: TASK-7
+    approach: Run the bounded live lifecycle with privacy-safe phase checkpoints.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-11T20:57:18Z"
+    reason: Both attempts in GitHub Actions run 29167601541 passed CLI create and web edit reconciliation, then timed out after emptying the draft because the test waited for an input-dismiss control that the empty draft-only composer removes during cancellation.
 
 handoff:
   current_task_id: TASK-7
-  next_action: Deploy the bounded diagnostic harness and rerun the live web contract to identify or clear the remaining lifecycle stall.
+  next_action: Remove the invalid post-empty dismiss click, deploy, and rerun the live web contract.
   command: OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run -- --spec cross-client-draft-sync.spec.ts
   expected_outcome: The test either passes create, edit, clear, send, and missed-deletion reconciliation or reports the exact failed phase before the workflow watchdog.
   blocker:
-    reason: Live run 29164186590 was terminated by the workflow timeout wrapper, masking the primary stalled phase; Apple UI tests are separately blocked by CoreSimulator -308.
-    next_action: Use privacy-safe phase checkpoints and bounded teardown to isolate the web failure, then retry Apple UI suites after competing simulator sessions finish.
-  last_verified_commit: 6455835a9
+    reason: Live run 29167601541 proved create and edit but the clear stage used an invalid test interaction after the empty draft-only composer had already cancelled itself; Apple UI tests are separately blocked by CoreSimulator -308.
+    next_action: Verify clear, send, and missed deletion with the corrected web interaction, then retry Apple UI suites after competing simulator sessions finish.
+  last_verified_commit: e7d3ddb
 
 scenarios:
   - id: S-1

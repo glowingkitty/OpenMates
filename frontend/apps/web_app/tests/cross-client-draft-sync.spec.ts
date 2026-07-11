@@ -222,7 +222,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 			await editor.click();
 			await page.keyboard.press('ControlOrMeta+A');
 			await page.keyboard.press('Backspace');
-			await page.getByTestId('input-dismiss-button').click();
+			log('Web draft emptied; waiting for CLI reconciliation.');
 			await expect
 				.poll(async () => (await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh'])).draft, {
 					timeout: 30_000,
