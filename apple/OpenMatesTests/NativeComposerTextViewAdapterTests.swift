@@ -186,6 +186,51 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         #endif
     }
 
+    #if canImport(UIKit)
+    func testEquivalentSynchronizationPreservesAttributedTextAndSentenceCapitalization() throws {
+        let controller = try NativeComposerController(
+            document: ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "Hello")]),
+            selection: NSRange(location: 5, length: 0)
+        )
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+        let sentinel = NSAttributedString.Key("synthetic-input-trait-sentinel")
+        textView.textStorage.addAttribute(sentinel, value: true, range: NSRange(location: 0, length: 1))
+
+        textView.autocapitalizationType = .sentences
+        try controller.loadDocument(ComposerDocumentV1(version: 1, nodes: [.text(id: "text-2", source: "Hello")]))
+        adapter.synchronize(textView)
+
+        XCTAssertEqual(textView.attributedText.attribute(sentinel, at: 0, effectiveRange: nil) as? Bool, true)
+        XCTAssertEqual(textView.autocapitalizationType, .sentences)
+    }
+
+    func testPIIDecorationsUseWarningBackgroundAndExcludeOnlyTappedIdentity() throws {
+        let controller = try NativeComposerController(
+            document: ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "alice@example.com and +49 170 1234567")]),
+            selection: NSRange(location: 0, length: 0)
+        )
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+        let matches = PIIDetector.detect(in: controller.attributedString.string)
+        var excludedIDs: [String] = []
+
+        adapter.updatePIIDecorations(
+            matches.map { .init(id: $0.id, range: $0.range) },
+            onExclude: { excludedIDs.append($0) }
+        )
+        adapter.synchronize(textView)
+
+        let first = try XCTUnwrap(matches.first)
+        XCTAssertEqual(
+            textView.attributedText.attribute(.backgroundColor, at: first.range.location, effectiveRange: nil) as? UIColor,
+            UIColor(Color.warning).withAlphaComponent(0.35)
+        )
+        XCTAssertTrue(adapter.excludePII(atUTF16Offset: first.range.location))
+        XCTAssertEqual(excludedIDs, [first.id])
+    }
+    #endif
+
     private func makeAdapter(
         controller: NativeComposerController,
         recorder: AccessibilityActionRecorder = AccessibilityActionRecorder()

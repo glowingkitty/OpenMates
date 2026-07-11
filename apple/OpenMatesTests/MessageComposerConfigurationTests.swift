@@ -35,4 +35,10 @@ final class MessageComposerConfigurationTests: XCTestCase {
         XCTAssertFalse(capabilities.showsSendButton(text: "", hasPendingEmbeds: true))
         XCTAssertEqual(capabilities.orderedActions, [])
     }
+
+    func testPlaceholderIsVisibleOnlyForEmptyBlurredComposer() {
+        XCTAssertTrue(MessageComposerPresentation.showsPlaceholder(markdown: "", isFocused: false))
+        XCTAssertFalse(MessageComposerPresentation.showsPlaceholder(markdown: "", isFocused: true))
+        XCTAssertFalse(MessageComposerPresentation.showsPlaceholder(markdown: "Draft", isFocused: false))
+    }
 }

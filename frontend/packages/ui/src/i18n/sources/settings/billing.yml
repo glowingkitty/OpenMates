@@ -22,6 +22,43 @@ description:
   sv: Hantera dina krediter, köp och vad du använde krediter till
   he: נהל את הקרדיטים, המנויים ואמצעי התשלום שלך
   verified_by_human: []
+
+apple_support:
+  context: Native billing entry for support contributions
+  en: Support OpenMates
+apple_usage_details:
+  context: Native billing entry for detailed usage
+  en: View usage details
+apple_purchased_gift_cards:
+  context: Native gift card section for cards bought by the user
+  en: Purchased
+apple_no_gift_cards:
+  context: Native gift card empty state
+  en: No gift cards yet
+apple_gift_card_purchase_unavailable:
+  context: Native gift card purchase cannot derive the required account email key
+  en: Gift card purchase is unavailable until your account email is fully synchronized.
+apple_support_amount:
+  context: Native support contribution amount field
+  en: Amount in EUR
+apple_create_bank_transfer:
+  context: Native support action to create SEPA transfer details
+  en: Create bank transfer
+apple_invalid_support_amount:
+  context: Native support validation error
+  en: Enter a valid amount and make sure your account has an email address.
+apple_fulfillment_delayed:
+  context: StoreKit purchase succeeded but backend fulfillment must be retried
+  en: Your purchase is awaiting fulfillment. It remains retryable and will not be marked complete yet.
+apple_product_not_found:
+  context: StoreKit product is unavailable
+  en: This product is not available in the App Store.
+apple_credits_count:
+  context: Native billing formatted credit count
+  en: "{credits} credits"
+apple_bank_transfer_reference:
+  context: Native invoice pending bank transfer reference
+  en: "Bank transfer reference: {reference}"
 billing:
   context: Billing settings menu item (now includes usage)
   en: Billing & Usage

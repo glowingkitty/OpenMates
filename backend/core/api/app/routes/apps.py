@@ -10,7 +10,7 @@ import os
 import time
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, ProviderRef
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -18,6 +18,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.internal_api import get_directus_service, get_cache_service
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
@@ -365,6 +366,54 @@ class AppMetadataResponse(BaseModel):
     apps: Dict[str, AppMetadataItem]
 
 
+class ProviderMetadataItem(BaseModel):
+    """Public provider details needed by native Apps settings."""
+
+    id: str
+    name: str
+    description: str = ""
+    logo_svg: Optional[str] = None
+    country: Optional[str] = None
+    privacy_policy: Optional[str] = None
+
+
+class ModelMetadataItem(BaseModel):
+    """Public model details for a specific app skill."""
+
+    id: str
+    name: str
+    description: str = ""
+    provider_id: str
+    provider_name: str
+    pricing: Optional[Dict[str, Any]] = None
+
+
+class MemoryMetadataItem(BaseModel):
+    """Browsable memory category metadata; user entries are never included."""
+
+    id: str
+    name: str
+    description: str
+    icon_image: Optional[str] = None
+    type: str = ""
+    example_translation_keys: List[str] = Field(default_factory=list)
+
+
+class ContentMetadataItem(BaseModel):
+    """Browsable durable content metadata from the shared embed catalog source."""
+
+    id: str
+    content_type_id: str
+    frontend_type: str
+    backend_type: str
+    skill_id: Optional[str] = None
+    name: str
+    description: str
+    icon: Optional[str] = None
+    example_key: str
+    order: int = 0
+
+
 class AppMetadataItem(BaseModel):
     """Individual app metadata item.
     
@@ -375,9 +424,14 @@ class AppMetadataItem(BaseModel):
     name: str  # Resolved translation string for app name
     description: str  # Resolved translation string for app description
     category: Optional[str] = None
+    icon_image: Optional[str] = None
+    providers: List[ProviderMetadataItem] = Field(default_factory=list)
+    provider_display_order: List[str] = Field(default_factory=list)
+    last_updated: Optional[str] = None
     skills: List[SkillMetadataItem]
-    focus_modes: List[FocusModeMetadataItem] = []
-    settings_and_memories: List[Dict[str, str]] = []  # Only id, name, description (all resolved strings)
+    focus_modes: List[FocusModeMetadataItem] = Field(default_factory=list)
+    settings_and_memories: List[MemoryMetadataItem] = Field(default_factory=list)
+    content_types: List[ContentMetadataItem] = Field(default_factory=list)
 
 
 class SkillMetadataItem(BaseModel):
@@ -388,7 +442,12 @@ class SkillMetadataItem(BaseModel):
     id: str
     name: str  # Resolved translation string for skill name
     description: str  # Resolved translation string for skill description
+    icon_image: Optional[str] = None
+    pricing: Optional[Dict[str, Any]] = None
     providers: Optional[List[ProviderRef]] = None
+    provider_details: List[ProviderMetadataItem] = Field(default_factory=list)
+    models: List[ModelMetadataItem] = Field(default_factory=list)
+    how_to_use: List[str] = Field(default_factory=list)
 
 
 class FocusModeMetadataItem(BaseModel):
@@ -399,6 +458,264 @@ class FocusModeMetadataItem(BaseModel):
     id: str
     name: str  # Resolved translation string for focus mode name
     description: str  # Resolved translation string for focus mode description
+    icon_image: Optional[str] = None
+    process: List[str] = Field(default_factory=list)
+    system_prompt: Optional[str] = None
+    how_to_use: List[str] = Field(default_factory=list)
+
+
+def _provider_metadata(
+    *,
+    provider_name: str,
+    display_name: Optional[str],
+    app_id: str,
+    provider_configs: Dict[str, Dict[str, Any]],
+) -> ProviderMetadataItem:
+    provider_id = map_provider_name_to_id(provider_name, app_id)
+    config = provider_configs.get(provider_id) or {}
+    return ProviderMetadataItem(
+        id=provider_id,
+        name=display_name or config.get("name") or provider_name,
+        description=config.get("description") or "",
+        logo_svg=config.get("logo_svg"),
+        country=config.get("country") or config.get("region"),
+        privacy_policy=config.get("privacy_policy"),
+    )
+
+
+def _skill_models(
+    *,
+    app_id: str,
+    skill_id: str,
+    provider_configs: Dict[str, Dict[str, Any]],
+) -> List[ModelMetadataItem]:
+    skill_key = f"{app_id}.{skill_id}"
+    models: List[ModelMetadataItem] = []
+    for provider_id, provider in provider_configs.items():
+        for model in provider.get("models", []):
+            if not isinstance(model, dict) or model.get("for_app_skill") != skill_key:
+                continue
+            model_id = model.get("id")
+            if not model_id:
+                continue
+            models.append(ModelMetadataItem(
+                id=model_id,
+                name=model.get("name") or model_id,
+                description=model.get("description") or "",
+                provider_id=provider_id,
+                provider_name=provider.get("name") or provider_id,
+                pricing=model.get("pricing"),
+            ))
+    return sorted(models, key=lambda model: (model.provider_name.lower(), model.name.lower()))
+
+
+def _skill_pricing(
+    *,
+    skill: AppSkillDefinition,
+    app_id: str,
+    provider_configs: Dict[str, Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if skill.pricing:
+        return skill.pricing.model_dump(exclude_none=True)
+    for provider in skill.providers or []:
+        provider_id = map_provider_name_to_id(provider.name, app_id)
+        pricing = (provider_configs.get(provider_id) or {}).get("pricing")
+        if not isinstance(pricing, dict):
+            continue
+        if pricing.get("per_request_credits") is not None:
+            return {"fixed": pricing["per_request_credits"]}
+        public_pricing = {
+            key: pricing[key]
+            for key in ("tokens", "per_unit", "per_minute", "per_second", "fixed")
+            if pricing.get(key) is not None
+        }
+        if public_pricing:
+            return public_pricing
+    return None
+
+
+def _translated_examples(
+    *,
+    translation_service: Any,
+    base_key: str,
+    namespace: str,
+) -> List[str]:
+    examples: List[str] = []
+    for index in range(1, 4):
+        key = f"{base_key}.how_to_use.{index}"
+        translated = resolve_translation(translation_service, key, namespace=namespace, fallback=key)
+        if translated not in {key, f"{namespace}.{key}"}:
+            examples.append(translated)
+    return examples
+
+
+def build_app_metadata_item(
+    *,
+    app_id: str,
+    app_metadata: AppYAML,
+    translation_service: Any,
+    provider_configs: Dict[str, Dict[str, Any]],
+) -> AppMetadataItem:
+    """Build the shared rich metadata contract consumed by web-adjacent clients."""
+    resolved_name = resolve_translation(
+        translation_service, app_metadata.name_translation_key, namespace="apps", fallback=app_id
+    )
+    resolved_description = resolve_translation(
+        translation_service, app_metadata.description_translation_key, namespace="apps", fallback=""
+    )
+
+    skills: List[SkillMetadataItem] = []
+    app_provider_names: List[str] = []
+    for skill in app_metadata.skills:
+        provider_refs = skill.providers or []
+        provider_details = [
+            _provider_metadata(
+                provider_name=provider.name,
+                display_name=provider.display_name,
+                app_id=app_id,
+                provider_configs=provider_configs,
+            )
+            for provider in provider_refs
+        ]
+        app_provider_names.extend(provider.name for provider in provider_details)
+        skills.append(SkillMetadataItem(
+            id=skill.id,
+            name=resolve_translation(
+                translation_service, skill.name_translation_key, namespace="app_skills", fallback=skill.id
+            ),
+            description=resolve_translation(
+                translation_service, skill.description_translation_key, namespace="app_skills", fallback=""
+            ),
+            icon_image=skill.icon_image,
+            pricing=_skill_pricing(
+                skill=skill,
+                app_id=app_id,
+                provider_configs=provider_configs,
+            ),
+            providers=skill.providers,
+            provider_details=provider_details,
+            models=_skill_models(
+                app_id=app_id,
+                skill_id=skill.id,
+                provider_configs=provider_configs,
+            ),
+            how_to_use=_translated_examples(
+                translation_service=translation_service,
+                base_key=skill.name_translation_key,
+                namespace="app_skills",
+            ),
+        ))
+
+    focus_modes: List[FocusModeMetadataItem] = []
+    for focus in app_metadata.focuses:
+        process = focus.process or []
+        if not process and focus.process_translation_key:
+            process_text = resolve_translation(
+                translation_service,
+                focus.process_translation_key,
+                namespace="focus_modes",
+                fallback=focus.process_translation_key,
+            )
+            if process_text not in {focus.process_translation_key, f"focus_modes.{focus.process_translation_key}"}:
+                process = [
+                    line.removeprefix("- ").strip()
+                    for line in process_text.splitlines()
+                    if line.strip().startswith("- ")
+                ]
+        system_prompt = focus.system_prompt
+        if not system_prompt and focus.systemprompt_translation_key:
+            translated_prompt = resolve_translation(
+                translation_service,
+                focus.systemprompt_translation_key,
+                namespace="focus_modes",
+                fallback=focus.systemprompt_translation_key,
+            )
+            if translated_prompt not in {
+                focus.systemprompt_translation_key,
+                f"focus_modes.{focus.systemprompt_translation_key}",
+            }:
+                system_prompt = translated_prompt
+        focus_modes.append(FocusModeMetadataItem(
+            id=focus.id,
+            name=resolve_translation(
+                translation_service, focus.name_translation_key, namespace="app_focus_modes", fallback=focus.id
+            ),
+            description=resolve_translation(
+                translation_service, focus.description_translation_key, namespace="app_focus_modes", fallback=""
+            ),
+            icon_image=focus.icon_image,
+            process=process,
+            system_prompt=system_prompt,
+            how_to_use=focus.how_to_use or _translated_examples(
+                translation_service=translation_service,
+                base_key=focus.name_translation_key,
+                namespace="app_focus_modes",
+            ),
+        ))
+
+    memories = [
+        MemoryMetadataItem(
+            id=field.id,
+            name=resolve_translation(
+                translation_service,
+                field.name_translation_key,
+                namespace="app_settings_memories",
+                fallback=field.id,
+            ),
+            description=resolve_translation(
+                translation_service,
+                field.description_translation_key,
+                namespace="app_settings_memories",
+                fallback="",
+            ),
+            icon_image=field.icon_image,
+            type=field.type,
+            example_translation_keys=field.example_translation_keys or [],
+        )
+        for field in app_metadata.memory_fields
+    ]
+
+    content_types: List[ContentMetadataItem] = []
+    for embed in app_metadata.embed_types:
+        catalog = embed.content_catalog or {}
+        if catalog.get("enabled") is not True:
+            continue
+        content_type_id = catalog.get("content_type_id") or embed.id
+        content_types.append(ContentMetadataItem(
+            id=f"{app_id}.{content_type_id}",
+            content_type_id=content_type_id,
+            frontend_type=embed.frontend_type,
+            backend_type=embed.backend_type,
+            skill_id=embed.skill_id,
+            name=catalog.get("name") or content_type_id,
+            description=catalog.get("description") or "",
+            icon=catalog.get("icon") or embed.icon,
+            example_key=catalog.get("example_key") or f"{app_id}.{content_type_id}",
+            order=int(catalog.get("order") or 0),
+        ))
+
+    ordered_provider_names = list(dict.fromkeys(
+        (app_metadata.provider_display_order or []) + app_provider_names
+    ))
+    providers_by_name = {
+        provider.name: provider
+        for skill in skills
+        for provider in skill.provider_details
+    }
+    return AppMetadataItem(
+        id=app_id,
+        name=resolved_name,
+        description=resolved_description,
+        category=app_metadata.category,
+        icon_image=app_metadata.icon_image.strip() if app_metadata.icon_image else None,
+        providers=[providers_by_name[name] for name in ordered_provider_names if name in providers_by_name],
+        provider_display_order=ordered_provider_names,
+        last_updated=app_metadata.last_updated,
+        skills=skills,
+        focus_modes=focus_modes,
+        settings_and_memories=memories,
+        content_types=sorted(content_types, key=lambda content: (content.order, content.name.lower())),
+    )
 
 
 class MostUsedAppItem(BaseModel):
@@ -487,28 +804,14 @@ async def get_apps_metadata(
         # Log what we're processing for debugging
         logger.info(f"Processing app '{app_id}': {len(app_metadata.skills)} skills, {len(app_metadata.focuses)} focus modes, {len(app_metadata.memory_fields) if app_metadata.memory_fields else 0} memory fields")
         
-        # Resolve app name and description translations
         if not app_metadata.description_translation_key:
             logger.error(f"App '{app_id}' is missing required description_translation_key, skipping")
             continue
-        
-        resolved_name = resolve_translation(
-            translation_service,
-            app_metadata.name_translation_key,
-            namespace="apps",
-            fallback=app_id
-        )
-        
-        resolved_description = resolve_translation(
-            translation_service,
-            app_metadata.description_translation_key,
-            namespace="apps",
-            fallback=""
-        )
-        
-        # Convert skills - filter by API key availability and resolve all translations
-        skills = []
+
+        available_skill_ids: set[str] = set()
         for skill in app_metadata.skills:
+            if skill.internal:
+                continue
             # Check if skill is available based on API key configuration.
             # When include_unavailable=True (used by CLI to match the web app's
             # build-time static metadata), skip provider availability checks so
@@ -525,79 +828,27 @@ async def get_apps_metadata(
                     logger.debug("Skipping mail/search skill for current user (not ProtonMail-allowed)")
                     continue
             
-            skill_name = resolve_translation(
-                translation_service,
-                skill.name_translation_key,
-                namespace="app_skills",
-                fallback=skill.id
-            )
-            skill_description = resolve_translation(
-                translation_service,
-                skill.description_translation_key,
-                namespace="app_skills",
-                fallback=""
-            )
-            skills.append(SkillMetadataItem(
-                id=skill.id,
-                name=skill_name,
-                description=skill_description,
-                providers=skill.providers,
-            ))
-        
-        # Convert focus modes and resolve all translations
-        focus_modes = []
-        for focus in app_metadata.focuses:
-            focus_name = resolve_translation(
-                translation_service,
-                focus.name_translation_key,
-                namespace="app_focus_modes",
-                fallback=focus.id
-            )
-            focus_description = resolve_translation(
-                translation_service,
-                focus.description_translation_key,
-                namespace="app_focus_modes",
-                fallback=""
-            )
-            focus_modes.append(FocusModeMetadataItem(
-                id=focus.id,
-                name=focus_name,
-                description=focus_description
-            ))
-        
-        # Convert settings_and_memories and resolve all translations
-        settings_and_memories = []
-        if app_metadata.memory_fields:
-            for field in app_metadata.memory_fields:
-                field_name = resolve_translation(
-                    translation_service,
-                    field.name_translation_key,
-                    namespace="app_settings_memories",
-                    fallback=field.id
-                )
-                field_description = resolve_translation(
-                    translation_service,
-                    field.description_translation_key,
-                    namespace="app_settings_memories",
-                    fallback=""
-                )
-                settings_and_memories.append({
-                    "id": field.id,
-                    "name": field_name,
-                    "description": field_description
-                })
-        
+            available_skill_ids.add(skill.id)
+
+        config_manager = getattr(request.app.state, "config_manager", None)
+        provider_configs = (
+            config_manager.get_provider_configs()
+            if isinstance(config_manager, ConfigManager)
+            else {}
+        )
+        if config_manager is None:
+            logger.warning("ConfigManager not found in app.state - provider and model details will be empty")
+        item = build_app_metadata_item(
+            app_id=app_id,
+            app_metadata=app_metadata,
+            translation_service=translation_service,
+            provider_configs=provider_configs,
+        )
+        item.skills = [skill for skill in item.skills if skill.id in available_skill_ids]
+
         # Only include app if it has at least one valid component (skill, focus mode, or memory field)
-        if skills or focus_modes or settings_and_memories:
-            apps_metadata[app_id] = AppMetadataItem(
-                id=app_id,
-                name=resolved_name,
-                description=resolved_description,
-                category=app_metadata.category,
-                skills=skills,
-                focus_modes=focus_modes,
-                settings_and_memories=settings_and_memories
-            )
+        if item.skills or item.focus_modes or item.settings_and_memories or item.content_types:
+            apps_metadata[app_id] = item
         else:
             logger.debug(f"Skipping app '{app_id}' - no available components after provider and permission checks")
     

@@ -29,6 +29,12 @@ enum MessageComposerMetric {
     static let inlineCompactHeight: CGFloat = 48
 }
 
+enum MessageComposerPresentation {
+    static func showsPlaceholder(markdown: String, isFocused: Bool) -> Bool {
+        markdown.isEmpty && !isFocused
+    }
+}
+
 struct MessageComposerCapabilities: Equatable {
     var files = false
     var maps = false
@@ -78,6 +84,8 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
     var maxWidth: CGFloat? = MessageComposerMetric.mainAppMaxWidth
     var accessibilityHint: String = AppStrings.typeMessage
     var isComposerEditable = true
+    var piiDecorations: [NativeComposerPIIDecoration] = []
+    var onExcludePII: (String) -> Void = { _ in }
     var onSubmit: () -> Void
     var inlineFieldContent: AnyView? = nil
     @ViewBuilder var preFieldContent: () -> PreFieldContent
@@ -99,6 +107,8 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
                 expandedMinHeight: expandedMinHeight,
                 accessibilityHint: accessibilityHint,
                 isComposerEditable: isComposerEditable,
+                piiDecorations: piiDecorations,
+                onExcludePII: onExcludePII,
                 inlineFieldContent: inlineFieldContent,
                 overlayContent: AnyView(overlayContent()),
                 onSubmit: onSubmit

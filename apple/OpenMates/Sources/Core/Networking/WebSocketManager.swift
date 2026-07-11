@@ -133,6 +133,14 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         try await webSocketTask.send(.string(json))
     }
 
+    var isConnected: Bool {
+        connectionState == .connected
+    }
+
+    func sendDraftSyncMessage(_ message: DraftSyncMessage) async throws {
+        try await send(WSOutboundMessage(type: message.type, payload: message.payload))
+    }
+
     func requestPhasedSync(
         clientChatVersions: [String: [String: Int]] = [:],
         clientChatIds: [String] = [],
@@ -407,7 +415,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         // Chat updates
         case "new_chat_message", "chat_message_added", "chat_message_confirmed",
               "encrypted_chat_metadata", "chat_update", "new_message", "message_update",
-              "chat_draft_updated", "draft_deleted", "chat_deleted", "chat_read_status_updated",
+              "chat_draft_updated", "draft_update_receipt", "draft_deleted", "draft_delete_receipt",
+              "draft_versions_response", "draft_conflict", "chat_details",
+              "chat_deleted", "chat_read_status_updated",
               "chat_pinned_updated", "message_deleted", "message_highlight_added",
               "message_highlight_updated", "message_highlight_removed", "draft_embed_deleted",
               "last_opened_updated", "key_delivery_confirmed", "system_message_confirmed",
@@ -535,6 +545,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     }
 }
 
+extension WebSocketManager: DraftSyncTransport {}
+
 struct SyncClientState: Equatable {
     let clientChatVersions: [String: [String: Int]]
     let clientChatIds: [String]
@@ -566,7 +578,8 @@ private struct WSInboundParsed: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        type = try container.decode(String.self, forKey: .type)
+        type = try container.decodeIfPresent(String.self, forKey: .type)
+            ?? container.decode(String.self, forKey: .event)
         data = try container.decodeIfPresent([String: AnyCodable].self, forKey: .data)
         payload = try container.decodeIfPresent([String: AnyCodable].self, forKey: .payload)
 
@@ -576,7 +589,7 @@ private struct WSInboundParsed: Decodable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case type, data, payload
+        case type, event, data, payload
     }
 
     func stringField(_ key: String) -> String? {

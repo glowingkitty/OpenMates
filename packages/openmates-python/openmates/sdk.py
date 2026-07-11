@@ -69,6 +69,7 @@ class OpenMates:
         self.chats = OpenMatesChats(self)
         self.connected_accounts = OpenMatesConnectedAccounts(self)
         self.docs = OpenMatesDocs(self)
+        self.drafts = OpenMatesDrafts(self)
         self.embeds = OpenMatesEmbeds(self)
         self.feedback = OpenMatesFeedback(self)
         self.inspirations = OpenMatesInspirations(self)
@@ -565,6 +566,45 @@ class OpenMatesChats:
 
     def incognito(self, message: str) -> ChatResponse:
         return self.send(message, save_to_account=False)
+
+
+class OpenMatesDrafts:
+    """Read-only access to encrypted chat drafts."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def list_encrypted(self) -> list[dict[str, Any]]:
+        return [self._normalize(item) for item in self._client._get("/v1/sdk/drafts").get("drafts", [])]
+
+    def list(self) -> list[dict[str, Any]]:
+        return [self._decrypt(draft) for draft in self.list_encrypted()]
+
+    def get_encrypted(self, chat_id: str) -> dict[str, Any] | None:
+        draft = self._client._get(f"/v1/sdk/drafts/{_quote(chat_id)}").get("draft")
+        return self._normalize(draft) if isinstance(draft, dict) else None
+
+    def get(self, chat_id: str) -> dict[str, Any] | None:
+        draft = self.get_encrypted(chat_id)
+        return self._decrypt(draft) if draft else None
+
+    def _decrypt(self, draft: dict[str, Any]) -> dict[str, Any]:
+        master_key = self._client._get_master_key()
+        markdown = _decrypt_aes_gcm_text(draft["encrypted_draft_md"], master_key)
+        if markdown is None:
+            raise OpenMatesConfigError("Unable to decrypt draft markdown")
+        encrypted_preview = draft.get("encrypted_draft_preview")
+        preview = _decrypt_aes_gcm_text(encrypted_preview, master_key) if isinstance(encrypted_preview, str) else markdown[:160]
+        return {**draft, "markdown": markdown, "preview": preview}
+
+    @staticmethod
+    def _normalize(draft: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "chat_id": str(draft.get("chat_id") or ""),
+            "encrypted_draft_md": str(draft.get("encrypted_draft_md") or ""),
+            "encrypted_draft_preview": draft.get("encrypted_draft_preview") if isinstance(draft.get("encrypted_draft_preview"), str) else None,
+            "draft_v": int(draft.get("draft_v") or 0),
+        }
 
 
 class OpenMatesPlans:

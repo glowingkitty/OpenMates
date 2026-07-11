@@ -246,6 +246,16 @@ final class EmbedKeyManager {
         chatIdHashCache.removeAll()
     }
 
+    func removeKeys(for chatId: String) {
+        let hashedChatId = chatIdHash(chatId)
+        entriesByHashedEmbedId = entriesByHashedEmbedId.compactMapValues { entries in
+            let retained = entries.filter { $0.hashedChatId != hashedChatId }
+            return retained.isEmpty ? nil : retained
+        }
+        keyCache = keyCache.filter { !$0.key.hasSuffix(":\(chatId)") }
+        chatIdHashCache.removeValue(forKey: chatId)
+    }
+
     private func currentMasterKey() async -> SymmetricKey? {
         guard let userId = await AuthManager.currentUserId() else { return nil }
         return try? await CryptoManager.shared.loadMasterKey(for: userId)

@@ -165,6 +165,10 @@ async function main(): Promise<void> {
       printChatsHelp();
       return;
     }
+    if (command === "drafts") {
+      printDraftsHelp();
+      return;
+    }
     if (command === "apps") {
       printAppsHelp();
       return;
@@ -296,6 +300,11 @@ async function main(): Promise<void> {
 
   if (command === "chats") {
     await handleChats(client, subcommand, rest, parsed.flags, redactor);
+    return;
+  }
+
+  if (command === "drafts") {
+    await handleDrafts(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -596,6 +605,56 @@ function parseJsonFlag<T>(value: string, flagName: string): T {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Invalid JSON for ${flagName}: ${message}`);
   }
+}
+
+async function handleDrafts(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printDraftsHelp();
+    return;
+  }
+  if (subcommand === "create" || subcommand === "update") {
+    const chatId = subcommand === "update"
+      ? rest[0]
+      : typeof flags.chat === "string" ? flags.chat : undefined;
+    const markdown = subcommand === "update" ? rest.slice(1).join(" ").trim() : rest.join(" ").trim();
+    if (subcommand === "update" && !chatId) throw new Error("Missing chat ID for draft update.");
+    if (!markdown) throw new Error(`Missing draft text for draft ${subcommand}.`);
+    const draft = await client.saveDraft({
+      chatId,
+      markdown,
+      preview: typeof flags.preview === "string" ? flags.preview : markdown.slice(0, 160),
+    });
+    printJson(draft);
+    return;
+  }
+  if (subcommand === "list") {
+    const drafts = await client.listDrafts(flags.refresh === true);
+    printJson({ drafts });
+    return;
+  }
+  if (subcommand === "get") {
+    const chatId = rest[0];
+    if (!chatId) throw new Error("Missing chat ID for draft get.");
+    printJson({ draft: await client.getDraft(chatId, flags.refresh === true) });
+    return;
+  }
+  if (subcommand === "clear") {
+    const chatId = rest[0];
+    if (!chatId) throw new Error("Missing chat ID for draft clear.");
+    await client.clearDraft(chatId);
+    printJson({ success: true, chat_id: chatId });
+    return;
+  }
+  if (subcommand === "sync") {
+    printJson({ versions: await client.reconcileDraftVersions() });
+    return;
+  }
+  throw new Error(`Unknown drafts subcommand '${subcommand}'.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -6562,6 +6621,7 @@ Commands:
   openmates logout                           Log out and clear session
   openmates whoami [--json]                  Show account info
   openmates chats [--help]                   Chat commands (list, search, show, ...)
+  openmates drafts [--help]                  Encrypted draft lifecycle commands
   openmates apps [--help]                    App skill commands (list, run, ...)
   openmates workflows [--help]               Server-side workflow commands
   openmates mentions [--help]                List available @mentions
@@ -6822,6 +6882,19 @@ Examples:
   openmates chats share d262cb68
   openmates chats share last --expires 604800
   openmates chats share d262cb68 --password mypass`);
+}
+
+function printDraftsHelp(): void {
+  console.log(`Draft commands:
+  openmates drafts create <text> [--chat <uuid>] [--preview <text>] [--json]
+  openmates drafts update <chat-id> <text> [--preview <text>] [--json]
+  openmates drafts list [--refresh] [--json]
+  openmates drafts get <chat-id> [--refresh] [--json]
+  openmates drafts clear <chat-id> [--json]
+  openmates drafts sync [--json]
+
+Draft plaintext is encrypted locally with the account master key. Only Format-D
+ciphertext and version metadata are sent to the server or written to CLI cache.`);
 }
 
 function printAppsHelp(): void {

@@ -16,6 +16,7 @@ import SwiftUI
 
 struct ChatListRow: View {
     let chat: Chat
+    @ObservedObject private var draftService = DraftService.shared
 
     private struct PublicIconDescriptor {
         let icon: String
@@ -111,8 +112,13 @@ struct ChatListRow: View {
                     .foregroundStyle(Color.fontPrimary)
                     .lineLimit(1)
 
+                if let preview = draftService.draftPreview(chatId: chat.id), chat.draftV ?? 0 > 0 {
+                    Text(preview)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontTertiary)
+                        .lineLimit(1)
                 // Hide timestamps for demo/example/legal chats (static content)
-                if let date = chat.lastMessageDate, !chat.id.hasPrefix("demo-"),
+                } else if let date = chat.lastMessageDate, !chat.id.hasPrefix("demo-"),
                    !chat.id.hasPrefix("example-"), !chat.id.hasPrefix("legal-"),
                    !chat.id.hasPrefix("announcements-") {
                     Text(date, style: .relative)

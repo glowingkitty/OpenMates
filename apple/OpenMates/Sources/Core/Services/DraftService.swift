@@ -8,6 +8,10 @@ import Combine
 import CryptoKit
 import Foundation
 
+extension Notification.Name {
+    static let composerDraftDidChange = Notification.Name("openmates.composerDraftDidChange")
+}
+
 actor UserDefaultsLegacyComposerDraftStore: LegacyComposerDraftStore {
     private let defaults: UserDefaults
     private let storageKey: String
@@ -47,11 +51,13 @@ final class DraftService: ObservableObject {
     )
 
     @Published private(set) var currentDraft = ""
+    @Published private(set) var draftPreviews: [String: String] = [:]
 
     private let repository: any ComposerDraftRepository
     private let legacyStore: any LegacyComposerDraftStore
     private let masterKeyProvider: @Sendable () async throws -> SymmetricKey?
     private let crypto: CryptoManager
+    private var syncCoordinator: DraftSyncCoordinator?
 
     init(
         repository: any ComposerDraftRepository,
@@ -62,6 +68,43 @@ final class DraftService: ObservableObject {
         self.legacyStore = legacyStore
         self.masterKeyProvider = masterKeyProvider
         self.crypto = CryptoManager.shared
+    }
+
+    func configureSync(
+        chatStore: ChatStore,
+        transport: any DraftSyncTransport,
+        offlineActions: any DraftSyncOfflineActions
+    ) {
+        syncCoordinator = DraftSyncCoordinator(
+            repository: repository,
+            chatStore: chatStore,
+            transport: transport,
+            offlineActions: offlineActions,
+            onDraftChanged: { [weak self] chatId in
+                Task { @MainActor in
+                    await self?.refreshDraftState(chatId: chatId)
+                }
+            }
+        )
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let records = try await repository.allRecords()
+                syncCoordinator?.restoreNewChatDraftId(from: records)
+                for record in records {
+                    await refreshDraftState(chatId: record.chatId)
+                }
+            } catch {
+                NativeDiagnostics.warning(
+                    "Draft preview hydration failed errorType=\(type(of: error))",
+                    category: "draft_sync"
+                )
+            }
+        }
+    }
+
+    var activeNewChatDraftId: String? {
+        syncCoordinator?.activeNewChatDraftId
     }
 
     func saveDraft(
@@ -75,10 +118,15 @@ final class DraftService: ObservableObject {
             try await clearDraft(chatId: chatId)
             return
         }
+        let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: true) ?? chatId
+        var effectiveDraftVersion = draftVersion
         do {
-            if let existing = try await repository.record(chatId: chatId),
-               existing.draftVersion > draftVersion {
-                throw ComposerDraftError.versionConflict
+            if let existing = try await repository.record(chatId: resolvedChatId) {
+                if chatId == DraftSyncCoordinator.syntheticNewChatId {
+                    effectiveDraftVersion = existing.draftVersion
+                } else if existing.draftVersion > draftVersion {
+                    throw ComposerDraftError.versionConflict
+                }
             }
         } catch let error as ComposerDraftError {
             throw error
@@ -89,9 +137,9 @@ final class DraftService: ObservableObject {
         let record = try await encryptedRecord(
             canonicalMarkdown: canonicalMarkdown,
             preview: preview,
-            chatId: chatId,
+            chatId: resolvedChatId,
             revision: revision,
-            draftVersion: draftVersion,
+            draftVersion: effectiveDraftVersion,
             masterKey: masterKey
         )
         do {
@@ -99,13 +147,17 @@ final class DraftService: ObservableObject {
         } catch {
             throw ComposerDraftError.encryptedWriteFailed
         }
+        try await syncCoordinator?.submitLocalUpdate(record, resolvedChatId: resolvedChatId)
         currentDraft = canonicalMarkdown
+        draftPreviews[resolvedChatId] = preview
+        postDraftChange(chatId: resolvedChatId)
     }
 
     func loadDraft(chatId: String) async throws -> ComposerDraft? {
         let record: ComposerDraftRecord
         do {
-            guard let stored = try await repository.record(chatId: chatId) else { return nil }
+            let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: false) ?? chatId
+            guard let stored = try await repository.record(chatId: resolvedChatId) else { return nil }
             record = stored
         } catch {
             throw ComposerDraftError.verificationFailed
@@ -116,11 +168,25 @@ final class DraftService: ObservableObject {
                 base64String: record.encryptedMarkdown,
                 key: masterKey
             )
-            let preview = try await crypto.decryptContent(
-                base64String: record.encryptedPreview,
-                key: masterKey
-            )
+            let preview: String
+            if record.encryptedPreview.isEmpty {
+                preview = String(markdown.prefix(160))
+                let encryptedPreview = try await crypto.encryptWithMasterKey(preview, masterKey: masterKey)
+                try await repository.upsert(ComposerDraftRecord(
+                    chatId: record.chatId,
+                    encryptedMarkdown: record.encryptedMarkdown,
+                    encryptedPreview: encryptedPreview,
+                    revision: record.revision,
+                    draftVersion: record.draftVersion
+                ))
+            } else {
+                preview = try await crypto.decryptContent(
+                    base64String: record.encryptedPreview,
+                    key: masterKey
+                )
+            }
             currentDraft = markdown
+            draftPreviews[record.chatId] = preview
             return ComposerDraft(
                 canonicalMarkdown: markdown,
                 preview: preview,
@@ -186,15 +252,83 @@ final class DraftService: ObservableObject {
     }
 
     func clearDraft(chatId: String) async throws {
-        await legacyStore.removeDraft(chatId: chatId)
-        try await repository.remove(chatId: chatId)
+        let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: false) ?? chatId
+        await legacyStore.removeDraft(chatId: resolvedChatId)
+        if let syncCoordinator, resolvedChatId != DraftSyncCoordinator.syntheticNewChatId {
+            try await syncCoordinator.submitLocalDelete(chatId: resolvedChatId)
+        } else {
+            try await repository.remove(chatId: resolvedChatId)
+        }
+        if chatId == DraftSyncCoordinator.syntheticNewChatId {
+            syncCoordinator?.resetNewChatDraftId()
+        }
         currentDraft = ""
+        draftPreviews.removeValue(forKey: resolvedChatId)
+        postDraftChange(chatId: resolvedChatId)
     }
 
     func clearAll() async throws {
         await legacyStore.removeAllDrafts()
         try await repository.removeAll()
+        syncCoordinator?.resetNewChatDraftId()
         currentDraft = ""
+        draftPreviews.removeAll()
+    }
+
+    func reconcileAfterReconnect() async {
+        do {
+            try await syncCoordinator?.reconcileAfterReconnect()
+        } catch {
+            NativeDiagnostics.warning(
+                "Draft reconnect reconciliation failed errorType=\(type(of: error))",
+                category: "draft_sync"
+            )
+        }
+    }
+
+    func handleSyncEvent(type: String, raw: Data) async {
+        do {
+            if type == "phase_2_last_20_chats_ready" || type == "phase_3_last_100_chats_ready" || type == "sync_metadata_chats_response" {
+                try await syncCoordinator?.handleSyncEvent(raw: raw)
+            } else {
+                try await syncCoordinator?.handleEvent(type: type, raw: raw)
+            }
+        } catch {
+            NativeDiagnostics.warning(
+                "Draft sync event failed type=\(type) errorType=\(Swift.type(of: error))",
+                category: "draft_sync"
+            )
+        }
+    }
+
+    func draftPreview(chatId: String) -> String? {
+        draftPreviews[chatId]
+    }
+
+    private func refreshDraftState(chatId: String) async {
+        do {
+            if let draft = try await loadDraft(chatId: chatId) {
+                draftPreviews[chatId] = draft.preview
+            } else {
+                draftPreviews.removeValue(forKey: chatId)
+            }
+            postDraftChange(chatId: chatId)
+        } catch ComposerDraftError.masterKeyUnavailable {
+            return
+        } catch {
+            NativeDiagnostics.warning(
+                "Draft UI refresh failed errorType=\(type(of: error))",
+                category: "draft_sync"
+            )
+        }
+    }
+
+    private func postDraftChange(chatId: String) {
+        NotificationCenter.default.post(
+            name: .composerDraftDidChange,
+            object: nil,
+            userInfo: ["chatId": chatId]
+        )
     }
 
     private func requireMasterKey() async throws -> SymmetricKey {

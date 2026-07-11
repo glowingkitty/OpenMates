@@ -216,10 +216,17 @@ final class AnonymousFreeUsageService: ObservableObject {
                 clientChatId: chatId,
                 clientMessageId: assistantMessageId,
                 plaintextMessage: plaintext,
-                messageHistory: history
+                messageHistory: history,
+                learningMode: Self.activeGuestLearningModeContext()
             )
         )
         return response
+    }
+
+    private static func activeGuestLearningModeContext() -> AnonymousLearningModeContext? {
+        let status = LearningModeGuestSession.shared.status
+        guard status.enabled, let ageGroup = status.ageGroup else { return nil }
+        return AnonymousLearningModeContext(enabled: true, ageGroup: ageGroup)
     }
 
     func promoteAnonymousChats(chatStore: ChatStore, wsManager: WebSocketManager?, userId: String?) async -> [String] {
@@ -499,6 +506,7 @@ struct AnonymousChatRequest: Encodable {
     let clientMessageId: String
     let plaintextMessage: String
     let messageHistory: [AnonymousHistoryMessage]
+    let learningMode: AnonymousLearningModeContext?
 }
 
 struct AnonymousHistoryMessage: Encodable {

@@ -8,6 +8,8 @@
 //          frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
 //          frontend/packages/ui/src/components/settings/settingsRoutes.ts
 //          frontend/packages/ui/src/components/settings/SettingsFooter.svelte
+//          frontend/packages/ui/src/components/settings/incognito/SettingsIncognitoInfo.svelte
+//          frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
 // CSS:     frontend/packages/ui/src/components/SettingsItem.svelte (icon styles)
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
@@ -98,6 +100,7 @@ enum SettingsRouteInventory {
         "report_issue",
         "report_issue/confirmation",
         "incognito/info",
+        "learning-mode/setup",
         "server",
         "server/software-update",
         "server/stats",
@@ -123,6 +126,8 @@ enum SettingsRouteInventory {
         "newsletter",
         "support",
         "report_issue",
+        "incognito/info",
+        "learning-mode/setup",
         "server",
         "logs",
     ]
@@ -192,7 +197,6 @@ enum SettingsRouteInventory {
         "support/one-time",
         "support/monthly",
         "report_issue/confirmation",
-        "incognito/info",
         "server/software-update",
         "server/stats",
         "server/gift-cards",
@@ -215,6 +219,9 @@ struct SettingsView: View {
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
     @State private var showIncognitoInfo = false
+    @ObservedObject private var incognitoSession = IncognitoSettingsSession.shared
+    @ObservedObject private var guestLearningMode = LearningModeGuestSession.shared
+    @StateObject private var accountLearningMode = LearningModeController()
     @State private var destination: SettingsDestination?
     @State private var activeReportIssuePrefill: ReportIssuePrefill?
     @State private var activeReferralCodeRequest: Int
@@ -274,6 +281,14 @@ struct SettingsView: View {
             activeReferralCodeRequest = newValue
             navigateTo(.billing)
         }
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-reset-incognito-explainer") {
+                IncognitoExplainerSeenState().resetForUITesting()
+            }
+            if isAuthenticated {
+                Task { await accountLearningMode.loadAccountStatus() }
+            }
+        }
     }
 
     // MARK: - Main settings menu
@@ -308,15 +323,29 @@ struct SettingsView: View {
 
                     // Incognito toggle — web: SettingsItem type="quickaction" (flat icon, no bg)
                     if isAuthenticated {
-                        OMSettingsRow(
+                        OMSettingsToggleRow(
                             title: AppStrings.settingsIncognito,
+                            subtitle: incognitoSession.isEnabled ? AppStrings.enabled : AppStrings.disabled,
                             icon: "incognito",
-                            showsChevron: false
-                        ) {
-                            showIncognitoInfo = true
-                        }
-                        .accessibilityIdentifier("settings-incognito-row")
+                            isOn: Binding(
+                                get: { incognitoSession.isEnabled },
+                                set: { handleIncognitoToggle($0) }
+                            )
+                        )
+                        .accessibilityIdentifier("incognito-toggle-wrapper")
                     }
+
+                    OMSettingsToggleRow(
+                        title: AppStrings.learningMode,
+                        subtitle: learningModeStatus.enabled ? AppStrings.learningModeActive : AppStrings.learningModeInactive,
+                        icon: "study",
+                        isOn: Binding(
+                            get: { learningModeStatus.enabled },
+                            set: { _ in navigateTo(.learningMode) }
+                        ),
+                        disabled: isAuthenticated && accountLearningMode.isLoading
+                    )
+                    .accessibilityIdentifier("learning-mode-toggle-wrapper")
 
                     row(.ai, AppStrings.settingsAI, icon: "ai")
                     row(.apps, AppStrings.settingsApps, icon: "app_store")
@@ -475,6 +504,34 @@ struct SettingsView: View {
         }
     }
 
+    private var learningModeStatus: LearningModeStatus {
+        isAuthenticated ? accountLearningMode.status : guestLearningMode.status
+    }
+
+    private func handleIncognitoToggle(_ shouldEnable: Bool) {
+        if !shouldEnable {
+            NotificationCenter.default.post(
+                name: .settingsIncognitoModeRequested,
+                object: SettingsIncognitoAction.deactivate
+            )
+            return
+        }
+
+        if IncognitoExplainerSeenState().hasSeenExplainer {
+            activateIncognitoAndCloseSettings()
+        } else {
+            showIncognitoInfo = true
+        }
+    }
+
+    private func activateIncognitoAndCloseSettings() {
+        closeSettings()
+        NotificationCenter.default.post(
+            name: .settingsIncognitoModeRequested,
+            object: SettingsIncognitoAction.activate
+        )
+    }
+
     // MARK: - Incognito Overlay
 
     private var incognitoOverlay: some View {
@@ -500,8 +557,9 @@ struct SettingsView: View {
 
                 SettingsIncognitoInfoView(
                     onActivate: {
+                        IncognitoExplainerSeenState().markSeen()
                         showIncognitoInfo = false
-                        NotificationCenter.default.post(name: .incognitoActivated, object: nil)
+                        activateIncognitoAndCloseSettings()
                     },
                     onCancel: { showIncognitoInfo = false }
                 )
@@ -545,6 +603,12 @@ struct SettingsView: View {
             )
         case .apps:
             SettingsAppsFullView(onOpenExampleChat: onOpenExampleChat ?? { _ in })
+        case .learningMode:
+            SettingsLearningModeView(
+                isAuthenticated: isAuthenticated,
+                guestSession: guestLearningMode,
+                controller: accountLearningMode
+            )
         default:
             destination.view(
                 reportIssuePrefill: activeReportIssuePrefill,
@@ -657,7 +721,7 @@ struct SettingsView: View {
     private enum SettingsDestination: Hashable {
         // Top-level menu items (matching web settingsRoutes.ts order)
         case pricing, ai, memories, apps, privacy, mates
-        case billing, notifications, shared, interface
+        case billing, notifications, shared, interface, learningMode
         case account, developers, newsletter, support, reportIssue
         case serverConnection
         case server, logs
@@ -676,6 +740,7 @@ struct SettingsView: View {
             case .notifications: return AppStrings.settingsNotifications
             case .shared: return AppStrings.settingsShared
             case .interface: return AppStrings.settingsInterface
+            case .learningMode: return AppStrings.learningMode
             case .account: return AppStrings.settingsAccount
             case .developers: return AppStrings.settingsDevelopers
             case .newsletter: return AppStrings.settingsNewsletter
@@ -702,6 +767,7 @@ struct SettingsView: View {
             case .notifications: return "notifications"
             case .shared: return "shared"
             case .interface: return "interface"
+            case .learningMode: return "study"
             case .account: return "account"
             case .developers: return "developers"
             case .newsletter: return "newsletter"
@@ -734,6 +800,7 @@ struct SettingsView: View {
             case .notifications: return "notifications"
             case .shared: return "shared"
             case .interface: return "interface"
+            case .learningMode: return "learning-mode"
             case .account: return "account"
             case .developers: return "developers"
             case .newsletter: return "newsletter"
@@ -760,6 +827,7 @@ struct SettingsView: View {
             case .notifications: return LocalizationManager.shared.text("settings.notifications.description")
             case .shared: return LocalizationManager.shared.text("settings.shared.description")
             case .interface: return LocalizationManager.shared.text("settings.interface.description")
+            case .learningMode: return AppStrings.learningModeInactiveDetail
             case .account: return LocalizationManager.shared.text("settings.account.description")
             case .developers: return LocalizationManager.shared.text("settings.developers_description")
             case .newsletter: return LocalizationManager.shared.text("settings.newsletter.description")
@@ -786,6 +854,7 @@ struct SettingsView: View {
             case .notifications: SettingsNotificationsView()
             case .shared: SettingsSharedView()
             case .interface: SettingsInterfaceSubPage()
+            case .learningMode: EmptyView()
             case .account: SettingsAccountSubPage()
             case .developers: SettingsDeveloperView()
             case .newsletter: NewsletterSettingsView()
@@ -959,80 +1028,8 @@ private struct SettingsMainBanner: View {
 // Web source: SettingsPrivacy.svelte — shows hide personal data, auto deletion, debug logging
 
 struct SettingsPrivacySubPage: View {
-    @State private var destination: PrivacyDestination?
-
     var body: some View {
-        if let dest = destination {
-            VStack(spacing: 0) {
-                HStack(spacing: .spacing4) {
-                    OMIconButton(icon: "back", label: AppStrings.back, size: 36) {
-                        destination = nil
-                    }
-                    Text(dest.title)
-                        .font(.omH3)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.fontPrimary)
-                    Spacer()
-                }
-                .padding(.horizontal, .spacing8)
-                .padding(.vertical, .spacing6)
-                .background(Color.grey0)
-
-                dest.view
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .background(Color.grey0)
-        } else {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: .spacing8) {
-                    OMSettingsSection {
-                        OMSettingsRow(
-                            title: AppStrings.hidePersonalData,
-                            icon: "anonym",
-                            iconGradient: .appSecrets
-                        ) { destination = .hidePersonalData }
-
-                        OMSettingsRow(
-                            title: AppStrings.autoDeleteChats,
-                            icon: "delete",
-                            iconGradient: .appNews
-                        ) { destination = .autoDelete }
-
-                        OMSettingsRow(
-                            title: AppStrings.shareDebugLogs,
-                            icon: "bug",
-                            iconGradient: .appCode
-                        ) { destination = .debugLogs }
-                    }
-                }
-                .padding(.horizontal, .spacing8)
-                .padding(.bottom, .spacing16)
-            }
-            .scrollContentBackground(.hidden)
-            .background(Color.grey0)
-        }
-    }
-
-    @MainActor
-    enum PrivacyDestination: Hashable {
-        case hidePersonalData, autoDelete, debugLogs
-
-        var title: String {
-            switch self {
-            case .hidePersonalData: return AppStrings.hidePersonalData
-            case .autoDelete: return AppStrings.autoDeleteChats
-            case .debugLogs: return AppStrings.shareDebugLogs
-            }
-        }
-
-        @ViewBuilder
-        var view: some View {
-            switch self {
-            case .hidePersonalData: SettingsHidePersonalDataView()
-            case .autoDelete: SettingsAutoDeleteView()
-            case .debugLogs: SettingsShareDebugLogsView()
-            }
-        }
+        SettingsPrivacyContentView()
     }
 }
 
@@ -2070,5 +2067,5 @@ struct SettingsDeleteAccountView: View {
 // MARK: - Notifications
 
 extension Notification.Name {
-    static let incognitoActivated = Notification.Name("openmates.incognitoActivated")
+    static let settingsIncognitoModeRequested = Notification.Name("openmates.settingsIncognitoModeRequested")
 }

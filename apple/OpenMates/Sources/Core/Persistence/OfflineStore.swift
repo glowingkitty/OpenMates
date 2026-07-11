@@ -2,8 +2,9 @@
 // Enables full offline access to previously loaded conversations.
 // Syncs with the in-memory ChatStore and resolves conflicts on reconnection.
 
-import SwiftData
+import CryptoKit
 import Foundation
+import SwiftData
 
 // MARK: - SwiftData Models
 
@@ -606,7 +607,36 @@ final class OfflineStore: ObservableObject {
         for msg in (try? context.fetch(msgDescriptor)) ?? [] {
             context.delete(msg)
         }
+        let embedDescriptor = FetchDescriptor<PersistedEmbed>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        for embed in (try? context.fetch(embedDescriptor)) ?? [] {
+            context.delete(embed)
+        }
+        let draftDescriptor = FetchDescriptor<PersistedComposerDraft>(
+            predicate: #Predicate { $0.chatId == targetChatId }
+        )
+        for draft in (try? context.fetch(draftDescriptor)) ?? [] {
+            context.delete(draft)
+        }
+        let hashedChatId = SHA256.hash(data: Data(chatId.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let keyDescriptor = FetchDescriptor<PersistedEmbedKey>(
+            predicate: #Predicate { $0.hashedChatId == hashedChatId }
+        )
+        for key in (try? context.fetch(keyDescriptor)) ?? [] {
+            context.delete(key)
+        }
+        let actionDescriptor = FetchDescriptor<PendingOfflineAction>()
+        for action in (try? context.fetch(actionDescriptor)) ?? [] {
+            guard let data = action.payloadJSON,
+                  let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  payload["chat_id"] as? String == chatId else { continue }
+            context.delete(action)
+        }
         try? context.save()
+        updatePendingCount()
     }
 
     func clearAll() {

@@ -1223,6 +1223,39 @@ export interface ChatListPage {
   hasMore: boolean;
 }
 
+export interface EncryptedDraft {
+  chatId: string;
+  encryptedDraftMd: string;
+  encryptedDraftPreview: string | null;
+  draftV: number;
+}
+
+export interface DecryptedDraft extends EncryptedDraft {
+  markdown: string;
+  preview: string | null;
+}
+
+export interface AuthoritativeChatReconciliation {
+  authoritative: boolean;
+  authoritative_chat_ids?: string[];
+  deleted_chat_ids?: string[];
+}
+
+export function reconcileAuthoritativeChats(
+  chats: CachedChat[],
+  evidence: AuthoritativeChatReconciliation,
+): CachedChat[] {
+  const deletedIds = new Set(evidence.deleted_chat_ids ?? []);
+  const authoritativeIds = evidence.authoritative && evidence.authoritative_chat_ids
+    ? new Set(evidence.authoritative_chat_ids)
+    : null;
+  if (!authoritativeIds && deletedIds.size === 0) return chats;
+  return chats.filter((chat) => {
+    const chatId = String(chat.details.id ?? "");
+    return (!authoritativeIds || authoritativeIds.has(chatId)) && !deletedIds.has(chatId);
+  });
+}
+
 export interface BenchmarkMetadata {
   source: "benchmark";
   benchmark_run_id: string;
@@ -2489,6 +2522,177 @@ export class OpenMatesClient {
       page,
       limit,
       hasMore: offset + limit < total,
+    };
+  }
+
+  async saveDraft(params: {
+    markdown: string;
+    preview?: string | null;
+    chatId?: string;
+  }): Promise<DecryptedDraft> {
+    const markdown = params.markdown.trim();
+    if (!markdown) throw new Error("Draft markdown must not be empty.");
+    const masterKey = this.getMasterKeyBytes();
+    const encrypted = await this.saveEncryptedDraft({
+      chatId: params.chatId ?? randomUUID(),
+      encryptedDraftMd: await encryptWithAesGcmCombined(markdown, masterKey),
+      encryptedDraftPreview: params.preview
+        ? await encryptWithAesGcmCombined(params.preview, masterKey)
+        : null,
+    });
+    return { ...encrypted, markdown, preview: params.preview ?? null };
+  }
+
+  async saveEncryptedDraft(params: {
+    chatId: string;
+    encryptedDraftMd: string;
+    encryptedDraftPreview?: string | null;
+  }): Promise<EncryptedDraft> {
+    const { ws } = await this.openWsClient();
+    try {
+      const receipt = ws.waitForMessage(
+        "draft_update_receipt",
+        (payload) => (payload as Record<string, unknown>).chat_id === params.chatId,
+      );
+      await ws.sendAsync("update_draft", {
+        chat_id: params.chatId,
+        encrypted_draft_md: params.encryptedDraftMd,
+        encrypted_draft_preview: params.encryptedDraftPreview ?? null,
+      });
+      const response = await receipt;
+      const draftV = Number((response.payload as Record<string, unknown>).draft_v ?? 0);
+      this.storeEncryptedDraft({
+        chatId: params.chatId,
+        encryptedDraftMd: params.encryptedDraftMd,
+        encryptedDraftPreview: params.encryptedDraftPreview ?? null,
+        draftV,
+      });
+      return {
+        chatId: params.chatId,
+        encryptedDraftMd: params.encryptedDraftMd,
+        encryptedDraftPreview: params.encryptedDraftPreview ?? null,
+        draftV,
+      };
+    } finally {
+      ws.close();
+    }
+  }
+
+  async listDrafts(forceRefresh = false): Promise<DecryptedDraft[]> {
+    const cache = await this.ensureSynced(forceRefresh);
+    const drafts: DecryptedDraft[] = [];
+    for (const chat of cache.chats) {
+      const draft = await this.decryptCachedDraft(chat);
+      if (draft) drafts.push(draft);
+    }
+    return drafts;
+  }
+
+  async getDraft(chatId: string, forceRefresh = false): Promise<DecryptedDraft | null> {
+    const cache = await this.ensureSynced(forceRefresh);
+    const chat = cache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+    return chat ? this.decryptCachedDraft(chat) : null;
+  }
+
+  async clearDraft(chatId: string): Promise<void> {
+    const { ws } = await this.openWsClient();
+    try {
+      const receipt = ws.waitForMessage(
+        "draft_delete_receipt",
+        (payload) => (payload as Record<string, unknown>).chat_id === chatId,
+      );
+      await ws.sendAsync("delete_draft", { chat_id: chatId });
+      await receipt;
+    } finally {
+      ws.close();
+    }
+    const cache = loadSyncCache();
+    if (!cache) return;
+    const chat = cache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+    if (chat) {
+      delete chat.details.encrypted_draft_md;
+      delete chat.details.encrypted_draft_preview;
+      chat.details.draft_v = 0;
+      if (chat.messages.length === 0 && !chat.details.encrypted_chat_key) {
+        cache.chats = cache.chats.filter((entry) => entry !== chat);
+      }
+      saveSyncCache(cache);
+    }
+  }
+
+  async reconcileDraftVersions(): Promise<Record<string, number>> {
+    const cache = loadSyncCache();
+    const drafts = (cache?.chats ?? []).filter(
+      (chat) => typeof chat.details.encrypted_draft_md === "string",
+    );
+    if (drafts.length === 0) return {};
+    const { ws } = await this.openWsClient();
+    try {
+      const response = ws.waitForMessage("draft_versions_response");
+      await ws.sendAsync("get_draft_versions", {
+        chats: drafts.map((chat) => ({
+          chat_id: String(chat.details.id),
+          client_draft_v: Number(chat.details.draft_v ?? 0),
+        })),
+      });
+      const frame = await response;
+      const versions = (frame.payload as { versions?: Record<string, number> }).versions ?? {};
+      for (const chat of drafts) {
+        const chatId = String(chat.details.id);
+        if (versions[chatId] === 0) {
+          delete chat.details.encrypted_draft_md;
+          delete chat.details.encrypted_draft_preview;
+          chat.details.draft_v = 0;
+        }
+      }
+      if (cache) saveSyncCache(cache);
+      return versions;
+    } finally {
+      ws.close();
+    }
+  }
+
+  private storeEncryptedDraft(draft: EncryptedDraft): void {
+    const cache = loadSyncCache() ?? {
+      syncedAt: 0,
+      totalChatCount: 0,
+      loadedChatCount: 0,
+      chats: [],
+      embeds: [],
+      embedKeys: [],
+    };
+    let chat = cache.chats.find((entry) => String(entry.details.id ?? "") === draft.chatId);
+    if (!chat) {
+      chat = { details: { id: draft.chatId }, messages: [] };
+      cache.chats.unshift(chat);
+    }
+    chat.details.encrypted_draft_md = draft.encryptedDraftMd;
+    chat.details.encrypted_draft_preview = draft.encryptedDraftPreview;
+    chat.details.draft_v = draft.draftV;
+    cache.syncedAt = Date.now();
+    cache.loadedChatCount = cache.chats.length;
+    saveSyncCache(cache);
+  }
+
+  private async decryptCachedDraft(chat: CachedChat): Promise<DecryptedDraft | null> {
+    const encryptedDraftMd = chat.details.encrypted_draft_md;
+    if (typeof encryptedDraftMd !== "string") return null;
+    const encryptedPreview = typeof chat.details.encrypted_draft_preview === "string"
+      ? chat.details.encrypted_draft_preview
+      : null;
+    const masterKey = this.getMasterKeyBytes();
+    const markdown = await decryptWithAesGcmCombined(encryptedDraftMd, masterKey);
+    if (markdown === null) throw new Error("Failed to decrypt draft markdown.");
+    const preview = encryptedPreview
+      ? await decryptWithAesGcmCombined(encryptedPreview, masterKey)
+      : markdown.slice(0, 160);
+    return {
+      chatId: String(chat.details.id ?? ""),
+      encryptedDraftMd,
+      encryptedDraftPreview: encryptedPreview,
+      draftV: Number(chat.details.draft_v ?? 0),
+      markdown,
+      preview,
     };
   }
 
@@ -6342,6 +6546,7 @@ export class OpenMatesClient {
     const embedKeys: Record<string, unknown>[] = [];
     let newChatSuggestions: Record<string, unknown>[] = [];
     let totalChatCount = 0;
+    let reconciliation: AuthoritativeChatReconciliation = { authoritative: false };
     const pendingAIResponses: PendingAIResponseFrame[] = [];
 
     try {
@@ -6391,8 +6596,16 @@ export class OpenMatesClient {
           const p = frame.payload as {
             chats?: Array<Record<string, unknown>>;
             total_chat_count?: number;
+            authoritative?: boolean;
+            authoritative_chat_ids?: string[];
+            deleted_chat_ids?: string[];
           };
           totalChatCount = p.total_chat_count ?? 0;
+          reconciliation = {
+            authoritative: p.authoritative === true,
+            authoritative_chat_ids: p.authoritative_chat_ids,
+            deleted_chat_ids: p.deleted_chat_ids,
+          };
           for (const wrapper of (p.chats ?? [])) {
             const details = wrapper.chat_details as Record<string, unknown> | undefined;
             if (!details || typeof details.id !== "string") continue;
@@ -6502,6 +6715,20 @@ export class OpenMatesClient {
       }
     }
 
+    const reconciledChats = reconcileAuthoritativeChats(chats, reconciliation);
+    chats.splice(0, chats.length, ...reconciledChats);
+
+    if (reconciliation.deleted_chat_ids?.length) {
+      const { createHash } = await import("node:crypto");
+      const deletedHashes = new Set(
+        reconciliation.deleted_chat_ids.map((id) => createHash("sha256").update(id).digest("hex")),
+      );
+      const keptEmbeds = embeds.filter((embed) => !deletedHashes.has(String(embed.hashed_chat_id ?? "")));
+      const keptKeys = embedKeys.filter((key) => !deletedHashes.has(String(key.hashed_chat_id ?? "")));
+      embeds.splice(0, embeds.length, ...keptEmbeds);
+      embedKeys.splice(0, embedKeys.length, ...keptKeys);
+    }
+
     // Sort by last_edited_overall_timestamp descending
     chats.sort(
       (a, b) =>
@@ -6512,12 +6739,6 @@ export class OpenMatesClient {
           ? a.details.last_edited_overall_timestamp
           : 0),
     );
-
-    // Handle deleted chats: if merged count exceeds server total,
-    // some chats were deleted server-side. Trim oldest (end of sorted list).
-    if (totalChatCount > 0 && chats.length > totalChatCount) {
-      chats.length = totalChatCount;
-    }
 
     try {
       await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses);

@@ -74,6 +74,28 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(weather.settingsAndMemories.first?.id, "home_location")
     }
 
+    func testAppMetadataDecoderPreservesProductionDetailActions() throws {
+        let data = Data(Self.metadataFixture.utf8)
+        let response = try Self.metadataDecoder.decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
+        let weather = try XCTUnwrap(response.apps["weather"])
+        let skill = try XCTUnwrap(weather.skills.first)
+
+        XCTAssertEqual(skill.providerDetails?.first?.id, "openweather")
+        XCTAssertEqual(skill.models?.first?.id, "forecast-v2")
+        XCTAssertEqual(weather.contentTypes.first?.contentTypeId, "weather_day")
+        XCTAssertEqual(weather.focusModes.first?.processBullets, ["Check the forecast", "Recommend timing"])
+        XCTAssertEqual(weather.focusModes.first?.systemPrompt, "Prioritize weather-aware travel planning.")
+        XCTAssertEqual(weather.settingsAndMemories.first?.valueType, "single")
+        XCTAssertEqual(
+            SettingsAppsFullView.mentionSyntax(appId: "weather", itemId: "forecast", kind: .skill),
+            "@skill:weather:forecast"
+        )
+        XCTAssertEqual(
+            SettingsAppsFullView.mentionSyntax(appId: "weather", itemId: "travel_weather", kind: .focus),
+            "@focus:weather:travel_weather"
+        )
+    }
+
     func testAppStoreCategoryFilterSortAndAIExclusionContracts() throws {
         let data = Data(Self.metadataFixture.utf8)
         let response = try Self.metadataDecoder.decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
@@ -93,8 +115,9 @@ final class SettingsFullParityTests: XCTestCase {
         let categorized = Dictionary(uniqueKeysWithValues: SettingsAppsFullView.categorizeApps([
             SettingsAppsFullView.appInfo(from: weather),
             SettingsAppsFullView.appInfo(from: docs),
-        ]).map { ($0.key, $0.apps.map(\.id)) })
+        ], mostUsedAppIDs: ["docs"]).map { ($0.key, $0.apps.map(\.id)) })
         XCTAssertTrue(categorized["top_picks"]?.contains("weather") == true)
+        XCTAssertEqual(categorized["most_used"], ["docs"])
         XCTAssertTrue(categorized["new_apps"]?.contains("weather") == true)
         XCTAssertTrue(categorized["for_everyday_life"]?.contains("weather") == true)
         XCTAssertTrue(categorized["for_work"]?.contains("docs") == true)
@@ -428,6 +451,12 @@ final class SettingsFullParityTests: XCTestCase {
               "pricing": {"per_call": 1},
               "providers": [
                 {"name": "OpenWeather", "display_name": "OpenWeather", "no_api_key": false}
+              ],
+              "provider_details": [
+                {"id": "openweather", "name": "OpenWeather", "description": "Weather provider"}
+              ],
+              "models": [
+                {"id": "forecast-v2", "name": "Forecast V2", "provider_id": "openweather", "provider_name": "OpenWeather"}
               ]
             }
           ],
@@ -435,14 +464,29 @@ final class SettingsFullParityTests: XCTestCase {
             {
               "id": "travel_weather",
               "name": "Travel Weather",
-              "description": "Plan around weather"
+              "description": "Plan around weather",
+              "process": ["Check the forecast", "Recommend timing"],
+              "system_prompt": "Prioritize weather-aware travel planning."
             }
           ],
           "settings_and_memories": [
             {
               "id": "home_location",
               "name": "Home Location",
-              "description": "Remember a location"
+              "description": "Remember a location",
+              "type": "single"
+            }
+          ],
+          "content_types": [
+            {
+              "id": "weather.weather_day",
+              "content_type_id": "weather_day",
+              "frontend_type": "weather-day",
+              "backend_type": "weather_day",
+              "name": "Weather day",
+              "description": "A daily forecast",
+              "example_key": "weather.weather_day",
+              "order": 10
             }
           ]
         },
@@ -455,7 +499,8 @@ final class SettingsFullParityTests: XCTestCase {
           "last_updated": "2026-03-01",
           "skills": [],
           "focus_modes": [],
-          "settings_and_memories": []
+          "settings_and_memories": [],
+          "content_types": []
         }
       }
     }

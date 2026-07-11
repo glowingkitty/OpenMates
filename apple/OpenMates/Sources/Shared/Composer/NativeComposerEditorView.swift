@@ -21,6 +21,8 @@ struct NativeComposerEditorView: UIViewRepresentable {
     let isFocused: Binding<Bool>
     let isEditable: Bool
     let accessibilityHint: String
+    var piiDecorations: [NativeComposerPIIDecoration] = []
+    var onExcludePII: (String) -> Void = { _ in }
     let onSubmit: () -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -46,6 +48,7 @@ struct NativeComposerEditorView: UIViewRepresentable {
     func updateUIView(_ textView: UITextView, context: Context) {
         context.coordinator.onFocusChange = { isFocused.wrappedValue = $0 }
         context.coordinator.onSubmit = onSubmit
+        context.coordinator.adapter.updatePIIDecorations(piiDecorations, onExclude: onExcludePII)
         context.coordinator.adapter.synchronize(textView)
         textView.isEditable = isEditable
         if isFocused.wrappedValue, !textView.isFirstResponder {
@@ -87,6 +90,8 @@ struct NativeComposerEditorView: NSViewRepresentable {
     let isFocused: Binding<Bool>
     let isEditable: Bool
     let accessibilityHint: String
+    var piiDecorations: [NativeComposerPIIDecoration] = []
+    var onExcludePII: (String) -> Void = { _ in }
     let onSubmit: () -> Void
 
     func makeCoordinator() -> Coordinator {

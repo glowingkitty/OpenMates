@@ -47,6 +47,15 @@ final class SettingsAppsParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-app-skill-row-forecast", in: app, timeout: 5))
         XCTAssertTrue(waitForElement("settings-app-memory-row-home_location", in: app, timeout: 5))
         XCTAssertTrue(waitForElement("settings-app-focus-row-travel_weather", in: app, timeout: 5))
+        XCTAssertTrue(waitForElement("settings-app-content-row-weather_day", in: app, timeout: 5))
+
+        app.descendants(matching: .any)["settings-app-memory-row-home_location"].tap()
+        XCTAssertTrue(waitForElement("settings-memory-detail-page", in: app, timeout: 5))
+        app.descendants(matching: .any)["settings-memory-detail-back"].tap()
+
+        app.descendants(matching: .any)["settings-app-content-row-weather_day"].tap()
+        XCTAssertTrue(waitForElement("settings-content-detail-page", in: app, timeout: 5))
+        app.descendants(matching: .any)["settings-content-detail-back"].tap()
 
         app.descendants(matching: .any)["settings-app-skill-row-forecast"].tap()
         XCTAssertTrue(waitForElement("settings-skill-detail-page", in: app, timeout: 5))
@@ -68,6 +77,12 @@ final class SettingsAppsParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-skill-how-to-use-card-0", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-skill-provider-item", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-skill-model-item", in: app, timeout: 3))
+        app.descendants(matching: .any)["settings-skill-provider-item"].tap()
+        XCTAssertTrue(waitForElement("settings-provider-detail-page", in: app, timeout: 3))
+        app.descendants(matching: .any)["settings-provider-detail-back"].tap()
+        app.descendants(matching: .any)["settings-skill-model-item"].tap()
+        XCTAssertTrue(waitForElement("settings-model-detail-page", in: app, timeout: 3))
+        app.descendants(matching: .any)["settings-model-detail-back"].tap()
         XCTAssertTrue(waitForElement("settings-skill-mention-button", in: app, timeout: 3))
         app.descendants(matching: .any)["settings-skill-mention-button"].tap()
         XCTAssertTrue(waitForElement("settings-skill-mention-inserted", in: app, timeout: 3))

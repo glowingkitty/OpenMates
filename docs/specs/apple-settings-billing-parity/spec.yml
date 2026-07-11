@@ -1,723 +1,1355 @@
+schema_version: 2
 id: apple-settings-billing-parity
-title: Apple Full Settings And Subsettings Web Spec Parity
+title: Apple Full Settings Web Parity
 status: implementing
 
 goal: >
-  Recreate the web app's full settings and subsettings coverage in Apple so
-  users can browse and act on every settings surface with native OpenMates UI,
-  including the Apps section, app detail pages, app skills, focus
-  modes, examples that open on click, billing, security, account, privacy,
-  notifications, shared links, developers, server/admin, support, newsletter,
-  report issue, and interface preferences.
+  Make Settings on iPhone, iPad, and macOS a complete native reproduction of the
+  current web settings source of truth. Every product-owned route, visibility
+  variant, state, and action available on web must be reachable and functional
+  in Apple without redirecting users to the web, while OS-owned capability UI
+  may remain native.
 
 scope:
   in:
-    - Full native parity for the settings root menu, authenticated and unauthenticated visibility, banners, back navigation, footer/legal links, loading/empty/error/success states, and no default platform product UI.
-    - Full native parity for Apps browsing, categorized rows, Show all apps, search/filter/sort, all apps, app details, skill cards, memory cards, focus mode cards, active reminders, app embeds, provider icons, pricing, model lists, default app-skill model selection, and Apps examples.
-    - Full native parity for opening skill and focus-mode examples from settings, including linked example chats and rendered embed examples where web uses preview fixtures.
-    - Full native parity for all settings submenus and actions represented by `settingsRoutes.ts`, including account/security, privacy, memories, mates, billing/gift cards, notifications/reminders, shared/share/tip/fork, interface, developers, newsletter, support, report issue, server/admin, and logs.
-    - Executable Apple UI tests for sensitive or destructive settings flows using the same reserved account policy as Playwright specs.
-    - Remote Mac simulator verification for iPhone and iPad where layout, horizontal scrolling, or sidebar/split behavior differs.
+    - The settings shell, root menu, profile header, collapse/expand behavior, scrolling, transitions, back navigation, deep links, footer, and legal destinations.
+    - Every static and dynamic route represented by the web settings registry, including future additions detected by deterministic route auditing.
+    - Guest, authenticated, admin, paired/restricted-session, self-hosted, payment-disabled, demo, loading, offline, empty, error, disabled, saving, and success variants.
+    - Fully functional native Incognito and Learning Mode rows, setup/explainer pages, persistence, lockout/error states, chat behavior, and shortened-content notices.
+    - Apps, All Apps, app details, skills, providers, models, content types, focus modes, app memories, reminders, embeds, examples, and native example-chat opening.
+    - Memories hub/category/create/detail/edit/delete/example/mention flows using the same encrypted data and sync contracts as web.
+    - Mates list/detail/system-prompt/mention/start-chat flows using the canonical metadata source.
+    - Privacy, connected accounts, personal-data protection, location privacy, retention, auto-deletion, telemetry/debug controls, and temporary debug-log sharing.
+    - Billing and usage, native credit purchase, balance refresh, auto-top-up, invoices and downloads, gift cards, referrals, support payments, usage tabs, drilldowns, and exports.
+    - Account, security, passkeys, password, 2FA, recovery key, sessions/pairing, profile, interests, email, storage, import/export, chat cleanup, and account deletion.
+    - AI, projects, notifications, shared links, interface, developers, newsletter, support, report issue, server/admin, logs, and all nested settings actions.
+    - Rendered-web contract capture and native screenshot/UI-test evidence on iPhone, iPad, and macOS.
+    - Executable reserved-account tests for sensitive, destructive, credential-rotating, billing, and policy-changing flows.
   out:
-    - Replacing backend settings, billing, authentication, app metadata, provider, reminder, or storage APIs.
-    - Replacing App Store required StoreKit sheets with web Stripe UI; OS-owned purchase, passkey, file picker, share sheet, notification permission, and clipboard prompts may remain native.
-    - Committing private account data, raw recovery keys, backup codes, OTP seeds, API keys, invoices, payment method details, private screenshots, private hostnames, or production identifiers.
-    - Using production user accounts for destructive or credential-rotating tests.
+    - Redesigning the web settings product or introducing Apple-only settings behavior.
+    - Replacing OS-owned StoreKit purchase sheets, passkey authorization prompts, permission prompts, file/photo pickers, share sheets, camera UI, or system authentication UI.
+    - Web redirects, external-browser fallbacks, silent no-op rows, placeholder pages, fixture-only production behavior, or unsupported-state cards for web-supported product flows.
+    - Committing credentials, private account data, recovery material, payment identifiers, invoices, private screenshots, host details, or raw logs.
+    - Using production accounts for settings verification.
 
 context_discovery:
   github_issues:
-    - GitHub MCP search failed with 401 bad credentials on 2026-06-10.
-    - "`gh issue list --repo glowingkitty/OpenMates --search \"Apple settings parity apps skills focus modes\" --state all --limit 20` failed with 401 unauthenticated on 2026-06-10."
+    - GitHub MCP authentication returned 401 Bad credentials.
+    - A gh fallback search for Apple settings parity, Learning Mode, memories, mates, privacy, and billing returned no matching issue.
   docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/architecture/apple/settings-web-spec-coverage.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/specs/learning-mode/spec.yml
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/apple-skill-application-parity/spec.yml
+    - docs/specs/apple-example-chat-visual-parity/spec.yml
+    - docs/user-guide/apps/settings-and-memories.md
     - apple/AGENTS.md
     - apple/CLAUDE.md
-    - docs/contributing/guides/testing.md
-    - docs/architecture/apple/parity-matrix.md
-    - docs/architecture/apple/web-spec-recreation-gap-audit.md
-    - docs/user-guide/cli/settings.md
-    - docs/architecture/platforms/cli-feature-parity.md
-    - docs/architecture/core/account-recovery.md
   code_patterns:
+    - frontend/packages/ui/src/components/Settings.svelte
     - frontend/packages/ui/src/components/settings/settingsRoutes.ts
     - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
-    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
-    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
-    - frontend/packages/ui/src/components/settings/AppDetails.svelte
-    - frontend/packages/ui/src/components/settings/SkillDetails.svelte
-    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
-    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
-    - frontend/packages/ui/src/components/settings/appSettings/*.svelte
-    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    - frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
+    - frontend/packages/ui/src/components/settings/elements/**
+    - frontend/packages/ui/src/components/settings/**
+    - frontend/packages/ui/src/stores/learningModeStore.ts
+    - frontend/packages/ui/src/stores/incognitoModeStore.ts
+    - frontend/packages/ui/src/stores/appSettingsMemoriesStore.ts
     - frontend/packages/ui/src/data/appsMetadata.ts
-    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
-    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
-    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
-    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
-    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
-    - apple/OpenMates/Sources/Features/Settings/Views/SettingsMemoriesFull.swift
-    - apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
+    - frontend/packages/ui/src/data/matesMetadata.ts
+    - backend/core/api/app/routes/learning_mode.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/apps.py
+    - apple/OpenMates/Sources/Features/Settings/Views/**
     - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
-    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift
+    - scripts/apple_parity_audit.py
+    - scripts/apple_ui_contracts.py
     - scripts/apple_remote.py
   tests:
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/apps/web_app/tests/learning-mode.spec.ts
     - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
-    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
-    - frontend/apps/web_app/tests/skill-provider-icons.spec.ts
     - frontend/apps/web_app/tests/mention-dropdown-settings-memory.spec.ts
-    - frontend/apps/web_app/tests/default-model-settings.spec.ts
-    - frontend/apps/web_app/tests/model-toggle-settings.spec.ts
-    - frontend/apps/web_app/tests/interface-font-settings.spec.ts
-    - frontend/apps/web_app/tests/language-settings-flow.spec.ts
     - frontend/apps/web_app/tests/debug-logging-settings.spec.ts
-    - frontend/apps/web_app/tests/ai-settings-breadcrumb.spec.ts
-    - frontend/apps/web_app/tests/settings-change-email.spec.ts
-    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
-    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
-    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
     - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
-    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
-    - frontend/apps/web_app/tests/settings-gift-card-bank-transfer.spec.ts
-    - frontend/apps/web_app/tests/settings-support-stripe.spec.ts
-    - frontend/apps/web_app/tests/settings-support-bank-transfer.spec.ts
-    - frontend/apps/web_app/tests/settings-support-monthly.spec.ts
-    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
-    - docs/architecture/apple/settings-web-spec-coverage.md
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesTests/SettingsBillingParityTests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - apple/OpenMatesUITests/SettingsAppsParityUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift
+    - apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift
 
 apple_impact:
   affected_files:
-    - apple/OpenMates/Sources/Features/Settings/Views/*.swift
-    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/project.yml
+    - apple/OpenMates/Sources/Features/Settings/**
+    - apple/OpenMates/Sources/Shared/Components/**
     - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
     - apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift
-    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
-    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
-    - apple/OpenMatesUITests/SettingsAppsParityUITests.swift
-    - apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
-    - apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift
-    - apple/OpenMatesTests/SettingsBillingParityTests.swift
-    - apple/OpenMatesTests/SettingsFullParityTests.swift
-    - frontend/packages/ui/src/i18n/sources/**/*.yml
-    - docs/contributing/guides/testing.md
-    - scripts/apple_remote.py
+    - apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/**
+    - apple/OpenMatesTests/Settings*.swift
+    - apple/OpenMatesUITests/Settings*.swift
+    - apple/OpenMatesMacUITests/Settings*.swift
   parity_expectations:
-    - Apple settings UI must use OpenMates primitives (`OMSettingsPage`, `OMSettingsRow`, `OMToggle`, `OMDropdown`, `OMSegmentedControl`, custom dialogs/overlays) and must not use default product `List`, `Form`, native toolbar, native picker/toggle, or app-owned default sheet/alert chrome.
-    - Stable Apple `.accessibilityIdentifier(...)` values should match the web `data-testid` concept where the product control is the same.
-    - The Apple Apps section must render the same app metadata source as web, excluding AI from the Apps root because AI has its own top-level settings page.
-    - Skill/focus example cards must open the same destination class as web: linked example chat cards open public example chats; synthetic embed examples open an embed fullscreen or native equivalent without leaving raw payloads visible.
-    - Sensitive actions must require the same user re-authentication concepts as web and use reserved test accounts only.
+    - The rendered web app is the visual and behavioral source of truth; Svelte, CSS, stores, and APIs explain the implementation contract.
+    - Every product-owned setting is implemented natively and remains usable without opening a browser or embedded web fallback.
+    - Apple uses OpenMates primitives and generated tokens, not List, Form, stock navigation chrome, stock Toggle/Picker/Menu, SF Symbols, app-owned default sheets/alerts, or hardcoded user-visible strings.
+    - Shared controls use matching web data-testid and Apple accessibilityIdentifier concepts wherever the product concept is identical.
+    - iOS, iPadOS, and macOS share product behavior and visual hierarchy, with responsive layout differences derived from rendered web breakpoints and platform window size.
   verification:
-    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests`.
-    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsFullParityUITests`.
-    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsAppsParityUITests`.
-    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsSensitiveActionsParityUITests` with reserved-account environment supplied by CI or a local ignored secret source.
-    - Remote Mac `python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing OpenMatesUITests/SettingsFullParityUITests` for layout and horizontal-scroll evidence.
+    - python3 scripts/apple_remote.py status
+    - Targeted iPhone and iPad unit/UI tests through scripts/apple_remote.py test-ios
+    - macOS build, UI tests, resize tests, and screenshots through first-class redacted remote wrapper commands added by this spec.
+    - Paired rendered-web and Apple screenshots for representative states before visual checks are promoted to required gates.
   intentional_native_differences:
-    - StoreKit purchase sheets, App Store account prompts, passkey prompts, notification permission prompts, file import/export pickers, QR/share sheets, and clipboard permission prompts are OS-owned and may differ visually from web.
-    - Native settings may deep-link to a web page only when platform policy or current native capability prevents a fully native flow; that must be explicit, tested, and listed in the relevant UI copy.
-    - If Apple cannot safely support web-only application/embed preview examples yet, the examples must show a deterministic unsupported-state card rather than silently doing nothing.
+    - StoreKit purchase sheets and App Store account prompts remain OS-owned, while product selection, status, reconciliation, and balance UI remain OpenMates-owned.
+    - Passkey authorization prompts remain OS-owned, while passkey list, add/remove actions, state, errors, and confirmations remain OpenMates-owned.
+    - Permission prompts and system file/photo/share/camera interfaces remain OS-owned.
+    - Native keyboard, pointer, focus-ring, and accessibility mechanics may differ while product hierarchy, state, copy, and actions remain equivalent.
 
 clarification:
   rounds:
-    - question: Should sensitive/destructive settings actions be executable Apple tests or non-destructive fixture parity only?
-      answer: Executable Apple tests are required, using the same reserved-account approach as the Playwright specs.
-    - question: Should this expand the existing settings/billing spec or create a separate full settings spec?
-      answer: Expand the existing settings/billing spec and implement/test the full spec.
+    - question: May Apple settings use open-on-web fallbacks for settings that are not implemented natively?
+      answer: No. Users must be able to do everything available in the web app from the Apple app, including passkey management and invoice viewing/downloading.
+    - question: Must parity cover guest, authenticated, admin, paired/restricted, self-hosted, and payment-disabled visibility variants?
+      answer: Yes. It should cover all visibility variants, while implementation starts by reaching settings-menu parity.
+    - question: Should Incognito and Learning Mode be visual/navigation-only in the first settings slice?
+      answer: No. Both must be fully functional.
+    - question: May remaining settings rows open incomplete pages while menu parity is implemented first?
+      answer: No. Every row must open a complete parity version of the web source of truth in logic and UI.
   vision_summary: >
-    Full Apple settings parity means every web settings route has a native Apple
-    equivalent or explicit native exception, and the Apps section must match the
-    web Apps experience deeply enough that users can browse all apps,
-    skills, focus modes, memories, provider/model details, and examples. Tests
-    should be executable and use reserved accounts for credential-rotating,
-    destructive, billing, and security-sensitive actions.
+    Apple Settings must be a complete native client for the same settings product
+    as web. Implementation begins with the shell/menu and fully functional
+    Incognito and Learning Mode, then proceeds in independently verified slices,
+    but no route is counted as covered until its destination and actions have
+    functional, visual, persistence, error-state, and cross-platform evidence.
   approved_by_user: true
+
+implementation_state:
+  subject_commit: b83e7471791dae066173ecd076c1b49da8ba8c7d
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-11T13:21:44Z"
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-11T13:21:44Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Migrate and expand the existing apple-settings-billing-parity umbrella instead of creating a duplicate spec.
+    reason: The existing approved clarification already selected this umbrella, and active legacy specs must migrate to Schema V2 when materially resumed.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Prohibit web redirects and unsupported placeholders for every product-owned settings flow.
+    reason: The user requires every web settings capability to be available directly in Apple.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Count a route as covered only when a reachable native implementation and required evidence exist.
+    reason: The current native inventory incorrectly unions planned routes with implemented routes and permits false-green tests.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Implement in vertical slices but preserve one full-product completion gate.
+    reason: The surface is too large for one safe code change, while the user does not accept partial route parity as completion.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Require functional and visual evidence on iPhone, iPad, and macOS.
+    reason: Source inspection found no macOS settings test target and fixture-only iOS evidence cannot prove full Apple parity.
+    decided_at: "2026-07-11T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Treat nativeRoutes union nativeEquivalentOrPlannedRoutes as proof of web route coverage.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    evidence: SettingsView.swift and SettingsFullParityTests.swift count planned routes as covered and retain stale app_store route names.
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Use a generic Apple build as Learning Mode parity evidence.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    evidence: The named SettingsLearningModeParityUITests.swift file and native Learning Mode implementation do not exist.
+  - id: ATTEMPT-3
+    task_id: TASK-5
+    approach: Use rich UI-test fixture metadata as proof that live Apps metadata supports detail pages and examples.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    evidence: The live metadata response omits multiple fields present only in the fixture, including examples and detailed provider/model/process data.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Write deterministic settings parity audit tests and record red evidence before implementation.
+  command: python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py
+  expected_outcome: Tests fail because the settings audit and current route/source contracts do not yet satisfy parity.
+  blocker: null
+  last_verified_commit: b83e7471791dae066173ecd076c1b49da8ba8c7d
 
 scenarios:
   - id: S-1
-    title: Settings root and navigation match web
+    title: Settings shell and menu track the current web source of truth
     given:
-      - A guest, normal authenticated user, and admin user can open Apple settings.
+      - The same account state is opened on web and on an Apple device.
     when:
-      - Each user opens the settings root and navigates through top-level rows, subsettings, back buttons, footer links, and legal views.
+      - The user opens Settings, scrolls down, returns to the top, follows rows and deep links, navigates back, and closes/reopens Settings.
     then:
-      - Visible rows match web auth and role visibility.
-      - Banners, icons, descriptions, scroll collapse, back navigation, and footer/legal links match web intent.
-      - Product UI uses OpenMates primitives with no default table/list/form chrome.
+      - Row order, iconography, copy, visibility, profile/credits actions, footer, legal links, and responsive panel behavior match web.
+      - The main header collapses over the web scroll range and expands when the user returns to the top.
+      - Destination headers receive scroll state and reproduce web expanded/collapsed behavior.
+      - Every visible row opens its complete native destination; there are no placeholders or browser fallbacks.
+
   - id: S-2
-    title: Apps root and all-apps views match web
+    title: Incognito can be activated and disabled from Apple Settings
     given:
-      - App metadata is available from the same backend/static contract used by web.
+      - An authenticated user has not completed the Incognito explainer on this Apple installation.
     when:
-      - A user opens Apps, Show all apps, search, filters, sorts, and category carousels.
+      - The user enables Incognito from Settings, completes the explainer, sends messages, and later disables Incognito.
     then:
-      - Apple excludes AI from Apps root, shows the web category groups, supports all-apps filters (`all`, `settings_memories`, `focus_modes`, `skills`), search, and newest/name sorting.
-      - Horizontal card rows scroll on touch without cancelling gestures.
-      - Empty/loading/error states are visible and translated.
+      - First activation records the explainer state, closes Settings, starts a new incognito chat, and shows active state.
+      - Incognito messages use request-scoped history, are not persisted or synced, and are excluded from client sync state.
+      - Disabling clears all local incognito chats and returns future chats to normal persistence.
+      - Repeated activation after the explainer is immediate and all UI uses localized OpenMates controls.
+
   - id: S-3
-    title: App details render skills memories focus modes reminders and embeds
+    title: Learning Mode is fully managed and enforced from Apple
     given:
-      - An app contains skills, settings/memory categories, focus modes, active reminders, and generated embeds.
+      - Learning Mode is inactive for a guest or authenticated account.
     when:
-      - The user opens app detail pages such as `apps/weather`, `apps/travel`, `apps/images`, `apps/web`, and `apps/reminder`.
+      - The user opens Learning Mode, selects an age group, enables it, sends chats including incognito chats, and later attempts deactivation.
     then:
-      - Skill, memory, and focus cards match web `AppStoreCard` visual language and open their detail pages.
-      - Guests only see memory categories with examples; authenticated users see editable saved categories.
-      - Reminder and embeds sections appear only for supported/authenticated states.
+      - Guest state is session-only without a passcode; authenticated state is account-wide and passcode protected.
+      - Wrong passcodes show remaining attempts and five failures produce the backend 24-hour lockout state.
+      - Account policy applies to all authenticated Apple WebSocket chats, including incognito, and cannot be bypassed by local state.
+      - Capped embeds show the localized shortened notice and disabled artifact classes have an explanatory state.
+      - State remains consistent with web, CLI, npm SDK, and pip SDK controls.
+
   - id: S-4
-    title: Skill detail pages match web including provider icons pricing models and examples
+    title: Route parity is truthful for all visibility variants
     given:
-      - A skill has providers, pricing, how-to-use examples, optional models, default model setting, and linked or synthetic examples.
+      - Web defines static and dynamic settings routes and access rules.
     when:
-      - The user opens skill detail pages and interacts with providers, model rows, default model dropdown, @mention text, and examples.
+      - Deterministic route generation and native navigation tests run for guest, authenticated, admin, paired/restricted, self-hosted, payment-disabled, and demo states.
     then:
-      - Provider rows show loaded provider icons with white backgrounds and correct provider names.
-      - Pricing, how-to-use cards, highlighted words, model list, and default model persistence match web.
-      - Linked example chat cards open the matching example chat and close settings; synthetic preview examples open native fullscreen/equivalent and keep settings context where web does.
-      - Raw JSON, provider payloads, private URLs, and missing translation markers are not visible.
+      - Every web route maps to a reachable native route or an explicitly approved OS-owned capability boundary.
+      - Planned, fixture-only, stale, and unreachable routes fail coverage.
+      - Route additions or access-rule changes on web fail the parity check until Apple is updated.
+
   - id: S-5
-    title: Focus mode detail pages match web including examples and prompts
+    title: Apps and every app detail route use live complete metadata
     given:
-      - Focus modes such as Jobs Career Insights and Web Deep Research are present in app metadata.
+      - The current app catalog includes skills, providers, models, content types, focus modes, memories, reminders, embeds, and examples.
     when:
-      - The user opens the focus mode detail page, views examples/how-to-use cards, toggles full system prompt, and clicks @mention text.
+      - A user searches, filters, sorts, opens app cards, drills into each detail type, changes supported defaults, inserts mentions, and opens examples.
     then:
-      - Example chat cards, process bullets, system prompt toggle, expanded prompt text, sibling navigation, and @focus mention insertion match web behavior.
+      - Apple reproduces web cards, sections, ordering, health/availability, empty/loading/error states, and all navigation.
+      - Live metadata or a generated shared static contract supplies every required field; UI-test-only data is not production behavior.
+      - Linked examples open the matching native public chat and synthetic examples open the matching native embed fullscreen.
+      - Mention actions insert canonical syntax into the native composer and close/preserve Settings exactly as the responsive web behavior requires.
+
   - id: S-6
-    title: Preferences and safe actions persist like web
+    title: Memories are encrypted, editable, synced, and usable from chat
     given:
-      - A normal authenticated reserved or reusable test account is logged in.
+      - A guest or authenticated user opens the Memories hub or an app memory category.
     when:
-      - The user changes default models, model toggles, interface language/dark mode/font, notification toggles, reminder settings, newsletter categories, support choices, report issue form fields, username/timezone, privacy auto-delete, and debug-log sharing settings.
+      - The user browses examples or creates, views, edits, deletes, syncs, and mentions a memory.
     then:
-      - Apple sends the same API or WebSocket settings contracts as web and shows equivalent loading, success, validation error, and rollback states.
-      - Settings persist after reopening settings or relaunching the app.
+      - Guest and authenticated visibility matches web.
+      - Authenticated entries use the existing encrypted local-first and WebSocket sync contracts; nonexistent REST routes are not used.
+      - Loading, missing-key, empty, pending, conflict, error, and success states are explicit.
+      - A memory mention inserts canonical syntax and can be used in a chat without leaking plaintext or keys.
+
   - id: S-7
-    title: Billing gift cards support invoices and StoreKit states match web intent
+    title: Mates list and details use canonical metadata and native chat actions
     given:
-      - A billing-capable test account and StoreKit test products are available.
+      - Canonical mate metadata contains all current mate identities and prompts.
     when:
-      - The user opens pricing, credits, buy credits, bank transfer/web-only fallbacks, gift cards, invoices, referral code, auto top-up, and support one-time/monthly flows.
+      - A user opens Mates, selects a mate, expands its prompt/details, and starts a chat.
     then:
-      - Apple shows equivalent account state and purchase intent; StoreKit or web-only differences are explicit.
-      - No private payment data, invoice identifiers, or customer IDs appear in screenshots or logs.
+      - Apple shows the same identities, artwork, descriptions, process information, prompts, and availability as web.
+      - Apple reads the canonical generated metadata rather than calling a nonexistent mates endpoint.
+      - Start Chat or mention actions update the native composer/chat flow and never open a browser.
+
   - id: S-8
-    title: Account security and destructive settings use reserved accounts safely
+    title: Privacy settings match web behavior and retention contracts
     given:
-      - Reserved E2E account slots 14 through 20 are provisioned like the Playwright specs.
+      - A guest, authenticated user, paired session, self-hosted user, or admin opens Privacy.
     when:
-      - Apple runs recovery reset, backup code reset, recovery key regeneration, email change roundtrip, API key lifecycle, passkey/2FA state display, session revoke, account export/import, storage delete, account chat deletion preview, and account deletion preview/finalization where safe.
+      - The user manages connected accounts, personal-data protection, location privacy, chat/file auto-deletion, telemetry/debug preferences, and temporary debug sharing.
     then:
-      - Each destructive or credential-rotating action uses the matching reserved slot and never uses the normal account pool.
-      - Recovery keys, backup codes, OTP secrets, API keys, emails, and exported files are redacted from logs and attachments.
-      - Cleanup and verification restore or document the expected reserved-account state.
+      - Rows, retention explanations, visibility, encryption notes, and admin notices match web.
+      - Mutations use real backend/local contracts, persist after relaunch, and expose loading/error/rollback states.
+      - Auto-deletion sends the backend period schema and debug sharing uses the debug-session lifecycle.
+      - Privacy-safe diagnostics never expose credentials, private content, keys, URLs, paths, or identifiers.
+
   - id: S-9
-    title: Admin server logs and role visibility match web
+    title: Billing, invoices, StoreKit, support, and usage are complete
     given:
-      - Admin and non-admin test users are available.
+      - Payment capability and account state vary across managed, self-hosted, payment-disabled, guest, authenticated, and StoreKit sandbox states.
     when:
-      - Each opens server, logs, stats, tests, software update, gift card generator, free-testing budget, and debug-log surfaces.
+      - The user views balance/usage, buys credits, manages auto-top-up, opens or downloads invoices, handles gift cards/referrals/support, restores purchases, and drills into usage.
     then:
-      - Non-admin users cannot see or invoke admin/server controls.
-      - Admin users can open seeded admin controls, and risky actions require explicit confirmation or remain read-only in tests.
+      - Product-owned screens match web while the StoreKit sheet remains OS-owned.
+      - Apple uses compatible balance, usage, auto-top-up, invoice, gift-card, referral, and support contracts.
+      - Backend fulfillment failure keeps the transaction recoverable and does not report false success or irreversibly finish it.
+      - Invoice documents can be viewed/downloaded through native OS file handling without opening a web page.
+      - Usage overview/chats/apps/API tabs, privacy redaction, detail navigation, exports, and all states match web intent.
+
   - id: S-10
-    title: iPhone iPad and macOS settings layout stays usable
+    title: Account and security settings are fully manageable in Apple
     given:
-      - The same settings routes are opened on iPhone, iPad, and macOS-capable builds where supported.
+      - An authenticated reserved test account has configurable profile and security state.
     when:
-      - The user scrolls vertical pages, horizontal app/skill/example rows, opens dialogs, and changes orientation/size class.
+      - The user manages profile, interests, email, password, 2FA, recovery key, passkeys, sessions, pairing, storage, chats, import/export, and account deletion.
     then:
-      - Layout matches web responsive intent, remains reachable with sidebar closed, and uses native-safe scroll containers without clipped actions.
+      - Lists, forms, validation, re-authentication, success/error states, and persistence match web.
+      - Passkey inventory, add, and remove flows are OpenMates-owned; only the authorization ceremony is OS-owned.
+      - Sensitive and destructive tests fail closed without reserved credentials and redact all secrets and artifacts.
+
+  - id: S-11
+    title: Remaining product settings have complete native parity
+    given:
+      - The user can access AI, Projects, Notifications, Shared, Interface, Developers, Newsletter, Support, Report Issue, and related nested routes on web.
+    when:
+      - The user opens and changes every supported control from Apple.
+    then:
+      - Each route reproduces web layout, data, loading/empty/error/saving/success states, validation, persistence, and deep-link behavior.
+      - No control is a no-op, local-only substitute for an account setting, stale endpoint call, or stock platform product UI.
+
+  - id: S-12
+    title: Admin, server, and logs obey role and deployment rules
+    given:
+      - Admin and non-admin accounts use managed and self-hosted deployments.
+    when:
+      - They open server, stats, update, budget, tests, gift-card administration, logs, and debug tools.
+    then:
+      - Visibility and authorization match web and backend enforcement.
+      - Non-admin or restricted users cannot discover or invoke admin actions.
+      - Risky actions require explicit OpenMates confirmation and reserved/synthetic test state.
+
+  - id: S-13
+    title: Settings remain visually and interactively usable on all Apple layouts
+    given:
+      - Representative deterministic states can be rendered on phone, tablet, and desktop window sizes in light and dark modes.
+    when:
+      - UI tests scroll, resize, rotate where applicable, use keyboard/pointer/touch, open overlays, and capture screenshots.
+    then:
+      - Required controls are rendered, visible, clickable, focusable, localized, and unclipped.
+      - Browser-computed contracts and reviewed screenshots show equivalent hierarchy, dimensions, spacing, typography, colors, icons, radii, shadows, and responsive behavior.
+      - macOS has a real test target and first-class remote build/test commands.
+
+  - id: S-14
+    title: Deterministic guards prevent settings parity from silently regressing
+    given:
+      - Web routes, test IDs, metadata fields, APIs, or visual contracts change.
+    when:
+      - Repository audits and CI run.
+    then:
+      - Missing native routes, identifiers, metadata, endpoint mismatches, forbidden controls, hardcoded strings, and stale fixtures fail with actionable output.
+      - Visual/style checks begin as reviewed warnings and become required failures per promoted settings surface.
+      - Passing evidence names the exact implementation commit and cannot satisfy changed contracts.
 
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: Apple settings root, subsetting navigation, role visibility, banners, footers, and legal views match web settings routes and use only OpenMates product UI primitives.
+    text: Apple settings shell, root menu, collapsible headers, navigation, footer, and every visible row match the rendered web behavior and open complete native destinations.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ROUTES, T-WEB-CONTRACT, T-IOS-SHELL, T-IPAD-SHELL, T-MAC-SHELL]
   - id: AC-2
     scenario: S-2
-    text: Apple Apps root and all-apps views match web categories, search, filters, sort, card rendering, horizontal scroll behavior, and loading/empty/error states.
+    text: Incognito activation, explainer state, transient chat lifecycle, disable cleanup, and sync exclusion work end to end from Apple Settings.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-UNIT-MODES, T-IOS-MODES, T-WEB-INCOGNITO]
   - id: AC-3
     scenario: S-3
-    text: Apple app detail pages render and navigate to all skills, settings/memory categories, focus modes, active reminders, and app embeds with web-equivalent visibility rules.
+    text: Apple fully manages and displays guest/account Learning Mode, lockout, enforcement, incognito interaction, and shortened-content states.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CLI-MODES, T-NPM-MODES, T-PIP-MODES, T-BACKEND-MODES, T-WEB-LEARNING, T-APPLE-UNIT-MODES, T-IOS-MODES, T-MAC-MODES]
   - id: AC-4
     scenario: S-4
-    text: Apple skill detail pages match web provider icons, pricing, model/default model behavior, examples, @mention behavior, and raw-payload leak prevention.
+    text: Generated route coverage proves every current web settings route and visibility variant is reachable and implemented natively rather than planned or fixture-only.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ROUTES, T-IOS-ROUTES, T-MAC-ROUTES]
   - id: AC-5
     scenario: S-5
-    text: Apple focus mode detail pages match web examples, process bullets, system prompt toggle, expanded prompt, sibling navigation, and @focus mention insertion.
+    text: Apps and every app detail route use complete live/shared metadata and reproduce web navigation, actions, examples, and states.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPS-CONTRACT, T-WEB-APPS, T-IOS-APPS, T-IPAD-APPS, T-MAC-APPS]
   - id: AC-6
     scenario: S-6
-    text: Apple safe preferences and non-destructive settings actions persist through the same contracts and show equivalent loading, validation, success, and error states.
+    text: Memories browsing, encrypted CRUD/sync, examples, and chat mentions match web without nonexistent endpoints or plaintext leakage.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-MEMORY-CONTRACT, T-WEB-MEMORIES, T-IOS-MEMORIES, T-MAC-MEMORIES]
   - id: AC-7
     scenario: S-7
-    text: Apple billing, gift card, support, invoice, referral, credits, and StoreKit/web-only states match web purchase intent without leaking private payment data.
+    text: Mates use canonical metadata and native list/detail/prompt/mention/start-chat behavior with web-equivalent visual identity.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-MATES-AUDIT, T-IOS-MATES, T-MAC-MATES]
   - id: AC-8
     scenario: S-8
-    text: Apple sensitive, credential-mutating, and destructive account/settings actions are tested with reserved account slots and redact all secrets/artifacts.
+    text: Privacy, connected accounts, retention, auto-deletion, telemetry, and debug-session settings match web contracts and remain privacy-safe.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PRIVACY-CONTRACT, T-WEB-PRIVACY, T-IOS-PRIVACY, T-MAC-PRIVACY]
   - id: AC-9
     scenario: S-9
-    text: Apple admin/server/log visibility and read-only/risky admin actions match web role rules.
+    text: Billing, StoreKit reconciliation, invoices/downloads, gift cards, referrals, support, and usage match web intent for all deployment/payment variants.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BILLING-CONTRACT, T-WEB-BILLING, T-IOS-BILLING, T-MAC-BILLING]
   - id: AC-10
     scenario: S-10
-    text: Apple settings layouts remain usable and web-parity-aligned on iPhone and iPad, with macOS checked when the settings surface exists there.
+    text: Account and security flows, including complete passkey management, are native, persistent, safely tested, and visually equivalent to web.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ACCOUNT-CONTRACT, T-WEB-SECURITY, T-IOS-SECURITY, T-MAC-SECURITY]
+  - id: AC-11
+    scenario: S-11
+    text: AI, Projects, Notifications, Shared, Interface, Developers, Newsletter, Support, and Report Issue routes are complete native implementations with matching state and persistence.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-OTHER-CONTRACT, T-IOS-OTHER, T-MAC-OTHER]
+  - id: AC-12
+    scenario: S-12
+    text: Admin/server/log surfaces match web role and deployment visibility while preventing unauthorized or unsafe actions.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ADMIN-CONTRACT, T-IOS-ADMIN, T-MAC-ADMIN]
+  - id: AC-13
+    scenario: S-13
+    text: Required settings states have reviewed functional and visual evidence on iPhone, iPad, and macOS, including resize, scrolling, focus, clickability, localization, and light/dark appearance.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WEB-CONTRACT, T-IOS-VISUAL, T-IPAD-VISUAL, T-MAC-VISUAL]
+  - id: AC-14
+    scenario: S-14
+    text: Deterministic audits fail on route, API, metadata, identifier, forbidden-control, localization, fixture, and promoted visual-contract regressions.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ROUTES, T-SETTINGS-AUDIT, T-WEB-CONTRACT]
+
+assumptions:
+  - id: A-1
+    text: The current web settings route registry and rendered deployed web app are the product source of truth.
+    category: product
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/settings/settingsRoutes.ts
+        summary: Defines static settings routes; Settings.svelte adds dynamic routes and access behavior.
+      - source: apple/AGENTS.md
+        summary: Requires browser-rendered web output to be the final Apple visual source of truth.
+  - id: A-2
+    text: Existing authenticated WebSocket processing enforces account Learning Mode for Apple chat sends, including incognito, even without a client flag.
+    category: backend
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+        summary: Resolves authoritative Learning Mode account policy for authenticated messages.
+  - id: A-3
+    text: Existing Apple memories and mates pages can be repaired without retaining their currently referenced nonexistent REST endpoints.
+    category: architecture
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/stores/appSettingsMemoriesStore.ts
+        summary: Web memories use encrypted local-first and WebSocket synchronization contracts.
+      - source: frontend/packages/ui/src/data/matesMetadata.ts
+        summary: Web Mates uses generated static metadata rather than a /v1/mates endpoint.
+  - id: A-4
+    text: A remote Mac can provide sanitized iOS/iPadOS/macOS build, test, and screenshot evidence after changes are committed.
+    category: infrastructure
+    required_before: task_execution
+    status: checking
+    evidence:
+      - source: apple/AGENTS.md
+        summary: Documents a previously validated redacted remote Mac workflow; current-session reachability must be checked before native verification.
 
 contracts:
-  ui_states:
-    - Every web route in `baseSettingsViews` has a native route, native read-only equivalent, or explicit native unsupported/web-only state.
-    - "Apps cards expose stable identifiers: `settings-app-store-page`, `settings-all-apps-page`, `app-store-card`, `app-card-<appId>`, `settings-skill-cards-scroll`, `settings-memory-cards-scroll`, `settings-focus-cards-scroll`, `skill-provider-item`, `settings-provider-logo`, `app-store-example-card`, `app-store-example-chat-card`, `focus-mode-details`, `focus-process-bullet`, `focus-instructions-toggle`, and `focus-instructions-text` where applicable."
-    - "Sensitive controls expose identifiers matching web concepts: `auth-modal`, `password-input`, `tfa-input`, `auth-btn`, `tfa-backup-codes`, `code-item`, `confirm-checkbox`, `save-container`, `copy-button`, `primary-button`, `session-card`, `session-revoke-btn`, `api-key-row`, and `delete-confirmation` where applicable."
   api:
-    - Apple settings requests use the same backend routes or documented native equivalents as web/CLI settings commands.
-    - StoreKit purchase starts and completions may use native StoreKit, but post-purchase credits/account refresh uses the same account state contract.
-    - App metadata loads from `/v1/apps/metadata?include_unavailable=true` or a generated static equivalent that remains byte/field-compatible with web metadata.
+    - Apple settings use the same real backend routes, schemas, status semantics, and authentication boundaries as web, CLI, npm SDK, or pip SDK.
+    - A native-equivalent endpoint may be introduced only when an OS-owned capability requires it and the approved product contract remains equivalent.
+    - Learning Mode uses GET /v1/learning-mode, POST /v1/learning-mode/activate, and POST /v1/learning-mode/deactivate for authenticated state.
+    - Billing and usage clients decode current backend response models; guessed or stale fields and nonexistent convenience routes are forbidden.
+    - API failures are visible, logged through privacy-safe NativeDiagnostics, and never converted into false success or empty state.
   data:
-    - App metadata fields include app id/name/description/category/providers/last_updated/skills/focus_modes/settings_and_memories.
-    - Skill metadata includes id, translated name/description, pricing, providers, icon, models, examples, and how-to-use translation keys.
-    - Focus mode metadata includes id, translated name/description, process/system prompt data, examples, icon, and mention identity.
+    - A generated settings route manifest records web path, dynamic pattern, auth/role/deployment rules, Apple destination, implementation status, and verification IDs.
+    - App, skill, focus, memory, content, provider, model, example, and mate metadata have one generated/shared source consumable by web and Apple.
+    - Incognito state and chats remain device-session transient and excluded from persistence/sync.
+    - Authenticated Learning Mode is account-wide backend state; guest Learning Mode is local session state.
+    - Memories and personal data preserve existing encryption formats and key boundaries; no settings view owns cryptographic logic.
+    - UI-test fixtures may produce deterministic states but must conform to production schemas and cannot satisfy live-contract criteria alone.
+  ui_states:
+    - expanded, collapsing, collapsed, and re-expanded settings headers
+    - guest, authenticated, admin, paired/restricted, self-hosted, payment-disabled, and demo menus
+    - loading, refreshing, empty, populated, unavailable, disabled, saving, success, validation error, API error, offline, and retry
+    - first-run explainer, active, inactive, wrong passcode, attempts remaining, and locked Learning Mode/Incognito states
+    - compact phone, regular tablet, narrow desktop, regular desktop, fullscreen, light, dark, reduced motion, keyboard, pointer, and touch
   privacy_security:
-    - Reserved slots 14-20 follow `docs/contributing/guides/testing.md` and are the only allowed accounts for destructive or credential-rotating tests.
-    - Apple test helpers must load reserved credentials from XCTest environment or ignored local secret config only.
-    - Logs and screenshots must redact emails, recovery keys, backup codes, OTP seeds, API keys, invoices, payment IDs, exported file contents, and private URLs.
-    - Account deletion finalization can run only against a dedicated reserved account whose reset/recreate workflow is documented; otherwise Apple tests cover deletion preview plus cancellation only.
+    - No plaintext passcodes, recovery keys, backup codes, OTP seeds, API keys, auth tokens, encryption keys, private message/memory content, invoices, payment identifiers, private URLs, or local paths appear in logs, screenshots, fixtures, or committed evidence.
+    - Sensitive tests use reserved accounts and fail closed when credentials are absent.
+    - Account deletion finalization uses a dedicated resettable account; otherwise only preview and cancellation are automated.
+    - Web/source contract capture uses synthetic or sanitized state and strips volatile/private values.
+  visual:
+    - Rendered web DOM and computed styles are captured for promoted representative settings states.
+    - Missing structure, identifiers, controls, and forbidden native chrome fail immediately.
+    - Style differences remain warnings until screenshot review promotes the specific value/state to a failure gate.
+    - Every Swift visual settings file and corresponding Svelte product file carries reciprocal source mapping when touched.
 
 tests:
-  - id: T-UNIT-001
-    type: unit
-    file: apple/OpenMatesTests/SettingsFullParityTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
-    covers:
-      - AC-1
-      - AC-2
-      - AC-3
-      - AC-4
-      - AC-5
-      - AC-7
+  - id: T-ROUTES
+    type: lint
+    file: scripts/apple_settings_parity_audit.py
+    command: python3 scripts/apple_settings_parity_audit.py --check-routes
+    covers: [AC-1, AC-4, AC-14]
     assertions:
-      - Native settings destination inventory covers every web `baseSettingsViews` route or lists an explicit native exception.
-      - Native app metadata decoding preserves web fields for apps, skills, focus modes, settings/memories, providers, pricing, and examples.
-      - Apps category, filter, sort, and AI-exclusion logic matches web.
-      - StoreKit product identifiers match native credit tiers expected by billing entry points.
+      - parses current web static/dynamic route and access contracts
+      - rejects stale names, planned-as-covered routes, unreachable destinations, and missing visibility variants
     red_phase:
       required: true
       expected: fail
-      evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+      evidence: {status: failed_as_expected, command: "python3 scripts/apple_settings_parity_audit.py --check-routes", run_id: "local-settings-route-audit-red-2026-07-11", subject_commit: "b83e7471791dae066173ecd076c1b49da8ba8c7d", timestamp: "2026-07-11T13:21:44Z"}
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        run_id: apple-remote-iphone17-c579
-        timestamp: "2026-06-10"
-  - id: T-UNIT-002
-    type: unit
-    file: apple/OpenMatesTests/SettingsBillingParityTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsBillingParityTests
-    covers:
-      - AC-7
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-SETTINGS-AUDIT
+    type: lint
+    file: scripts/apple_settings_parity_audit.py
+    command: python3 scripts/apple_settings_parity_audit.py --check-source
+    covers: [AC-14]
     assertions:
-      - Apple StoreKit credit product identifiers match the native credit tiers expected by the billing entry point.
-      - Product-tier tests use static metadata only and do not touch purchases, invoices, customer IDs, or payment methods.
+      - rejects forbidden native product controls and hardcoded Apple settings strings
+      - checks endpoint references, required identifiers, reciprocal source mappings, and fixture/live schema compatibility
     red_phase:
       required: true
       expected: fail
-      evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+      evidence: {status: failed_as_expected, command: "python3 scripts/apple_settings_parity_audit.py --check-source", run_id: "local-settings-source-audit-red-2026-07-11", subject_commit: "b83e7471791dae066173ecd076c1b49da8ba8c7d", timestamp: "2026-07-11T13:21:44Z"}
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        run_id: apple-remote-iphone17-e282
-        timestamp: "2026-06-10"
-  - id: T-UI-001
-    type: unit
-    file: apple/OpenMatesUITests/SettingsFullParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsFullParityUITests
-    covers:
-      - AC-1
-      - AC-6
-      - AC-9
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-WEB-CONTRACT
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-settings-ui-contracts.spec.ts
+    command: python3 scripts/tests.py run --spec apple-settings-ui-contracts.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-13, AC-14]
     assertions:
-      - Guest, authenticated, and admin settings roots expose correct rows and hide restricted rows.
-      - Every top-level and static subsetting route opens with stable identifiers, translated copy, back navigation, and no default `List`/table/Form chrome.
-      - Interface, notifications, newsletter, support, report issue, privacy, account, developers, server, and logs surfaces show equivalent loading/empty/error/success UI.
+      - captures sanitized rendered/computed contracts for menu, headers, and representative destinations/states
+      - captures compact and regular viewport behavior after deployment
     red_phase:
       required: true
       expected: fail
-      evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+      evidence: {status: missing_test, command: "python3 scripts/tests.py run --spec apple-settings-ui-contracts.spec.ts", run_id: "missing-apple-settings-ui-contracts-spec-2026-07-11", subject_commit: "b83e7471791dae066173ecd076c1b49da8ba8c7d", timestamp: "2026-07-11T13:21:44Z"}
     green_phase:
       required: true
-      expected: pass
-      evidence:
-        status: passed
-        run_id: apple-remote-iphone17-5352-settings-full
-        timestamp: "2026-06-10"
-  - id: T-UI-002
-    type: unit
-    file: apple/OpenMatesUITests/SettingsBillingParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsBillingParityUITests
-    covers:
-      - AC-1
-      - AC-7
-    assertions:
-      - Public settings rows expose stable identifiers matching web concepts.
-      - Unauthenticated settings exposes public preference/support/report/pricing rows and hides billing account actions.
-      - iPhone public settings home avoids default `List` or table chrome.
+      expected: pass_after_deploy
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_ref: ""}
+  - id: T-WEB-INCOGNITO
+    type: playwright
+    file: frontend/apps/web_app/tests/incognito-mode.spec.ts
+    command: python3 scripts/tests.py run --spec incognito-mode.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-2]
+    assertions: [web Incognito source behavior remains green]
+    red_phase:
+      required: false
+      expected: fail
+      evidence: {status: not_applicable, reason: Existing web behavior is the source contract., timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_ref: ""}
+  - id: T-WEB-LEARNING
+    type: playwright
+    file: frontend/apps/web_app/tests/learning-mode.spec.ts
+    command: python3 scripts/tests.py run --spec learning-mode.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-3]
+    assertions: [activation, deactivation, lockout, and shortened-notice source behavior is explicit]
     red_phase:
       required: true
       expected: fail
-      evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
     green_phase:
       required: true
-      expected: pass
-      evidence:
-        status: passed
-        run_id: apple-remote-iphone17-e282
-        timestamp: "2026-06-10"
-  - id: T-UI-003
+      expected: pass_after_deploy
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_ref: ""}
+  - id: T-CLI-MODES
     type: unit
-    file: apple/OpenMatesUITests/SettingsAppsParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsAppsParityUITests
-    covers:
-      - AC-2
-      - AC-3
-      - AC-4
-      - AC-5
-      - AC-10
-    assertions:
-      - Apps root shows Show all apps, category rows, horizontal scrolling, and app cards for representative web categories.
-      - All apps supports search, filters for all/memories/focus modes/skills, newest/name sorting, and empty states.
-      - Representative app details show skills, settings/memories, focus modes, active reminders, and embeds with correct guest/auth visibility.
-      - Weather/travel skill examples, provider icons, pricing, models, and linked example chat open behavior match web.
-      - Jobs Career Insights and Web Deep Research focus mode details show examples, bullets, prompt toggle, expanded prompt, and @focus mention insertion.
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: python3 scripts/tests.py run --suite openmates-cli
+    covers: [AC-3]
+    assertions: [CLI Learning Mode controls and chat enforcement contract remain green]
     red_phase:
       required: true
       expected: fail
-      evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        run_id: apple-remote-iphone17-5352-settings-apps
-        timestamp: "2026-06-10"
-  - id: T-UI-004
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-NPM-MODES
     type: unit
-    file: apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsSensitiveActionsParityUITests
-    covers:
-      - AC-6
-      - AC-8
-    assertions:
-      - Sensitive account rows for passkeys, password, 2FA, recovery key, active sessions, and account deletion are visible without default table chrome.
-      - Account deletion preview opens through an explicit fixture-only safe path and exposes password, confirmation, and disabled final-delete controls without deleting an account.
-      - Reserved-slot credential helper exists for future live mutation tests and skips when required credentials are absent instead of falling back to the normal pool.
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: python3 scripts/tests.py run --suite openmates-cli
+    covers: [AC-3]
+    assertions: [npm SDK Learning Mode status and mutation controls work and SDK chats are governed by account policy]
     red_phase:
       required: true
       expected: fail
-      evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        run_id: apple-remote-iphone17-5352-settings-sensitive
-        timestamp: "2026-06-10"
-  - id: T-UI-005
-    type: unit
-    file: apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsBillingStoreKitParityUITests
-    covers:
-      - AC-7
-    assertions:
-      - Buy credits, gift cards, support, invoices, referral, auto-topup, and pricing surfaces show equivalent web intent and native StoreKit/web-only exceptions.
-      - StoreKit test products load without real purchases unless the test is explicitly configured for StoreKit sandbox.
-      - Bank-transfer/web-only fallbacks deep-link or explain native limitations without silent no-ops.
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-PIP-MODES
+    type: pytest
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk.py -k learning_mode
+    covers: [AC-3]
+    assertions: [pip SDK Learning Mode status and mutation controls work and SDK chats are governed by account policy]
     red_phase:
       required: true
       expected: fail
-      evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        run_id: apple-remote-iphone17-5352-settings-billing-storekit
-        timestamp: "2026-06-10"
-  - id: T-UI-006
-    type: unit
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-BACKEND-MODES
+    type: pytest
+    file: backend/tests/test_learning_mode_policy.py
+    command: python3 -m pytest backend/tests/test_learning_mode_policy.py backend/tests/test_learning_mode_prompts_and_embeds.py
+    covers: [AC-3]
+    assertions: [account policy, lockout, authenticated SDK/WebSocket enforcement, incognito interaction, and shortened metadata are covered]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-APPLE-UNIT-MODES
+    type: manual
+    file: apple/OpenMatesTests/SettingsModesParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsModesParityTests
+    covers: [AC-2, AC-3]
+    assertions: [Incognito lifecycle and Learning Mode API/state/payload/notice models match contracts]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-IOS-SHELL
+    type: manual
+    file: apple/OpenMatesUITests/SettingsShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsShellParityUITests
+    covers: [AC-1]
+    assertions: [menu variants, collapse/re-expand, navigation, deep links, footer, and clickability pass on iPhone]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-IPAD-SHELL
+    type: manual
     file: apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
     command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing OpenMatesUITests/SettingsIPadLayoutParityUITests
-    covers:
-      - AC-1
-      - AC-2
-      - AC-3
-      - AC-4
-      - AC-5
-      - AC-10
-    assertions:
-      - iPad settings root, all-apps grid, horizontal skill/focus/example rows, dialogs, and back navigation remain visible and usable.
-      - Layout avoids clipped actions and default platform chrome.
+    covers: [AC-1]
+    assertions: [regular-width panel, shell, scrolling, and navigation pass on iPad]
     red_phase:
       required: true
       expected: fail
-      evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        run_id: apple-remote-ipad-pro-13-m5-5352-settings-ipad-layout
-        timestamp: "2026-06-10"
-  - id: T-UI-007
-    type: unit
-    file: apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsInterfaceLanguageParityUITests
-    covers:
-      - AC-1
-      - AC-6
-    assertions:
-      - Apple opens Settings → Interface → Language with stable native identifiers matching the web language settings concept.
-      - Selecting Deutsch updates visible UI copy, then the test resets to English.
-      - The language settings flow uses OpenMates settings primitives without default table/List chrome.
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-MAC-SHELL
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacShellParityUITests
+    covers: [AC-1]
+    assertions: [narrow, regular, and fullscreen menu/header/navigation behavior passes on macOS]
     red_phase:
       required: true
       expected: fail
-      evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        run_id: apple-remote-iphone17-fbce-settings-interface-language-a4b1d6e
-        timestamp: "2026-06-11"
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-IOS-MODES
+    type: manual
+    file: apple/OpenMatesUITests/SettingsModesParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsModesParityUITests
+    covers: [AC-2, AC-3]
+    assertions: [Incognito and Learning Mode functional UI flows pass on iPhone with visible/clickable controls]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-MAC-MODES
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacModesParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacModesParityUITests
+    covers: [AC-3]
+    assertions: [Learning Mode management and state pass on macOS]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-IOS-ROUTES
+    type: manual
+    file: apple/OpenMatesUITests/SettingsRouteParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsRouteParityUITests
+    covers: [AC-4]
+    assertions: [all route and visibility manifest entries are reachable in iOS fixtures or reserved-account state]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-MAC-ROUTES
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacRouteParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacRouteParityUITests
+    covers: [AC-4]
+    assertions: [all route and visibility manifest entries are reachable on macOS]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}
+  - id: T-APPS-CONTRACT
+    type: pytest
+    file: scripts/tests/test_apple_settings_parity_audit.py
+    command: python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py -k apps
+    covers: [AC-5]
+    assertions: [live/shared app metadata contains required web fields and examples]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-WEB-APPS
+    type: playwright
+    file: frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    command: python3 scripts/tests.py run --spec focus-mode-settings.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-5]
+    assertions: [representative app, skill, focus, mention, and example source behavior remains green]
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable, reason: Existing web behavior is the source contract., timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_ref: ""}}
+  - id: T-IOS-APPS
+    type: manual
+    file: apple/OpenMatesUITests/SettingsAppsParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsAppsParityUITests
+    covers: [AC-5]
+    assertions: [live-contract apps, details, actions, mentions, and examples pass on iPhone]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-IPAD-APPS
+    type: manual
+    file: apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing OpenMatesUITests/SettingsIPadLayoutParityUITests
+    covers: [AC-5]
+    assertions: [apps grids, carousels, details, and examples remain usable on iPad]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MAC-APPS
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacAppsParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacAppsParityUITests
+    covers: [AC-5]
+    assertions: [apps flows pass with pointer, keyboard, and window resizing]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MEMORY-CONTRACT
+    type: pytest
+    file: scripts/tests/test_apple_settings_parity_audit.py
+    command: python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py -k memories
+    covers: [AC-6]
+    assertions: [Apple memory models use encrypted local/WebSocket contracts and reject nonexistent endpoints]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-WEB-MEMORIES
+    type: playwright
+    file: frontend/apps/web_app/tests/mention-dropdown-settings-memory.spec.ts
+    command: python3 scripts/tests.py run --spec mention-dropdown-settings-memory.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-6]
+    assertions: [memory CRUD, mention, and chat use source behavior remains green]
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable, reason: Existing web behavior is the source contract., timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_ref: ""}}
+  - id: T-IOS-MEMORIES
+    type: manual
+    file: apple/OpenMatesUITests/SettingsMemoriesParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsMemoriesParityUITests
+    covers: [AC-6]
+    assertions: [native memory examples, CRUD, sync/relaunch, mention, and deletion pass]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MAC-MEMORIES
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacMemoriesParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacMemoriesParityUITests
+    covers: [AC-6]
+    assertions: [native memory CRUD and mention flows pass on macOS]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MATES-AUDIT
+    type: pytest
+    file: scripts/tests/test_apple_settings_parity_audit.py
+    command: python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py -k mates
+    covers: [AC-7]
+    assertions: [canonical mate ids, metadata fields, artwork, prompts, and native destinations match]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-IOS-MATES
+    type: manual
+    file: apple/OpenMatesUITests/SettingsMatesParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsMatesParityUITests
+    covers: [AC-7]
+    assertions: [mate list/detail/prompt/mention/start-chat behavior passes without browser navigation]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MAC-MATES
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacMatesParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacMatesParityUITests
+    covers: [AC-7]
+    assertions: [mate list/detail/prompt/mention/start-chat behavior passes on macOS]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-PRIVACY-CONTRACT
+    type: pytest
+    file: scripts/tests/test_apple_settings_parity_audit.py
+    command: python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py -k privacy
+    covers: [AC-8]
+    assertions: [privacy endpoints, payloads, retention rules, and diagnostics redaction match]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-WEB-PRIVACY
+    type: playwright
+    file: frontend/apps/web_app/tests/debug-logging-settings.spec.ts
+    command: python3 scripts/tests.py run --spec debug-logging-settings.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-8]
+    assertions: [privacy/debug preference source behavior remains green]
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable, reason: Existing web behavior is the source contract., timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_ref: ""}}
+  - id: T-IOS-PRIVACY
+    type: manual
+    file: apple/OpenMatesUITests/SettingsPrivacyParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsPrivacyParityUITests
+    covers: [AC-8]
+    assertions: [privacy hub and connected account, retention, deletion, and debug flows pass]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MAC-PRIVACY
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacPrivacyParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacPrivacyParityUITests
+    covers: [AC-8]
+    assertions: [privacy flows pass on macOS]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-BILLING-CONTRACT
+    type: pytest
+    file: scripts/tests/test_apple_settings_parity_audit.py
+    command: python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py -k "billing or usage"
+    covers: [AC-9]
+    assertions: [balance, usage, auto-topup, invoice, StoreKit fulfillment, gift-card, referral, and support contracts match real APIs]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-WEB-BILLING
+    type: playwright
+    file: frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    command: python3 scripts/tests.py run --spec settings-buy-credits-stripe-managed.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-9]
+    assertions: [purchase, account-state, invoice, and refund source behavior remains green]
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable, reason: Existing web payment behavior defines account-state intent; Apple uses StoreKit for purchase UI., timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_ref: ""}}
+  - id: T-IOS-BILLING
+    type: manual
+    file: apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsBillingStoreKitParityUITests
+    covers: [AC-9]
+    assertions: [live-contract balance/usage/invoice plus StoreKit success/cancel/pending/failure/restore/reconciliation states pass]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MAC-BILLING
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacBillingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacBillingParityUITests
+    covers: [AC-9]
+    assertions: [billing, StoreKit, invoice download, usage, and deployment variants pass on macOS]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-ACCOUNT-CONTRACT
+    type: pytest
+    file: scripts/tests/test_apple_settings_parity_audit.py
+    command: python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py -k "account or security"
+    covers: [AC-10]
+    assertions: [account/security endpoint, payload, re-auth, and passkey inventory contracts match]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-WEB-SECURITY
+    type: playwright
+    file: frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    command: python3 scripts/tests.py run --spec recovery-key-settings.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-10]
+    assertions: [representative re-auth and credential-management source behavior remains green]
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable, reason: Existing web behavior is the source contract., timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_ref: ""}}
+  - id: T-IOS-SECURITY
+    type: manual
+    file: apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsSensitiveActionsParityUITests
+    covers: [AC-10]
+    assertions: [reserved-account passkey, credential, session, storage, import/export, and deletion flows pass safely]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MAC-SECURITY
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacSecurityParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacSecurityParityUITests
+    covers: [AC-10]
+    assertions: [account/security and passkey management flows pass on macOS]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-OTHER-CONTRACT
+    type: pytest
+    file: scripts/tests/test_apple_settings_parity_audit.py
+    command: python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py -k other_settings
+    covers: [AC-11]
+    assertions: [remaining product routes use valid data/API and persistence contracts]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-IOS-OTHER
+    type: manual
+    file: apple/OpenMatesUITests/SettingsOtherRoutesParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsOtherRoutesParityUITests
+    covers: [AC-11]
+    assertions: [AI, Projects, Notifications, Shared, Interface, Developers, Newsletter, Support, and Report Issue pass]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MAC-OTHER
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacOtherRoutesParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacOtherRoutesParityUITests
+    covers: [AC-11]
+    assertions: [remaining product settings pass on macOS]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-ADMIN-CONTRACT
+    type: pytest
+    file: scripts/tests/test_apple_settings_parity_audit.py
+    command: python3 -m pytest scripts/tests/test_apple_settings_parity_audit.py -k admin
+    covers: [AC-12]
+    assertions: [admin role/deployment route and action contracts match web/backend]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-IOS-ADMIN
+    type: manual
+    file: apple/OpenMatesUITests/SettingsAdminParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsAdminParityUITests
+    covers: [AC-12]
+    assertions: [admin/non-admin and managed/self-hosted visibility/actions pass on iOS]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MAC-ADMIN
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacAdminParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacAdminParityUITests
+    covers: [AC-12]
+    assertions: [admin/non-admin and managed/self-hosted visibility/actions pass on macOS]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-IOS-VISUAL
+    type: manual
+    file: apple/OpenMatesUITests/SettingsVisualParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsVisualParityUITests
+    covers: [AC-13]
+    assertions: [reviewed iPhone light/dark screenshots and rendered visibility/clickability artifacts exist]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-IPAD-VISUAL
+    type: manual
+    file: apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing OpenMatesUITests/SettingsIPadLayoutParityUITests
+    covers: [AC-13]
+    assertions: [reviewed iPad light/dark screenshots and interaction artifacts exist]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-MAC-VISUAL
+    type: manual
+    file: apple/OpenMatesMacUITests/SettingsMacVisualParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesMacUITests/SettingsMacVisualParityUITests
+    covers: [AC-13]
+    assertions: [reviewed narrow/regular/fullscreen macOS light/dark screenshots and interaction artifacts exist]
+    red_phase: {required: true, expected: fail, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+
+verifications:
+  - id: V-PRODUCT-REVIEW
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
+    status: pending
+    evidence: {status: pending, summary: "", timestamp: ""}
+  - id: V-VISUAL-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-13]
+    status: pending
+    evidence: {status: pending, summary: "", timestamp: ""}
 
 implementation_plan:
+  spec_path: docs/specs/apple-settings-billing-parity/spec.yml
   existing_patterns:
-    - "`SettingsView.swift` already implements root settings navigation and stable row/page identifiers."
-    - "`SettingsAppsFull.swift` has a simplified Apps root and app detail page but lacks web-equivalent all-apps, search/filter/sort, detail drilldowns, examples, and provider/model/focus detail behavior."
-    - "`RealAccountUITestSupport.swift` already loads password/OTP credentials and should be extended to support reserved slots without printing secrets."
-    - Web settings routes and app metadata are the source of truth for route coverage and app-store behavior.
+    - OMSettingsPage, OMSettingsRow, OMToggle, OMDropdown, OMSegmentedControl, and custom OpenMates overlays.
+    - Rendered web contract extraction helpers in apple-ui-contract-helpers.ts and validation in scripts/apple_ui_contracts.py.
+    - Reserved Apple account loading in RealAccountUITestSupport.swift.
+    - Existing Learning Mode backend policy and web/CLI controls.
+    - Existing encrypted web settings/memories local-first and WebSocket synchronization.
   architecture: >
-    Keep Apple settings native SwiftUI built from OpenMates primitives. Expand the
-    existing settings navigation and app-store views rather than embedding web
-    views. Use reusable native cards/detail sections that mirror web AppStoreCard,
-    SkillDetails, FocusModeDetails, and SkillExamplesSection contracts. Add test
-    helpers for route inventory, metadata decoding, reserved account loading, and
-    redacted UI assertions.
+    Generate a versioned settings manifest from the web route/access and metadata
+    sources, then drive native navigation, audit coverage, and tests from that
+    manifest. Rebuild settings as focused native feature modules sharing
+    OpenMates primitives and typed API/data services. Add rendered-web contracts
+    for promoted settings states, iOS/iPad fixture plus reserved-account tests,
+    and a real macOS test target. Keep cryptography and OS-owned capability UI at
+    existing boundaries.
   data_flow:
-    - Settings root opens from app chrome.
-    - Static/native destination inventory maps web settings routes to Swift views or explicit exceptions.
-    - Apps metadata loads and normalizes to native `AppInfo`, `AppSkill`, focus mode, memory, provider, pricing, model, and example view models.
-    - Skill/focus examples open either public example chats or native embed fullscreen/equivalent surfaces.
-    - Safe settings mutations call backend settings endpoints and refresh local user/profile state.
-    - Sensitive settings mutations require login and SecurityAuth-like re-authentication with reserved account credentials.
+    - Build-time scripts derive route, access, app, mate, and UI-contract inputs from canonical web/backend sources.
+    - Native Settings reads typed account/deployment capabilities and renders the same allowed destinations as web.
+    - Each destination service loads local/static state first where the web contract does, then calls compatible API/WebSocket/storage boundaries.
+    - Mutations expose progress, success, error, rollback, and refreshed account state.
+    - UI tests use schema-compatible fixtures for deterministic rendering and reserved accounts for real persistence/security flows.
+    - Web and Apple artifacts are compared and promoted state by state.
   affected_files:
-    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
-      reason: Root navigation, route inventory, banners, role visibility, stable identifiers.
-    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
-      reason: Apps root, all-apps, app details, skill/focus/memory detail navigation.
-    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
-      reason: AI/default model/settings memory parity with web AI settings.
-    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
-      reason: Account/security/privacy/notifications/developers subsettings parity.
-    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
-      reason: Billing/gift-card/support/invoice/referral/StoreKit parity.
-    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift
-      reason: Admin/server/log role visibility and read-only/risky action handling.
-    - path: apple/OpenMatesUITests/RealAccountUITestSupport.swift
-      reason: Reserved account credential loading, OTP, re-auth, redaction helpers.
-    - path: apple/OpenMatesUITests/SettingsFullParityUITests.swift
-      reason: Full settings route and safe action UI coverage.
-    - path: apple/OpenMatesUITests/SettingsAppsParityUITests.swift
-      reason: Apps, app details, skills, focus modes, examples coverage.
-    - path: apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
-      reason: Native reproduction of the web Interface → Language settings flow.
-    - path: apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift
-      reason: Reserved-account sensitive/destructive settings coverage.
-    - path: apple/OpenMatesTests/SettingsFullParityTests.swift
-      reason: Static route and metadata coverage.
-    - path: docs/contributing/guides/testing.md
-      reason: Document Apple reserved-account policy if new native destructive specs are added.
+    - path: scripts/apple_settings_parity_audit.py
+      reason: Deterministic route, API, metadata, source, and identifier parity guard.
+    - path: frontend/apps/web_app/tests/apple-settings-ui-contracts.spec.ts
+      reason: Rendered web settings contract capture.
+    - path: apple/OpenMates/Sources/Features/Settings/**
+      reason: Native shell, destinations, typed services, and complete behavior.
+    - path: apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+      reason: Reusable web-equivalent settings primitives only where missing.
+    - path: apple/OpenMatesTests/Settings*.swift
+      reason: Typed model/service/policy/route contract tests.
+    - path: apple/OpenMatesUITests/Settings*.swift
+      reason: iPhone/iPad functional and visual parity tests.
+    - path: apple/OpenMatesMacUITests/Settings*.swift
+      reason: macOS functional, resize, keyboard/pointer, and visual parity tests.
+    - path: apple/project.yml
+      reason: Real macOS test target and generated project consistency.
+    - path: scripts/apple_remote.py
+      reason: First-class sanitized macOS build/test commands.
   verification_strategy:
-    - python3 scripts/spec_validate.py docs/specs/apple-settings-billing-parity/spec.yml
-    - Remote Mac unit/UI tests listed in T-UNIT/T-UI entries.
-    - Deploy before any Apple tests that require committed source in the remote Mac checkout.
-    - Run `python3 scripts/spec_verify.py docs/specs/apple-settings-billing-parity/spec.yml --phase red` and `--phase green` as evidence is recorded.
+    - Validate this spec and run red deterministic/backend/CLI/SDK tests before feature code.
+    - Deploy rendered web contract changes before Playwright green evidence.
+    - Verify shared behavior in CLI, npm SDK, pip SDK, backend, web, then Apple order.
+    - Verify each native slice on iPhone, then iPad, then macOS before marking its task done.
+    - Run full route/source audits and reviewed visual matrices before completion.
+  verification_order:
+    - Deterministic route/source audit preflight
+    - OpenMates CLI
+    - npm SDK
+    - pip SDK
+    - Backend contract tests
+    - Web Playwright source-contract tests after deploy
+    - iPhone unit and UI tests
+    - iPad layout and UI tests
+    - macOS build, resize, UI, and visual tests
 
 tasks:
   - id: TASK-1
-    title: Build settings route inventory and metadata tests
+    title: Establish truthful settings route and rendered UI contracts
+    status: in_progress
+    phase: working_tasks
     covers:
-      scenarios:
-        - S-1
-        - S-2
-        - S-3
-        - S-4
-        - S-5
-        - S-7
-      acceptance_criteria:
-        - AC-1
-        - AC-2
-        - AC-3
-        - AC-4
-        - AC-5
-        - AC-7
+      scenarios: [S-1, S-4, S-13, S-14]
+      acceptance_criteria: [AC-1, AC-4, AC-13, AC-14]
     expected_files:
-      - apple/OpenMatesTests/SettingsFullParityTests.swift
-      - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
-      - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
-    verification:
-      - T-UNIT-001
+      - scripts/apple_settings_parity_audit.py
+      - scripts/tests/test_apple_settings_parity_audit.py
+      - frontend/apps/web_app/tests/apple-settings-ui-contracts.spec.ts
+      - apple/OpenMatesUITests/Fixtures/WebUIContracts/settings.json
+    verification: [T-ROUTES, T-SETTINGS-AUDIT, T-WEB-CONTRACT]
+    verification_ids: [T-ROUTES, T-SETTINGS-AUDIT, T-WEB-CONTRACT]
+    dependencies: []
+    ownership:
+      files: [scripts/apple_settings_parity_audit.py, scripts/tests/test_apple_settings_parity_audit.py, frontend/apps/web_app/tests/apple-settings-ui-contracts.spec.ts]
+      shared_files: [scripts/apple_ui_contracts.py]
+    blockers: []
+    follow_up_tasks: []
     independently_deployable: true
   - id: TASK-2
-    title: Rebuild Apple Apps parity
+    title: Rebuild settings shell and fully implement Incognito and Learning Mode
+    status: pending
+    phase: working_tasks
     covers:
-      scenarios:
-        - S-2
-        - S-3
-        - S-4
-        - S-5
-        - S-10
-      acceptance_criteria:
-        - AC-2
-        - AC-3
-        - AC-4
-        - AC-5
-        - AC-10
-    expected_files:
-      - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
-      - apple/OpenMatesUITests/SettingsAppsParityUITests.swift
-      - apple/OpenMatesUITests/SettingsIPadLayoutParityUITests.swift
-    verification:
-      - T-UI-003
-      - T-UI-006
-    independently_deployable: true
-  - id: TASK-3
-    title: Complete native settings submenu parity
-    covers:
-      scenarios:
-        - S-1
-        - S-6
-        - S-9
-        - S-10
-      acceptance_criteria:
-        - AC-1
-        - AC-6
-        - AC-9
-        - AC-10
+      scenarios: [S-1, S-2, S-3, S-4, S-13]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-13]
     expected_files:
       - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
-      - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
-      - apple/OpenMatesUITests/SettingsFullParityUITests.swift
-      - apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
-    verification:
-      - T-UI-001
-      - T-UI-006
-      - T-UI-007
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsLearningModeView.swift
+      - apple/OpenMates/Sources/Features/Settings/Models/SettingsModeModels.swift
+      - apple/OpenMatesTests/SettingsModesParityTests.swift
+      - apple/OpenMatesUITests/SettingsShellParityUITests.swift
+      - apple/OpenMatesUITests/SettingsModesParityUITests.swift
+    verification: [T-ROUTES, T-SETTINGS-AUDIT, T-CLI-MODES, T-NPM-MODES, T-PIP-MODES, T-BACKEND-MODES, T-WEB-INCOGNITO, T-WEB-LEARNING, T-APPLE-UNIT-MODES, T-IOS-SHELL, T-IPAD-SHELL, T-IOS-MODES, T-MAC-MODES]
+    verification_ids: [T-ROUTES, T-SETTINGS-AUDIT, T-CLI-MODES, T-NPM-MODES, T-PIP-MODES, T-BACKEND-MODES, T-WEB-INCOGNITO, T-WEB-LEARNING, T-APPLE-UNIT-MODES, T-IOS-SHELL, T-IPAD-SHELL, T-IOS-MODES, T-MAC-MODES]
+    dependencies: [TASK-1, TASK-3]
+    ownership:
+      files: [apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift, apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift, apple/OpenMates/Sources/Features/Settings/Views/SettingsLearningModeView.swift]
+      shared_files: [apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift, apple/OpenMates/Sources/Features/Embeds/**, frontend/packages/ui/src/i18n/sources/settings/main.yml]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Add macOS settings test infrastructure
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-4, S-13]
+      acceptance_criteria: [AC-4, AC-13]
+    expected_files: [apple/project.yml, apple/OpenMatesMacUITests/SettingsMacShellParityUITests.swift, scripts/apple_remote.py, scripts/verify_parity.py]
+    verification: [T-MAC-SHELL, T-MAC-ROUTES]
+    verification_ids: [T-MAC-SHELL, T-MAC-ROUTES]
+    dependencies: [TASK-1]
+    ownership:
+      files: [apple/project.yml, apple/OpenMatesMacUITests/**, scripts/apple_remote.py]
+      shared_files: [scripts/verify_parity.py]
+    blockers: []
+    follow_up_tasks: []
     independently_deployable: true
   - id: TASK-4
-    title: Complete billing StoreKit support and web-only fallback parity
+    title: Replace stale settings API and data contracts with typed shared services
+    status: pending
+    phase: working_tasks
     covers:
-      scenarios:
-        - S-7
-      acceptance_criteria:
-        - AC-7
-    expected_files:
-      - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
-      - apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift
-      - apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift
-      - apple/OpenMatesTests/SettingsBillingParityTests.swift
-    verification:
-      - T-UNIT-002
-      - T-UI-005
+      scenarios: [S-5, S-6, S-7, S-8, S-9, S-10, S-11, S-12]
+      acceptance_criteria: [AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12]
+    expected_files: [apple/OpenMates/Sources/Features/Settings/Services/**, apple/OpenMatesTests/SettingsServiceContractTests.swift]
+    verification: [T-APPS-CONTRACT, T-MEMORY-CONTRACT, T-MATES-AUDIT, T-PRIVACY-CONTRACT, T-BILLING-CONTRACT, T-ACCOUNT-CONTRACT, T-OTHER-CONTRACT, T-ADMIN-CONTRACT]
+    verification_ids: [T-APPS-CONTRACT, T-MEMORY-CONTRACT, T-MATES-AUDIT, T-PRIVACY-CONTRACT, T-BILLING-CONTRACT, T-ACCOUNT-CONTRACT, T-OTHER-CONTRACT, T-ADMIN-CONTRACT]
+    dependencies: [TASK-1]
+    ownership:
+      files: [apple/OpenMates/Sources/Features/Settings/Services/**, apple/OpenMatesTests/SettingsServiceContractTests.swift]
+      shared_files: [backend/core/api/app/routes/settings.py, backend/core/api/app/routes/apps.py]
+    blockers: []
+    follow_up_tasks: []
     independently_deployable: true
   - id: TASK-5
-    title: Add reserved-account sensitive settings tests
+    title: Rebuild Apps, details, examples, and app-linked settings
+    status: pending
+    phase: working_tasks
     covers:
-      scenarios:
-        - S-8
-      acceptance_criteria:
-        - AC-8
-    expected_files:
-      - apple/OpenMatesUITests/RealAccountUITestSupport.swift
-      - apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift
-      - docs/contributing/guides/testing.md
-      - scripts/apple_remote.py
-    verification:
-      - T-UI-004
-    independently_deployable: false
-  - id: TASK-6
-    title: Record red and green evidence for full settings parity
-    covers:
-      scenarios:
-        - S-1
-        - S-2
-        - S-3
-        - S-4
-        - S-5
-        - S-6
-        - S-7
-        - S-8
-        - S-9
-        - S-10
-      acceptance_criteria:
-        - AC-1
-        - AC-2
-        - AC-3
-        - AC-4
-        - AC-5
-        - AC-6
-        - AC-7
-        - AC-8
-        - AC-9
-        - AC-10
-    expected_files:
-      - docs/specs/apple-settings-billing-parity/spec.yml
-    verification:
-      - T-UNIT-001
-      - T-UNIT-002
-      - T-UI-001
-      - T-UI-002
-      - T-UI-003
-      - T-UI-004
-      - T-UI-005
-      - T-UI-006
-      - T-UI-007
+      scenarios: [S-5, S-13]
+      acceptance_criteria: [AC-5, AC-13]
+    expected_files: [apple/OpenMates/Sources/Features/Settings/Apps/**, apple/OpenMatesUITests/SettingsAppsParityUITests.swift, apple/OpenMatesMacUITests/SettingsMacAppsParityUITests.swift]
+    verification: [T-APPS-CONTRACT, T-WEB-APPS, T-IOS-APPS, T-IPAD-APPS, T-MAC-APPS]
+    verification_ids: [T-APPS-CONTRACT, T-WEB-APPS, T-IOS-APPS, T-IPAD-APPS, T-MAC-APPS]
+    dependencies: [TASK-3, TASK-4]
+    ownership:
+      files: [apple/OpenMates/Sources/Features/Settings/Apps/**, apple/OpenMatesUITests/SettingsAppsParityUITests.swift, apple/OpenMatesMacUITests/SettingsMacAppsParityUITests.swift]
+      shared_files: [apple/OpenMates/Sources/App/MainAppView.swift]
+    blockers: []
+    follow_up_tasks: []
     independently_deployable: true
+  - id: TASK-6
+    title: Rebuild Memories and Mates parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-6, S-7, S-13]
+      acceptance_criteria: [AC-6, AC-7, AC-13]
+    expected_files: [apple/OpenMates/Sources/Features/Settings/Memories/**, apple/OpenMates/Sources/Features/Settings/Mates/**, apple/OpenMatesUITests/SettingsMemoriesParityUITests.swift, apple/OpenMatesUITests/SettingsMatesParityUITests.swift]
+    verification: [T-MEMORY-CONTRACT, T-WEB-MEMORIES, T-IOS-MEMORIES, T-MAC-MEMORIES, T-MATES-AUDIT, T-IOS-MATES, T-MAC-MATES]
+    verification_ids: [T-MEMORY-CONTRACT, T-WEB-MEMORIES, T-IOS-MEMORIES, T-MAC-MEMORIES, T-MATES-AUDIT, T-IOS-MATES, T-MAC-MATES]
+    dependencies: [TASK-3, TASK-4]
+    ownership:
+      files: [apple/OpenMates/Sources/Features/Settings/Memories/**, apple/OpenMates/Sources/Features/Settings/Mates/**]
+      shared_files: [apple/OpenMates/Sources/Features/Chat/**]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-7
+    title: Rebuild Privacy and connected-account parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-8, S-13]
+      acceptance_criteria: [AC-8, AC-13]
+    expected_files: [apple/OpenMates/Sources/Features/Settings/Privacy/**, apple/OpenMatesUITests/SettingsPrivacyParityUITests.swift, apple/OpenMatesMacUITests/SettingsMacPrivacyParityUITests.swift]
+    verification: [T-PRIVACY-CONTRACT, T-WEB-PRIVACY, T-IOS-PRIVACY, T-MAC-PRIVACY]
+    verification_ids: [T-PRIVACY-CONTRACT, T-WEB-PRIVACY, T-IOS-PRIVACY, T-MAC-PRIVACY]
+    dependencies: [TASK-3, TASK-4]
+    ownership:
+      files: [apple/OpenMates/Sources/Features/Settings/Privacy/**, apple/OpenMatesUITests/SettingsPrivacyParityUITests.swift, apple/OpenMatesMacUITests/SettingsMacPrivacyParityUITests.swift]
+      shared_files: [apple/OpenMates/Sources/Core/Diagnostics/**]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-8
+    title: Rebuild Billing, invoices, StoreKit, support, and usage parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-9, S-13]
+      acceptance_criteria: [AC-9, AC-13]
+    expected_files: [apple/OpenMates/Sources/Features/Settings/Billing/**, apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift, apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift, apple/OpenMatesMacUITests/SettingsMacBillingParityUITests.swift]
+    verification: [T-BILLING-CONTRACT, T-WEB-BILLING, T-IOS-BILLING, T-MAC-BILLING]
+    verification_ids: [T-BILLING-CONTRACT, T-WEB-BILLING, T-IOS-BILLING, T-MAC-BILLING]
+    dependencies: [TASK-3, TASK-4]
+    ownership:
+      files: [apple/OpenMates/Sources/Features/Settings/Billing/**, apple/OpenMates/Sources/Core/StoreKit/StoreManager.swift]
+      shared_files: [backend/core/api/app/routes/settings.py, backend/core/api/app/routes/payments.py]
+    blockers: [StoreKit sandbox products and reserved billing account must be available for live verification]
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-9
+    title: Rebuild Account, security, passkey, and destructive settings parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-10, S-13]
+      acceptance_criteria: [AC-10, AC-13]
+    expected_files: [apple/OpenMates/Sources/Features/Settings/Account/**, apple/OpenMates/Sources/Features/Settings/Security/**, apple/OpenMatesUITests/SettingsSensitiveActionsParityUITests.swift, apple/OpenMatesMacUITests/SettingsMacSecurityParityUITests.swift]
+    verification: [T-ACCOUNT-CONTRACT, T-WEB-SECURITY, T-IOS-SECURITY, T-MAC-SECURITY]
+    verification_ids: [T-ACCOUNT-CONTRACT, T-WEB-SECURITY, T-IOS-SECURITY, T-MAC-SECURITY]
+    dependencies: [TASK-3, TASK-4]
+    ownership:
+      files: [apple/OpenMates/Sources/Features/Settings/Account/**, apple/OpenMates/Sources/Features/Settings/Security/**]
+      shared_files: [apple/OpenMatesUITests/RealAccountUITestSupport.swift]
+    blockers: [Reserved credential-rotation accounts must be available for live verification]
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-10
+    title: Complete remaining product and admin settings parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-11, S-12, S-13]
+      acceptance_criteria: [AC-11, AC-12, AC-13]
+    expected_files: [apple/OpenMates/Sources/Features/Settings/**, apple/OpenMatesUITests/SettingsOtherRoutesParityUITests.swift, apple/OpenMatesUITests/SettingsAdminParityUITests.swift]
+    verification: [T-OTHER-CONTRACT, T-IOS-OTHER, T-MAC-OTHER, T-ADMIN-CONTRACT, T-IOS-ADMIN, T-MAC-ADMIN]
+    verification_ids: [T-OTHER-CONTRACT, T-IOS-OTHER, T-MAC-OTHER, T-ADMIN-CONTRACT, T-IOS-ADMIN, T-MAC-ADMIN]
+    dependencies: [TASK-3, TASK-4]
+    ownership:
+      files: [apple/OpenMates/Sources/Features/Settings/**]
+      shared_files: [apple/OpenMatesUITests/RealAccountUITestSupport.swift]
+    blockers: [Admin reserved account must be available for live verification]
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-11
+    title: Complete cross-platform visual review and full parity gate
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9, S-10, S-11, S-12, S-13, S-14]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
+    expected_files: [docs/specs/apple-settings-billing-parity/spec.yml, apple/OpenMatesUITests/Fixtures/WebUIContracts/settings.json]
+    verification: [T-ROUTES, T-SETTINGS-AUDIT, T-WEB-CONTRACT, T-IOS-VISUAL, T-IPAD-VISUAL, T-MAC-VISUAL, V-PRODUCT-REVIEW, V-VISUAL-REVIEW]
+    verification_ids: [T-ROUTES, T-SETTINGS-AUDIT, T-WEB-CONTRACT, T-IOS-VISUAL, T-IPAD-VISUAL, T-MAC-VISUAL, V-PRODUCT-REVIEW, V-VISUAL-REVIEW]
+    dependencies: [TASK-2, TASK-3, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9, TASK-10]
+    ownership:
+      files: [docs/specs/apple-settings-billing-parity/spec.yml, apple/OpenMatesUITests/Fixtures/WebUIContracts/settings.json]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
 
 risks:
-  - Full settings parity is large and should be implemented in independently verified slices to avoid long-lived broken Apple builds.
-  - Destructive account tests can damage reserved accounts if slots are misconfigured; tests must fail closed when reserved credentials are absent.
-  - Apps examples may expose private data if real user chats are used; only public example chats or synthetic fixtures are allowed.
-  - StoreKit, passkey, notification, file picker, share sheet, and clipboard flows can vary by simulator state; tests must clean app containers and handle OS prompts explicitly.
-  - Existing unrelated dirty worktree changes must not be included in settings parity commits.
+  - The full route tree is too large for a single safe source change; tasks must remain independently buildable while the umbrella stays incomplete until all required evidence passes.
+  - Existing fixture-backed tests can produce false confidence unless live/shared schema compatibility is separately enforced.
+  - Sensitive, destructive, billing, and admin tests can damage account state unless reserved accounts fail closed and cleanup is explicit.
+  - StoreKit transaction handling can lose fulfillment retries if backend failure is swallowed before finishing a transaction.
+  - Memory and personal-data changes can expose plaintext or break cross-client decryption if settings views bypass existing crypto/service boundaries.
+  - Visual contracts can become noisy if captured before animation/layout stabilizes; state-specific promotion and stable-box waits are required.
+  - macOS automation and window resizing need new infrastructure before desktop parity can be claimed.
 
 open_questions:
-  - Whether account deletion finalization should run against a newly provisioned throwaway Apple-specific account or remain preview/cancel-only in Apple tests.
-  - Whether macOS settings parity should be fully implemented in this spec or tracked as a follow-up once iPhone/iPad parity is green.
+  - none

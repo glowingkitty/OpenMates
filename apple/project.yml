@@ -31,6 +31,15 @@ packages:
   LucideIcons:
     url: https://github.com/JakubMazur/lucide-icons-swift.git
     from: 1.8.0
+  Sodium:
+    url: https://github.com/jedisct1/swift-sodium.git
+    from: 0.9.1
+  Yams:
+    url: https://github.com/jpsim/Yams.git
+    from: 5.1.3
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation.git
+    from: 0.9.19
 
 targets:
   OpenMates:
@@ -133,6 +142,9 @@ targets:
           - Fonts/LexendDeca-ExtraBold.ttf
     dependencies:
       - package: LucideIcons
+      - package: Sodium
+      - package: Yams
+      - package: ZIPFoundation
       - target: OpenMatesShareExtension
         platforms: [iOS]
       - target: OpenMatesShareExtension_macOS
@@ -334,6 +346,23 @@ targets:
         TEST_TARGET_NAME: OpenMates_iOS
         SWIFT_VERSION: "6.0"
 
+  OpenMatesMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: OpenMatesMacUITests
+      - path: OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+      - path: OpenMatesUITests/TooltipHelpParityUITests.swift
+    dependencies:
+      - target: OpenMates_macOS
+    settings:
+      base:
+        INFOPLIST_FILE: OpenMatesUITests/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.macuitests
+        PRODUCT_NAME: OpenMatesMacUITests
+        TEST_TARGET_NAME: OpenMates_macOS
+        SWIFT_VERSION: "6.0"
+
   OpenMatesTests:
     type: bundle.unit-test
     platform: iOS
@@ -359,6 +388,13 @@ schemes:
       targets:
         - OpenMatesTests
         - OpenMatesUITests
+  OpenMates_macOS:
+    build:
+      targets:
+        OpenMates_macOS: all
+    test:
+      targets:
+        - OpenMatesMacUITests
   OpenMatesWatch:
     build:
       targets:

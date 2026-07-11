@@ -1,150 +1,217 @@
-// Email management — view and update the account email address.
-// Mirrors the web app's account/SettingsEmail.svelte.
-// Requires identity verification before changing email.
+// Native encrypted email management with code verification and recent re-auth.
+// Preserves the account email salt so existing password and passkey wrapping
+// material remains valid, matching SettingsEmail.svelte and backend contracts.
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/account/SettingsEmail.svelte
-//          frontend/packages/ui/src/components/settings/user/SettingsEmail.svelte
 // CSS:     frontend/packages/ui/src/styles/settings.css
-//          frontend/packages/ui/src/styles/fields.css (email input)
+//          frontend/packages/ui/src/styles/fields.css
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import CryptoKit
+import Sodium
 import SwiftUI
 
 struct SettingsEmailView: View {
-    @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject private var authManager: AuthManager
     @State private var currentEmail = ""
     @State private var newEmail = ""
     @State private var password = ""
     @State private var verificationCode = ""
-    @State private var step: EmailChangeStep = .enterNew
-    @State private var isSaving = false
-    @State private var error: String?
-    @State private var success: String?
+    @State private var step: Step = .requestCode
+    @State private var isWorking = false
+    @State private var errorMessage: String?
+    @State private var successMessage: String?
 
-    enum EmailChangeStep {
-        case enterNew
-        case verifyIdentity
-        case confirmCode
+    private enum Step { case requestCode, verifyCode, reauthenticate }
+
+    private var normalizedEmail: String {
+        newEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    private var isValidEmail: Bool {
-        newEmail.contains("@") && newEmail.contains(".")
+    private var canRequest: Bool {
+        normalizedEmail.contains("@") && normalizedEmail.contains(".") && normalizedEmail != currentEmail
     }
 
     var body: some View {
-        Form {
-            Section("Current Email") {
-                HStack {
-                    Text(currentEmail.isEmpty ? "Not set" : currentEmail)
-                        .foregroundStyle(currentEmail.isEmpty ? Color.fontTertiary : Color.fontPrimary)
-                    Spacer()
-                }
+        OMSettingsPage(title: AppStrings.email) {
+            OMSettingsSection(AppStrings.currentEmail, icon: "mail") {
+                OMSettingsStaticRow(title: AppStrings.currentEmail, value: currentEmail)
             }
 
-            switch step {
-            case .enterNew:
-                Section("New Email") {
-                    TextField("Enter new email", text: $newEmail)
-                        #if os(iOS)
-                        .keyboardType(.emailAddress)
-                        #endif
+            OMSettingsSection(AppStrings.email, icon: "mail") {
+                VStack(alignment: .leading, spacing: .spacing4) {
+                    TextField(AppStrings.newEmailPlaceholder, text: $newEmail)
+                        .textFieldStyle(OMTextFieldStyle())
+                        .textContentType(.emailAddress)
                         .autocorrectionDisabled()
                         #if os(iOS)
+                        .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         #endif
-                        .textContentType(.emailAddress)
+                        .disabled(step != .requestCode || isWorking)
+                        .accessibilityIdentifier("email-change-new-email")
 
-                    Button("Continue") {
-                        step = .verifyIdentity
+                    if step == .verifyCode {
+                        TextField(AppStrings.verifyEmailChangeCode, text: $verificationCode)
+                            .textFieldStyle(OMTextFieldStyle())
+                            #if os(iOS)
+                            .keyboardType(.numberPad)
+                            #endif
+                            .onChange(of: verificationCode) { _, value in
+                                verificationCode = String(value.filter(\.isNumber).prefix(6))
+                            }
+                            .accessibilityIdentifier("email-change-code")
                     }
-                    .disabled(!isValidEmail || newEmail == currentEmail)
-                }
 
-            case .verifyIdentity:
-                Section("Verify Identity") {
-                    SecureField("Enter your password", text: $password)
-                        .textContentType(.password)
-
-                    Button("Verify & Send Code") {
-                        requestEmailChange()
+                    if step == .reauthenticate {
+                        SecureField(AppStrings.enterPassword, text: $password)
+                            .textFieldStyle(OMTextFieldStyle())
+                            .textContentType(.password)
+                            .accessibilityIdentifier("email-change-password")
                     }
-                    .disabled(password.isEmpty || isSaving)
+
+                    actionButton
                 }
-
-            case .confirmCode:
-                Section("Verification Code") {
-                    Text("\(LocalizationManager.shared.text("settings.email.verification_code_sent")): \(newEmail)")
-                        .font(.omXs).foregroundStyle(Color.fontSecondary)
-
-                    TextField("Enter code", text: $verificationCode)
-                        #if os(iOS)
-                        .keyboardType(.numberPad)
-                        #endif
-
-                    Button("Confirm Email Change") {
-                        confirmEmailChange()
-                    }
-                    .disabled(verificationCode.isEmpty || isSaving)
-                }
+                .padding(.spacing6)
             }
 
-            if let error {
-                Section {
-                    Text(error).font(.omSmall).foregroundStyle(Color.error)
-                }
-            }
-
-            if let success {
-                Section {
-                    Text(success).font(.omSmall).foregroundStyle(.green)
-                }
-            }
+            if let successMessage { status(successMessage, color: Color.buttonPrimary) }
+            if let errorMessage { status(errorMessage, color: Color.error) }
         }
-        .navigationTitle("Email")
-        .onAppear {
-            currentEmail = authManager.currentUser?.email ?? ""
+        .onAppear { currentEmail = authManager.currentUser?.email ?? "" }
+        .accessibilityIdentifier("settings-email-page")
+    }
+
+    @ViewBuilder
+    private var actionButton: some View {
+        switch step {
+        case .requestCode:
+            Button(AppStrings.sendEmailChangeCode) { requestCode() }
+                .buttonStyle(OMPrimaryButtonStyle())
+                .disabled(!canRequest || isWorking)
+                .accessibilityIdentifier("email-change-request-code")
+        case .verifyCode:
+            Button(AppStrings.verifyEmailChangeCode) { verifyCode() }
+                .buttonStyle(OMPrimaryButtonStyle())
+                .disabled(verificationCode.count != 6 || isWorking)
+                .accessibilityIdentifier("email-change-verify-code")
+        case .reauthenticate:
+            Button(AppStrings.confirmEmailChange) { confirmChange() }
+                .buttonStyle(OMPrimaryButtonStyle())
+                .disabled(password.isEmpty || isWorking)
+                .accessibilityIdentifier("email-change-confirm")
         }
     }
 
-    private func requestEmailChange() {
-        isSaving = true
-        error = nil
+    private func requestCode() {
+        run {
+            let response: ActionResponse = try await APIClient.shared.request(
+                .post,
+                path: "/v1/settings/user/email/request-change-code",
+                body: ["new_email": normalizedEmail]
+            )
+            guard response.success else { throw AccountSecurityError.server(response.message) }
+            step = .verifyCode
+            successMessage = AppStrings.emailChangeCodeSent
+        }
+    }
+
+    private func verifyCode() {
+        run {
+            let response: ActionResponse = try await APIClient.shared.request(
+                .post,
+                path: "/v1/settings/user/email/verify-change-code",
+                body: ["new_email": normalizedEmail, "code": verificationCode]
+            )
+            guard response.success else { throw AccountSecurityError.server(response.message) }
+            step = .reauthenticate
+            successMessage = AppStrings.emailChangeCodeVerified
+        }
+    }
+
+    private func confirmChange() {
+        run {
+            guard let user = authManager.currentUser,
+                  let oldEmail = user.email,
+                  let saltBase64 = user.userEmailSalt,
+                  let salt = Data(base64Encoded: saltBase64),
+                  let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id)
+            else { throw AccountSecurityError.missingAccountData }
+
+            let hashedOldEmail = await CryptoManager.shared.hashEmail(oldEmail)
+            let lookupHash = await CryptoManager.shared.hashKey(password, salt: salt)
+            try await AccountSecurityService.shared.verifyPasswordReauth(
+                hashedEmail: hashedOldEmail,
+                lookupHash: lookupHash
+            )
+
+            let emailKey = await CryptoManager.shared.deriveEmailEncryptionKey(
+                email: normalizedEmail,
+                salt: salt
+            )
+            let sodium = Sodium()
+            guard let secretBox = sodium.secretBox.seal(
+                message: Array(normalizedEmail.utf8),
+                secretKey: Array(emailKey)
+            ) else { throw AccountSecurityError.missingAccountData }
+            let encryptedWithMasterKey = try await CryptoManager.shared.encryptWithMasterKey(
+                normalizedEmail,
+                masterKey: masterKey
+            )
+            let hashedNewEmail = await CryptoManager.shared.hashEmail(normalizedEmail)
+            let response: ActionResponse = try await APIClient.shared.request(
+                .post,
+                path: "/v1/settings/user/email/confirm-change",
+                body: EmailConfirmRequest(
+                    newEmail: normalizedEmail,
+                    hashedEmail: hashedNewEmail,
+                    encryptedEmailAddress: Data(secretBox).base64EncodedString(),
+                    encryptedEmailWithMasterKey: encryptedWithMasterKey,
+                    authMethod: "password",
+                    authCode: ""
+                )
+            )
+            guard response.success else { throw AccountSecurityError.server(response.message) }
+            currentEmail = normalizedEmail
+            newEmail = ""
+            password = ""
+            verificationCode = ""
+            step = .requestCode
+            successMessage = AppStrings.emailChangeSuccess
+        }
+    }
+
+    private func run(_ operation: @escaping @MainActor () async throws -> Void) {
+        isWorking = true
+        errorMessage = nil
         Task {
             do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/user/email/request-change",
-                    body: ["new_email": newEmail, "password": password]
-                )
-                step = .confirmCode
+                try await operation()
             } catch {
-                self.error = error.localizedDescription
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Email settings operation failed", category: "settings.account")
             }
-            isSaving = false
+            isWorking = false
         }
     }
 
-    private func confirmEmailChange() {
-        isSaving = true
-        error = nil
-        Task {
-            do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/user/email/confirm-change",
-                    body: ["code": verificationCode]
-                )
-                currentEmail = newEmail
-                success = "Email updated successfully"
-                step = .enterNew
-                newEmail = ""
-                password = ""
-                verificationCode = ""
-            } catch {
-                self.error = error.localizedDescription
-            }
-            isSaving = false
-        }
+    private func status(_ message: String, color: Color) -> some View {
+        Text(message)
+            .font(.omSmall)
+            .foregroundStyle(color)
+            .padding(.horizontal, .spacing6)
+            .accessibilityIdentifier("settings-email-status")
     }
+}
+
+private struct EmailConfirmRequest: Encodable {
+    let newEmail: String
+    let hashedEmail: String
+    let encryptedEmailAddress: String
+    let encryptedEmailWithMasterKey: String
+    let authMethod: String
+    let authCode: String
 }

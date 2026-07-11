@@ -81,10 +81,11 @@ final class StoreManager: ObservableObject {
 
                 // Send the signed transaction to our backend for credit fulfillment
                 let credits = Self.creditsByProductID[product.id] ?? 0
-                await fulfillOnBackend(transaction: transaction, productID: product.id, credits: credits)
+                try await fulfillOnBackend(transaction: transaction, productID: product.id, credits: credits)
 
                 await transaction.finish()
                 purchaseState = .success(credits: credits)
+                NotificationCenter.default.post(name: .paymentCompleted, object: nil)
 
             case .userCancelled:
                 purchaseState = .idle
@@ -112,7 +113,7 @@ final class StoreManager: ObservableObject {
             do {
                 let transaction = try checkVerified(result)
                 let credits = Self.creditsByProductID[transaction.productID] ?? 0
-                await fulfillOnBackend(
+                try await fulfillOnBackend(
                     transaction: transaction,
                     productID: transaction.productID,
                     credits: credits
@@ -120,12 +121,17 @@ final class StoreManager: ObservableObject {
                 await transaction.finish()
                 restoredCount += 1
             } catch {
-                print("[StoreKit] Failed to restore transaction: \(error)")
+                lastError = AppStrings.billingFulfillmentDelayed
+                NativeDiagnostics.warning(
+                    "StoreKit restore fulfillment failed: \(type(of: error))",
+                    category: "storekit_fulfillment"
+                )
             }
         }
 
         if restoredCount > 0 {
             purchaseState = .success(credits: 0)
+            NotificationCenter.default.post(name: .paymentCompleted, object: nil)
         } else {
             purchaseState = .idle
         }
@@ -140,7 +146,7 @@ final class StoreManager: ObservableObject {
                     let transaction = try self?.checkVerified(result)
                     if let transaction {
                         let credits = Self.creditsByProductID[transaction.productID] ?? 0
-                        await self?.fulfillOnBackend(
+                        try await self?.fulfillOnBackend(
                             transaction: transaction,
                             productID: transaction.productID,
                             credits: credits
@@ -148,7 +154,7 @@ final class StoreManager: ObservableObject {
                         await transaction.finish()
                     }
                 } catch {
-                    print("[StoreKit] Transaction listener error: \(error)")
+                    await self?.recordFulfillmentFailure(error)
                 }
             }
         }
@@ -167,26 +173,37 @@ final class StoreManager: ObservableObject {
 
     // MARK: - Backend fulfillment
 
-    private func fulfillOnBackend(transaction: StoreKit.Transaction, productID: String, credits: Int) async {
-        do {
-            let body: [String: Any] = [
-                "transaction_id": String(transaction.id),
-                "original_transaction_id": String(transaction.originalID),
-                "product_id": productID,
-                "credits": credits,
-                "environment": transaction.environment.rawValue,
-                "signed_date": ISO8601DateFormatter().string(from: transaction.signedDate),
-                "storefront": transaction.storefrontCountryCode,
-            ]
+    private func fulfillOnBackend(
+        transaction: StoreKit.Transaction,
+        productID: String,
+        credits: Int
+    ) async throws {
+        let body: [String: Any] = [
+            "transaction_id": String(transaction.id),
+            "original_transaction_id": String(transaction.originalID),
+            "product_id": productID,
+            "credits": credits,
+            "environment": transaction.environment.rawValue,
+            "signed_date": ISO8601DateFormatter().string(from: transaction.signedDate),
+            "storefront": transaction.storefrontCountryCode,
+        ]
 
-            let _: Data = try await APIClient.shared.request(
-                .post, path: "/v1/payments/apple/verify-transaction",
-                body: body
-            )
-        } catch {
-            print("[StoreKit] Backend fulfillment error: \(error)")
-            lastError = "Credits purchased but fulfillment delayed. They will sync shortly."
+        let response: AppleFulfillmentResponse = try await APIClient.shared.request(
+            .post, path: "/v1/payments/apple/verify-transaction",
+            body: body
+        )
+        guard response.success else {
+            throw StoreError.fulfillmentRejected
         }
+    }
+
+    private func recordFulfillmentFailure(_ error: Error) {
+        lastError = AppStrings.billingFulfillmentDelayed
+        purchaseState = .failed(AppStrings.billingFulfillmentDelayed)
+        NativeDiagnostics.warning(
+            "StoreKit transaction fulfillment failed: \(type(of: error))",
+            category: "storekit_fulfillment"
+        )
     }
 
     // MARK: - Helpers
@@ -202,15 +219,25 @@ final class StoreManager: ObservableObject {
 enum StoreError: LocalizedError {
     case verificationFailed(String)
     case productNotFound
+    case fulfillmentRejected
 
     var errorDescription: String? {
         switch self {
         case .verificationFailed(let reason):
             return "Transaction verification failed: \(reason)"
         case .productNotFound:
-            return "Product not found in the App Store."
+            return AppStrings.billingProductNotFound
+        case .fulfillmentRejected:
+            return AppStrings.billingFulfillmentDelayed
         }
     }
+}
+
+private struct AppleFulfillmentResponse: Decodable {
+    let success: Bool
+    let creditsAdded: Int
+    let currentCredits: Double
+    let message: String
 }
 
 // MARK: - Product extension for display

@@ -622,6 +622,54 @@ learning_mode_disabled:
   sv: Learning Mode inaktiverat.
   he: Learning Mode הושבת.
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+learning_mode_attempts_remaining:
+  context: Remaining passcode attempts before Learning Mode deactivation is locked
+  en: "{count} attempts remaining."
+  de: "Noch {count} Versuche."
+  zh: "还剩 {count} 次尝试。"
+  es: "Quedan {count} intentos."
+  fr: "Il reste {count} tentatives."
+  pt: "Restam {count} tentativas."
+  ru: "Осталось попыток: {count}."
+  ja: "残り{count}回試行できます。"
+  ko: "{count}번의 시도가 남았습니다."
+  it: "Restano {count} tentativi."
+  tr: "{count} deneme kaldı."
+  vi: "Còn {count} lần thử."
+  id: "Tersisa {count} percobaan."
+  pl: "Pozostało prób: {count}."
+  nl: "Nog {count} pogingen."
+  ar: "تبقت {count} محاولات."
+  hi: "{count} प्रयास शेष हैं।"
+  th: "เหลืออีก {count} ครั้ง"
+  cs: "Zbývá {count} pokusů."
+  sv: "{count} försök återstår."
+  he: "נותרו {count} ניסיונות."
+  verified_by_human: []
+learning_mode_locked:
+  context: Learning Mode deactivation lockout after too many incorrect passcodes
+  en: Deactivation is locked for 24 hours after too many incorrect attempts.
+  de: Die Deaktivierung ist nach zu vielen falschen Versuchen 24 Stunden lang gesperrt.
+  zh: 错误尝试次数过多，停用功能已锁定 24 小时。
+  es: La desactivación está bloqueada durante 24 horas tras demasiados intentos incorrectos.
+  fr: La désactivation est verrouillée pendant 24 heures après trop de tentatives incorrectes.
+  pt: A desativação fica bloqueada por 24 horas após muitas tentativas incorretas.
+  ru: Отключение заблокировано на 24 часа после слишком большого числа неверных попыток.
+  ja: 誤った試行が多すぎたため、無効化は24時間ロックされています。
+  ko: 잘못된 시도가 너무 많아 비활성화가 24시간 동안 잠겼습니다.
+  it: La disattivazione è bloccata per 24 ore dopo troppi tentativi errati.
+  tr: Çok fazla hatalı denemeden sonra devre dışı bırakma 24 saat kilitlenir.
+  vi: Việc tắt chế độ bị khóa trong 24 giờ sau quá nhiều lần thử sai.
+  id: Penonaktifan dikunci selama 24 jam setelah terlalu banyak percobaan salah.
+  pl: Wyłączenie jest zablokowane na 24 godziny po zbyt wielu błędnych próbach.
+  nl: Uitschakelen is 24 uur vergrendeld na te veel onjuiste pogingen.
+  ar: تم قفل إيقاف الوضع لمدة 24 ساعة بعد عدد كبير من المحاولات غير الصحيحة.
+  hi: बहुत अधिक गलत प्रयासों के बाद निष्क्रिय करना 24 घंटे के लिए लॉक है।
+  th: การปิดใช้งานถูกล็อกเป็นเวลา 24 ชั่วโมงหลังจากลองผิดหลายครั้งเกินไป
+  cs: Vypnutí je po příliš mnoha nesprávných pokusech zablokováno na 24 hodin.
+  sv: Inaktivering är låst i 24 timmar efter för många felaktiga försök.
+  he: ההשבתה נעולה למשך 24 שעות לאחר יותר מדי ניסיונות שגויים.
+  verified_by_human: []
 learning_mode_age_group_prompt:
   context: Prompt asking for the learner age group when enabling Learning Mode
   en: "Learner age group: under_10, 10_12, 13_15, 16_18, or adult"

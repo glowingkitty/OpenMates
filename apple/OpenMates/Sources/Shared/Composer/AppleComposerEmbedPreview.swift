@@ -73,7 +73,7 @@ struct AppleComposerEmbedPreview: View {
                 ComposerLocalImagePreview(
                     image: localPreviewImage,
                     title: title,
-                    lifecycleLabel: lifecycleLabel
+                    lifecycleLabel: lifecycle == .finished ? nil : lifecycleLabel
                 )
             } else if case .recording = descriptor.family {
                 ComposerAudioPreview(
@@ -303,7 +303,7 @@ struct AppleComposerEmbedPreview: View {
 private struct ComposerLocalImagePreview: View {
     let image: Image
     let title: String
-    let lifecycleLabel: String
+    let lifecycleLabel: String?
 
     var body: some View {
         AppleComposerUnifiedCard(

@@ -1,6 +1,11 @@
-// Incognito mode explainer — first-time activation confirmation screen.
-// Mirrors the web app's incognito/SettingsIncognitoInfo.svelte.
-// Shows what incognito mode does before the user confirms activation.
+// First-activation Incognito explainer for native Apple Settings.
+//
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/incognito/SettingsIncognitoInfo.svelte
+// CSS:     frontend/packages/ui/src/styles/icons.css — .subsetting_icon.incognito
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
@@ -10,97 +15,87 @@ struct SettingsIncognitoInfoView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: .spacing6) {
-                Image(systemName: "eye.slash.circle.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(Color.buttonPrimary)
-                    .accessibilityHidden(true)
-
-                Text(LocalizationManager.shared.text("settings.incognito.title"))
-                    .font(.omH2).fontWeight(.bold)
-
-                Text(LocalizationManager.shared.text("settings.incognito.description"))
-                    .font(.omP).foregroundStyle(Color.fontSecondary)
-
-                VStack(alignment: .leading, spacing: .spacing5) {
-                    IncognitoFeatureRow(
-                        icon: "eye.slash",
-                        title: "No Chat History",
-                        description: "Messages are not saved to your account. When you close the chat, it's gone."
-                    )
-
-                    IncognitoFeatureRow(
-                        icon: "brain.head.profile",
-                        title: "No Memory Updates",
-                        description: "The AI won't learn or remember anything from incognito conversations."
-                    )
-
-                    IncognitoFeatureRow(
-                        icon: "lock.shield",
-                        title: "Enhanced Privacy",
-                        description: "No chat metadata, embeds, or attachments are stored on the server."
-                    )
-
-                    IncognitoFeatureRow(
-                        icon: "exclamationmark.triangle",
-                        title: "Not Recoverable",
-                        description: "Once an incognito chat is closed, it cannot be recovered. Export important content before closing."
-                    )
+            VStack(alignment: .leading, spacing: .spacing12) {
+                HStack(spacing: .spacing6) {
+                    Icon("incognito", size: 44)
+                        .foregroundStyle(LinearGradient.incognito)
+                        .accessibilityHidden(true)
+                    Text(AppStrings.settingsIncognito)
+                        .font(.omH2.weight(.semibold))
+                        .foregroundStyle(Color.fontPrimary)
                 }
-                .padding(.horizontal)
+                .padding(.bottom, .spacing8)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Color.grey30).frame(height: 1)
+                }
 
-                Spacer(minLength: .spacing8)
+                Text(AppStrings.incognitoExplainerDescription)
+                    .font(.omP)
+                    .foregroundStyle(Color.fontSecondary)
+
+                VStack(alignment: .leading, spacing: .spacing8) {
+                    feature(AppStrings.incognitoExplainerDeviceSpecific, icon: "check")
+                    feature(AppStrings.incognitoExplainerNotStored, icon: "check")
+                    feature(AppStrings.incognitoExplainerSessionOnly, icon: "check")
+                    feature(AppStrings.incognitoExplainerNoRecovery, icon: "warning")
+                }
+
+                HStack(alignment: .top, spacing: .spacing6) {
+                    Icon("warning", size: 24)
+                        .foregroundStyle(Color.warning)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: .spacing4) {
+                        Text(AppStrings.incognitoExplainerWarningTitle)
+                            .font(.omP.weight(.semibold))
+                            .foregroundStyle(Color.fontPrimary)
+                        Text(AppStrings.incognitoExplainerWarningProviders)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontSecondary)
+                        Text(AppStrings.incognitoExplainerWarningPersonalInfo)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+                .padding(.spacing8)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                .overlay(alignment: .leading) {
+                    Rectangle().fill(Color.warning).frame(width: 4)
+                }
 
                 VStack(spacing: .spacing4) {
-                    Button {
-                        onActivate()
-                    } label: {
-                        Text(LocalizationManager.shared.text("settings.incognito.activate"))
-                            .font(.omSmall).fontWeight(.medium)
+                    Button(action: onActivate) {
+                        Text(AppStrings.incognitoExplainerUnderstood)
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color.buttonPrimary)
-                    .accessibleButton(
-                        LocalizationManager.shared.text("settings.incognito.activate"),
-                        hint: LocalizationManager.shared.text("settings.incognito.activate_hint")
-                    )
+                    .buttonStyle(OMPrimaryButtonStyle())
+                    .accessibilityIdentifier("incognito-activate-button")
 
-                    Button("Cancel") {
-                        onCancel()
+                    Button(action: onCancel) {
+                        Text(AppStrings.cancel).frame(maxWidth: .infinity)
                     }
-                    .font(.omSmall)
-                    .foregroundStyle(Color.fontSecondary)
-                    .accessibleButton(AppStrings.cancel)
+                    .buttonStyle(OMSecondaryButtonStyle())
+                    .accessibilityIdentifier("incognito-cancel-button")
                 }
-                .padding(.horizontal)
+                .padding(.top, .spacing8)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.grey30).frame(height: 1)
+                }
             }
-            .padding(.spacing8)
+            .padding(.spacing10)
         }
+        .accessibilityIdentifier("incognito-info-page")
     }
-}
 
-// MARK: - Feature row
-
-struct IncognitoFeatureRow: View {
-    let icon: String
-    let title: String
-    let description: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: .spacing4) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
+    private func feature(_ text: String, icon: String) -> some View {
+        HStack(alignment: .top, spacing: .spacing6) {
+            Icon(icon, size: 24)
                 .foregroundStyle(Color.buttonPrimary)
-                .frame(width: 28)
                 .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: .spacing1) {
-                Text(title)
-                    .font(.omSmall).fontWeight(.medium)
-                Text(description)
-                    .font(.omXs).foregroundStyle(Color.fontSecondary)
-            }
+            Text(text)
+                .font(.omP)
+                .foregroundStyle(Color.fontSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
     }

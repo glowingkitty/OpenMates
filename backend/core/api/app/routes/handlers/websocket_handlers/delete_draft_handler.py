@@ -29,12 +29,12 @@ async def handle_delete_draft(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("delete_draft", user_id, payload, user_otel_attrs)
     except Exception:
         pass
     try:
-        chat_id = payload.get("chatId")
+        chat_id = payload.get("chat_id") or payload.get("chatId")
         if not chat_id:
             logger.warning(
                 f"User {user_id}, Device {device_fingerprint_hash}: Received delete_draft without chatId."

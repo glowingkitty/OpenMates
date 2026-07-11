@@ -1,113 +1,131 @@
-// Account chats management — bulk operations on chat history.
-// Mirrors the web app's account/SettingsAccountChats.svelte.
-// Provides chat count, bulk delete, and archive operations.
+// Native age-based chat history cleanup with server preview and local cleanup.
+// Mirrors SettingsAccountChats.svelte's count, period selection, preview,
+// confirmation, delete response, and immediate local chat-store update.
+
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/account/SettingsAccountChats.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
 struct SettingsAccountChatsView: View {
-    @State private var chatCount = 0
-    @State private var archivedCount = 0
-    @State private var isLoading = true
-    @State private var showDeleteConfirm = false
-    @State private var showArchiveConfirm = false
-    @State private var isDeleting = false
-    @State private var error: String?
+    @EnvironmentObject private var chatStore: ChatStore
+    @State private var totalCount: Int?
+    @State private var selectedDays = "30"
+    @State private var previewCount: Int?
+    @State private var isWorking = false
+    @State private var showDeleteConfirmation = false
+    @State private var statusMessage: String?
+    @State private var errorMessage: String?
+
+    private let dayOptions = [0, 1, 7, 14, 30, 90]
 
     var body: some View {
-        List {
-            Section(LocalizationManager.shared.text("settings.chats.statistics")) {
-                HStack {
-                    Text(LocalizationManager.shared.text("settings.chats.total"))
-                    Spacer()
-                    Text("\(chatCount)")
-                        .foregroundStyle(Color.fontSecondary)
-                }
-                HStack {
-                    Text(LocalizationManager.shared.text("settings.chats.archived"))
-                    Spacer()
-                    Text("\(archivedCount)")
-                        .foregroundStyle(Color.fontSecondary)
-                }
+        OMSettingsPage(title: AppStrings.chats) {
+            OMSettingsSection(AppStrings.chatStatistics, icon: "chat") {
+                OMSettingsStaticRow(
+                    title: AppStrings.chatTotal,
+                    value: totalCount.map(String.init) ?? AppStrings.loading
+                )
             }
 
-            Section(LocalizationManager.shared.text("settings.chats.actions")) {
-                Button {
-                    showArchiveConfirm = true
-                } label: {
-                    Label(LocalizationManager.shared.text("settings.chats.archive_all"), systemImage: "archivebox")
-                }
+            OMSettingsSection(AppStrings.chatDeleteOld, icon: "trash") {
+                VStack(alignment: .leading, spacing: .spacing5) {
+                    OMDropdown(
+                        title: AppStrings.chatOlderThan,
+                        options: dayOptions.map { OMDropdownOption("\($0)", label: dayLabel($0)) },
+                        selection: $selectedDays
+                    )
+                    .onChange(of: selectedDays) { _, _ in previewCount = nil }
 
-                Button(role: .destructive) {
-                    showDeleteConfirm = true
-                } label: {
-                    Label(LocalizationManager.shared.text("settings.chats.delete_all"), systemImage: "trash")
+                    Button(AppStrings.preview) { previewDeletion() }
+                        .buttonStyle(OMSecondaryButtonStyle())
+                        .disabled(isWorking)
+                        .accessibilityIdentifier("settings-chats-preview")
+
+                    if let previewCount {
+                        OMSettingsStaticRow(title: AppStrings.preview, value: String(previewCount))
+                        Button(AppStrings.chatDeleteOld) { showDeleteConfirmation = true }
+                            .buttonStyle(OMPrimaryButtonStyle())
+                            .disabled(previewCount == 0 || isWorking)
+                            .accessibilityIdentifier("settings-chats-delete")
+                    }
                 }
+                .padding(.spacing6)
             }
 
-            if let error {
-                Section {
-                    Text(error).font(.omSmall).foregroundStyle(Color.error)
-                }
+            if let statusMessage { status(statusMessage, color: Color.buttonPrimary) }
+            if let errorMessage { status(errorMessage, color: Color.error) }
+        }
+        .task { await loadCount() }
+        .overlay {
+            if showDeleteConfirmation {
+                OMConfirmDialog(
+                    title: AppStrings.chatDeleteOld,
+                    message: AppStrings.chatDeleteConfirm,
+                    confirmTitle: AppStrings.delete,
+                    isDestructive: true,
+                    onConfirm: { showDeleteConfirmation = false; deleteChats() },
+                    onCancel: { showDeleteConfirmation = false }
+                )
             }
         }
-        .navigationTitle("Chats")
-        .task { await loadStats() }
-        .confirmationDialog("Archive All Chats?", isPresented: $showArchiveConfirm) {
-            Button("Archive All") { archiveAll() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("\(LocalizationManager.shared.text("settings.chats.archive_warning_prefix")) \(chatCount) \(LocalizationManager.shared.text("settings.chats.archive_warning_suffix"))")
-        }
-        .confirmationDialog("Delete All Chats?", isPresented: $showDeleteConfirm) {
-            Button("Delete All", role: .destructive) { deleteAll() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("\(LocalizationManager.shared.text("settings.chats.delete_warning_prefix")) \(chatCount) \(LocalizationManager.shared.text("settings.chats.delete_warning_suffix"))")
-        }
+        .accessibilityIdentifier("settings-account-chats-page")
     }
 
-    private func loadStats() async {
+    private func loadCount() async {
         do {
-            let response: [String: AnyCodable] = try await APIClient.shared.request(
-                .get, path: "/v1/settings/account/chats/stats"
-            )
-            chatCount = response["total"]?.value as? Int ?? 0
-            archivedCount = response["archived"]?.value as? Int ?? 0
+            totalCount = try await AccountSecurityService.shared.chatCount()
         } catch {
-            self.error = error.localizedDescription
-        }
-        isLoading = false
-    }
-
-    private func archiveAll() {
-        Task {
-            do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/account/chats/archive-all",
-                    body: [:] as [String: String]
-                )
-                ToastManager.shared.show("All chats archived", type: .success)
-                await loadStats()
-            } catch {
-                self.error = error.localizedDescription
-            }
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("Chat count request failed", category: "settings.account")
         }
     }
 
-    private func deleteAll() {
-        isDeleting = true
+    private func previewDeletion() {
+        isWorking = true
+        errorMessage = nil
         Task {
             do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/account/chats/delete-all",
-                    body: [:] as [String: String]
+                previewCount = try await AccountSecurityService.shared.previewChatDeletion(
+                    olderThanDays: Int(selectedDays) ?? 30
                 )
-                ToastManager.shared.show("All chats deleted", type: .success)
-                await loadStats()
             } catch {
-                self.error = error.localizedDescription
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Chat deletion preview failed", category: "settings.account")
             }
-            isDeleting = false
+            isWorking = false
         }
+    }
+
+    private func deleteChats() {
+        isWorking = true
+        errorMessage = nil
+        Task {
+            do {
+                let response = try await AccountSecurityService.shared.deleteOldChats(
+                    olderThanDays: Int(selectedDays) ?? 30
+                )
+                response.deletedIds.forEach(chatStore.removeChat)
+                previewCount = nil
+                statusMessage = AppStrings.chatDeleteSuccess
+                await loadCount()
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Old-chat deletion failed", category: "settings.account")
+            }
+            isWorking = false
+        }
+    }
+
+    private func dayLabel(_ days: Int) -> String {
+        days == 0 ? AppStrings.never : AppStrings.chatDays(days)
+    }
+
+    private func status(_ message: String, color: Color) -> some View {
+        Text(message).font(.omSmall).foregroundStyle(color).padding(.horizontal, .spacing6)
     }
 }

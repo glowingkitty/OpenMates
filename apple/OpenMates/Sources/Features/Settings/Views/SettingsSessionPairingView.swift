@@ -1,554 +1,327 @@
-// Device pairing — initiate pairing for new devices and authorize CLI login requests.
-// Mirrors the web app's security/SettingsSessionsPairInitiate.svelte (initiate side)
-// and security/SettingsSessionsConfirmPair.svelte (authorize side).
-// The authorize flow uses PBKDF2-SHA256 + AES-256-GCM to encrypt the auth bundle.
+// Native device pairing for Apple apps, CLI authorization, and Apple Watch.
+// Uses the real pair initiate/info/authorize/poll/complete contracts and the
+// shared PairLoginRuntime encryption implementation without browser fallbacks.
 
-import SwiftUI
-import CryptoKit
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/security/SettingsSessionsPairInitiate.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsSessionsConfirmPair.svelte
+// CSS:     frontend/packages/ui/src/styles/settings.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import CoreImage.CIFilterBuiltins
-#if os(iOS)
-import UIKit
-#endif
-
-// MARK: - Pair Initiate (start pairing from this device to add a new one)
+import SwiftUI
 
 struct SettingsPairInitiateView: View {
-    @State private var pairingCode: String?
+    @State private var response: PairInitiateResponse?
     @State private var qrImage: Image?
-    @State private var isGenerating = false
-    @State private var expiresIn: Int = 300
-    @State private var error: String?
-    @State private var isPaired = false
+    @State private var state: PairingState = .idle
+    @State private var errorMessage: String?
+
+    private enum PairingState: Equatable { case idle, generating, waiting, completed, expired }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: .spacing6) {
-                Text(LocalizationManager.shared.text("settings.pair_new_device"))
-                    .font(.omH3).fontWeight(.bold)
+        OMSettingsPage(title: AppStrings.pairNewDevice) {
+            OMSettingsSection(AppStrings.pairNewDevice, icon: "devices") {
+                VStack(spacing: .spacing6) {
+                    Text(AppStrings.pairScanDescription)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .multilineTextAlignment(.center)
 
-                Text(LocalizationManager.shared.text("settings.pair_scan_qr_description"))
-                    .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                    .multilineTextAlignment(.center)
+                    if let qrImage {
+                        qrImage
+                            .interpolation(.none)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 200, height: 200)
+                            .padding(.spacing4)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                            .accessibilityLabel(AppStrings.pairingQRCode)
+                    }
 
-                if let qrImage {
-                    qrImage
-                        .interpolation(.none)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 200, height: 200)
-                        .padding(.spacing4)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-                        .accessibilityLabel(LocalizationManager.shared.text("settings.pairing_qr_code_label"))
-                        .accessibilityHint(LocalizationManager.shared.text("settings.pairing_qr_code_hint"))
-                }
-
-                if let pairingCode {
-                    VStack(spacing: .spacing2) {
-                        Text(LocalizationManager.shared.text("settings.pairing_code"))
-                            .font(.omXs).foregroundStyle(Color.fontTertiary)
-                        Text(pairingCode)
-                            .font(.system(size: 28, weight: .bold, design: .monospaced))
+                    if let response {
+                        Text(response.token)
+                            .font(.omH2.monospaced())
+                            .fontWeight(.bold)
                             .foregroundStyle(Color.buttonPrimary)
                             .textSelection(.enabled)
-                        Text("\(LocalizationManager.shared.text("settings.expires_in")) \(expiresIn / 60) \(LocalizationManager.shared.text("common.minutes"))")
-                            .font(.omTiny).foregroundStyle(Color.fontTertiary)
+                        Button(AppStrings.pairCopyLink) { copyPairLink(response.token) }
+                            .buttonStyle(OMSecondaryButtonStyle())
+                            .accessibilityIdentifier("settings-pair-copy-link")
                     }
 
-                    Button {
-                        CopyMessageFormatter.copyToClipboard(pairingCode)
-                        ToastManager.shared.show(AppStrings.copied, type: .success)
-                        AccessibilityAnnouncement.announce(AppStrings.copied)
-                    } label: {
-                        Label(LocalizationManager.shared.text("settings.copy_code"), systemImage: "doc.on.doc")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibleButton(LocalizationManager.shared.text("settings.copy_code"), hint: LocalizationManager.shared.text("settings.copy_pairing_code_hint"))
+                    stateView
+                    if let errorMessage { Text(errorMessage).font(.omSmall).foregroundStyle(Color.error) }
                 }
-
-                if isPaired {
-                    Label(LocalizationManager.shared.text("settings.device_paired_successfully"), systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .font(.omSmall).fontWeight(.medium)
-                }
-
-                if pairingCode == nil && !isGenerating {
-                    Button(LocalizationManager.shared.text("settings.generate_pairing_code")) { generateCode() }
-                        .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
-                        .accessibleButton(
-                            LocalizationManager.shared.text("settings.generate_pairing_code"),
-                            hint: LocalizationManager.shared.text("settings.generate_code_hint")
-                        )
-                }
-
-                if isGenerating { ProgressView(LocalizationManager.shared.text("settings.generating")) }
-
-                if let error {
-                    Text(error).font(.omSmall).foregroundStyle(Color.error)
-                }
+                .frame(maxWidth: .infinity)
+                .padding(.spacing8)
             }
-            .padding(.spacing8)
         }
-        .navigationTitle(AppStrings.pairNewDevice)
+        .accessibilityIdentifier("settings-pair-initiate-page")
     }
 
-    private func generateCode() {
-        isGenerating = true; error = nil
+    @ViewBuilder
+    private var stateView: some View {
+        switch state {
+        case .idle, .expired:
+            Button(state == .expired ? AppStrings.pairRefresh : AppStrings.pairGenerating) { generate() }
+                .buttonStyle(OMPrimaryButtonStyle())
+                .accessibilityIdentifier("settings-pair-generate")
+        case .generating:
+            ProgressView().accessibilityLabel(AppStrings.pairGenerating)
+        case .waiting:
+            Text(AppStrings.pairWaiting).font(.omSmall).foregroundStyle(Color.fontSecondary)
+        case .completed:
+            Text(AppStrings.devicePaired).font(.omSmall).foregroundStyle(Color.buttonPrimary)
+        }
+    }
+
+    private func generate() {
+        state = .generating
+        errorMessage = nil
         Task {
             do {
-                let response: [String: AnyCodable] = try await APIClient.shared.request(
-                    .post, path: "/v1/auth/pair/initiate",
-                    body: ["device_hint": officialAppDeviceHint] as [String: String]
+                let result: PairInitiateResponse = try await APIClient.shared.request(
+                    .post,
+                    path: "/v1/auth/pair/initiate",
+                    body: PairInitiateRequest(deviceHint: deviceHint)
                 )
-                pairingCode = response["token"]?.value as? String
-                expiresIn = response["expires_in"]?.value as? Int ?? 300
-                if let code = pairingCode {
-                    let pairURL = await APIClient.shared.webAppURL
-                        .appendingPathComponent("pair")
-                        .appending(queryItems: [URLQueryItem(name: "code", value: code)])
-                    qrImage = generateQRCode(from: pairURL.absoluteString)
-                }
-                pollForPairing()
-            } catch { self.error = error.localizedDescription }
-            isGenerating = false
-        }
-    }
-
-    private func pollForPairing() {
-        guard let token = pairingCode else { return }
-        Task {
-            for _ in 0..<100 {
-                try? await Task.sleep(for: .seconds(3))
-                do {
-                    let response: [String: AnyCodable] = try await APIClient.shared.request(
-                        .get, path: "/v1/auth/pair/poll/\(token)"
-                    )
-                    let status = response["status"]?.value as? String
-                    if status == "completed" { isPaired = true; return }
-                } catch { break }
+                response = result
+                let link = await pairLink(token: result.token)
+                qrImage = qrCode(link.absoluteString)
+                state = .waiting
+                await poll(token: result.token, attempts: max(1, result.expiresIn / 3))
+            } catch is CancellationError {
+                return
+            } catch {
+                errorMessage = error.localizedDescription
+                state = .idle
+                NativeDiagnostics.error("Pair initiation failed", category: "settings.security")
             }
         }
     }
 
-    private func generateQRCode(from string: String) -> Image? {
-        let context = CIContext()
+    private func poll(token: String, attempts: Int) async {
+        for _ in 0..<attempts {
+            do {
+                try await Task.sleep(for: .seconds(3))
+                let value: PairPollResponse = try await APIClient.shared.request(
+                    .get,
+                    path: "/v1/auth/pair/poll/\(token)"
+                )
+                if value.status == "completed" { state = .completed; return }
+            } catch is CancellationError {
+                return
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Pair polling failed", category: "settings.security")
+                return
+            }
+        }
+        state = .expired
+    }
+
+    private func copyPairLink(_ token: String) {
+        Task {
+            let link = await pairLink(token: token)
+            CopyMessageFormatter.copyToClipboard(link.absoluteString)
+            ToastManager.shared.show(AppStrings.pairCopied, type: .success)
+        }
+    }
+
+    private func pairLink(token: String) async -> URL {
+        (await APIClient.shared.webAppURL)
+            .appendingPathComponent("pair")
+            .appending(queryItems: [URLQueryItem(name: "code", value: token)])
+    }
+
+    private func qrCode(_ value: String) -> Image? {
         let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(string.utf8)
-        filter.correctionLevel = "M"
+        filter.message = Data(value.utf8)
         guard let output = filter.outputImage else { return nil }
         let scaled = output.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+        guard let image = CIContext().createCGImage(scaled, from: scaled.extent) else { return nil }
         #if os(iOS)
-        return Image(uiImage: UIImage(cgImage: cgImage))
+        return Image(uiImage: UIImage(cgImage: image))
         #elseif os(macOS)
-        return Image(nsImage: NSImage(cgImage: cgImage, size: NSSize(width: 200, height: 200)))
+        return Image(nsImage: NSImage(cgImage: image, size: NSSize(width: 200, height: 200)))
         #endif
     }
 
-    private var officialAppDeviceHint: String {
+    private var deviceHint: String {
         #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            return "OpenMates iPadOS app"
-        }
-        return "OpenMates iOS app"
+        UIDevice.current.userInterfaceIdiom == .pad ? "OpenMates iPadOS" : "OpenMates iOS"
         #elseif os(macOS)
-        return "OpenMates macOS app"
-        #else
-        return "OpenMates Apple app"
+        "OpenMates macOS"
         #endif
     }
 }
-
-// MARK: - CLI Pair Authorize (approve a CLI login request from this logged-in device)
 
 struct CLIPairAuthorizeView: View {
     let token: String
-    @EnvironmentObject var authManager: AuthManager
-    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject private var authManager: AuthManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var info: PairInfoResponse?
+    @State private var pin: String?
+    @State private var state: State = .loading
+    @State private var errorMessage: String?
 
-    @State private var step: AuthorizeStep = .loading
-    @State private var deviceInfo: DeviceInfo?
-    @State private var generatedPIN: String?
-    @State private var error: String?
-    @State private var isAuthorizing = false
-
-    enum AuthorizeStep {
-        case loading, confirm, pinDisplay, completed, error
-    }
-
-    struct DeviceInfo {
-        let name: String?
-        let ip: String?
-        let city: String?
-        let country: String?
-    }
-
-    // PIN alphabet — excludes I, O, S, Z to avoid confusion (matches web app)
-    private static let pinAlphabet = Array("ABCDEFGHJKLMNPQRTUVWXY3468")
+    private enum State { case loading, confirm, authorizing, pin, completed, failed }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        OMSettingsPage(title: AppStrings.authorizeDevice, showsFooter: false) {
+            OMSettingsSection {
                 VStack(spacing: .spacing6) {
-                    switch step {
-                    case .loading:
-                        ProgressView(LocalizationManager.shared.text("settings.loading_device_info"))
-                    case .confirm:
-                        confirmView
-                    case .pinDisplay:
-                        pinDisplayView
-                    case .completed:
-                        completedView
-                    case .error:
-                        errorView
-                    }
+                    Icon(state == .failed ? "warning" : "devices", size: 48)
+                        .foregroundStyle(state == .failed ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+                    content
                 }
+                .frame(maxWidth: .infinity)
                 .padding(.spacing8)
             }
-            .navigationTitle(LocalizationManager.shared.text("settings.authorize_device"))
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(AppStrings.cancel) { dismiss() }
-                }
-            }
         }
-        .task { await loadDeviceInfo() }
+        .task { await loadInfo() }
+        .accessibilityIdentifier("settings-pair-authorize-page")
     }
 
-    // MARK: - Step views
-
-    private var confirmView: some View {
-        VStack(spacing: .spacing6) {
-            Image(systemName: "desktopcomputer.and.arrow.down")
-                .font(.system(size: 48)).foregroundStyle(Color.buttonPrimary)
-
-            Text(LocalizationManager.shared.text("settings.login_request"))
-                .font(.omH2).fontWeight(.bold)
-
-            Text(LocalizationManager.shared.text("settings.device_wants_login"))
-                .font(.omSmall).foregroundStyle(Color.fontSecondary)
-
-            if let info = deviceInfo {
-                VStack(alignment: .leading, spacing: .spacing3) {
-                    if let name = info.name {
-                        Label(name, systemImage: "desktopcomputer")
-                            .font(.omSmall)
-                    }
-                    if let ip = info.ip {
-                        Label(ip, systemImage: "network")
-                            .font(.omXs).foregroundStyle(Color.fontSecondary)
-                    }
-                    if let city = info.city, let country = info.country {
-                        Label("\(city), \(country)", systemImage: "location")
-                            .font(.omXs).foregroundStyle(Color.fontSecondary)
-                    }
+    @ViewBuilder
+    private var content: some View {
+        switch state {
+        case .loading, .authorizing:
+            ProgressView().accessibilityLabel(AppStrings.loading)
+        case .confirm:
+            Text(AppStrings.deviceWantsLogin).font(.omSmall).foregroundStyle(Color.fontSecondary)
+            if let info {
+                OMSettingsStaticRow(title: AppStrings.device, value: info.deviceName ?? AppStrings.passkeyUnknownDevice)
+                if let location = [info.city, info.countryCode].compactMap({ $0 }).joined(separator: ", ").nilIfEmpty {
+                    OMSettingsStaticRow(title: AppStrings.location, value: location)
                 }
-                .padding(.spacing4)
-                .background(Color.grey10)
-                .clipShape(RoundedRectangle(cornerRadius: .radius4))
             }
-
             HStack(spacing: .spacing4) {
-                Button(LocalizationManager.shared.text("settings.deny")) { dismiss() }
-                    .buttonStyle(.bordered)
-                    .accessibleButton(LocalizationManager.shared.text("settings.deny"), hint: LocalizationManager.shared.text("settings.deny_login_hint"))
-
-                Button {
-                    authorizeDevice()
-                } label: {
-                    if isAuthorizing {
-                        ProgressView()
-                    } else {
-                        Text(LocalizationManager.shared.text("settings.allow"))
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.buttonPrimary)
-                .disabled(isAuthorizing)
-                .accessibleButton(LocalizationManager.shared.text("settings.allow"), hint: LocalizationManager.shared.text("settings.allow_login_hint"))
+                Button(AppStrings.deny) { dismiss() }.buttonStyle(OMSecondaryButtonStyle())
+                Button(AppStrings.allow) { authorize() }.buttonStyle(OMPrimaryButtonStyle())
             }
-
-            Text(LocalizationManager.shared.text("settings.only_approve_if_initiated"))
-                .font(.omTiny).foregroundStyle(Color.fontTertiary)
-        }
-    }
-
-    private var pinDisplayView: some View {
-        VStack(spacing: .spacing6) {
-            Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: 48)).foregroundStyle(.green)
-
-            Text(LocalizationManager.shared.text("settings.enter_this_pin"))
-                .font(.omH2).fontWeight(.bold)
-
-            Text(LocalizationManager.shared.text("settings.enter_pin_on_device"))
-                .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                .multilineTextAlignment(.center)
-
-            if let pin = generatedPIN {
-                Text(pin)
-                    .font(.system(size: 40, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color.buttonPrimary)
-                    .kerning(8)
-                    .padding(.spacing6)
-                    .background(Color.grey10)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
-                    .textSelection(.enabled)
-                    .accessibilityLabel(LocalizationManager.shared.text("settings.pin_label"))
-                    .accessibilityValue(pin.map { String($0) }.joined(separator: ", "))
-                    .accessibilityHint(LocalizationManager.shared.text("settings.pin_hint"))
+        case .pin:
+            Text(AppStrings.enterThisPin).font(.omH3)
+            if let pin {
+                Text(pin).font(.omH1.monospaced()).foregroundStyle(Color.buttonPrimary).textSelection(.enabled)
             }
-
-            Text(LocalizationManager.shared.text("settings.pin_expires_5_minutes"))
-                .font(.omTiny).foregroundStyle(Color.fontTertiary)
+            Text(AppStrings.pairPinExpires).font(.omXs).foregroundStyle(Color.fontSecondary)
+        case .completed:
+            Text(AppStrings.devicePaired).font(.omH3)
+            Button(AppStrings.done) { dismiss() }.buttonStyle(OMPrimaryButtonStyle())
+        case .failed:
+            if let errorMessage { Text(errorMessage).font(.omSmall).foregroundStyle(Color.error) }
+            Button(AppStrings.retry) { Task { await loadInfo() } }.buttonStyle(OMSecondaryButtonStyle())
         }
     }
 
-    private var completedView: some View {
-        VStack(spacing: .spacing6) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48)).foregroundStyle(.green)
-            Text(LocalizationManager.shared.text("settings.device_paired")).font(.omH2).fontWeight(.bold)
-            Text(LocalizationManager.shared.text("settings.device_logged_in_successfully"))
-                .font(.omSmall).foregroundStyle(Color.fontSecondary)
-            Button(AppStrings.done) { dismiss() }
-                .buttonStyle(.borderedProminent).tint(Color.buttonPrimary)
-                .accessibleButton(AppStrings.done, hint: LocalizationManager.shared.text("settings.close_hint"))
-        }
-    }
-
-    private var errorView: some View {
-        VStack(spacing: .spacing6) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 48)).foregroundStyle(Color.error)
-                .accessibilityHidden(true)
-            Text(AppStrings.error).font(.omH2).fontWeight(.bold)
-            if let error { Text(error).font(.omSmall).foregroundStyle(Color.error) }
-            Button(AppStrings.retry) { Task { await loadDeviceInfo() } }
-                .buttonStyle(.bordered)
-                .accessibleButton(AppStrings.retry, hint: LocalizationManager.shared.text("settings.retry_hint"))
-        }
-        .onAppear {
-            AccessibilityAnnouncement.announce(AppStrings.error)
-        }
-    }
-
-    // MARK: - API calls
-
-    private func loadDeviceInfo() async {
-        step = .loading
+    private func loadInfo() async {
+        state = .loading
         do {
-            let response: PairInfoResponse = try await APIClient.shared.request(
-                .get, path: "/v1/auth/pair/info/\(token)"
-            )
-            deviceInfo = DeviceInfo(
-                name: response.deviceName,
-                ip: response.ipTruncated,
-                city: response.city,
-                country: response.countryCode
-            )
-            step = .confirm
+            let loaded: PairInfoResponse = try await APIClient.shared.request(.get, path: "/v1/auth/pair/info/\(token)")
+            guard loaded.valid else { throw AccountSecurityError.server(loaded.reason) }
+            info = loaded
+            state = .confirm
         } catch {
-            self.error = error.localizedDescription
-            step = .error
+            fail(error, operation: "Pair info request")
         }
     }
 
-    private func authorizeDevice() {
-        isAuthorizing = true
+    private func authorize() {
+        state = .authorizing
         Task {
             do {
-                guard let currentUser = authManager.currentUser else {
-                    throw AuthError.invalidCredentials
-                }
-                let pin = try await PairLoginRuntime.authorize(
+                guard let user = authManager.currentUser else { throw AccountSecurityError.missingAccountData }
+                pin = try await PairLoginRuntime.authorize(
                     token: token,
-                    currentUser: currentUser,
-                    authorizerDeviceName: deviceDisplayName()
+                    currentUser: user,
+                    authorizerDeviceName: deviceName
                 )
-                generatedPIN = pin
-                step = .pinDisplay
-                pollForCompletion()
+                state = .pin
+                await pollCompletion()
             } catch {
-                self.error = error.localizedDescription
-                step = .error
-            }
-            isAuthorizing = false
-        }
-    }
-
-    private func pollForCompletion() {
-        Task {
-            for _ in 0..<100 {
-                try? await Task.sleep(for: .seconds(3))
-                do {
-                    let response: [String: AnyCodable] = try await APIClient.shared.request(
-                        .get, path: "/v1/auth/pair/poll/\(token)"
-                    )
-                    let status = response["status"]?.value as? String
-                    if status == "completed" {
-                        step = .completed
-                        return
-                    }
-                } catch { break }
+                fail(error, operation: "Pair authorization")
             }
         }
     }
 
-    // MARK: - Crypto helpers
-
-    private func generatePIN() -> String {
-        let alphabet = Self.pinAlphabet
-        return String((0..<6).map { _ in alphabet.randomElement()! })
-    }
-
-    private func deriveKey(from password: Data, salt: Data) throws -> Data {
-        // PBKDF2-SHA256 with 100,000 iterations, 32-byte output (AES-256)
-        var derivedKey = Data(count: 32)
-        let result = derivedKey.withUnsafeMutableBytes { derivedKeyBytes in
-            password.withUnsafeBytes { passwordBytes in
-                salt.withUnsafeBytes { saltBytes in
-                    CCKeyDerivationPBKDF(
-                        CCPBKDFAlgorithm(kCCPBKDF2),
-                        passwordBytes.baseAddress, password.count,
-                        saltBytes.baseAddress, salt.count,
-                        CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                        100_000,
-                        derivedKeyBytes.baseAddress, 32
-                    )
-                }
+    private func pollCompletion() async {
+        for _ in 0..<100 {
+            do {
+                try await Task.sleep(for: .seconds(3))
+                let value: PairPollResponse = try await APIClient.shared.request(.get, path: "/v1/auth/pair/poll/\(token)")
+                if value.status == "completed" { state = .completed; return }
+            } catch is CancellationError {
+                return
+            } catch {
+                fail(error, operation: "Pair completion polling")
+                return
             }
         }
-        guard result == kCCSuccess else {
-            throw NSError(domain: "PBKDF2", code: Int(result))
-        }
-        return derivedKey
+        fail(AccountSecurityError.server(AppStrings.pairExpired), operation: "Pair completion polling")
     }
 
-    private func deviceDisplayName() -> String {
+    private func fail(_ error: Error, operation: String) {
+        errorMessage = error.localizedDescription
+        state = .failed
+        NativeDiagnostics.error("\(operation) failed", category: "settings.security")
+    }
+
+    private var deviceName: String {
         #if os(iOS)
-        return UIDevice.current.name
+        UIDevice.current.name
         #elseif os(macOS)
-        return Host.current().localizedName ?? "Mac"
+        Host.current().localizedName ?? AppStrings.passkeyUnknownDevice
         #endif
     }
 }
-
-// MARK: - Apple Watch Pair Authorize
 
 #if os(iOS)
 struct AppleWatchPairAuthorizeView: View {
     @ObservedObject var bridge: PhoneWatchLoginBridge
-    @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject private var authManager: AuthManager
     let onDone: () -> Void
-
     @State private var isApproving = false
-    @State private var error: String?
-    @State private var didApprove = false
+    @State private var errorMessage: String?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: .spacing6) {
-                Circle()
-                    .fill(LinearGradient.primary)
-                    .frame(width: 42, height: 42)
-                    .overlay {
-                        Circle()
-                            .stroke(Color.grey0.opacity(0.82), lineWidth: 2)
-                            .padding(.spacing2)
+        OMSettingsPage(title: AppStrings.pairConnectAppleWatchTitle, showsFooter: false) {
+            OMSettingsSection {
+                VStack(spacing: .spacing6) {
+                    Icon("watch", size: 48).foregroundStyle(LinearGradient.primary)
+                    Text(AppStrings.pairConnectAppleWatchDescription)
+                        .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                    if let request = bridge.pendingRequest {
+                        OMSettingsStaticRow(title: AppStrings.device, value: request.deviceName)
+                        Text(request.token).font(.omH2.monospaced()).textSelection(.enabled)
                     }
-                    .accessibilityHidden(true)
-
-                Text(AppStrings.pairConnectAppleWatchTitle)
-                    .font(.omH2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color.fontPrimary)
-                    .multilineTextAlignment(.center)
-
-                Text(AppStrings.pairConnectAppleWatchDescription)
-                    .font(.omSmall)
-                    .foregroundStyle(Color.fontSecondary)
-                    .multilineTextAlignment(.center)
-
-                if let request = bridge.pendingRequest {
-                    VStack(alignment: .leading, spacing: .spacing3) {
-                        Label(request.deviceName, systemImage: "applewatch")
-                            .font(.omSmall)
-                            .foregroundStyle(Color.fontPrimary)
-                        Text(request.pairURLString)
-                            .font(.omXs)
-                            .foregroundStyle(Color.fontSecondary)
-                            .lineLimit(2)
-                            .textSelection(.enabled)
-                        Text(request.token)
-                            .font(.omH2.monospaced())
-                            .fontWeight(.bold)
-                            .foregroundStyle(Color.buttonPrimary)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                    if let errorMessage { Text(errorMessage).font(.omSmall).foregroundStyle(Color.error) }
+                    HStack(spacing: .spacing4) {
+                        Button(AppStrings.cancel) { bridge.denyPendingRequest(); onDone() }
+                            .buttonStyle(OMSecondaryButtonStyle())
+                        Button(AppStrings.pairApproveWatchLogin) { approve() }
+                            .buttonStyle(OMPrimaryButtonStyle())
+                            .disabled(isApproving || bridge.pendingRequest == nil)
                     }
-                    .padding(.spacing4)
-                    .background(Color.grey10)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
-                    .accessibilityIdentifier("settings-apple-watch-login-request")
                 }
-
-                if didApprove {
-                    Text(AppStrings.pairWatchLoginApproved)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.buttonPrimary)
-                        .multilineTextAlignment(.center)
-                        .accessibilityIdentifier("settings-apple-watch-login-approved")
-                }
-
-                if let error {
-                    Text(error)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.error)
-                        .multilineTextAlignment(.center)
-                        .accessibilityIdentifier("settings-apple-watch-login-error")
-                }
-
-                HStack(spacing: .spacing4) {
-                    Button(AppStrings.cancel) {
-                        bridge.denyPendingRequest()
-                        onDone()
-                    }
-                    .buttonStyle(OMSecondaryButtonStyle())
-                    .accessibilityIdentifier("settings-apple-watch-login-deny")
-
-                    Button {
-                        approve()
-                    } label: {
-                        if isApproving {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Text(AppStrings.pairApproveWatchLogin)
-                        }
-                    }
-                    .buttonStyle(OMPrimaryButtonStyle())
-                    .disabled(isApproving || bridge.pendingRequest == nil)
-                    .accessibilityIdentifier("settings-apple-watch-login-approve")
-                }
+                .padding(.spacing8)
             }
-            .padding(.spacing8)
         }
-        .accessibilityIdentifier("settings-apple-watch-login-page")
     }
 
     private func approve() {
         isApproving = true
-        error = nil
         Task {
             do {
                 try await bridge.approvePendingRequest(authManager: authManager)
-                didApprove = true
                 onDone()
             } catch {
-                self.error = error.localizedDescription
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Watch pair approval failed", category: "settings.security")
             }
             isApproving = false
         }
@@ -556,76 +329,36 @@ struct AppleWatchPairAuthorizeView: View {
 }
 #endif
 
-// Need CommonCrypto for PBKDF2
-import CommonCrypto
-
-// MARK: - Confirm Pair (legacy simple code entry — kept for backward compat)
-
 struct SettingsConfirmPairView: View {
-    @State private var pairingCode = ""
-    @State private var isConfirming = false
-    @State private var isSuccess = false
-    @State private var error: String?
+    @State private var token = ""
+    @State private var submittedToken: String?
 
     var body: some View {
-        Form {
-            Section {
-                Text(LocalizationManager.shared.text("settings.enter_pairing_code_description"))
-                    .font(.omSmall).foregroundStyle(Color.fontSecondary)
-            }
-
-            Section(LocalizationManager.shared.text("settings.pairing_code")) {
-                TextField(LocalizationManager.shared.text("settings.enter_code"), text: $pairingCode)
-                    .font(.system(.body, design: .monospaced))
-                    .autocorrectionDisabled()
-                    #if os(iOS)
-                    .textInputAutocapitalization(.characters)
-                    #endif
-                    .accessibleInput(
-                        LocalizationManager.shared.text("settings.pairing_code"),
-                        hint: LocalizationManager.shared.text("settings.enter_pairing_code_hint")
-                    )
-            }
-
-            Section {
-                Button {
-                    confirmPairing()
-                } label: {
-                    HStack {
-                        Spacer()
-                        if isConfirming { ProgressView() } else { Text(LocalizationManager.shared.text("settings.confirm_pairing")).fontWeight(.medium) }
-                        Spacer()
+        if let submittedToken {
+            CLIPairAuthorizeView(token: submittedToken)
+        } else {
+            OMSettingsPage(title: AppStrings.confirmPairing) {
+                OMSettingsSection {
+                    VStack(spacing: .spacing5) {
+                        TextField(AppStrings.pairingCode, text: $token)
+                            .textFieldStyle(OMTextFieldStyle())
+                            .autocorrectionDisabled()
+                            #if os(iOS)
+                            .textInputAutocapitalization(.characters)
+                            #endif
+                        Button(AppStrings.confirmPairing) {
+                            submittedToken = token.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                        }
+                        .buttonStyle(OMPrimaryButtonStyle())
+                        .disabled(token.count < 4)
                     }
-                }
-                .disabled(pairingCode.count < 4 || isConfirming)
-            }
-
-            if isSuccess {
-                Section {
-                    Label(LocalizationManager.shared.text("settings.device_paired_successfully"), systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                }
-            }
-            if let error {
-                Section {
-                    Text(error).font(.omSmall).foregroundStyle(Color.error)
+                    .padding(.spacing6)
                 }
             }
         }
-        .navigationTitle(LocalizationManager.shared.text("settings.confirm_pairing"))
     }
+}
 
-    private func confirmPairing() {
-        isConfirming = true; error = nil
-        Task {
-            do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/auth/pair/confirm",
-                    body: ["pairing_code": pairingCode]
-                )
-                isSuccess = true
-            } catch { self.error = error.localizedDescription }
-            isConfirming = false
-        }
-    }
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

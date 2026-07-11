@@ -852,6 +852,68 @@ async def load_sdk_chat(
     return {"chat": chat, "messages": messages or [], "embeds": embeds, "embed_keys": embed_keys}
 
 
+@router.get("/drafts")
+async def list_sdk_drafts(request: Request) -> dict[str, Any]:
+    api_key_info = await _authenticate_sdk_request(request)
+    _require_chat_scope(api_key_info, "chat:read_existing")
+    user_id = api_key_info["user_id"]
+    from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import get_authoritative_user_draft
+
+    chat_ids = await request.app.state.cache_service.get_chat_ids_versions(user_id)
+    persisted = await request.app.state.directus_service.get_items(
+        "drafts",
+        params={
+            "filter[hashed_user_id][_eq]": hashlib.sha256(user_id.encode()).hexdigest(),
+            "fields": "chat_id",
+            "limit": -1,
+        },
+    )
+    for row in persisted or []:
+        chat_id = str(row.get("chat_id") or "")
+        if chat_id and chat_id not in chat_ids:
+            chat_ids.append(chat_id)
+    drafts = []
+    for chat_id in chat_ids:
+        draft = await get_authoritative_user_draft(
+            request.app.state.cache_service,
+            request.app.state.directus_service,
+            user_id,
+            chat_id,
+        )
+        if draft:
+            encrypted_md, draft_v, encrypted_preview = draft
+            drafts.append({
+                "chat_id": chat_id,
+                "encrypted_draft_md": encrypted_md,
+                "encrypted_draft_preview": encrypted_preview,
+                "draft_v": draft_v,
+            })
+    return {"drafts": drafts}
+
+
+@router.get("/drafts/{chat_id}")
+async def get_sdk_draft(request: Request, chat_id: str) -> dict[str, Any]:
+    api_key_info = await _authenticate_sdk_request(request)
+    _require_chat_scope(api_key_info, "chat:read_existing")
+    from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import get_authoritative_user_draft
+
+    draft = await get_authoritative_user_draft(
+        request.app.state.cache_service,
+        request.app.state.directus_service,
+        api_key_info["user_id"],
+        chat_id,
+    )
+    if not draft:
+        return {"draft": None}
+    encrypted_md, draft_v, encrypted_preview = draft
+    return {"draft": {
+        "chat_id": chat_id,
+        "encrypted_draft_md": encrypted_md,
+        "encrypted_draft_preview": encrypted_preview,
+        "draft_v": draft_v,
+    }}
+
+
 @router.api_route(
     "/{surface}",
     methods=["GET", "POST", "PATCH", "DELETE"],

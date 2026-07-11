@@ -15,6 +15,7 @@ export {
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   normalizeInterestTagIds,
+  reconcileAuthoritativeChats,
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
@@ -32,6 +33,9 @@ export type {
   DecryptedMessage,
   DecryptedEmbed,
   DecryptedNewChatSuggestion,
+  DecryptedDraft,
+  EncryptedDraft,
+  AuthoritativeChatReconciliation,
   ChatListPage,
   MemoryTypeDef,
   MemoryFieldDef,
@@ -71,6 +75,8 @@ export type {
   ChatListOptions,
   ChatResponse,
   EncryptedChatMetadata,
+  DraftRecord,
+  EncryptedDraftRecord,
   FocusModeSelection,
   OpenMatesOptions,
 } from "./sdk.js";

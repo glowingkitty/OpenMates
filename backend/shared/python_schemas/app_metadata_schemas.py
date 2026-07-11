@@ -72,6 +72,7 @@ class AppSkillDefinition(BaseModel):
     default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented skill ships off by default.")
     pricing: Optional[AppPricing] = None
     providers: Optional[List[ProviderRef]] = None  # Optional list of provider references — used for provider-level pricing lookup and availability checks
+    icon_image: Optional[str] = Field(default=None, description="Filename of the skill icon shown in Apps settings.")
 
     @field_validator('providers', mode='before')
     @classmethod
@@ -182,6 +183,8 @@ class AppMemoryFieldDefinition(BaseModel):
     # Enum values, booleans, and numbers are stored as raw values.
     # Replaces the older example_translation_keys (title-only strings).
     example_entries: Optional[List[Dict[str, Any]]] = Field(default=None, description="Full example entries with all field values for UI display.")
+    example_translation_keys: Optional[List[str]] = Field(default=None, description="Legacy translated example labels retained for settings clients.")
+    icon_image: Optional[str] = Field(default=None, description="Filename of the memory category icon shown in Apps settings.")
 
     @model_validator(mode='after')
     def inject_added_date(self):
@@ -315,6 +318,8 @@ class AppYAML(BaseModel):
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
     category: Optional[str] = None
+    last_updated: Optional[str] = Field(default=None, description="ISO date used for Apps discovery sorting.")
+    provider_display_order: Optional[List[str]] = Field(default=None, description="Preferred provider badge order in Apps settings.")
     skills: List[AppSkillDefinition] = []
     focuses: List[AppFocusDefinition] = Field(default=[], alias="focus_modes") # Allow 'focus_modes' as alias
     memory_fields: List[AppMemoryFieldDefinition] = Field(default=[], alias="memory") # Allow 'memory' as alias

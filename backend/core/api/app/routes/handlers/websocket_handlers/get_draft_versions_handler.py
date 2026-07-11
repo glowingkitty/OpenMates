@@ -48,11 +48,13 @@
 #   }
 
 import logging
+import hashlib
 from typing import Dict, Any, List
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
@@ -61,10 +63,44 @@ logger = logging.getLogger(__name__)
 MAX_CHATS_PER_REQUEST = 200
 
 
+async def get_authoritative_user_draft(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+    chat_id: str,
+):
+    """Read a draft cache-first, falling back to its encrypted Directus row."""
+    cached = await cache_service.get_user_draft_from_cache(user_id=user_id, chat_id=chat_id)
+    if cached is not None:
+        return cached
+    rows = await directus_service.get_items(
+        "drafts",
+        params={
+            "filter[hashed_user_id][_eq]": hashlib.sha256(user_id.encode()).hexdigest(),
+            "filter[chat_id][_eq]": chat_id,
+            "fields": "encrypted_content,version",
+            "limit": 1,
+        },
+    )
+    if not rows:
+        return None
+    row = rows[0]
+    draft = (row.get("encrypted_content"), int(row.get("version") or 0), None)
+    await cache_service.update_user_draft_in_cache(
+        user_id,
+        chat_id,
+        draft[0],
+        draft[1],
+        encrypted_draft_preview=None,
+    )
+    return draft
+
+
 async def handle_get_draft_versions(
     websocket: WebSocket,
     manager: ConnectionManager,
     cache_service: CacheService,
+    directus_service: DirectusService,
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
@@ -75,7 +111,7 @@ async def handle_get_draft_versions(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("get_draft_versions", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -105,6 +141,7 @@ async def handle_get_draft_versions(
         )
 
         versions: Dict[str, int] = {}
+        unavailable_chat_ids: List[str] = []
 
         for chat_entry in chats:
             chat_id = chat_entry.get("chat_id")
@@ -114,8 +151,11 @@ async def handle_get_draft_versions(
             try:
                 # get_user_draft_from_cache returns (encrypted_draft_md, draft_v, encrypted_draft_preview) or None.
                 # We only need the version — content and preview are not sent here.
-                draft_cache_result = await cache_service.get_user_draft_from_cache(
-                    user_id=user_id, chat_id=chat_id
+                draft_cache_result = await get_authoritative_user_draft(
+                    cache_service,
+                    directus_service,
+                    user_id,
+                    chat_id,
                 )
                 if draft_cache_result:
                     _, server_draft_v, _ = draft_cache_result
@@ -128,16 +168,22 @@ async def handle_get_draft_versions(
                     f"User {user_id}: Error fetching draft version for chat {chat_id}: {e}",
                     exc_info=True,
                 )
-                # On error, report 0 so the client doesn't retain a potentially stale draft.
-                # The client will clear the draft which is the safer outcome.
-                versions[chat_id] = 0
+                # A cache failure is not authoritative deletion evidence. Omitting
+                # the version keeps valid local drafts until a later successful sync.
+                unavailable_chat_ids.append(chat_id)
 
         logger.info(
             f"User {user_id}: Responding to get_draft_versions with {len(versions)} version(s)."
         )
 
         await manager.send_personal_message(
-            message={"type": "draft_versions_response", "payload": {"versions": versions}},
+            message={
+                "type": "draft_versions_response",
+                "payload": {
+                    "versions": versions,
+                    "unavailable_chat_ids": unavailable_chat_ids,
+                },
+            },
             user_id=user_id,
             device_fingerprint_hash=device_fingerprint_hash,
         )

@@ -3622,3 +3622,87 @@ auth.description:
   sv: För att skydda dina privata uppgifter, bekräfta din identitet innan du redigerar.
   he: כדי להגן על המידע הפרטי שלך, אנא אמת את זהותך לפני העריכה.
   verified_by_human: []
+native.save_error:
+  context: Error shown by Apple Privacy settings when a mutation fails.
+  en: Could not save this privacy setting. Please try again.
+  verified_by_human: []
+native.master_key_unavailable:
+  context: Error shown by Apple Privacy settings when encrypted account data cannot be opened.
+  en: Your encryption key is unavailable. Sign in again to manage this setting.
+  verified_by_human: []
+native.debug_session.description:
+  context: Apple temporary debug sharing description.
+  en: Temporarily share sanitized native diagnostics with support. Message content, encryption keys, credentials, file names, and personal data are never shared.
+  verified_by_human: []
+native.debug_session.duration:
+  context: Apple temporary debug sharing duration field label.
+  en: Duration
+  verified_by_human: []
+native.debug_session.start:
+  context: Apple button to start temporary debug sharing.
+  en: Start sharing debug logs
+  verified_by_human: []
+native.debug_session.activating:
+  context: Apple temporary debug sharing activation progress label.
+  en: Activating...
+  verified_by_human: []
+native.debug_session.active:
+  context: Apple temporary debug sharing active section title.
+  en: Active debug session
+  verified_by_human: []
+native.debug_session.id:
+  context: Apple label for the temporary debug session ID.
+  en: Your Debug ID
+  verified_by_human: []
+native.debug_session.share_hint:
+  context: Apple hint explaining how to use a temporary debug session ID.
+  en: Share this ID with the support team so they can find your sanitized logs.
+  verified_by_human: []
+native.debug_session.stop:
+  context: Apple button to stop temporary debug sharing.
+  en: Stop sharing
+  verified_by_human: []
+native.debug_session.stopping:
+  context: Apple temporary debug sharing stop progress label.
+  en: Stopping...
+  verified_by_human: []
+native.debug_session.no_expiry:
+  context: Apple temporary debug sharing session without an expiry.
+  en: Active until manually stopped
+  verified_by_human: []
+native.debug_session.error:
+  context: Apple temporary debug sharing request failure.
+  en: Could not update the debug sharing session. Please try again.
+  verified_by_human: []
+native.debug_session.duration_5m:
+  context: Apple temporary debug sharing duration option.
+  en: 5 minutes
+  verified_by_human: []
+native.debug_session.duration_1h:
+  context: Apple temporary debug sharing duration option.
+  en: 1 hour
+  verified_by_human: []
+native.debug_session.duration_3d:
+  context: Apple temporary debug sharing duration option.
+  en: 3 days
+  verified_by_human: []
+native.debug_session.duration_7d:
+  context: Apple temporary debug sharing duration option.
+  en: 7 days
+  verified_by_human: []
+native.debug_session.duration_none:
+  context: Apple temporary debug sharing no-limit duration option.
+  en: No time limit
+  verified_by_human: []
+native.debug_session.minutes_remaining:
+  context: Apple temporary debug sharing remaining minutes. {count} is the number of minutes.
+  en: "{count}m remaining"
+  verified_by_human: []
+native.debug_session.hours_remaining:
+  context: Apple temporary debug sharing remaining hours. {count} is the number of hours.
+  en: "{count}h remaining"
+  verified_by_human: []
+native.debug_session.days_remaining:
+  context: Apple temporary debug sharing remaining days. {count} is the number of days.
+  en: "{count}d remaining"
+  verified_by_human: []

@@ -58,6 +58,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var expandedMinHeight: CGFloat = 100
     var accessibilityHint: String
     var isComposerEditable = true
+    var piiDecorations: [NativeComposerPIIDecoration] = []
+    var onExcludePII: (String) -> Void = { _ in }
     var inlineFieldContent: AnyView? = nil
     var overlayContent: AnyView? = nil
     var onSubmit: () -> Void
@@ -120,10 +122,16 @@ struct OMMessageInputField<ActionButtons: View>: View {
                     isFocused: isFocused,
                     isEditable: isComposerEditable,
                     accessibilityHint: accessibilityHint,
+                    piiDecorations: piiDecorations,
+                    onExcludePII: onExcludePII,
                     onSubmit: onSubmit
                 )
+                .accessibilityIdentifier("message-editor")
                 .overlay(alignment: compact ? .center : .topLeading) {
-                    if session.canonicalMarkdown.isEmpty {
+                    if MessageComposerPresentation.showsPlaceholder(
+                        markdown: session.canonicalMarkdown,
+                        isFocused: isFocused.wrappedValue
+                    ) {
                         Text(placeholder)
                             .font(.omP)
                             .foregroundStyle(Color.fontSecondary)

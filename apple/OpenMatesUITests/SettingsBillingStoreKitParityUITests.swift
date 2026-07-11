@@ -1,4 +1,4 @@
-// Fixture-backed billing UI parity smoke for native StoreKit and web-only paths.
+// Fixture-backed billing UI parity smoke for native StoreKit and backend contract paths.
 // Runs without credentials, real StoreKit purchases, invoices, customer IDs,
 // payment methods, or private screenshots. The billing fixture exposes the
 // authenticated-only billing row and static product tiers for safe verification.
@@ -11,7 +11,7 @@ final class SettingsBillingStoreKitParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testBillingStoreKitAndWebOnlyFallbackSurfaces() throws {
+    func testBillingStoreKitAndNativeContractSurfaces() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-billing-fixture"]
         app.launch()
@@ -28,6 +28,8 @@ final class SettingsBillingStoreKitParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-billing-auto-topup-row", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-invoices-row", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-gift-cards-row", in: app, timeout: 3))
+        XCTAssertTrue(waitForElement("settings-billing-usage-row", in: app, timeout: 3))
+        XCTAssertTrue(waitForElement("settings-billing-support-row", in: app, timeout: 3))
         XCTAssertFalse(app.tables.firstMatch.exists, "Billing hub must not render default List/table chrome")
 
         app.descendants(matching: .any)["settings-billing-buy-credits-row"].tap()
@@ -36,7 +38,7 @@ final class SettingsBillingStoreKitParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-billing-product-10000", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-product-21000", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-product-54000", in: app, timeout: 3))
-        XCTAssertTrue(waitForElement("settings-billing-bank-transfer-web-only", in: app, timeout: 3))
+        XCTAssertTrue(waitForElement("settings-billing-restore-purchases-row", in: app, timeout: 3))
         XCTAssertFalse(app.tables.firstMatch.exists, "Buy credits must not render default List/table chrome")
         returnToBillingHub(in: app)
 
@@ -45,25 +47,35 @@ final class SettingsBillingStoreKitParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-billing-auto-topup-page", in: app, timeout: 5))
         XCTAssertTrue(waitForElement("settings-billing-low-balance-toggle", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-billing-low-balance-package", in: app, timeout: 3))
-        XCTAssertTrue(waitForElement("settings-billing-monthly-toggle", in: app, timeout: 3))
-        XCTAssertTrue(waitForElement("settings-billing-monthly-package", in: app, timeout: 3))
         XCTAssertFalse(app.tables.firstMatch.exists, "Auto top-up must not render default List/table chrome")
         returnToBillingHub(in: app)
 
         XCTAssertTrue(waitForElement("settings-billing-invoices-row", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-billing-invoices-row"].tap()
         XCTAssertTrue(waitForElement("settings-billing-invoices-page", in: app, timeout: 5))
-        XCTAssertTrue(waitForElement("settings-billing-no-invoices", in: app, timeout: 3))
-        XCTAssertTrue(waitForElement("settings-billing-invoices-web-only-fallback", in: app, timeout: 3))
+        XCTAssertTrue(waitForElement("settings-billing-invoice-row", in: app, timeout: 3))
         XCTAssertFalse(app.tables.firstMatch.exists, "Invoices must not render default List/table chrome")
+
+        returnToBillingHub(in: app)
+        app.descendants(matching: .any)["settings-billing-usage-row"].tap()
+        XCTAssertTrue(waitForElement("settings-billing-usage-page", in: app, timeout: 5))
+        XCTAssertTrue(waitForElement("settings-billing-usage-tabs", in: app, timeout: 3))
+        XCTAssertTrue(waitForElement("settings-billing-usage-export", in: app, timeout: 3))
+
+        returnToBillingHub(in: app)
+        app.descendants(matching: .any)["settings-billing-gift-cards-row"].tap()
+        XCTAssertTrue(waitForElement("settings-billing-gift-cards-page", in: app, timeout: 5))
+        XCTAssertTrue(waitForElement("settings-billing-gift-card-purchase", in: app, timeout: 3))
+
+        returnToBillingHub(in: app)
+        app.descendants(matching: .any)["settings-billing-support-row"].tap()
+        XCTAssertTrue(waitForElement("settings-billing-support-page", in: app, timeout: 5))
 
         attachScreenshot(name: "Billing StoreKit fixture surfaces")
     }
 
     private func returnToBillingHub(in app: XCUIApplication) {
-        app.descendants(matching: .any)["settings-destination-back"].tap()
-        XCTAssertTrue(waitForElement("settings-billing-row", in: app, timeout: 5))
-        app.descendants(matching: .any)["settings-billing-row"].tap()
+        app.descendants(matching: .any)["settings-billing-subview-back"].tap()
         XCTAssertTrue(waitForElement("settings-billing-hub", in: app, timeout: 5))
     }
 

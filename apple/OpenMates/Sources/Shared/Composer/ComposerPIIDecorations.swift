@@ -46,6 +46,22 @@ struct ComposerPIIDecorations {
         )
     }
 
+    static func nativeDecorations(matches: [PIIMatch], visibleText: String) -> [NativeComposerPIIDecoration] {
+        let source = visibleText as NSString
+        var searchLocation = 0
+        return matches.compactMap { match in
+            guard searchLocation <= source.length else { return nil }
+            let range = source.range(
+                of: match.value,
+                options: [],
+                range: NSRange(location: searchLocation, length: source.length - searchLocation)
+            )
+            guard range.location != NSNotFound else { return nil }
+            searchLocation = NSMaxRange(range)
+            return NativeComposerPIIDecoration(id: match.id, range: range)
+        }
+    }
+
     private func emailMatches(in source: String) -> [NSRange] {
         guard let regex = try? NSRegularExpression(
             pattern: Self.emailPattern,

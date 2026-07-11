@@ -1,0 +1,663 @@
+schema_version: 2
+id: cross-client-draft-apple-parity
+title: Cross-Client Draft Sync And Apple Web Parity
+status: approved
+
+goal: >
+  Make encrypted draft chats and chat deletion reconcile identically across the
+  OpenMates CLI, web app, and Apple app, with read-only draft access in the npm
+  and pip SDKs, while correcting the
+  reported Apple shell, settings, welcome, composer, image-preview, keyboard,
+  capitalization, and inline PII regressions against the rendered web app.
+
+scope:
+  in:
+    - Web-compatible Format-D encrypted draft creation, update, clear, conflict, reconnect, and draft-only chat discovery across CLI, web, and Apple.
+    - Read-only list/get access to encrypted chat drafts in the npm and pip SDKs.
+    - A real UUID for a new draft-only chat as soon as the first non-empty draft is persisted, matching web behavior.
+    - Existing-chat draft synchronization using the existing chat ID and server draft version.
+    - Authoritative removal of locally cached chats deleted on another device, including missed-event and cold-boot reconciliation.
+    - Apple shell safe-area spacing, settings panel drag sizing, chat-only inspiration sizing, welcome-card actions, compact recent-card content, composer focus and compact-preview behavior, image preview persistence, keyboard-safe composer actions, keyboard capitalization, and tappable inline PII highlights.
+    - Regression tests and cross-client evidence in CLI, read-only npm SDK, read-only pip SDK, web, and Apple order.
+  out:
+    - New cryptographic formats or server access to draft plaintext.
+    - Syncing incognito drafts or persisting incognito chat content.
+    - Merging concurrent draft plaintext or preserving multiple user-visible conflict copies; existing web draft-version behavior remains authoritative.
+    - Redesigning chat sorting, settings information architecture, or the Apple shell.
+    - Replacing the native Apple composer architecture.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP authentication returned 401; gh issue search for draft sync, Apple, CLI, SDK, and deletion reconciliation returned no matching issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/architecture/core/client-side-encryption.md
+    - docs/specs/apple-native-message-composer/spec.yml
+    - docs/specs/apple-responsive-shell-parity/spec.yml
+    - docs/specs/apple-durable-chat-persistence-parity/spec.yml
+    - docs/specs/apple-sync-decryption-performance/spec.yml
+    - docs/specs/apple-pii-detection-web-parity/spec.yml
+  code_patterns:
+    - frontend/packages/ui/src/services/drafts/draftSave.ts creates and encrypts web drafts locally, then sends update_draft or queues an offline change.
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts reconciles draft versions after reconnect and clears stale local drafts when server draft_v is zero.
+    - backend/core/api/app/routes/handlers/websocket_handlers/draft_update_handler.py accepts new UUID draft-only chats, increments draft_v, caches ciphertext, adds discoverability metadata, and broadcasts chat_draft_updated.
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_draft_handler.py clears server drafts and removes draft-only chats with no persisted messages.
+    - backend/core/api/app/routes/handlers/websocket_handlers/get_draft_versions_handler.py is the existing reconnect-reconciliation contract.
+    - frontend/packages/openmates-cli/src/client.ts syncs draft_v but has no draft mutation facade and carries forward server-absent cached chats before trimming by count.
+    - packages/openmates-python/openmates has no draft-chat lifecycle facade.
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift encrypts and persists drafts only locally and does not send update_draft.
+    - apple/OpenMates/Sources/App/MainAppView.swift upserts phased sync metadata but does not prune stale persisted chats from an authoritative server set.
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift removes live chat_deleted events from persistence but does not reconcile missed deletions.
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift owns native typing synchronization and must preserve keyboard input traits while applying PII decorations.
+  tests:
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/DraftServiceTests.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+    - apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/DraftServiceTests.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+  parity_expectations:
+    - Rendered web behavior and computed CSS are authoritative for Apple layout, state, and interaction behavior.
+    - Web draft UUID, Format-D encryption, draft_v, WebSocket event, conflict, and reconnect semantics are authoritative for every client.
+    - Apple keeps plaintext only in transient editor memory and persists or transmits only approved encrypted draft fields.
+    - Native keyboard services remain stable while product-specific decorations and synchronization update.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - Targeted iPhone and iPad unit/UI tests listed below after CLI, read-only SDK access, and web evidence is green.
+  intentional_native_differences:
+    - Apple uses native keyboard, selection, safe-area, and long-press APIs while matching the web-visible outcome.
+    - OS-owned keyboard and home-indicator chrome are retained; spacing may differ only by the measured safe-area inset.
+
+clarification:
+  rounds:
+    - question: What behavior defines draft and Apple parity?
+      answer: Match the web app behavior and ensure proper draft-chat sync across CLI, web, and Apple without asking questions the codebase answers.
+  vision_summary: >
+    The web app is the behavioral source of truth. Every supported client must
+    operate on the same real draft-chat IDs, encrypted fields, draft versions,
+    conflict rules, and authoritative deletion state, while Apple must render
+    and interact like web within required native safe-area and keyboard chrome.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 6dd07f21c
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-11T00:00:00Z"
+    reason: User explicitly directed full web parity and cross-client draft synchronization after repository discovery.
+  implementation_plan:
+    status: not_required
+    reason: The existing web/backend protocol is authoritative; implementation extends established client adapters without a new architecture decision.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Reuse update_draft, delete_draft, get_draft_versions, chat_draft_updated, draft_deleted, chat_deleted, and phased sync instead of adding parallel APIs.
+    reason: These events already implement the web draft lifecycle and encrypted cross-device transport.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Allocate a UUID when the first non-empty new-chat draft is saved and use it across all clients until send or clear.
+    reason: The backend and web already treat unknown UUID chat IDs as discoverable draft-only chats.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Treat a complete authoritative server chat-ID set or explicit tombstone as deletion evidence; never infer deletion from a partial page alone.
+    reason: Delta and paginated sync responses legitimately omit unchanged chats.
+    decided_at: "2026-07-11T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Preserve existing web draft-version conflict behavior rather than merge encrypted plaintext on the server.
+    reason: The server cannot decrypt drafts and the user requested web parity, not a new conflict model.
+    decided_at: "2026-07-11T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Add Apple-only local encrypted persistence.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    reason: DraftService never sends the existing WebSocket draft protocol, so other clients cannot discover or reconcile Apple drafts.
+  - id: ATTEMPT-2
+    task_id: TASK-4
+    approach: Preserve all server-absent cached chats and trim only when local count exceeds server total.
+    outcome: rejected
+    recorded_at: "2026-07-11T00:00:00Z"
+    reason: A deleted chat can remain indefinitely when counts are equal or partial ordering changes.
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Expose draft mutation through public npm and pip SDK namespaces.
+    outcome: rejected
+    recorded_at: "2026-07-11T13:01:14Z"
+    reason: SDK consumers need to access chat drafts but do not need to create, update, clear, or reconcile interactive draft state.
+
+handoff:
+  current_task_id: TASK-2
+  next_action: Verify CLI mutation and read-only npm/pip draft access before implementing Apple sync.
+  command: python3 scripts/tests.py run -- --suite cli
+  expected_outcome: CLI draft lifecycle and npm/pip read-only draft access tests pass.
+  blocker:
+    reason: CLI/npm tests run only through GitHub Actions and cannot test this uncommitted worktree.
+    next_action: Commit the slice before dispatching the CLI suite.
+  last_verified_commit: 6dd07f21c
+
+scenarios:
+  - id: S-1
+    title: A new encrypted draft chat appears on every client
+    given:
+      - The same account is authenticated in two or more supported clients.
+      - No chat has been created for the empty composer.
+    when:
+      - One client persists the first non-empty draft.
+    then:
+      - It allocates one UUID and encrypts canonical markdown and preview with Format D.
+      - The server stores ciphertext with draft_v and exposes a draft-only chat using that UUID.
+      - CLI, web, and Apple can sync and decrypt the same draft with the account master key.
+      - npm and pip SDK clients can list and get that encrypted draft without mutating it.
+      - No plaintext draft is written to durable storage or sent to the server.
+
+  - id: S-2
+    title: An existing chat draft updates across devices
+    given:
+      - A persisted chat exists and is owned by the account.
+    when:
+      - A client saves a new encrypted draft revision for that chat ID.
+    then:
+      - The sender persists the acknowledged draft version.
+      - Other online clients receive the encrypted update without the sender receiving a duplicate event.
+      - Reconnecting clients request versions and obtain the authoritative encrypted draft.
+
+  - id: S-3
+    title: Clearing or sending removes a draft everywhere
+    given:
+      - A draft exists on multiple clients.
+    when:
+      - A client clears it or sends the message represented by the draft.
+    then:
+      - The server draft is deleted and draft_v reconciliation clears stale local copies.
+      - A draft-only chat with no messages is removed from chat discovery.
+      - An existing persisted chat remains without a draft.
+
+  - id: S-4
+    title: Offline edits reconcile without plaintext leakage
+    given:
+      - A client loses connectivity after editing a draft.
+    when:
+      - It reconnects after another client changed or deleted that draft.
+    then:
+      - Encrypted pending changes replay through the same versioned protocol.
+      - Existing web conflict semantics choose the authoritative revision.
+      - Errors remain visible and no plaintext queue entry is persisted.
+
+  - id: S-5
+    title: Deleted chats disappear after missed events
+    given:
+      - One client caches a chat and then misses its chat_deleted event while offline.
+    when:
+      - It completes an authoritative sync after the chat was deleted elsewhere.
+    then:
+      - The chat, messages, embeds, keys, draft, search entry, and selection are removed locally.
+      - Partial or paginated sync responses do not delete valid omitted chats.
+
+  - id: S-6
+    title: Apple shell preserves minimal bottom clearance
+    given:
+      - Chat, workspace, or settings is visible on iPhone or iPad.
+    when:
+      - The bottom safe-area inset changes or the keyboard appears and disappears.
+    then:
+      - Content keeps only the minimum web-equivalent gap plus required home-indicator clearance.
+      - macOS behavior remains unchanged where no home indicator exists.
+
+  - id: S-7
+    title: Settings resizing and inspiration height match web
+    given:
+      - Settings is opened side-by-side on iPad.
+    when:
+      - The settings divider is dragged or settings visibility changes.
+    then:
+      - Settings width follows live drag progress within web-equivalent bounds.
+      - Inspiration content expands to chat-screen height only and does not consume settings height.
+
+  - id: S-8
+    title: Welcome cards match web interactions
+    given:
+      - Resume and recent-chat cards are visible.
+    when:
+      - The user long-presses any card or views a compact recent card.
+    then:
+      - The standard chat actions menu opens for every card.
+      - Compact recent cards show only the title.
+
+  - id: S-9
+    title: Focused empty composer hides placeholder
+    given:
+      - The composer is empty.
+    when:
+      - It gains or loses focus.
+    then:
+      - The placeholder is hidden while focused and visible again when empty and blurred.
+
+  - id: S-10
+    title: Blurred text draft keeps content in compact preview
+    given:
+      - The user typed a non-empty text-only draft.
+    when:
+      - The composer loses focus without sending.
+    then:
+      - The draft content is preserved.
+      - The composer compacts to the web preview height instead of remaining expanded.
+
+  - id: S-11
+    title: Local and finished images preserve the image preview contract
+    given:
+      - A locally selected image or completed image embed is present in the composer.
+    when:
+      - The app backgrounds and returns or upload finishes.
+    then:
+      - The local preview remains available without persisting a private file URL.
+      - The finished image does not show generic Tap to show details metadata.
+
+  - id: S-12
+    title: Composer actions remain keyboard-safe
+    given:
+      - The iPad keyboard is visible and an embed increases composer height.
+    when:
+      - The editor lays out text, embeds, and actions.
+    then:
+      - Send, add, and related actions stay visible and tappable above the keyboard.
+      - Editable content does not overlap the reserved action area.
+
+  - id: S-13
+    title: Native sentence capitalization remains stable
+    given:
+      - iPad sentence auto-capitalization is enabled.
+    when:
+      - The user types continuously and starts new sentences.
+    then:
+      - Native input traits are not reset after each document revision.
+      - Sentence starts capitalize consistently with the system keyboard and web input expectations.
+
+  - id: S-14
+    title: Inline PII highlights are visible and individually excludable
+    given:
+      - Local PII detection identifies one or more ranges in composer text.
+    when:
+      - Decorations render and the user taps one highlighted range.
+    then:
+      - Each detected range has the web-equivalent yellow inline background.
+      - Tapping a range excludes only that item from placeholder replacement and removes or updates its highlight.
+      - PII plaintext remains local and is never added to diagnostics.
+
+acceptance_criteria:
+  - { id: AC-1, scenario: S-1, text: "CLI, web, and Apple create, decrypt, and resume the same encrypted UUID draft-only chat; npm and pip SDKs can read it.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-CLI-001, T-NPM-001, T-PIP-001, T-WEB-001, T-APPLE-001] }
+  - { id: AC-2, scenario: S-2, text: "Existing-chat encrypted draft updates and draft_v acknowledgements reconcile online and after reconnect.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-BACKEND-001, T-CLI-001, T-WEB-001, T-APPLE-001] }
+  - { id: AC-3, scenario: S-3, text: "Clear and send remove stale drafts and delete empty draft-only chat shells without deleting persisted chats.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-BACKEND-001, T-CLI-001, T-WEB-001, T-APPLE-001] }
+  - { id: AC-4, scenario: S-4, text: "Offline reconciliation uses encrypted versioned payloads, exposes conflicts, and stores no plaintext queue entry.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-BACKEND-001, T-CLI-001, T-APPLE-001] }
+  - { id: AC-5, scenario: S-5, text: "Authoritative sync prunes missed deleted chats and related local data without pruning chats omitted from partial responses.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-CLI-001, T-WEB-001, T-APPLE-001] }
+  - { id: AC-6, scenario: S-6, text: "Focused iPhone and iPad shell tests prove reduced bottom gaps with safe-area and keyboard clearance intact.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-UI-001] }
+  - { id: AC-7, scenario: S-7, text: "iPad tests prove live settings width and chat-only inspiration sizing.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-UI-001] }
+  - { id: AC-8, scenario: S-8, text: "Welcome resume and recent cards expose actions, and compact recent cards render title only.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-UI-001] }
+  - { id: AC-9, scenario: S-9, text: "An empty focused composer hides its placeholder and restores it after blur.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-UI-001] }
+  - { id: AC-10, scenario: S-10, text: "A blurred text-only draft retains content and compacts to the web-equivalent preview height.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-UI-001] }
+  - { id: AC-11, scenario: S-11, text: "Image preview restoration and completed-image metadata match the web image composer contract.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-UI-002] }
+  - { id: AC-12, scenario: S-12, text: "Composer actions remain visible and tappable above the iPad keyboard with embeds present.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-UI-002] }
+  - { id: AC-13, scenario: S-13, text: "Native unit and UI tests prove uninterrupted sentence capitalization across document revisions.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-002, T-APPLE-UI-001] }
+  - { id: AC-14, scenario: S-14, text: "PII ranges render yellow inline and tapping one excludes only that range from replacement.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-002, T-APPLE-UI-001] }
+
+assumptions:
+  - id: A-1
+    text: The current backend update_draft and draft-only chat protocol is the web source of truth and supports unknown owned UUID chat IDs before first message persistence.
+    category: sync
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/handlers/websocket_handlers/draft_update_handler.py
+        summary: The handler explicitly accepts unknown chat IDs as new drafts, increments draft_v, adds discoverability, and broadcasts ciphertext.
+  - id: A-2
+    text: Format D uses the account master key and is interoperable among web, CLI/npm, pip, and Apple implementations.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/core/client-side-encryption.md
+        summary: Existing clients use the account master-key encryption boundary for encrypted draft markdown and preview.
+  - id: A-3
+    text: Full sync can provide or derive an authoritative server chat-ID set without treating delta pages as complete.
+    category: sync
+    required_before: task_execution
+    status: checking
+    evidence:
+      - source: backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+        summary: Phased sync accepts client IDs and returns total count, but tombstone or complete-set semantics must be proven by red tests before pruning.
+
+contracts:
+  api:
+    - "update_draft: { chat_id, encrypted_draft_md, encrypted_draft_preview } -> draft_v acknowledgement or explicit error/conflict"
+    - "delete_draft: { chat_id } -> draft deletion acknowledgement and cross-device draft_deleted"
+    - "get_draft_versions: { chats: [{ chat_id, client_draft_v }] } -> authoritative draft versions"
+    - "phased sync or explicit tombstones identify deleted chats without interpreting a partial page as a complete account set"
+  data:
+    - Draft chat IDs are UUIDs shared across clients; composer:new-chat remains local UI state only and is never sent or persisted as a server chat ID.
+    - Durable draft fields contain encrypted canonical markdown, encrypted preview, draft_v, revision, timestamps, and non-sensitive sync metadata only.
+    - Clearing a draft-only chat removes its discoverability metadata when no persisted messages exist.
+    - Authoritative chat deletion cascades through local messages, embeds, embed keys, drafts, search indexes, and active selection.
+  ui_states:
+    - Empty, focused empty, expanded draft, blurred compact draft, keyboard-visible embed draft, restored local image, completed image, inline PII highlighted, and PII excluded.
+    - Compact iPhone, regular iPad, settings closed, settings opening/dragging/open, and chat-only inspiration height.
+  privacy_security:
+    - Draft markdown, preview plaintext, detected PII, chat keys, and master keys never reach server logs, diagnostics, analytics, or durable plaintext storage.
+    - Existing-chat mutation fails closed when ownership cannot be verified.
+    - Incognito drafts never enter persistent or cross-device draft sync.
+    - SDK draft APIs are read-only and return encrypted transport fields; optional decryption occurs only within authenticated client crypto boundaries.
+
+tests:
+  - id: T-BACKEND-001
+    type: pytest
+    file: backend/tests/test_cross_client_draft_sync.py
+    command: python3 -m pytest backend/tests/test_cross_client_draft_sync.py
+    covers: [AC-2, AC-3, AC-4]
+    assertions:
+      - new UUID draft-only chat is discoverable after update_draft
+      - existing-chat ownership fails closed
+      - delete_draft removes only empty draft-only discovery records
+      - reconnect version response distinguishes current, newer, and deleted drafts
+      - authoritative deletion metadata never derives from a partial page
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/draft-sync.test.ts
+    command: python3 scripts/tests.py run -- --suite cli
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    assertions:
+      - CLI creates, updates, lists, opens, and clears encrypted draft chats
+      - CLI cache removes explicit tombstones and complete-set absences but preserves partial omissions
+      - no durable CLI cache or pending queue contains draft plaintext
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+  - id: T-NPM-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-draft-sync.test.ts
+    command: python3 scripts/tests.py run -- --suite cli
+    covers: [AC-1]
+    assertions:
+      - npm SDK lists and gets encrypted drafts
+      - npm SDK exposes no draft create, update, clear, or reconcile methods
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+  - id: T-PIP-001
+    type: pytest
+    file: packages/openmates-python/tests/test_draft_sync.py
+    command: python3 -m pytest packages/openmates-python/tests/test_draft_sync.py
+    covers: [AC-1]
+    assertions:
+      - pip SDK lists and gets encrypted drafts
+      - pip SDK exposes no draft create, update, clear, or reconcile methods
+      - optional decryption stays inside the client boundary and does not persist plaintext
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, run_id: "session-78d7-pip-red", timestamp: "2026-07-11T13:01:14Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+  - id: T-WEB-001
+    type: playwright
+    file: frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    command: python3 scripts/tests.py run --spec cross-client-draft-sync.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-3, AC-5]
+    assertions:
+      - CLI-created encrypted new-chat draft appears and opens in web
+      - web edits are visible to CLI/npm/pip on refresh
+      - clearing and sending remove the draft everywhere
+      - a chat deleted by another client disappears after web cold boot
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", deployment_ref: "" } }
+
+  - id: T-APPLE-001
+    type: unit
+    file: apple/OpenMatesTests/DraftSyncParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/DraftSyncParityTests"
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    assertions:
+      - Apple allocates a UUID and sends Format-D encrypted update_draft fields
+      - acknowledgements and broadcasts persist authoritative draft_v without echo duplication
+      - reconnect reconciles newer and deleted drafts
+      - complete authoritative sync prunes deleted chats and partial sync does not
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+  - id: T-APPLE-002
+    type: unit
+    file: apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M4)" --only-testing "OpenMatesTests/NativeComposerDocumentTests"
+    covers: [AC-13, AC-14]
+    assertions:
+      - external state synchronization does not replace equivalent attributed content or reset input traits
+      - PII decorations map detector ranges to yellow attributes
+      - tapping one decorated range excludes only its stable PII identity
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+  - id: T-APPLE-UI-001
+    type: unit
+    file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M4)" --only-testing "OpenMatesUITests/ChatFlowParityUITests"
+    covers: [AC-6, AC-7, AC-8, AC-9, AC-10, AC-13, AC-14]
+    assertions:
+      - shell bottom gap, settings drag, inspiration height, card actions, compact card, focus placeholder, compact draft, capitalization, and PII interactions match web
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+  - id: T-APPLE-UI-002
+    type: unit
+    file: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M4)" --only-testing "OpenMatesUITests/MessageInputAttachmentUITests"
+    covers: [AC-11, AC-12]
+    assertions:
+      - image preview survives backgrounding
+      - finished image omits generic details subtitle
+      - composer actions remain visible and tappable above keyboard with embeds
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, run_id: "remote-ipad-2026-07-11", timestamp: "2026-07-11T00:00:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+verifications:
+  - id: V-AUDIT-001
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+  - id: V-APPLE-BUILD-001
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
+    status: pending
+    evidence: { status: "", summary: "", timestamp: "" }
+
+implementation_plan:
+  spec_path: docs/specs/cross-client-draft-apple-parity/spec.yml
+  existing_patterns:
+    - Web draftSave and draftWebsocket services for client lifecycle and reconnect semantics.
+    - Backend draft handlers for encrypted transport, versions, discoverability, and broadcasts.
+    - Existing CLI OpenMatesClient WebSocket lifecycle and read-only npm SDK facade.
+    - Existing read-only pip SDK transport facade and generated parity tests.
+    - Apple DraftService, ChatStore, OfflineSyncBridge, NativeComposerTextView, and canonical OpenMates UI primitives.
+  architecture: >
+    Keep the backend protocol and web implementation authoritative. Extract or
+    expose the minimal reusable encrypted draft lifecycle in npm/CLI and pip,
+    connect Apple DraftService to the same WebSocket events and offline queue,
+    add explicit authoritative deletion evidence to sync, then make focused
+    native UI changes at existing state/layout seams.
+  data_flow:
+    - Client converts canonical composer content to encrypted markdown and preview, allocates or reuses chat UUID, persists ciphertext locally, and sends update_draft.
+    - Backend validates ownership/new-chat status, increments draft_v, stores ciphertext, ensures draft-only discoverability, acknowledges sender, and broadcasts to other devices.
+    - Clients persist acknowledged/broadcast ciphertext, decrypt only for active UI, and request draft versions after reconnect.
+    - Clear/send emits deletion, removes empty draft-only discovery records, and clears stale local copies after reconnect.
+    - Authoritative sync emits a complete ID set or tombstones; clients cascade local deletion only from that evidence.
+  affected_files:
+    - { path: frontend/packages/openmates-cli/src/client.ts, reason: Shared CLI/npm draft lifecycle and authoritative cache reconciliation }
+    - { path: frontend/packages/openmates-cli/src/sdk.ts, reason: Public read-only npm SDK draft access }
+    - { path: frontend/packages/openmates-cli/src/cli.ts, reason: First-class CLI draft commands and output }
+    - { path: packages/openmates-python/openmates/sdk.py, reason: Equivalent read-only pip SDK draft access }
+    - { path: backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py, reason: Explicit authoritative deletion evidence if existing phases cannot provide it safely }
+    - { path: apple/OpenMates/Sources/Core/Services/DraftService.swift, reason: WebSocket-backed encrypted draft lifecycle }
+    - { path: apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift, reason: Offline replay and authoritative deletion cascade }
+    - { path: apple/OpenMates/Sources/App/MainAppView.swift, reason: Sync event handling and focused shell/settings/welcome fixes }
+    - { path: apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift, reason: Input-trait stability and inline PII rendering/taps }
+    - { path: apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift, reason: Focus placeholder and keyboard-safe composer layout }
+    - { path: apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift, reason: Image preview metadata parity }
+  verification_strategy:
+    - Record red contract evidence before production edits.
+    - Verify backend and local client contracts before browser and Apple UI tests.
+    - Deploy before Playwright green evidence and wait for Vercel Ready.
+    - Run Apple remote unit/UI evidence after CLI, npm, pip, and web green evidence.
+    - Run SDK/CLI parity and spec verification before completion.
+  verification_order:
+    - Backend protocol and CLI contract
+    - npm SDK read-only access contract
+    - pip SDK read-only access contract
+    - Web Playwright against deployed dev
+    - Apple unit tests, iPhone/iPad UI tests, and build
+
+tasks:
+  - id: TASK-1
+    title: Add red cross-client draft and deletion contracts
+    status: in_progress
+    phase: working_tasks
+    covers: { scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5] }
+    expected_files: [backend/tests/test_cross_client_draft_sync.py, frontend/packages/openmates-cli/tests/draft-sync.test.ts, frontend/packages/openmates-cli/tests/sdk-draft-sync.test.ts, packages/openmates-python/tests/test_draft_sync.py, apple/OpenMatesTests/DraftSyncParityTests.swift]
+    verification: [T-BACKEND-001, T-CLI-001, T-NPM-001, T-PIP-001, T-APPLE-001]
+    verification_ids: [T-BACKEND-001, T-CLI-001, T-NPM-001, T-PIP-001, T-APPLE-001]
+    dependencies: []
+    ownership: { files: [backend/tests/test_cross_client_draft_sync.py, frontend/packages/openmates-cli/tests/draft-sync.test.ts, frontend/packages/openmates-cli/tests/sdk-draft-sync.test.ts, packages/openmates-python/tests/test_draft_sync.py, apple/OpenMatesTests/DraftSyncParityTests.swift], shared_files: [] }
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement CLI draft lifecycle and npm SDK read access
+    status: in_progress
+    phase: working_tasks
+    covers: { scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5] }
+    expected_files: [frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/src/cli.ts]
+    verification: [T-CLI-001, T-NPM-001]
+    verification_ids: [T-CLI-001, T-NPM-001]
+    dependencies: [TASK-1]
+    ownership: { files: [frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/src/cli.ts], shared_files: [] }
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement pip SDK read-only draft access
+    status: in_progress
+    phase: working_tasks
+    covers: { scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5] }
+    expected_files: [packages/openmates-python/openmates/sdk.py]
+    verification: [T-PIP-001]
+    verification_ids: [T-PIP-001]
+    dependencies: [TASK-1]
+    ownership: { files: [packages/openmates-python/openmates/sdk.py], shared_files: [] }
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add authoritative deletion reconciliation
+    status: in_progress
+    phase: working_tasks
+    covers: { scenarios: [S-5], acceptance_criteria: [AC-5] }
+    expected_files: [backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py, frontend/packages/openmates-cli/src/client.ts, apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift]
+    verification: [T-BACKEND-001, T-CLI-001, T-WEB-001, T-APPLE-001]
+    verification_ids: [T-BACKEND-001, T-CLI-001, T-WEB-001, T-APPLE-001]
+    dependencies: [TASK-1]
+    ownership: { files: [backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py, frontend/packages/openmates-cli/src/client.ts, apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift], shared_files: [] }
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Connect Apple to encrypted draft sync
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5] }
+    expected_files: [apple/OpenMates/Sources/Core/Services/DraftService.swift, apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift, apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift, apple/OpenMates/Sources/App/MainAppView.swift]
+    verification: [T-APPLE-001]
+    verification_ids: [T-APPLE-001]
+    dependencies: [TASK-1, TASK-4]
+    ownership: { files: [apple/OpenMates/Sources/Core/Services/DraftService.swift, apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift, apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift, apple/OpenMates/Sources/App/MainAppView.swift], shared_files: [] }
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Fix Apple shell settings welcome and composer regressions
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-6, S-7, S-8, S-9, S-10, S-11, S-12, S-13, S-14], acceptance_criteria: [AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14] }
+    expected_files: [apple/OpenMates/Sources/App/MainAppView.swift, apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift, apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift, apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift, apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift]
+    verification: [T-APPLE-002, T-APPLE-UI-001, T-APPLE-UI-002]
+    verification_ids: [T-APPLE-002, T-APPLE-UI-001, T-APPLE-UI-002]
+    dependencies: [TASK-1]
+    ownership: { files: [apple/OpenMates/Sources/App/MainAppView.swift, apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift, apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift, apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift, apple/OpenMates/Sources/Shared/Composer/ComposerPIIDecorations.swift], shared_files: [] }
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-7
+    title: Prove live cross-client parity and finish evidence
+    status: pending
+    phase: running_checks
+    covers: { scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9, S-10, S-11, S-12, S-13, S-14], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14] }
+    expected_files: [frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts, docs/specs/cross-client-draft-apple-parity/spec.yml]
+    verification: [T-BACKEND-001, T-CLI-001, T-NPM-001, T-PIP-001, T-WEB-001, T-APPLE-001, T-APPLE-002, T-APPLE-UI-001, T-APPLE-UI-002, V-AUDIT-001, V-APPLE-BUILD-001]
+    verification_ids: [T-BACKEND-001, T-CLI-001, T-NPM-001, T-PIP-001, T-WEB-001, T-APPLE-001, T-APPLE-002, T-APPLE-UI-001, T-APPLE-UI-002, V-AUDIT-001, V-APPLE-BUILD-001]
+    dependencies: [TASK-2, TASK-3, TASK-4, TASK-5, TASK-6]
+    ownership: { files: [frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts, docs/specs/cross-client-draft-apple-parity/spec.yml], shared_files: [] }
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - risk: Treating delta or paginated sync output as authoritative could delete valid local chats.
+    mitigation: Require explicit tombstones or a proven complete ID set and cover partial responses in every client test.
+  - risk: Public plaintext draft convenience methods could accidentally persist or log sensitive content.
+    mitigation: Keep transport DTOs encrypted, constrain plaintext to crypto boundaries, and assert caches/queues/diagnostics contain no draft plaintext.
+  - risk: Concurrent devices can race draft versions.
+    mitigation: Preserve existing web conflict semantics, surface conflicts, and test reconnect after newer and deleted server versions.
+  - risk: Native attributed-text decoration can disturb marked text, selection, undo, or keyboard traits.
+    mitigation: Avoid equivalent content replacement, preserve marked text and selection, and test continuous typing, IME-safe update guards, and individual PII taps.
+  - risk: Broad Apple MainAppView edits can conflict with adjacent sessions.
+    mitigation: Re-read immediately before each minimal patch and avoid modifying unrelated concurrent changes.
+
+open_questions: []

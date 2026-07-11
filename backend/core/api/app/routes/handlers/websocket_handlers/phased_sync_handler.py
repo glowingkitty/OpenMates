@@ -185,6 +185,23 @@ def _is_parent_chat_details(chat_details: Dict[str, Any]) -> bool:
     return not chat_details.get("is_sub_chat") and not chat_details.get("parent_id")
 
 
+def _authoritative_chat_reconciliation(
+    client_chat_ids: List[str],
+    server_chat_ids: List[str],
+    total_chat_count: int,
+) -> Dict[str, Any]:
+    """Return deletion evidence only when the supplied server ID set is complete."""
+    unique_server_ids = list(dict.fromkeys(server_chat_ids))
+    if total_chat_count != len(unique_server_ids):
+        return {"authoritative": False}
+    server_id_set = set(unique_server_ids)
+    return {
+        "authoritative": True,
+        "authoritative_chat_ids": unique_server_ids,
+        "deleted_chat_ids": [chat_id for chat_id in client_chat_ids if chat_id not in server_id_set],
+    }
+
+
 async def handle_phased_sync_request(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -988,15 +1005,67 @@ async def _handle_phase2_sync(
 
         if not all_recent_chats:
             logger.info(f"Phase 2: No chats found for user {user_id}")
+            reconciliation = _authoritative_chat_reconciliation(
+                client_chat_ids,
+                [],
+                total_chat_count,
+            )
             await manager.send_personal_message(
                 {
                     "type": "phase_2_last_20_chats_ready",
-                    "payload": {"chats": [], "chat_count": 0, "total_chat_count": total_chat_count, "phase": "phase2"}
+                    "payload": {
+                        "chats": [],
+                        "chat_count": 0,
+                        "total_chat_count": total_chat_count,
+                        "phase": "phase2",
+                        **reconciliation,
+                    }
                 },
                 user_id,
                 device_fingerprint_hash
             )
             return
+
+        server_chat_ids = [
+            str(wrapper["chat_details"]["id"])
+            for wrapper in all_recent_chats
+            if wrapper.get("chat_details", {}).get("id")
+        ]
+        reconciliation = _authoritative_chat_reconciliation(
+            client_chat_ids,
+            server_chat_ids,
+            total_chat_count,
+        )
+
+        # Draft ciphertext is part of chat metadata but remains opaque to the server.
+        from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (
+            get_authoritative_user_draft,
+        )
+        for chat_wrapper in all_recent_chats:
+            chat_details = chat_wrapper.get("chat_details", {})
+            chat_id = chat_details.get("id")
+            if not chat_id:
+                continue
+            try:
+                draft = await get_authoritative_user_draft(
+                    cache_service,
+                    directus_service,
+                    user_id,
+                    chat_id,
+                )
+            except Exception as draft_error:
+                logger.warning(
+                    "Phase 2: Draft metadata unavailable for chat %s: %s",
+                    chat_id,
+                    draft_error,
+                    exc_info=True,
+                )
+                continue
+            if draft:
+                encrypted_md, draft_v, encrypted_preview = draft
+                chat_details["encrypted_draft_md"] = encrypted_md
+                chat_details["encrypted_draft_preview"] = encrypted_preview
+                chat_details["draft_v"] = draft_v
 
         # Delta sync: skip chats where client already has up-to-date metadata
         client_chat_ids_set = set(client_chat_ids)
@@ -1036,7 +1105,8 @@ async def _handle_phase2_sync(
                     "chats": chats_to_send,
                     "chat_count": len(chats_to_send),
                     "total_chat_count": total_chat_count,
-                    "phase": "phase2"
+                    "phase": "phase2",
+                    **reconciliation,
                 }
             },
             user_id,

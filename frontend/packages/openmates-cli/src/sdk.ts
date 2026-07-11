@@ -101,6 +101,18 @@ export interface EncryptedChatMetadata {
   [key: string]: unknown;
 }
 
+export interface EncryptedDraftRecord {
+  chatId: string;
+  encryptedDraftMd: string;
+  encryptedDraftPreview: string | null;
+  draftV: number;
+}
+
+export interface DraftRecord extends EncryptedDraftRecord {
+  markdown: string;
+  preview: string | null;
+}
+
 export interface SdkSessionResponse {
   key_wrapper?: {
     encrypted_key?: string;
@@ -165,6 +177,7 @@ export class OpenMates {
   readonly chats: OpenMatesChats;
   readonly connectedAccounts: OpenMatesConnectedAccounts;
   readonly docs: OpenMatesDocs;
+  readonly drafts: OpenMatesDrafts;
   readonly embeds: OpenMatesEmbeds;
   readonly feedback: OpenMatesFeedback;
   readonly inspirations: OpenMatesInspirations;
@@ -192,6 +205,7 @@ export class OpenMates {
     this.chats = new OpenMatesChats(this);
     this.connectedAccounts = new OpenMatesConnectedAccounts(this);
     this.docs = new OpenMatesDocs(this);
+    this.drafts = new OpenMatesDrafts(this);
     this.embeds = new OpenMatesEmbeds(this);
     this.feedback = new OpenMatesFeedback(this);
     this.inspirations = new OpenMatesInspirations(this);
@@ -591,6 +605,56 @@ export class OpenMatesChats {
   async incognito(message: string): Promise<ChatResponse> {
     return this.send(message, { saveToAccount: false });
   }
+}
+
+export class OpenMatesDrafts {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async listEncrypted(): Promise<EncryptedDraftRecord[]> {
+    const response = await this.client.get<{ drafts?: Array<Record<string, unknown>> }>("/v1/sdk/drafts");
+    return (response.drafts ?? []).map(normalizeEncryptedDraft);
+  }
+
+  async list(): Promise<DraftRecord[]> {
+    return Promise.all((await this.listEncrypted()).map((draft) => this.decrypt(draft)));
+  }
+
+  async getEncrypted(chatId: string): Promise<EncryptedDraftRecord | null> {
+    const response = await this.client.get<{ draft?: Record<string, unknown> | null }>(
+      `/v1/sdk/drafts/${encodeURIComponent(chatId)}`,
+    );
+    return response.draft ? normalizeEncryptedDraft(response.draft) : null;
+  }
+
+  async get(chatId: string): Promise<DraftRecord | null> {
+    const encrypted = await this.getEncrypted(chatId);
+    return encrypted ? this.decrypt(encrypted) : null;
+  }
+
+  private async decrypt(draft: EncryptedDraftRecord): Promise<DraftRecord> {
+    const masterKey = await this.client.masterKey();
+    const markdown = await decryptWithAesGcmCombined(draft.encryptedDraftMd, masterKey);
+    if (markdown === null) throw new OpenMatesConfigError("Unable to decrypt draft markdown");
+    const preview = draft.encryptedDraftPreview
+      ? await decryptWithAesGcmCombined(draft.encryptedDraftPreview, masterKey)
+      : markdown.slice(0, 160);
+    return { ...draft, markdown, preview };
+  }
+}
+
+function normalizeEncryptedDraft(raw: Record<string, unknown>): EncryptedDraftRecord {
+  return {
+    chatId: String(raw.chat_id ?? ""),
+    encryptedDraftMd: String(raw.encrypted_draft_md ?? ""),
+    encryptedDraftPreview: typeof raw.encrypted_draft_preview === "string"
+      ? raw.encrypted_draft_preview
+      : null,
+    draftV: Number(raw.draft_v ?? 0),
+  };
 }
 
 export class OpenMatesAccount {

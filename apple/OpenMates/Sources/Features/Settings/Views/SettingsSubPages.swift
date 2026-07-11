@@ -13,6 +13,8 @@
 
 import SwiftUI
 import AuthenticationServices
+import CryptoKit
+import Security
 
 // MARK: - Account Detail
 
@@ -96,52 +98,8 @@ struct SettingsAccountDetailView: View {
 // MARK: - Usage
 
 struct SettingsUsageView: View {
-    @State private var isLoading = true
-    @State private var totalCreditsUsed: Double = 0
-    @State private var messageCount: Int = 0
-    @State private var usageDetails: [[String: AnyCodable]] = []
-
     var body: some View {
-        OMSettingsPage(title: AppStrings.usage) {
-            OMSettingsSection {
-                OMSettingsStaticRow(
-                    title: L("settings.usage.total_credits"),
-                    value: String(format: "%.4f", totalCreditsUsed)
-                )
-                OMSettingsStaticRow(
-                    title: L("settings.usage.messages"),
-                    value: "\(messageCount)"
-                )
-            }
-
-            if !usageDetails.isEmpty {
-                OMSettingsSection(L("settings.usage.by_app")) {
-                    ForEach(Array(usageDetails.enumerated()), id: \.offset) { _, detail in
-                        OMSettingsStaticRow(
-                            title: detail["app_name"]?.value as? String ?? "—",
-                            value: String(format: "%.4f", detail["credits"]?.value as? Double ?? 0)
-                        )
-                    }
-                }
-            }
-        }
-        .task { await loadUsage() }
-    }
-
-    private func loadUsage() async {
-        do {
-            let data: [String: AnyCodable] = try await APIClient.shared.request(.get, path: "/v1/settings/usage")
-            totalCreditsUsed = data["total_credits_used"]?.value as? Double ?? 0
-            messageCount = data["message_count"]?.value as? Int ?? 0
-            if let details = data["by_app"]?.value as? [[String: Any]] {
-                usageDetails = details.map { dict in
-                    dict.mapValues { AnyCodable($0) }
-                }
-            }
-        } catch {
-            print("[Settings] Usage load error: \(error)")
-        }
-        isLoading = false
+        BillingUsageView()
     }
 }
 
@@ -206,16 +164,14 @@ struct SettingsGiftCardsView: View {
 // MARK: - Passkeys
 
 struct SettingsPasskeysView: View {
-    @State private var passkeys: [PasskeyItem] = []
+    @EnvironmentObject private var authManager: AuthManager
+    @State private var passkeys: [PasskeyRecord] = []
+    @State private var deviceNames: [String: String] = [:]
     @State private var isLoading = true
     @State private var isAddingPasskey = false
-
-    struct PasskeyItem: Identifiable, Decodable {
-        let id: String
-        let name: String?
-        let createdAt: String?
-        let lastUsedAt: String?
-    }
+    @State private var pendingDeletion: PasskeyRecord?
+    @State private var statusMessage: String?
+    @State private var errorMessage: String?
 
     var body: some View {
         OMSettingsPage(title: AppStrings.passkeys) {
@@ -235,20 +191,29 @@ struct SettingsPasskeysView: View {
                 OMSettingsSection(AppStrings.passkeys) {
                     ForEach(passkeys) { passkey in
                         VStack(alignment: .leading, spacing: .spacing1) {
-                            Text(passkey.name ?? L("settings.passkeys.unnamed"))
+                            Text(deviceNames[passkey.id] ?? AppStrings.passkeyUnknownDevice)
                                 .font(.omP).fontWeight(.medium)
                                 .foregroundStyle(Color.fontPrimary)
-                            if let created = passkey.createdAt {
-                                Text("\(L("settings.passkeys.added")): \(String(created.prefix(10)))")
+                            if let created = passkey.registeredAt {
+                                Text(AppStrings.passkeyAdded(String(created.prefix(10))))
                                     .font(.omXs).foregroundStyle(Color.fontTertiary)
                             }
                             if let lastUsed = passkey.lastUsedAt {
-                                Text("\(L("settings.passkeys.last_used")): \(String(lastUsed.prefix(10)))")
+                                Text(AppStrings.passkeyLastUsed(String(lastUsed.prefix(10))))
                                     .font(.omXs).foregroundStyle(Color.fontTertiary)
                             }
                         }
                         .padding(.horizontal, .spacing6)
                         .padding(.vertical, .spacing5)
+                        OMSettingsRow(
+                            title: AppStrings.remove,
+                            icon: "trash",
+                            isDestructive: true,
+                            showsChevron: false,
+                            accessibilityIdentifier: "settings-passkey-remove-\(passkey.id)"
+                        ) {
+                            pendingDeletion = passkey
+                        }
                     }
                 }
             }
@@ -257,41 +222,82 @@ struct SettingsPasskeysView: View {
                 OMSettingsRow(title: AppStrings.addPasskey, icon: "plus", showsChevron: false) {
                     addPasskey()
                 }
+                .accessibilityIdentifier("settings-passkey-add")
+            }
+
+            if let statusMessage {
+                settingsStatus(statusMessage, color: Color.buttonPrimary)
+            }
+            if let errorMessage {
+                settingsStatus(errorMessage, color: Color.error)
             }
         }
         .task { await loadPasskeys() }
+        .overlay {
+            if let pendingDeletion {
+                OMConfirmDialog(
+                    title: AppStrings.passkeyDeleteTitle,
+                    message: AppStrings.passkeyDeleteDescription,
+                    confirmTitle: AppStrings.delete,
+                    isDestructive: true,
+                    onConfirm: {
+                        self.pendingDeletion = nil
+                        deletePasskey(id: pendingDeletion.id)
+                    },
+                    onCancel: { self.pendingDeletion = nil }
+                )
+            }
+        }
     }
 
     private func loadPasskeys() async {
+        isLoading = true
+        errorMessage = nil
         do {
-            passkeys = try await APIClient.shared.request(.get, path: "/v1/auth/passkeys")
+            let loaded = try await AccountSecurityService.shared.passkeys()
+            var decryptedNames: [String: String] = [:]
+            if let user = authManager.currentUser,
+               let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id) {
+                for passkey in loaded {
+                    guard let encryptedName = passkey.encryptedDeviceName else { continue }
+                    do {
+                        decryptedNames[passkey.id] = try await CryptoManager.shared.decryptContent(
+                            base64String: encryptedName,
+                            key: masterKey
+                        )
+                    } catch {
+                        NativeDiagnostics.warning("Could not decrypt passkey device name", category: "settings.security")
+                    }
+                }
+            }
+            passkeys = loaded
+            deviceNames = decryptedNames
         } catch {
-            print("[Settings] Passkeys load error: \(error)")
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("Passkey inventory request failed", category: "settings.security")
         }
         isLoading = false
     }
 
     private func addPasskey() {
-        #if os(iOS)
         isAddingPasskey = true
-        #endif
+        errorMessage = nil
+        statusMessage = nil
         Task {
-            #if os(iOS)
-            let webAppURL = await APIClient.shared.webAppURL
-            let relyingPartyIdentifier = webAppURL.host() ?? ServerEndpointConfiguration.defaultSelectedDomain
-            let controller = ASAuthorizationController(authorizationRequests: [
-                ASAuthorizationPlatformPublicKeyCredentialProvider(
-                    relyingPartyIdentifier: relyingPartyIdentifier
-                ).createCredentialRegistrationRequest(
-                    challenge: Data(),
-                    name: UIDevice.current.name,
-                    userID: Data()
+            do {
+                guard let user = authManager.currentUser else {
+                    throw AccountSecurityError.missingAccountData
+                }
+                try await PasskeyRegistrationCoordinator.register(
+                    user: user,
+                    deviceName: nativeDeviceName
                 )
-            ])
-            _ = controller
-            #endif
-            try? await Task.sleep(for: .seconds(2))
-            await loadPasskeys()
+                statusMessage = AppStrings.passkeyAddedSuccessfully
+                await loadPasskeys()
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Passkey registration failed", category: "settings.security")
+            }
             isAddingPasskey = false
         }
     }
@@ -299,26 +305,43 @@ struct SettingsPasskeysView: View {
     private func deletePasskey(id: String) {
         Task {
             do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/auth/passkeys/delete",
-                    body: ["passkey_id": id]
-                )
-                passkeys.removeAll { $0.id == id }
+                try await AccountSecurityService.shared.deletePasskey(id: id)
+                statusMessage = AppStrings.passkeyDeletedSuccessfully
+                await loadPasskeys()
             } catch {
-                print("[Settings] Delete passkey error: \(error)")
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Passkey deletion failed", category: "settings.security")
             }
         }
+    }
+
+    private var nativeDeviceName: String {
+        #if os(iOS)
+        UIDevice.current.name
+        #elseif os(macOS)
+        Host.current().localizedName ?? AppStrings.passkeyUnknownDevice
+        #endif
+    }
+
+    private func settingsStatus(_ message: String, color: Color) -> some View {
+        Text(message)
+            .font(.omSmall)
+            .foregroundStyle(color)
+            .padding(.horizontal, .spacing6)
+            .accessibilityIdentifier("settings-passkeys-status")
     }
 }
 
 // MARK: - Password
 
 struct SettingsPasswordView: View {
+    @EnvironmentObject private var authManager: AuthManager
     @State private var currentPassword = ""
     @State private var newPassword = ""
     @State private var confirmPassword = ""
     @State private var isSaving = false
     @State private var result: String?
+    @State private var hasPassword = true
 
     private var isValid: Bool {
         !currentPassword.isEmpty && !newPassword.isEmpty && newPassword == confirmPassword && newPassword.count >= 8
@@ -368,6 +391,7 @@ struct SettingsPasswordView: View {
                     .padding(.horizontal, .spacing6)
             }
         }
+        .task { await loadAuthMethods() }
     }
 
     private func updatePassword() {
@@ -375,13 +399,31 @@ struct SettingsPasswordView: View {
         result = nil
         Task {
             do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/update-password",
-                    body: [
-                        "current_password": currentPassword,
-                        "new_password": newPassword
-                    ]
+                guard let user = authManager.currentUser,
+                      let email = user.email,
+                      let emailSaltBase64 = user.userEmailSalt,
+                      let emailSalt = Data(base64Encoded: emailSaltBase64),
+                      let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id)
+                else {
+                    throw AccountSecurityError.missingAccountData
+                }
+                let passwordSalt = randomSalt()
+                let wrappingKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+                    password: newPassword,
+                    salt: passwordSalt
                 )
+                let wrapped = try await CryptoManager.shared.encrypt(
+                    masterKey.withUnsafeBytes { Data($0) },
+                    using: wrappingKey
+                )
+                try await AccountSecurityService.shared.updatePassword(PasswordUpdateRequest(
+                    hashedEmail: await CryptoManager.shared.hashEmail(email),
+                    lookupHash: await CryptoManager.shared.hashKey(newPassword, salt: emailSalt),
+                    encryptedMasterKey: wrapped.ciphertext.base64EncodedString(),
+                    salt: passwordSalt.base64EncodedString(),
+                    keyIv: wrapped.nonce.base64EncodedString(),
+                    isNewPassword: !hasPassword
+                ))
                 result = AppStrings.success
                 currentPassword = ""
                 newPassword = ""
@@ -390,20 +432,41 @@ struct SettingsPasswordView: View {
             } catch {
                 result = "\(AppStrings.error): \(error.localizedDescription)"
                 AccessibilityAnnouncement.announce(error.localizedDescription)
+                NativeDiagnostics.error("Password update failed", category: "settings.security")
             }
             isSaving = false
         }
+    }
+
+    private func loadAuthMethods() async {
+        do {
+            hasPassword = try await AccountSecurityService.shared.authMethods().hasPassword
+        } catch {
+            result = error.localizedDescription
+            NativeDiagnostics.error("Authentication methods request failed", category: "settings.security")
+        }
+    }
+
+    private func randomSalt() -> Data {
+        var bytes = [UInt8](repeating: 0, count: 16)
+        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        precondition(status == errSecSuccess, "Secure random generation failed")
+        return Data(bytes)
     }
 }
 
 // MARK: - 2FA
 
 struct Settings2FAView: View {
+    @EnvironmentObject private var authManager: AuthManager
     @State private var is2FAEnabled = false
     @State private var isLoading = true
     @State private var setupSecret: String?
     @State private var verificationCode = ""
     @State private var isSettingUp = false
+    @State private var backupCodes: [String] = []
+    @State private var codesStored = false
+    @State private var errorMessage: String?
 
     var body: some View {
         OMSettingsPage(title: AppStrings.twoFactorAuth) {
@@ -417,11 +480,18 @@ struct Settings2FAView: View {
             if is2FAEnabled {
                 OMSettingsSection {
                     OMSettingsRow(
-                        title: AppStrings.disable2FA,
-                        isDestructive: true,
+                        title: AppStrings.twoFactorChangeApp,
+                        icon: "tfas",
                         showsChevron: false
                     ) {
-                        disable2FA()
+                        initSetup2FA()
+                    }
+                    OMSettingsRow(
+                        title: AppStrings.twoFactorResetBackupCodes,
+                        icon: "key",
+                        showsChevron: false
+                    ) {
+                        resetBackupCodes()
                     }
                 }
             } else {
@@ -431,7 +501,7 @@ struct Settings2FAView: View {
                             Text(L("settings.two_factor_auth.scan_or_enter"))
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                             Text(secret)
-                                .font(.system(.body, design: .monospaced))
+                                .font(.omP.monospaced())
                                 .textSelection(.enabled)
                                 .foregroundStyle(Color.fontPrimary)
 
@@ -463,30 +533,71 @@ struct Settings2FAView: View {
                         .padding(.vertical, .spacing4)
                 }
             }
+
+            if !backupCodes.isEmpty {
+                OMSettingsSection(AppStrings.twoFactorBackupCodes) {
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        ForEach(backupCodes, id: \.self) { code in
+                            Text(code)
+                                .font(.omP.monospaced())
+                                .textSelection(.enabled)
+                        }
+                        OMSettingsToggleRow(
+                            title: AppStrings.twoFactorCodesStored,
+                            isOn: $codesStored
+                        )
+                        Button(AppStrings.confirm) { confirmCodesStored() }
+                            .buttonStyle(OMPrimaryButtonStyle())
+                            .disabled(!codesStored)
+                            .accessibilityIdentifier("settings-2fa-confirm-codes")
+                    }
+                    .padding(.spacing6)
+                }
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.error)
+                    .padding(.horizontal, .spacing6)
+                    .accessibilityIdentifier("settings-2fa-error")
+            }
         }
         .task { await load2FAStatus() }
     }
 
     private func load2FAStatus() async {
         do {
-            let response: [String: AnyCodable] = try await APIClient.shared.request(
-                .get, path: "/v1/settings/user/2fa-status"
-            )
-            is2FAEnabled = response["enabled"]?.value as? Bool ?? false
-        } catch {}
+            is2FAEnabled = try await AccountSecurityService.shared.authMethods().has2Fa
+        } catch {
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("2FA status request failed", category: "settings.security")
+        }
         isLoading = false
     }
 
     private func initSetup2FA() {
         Task {
             do {
-                let response: [String: AnyCodable] = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/user/setup-2fa"
+                guard let user = authManager.currentUser,
+                      let email = user.email,
+                      let saltBase64 = user.userEmailSalt,
+                      let salt = Data(base64Encoded: saltBase64)
+                else {
+                    throw AccountSecurityError.missingAccountData
+                }
+                let emailKey = await CryptoManager.shared.deriveEmailEncryptionKey(
+                    email: email,
+                    salt: salt
                 )
-                setupSecret = response["secret"]?.value as? String
+                let response = try await AccountSecurityService.shared.initiateTwoFactor(
+                    emailEncryptionKey: emailKey.base64EncodedString()
+                )
+                setupSecret = response.secret
                 isSettingUp = true
             } catch {
-                print("[Settings] 2FA setup error: \(error)")
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("2FA setup failed", category: "settings.security")
             }
         }
     }
@@ -494,27 +605,43 @@ struct Settings2FAView: View {
     private func verify2FA() {
         Task {
             do {
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/user/verify-2fa",
-                    body: ["code": verificationCode]
-                )
-                is2FAEnabled = true
+                try await AccountSecurityService.shared.verifyTwoFactor(code: verificationCode)
+                try await AccountSecurityService.shared.setTwoFactorProvider("authenticator")
+                backupCodes = try await AccountSecurityService.shared.requestBackupCodes(reset: false)
                 isSettingUp = false
                 setupSecret = nil
                 verificationCode = ""
             } catch {
-                print("[Settings] 2FA verify error: \(error)")
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("2FA verification failed", category: "settings.security")
             }
         }
     }
 
-    private func disable2FA() {
+    private func resetBackupCodes() {
         Task {
-            try? await APIClient.shared.request(
-                .post, path: "/v1/settings/user/disable-2fa"
-            ) as Data
-            is2FAEnabled = false
-            AccessibilityAnnouncement.announce(AppStrings.disabled)
+            do {
+                backupCodes = try await AccountSecurityService.shared.requestBackupCodes(reset: true)
+                codesStored = false
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Backup-code reset failed", category: "settings.security")
+            }
+        }
+    }
+
+    private func confirmCodesStored() {
+        Task {
+            do {
+                try await AccountSecurityService.shared.confirmBackupCodesStored()
+                backupCodes = []
+                codesStored = false
+                is2FAEnabled = true
+                AccessibilityAnnouncement.announce(AppStrings.success)
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Backup-code confirmation failed", category: "settings.security")
+            }
         }
     }
 }
@@ -522,12 +649,14 @@ struct Settings2FAView: View {
 // MARK: - Recovery Key
 
 struct SettingsRecoveryKeyView: View {
+    @EnvironmentObject private var authManager: AuthManager
     @State private var recoveryKey: String?
     @State private var isLoading = false
     @State private var verificationCode = ""
     @State private var needsVerification = true
     @State private var isRegenerating = false
     @State private var regeneratePassword = ""
+    @State private var errorMessage: String?
 
     var body: some View {
         OMSettingsPage(title: AppStrings.recoveryKey) {
@@ -559,7 +688,7 @@ struct SettingsRecoveryKeyView: View {
                 OMSettingsSection(L("settings.recovery_key.your_key")) {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         Text(key)
-                            .font(.system(.body, design: .monospaced))
+                            .font(.omP.monospaced())
                             .textSelection(.enabled)
                             .foregroundStyle(Color.fontPrimary)
                             .padding(.vertical, .spacing2)
@@ -609,6 +738,14 @@ struct SettingsRecoveryKeyView: View {
                     }
                 }
             }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.error)
+                    .padding(.horizontal, .spacing6)
+                    .accessibilityIdentifier("settings-recovery-key-error")
+            }
         }
     }
 
@@ -616,14 +753,10 @@ struct SettingsRecoveryKeyView: View {
         isLoading = true
         Task {
             do {
-                let response: [String: AnyCodable] = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/request-action-verification",
-                    body: ["password": verificationCode, "action": "view_recovery_key"]
-                )
-                recoveryKey = response["recovery_key"]?.value as? String
-                needsVerification = false
+                try await createAndStoreRecoveryKey(authSecret: verificationCode)
             } catch {
-                print("[Settings] Verification failed: \(error)")
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Recovery-key creation failed", category: "settings.security")
             }
             isLoading = false
         }
@@ -632,37 +765,77 @@ struct SettingsRecoveryKeyView: View {
     private func regenerateKey() {
         Task {
             do {
-                let response: [String: AnyCodable] = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/regenerate-recovery-key",
-                    body: ["password": regeneratePassword]
-                )
-                recoveryKey = response["recovery_key"]?.value as? String
+                try await createAndStoreRecoveryKey(authSecret: regeneratePassword)
                 isRegenerating = false
                 regeneratePassword = ""
-                needsVerification = false
                 ToastManager.shared.show(AppStrings.success, type: .success)
             } catch {
-                print("[Settings] Regenerate key failed: \(error)")
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Recovery-key regeneration failed", category: "settings.security")
             }
         }
+    }
+
+    private func createAndStoreRecoveryKey(authSecret: String) async throws {
+        guard !authSecret.isEmpty,
+              let user = authManager.currentUser,
+              let email = user.email,
+              let emailSaltBase64 = user.userEmailSalt,
+              let emailSalt = Data(base64Encoded: emailSaltBase64),
+              let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id)
+        else {
+            throw AccountSecurityError.missingAccountData
+        }
+        try await AccountSecurityService.shared.verifyPasswordReauth(
+            hashedEmail: await CryptoManager.shared.hashEmail(email),
+            lookupHash: await CryptoManager.shared.hashKey(authSecret, salt: emailSalt)
+        )
+        let key = secureRecoveryKey()
+        let wrappingSalt = randomBytes(count: 16)
+        let wrappingKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
+            password: key,
+            salt: wrappingSalt
+        )
+        let wrapped = try await CryptoManager.shared.encrypt(
+            masterKey.withUnsafeBytes { Data($0) },
+            using: wrappingKey
+        )
+        try await AccountSecurityService.shared.regenerateRecoveryKey(RecoveryKeyUpdateRequest(
+            newLookupHash: await CryptoManager.shared.hashKey(key, salt: emailSalt),
+            newWrappedMasterKey: wrapped.ciphertext.base64EncodedString(),
+            newKeyIv: wrapped.nonce.base64EncodedString(),
+            newSalt: wrappingSalt.base64EncodedString()
+        ))
+        recoveryKey = key
+        needsVerification = false
+        verificationCode = ""
+        errorMessage = nil
+    }
+
+    private func secureRecoveryKey() -> String {
+        randomBytes(count: 32).base64URLEncodedString()
+    }
+
+    private func randomBytes(count: Int) -> Data {
+        var bytes = [UInt8](repeating: 0, count: count)
+        let status = SecRandomCopyBytes(kSecRandomDefault, count, &bytes)
+        precondition(status == errSecSuccess, "Secure random generation failed")
+        return Data(bytes)
     }
 }
 
 // MARK: - Sessions
 
 struct SettingsSessionsView: View {
-    @State private var sessions: [SessionItem] = []
+    @EnvironmentObject private var authManager: AuthManager
+    @State private var sessions: [AccountSession] = []
     @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var sessionNames: [String: String] = [:]
+    @State private var pendingSession: AccountSession?
+    @State private var confirmation: Confirmation?
 
-    struct SessionItem: Identifiable, Decodable {
-        let id: String
-        let deviceOs: String?
-        let deviceModel: String?
-        let lastActive: String?
-        let isCurrent: Bool?
-        let city: String?
-        let country: String?
-    }
+    private enum Confirmation { case logoutOthers, logoutAll }
 
     var body: some View {
         OMSettingsPage(title: AppStrings.activeSessions) {
@@ -675,10 +848,10 @@ struct SettingsSessionsView: View {
                     ForEach(sessions) { session in
                         VStack(alignment: .leading, spacing: .spacing1) {
                             HStack {
-                                Text(session.deviceOs ?? L("common.unknown"))
+                                Text(sessionNames[session.id] ?? session.deviceName ?? AppStrings.passkeyUnknownDevice)
                                     .font(.omP).fontWeight(.medium)
                                     .foregroundStyle(Color.fontPrimary)
-                                if session.isCurrent == true {
+                                if session.isCurrent {
                                     Text(L("settings.sessions.current"))
                                         .font(.omTiny).fontWeight(.bold)
                                         .foregroundStyle(.white)
@@ -688,60 +861,170 @@ struct SettingsSessionsView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: .radius1))
                                 }
                             }
-                            if let model = session.deviceModel {
-                                Text(model).font(.omXs).foregroundStyle(Color.fontSecondary)
-                            }
                             HStack(spacing: .spacing3) {
-                                if let city = session.city, let country = session.country {
+                                if let city = session.city, let country = session.countryCode {
                                     Text("\(city), \(country)").font(.omXs).foregroundStyle(Color.fontTertiary)
                                 }
-                                if let lastActive = session.lastActive {
-                                    Text(lastActive).font(.omXs).foregroundStyle(Color.fontTertiary)
-                                }
+                                Text(Date(timeIntervalSince1970: TimeInterval(session.createdAt)).formatted())
+                                    .font(.omXs).foregroundStyle(Color.fontTertiary)
                             }
                         }
                         .padding(.horizontal, .spacing6)
                         .padding(.vertical, .spacing5)
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel({
-                            var label = session.deviceOs ?? L("common.unknown")
-                            if let model = session.deviceModel { label += ", \(model)" }
-                            if let city = session.city, let country = session.country { label += ", \(city), \(country)" }
-                            if session.isCurrent == true { label += ", \(L("settings.sessions.current"))" }
+                            var label = sessionNames[session.id] ?? session.deviceName ?? AppStrings.passkeyUnknownDevice
+                            if let city = session.city, let country = session.countryCode { label += ", \(city), \(country)" }
+                            if session.isCurrent { label += ", \(L("settings.sessions.current"))" }
                             return label
                         }())
+                        if !session.isCurrent {
+                            OMSettingsRow(
+                                title: AppStrings.sessionRemove,
+                                icon: "trash",
+                                isDestructive: true,
+                                showsChevron: false,
+                                accessibilityIdentifier: "settings-session-remove-\(session.id)"
+                            ) { pendingSession = session }
+                        }
                     }
                 }
             }
 
             OMSettingsSection {
                 OMSettingsRow(
+                    title: AppStrings.sessionLogoutOthers,
+                    isDestructive: true,
+                    showsChevron: false
+                ) { confirmation = .logoutOthers }
+                OMSettingsRow(
                     title: AppStrings.logoutAllSessions,
                     isDestructive: true,
                     showsChevron: false
-                ) {
-                    logoutAll()
-                }
+                ) { confirmation = .logoutAll }
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.error)
+                    .padding(.horizontal, .spacing6)
             }
         }
         .task { await loadSessions() }
+        .overlay { confirmationOverlay }
     }
 
     private func loadSessions() async {
+        isLoading = true
+        errorMessage = nil
         do {
-            sessions = try await APIClient.shared.request(.get, path: "/v1/auth/sessions")
+            let loaded = try await AccountSecurityService.shared.sessions()
+            sessions = loaded
+            sessionNames = await decryptSessionNames(loaded)
         } catch {
-            print("[Settings] Sessions load error: \(error)")
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("Session inventory request failed", category: "settings.security")
         }
         isLoading = false
     }
 
     private func logoutAll() {
         Task {
-            try? await APIClient.shared.request(.post, path: "/v1/auth/logout/all") as Data
-            sessions = sessions.filter { $0.isCurrent == true }
+            do {
+                try await AccountSecurityService.shared.logoutAllDevices()
+                await authManager.logout()
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Logout-all request failed", category: "settings.security")
+            }
         }
     }
+
+    private func logoutOthers() {
+        Task {
+            do {
+                try await AccountSecurityService.shared.logoutOtherSessions()
+                await loadSessions()
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Logout-other-sessions request failed", category: "settings.security")
+            }
+        }
+    }
+
+    private func revoke(_ session: AccountSession) {
+        Task {
+            do {
+                try await AccountSecurityService.shared.revokeSession(id: session.id)
+                await loadSessions()
+            } catch {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.error("Session revocation failed", category: "settings.security")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var confirmationOverlay: some View {
+        if let pendingSession {
+            OMConfirmDialog(
+                title: AppStrings.sessionRemove,
+                message: AppStrings.sessionConfirmRemove,
+                confirmTitle: AppStrings.remove,
+                isDestructive: true,
+                onConfirm: { self.pendingSession = nil; revoke(pendingSession) },
+                onCancel: { self.pendingSession = nil }
+            )
+        } else if confirmation == .logoutOthers {
+            OMConfirmDialog(
+                title: AppStrings.sessionLogoutOthers,
+                message: AppStrings.sessionConfirmLogoutOthers,
+                confirmTitle: AppStrings.confirm,
+                isDestructive: true,
+                onConfirm: { confirmation = nil; logoutOthers() },
+                onCancel: { confirmation = nil }
+            )
+        } else if confirmation == .logoutAll {
+            OMConfirmDialog(
+                title: AppStrings.logoutAllSessions,
+                message: AppStrings.sessionConfirmLogoutAll,
+                confirmTitle: AppStrings.confirm,
+                isDestructive: true,
+                onConfirm: { confirmation = nil; logoutAll() },
+                onCancel: { confirmation = nil }
+            )
+        }
+    }
+
+    private func decryptSessionNames(_ values: [AccountSession]) async -> [String: String] {
+        guard let user = authManager.currentUser else { return [:] }
+        let masterKey: SymmetricKey
+        do {
+            guard let loadedKey = try await CryptoManager.shared.loadMasterKey(for: user.id) else { return [:] }
+            masterKey = loadedKey
+        } catch {
+            NativeDiagnostics.error("Session metadata key load failed", category: "settings.security")
+            return [:]
+        }
+        var names: [String: String] = [:]
+        for session in values {
+            guard let encrypted = session.encryptedMeta else { continue }
+            do {
+                let json = try await CryptoManager.shared.decryptContent(base64String: encrypted, key: masterKey)
+                guard let data = json.data(using: .utf8) else { continue }
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                let metadata = try decoder.decode(SessionMetadata.self, from: data)
+                names[session.id] = metadata.deviceName
+            } catch {
+                NativeDiagnostics.warning("Could not decrypt session metadata", category: "settings.security")
+            }
+        }
+        return names
+    }
+
+    private struct SessionMetadata: Decodable { let deviceName: String? }
 }
 
 // MARK: - Auto-Delete

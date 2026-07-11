@@ -308,13 +308,50 @@ struct MainAppView: View {
         #endif
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             openNewChatScreen()
+            if SettingsComposerHandoff.hasPendingMention {
+                showSettings = false
+                newChatFocusRequest += 1
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleIncognito)) { _ in
             incognitoManager.toggle()
+            IncognitoSettingsSession.shared.isEnabled = incognitoManager.isEnabled
             ToastManager.shared.show(
                 incognitoManager.isEnabled ? AppStrings.incognitoModeOn : AppStrings.incognitoModeOff,
                 type: .info
             )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .settingsIncognitoModeRequested)) { notification in
+            guard let action = notification.object as? SettingsIncognitoAction else { return }
+            switch action {
+            case .activate:
+                IncognitoSettingsSession.shared.isEnabled = true
+                if !isAuthenticated,
+                   ProcessInfo.processInfo.arguments.contains("--ui-test-account-settings-fixture") {
+                    let chatId = makeTransientChat(isIncognito: true)
+                    selectedWorkspace = .chat
+                    selectedChatId = chatId
+                    showNewChat = false
+                    incognitoManager.isEnabled = true
+                } else {
+                    openIncognitoAskChat()
+                }
+                ToastManager.shared.show(AppStrings.incognitoModeOn, type: .info)
+            case .deactivate:
+                incognitoManager.isEnabled = false
+                incognitoManager.clear()
+                IncognitoSettingsSession.shared.isEnabled = false
+                let incognitoChatIDs = chatStore.chats
+                    .map(\.id)
+                    .filter(IncognitoChatSession.isIncognitoChatId)
+                chatStore.performWithoutPersistence {
+                    incognitoChatIDs.forEach(chatStore.removeChat)
+                }
+                if let selectedChatId, IncognitoChatSession.isIncognitoChatId(selectedChatId) {
+                    openNewChatScreen()
+                }
+                ToastManager.shared.show(AppStrings.incognitoModeOff, type: .info)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openAuth)) { _ in
             showAuthSheet = true
@@ -634,6 +671,10 @@ struct MainAppView: View {
 
     private func websocketConnectionStateDidChange(_ oldValue: WebSocketManager.ConnectionState, _ newValue: WebSocketManager.ConnectionState) {
         guard newValue == .connected else { return }
+        Task {
+            await syncBridge?.replayPendingActions()
+            await DraftService.shared.reconcileAfterReconnect()
+        }
         if scenePhase == .active {
             sendNativeClientForegroundAndActiveChat()
         } else {
@@ -1018,6 +1059,7 @@ struct MainAppView: View {
     }
 
     private func activeAppChrome(viewportWidth: CGFloat) -> some View {
+        let sideBySideSettingsWidth = resolvedSideBySideSettingsWidth(viewportWidth: viewportWidth)
         VStack(spacing: 0) {
             OpenMatesWebHeader(
                 viewportWidth: viewportWidth,
@@ -1044,15 +1086,15 @@ struct MainAppView: View {
 
             chatContainer {
                 if isSettingsSideBySide(width: viewportWidth) {
-                    HStack(spacing: showSettings ? .spacing10 : 0) {
+                    HStack(spacing: sideBySideSettingsWidth > 0 ? .spacing10 : 0) {
                         shellContent
 
                         settingsPanel(width: 323, closesOnExampleChatOpen: false)
-                            .frame(width: showSettings ? 323 : 0, alignment: .trailing)
-                            .opacity(showSettings ? 1 : 0)
+                            .frame(width: sideBySideSettingsWidth, alignment: .trailing)
+                            .opacity(sideBySideSettingsWidth > 0 ? 1 : 0)
                             .clipped()
-                            .allowsHitTesting(showSettings)
-                            .accessibilityHidden(!showSettings)
+                            .allowsHitTesting(showSettings && shellDragOffset == 0)
+                            .accessibilityHidden(sideBySideSettingsWidth == 0)
                     }
                     .animation(.easeInOut(duration: 0.3), value: showSettings)
                 } else {
@@ -1075,7 +1117,23 @@ struct MainAppView: View {
             .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 0)
             .padding(.horizontal, .spacing5)
             .padding(.top, .spacing5)
-            .padding(.bottom, .spacing5)
+            .padding(.bottom, chatContainerBottomPadding)
+    }
+
+    private var chatContainerBottomPadding: CGFloat {
+        #if os(iOS)
+        .spacing1
+        #else
+        .spacing5
+        #endif
+    }
+
+    private func resolvedSideBySideSettingsWidth(viewportWidth: CGFloat) -> CGFloat {
+        guard isSettingsSideBySide(width: viewportWidth) else { return 0 }
+        if showSettings {
+            return max(0, min(323, 323 - max(0, shellDragOffset)))
+        }
+        return max(0, min(323, -shellDragOffset))
     }
 
     @ViewBuilder
@@ -1331,6 +1389,7 @@ struct MainAppView: View {
                 serverSuggestions: syncedNewChatSuggestions,
                 accountInterestTagIds: accountInterestTagIds,
                 focusRequest: newChatFocusRequest,
+                isSettingsOpen: !isCompactShell && showSettings,
                 onCreateChatWithMessage: { message, piiMappings, composerEmbeds in
                     let now = ChatSendPipeline.isoString(from: Date())
                     if incognitoManager.isEnabled {
@@ -1356,7 +1415,8 @@ struct MainAppView: View {
                         }
                         return chatId
                     } else if isAuthenticated {
-                        let chatId = UUID().uuidString.lowercased()
+                        let chatId = DraftService.shared.activeNewChatDraftId
+                            ?? UUID().uuidString.lowercased()
                         let chat = Chat(
                             id: chatId,
                             title: nil,
@@ -1401,6 +1461,9 @@ struct MainAppView: View {
                 onOpenChat: { chatId in
                     selectedChatId = chatId
                     showNewChat = false
+                },
+                onShowChatActions: { chatId in
+                    actionChat = chatStore.chat(for: chatId)
                 },
                 onInspirationViewed: { inspirationId in
                     guard isAuthenticated else { return }
@@ -2031,6 +2094,11 @@ struct MainAppView: View {
 
         let bridge = appSession.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
         syncBridge = bridge
+        DraftService.shared.configureSync(
+            chatStore: chatStore,
+            transport: wsManager,
+            offlineActions: bridge
+        )
 
         Task { await authManager.validateSessionAfterOfflineBootstrap() }
         Task { await loadAccountTopicPreferences() }
@@ -2441,6 +2509,14 @@ struct MainAppView: View {
             return
         }
         Task { @MainActor in
+            await DraftService.shared.handleSyncEvent(type: type, raw: raw)
+            if Self.draftSyncEventTypes.contains(type) {
+                if let selectedChatId, chatStore.chat(for: selectedChatId) == nil {
+                    self.selectedChatId = nil
+                    showNewChat = true
+                }
+                return
+            }
             await processChatUpdate(type: type, raw: raw)
         }
     }
@@ -2788,12 +2864,29 @@ struct MainAppView: View {
         syncProcessingTask = Task { @MainActor in
             await previousTask?.value
             let start = NativeSyncPerfLog.now()
+            await DraftService.shared.handleSyncEvent(type: type, raw: raw)
+            if let selectedChatId,
+               ChatStore.isServerSyncChatId(selectedChatId),
+               chatStore.chat(for: selectedChatId) == nil {
+                self.selectedChatId = nil
+                showNewChat = true
+            }
             await processSyncEvent(type: type, raw: raw)
             NativeSyncPerfLog.info(
                 "phase=wsSyncEvent type=\(type) rawBytes=\(raw.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
             )
         }
     }
+
+    private static let draftSyncEventTypes: Set<String> = [
+        "chat_draft_updated",
+        "draft_update_receipt",
+        "draft_deleted",
+        "draft_delete_receipt",
+        "draft_versions_response",
+        "draft_conflict",
+        "chat_details",
+    ]
 
     private func handleHistoryRequest(_ notification: Notification) {
         guard let raw = notification.userInfo?["raw"] as? Data else { return }
@@ -4434,9 +4527,11 @@ struct NewChatWelcomeView: View {
     let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
     let accountInterestTagIds: [InterestTagId]
     let focusRequest: Int
+    let isSettingsOpen: Bool
     let onCreateChatWithMessage: (String, [PIIMapping], [ComposerPendingEmbed]) async throws -> String
     let onChatCreated: (String) -> Void
     let onOpenChat: (String) -> Void
+    let onShowChatActions: (String) -> Void
     let onInspirationViewed: (String) -> Void
     let onOpenAuth: () -> Void
     var canSendAnonymously = false
@@ -4468,6 +4563,7 @@ struct NewChatWelcomeView: View {
     @State private var recordStartTask: Task<Void, Never>?
     @State private var recordHintTask: Task<Void, Never>?
     @State private var draftSaveTask: Task<Void, Never>?
+    @State private var suppressNextDraftSave = false
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @StateObject private var composerRecorder = VoiceRecorder()
     @State private var isFocused = false
@@ -4717,7 +4813,15 @@ struct NewChatWelcomeView: View {
             updatePIIMatches(for: newValue)
         }
         .onChange(of: composerSession.revision) { _, _ in
-            scheduleNewChatDraftSave()
+            if suppressNextDraftSave {
+                suppressNextDraftSave = false
+            } else {
+                scheduleNewChatDraftSave()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .composerDraftDidChange)) { notification in
+            guard let chatId = notification.userInfo?["chatId"] as? String else { return }
+            Task { await applyInboundNewChatDraftIfCurrent(chatId: chatId) }
         }
         .onDisappear {
             draftSaveTask?.cancel()
@@ -5232,10 +5336,14 @@ struct NewChatWelcomeView: View {
                         if usesLargeCards {
                             WelcomeResumeCard(card: card, width: cardWidth, height: 200) {
                                 onOpenChat(card.id)
+                            } onLongPress: {
+                                onShowChatActions(card.id)
                             }
                         } else {
                             WelcomeResumeCompactCard(card: card, width: cardWidth) {
                                 onOpenChat(card.id)
+                            } onLongPress: {
+                                onShowChatActions(card.id)
                             }
                         }
                     }
@@ -5304,9 +5412,13 @@ struct NewChatWelcomeView: View {
     }
 
     private func inspirationCarousel(_ activeInspiration: DailyInspirationBanner.DailyInspiration, containerSize: CGSize) -> some View {
-        let bannerHeight = Self.inspirationBannerHeight(for: containerSize)
+        let bannerHeight = Self.inspirationBannerHeight(for: containerSize, isSettingsOpen: isSettingsOpen)
         return ZStack(alignment: .bottom) {
-            InspirationCard(inspiration: activeInspiration, containerSize: containerSize) {
+            InspirationCard(
+                inspiration: activeInspiration,
+                containerSize: containerSize,
+                heightOverride: bannerHeight
+            ) {
                 createChatWith(message: activeInspiration.text)
             }
             .frame(maxWidth: .infinity)
@@ -5340,8 +5452,9 @@ struct NewChatWelcomeView: View {
         }
     }
 
-    private static func inspirationBannerHeight(for size: CGSize) -> CGFloat {
-        size.width <= 730 ? 190 : max(240, size.height * 0.35)
+    private static func inspirationBannerHeight(for size: CGSize, isSettingsOpen: Bool) -> CGFloat {
+        if size.width <= 730 { return 190 }
+        return isSettingsOpen ? 240 : max(240, size.height * 0.35)
     }
 
     private func showPreviousInspiration() {
@@ -5422,6 +5535,9 @@ struct NewChatWelcomeView: View {
     private func applyFocusRequestIfNeeded() {
         guard focusRequest > 0, handledFocusRequest != focusRequest else { return }
         handledFocusRequest = focusRequest
+        if let mention = SettingsComposerHandoff.consume() {
+            composerSession.replaceMarkdown("\(mention) ")
+        }
         isGuestInterestSelectionActive = false
         isComposerActivated = true
         isComposerExpanded = true
@@ -5505,6 +5621,22 @@ struct NewChatWelcomeView: View {
             return
         } catch {
             NativeDiagnostics.warning("New-chat draft restore failed: \(type(of: error))", category: "apple_composer")
+        }
+    }
+
+    private func applyInboundNewChatDraftIfCurrent(chatId: String) async {
+        let activeDraftId = DraftService.shared.activeNewChatDraftId
+        guard chatId == DraftSyncCoordinator.syntheticNewChatId || chatId == activeDraftId else { return }
+        do {
+            let draft = try await DraftService.shared.loadDraft(chatId: DraftSyncCoordinator.syntheticNewChatId)
+            let markdown = draft?.canonicalMarkdown ?? ""
+            guard markdown != composerSession.canonicalMarkdown else { return }
+            suppressNextDraftSave = true
+            composerSession.replaceMarkdown(markdown)
+        } catch ComposerDraftError.masterKeyUnavailable {
+            return
+        } catch {
+            NativeDiagnostics.warning("New-chat inbound draft refresh failed: \(type(of: error))", category: "draft_sync")
         }
     }
 
@@ -5729,6 +5861,7 @@ private struct WelcomeResumeCard: View {
     let width: CGFloat
     let height: CGFloat
     let onTap: () -> Void
+    let onLongPress: () -> Void
 
     var body: some View {
         TimelineView(.animation) { timeline in
@@ -5778,6 +5911,7 @@ private struct WelcomeResumeCard: View {
             .accessibilityIdentifier("welcome-chat-card-\(card.id)")
             .help(Text(card.title))
             .accessibilityLabel(card.title)
+            .onLongPressGesture(perform: onLongPress)
         }
     }
 }
@@ -5786,6 +5920,7 @@ private struct WelcomeResumeCompactCard: View {
     let card: WelcomeChatCardData
     let width: CGFloat
     let onTap: () -> Void
+    let onLongPress: () -> Void
 
     var body: some View {
         Button(action: onTap) {
@@ -5793,21 +5928,11 @@ private struct WelcomeResumeCompactCard: View {
                 WelcomeCardIcon(name: card.iconName, size: 18)
                     .frame(width: 18, height: 18)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(card.title)
-                        .font(.custom("Lexend Deca", size: 16).weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.96))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-
-                    if let summary = card.summary {
-                        Text(summary)
-                            .font(.custom("Lexend Deca", size: 11).weight(.medium))
-                            .foregroundStyle(.white.opacity(0.78))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
+                Text(card.title)
+                    .font(.custom("Lexend Deca", size: 16).weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.96))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 if card.isPinned {
@@ -5837,6 +5962,7 @@ private struct WelcomeResumeCompactCard: View {
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
         .help(Text(card.title))
         .accessibilityLabel(card.title)
+        .onLongPressGesture(perform: onLongPress)
     }
 }
 
@@ -6019,6 +6145,10 @@ private struct WelcomeComposer: View {
         hasContent || isFocused || isActivated || isExpanded || isOverlayActive || anonymousAttachmentPending || hasPendingComposerEmbeds
     }
 
+    private var isDraftPreview: Bool {
+        hasContent && !isFocused && !isExpanded && !isOverlayActive && !hasPendingComposerEmbeds
+    }
+
     private var canSubmit: Bool {
         !anonymousAttachmentPending && (isAuthenticated || canSendAnonymously)
     }
@@ -6049,14 +6179,23 @@ private struct WelcomeComposer: View {
             MessageComposerView(
                 session: session,
                 isFocused: $isFocused,
-                compact: !isOpen,
+                compact: !isOpen || isDraftPreview,
                 placeholder: AppStrings.typeMessage,
                 compactHeight: 60,
                 compactCornerRadius: 24,
-                showActionButtonsWhenCompact: isOpen,
+                showActionButtonsWhenCompact: isOpen && !isDraftPreview,
                 expandedMinHeight: isExpanded ? expandedHeight : (isOverlayActive ? overlayHeight : MessageComposerMetric.expandedMinHeight),
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
+                piiDecorations: ComposerPIIDecorations.nativeDecorations(
+                    matches: piiMatches,
+                    visibleText: session.controller.attributedString.string
+                ),
+                onExcludePII: { matchId in
+                    if let match = piiMatches.first(where: { $0.id == matchId }) {
+                        onExcludePII(match)
+                    }
+                },
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() },
                 inlineFieldContent: nil,
                 preFieldContent: { EmptyView() },

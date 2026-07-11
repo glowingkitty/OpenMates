@@ -36,6 +36,7 @@ def default_args(**overrides):
         "web_spec": ["chat-flow.spec.ts"],
         "skip_web": None,
         "apple": "build",
+        "apple_platform": "ios",
         "skip_apple": None,
         "simulator": "iPhone 17",
         "only_testing": None,
@@ -87,6 +88,37 @@ def test_web_and_apple_skips_require_explicit_reasons() -> None:
     skips = {phase: reason for phase, command, reason in plan if command is None}
     assert skips["web"] == "browser-only verification covered by linked design review"
     assert skips["apple"] == "Apple not affected"
+
+
+@pytest.mark.parametrize(
+    ("apple_mode", "expected_command"),
+    [
+        ("build", [sys.executable, "scripts/apple_remote.py", "build-macos"]),
+        (
+            "test",
+            [
+                sys.executable,
+                "scripts/apple_remote.py",
+                "test-macos",
+                "--only-testing",
+                "OpenMatesMacUITests/SettingsMacShellParityUITests",
+            ],
+        ),
+    ],
+)
+def test_run_plan_supports_first_class_macos_verification(apple_mode, expected_command) -> None:
+    verify_parity = load_verify_parity()
+
+    plan = verify_parity.build_run_plan(
+        default_args(
+            apple=apple_mode,
+            apple_platform="macos",
+            only_testing="OpenMatesMacUITests/SettingsMacShellParityUITests" if apple_mode == "test" else None,
+        )
+    )
+
+    commands = {phase: command for phase, command, _reason in plan}
+    assert commands["apple"] == expected_command
 
 
 def test_cli_parser_requires_reason_for_apple_skip() -> None:

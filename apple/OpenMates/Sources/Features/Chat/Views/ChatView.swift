@@ -178,6 +178,7 @@ struct ChatView: View {
     @State private var assistantFeedbackSubmitted = false
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
     @State private var draftSaveTask: Task<Void, Never>?
+    @State private var suppressNextDraftSave = false
     @State private var broadcastToSiblingSubChats = false
     @StateObject private var focusModeManager = FocusModeManager()
     @StateObject private var composerRecorder = VoiceRecorder()
@@ -423,7 +424,15 @@ struct ChatView: View {
             updateMentionQuery(for: newValue)
         }
         .onChange(of: composerSession.revision) { _, _ in
-            scheduleEncryptedDraftSave()
+            if suppressNextDraftSave {
+                suppressNextDraftSave = false
+            } else {
+                scheduleEncryptedDraftSave()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .composerDraftDidChange)) { notification in
+            guard notification.userInfo?["chatId"] as? String == chatId else { return }
+            Task { await applyInboundDraft() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { flushEncryptedDraft() }
@@ -1361,6 +1370,11 @@ struct ChatView: View {
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 isComposerEditable: deferredComposerSendContexts.isEmpty,
+                piiDecorations: ComposerPIIDecorations.nativeDecorations(
+                    matches: activePIIMatches,
+                    visibleText: composerSession.controller.attributedString.string
+                ),
+                onExcludePII: { piiExclusions.insert($0) },
                 onSubmit: sendMessage,
                 inlineFieldContent: nil
             ) {
@@ -2327,6 +2341,20 @@ struct ChatView: View {
             return
         } catch {
             NativeDiagnostics.warning("Encrypted composer draft restore failed: \(type(of: error))", category: "apple_composer")
+        }
+    }
+
+    private func applyInboundDraft() async {
+        do {
+            let draft = try await DraftService.shared.loadDraft(chatId: chatId)
+            let markdown = draft?.canonicalMarkdown ?? ""
+            guard markdown != composerSession.canonicalMarkdown else { return }
+            suppressNextDraftSave = true
+            composerSession.replaceMarkdown(markdown)
+        } catch ComposerDraftError.masterKeyUnavailable {
+            return
+        } catch {
+            NativeDiagnostics.warning("Inbound composer draft refresh failed: \(type(of: error))", category: "draft_sync")
         }
     }
 

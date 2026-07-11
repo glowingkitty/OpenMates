@@ -101,4 +101,34 @@ final class NativeComposerMentionPIITests: XCTestCase {
         XCTAssertEqual(snapshot.document.nodes[1].canonicalSyntax, mention.canonicalSyntax)
         XCTAssertEqual(snapshot.document.nodes[2].canonicalSource, embed.canonicalSource)
     }
+
+    func testNativePIIDecorationMapsCanonicalRangePastEmbedToVisibleTextOffset() throws {
+        let email = "person@composer-fixture.invalid"
+        let embed = ComposerNodeV1.embed(
+            id: "embed-1",
+            embedType: "image",
+            canonicalSource: "```json\n{\"embed_id\":\"embed-1\"}\n```",
+            referenceOnly: true,
+            display: .init(title: "Private image", mediaKind: "image")
+        )
+        let document = ComposerDocumentV1(
+            version: 1,
+            nodes: [embed, .text(id: "text-1", source: "Email \(email)")]
+        )
+        let canonical = try ComposerMarkdownAdapter.serialize(document)
+        let controller = try NativeComposerController(document: document, selection: NSRange(location: 0, length: 0))
+        let matches = PIIDetector.detect(in: canonical)
+
+        let decorations = ComposerPIIDecorations.nativeDecorations(
+            matches: matches,
+            visibleText: controller.attributedString.string
+        )
+
+        let decoration = try XCTUnwrap(decorations.first)
+        XCTAssertEqual(
+            (controller.attributedString.string as NSString).substring(with: decoration.range),
+            email
+        )
+        XCTAssertEqual(decoration.id, matches.first?.id)
+    }
 }

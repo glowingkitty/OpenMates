@@ -61,6 +61,7 @@ final class ChatStore: ObservableObject {
     func removeChat(_ chatId: String) {
         chats.removeAll { $0.id == chatId }
         messagesByChat.removeValue(forKey: chatId)
+        embedsByChat.removeValue(forKey: chatId)
         persistIfAllowed { $0.onChatDeleted(chatId) }
     }
 
@@ -71,7 +72,7 @@ final class ChatStore: ObservableObject {
     }
 
     func makeSyncClientState(clientSuggestionsCount: Int) -> SyncClientState {
-        let syncableChats = chats.filter { !IncognitoChatSession.isIncognitoChatId($0.id) }
+        let syncableChats = chats.filter { Self.isServerSyncChatId($0.id) }
         let versions = syncableChats.reduce(into: [String: [String: Int]]()) { result, chat in
             var chatVersions: [String: Int] = [:]
             if let messagesV = chat.messagesV {
@@ -96,6 +97,11 @@ final class ChatStore: ObservableObject {
         )
     }
 
+    static func isServerSyncChatId(_ chatId: String) -> Bool {
+        !IncognitoChatSession.isIncognitoChatId(chatId) &&
+            !["demo-", "legal-", "example-", "announcements-"].contains { chatId.hasPrefix($0) }
+    }
+
     func chat(for id: String) -> Chat? {
         chats.first { $0.id == id }
     }
@@ -103,6 +109,12 @@ final class ChatStore: ObservableObject {
     func updateLastVisibleMessage(chatId: String, messageId: String) {
         guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
         chats[index] = chats[index].withLastVisibleMessage(messageId)
+        persistIfAllowed { $0.onChatsReceived([chats[index]]) }
+    }
+
+    func updateDraftVersion(chatId: String, draftVersion: Int) {
+        guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
+        chats[index] = chats[index].withDraftVersion(draftVersion)
         persistIfAllowed { $0.onChatsReceived([chats[index]]) }
     }
 
@@ -299,6 +311,41 @@ final class ChatStore: ObservableObject {
 }
 
 private extension Chat {
+    func withDraftVersion(_ draftVersion: Int) -> Chat {
+        Chat(
+            id: id,
+            title: title,
+            lastMessageAt: lastMessageAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            isArchived: isArchived,
+            isPinned: isPinned,
+            appId: appId,
+            category: category,
+            icon: icon,
+            chatSummary: chatSummary,
+            encryptedTitle: encryptedTitle,
+            encryptedCategory: encryptedCategory,
+            encryptedIcon: encryptedIcon,
+            encryptedChatSummary: encryptedChatSummary,
+            encryptedChatKey: encryptedChatKey,
+            messagesV: messagesV,
+            titleV: titleV,
+            draftV: draftVersion,
+            lastVisibleMessageId: lastVisibleMessageId,
+            parentId: parentId,
+            isSubChat: isSubChat,
+            subChatSettings: subChatSettings,
+            budgetLimit: budgetLimit,
+            budgetSpent: budgetSpent,
+            encryptedActiveFocusId: encryptedActiveFocusId,
+            activeFocusId: activeFocusId,
+            isPrivate: isPrivate,
+            isHidden: isHidden,
+            isHiddenCandidate: isHiddenCandidate
+        )
+    }
+
     func merged(with incoming: Chat) -> Chat {
         Chat(
             id: id,

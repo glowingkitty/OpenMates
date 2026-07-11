@@ -25,6 +25,11 @@ struct NativeComposerEmbedAccessibilityDescriptor: Equatable {
     let actionNames: [String]
 }
 
+struct NativeComposerPIIDecoration: Equatable {
+    let id: String
+    let range: NSRange
+}
+
 @MainActor
 final class NativeComposerTextView: NSObject {
     typealias AccessibilityAction = (name: String, handler: @MainActor @Sendable () -> Bool)
@@ -45,6 +50,8 @@ final class NativeComposerTextView: NSObject {
     private var isSynchronizing = false
     private var lastSynchronizedRevision: Int?
     private var lastAccessibilityNodes: [ComposerNodeV1] = []
+    private var piiDecorations: [NativeComposerPIIDecoration] = []
+    private var onExcludePII: (String) -> Void = { _ in }
 
     init(
         controller: NativeComposerController,
@@ -74,6 +81,10 @@ final class NativeComposerTextView: NSObject {
     func makePlatformView() -> UITextView {
         let textView = UITextView(usingTextLayoutManager: true)
         textView.delegate = self
+        textView.autocapitalizationType = .sentences
+        let piiTapRecognizer = UITapGestureRecognizer(target: self, action: #selector(handlePIITap(_:)))
+        piiTapRecognizer.cancelsTouchesInView = false
+        textView.addGestureRecognizer(piiTapRecognizer)
         synchronize(textView)
         return textView
     }
@@ -81,10 +92,12 @@ final class NativeComposerTextView: NSObject {
     func synchronize(_ textView: UITextView) {
         isSynchronizing = true
         defer { isSynchronizing = false }
-        if lastSynchronizedRevision != controller.revision {
+        if lastSynchronizedRevision != controller.revision,
+           textView.attributedText.string != controller.attributedString.string {
             textView.attributedText = styledAttributedString(controller.attributedString)
-            lastSynchronizedRevision = controller.revision
         }
+        lastSynchronizedRevision = controller.revision
+        applyPIIDecorations(to: textView.textStorage)
         textView.selectedRange = controller.selection
         textView.typingAttributes = textAttributes
         textView.accessibilityIdentifier = editorAccessibilityIdentifier
@@ -133,6 +146,18 @@ final class NativeComposerTextView: NSObject {
             return false
         }
         return action.handler()
+    }
+
+    func updatePIIDecorations(_ decorations: [NativeComposerPIIDecoration], onExclude: @escaping (String) -> Void) {
+        piiDecorations = decorations
+        onExcludePII = onExclude
+    }
+
+    @discardableResult
+    func excludePII(atUTF16Offset offset: Int) -> Bool {
+        guard let decoration = piiDecorations.first(where: { NSLocationInRange(offset, $0.range) }) else { return false }
+        onExcludePII(decoration.id)
+        return true
     }
 
     private func rebuildEmbedAccessibilityElements() {
@@ -202,6 +227,32 @@ final class NativeComposerTextView: NSObject {
         return styled
     }
 
+    #if canImport(UIKit)
+    private func applyPIIDecorations(to storage: NSTextStorage) {
+        let fullRange = NSRange(location: 0, length: storage.length)
+        storage.removeAttribute(.backgroundColor, range: fullRange)
+        #if OPENMATES_SHARE_EXTENSION
+        let highlightColor = UIColor.systemYellow.withAlphaComponent(0.35)
+        #else
+        let highlightColor = UIColor(Color.warning).withAlphaComponent(0.35)
+        #endif
+        for decoration in piiDecorations where NSMaxRange(decoration.range) <= storage.length {
+            storage.addAttribute(
+                .backgroundColor,
+                value: highlightColor,
+                range: decoration.range
+            )
+        }
+    }
+
+    @objc private func handlePIITap(_ recognizer: UITapGestureRecognizer) {
+        guard recognizer.state == .ended, let textView = recognizer.view as? UITextView,
+              let position = textView.closestPosition(to: recognizer.location(in: textView)) else { return }
+        let offset = textView.offset(from: textView.beginningOfDocument, to: position)
+        _ = excludePII(atUTF16Offset: offset)
+    }
+    #endif
+
     private func applyPlatformEdit(
         range: NSRange,
         replacement: String
@@ -263,6 +314,7 @@ final class NativeComposerTextView: NSObject {
             textView.attributedText = styledAttributedString(controller.attributedString)
         }
         lastSynchronizedRevision = controller.revision
+        applyPIIDecorations(to: textView.textStorage)
         textView.selectedRange = controller.selection
         textView.typingAttributes = textAttributes
         textView.accessibilityValue = textView.text
