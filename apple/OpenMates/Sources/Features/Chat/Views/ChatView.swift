@@ -1337,6 +1337,8 @@ struct ChatView: View {
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
         let overlayActive = composerOverlay != nil || isUITestRecordingOverlayForced
         let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
+        let maximumViewportFieldHeight = max(expandedMinHeight, chatViewportHeight - .spacing20)
+        let overlayHeight = min(400, maximumViewportFieldHeight)
         return VStack(spacing: .spacing2) {
             MessageComposerView(
                 session: composerSession,
@@ -1344,8 +1346,8 @@ struct ChatView: View {
                 compact: compact && !overlayActive,
                 placeholder: placeholder,
                 expandedMinHeight: isComposerExpanded
-                    ? max(400, chatViewportHeight - 20)
-                    : (overlayActive ? 400 : expandedMinHeight),
+                    ? maximumViewportFieldHeight
+                    : (overlayActive ? overlayHeight : expandedMinHeight),
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 isComposerEditable: deferredComposerSendContexts.isEmpty,
@@ -1446,6 +1448,27 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, .spacing5)
                 .padding(.bottom, .spacing6)
+            }
+            .overlay(alignment: .topTrailing) {
+                if !overlayActive && (isInputFocused || !messageText.isEmpty || composerHasEmbed || isComposerExpanded) {
+                    Button {
+                        isComposerExpanded.toggle()
+                        isInputFocused = false
+                    } label: {
+                        Icon(isComposerExpanded ? "minimize" : "fullscreen", size: 20)
+                            .foregroundStyle(LinearGradient.primary)
+                            .frame(width: 30, height: 30)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .padding(.top, 10)
+                    .padding(.trailing, 15)
+                    .help(Text(isComposerExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen))
+                    .accessibilityLabel(isComposerExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
+                    .accessibilityIdentifier("message-input-fullscreen-button")
+                    .zIndex(10)
+                }
             }
 
             if let queuedMessageText = viewModel.streamingLifecycle.queuedMessageText {
