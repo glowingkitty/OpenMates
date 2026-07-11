@@ -206,17 +206,15 @@ async def handle_update_draft(
             user_id=user_id,
             exclude_device_hash=device_fingerprint_hash # Exclude the sender device
         )
-        await manager.send_personal_message(
-            message={
+        await websocket.send_json(
+            {
                 "type": "draft_update_receipt",
                 "payload": {
                     "chat_id": chat_id,
                     "draft_v": new_user_draft_v,
                     "success": True,
                 },
-            },
-            user_id=user_id,
-            device_fingerprint_hash=device_fingerprint_hash,
+            }
         )
         logger.info(f"Broadcasted chat_draft_updated for user {user_id}, chat {chat_id}, new draft_v: {new_user_draft_v}")
 

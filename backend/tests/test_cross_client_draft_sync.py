@@ -36,9 +36,18 @@ class _Manager:
         self.broadcasts.append(message)
 
 
+class _WebSocket:
+    def __init__(self) -> None:
+        self.sent = []
+
+    async def send_json(self, message) -> None:
+        self.sent.append(message)
+
+
 @pytest.mark.anyio
 async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext() -> None:
     manager = _Manager()
+    websocket = _WebSocket()
 
     class Cache:
         async def increment_user_draft_version(self, user_id, chat_id):
@@ -66,7 +75,7 @@ async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext()
     )
 
     await handle_update_draft(
-        websocket=None,
+        websocket=websocket,
         manager=manager,
         cache_service=Cache(),
         directus_service=directus,
@@ -80,7 +89,7 @@ async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext()
         },
     )
 
-    assert manager.sent == [{
+    assert websocket.sent == [{
         "type": "draft_update_receipt",
         "payload": {
             "chat_id": "11111111-1111-4111-8111-111111111111",
@@ -88,11 +97,12 @@ async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext()
             "success": True,
         },
     }]
+    assert manager.sent == []
     assert manager.broadcasts[0]["data"] == {
         "encrypted_draft_md": "cipher-md",
         "encrypted_draft_preview": "cipher-preview",
     }
-    assert "plaintext" not in str(manager.sent + manager.broadcasts).lower()
+    assert "plaintext" not in str(websocket.sent + manager.broadcasts).lower()
 
 
 @pytest.mark.anyio
