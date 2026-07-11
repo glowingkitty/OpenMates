@@ -6076,21 +6076,6 @@ private struct WelcomeComposer: View {
                 overlayContent: {
                     if let overlayContent {
                         overlayContent
-                    } else if isOpen {
-                        Button {
-                            isExpanded.toggle()
-                            isFocused = true
-                        } label: {
-                            Icon(isExpanded ? "minimize" : "fullscreen", size: 20)
-                                .foregroundStyle(LinearGradient.primary)
-                                .frame(width: 30, height: 30)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.top, 10)
-                        .padding(.trailing, 15)
-                        .help(Text(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen))
-                        .accessibilityLabel(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
-                        .accessibilityIdentifier("message-input-fullscreen-button")
                     }
                 },
                 actionButtons: {
@@ -6137,6 +6122,25 @@ private struct WelcomeComposer: View {
                     isFocused = true
                 }
             )
+            .overlay(alignment: .topTrailing) {
+                if overlayContent == nil && isOpen {
+                    Button {
+                        isExpanded.toggle()
+                        isFocused = true
+                    } label: {
+                        Icon(isExpanded ? "minimize" : "fullscreen", size: 20)
+                            .foregroundStyle(LinearGradient.primary)
+                            .frame(width: 30, height: 30)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 10)
+                    .padding(.trailing, 15)
+                    .help(Text(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen))
+                    .accessibilityLabel(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
+                    .accessibilityIdentifier("message-input-fullscreen-button")
+                    .zIndex(10)
+                }
+            }
             if isOpen && !isFocused {
                 Button {
                     onDismiss()

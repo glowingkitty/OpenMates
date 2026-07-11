@@ -101,17 +101,21 @@ final class ComposerVisualParityUITests: XCTestCase {
         let field = element(in: app, identifier: "message-field")
         let image = element(in: app, identifier: "native-composer-image-content")
         let audio = element(in: app, identifier: "native-composer-audio-content")
+        let imageCard = element(in: app, identifier: "native-composer-preview-image-finished")
+        let audioCard = element(in: app, identifier: "native-composer-preview-recording-finished")
 
         XCTAssertTrue(image.waitForExistence(timeout: 5), "Expected image-specific composer preview content")
         XCTAssertTrue(audio.waitForExistence(timeout: 5), "Expected audio-specific composer preview content")
-        assertEmbed(image, isLeftAlignedIn: field)
-        assertEmbed(audio, isLeftAlignedIn: field)
+        XCTAssertTrue(imageCard.waitForExistence(timeout: 5))
+        XCTAssertTrue(audioCard.waitForExistence(timeout: 5))
+        assertEmbed(imageCard, isLeftAlignedIn: field)
+        assertEmbed(audioCard, isLeftAlignedIn: field)
 
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertTrue(image.waitForExistence(timeout: 5))
         XCTAssertTrue(audio.waitForExistence(timeout: 5))
-        assertEmbed(image, isLeftAlignedIn: field)
-        assertEmbed(audio, isLeftAlignedIn: field)
+        assertEmbed(imageCard, isLeftAlignedIn: field)
+        assertEmbed(audioCard, isLeftAlignedIn: field)
     }
 
     func testWelcomeComposerExpandsAndCollapsesAcrossRotation() throws {
@@ -153,12 +157,11 @@ final class ComposerVisualParityUITests: XCTestCase {
     }
 
     func testSketchToolExposesWebControlsInLandscape() throws {
-        XCUIDevice.shared.orientation = .landscapeLeft
-        defer { XCUIDevice.shared.orientation = .portrait }
-
         let app = launchFocusedWelcomeComposer(
             extraArguments: ["--ui-test-welcome-sketch-enabled"]
         )
+        defer { XCUIDevice.shared.orientation = .portrait }
+        XCUIDevice.shared.orientation = .landscapeLeft
         app.buttons["sketch-button"].tap()
 
         XCTAssertTrue(element(in: app, identifier: "sketch-canvas").waitForExistence(timeout: 5))
