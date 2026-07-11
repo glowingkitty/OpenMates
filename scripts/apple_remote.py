@@ -2775,21 +2775,22 @@ def build_ios_command(simulator: str) -> str:
 
 def test_ios_command(simulator: str, only_testing: str | None) -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
+    scheme = "OpenMates_iOS"
+    if only_testing and only_testing.startswith("OpenMatesUITests/"):
+        scheme = "OpenMates_iOS_UI_Tests"
+    elif only_testing and only_testing.startswith("OpenMatesTests/"):
+        scheme = "OpenMates_iOS_Unit_Tests"
     parts = [
         "xcodebuild",
         "test",
         "-project",
         "apple/OpenMates.xcodeproj",
         "-scheme",
-        "OpenMates_iOS",
+        scheme,
         "-destination",
         f"platform=iOS Simulator,name={simulator}",
     ]
     if only_testing:
-        if only_testing.startswith("OpenMatesUITests/"):
-            parts.extend(["-skip-testing", "OpenMatesTests"])
-        elif only_testing.startswith("OpenMatesTests/"):
-            parts.extend(["-skip-testing", "OpenMatesUITests"])
         parts.extend(["-only-testing", only_testing])
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {simulator_locked_command(parts)}"
 

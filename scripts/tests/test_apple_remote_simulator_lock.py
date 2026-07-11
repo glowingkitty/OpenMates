@@ -36,7 +36,7 @@ def test_ios_test_command_holds_shared_simulator_lock() -> None:
     assert "fcntl.flock" in command
     assert "simulator_lock=acquired" in command
     assert "-only-testing OpenMatesUITests/SettingsAppsParityUITests" in command
-    assert "-skip-testing OpenMatesTests" in command
+    assert "-scheme OpenMates_iOS_UI_Tests" in command
 
 
 def test_ios_unit_test_command_skips_ui_test_target() -> None:
@@ -45,7 +45,16 @@ def test_ios_unit_test_command_skips_ui_test_target() -> None:
     command = apple_remote.test_ios_command("iPhone 17e", "OpenMatesTests/SettingsModesParityTests")
 
     assert "-only-testing OpenMatesTests/SettingsModesParityTests" in command
-    assert "-skip-testing OpenMatesUITests" in command
+    assert "-scheme OpenMates_iOS_Unit_Tests" in command
+
+
+def test_xcodegen_declares_isolated_ios_test_schemes() -> None:
+    project = (ROOT / "apple" / "project.yml").read_text(encoding="utf-8")
+
+    assert "OpenMates_iOS_UI_Tests:" in project
+    assert "OpenMates_iOS_Unit_Tests:" in project
+    assert (ROOT / "apple" / "OpenMates.xcodeproj" / "xcshareddata" / "xcschemes" / "OpenMates_iOS_UI_Tests.xcscheme").exists()
+    assert (ROOT / "apple" / "OpenMates.xcodeproj" / "xcshareddata" / "xcschemes" / "OpenMates_iOS_Unit_Tests.xcscheme").exists()
 
 
 def test_ios_build_command_holds_shared_simulator_lock() -> None:

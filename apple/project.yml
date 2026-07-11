@@ -389,6 +389,20 @@ schemes:
       targets:
         - OpenMatesTests
         - OpenMatesUITests
+  OpenMates_iOS_UI_Tests:
+    build:
+      targets:
+        OpenMates_iOS: all
+    test:
+      targets:
+        - OpenMatesUITests
+  OpenMates_iOS_Unit_Tests:
+    build:
+      targets:
+        OpenMates_iOS: all
+    test:
+      targets:
+        - OpenMatesTests
   OpenMates_macOS:
     build:
       targets:
