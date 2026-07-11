@@ -123,6 +123,54 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "/private/")).firstMatch.exists)
     }
 
+    func testImagePreviewSurvivesBackgroundAndKeepsActionsAboveIPadKeyboard() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-seed-pending-content"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        editor.typeText("Image draft")
+        let image = element(in: app, identifier: "native-composer-image-content")
+        XCTAssertTrue(image.waitForExistence(timeout: 8))
+        XCTAssertFalse(
+            app.staticTexts["Tap to show details"].exists,
+            "A finished local image uses web image metadata instead of the generic open-details subtitle"
+        )
+
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 5))
+        for identifier in ["attach-files-button", "share-location-button", "sketch-button", "take-photo-button", "send-button"] {
+            let button = app.buttons[identifier]
+            XCTAssertTrue(button.waitForExistence(timeout: 5), "Missing composer action: \(identifier)")
+            XCTAssertTrue(button.isHittable, "Composer action is covered: \(identifier)")
+            XCTAssertLessThanOrEqual(
+                button.frame.maxY,
+                keyboard.frame.minY - 2,
+                "Composer action must stay above the iPad keyboard: \(identifier)"
+            )
+        }
+
+        XCUIDevice.shared.press(.home)
+        app.activate()
+
+        XCTAssertTrue(
+            image.waitForExistence(timeout: 8),
+            "The local uploaded image preview must survive background/foreground restoration"
+        )
+        XCTAssertFalse(app.staticTexts["Tap to show details"].exists)
+        attachScreenshot(name: "Image composer preview restored above iPad keyboard")
+    }
+
     private func launchChatOpeningPreview(arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening"] + arguments
@@ -183,5 +231,12 @@ final class MessageInputAttachmentUITests: XCTestCase {
             file: file,
             line: line
         )
+    }
+
+    private func attachScreenshot(name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }

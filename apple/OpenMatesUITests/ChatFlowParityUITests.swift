@@ -309,6 +309,56 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Welcome compact recent overflow height")
     }
 
+    func testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-recent-overflow"
+        ]
+        app.launch()
+
+        let compactCard = app.buttons["welcome-chat-compact-card-ui-test-welcome-recent-0"]
+        XCTAssertTrue(compactCard.waitForExistence(timeout: 15))
+        XCTAssertFalse(
+            app.staticTexts["Seeded compact recent card"].exists,
+            "Short-height web cards render the title only"
+        )
+
+        compactCard.press(forDuration: 0.8)
+
+        XCTAssertTrue(
+            app.buttons["Pin"].waitForExistence(timeout: 5),
+            "Long-pressing a recent-chat preview must open the custom chat actions"
+        )
+    }
+
+    func testTextDraftBlursIntoCompactPreviewWithoutLosingContent() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launch()
+
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        editor.typeText("Keep this draft")
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25)).tap()
+
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 2))
+        XCTAssertEqual(editor.value as? String, "Keep this draft")
+        let messageField = app.descendants(matching: .any)["message-field"]
+        XCTAssertLessThanOrEqual(
+            messageField.frame.height,
+            64,
+            "A blurred text-only draft must return to the compact web preview height"
+        )
+        XCTAssertFalse(
+            app.descendants(matching: .any)["action-buttons"].exists,
+            "Draft preview mode hides CTA and attachment actions until the field is focused again"
+        )
+    }
+
     private func tapVisibleInterestTags(count: Int, in app: XCUIApplication) {
         let tagContainer = app.scrollViews["guest-interest-rail"]
         XCTAssertTrue(tagContainer.waitForExistence(timeout: 5), "Expected guest interest tags")
