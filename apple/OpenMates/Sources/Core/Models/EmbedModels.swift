@@ -610,7 +610,10 @@ enum EmbedType: String, CaseIterable {
     case docsDoc = "docs-doc"
     case diagramsMermaid = "diagrams-mermaid"
     case mindmapsMindmap = "mindmaps-mindmap"
+    case electronicsPcbSchematic = "electronics-pcb-schematic"
     case electronicsComponent = "electronics-component"
+    case fitnessLocation = "fitness-location"
+    case fitnessClass = "fitness-class"
     case image
     case mailEmail = "mail-email"
     case maps
@@ -623,9 +626,15 @@ enum EmbedType: String, CaseIterable {
 
     // Composite search embeds
     case codeRepoSearch = "app:code:search_repos"
+    case calendarGetEvents = "app:calendar:get-events"
+    case calendarCreateEvent = "app:calendar:create-event"
+    case calendarUpdateEvent = "app:calendar:update-event"
+    case calendarDeleteEvent = "app:calendar:delete-event"
     case electronicsSearch = "app:electronics:search_components"
     case eventsSearch = "app:events:search"
     case eventsEvent = "events-event"
+    case fitnessSearchLocations = "app:fitness:search_locations"
+    case fitnessSearchClasses = "app:fitness:search_classes"
     case healthSearch = "app:health:search_appointments"
     case healthAppointment = "health-appointment"
     case homeSearch = "app:home:search"
@@ -657,6 +666,7 @@ enum EmbedType: String, CaseIterable {
     case webRead = "app:web:read"
     case wiki
     case weatherForecast = "app:weather:forecast"
+    case weatherRainRadar = "app:weather:rain_radar"
 
     // App skill use embeds
     case codeGetDocs = "app:code:get_docs"
@@ -681,6 +691,7 @@ enum EmbedType: String, CaseIterable {
         switch self {
         case .codeRepoSearch, .electronicsSearch,
              .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
+             .fitnessSearchLocations, .fitnessSearchClasses,
              .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
              .shoppingSearch, .socialMediaGetPosts, .socialMediaSearch,
              .travelConnections, .travelStays, .videosSearch, .weatherForecast,
@@ -696,6 +707,8 @@ enum EmbedType: String, CaseIterable {
         case .codeRepoSearch: return .codeRepo
         case .electronicsSearch: return .electronicsComponent
         case .eventsSearch: return .eventsEvent
+        case .fitnessSearchLocations: return .fitnessLocation
+        case .fitnessSearchClasses: return .fitnessClass
         case .healthSearch: return .healthAppointment
         case .homeSearch: return .homeListing
         case .imagesSearch: return .imagesImageResult
@@ -721,7 +734,8 @@ enum EmbedType: String, CaseIterable {
             case .docsDoc: return "docs"
             case .diagramsMermaid: return "diagrams"
             case .mindmapsMindmap: return "mindmaps"
-            case .electronicsComponent: return "electronics"
+            case .electronicsPcbSchematic, .electronicsComponent: return "electronics"
+            case .fitnessLocation, .fitnessClass: return "fitness"
             case .recording: return "audio"
             case .image, .imagesImageResult: return "images"
             case .maps, .mapsPlace: return "maps"
@@ -761,8 +775,14 @@ enum EmbedType: String, CaseIterable {
         case .docsDoc: return "Document"
         case .diagramsMermaid: return "Diagram"
         case .mindmapsMindmap: return "Mind Map"
+        case .electronicsPcbSchematic: return "PCB Schematic"
         case .electronicsSearch: return "Component Search"
         case .electronicsComponent: return "Component"
+        case .calendarGetEvents, .calendarCreateEvent, .calendarUpdateEvent, .calendarDeleteEvent: return "Calendar"
+        case .fitnessSearchLocations: return "Fitness Locations"
+        case .fitnessSearchClasses: return "Fitness Classes"
+        case .fitnessLocation: return "Fitness Location"
+        case .fitnessClass: return "Fitness Class"
         case .image: return "Image"
         case .imagesSearch: return "Image Search"
         case .imagesGenerate, .imagesGenerateDraft: return "Generated Image"
@@ -803,6 +823,7 @@ enum EmbedType: String, CaseIterable {
         case .focusModeActivation: return "Focus Mode"
         case .reminderSet, .reminderList, .reminderCancel: return "Reminder"
         case .weatherForecast: return "Forecast"
+        case .weatherRainRadar: return "Rain Radar"
         case .weatherDay: return "Weather"
         }
     }

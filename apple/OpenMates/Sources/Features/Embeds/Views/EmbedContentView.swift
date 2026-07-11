@@ -178,6 +178,10 @@ struct EmbedContentView: View {
             case .eventsEvent:
                 EventEmbedRenderer(data: rawData, mode: mode)
 
+            // Fitness
+            case .fitnessLocation, .fitnessClass:
+                FitnessResultEmbedRenderer(data: rawData, mode: mode)
+
             // Health
             case .healthSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "appointments")
