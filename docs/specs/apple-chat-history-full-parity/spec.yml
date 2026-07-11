@@ -148,7 +148,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4
+  subject_commit: 620cbe17a
 
 approvals:
   product_contract:
@@ -214,14 +214,22 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-11T00:00:00Z"
     evidence: The user explicitly requires every web embed preview and fullscreen view to be fully implemented.
+  - id: ATTEMPT-4
+    task_id: TASK-3
+    approach: Run the green embed graph unit test on the remote iPhone simulator after syncing implementation commit 620cbe17a.
+    outcome: blocked
+    recorded_at: "2026-07-11T14:25:03Z"
+    evidence: The build stopped before tests because unrelated commit 7c196b5f0 left Yams, ZIPFoundation, and Sodium unresolved and the Watch link failed.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Add and run the red embed-graph normalization tests before changing production embed hydration.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/EmbedGraphNormalizationTests
-  expected_outcome: The new tests fail because current normalization does not expose ordered bidirectional relationship resolution and unresolved-known classification as one contract.
-  blocker: null
-  last_verified_commit: f456b24e2af9d371a58e7225696f54d2472dc9f4
+  next_action: Re-run the green embed-graph unit test after the unrelated Apple package/project regression from commit 7c196b5f0 is fixed.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/EmbedDiffEditingParityTests
+  expected_outcome: All EmbedDiffEditingParityTests pass on implementation commit 620cbe17a.
+  blocker:
+    reason: Unrelated Apple project integration commit 7c196b5f0 does not resolve Yams, ZIPFoundation, or Sodium and also fails the Watch link before tests execute.
+    next_action: The owning Apple integration session must restore package/project consistency, then this task can rerun unchanged.
+  last_verified_commit: 6883c92b4
 
 scenarios:
   - id: S-1
@@ -541,7 +549,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: blocked
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/EmbedDiffEditingParityTests
+        run_id: "remote-mac-green-blocked-20260711T142400Z"
+        subject_commit: 620cbe17a
+        timestamp: "2026-07-11T14:25:03Z"
+        notes: Build stopped before test execution because unrelated commit 7c196b5f0 left Yams, ZIPFoundation, and Sodium unresolved and the Watch link failed.
 
   - id: T-EMBED-COVERAGE-AUDIT
     type: lint
@@ -778,22 +792,22 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Normalize authoritative embed graphs for restored messages
-    status: in_progress
-    phase: working_tasks
+    status: blocked
+    phase: blocked
     covers:
       scenarios: [S-1, S-2]
       acceptance_criteria: [AC-1, AC-2]
     expected_files:
       - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
-      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
       - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
     verification: [T-APPLE-UNIT-EMBED-GRAPH]
     verification_ids: [T-APPLE-UNIT-EMBED-GRAPH]
     dependencies: [TASK-2]
     ownership:
-      files: [apple/OpenMates/Sources/Core/Models/EmbedModels.swift, apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift, apple/OpenMatesTests/EmbedDiffEditingParityTests.swift]
+      files: [apple/OpenMates/Sources/Core/Models/EmbedModels.swift, apple/OpenMatesTests/EmbedDiffEditingParityTests.swift]
       shared_files: []
-    blockers: []
+    blockers:
+      - Green verification is blocked by unrelated Apple package/project failures introduced in commit 7c196b5f0.
     follow_up_tasks: [TASK-4]
     independently_deployable: true
   - id: TASK-4
