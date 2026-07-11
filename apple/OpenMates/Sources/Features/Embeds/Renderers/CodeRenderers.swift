@@ -6,6 +6,10 @@
 //          frontend/packages/ui/src/components/embeds/code/CodeGetDocsEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/code/CodeGetDocsEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/code/CodePreviewPane.svelte
+//          frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/code/CodeRepoEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/electronics/ElectronicsComponentEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
@@ -1547,6 +1551,602 @@ struct ParsedSheetTable {
                 return value
             }
         }
+        return nil
+    }
+}
+
+struct CodeRepoEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var repository: CodeRepoSummary { CodeRepoSummary(data: data ?? [:]) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            CodeRepoPreview(repository: repository)
+        case .fullscreen:
+            CodeRepoFullscreen(repository: repository)
+        }
+    }
+}
+
+private struct CodeRepoPreview: View {
+    let repository: CodeRepoSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            HStack(spacing: .spacing5) {
+                RepoAvatar(url: repository.ownerAvatarURL, size: .spacing16)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(repository.owner)
+                        .font(.omXxs)
+                        .foregroundStyle(Color.grey70)
+                        .lineLimit(1)
+                    Text(repository.name)
+                        .font(.omP)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.grey100)
+                        .lineLimit(1)
+                }
+            }
+
+            if let description = repository.description {
+                Text(description)
+                    .font(.omXs)
+                    .foregroundStyle(Color.grey80)
+                    .lineLimit(2)
+            }
+
+            HStack(spacing: .spacing5) {
+                Text("★ \(repository.compactStars)")
+                Text("⑂ \(repository.compactForks)")
+                Text("! \(repository.compactOpenIssues)")
+            }
+            .font(.omXs)
+            .fontWeight(.semibold)
+            .foregroundStyle(Color.grey80)
+
+            if !repository.metadata.isEmpty {
+                Text(repository.metadata)
+                    .font(.omXxs)
+                    .foregroundStyle(Color.grey70)
+                    .lineLimit(1)
+            }
+            if let updatedAt = repository.updatedAt {
+                Text(updatedAt)
+                    .font(.omXxs)
+                    .foregroundStyle(Color.grey70)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityIdentifier("code-repo-preview-details")
+    }
+}
+
+private struct CodeRepoFullscreen: View {
+    let repository: CodeRepoSummary
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: .spacing8) {
+                NativeEmbedDetailCard {
+                    HStack(spacing: .spacing6) {
+                        RepoAvatar(url: repository.ownerAvatarURL, size: .spacing20)
+                        VStack(alignment: .leading, spacing: .spacing1) {
+                            Text(repository.owner)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.grey70)
+                            Text(repository.name)
+                                .font(.omH3)
+                                .fontWeight(.bold)
+                                .foregroundStyle(Color.fontPrimary)
+                        }
+                    }
+                    if let description = repository.description {
+                        Text(description)
+                            .font(.omP)
+                            .foregroundStyle(Color.grey80)
+                            .lineSpacing(.spacing2)
+                    }
+                    if let url = repository.url {
+                        Text(url)
+                            .font(.omXs)
+                            .foregroundStyle(Color.buttonPrimary)
+                            .textSelection(.enabled)
+                    }
+                }
+
+                LazyVGrid(columns: repositoryMetricColumns, spacing: .spacing5) {
+                    NativeEmbedMetricTile(label: "★", value: repository.stars.formatted())
+                    NativeEmbedMetricTile(label: "⑂", value: repository.forks.formatted())
+                    NativeEmbedMetricTile(label: "!", value: repository.openIssues.formatted())
+                    NativeEmbedMetricTile(label: "◉", value: repository.watchers.formatted())
+                }
+
+                if !repository.projectDetails.isEmpty {
+                    NativeEmbedDetailCard {
+                        ForEach(repository.projectDetails, id: \.self) { detail in
+                            Text(detail)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontPrimary)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+
+                if !repository.languages.isEmpty {
+                    NativeEmbedDetailCard {
+                        ForEach(repository.languages, id: \.name) { language in
+                            VStack(alignment: .leading, spacing: .spacing2) {
+                                HStack {
+                                    Text(language.name)
+                                    Spacer()
+                                    Text(language.percent.formatted(.number.precision(.fractionLength(1))) + "%")
+                                }
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontPrimary)
+                                GeometryReader { proxy in
+                                    ZStack(alignment: .leading) {
+                                        Capsule().fill(Color.grey20)
+                                        Capsule()
+                                            .fill(LinearGradient.appCode)
+                                            .frame(width: proxy.size.width * CGFloat(min(max(language.percent, 0), 100) / 100))
+                                    }
+                                }
+                                .frame(height: .spacing4)
+                            }
+                        }
+                    }
+                }
+
+                if !repository.contributors.isEmpty {
+                    NativeEmbedDetailCard {
+                        ForEach(repository.contributors, id: \.login) { contributor in
+                            HStack(spacing: .spacing5) {
+                                RepoAvatar(url: contributor.avatarURL, size: .spacing16)
+                                Text(contributor.login)
+                                    .font(.omSmall)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(Color.fontPrimary)
+                                Spacer()
+                                Text(contributor.contributions.formatted())
+                                    .font(.omXs)
+                                    .foregroundStyle(Color.grey70)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.spacing8)
+            .frame(maxWidth: 860, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .accessibilityIdentifier("code-repo-fullscreen")
+    }
+
+    private var repositoryMetricColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 120), spacing: .spacing5)]
+    }
+}
+
+struct ElectronicsComponentEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var component: ElectronicsComponentSummary { ElectronicsComponentSummary(data: data ?? [:]) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            ElectronicsComponentPreview(component: component)
+        case .fullscreen:
+            ElectronicsComponentFullscreen(component: component)
+        }
+    }
+}
+
+private struct ElectronicsComponentPreview: View {
+    let component: ElectronicsComponentSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            Text(component.title)
+                .font(.omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(2)
+            if !component.subtitle.isEmpty {
+                Text(component.subtitle)
+                    .font(.omXxs)
+                    .foregroundStyle(Color.grey70)
+                    .lineLimit(1)
+            }
+            LazyVGrid(columns: metricColumns, spacing: .spacing4) {
+                ForEach(component.previewMetrics) { metric in
+                    NativeEmbedMetricTile(label: metric.label, value: metric.value)
+                }
+            }
+            HStack(spacing: .spacing4) {
+                if let regulatorType = component.regulatorType { Text(regulatorType) }
+                if let provider = component.provider { Text(provider) }
+            }
+            .font(.omXxs)
+            .foregroundStyle(Color.grey70)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .accessibilityIdentifier("electronics-component-preview")
+    }
+
+    private var metricColumns: [GridItem] {
+        [GridItem(.flexible()), GridItem(.flexible())]
+    }
+}
+
+private struct ElectronicsComponentFullscreen: View {
+    let component: ElectronicsComponentSummary
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: .spacing6) {
+                NativeEmbedDetailCard {
+                    if let provider = component.provider {
+                        Text(provider.uppercased())
+                            .font(.omXs)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.buttonPrimary)
+                    }
+                    Text(component.title)
+                        .font(.omH2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.fontPrimary)
+                    if let description = component.description {
+                        Text(description)
+                            .font(.omP)
+                            .foregroundStyle(Color.grey70)
+                            .lineSpacing(.spacing2)
+                    }
+                    ForEach(component.links) { link in
+                        VStack(alignment: .leading, spacing: .spacing1) {
+                            Text(link.label)
+                                .font(.omXs)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(Color.buttonPrimary)
+                            Text(link.value)
+                                .font(.omXs)
+                                .foregroundStyle(Color.fontSecondary)
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
+
+                ElectronicsDetailSection(
+                    title: AppStrings.localized("embeds.electronics.performance"),
+                    metrics: component.performanceMetrics
+                )
+                ElectronicsDetailSection(
+                    title: AppStrings.localized("embeds.electronics.electrical"),
+                    metrics: component.electricalMetrics
+                )
+            }
+            .padding(.spacing6)
+            .frame(maxWidth: 1000, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .accessibilityIdentifier("electronics-component-fullscreen")
+    }
+}
+
+private struct ElectronicsDetailSection: View {
+    let title: String
+    let metrics: [NativeEmbedMetric]
+
+    var body: some View {
+        if !metrics.isEmpty {
+            NativeEmbedDetailCard {
+                Text(title)
+                    .font(.omH3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: .spacing3)], spacing: .spacing3) {
+                    ForEach(metrics) { metric in
+                        NativeEmbedMetricTile(label: metric.label, value: metric.value)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct NativeEmbedDetailCard<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            content()
+        }
+        .padding(.spacing8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: .radius6))
+        .overlay(RoundedRectangle(cornerRadius: .radius6).stroke(Color.grey20, lineWidth: 1))
+        .shadow(color: .black.opacity(0.06), radius: .spacing8, x: 0, y: .spacing2)
+    }
+}
+
+private struct NativeEmbedMetricTile: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            Text(label.uppercased())
+                .font(.omMicro)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.grey60)
+            Text(value)
+                .font(.omXs)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(2)
+        }
+        .padding(.spacing4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+    }
+}
+
+private struct RepoAvatar: View {
+    let url: String?
+    let size: CGFloat
+
+    var body: some View {
+        if let url, let imageURL = URL(string: url) {
+            CachedRemoteImage(url: imageURL) { image in
+                image.resizable().aspectRatio(contentMode: .fill)
+            } placeholder: {
+                avatarPlaceholder
+            }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+        } else {
+            avatarPlaceholder
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+        }
+    }
+
+    private var avatarPlaceholder: some View {
+        LinearGradient.appCode
+            .overlay(Icon("github", size: size / 2).foregroundStyle(Color.grey0))
+    }
+}
+
+private struct NativeEmbedMetric: Identifiable {
+    let label: String
+    let value: String
+    var id: String { label }
+}
+
+private struct NativeEmbedLink: Identifiable {
+    let label: String
+    let value: String
+    var id: String { value }
+}
+
+private struct CodeRepoSummary {
+    struct Language {
+        let name: String
+        let percent: Double
+    }
+
+    struct Contributor {
+        let login: String
+        let contributions: Int
+        let avatarURL: String?
+    }
+
+    let url: String?
+    let name: String
+    let owner: String
+    let ownerAvatarURL: String?
+    let description: String?
+    let primaryLanguage: String?
+    let license: String?
+    let stars: Int
+    let forks: Int
+    let openIssues: Int
+    let watchers: Int
+    let updatedAt: String?
+    let projectDetails: [String]
+    let languages: [Language]
+    let contributors: [Contributor]
+
+    init(data: [String: AnyCodable]) {
+        url = EmbedFieldReader.string(data, keys: ["html_url", "url"])
+        let fullName = EmbedFieldReader.string(data, keys: ["full_name"]) ?? url ?? ""
+        name = EmbedFieldReader.string(data, keys: ["name"]) ?? fullName.split(separator: "/").last.map(String.init) ?? fullName
+        owner = EmbedFieldReader.string(data, keys: ["owner_login"]) ?? fullName.split(separator: "/").first.map(String.init) ?? ""
+        ownerAvatarURL = EmbedFieldReader.string(data, keys: ["owner_avatar_url"])
+        description = EmbedFieldReader.string(data, keys: ["description"])
+        primaryLanguage = EmbedFieldReader.string(data, keys: ["primary_language"])
+        let spdx = EmbedFieldReader.string(data, keys: ["license_spdx_id"])
+        let licenseValue = spdx == "NOASSERTION" ? EmbedFieldReader.string(data, keys: ["license_name"]) : spdx ?? EmbedFieldReader.string(data, keys: ["license_name"])
+        license = licenseValue
+        stars = CodeRendererValue.int(data, keys: ["stars"]) ?? 0
+        forks = CodeRendererValue.int(data, keys: ["forks"]) ?? 0
+        openIssues = CodeRendererValue.int(data, keys: ["open_issues"]) ?? 0
+        watchers = CodeRendererValue.int(data, keys: ["watchers"]) ?? 0
+        updatedAt = CodeRendererValue.date(EmbedFieldReader.string(data, keys: ["updated_at"]))
+        projectDetails = [
+            EmbedFieldReader.string(data, keys: ["default_branch"]),
+            licenseValue,
+            CodeRendererValue.date(EmbedFieldReader.string(data, keys: ["created_at"])),
+            CodeRendererValue.date(EmbedFieldReader.string(data, keys: ["pushed_at"])),
+            EmbedFieldReader.string(data, keys: ["latest_release_tag"]),
+            EmbedFieldReader.string(data, keys: ["latest_commit_message"])?.split(separator: "\n").first.map(String.init),
+        ].compactMap { $0 }
+        languages = EmbedFieldReader.dictionaryArray(data, key: "languages").compactMap { row in
+            guard let name = CodeRendererValue.string(row, key: "language") else { return nil }
+            return Language(name: name, percent: CodeRendererValue.double(row, key: "percent") ?? 0)
+        }
+        contributors = EmbedFieldReader.dictionaryArray(data, key: "contributors").compactMap { row in
+            guard let login = CodeRendererValue.string(row, key: "login") else { return nil }
+            return Contributor(
+                login: login,
+                contributions: CodeRendererValue.int(row, key: "contributions") ?? 0,
+                avatarURL: CodeRendererValue.string(row, key: "avatar_url")
+            )
+        }
+    }
+
+    var metadata: String { [primaryLanguage, license].compactMap { $0 }.joined(separator: " · ") }
+    var compactStars: String { CodeRendererValue.compactCount(stars) }
+    var compactForks: String { CodeRendererValue.compactCount(forks) }
+    var compactOpenIssues: String { CodeRendererValue.compactCount(openIssues) }
+}
+
+@MainActor private struct ElectronicsComponentSummary {
+    let title: String
+    let provider: String?
+    let topology: String?
+    let packageName: String?
+    let regulatorType: String?
+    let description: String?
+    let previewMetrics: [NativeEmbedMetric]
+    let performanceMetrics: [NativeEmbedMetric]
+    let electricalMetrics: [NativeEmbedMetric]
+    let links: [NativeEmbedLink]
+
+    init(data: [String: AnyCodable]) {
+        let titleValue = EmbedFieldReader.string(data, keys: ["part_number", "base_part_number", "title"])
+        let providerValue = EmbedFieldReader.string(data, keys: ["provider"])
+        let topologyValue = EmbedFieldReader.string(data, keys: ["topology"])
+        let packageValue = EmbedFieldReader.string(data, keys: ["package"])
+        let regulatorTypeValue = EmbedFieldReader.string(data, keys: ["regulator_type"])
+        provider = providerValue
+        title = titleValue ?? providerValue ?? ""
+        topology = topologyValue
+        packageName = packageValue
+        regulatorType = regulatorTypeValue
+        description = EmbedFieldReader.string(data, keys: ["description"])
+
+        let efficiency = CodeRendererValue.metric(data, key: "efficiency_percent", suffix: "%")
+        let bomCost = CodeRendererValue.metric(data, key: "bom_cost_usd", suffix: " USD")
+        let bomCount = CodeRendererValue.metric(data, key: "bom_count")
+        let footprint = CodeRendererValue.metric(data, key: "footprint_mm2", suffix: " mm²")
+        let frequency = CodeRendererValue.metric(data, key: "frequency_hz", suffix: " Hz")
+        let outputCurrent = CodeRendererValue.metric(data, key: "max_output_current_a", suffix: " A")
+        let outputRipple = CodeRendererValue.metric(data, key: "output_ripple_vpp", suffix: " Vpp")
+
+        previewMetrics = Self.metrics([
+            ("efficiency", efficiency), ("bom_cost", bomCost),
+            ("footprint", footprint), ("bom_count", bomCount),
+        ])
+        performanceMetrics = Self.metrics([
+            ("efficiency", efficiency), ("bom_cost", bomCost), ("bom_count", bomCount),
+            ("footprint", footprint), ("frequency", frequency),
+            ("output_current", outputCurrent), ("output_ripple", outputRipple),
+        ])
+
+        let inputVoltage = CodeRendererValue.range(data, minimum: "input_voltage_min_v", maximum: "input_voltage_max_v", suffix: " V")
+        let outputVoltage = CodeRendererValue.range(data, minimum: "output_voltage_min_v", maximum: "output_voltage_max_v", suffix: " V")
+        let isolated = CodeRendererValue.bool(data, key: "isolated").map {
+            AppStrings.localized($0 ? "embeds.electronics.yes" : "embeds.electronics.no")
+        }
+        electricalMetrics = Self.metrics([
+            ("input_voltage", inputVoltage), ("output_voltage", outputVoltage),
+            ("topology", topologyValue), ("regulator_type", regulatorTypeValue),
+            ("control_mode", EmbedFieldReader.string(data, keys: ["control_mode"])), ("isolated", isolated),
+        ])
+
+        let linkValues = [
+            (AppStrings.localized("embeds.electronics.product_page"), EmbedFieldReader.string(data, keys: ["product_url"])),
+            (AppStrings.localized("embeds.electronics.datasheet"), EmbedFieldReader.string(data, keys: ["datasheet_url"])),
+        ]
+        links = linkValues.compactMap { item in
+            item.1.map { NativeEmbedLink(label: item.0, value: $0) }
+        }
+    }
+
+    var subtitle: String { [topology, packageName].compactMap { $0 }.joined(separator: " / ") }
+
+    private static func metrics(_ values: [(String, String?)]) -> [NativeEmbedMetric] {
+        values.compactMap { key, value in
+            value.map { NativeEmbedMetric(label: AppStrings.localized("embeds.electronics.\(key)"), value: $0) }
+        }
+    }
+}
+
+private enum CodeRendererValue {
+    static func int(_ data: [String: AnyCodable], keys: [String]) -> Int? {
+        for key in keys {
+            if let value = data[key]?.value as? Int { return value }
+            if let value = data[key]?.value as? Double { return Int(value) }
+            if let value = data[key]?.value as? String, let parsed = Int(value) { return parsed }
+        }
+        return nil
+    }
+
+    static func int(_ data: [String: Any], key: String) -> Int? {
+        if let value = data[key] as? Int { return value }
+        if let value = data[key] as? Double { return Int(value) }
+        if let value = data[key] as? String { return Int(value) }
+        return nil
+    }
+
+    static func double(_ data: [String: Any], key: String) -> Double? {
+        if let value = data[key] as? Double { return value }
+        if let value = data[key] as? Int { return Double(value) }
+        if let value = data[key] as? String { return Double(value) }
+        return nil
+    }
+
+    static func string(_ data: [String: Any], key: String) -> String? {
+        guard let value = data[key] as? String, !value.isEmpty else { return nil }
+        return value
+    }
+
+    static func bool(_ data: [String: AnyCodable], key: String) -> Bool? {
+        if let value = data[key]?.value as? Bool { return value }
+        if let value = data[key]?.value as? Int { return value == 1 }
+        if let value = data[key]?.value as? String {
+            if value == "true" || value == "1" { return true }
+            if value == "false" || value == "0" { return false }
+        }
+        return nil
+    }
+
+    static func metric(_ data: [String: AnyCodable], key: String, suffix: String = "") -> String? {
+        guard let value = number(data, key: key) else { return nil }
+        return value.formatted(.number.precision(.fractionLength(0...2))) + suffix
+    }
+
+    static func range(_ data: [String: AnyCodable], minimum: String, maximum: String, suffix: String) -> String? {
+        let values = [number(data, key: minimum), number(data, key: maximum)]
+            .compactMap { $0?.formatted(.number.precision(.fractionLength(0...2))) }
+        guard !values.isEmpty else { return nil }
+        return values.joined(separator: " – ") + suffix
+    }
+
+    static func compactCount(_ value: Int) -> String {
+        guard value >= 1_000 else { return value.formatted() }
+        return (Double(value) / 1_000).formatted(.number.precision(.fractionLength(value >= 10_000 ? 0 : 1))) + "k"
+    }
+
+    static func date(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let parser = ISO8601DateFormatter()
+        guard let date = parser.date(from: value) else { return value }
+        return date.formatted(.dateTime.month(.abbreviated).day().year())
+    }
+
+    private static func number(_ data: [String: AnyCodable], key: String) -> Double? {
+        if let value = data[key]?.value as? Double { return value }
+        if let value = data[key]?.value as? Int { return Double(value) }
+        if let value = data[key]?.value as? String { return Double(value) }
         return nil
     }
 }
