@@ -10,6 +10,8 @@
 //          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/fitness/FitnessResultEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.svelte
 // CSS:     frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
@@ -1294,9 +1296,72 @@ private struct FitnessSearchFullscreen: View {
     }
 }
 
+struct FitnessResultEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var raw: [String: Any] {
+        (data ?? [:]).mapValues(\.value)
+    }
+
+    private var result: FitnessResultSummary {
+        FitnessResultSummary(index: 0, data: raw)
+    }
+
+    private var provider: String? {
+        raw.string("provider")
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            FitnessResultPreview(result: result)
+        case .fullscreen:
+            FitnessResultCard(result: result, provider: provider)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing8)
+                .frame(maxWidth: 1000, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .top)
+        }
+    }
+}
+
+private struct FitnessResultPreview: View {
+    let result: FitnessResultSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(result.name)
+                .font(.omSmall)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(1)
+
+            if let subtitle = result.previewSubtitle {
+                Text(subtitle)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+            }
+
+            ForEach(result.previewMeta, id: \.self) { item in
+                Text(item)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+            }
+
+            if !result.tags.isEmpty {
+                FitnessChipRow(chips: result.tags)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
 private struct FitnessResultCard: View {
     let result: FitnessResultSummary
-    let provider: String
+    let provider: String?
 
     @Environment(\.openURL) private var openURL
 
@@ -1326,11 +1391,11 @@ private struct FitnessResultCard: View {
                 }
             }
 
-            if let plans = result.plansRequired, !plans.isEmpty {
-                FitnessChipRow(chips: [plans.joined(separator: ", ")])
+            if !result.tags.isEmpty {
+                FitnessChipRow(chips: result.tags)
             }
 
-            if let url = result.url.flatMap(URL.init(string:)) {
+            if let provider, let url = result.url.flatMap(URL.init(string:)) {
                 Button {
                     openURL(url)
                 } label: {
@@ -1441,23 +1506,35 @@ private struct FitnessResultSummary: Identifiable {
     let distanceKm: String?
     let spotsDisplay: String?
     let plansRequired: [String]?
+    let disciplines: [String]?
     let url: String?
+    let skillId: String?
 
     init(index: Int, data: [String: Any]) {
         id = data.string("id") ?? "fitness-result-\(index)"
         name = data.string("name") ?? data.string("venue_name") ?? id
         venueName = data.string("venue_name")
-        address = data.string("address") ?? data.string("venue_address")
+        address = data.string("address")
+            ?? data.string("venue_address")
+            ?? [data.string("street"), data.string("postal_code"), data.string("city")]
+                .compactMap { $0 }
+                .joined(separator: ", ")
+                .nilIfEmpty
         date = data.string("date")
         timeRange = data.string("time_range")
         distanceKm = data.distance("distance_km")
         spotsDisplay = data.string("spots_display")
         plansRequired = data.stringArray("plans_required")
-        url = data.string("url") ?? data.string("detail_url")
+        disciplines = data.stringArray("disciplines")
+        url = data.string("detail_url") ?? data.string("url") ?? data.string("venue_url")
+        skillId = data.string("skill_id") ?? data.string("app_skill_id")
     }
 
     var previewSubtitle: String? {
-        venueName ?? dateTimeText ?? distanceKm.map { "\($0) km" }
+        if skillId == "search_classes" {
+            return [dateTimeText, venueName].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
+        }
+        return address ?? venueName
     }
 
     var fullSubtitle: String? {
@@ -1467,13 +1544,28 @@ private struct FitnessResultSummary: Identifiable {
     var meta: [String] {
         [
             dateTimeText,
-            distanceKm.map { "\($0) km" },
+            distanceText,
             spotsDisplay
         ].compactMap { $0 }
     }
 
+    var previewMeta: [String] {
+        [distanceText, spotsDisplay].compactMap { $0 }
+    }
+
+    var tags: [String] {
+        (disciplines ?? []) + (plansRequired ?? [])
+    }
+
     private var dateTimeText: String? {
         [date, timeRange].compactMap { $0 }.joined(separator: " ").nilIfEmpty
+    }
+
+    private var distanceText: String? {
+        guard let distanceKm, let value = Double(distanceKm) else { return distanceKm }
+        return Measurement(value: value, unit: UnitLength.kilometers).formatted(
+            .measurement(width: .abbreviated, usage: .road)
+        )
     }
 }
 
