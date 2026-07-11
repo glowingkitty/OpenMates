@@ -109,8 +109,10 @@ jobs:
           }
           trap cleanup_heartbeat EXIT
 
+          # The longest specs declare a 15-minute Playwright timeout. Keep the
+          # outer process guard slightly longer so Playwright can report cleanly.
           PLAYWRIGHT_JSON_OUTPUT_NAME=$GITHUB_WORKSPACE/test-results/playwright.json \
-          timeout --kill-after=30s 390s \
+          timeout --kill-after=30s 930s \
             npx playwright test "tests/${{ github.event.inputs.spec }}" \
             --reporter=line,json
           pw_status=$?
