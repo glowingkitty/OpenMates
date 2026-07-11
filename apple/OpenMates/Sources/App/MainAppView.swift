@@ -5947,7 +5947,8 @@ private struct WelcomeResumeCompactCard: View {
     @State private var suppressNextTap = false
 
     var body: some View {
-        HStack(spacing: .spacing6) {
+        Button(action: handleTap) {
+            HStack(spacing: .spacing6) {
                 WelcomeCardIcon(name: card.iconName, size: 18)
                     .frame(width: 18, height: 18)
 
@@ -5967,7 +5968,9 @@ private struct WelcomeResumeCompactCard: View {
                 LucideNativeIcon("chevron-right", size: 16)
                     .foregroundStyle(.white.opacity(0.88))
                     .frame(width: 16, height: 16)
+            }
         }
+        .buttonStyle(.plain)
         .padding(.horizontal, .spacing8)
         .padding(.vertical, .spacing5)
         .frame(width: width)
@@ -5984,10 +5987,8 @@ private struct WelcomeResumeCompactCard: View {
             LongPressGesture(minimumDuration: 0.6)
                 .onEnded { _ in handleLongPress() }
         )
-        .onTapGesture(perform: handleTap)
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
-        .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: Text(AppStrings.openChat), onTap)
         .help(Text(card.title))
         .accessibilityLabel(card.title)
