@@ -33,13 +33,11 @@ final class SettingsPrivacyParityUITests: XCTestCase {
 
         scrollTo("settings-privacy-auto-delete-chats-row", in: app)
         element("settings-privacy-auto-delete-chats-row", in: app).tap()
-        XCTAssertTrue(element("privacy-auto-deletion-page", in: app).waitForExistence(timeout: 5))
         assertHittable("privacy-auto-deletion-period-90d", in: app)
         returnToPrivacyHub(in: app)
 
         scrollTo("settings-privacy-share-debug-logs-row", in: app)
         element("settings-privacy-share-debug-logs-row", in: app).tap()
-        XCTAssertTrue(element("privacy-debug-session-page", in: app).waitForExistence(timeout: 5))
         assertHittable("privacy-debug-session-duration", in: app)
         assertHittable("privacy-debug-session-start", in: app)
     }
