@@ -40,6 +40,7 @@ struct AppleComposerEmbedPreview: View {
     let lifecycle: AppleComposerEmbedLifecycleState
     let embedRecord: EmbedRecord?
     let allEmbedRecords: [String: EmbedRecord]
+    private let localPreviewData: Data?
     private let localPreviewImage: Image?
     let actions: AppleComposerEmbedActions
     let showsActions: Bool
@@ -59,6 +60,7 @@ struct AppleComposerEmbedPreview: View {
         self.lifecycle = lifecycle
         self.embedRecord = embedRecord
         self.allEmbedRecords = allEmbedRecords
+        self.localPreviewData = localPreviewData
         self.localPreviewImage = Self.makeLocalPreviewImage(data: localPreviewData)
         self.actions = actions
         self.showsActions = showsActions
