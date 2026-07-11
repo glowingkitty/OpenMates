@@ -43,6 +43,9 @@ enum AppStrings {
     static var copied: String { L("common.copied") }
     static var version: String { L("settings.current_version") }
     static var openMatesName: String { L("apps.openmates") }
+    static var socialMedia: String { L("apps.social_media") }
+    static var weatherDay: String { L("apps.weather.day") }
+    static var weatherForecast: String { L("apps.weather.forecast") }
     static var guest: String { L("settings.guest") }
     static var newWindow: String { L("common.new_window") }
     static var chat: String { L("common.chat") }

@@ -133,6 +133,8 @@ def audit_swift_source(source: str, *, path: str) -> list[str]:
             errors.append(f"{path}: stale or nonexistent endpoint: {endpoint}")
     if re.search(r"\bprint\s*\(", source):
         errors.append(f"{path}: use NativeDiagnostics instead of print(")
+    if "UIApplication.shared.open" in source or "NSWorkspace.shared.open" in source:
+        errors.append(f"{path}: browser fallback is forbidden")
     return errors
 
 

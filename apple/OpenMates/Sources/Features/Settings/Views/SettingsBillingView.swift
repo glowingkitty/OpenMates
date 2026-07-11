@@ -214,10 +214,16 @@ struct AutoTopUpView: View {
                 OMSettingsToggleRow(
                     title: AppStrings.enabled,
                     subtitle: AppStrings.billingLowBalanceDescription,
-                    isOn: Binding(get: { overview.autoTopupEnabled }, set: updateEnabled)
+                    isOn: $overview.autoTopupEnabled
                 )
                 .disabled(isSaving)
                 .accessibilityIdentifier("settings-billing-low-balance-toggle")
+                .onChange(of: overview.autoTopupEnabled) { previousValue, enabled in
+                    guard previousValue != enabled, !isLoading else { return }
+                    var previous = overview
+                    previous.autoTopupEnabled = previousValue
+                    save(previous: previous)
+                }
 
                 if overview.autoTopupEnabled {
                     OMSettingsStaticRow(title: AppStrings.billingWhenBelow, value: AppStrings.billingCreditsAdded(overview.autoTopupThreshold))
@@ -250,12 +256,6 @@ struct AutoTopUpView: View {
             NativeDiagnostics.warning("Billing overview load failed: \(type(of: error))", category: "billing")
         }
         isLoading = false
-    }
-
-    private func updateEnabled(_ enabled: Bool) {
-        let previous = overview
-        overview.autoTopupEnabled = enabled
-        save(previous: previous)
     }
 
     private func updateAmount(_ amount: Int) {

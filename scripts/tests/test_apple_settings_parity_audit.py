@@ -21,6 +21,8 @@ DEVELOPER_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/Se
 DEVICES_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift"
 NEWSLETTER_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/NewsletterSettingsView.swift"
 PROJECTS_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift"
+SHARED_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift"
+SUPPORT_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift"
 LOGS_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsLogsView.swift"
 SERVER_VIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsServerView.swift"
 
@@ -80,6 +82,7 @@ def test_forbidden_settings_controls_and_stale_endpoints_are_rejected() -> None:
         List { Text("Memories") }
         let endpoint = "/v1/settings/memories"
         print("settings request failed")
+        UIApplication.shared.open(url)
         """,
         path="SettingsMemoriesFull.swift",
     )
@@ -87,6 +90,7 @@ def test_forbidden_settings_controls_and_stale_endpoints_are_rejected() -> None:
     assert "SettingsMemoriesFull.swift: forbidden native product control: List {" in errors
     assert "SettingsMemoriesFull.swift: stale or nonexistent endpoint: /v1/settings/memories" in errors
     assert "SettingsMemoriesFull.swift: use NativeDiagnostics instead of print(" in errors
+    assert "SettingsMemoriesFull.swift: browser fallback is forbidden" in errors
 
 
 def test_openmates_primitives_and_current_endpoints_pass_source_audit() -> None:
@@ -256,6 +260,8 @@ def test_other_settings_use_current_native_contracts() -> None:
     devices_source = DEVICES_VIEW.read_text(encoding="utf-8")
     newsletter_source = NEWSLETTER_VIEW.read_text(encoding="utf-8")
     projects_source = PROJECTS_VIEW.read_text(encoding="utf-8")
+    shared_source = SHARED_VIEW.read_text(encoding="utf-8")
+    support_source = SUPPORT_VIEW.read_text(encoding="utf-8")
 
     assert "projects, mates" in settings_source
     assert "SettingsProjectsView()" in settings_source
@@ -288,6 +294,14 @@ def test_other_settings_use_current_native_contracts() -> None:
         "/settings",
     ):
         assert endpoint in projects_source
+
+    assert 'path: "/v1/share/chat/unshare"' in shared_source
+    assert 'path: "/v1/creators/tip"' in shared_source
+    assert "/v1/settings/shared" not in shared_source
+    assert 'path: "/v1/payments/create-support-bank-transfer-order"' in support_source
+    assert "/v1/settings/support/monthly/status" not in support_source
+    assert "UIApplication.shared.open" not in support_source
+    assert "NSWorkspace.shared.open" not in support_source
 
 
 def test_admin_settings_use_current_routes_and_custom_product_ui() -> None:
