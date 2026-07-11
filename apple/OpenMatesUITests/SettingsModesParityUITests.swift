@@ -82,8 +82,13 @@ final class SettingsModesParityUITests: XCTestCase {
     }
 
     private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication) {
+        let identifiedScrollView = app.scrollViews["incognito-info-page"].firstMatch
         for _ in 0..<6 where !element.isHittable {
-            app.swipeUp()
+            if identifiedScrollView.exists {
+                identifiedScrollView.swipeUp()
+            } else if app.scrollViews.count > 0 {
+                app.scrollViews.element(boundBy: app.scrollViews.count - 1).swipeUp()
+            }
         }
         XCTAssertTrue(element.exists)
         XCTAssertTrue(element.isHittable)
