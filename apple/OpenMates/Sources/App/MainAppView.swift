@@ -6052,7 +6052,7 @@ private struct WelcomeResumeCompactCard: View {
         )
         .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
         .contentShape(RoundedRectangle(cornerRadius: .radius8))
-        .simultaneousGesture(
+        .highPriorityGesture(
             LongPressGesture(minimumDuration: 0.6)
                 .onEnded { _ in handleLongPress() }
         )

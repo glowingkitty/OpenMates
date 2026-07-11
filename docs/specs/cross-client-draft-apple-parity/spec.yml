@@ -232,14 +232,20 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-11T22:55:00Z"
     reason: The synced build caught a scope error because the launch flag belongs to MainAppView. The parent already passes authenticated fixture state to NewChatWelcomeView, so the selection override was unnecessary; the compact accessibility element instead lacked the button trait required by the interaction contract.
+  - id: ATTEMPT-16
+    task_id: TASK-6
+    approach: Restore compact-card button semantics and rerun the focused iPhone interaction on synced commit 99183d3.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-11T22:57:42Z"
+    reason: The card became discoverable and title-only rendering passed, but simultaneous long press allowed the tap action to win on release. The assertion also expected Pin even though the deterministic first fixture card is pinned and correctly exposes Unpin.
 
 handoff:
   current_task_id: TASK-6
-  next_action: Preserve the compact card as a button in the accessibility hierarchy, deploy, sync the remote checkout, and rerun the focused phone UI tests.
+  next_action: Give compact-card long press priority over tap, assert the pinned fixture's Unpin action, deploy, sync, and rerun the focused phone UI test.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests/testWelcomeCompactRecentCardMatchesWebAndOpensActionsOnLongPress"
   expected_outcome: The compact recent card renders title-only and opens the custom actions menu on long press.
   blocker:
-    reason: The compact card is visually a Button but its outer accessibility element is missing the button trait, so XCTest cannot find it through app.buttons.
+    reason: The compact card is now discoverable as a button, but simultaneous tap and long-press handling opens the chat instead of preserving the actions overlay.
     next_action: Verify both compact card and overflow on iPhone, then run the remaining device-appropriate Apple checks.
   last_verified_commit: 854dd73
 

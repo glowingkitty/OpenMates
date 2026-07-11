@@ -328,7 +328,7 @@ final class ChatFlowParityUITests: XCTestCase {
         compactCard.press(forDuration: 0.8)
 
         XCTAssertTrue(
-            app.buttons["Pin"].waitForExistence(timeout: 5),
+            app.buttons["Unpin"].waitForExistence(timeout: 5),
             "Long-pressing a recent-chat preview must open the custom chat actions"
         )
     }
