@@ -31,8 +31,8 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         let processing = app.descendants(matching: .any)["recording-processing-state"]
         let error = app.descendants(matching: .any)["recording-error-state"]
 
-        XCTAssertTrue(processing.waitForExistence(timeout: 10))
-        XCTAssertTrue(error.waitForExistence(timeout: 10))
+        XCTAssertTrue(scrollToElement(processing, in: app))
+        XCTAssertTrue(scrollToElement(error, in: app))
         XCTAssertTrue(processing.label.contains("Synthetic Voxtral"))
         XCTAssertTrue(error.label.contains("Audio unavailable"))
         XCTAssertFalse(app.tables.firstMatch.exists, "Chat product UI must not use default List/table chrome")
@@ -58,7 +58,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         let paragraph = application.staticTexts["Synthetic ordered introduction"]
         let sourceQuote = application.descendants(matching: .any)["source-quote-block"]
         let systemMessage = application.descendants(matching: .any)["chat-history-system-message"]
-        let audio = application.descendants(matching: .any)["recording-preview"]
+        let audio = application.buttons["embed-preview"]
 
         XCTAssertTrue(paragraph.waitForExistence(timeout: 10))
         XCTAssertTrue(sourceQuote.waitForExistence(timeout: 10))
@@ -90,6 +90,15 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         XCTAssertTrue(application.descendants(matching: .any)["recording-time"].exists)
         XCTAssertTrue(application.descendants(matching: .any)["recording-fullscreen-transcript"].exists)
         seek.tap()
+    }
+
+    private func scrollToElement(_ element: XCUIElement, in application: XCUIApplication) -> Bool {
+        let scrollView = application.scrollViews.firstMatch
+        for _ in 0..<6 {
+            if element.exists { return true }
+            scrollView.swipeUp()
+        }
+        return element.exists
     }
 
     private func attachScreenshot(name: String) {
