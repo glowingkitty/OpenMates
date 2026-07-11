@@ -1463,19 +1463,19 @@ verifications:
     status: pending
     evidence:
       status: ""
-      summary: Candidate 79e5f6c/build 47 remains rejected. The corrected e8391d76a revision has green focused UI and platform-build evidence but is not candidate-ready until rendered-web artifact review and a new synchronized TestFlight upload are complete.
-      timestamp: "2026-07-11T10:30:13Z"
+      summary: Candidate 79e5f6c/build 47 remains rejected. Replacement build 48 from a8f19a938 is VALID in App Store Connect for iOS and macOS, but candidate readiness remains blocked on rendered-web artifact review and final user validation.
+      timestamp: "2026-07-11T11:09:48Z"
   - id: V-TESTFLIGHT
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-12]
-    status: failed
+    status: passed
     evidence:
-      status: failed
+      status: passed
       summary: >-
-        Build 47 processed successfully but failed user validation: audio/image/location previews lacked web parity, rotation broke inline attachments, embeds were not left-aligned, fullscreen toggle geometry was ineffective, and drawing/map tools did not match web behavior.
-      timestamp: "2026-07-11T01:58:00Z"
+        Replacement build 48 from a8f19a938 uploaded successfully after iOS, watchOS, and macOS archive preflights passed. App Store Connect reports iOS and macOS build 48 as VALID with five TestFlight What to Test lines; the iOS archive includes the watch companion. User validation remains tracked separately by V-CANDIDATE-READY and V-PRODUCTION-CUTOVER-READY.
+      timestamp: "2026-07-11T11:09:48Z"
   - id: V-PRODUCTION-CUTOVER-READY
     kind: user_confirmation
     phase: final
