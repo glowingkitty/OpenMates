@@ -245,6 +245,22 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertNil(message["master_key"])
     }
 
+    func testWatchSendLoginRequestDoesNotInstallOffActorReplyHandler() throws {
+        let appleRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let runtimeURL = appleRoot.appendingPathComponent(
+            "OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift"
+        )
+        let source = try String(contentsOf: runtimeURL, encoding: .utf8)
+        let methodStart = try XCTUnwrap(source.range(of: "func sendLoginRequest(_ request: WatchPairLoginRequest) -> Bool"))
+        let methodEnd = try XCTUnwrap(
+            source.range(of: "private nonisolated func dispatchToMain", range: methodStart.upperBound..<source.endIndex)
+        )
+        let methodSource = source[methodStart.lowerBound..<methodEnd.lowerBound]
+
+        XCTAssertTrue(methodSource.contains("replyHandler: nil"))
+        XCTAssertFalse(methodSource.contains("replyHandler: {"))
+    }
+
     func testDecryptLoginBundleReturnsBundleAndMasterKey() async throws {
         let token = "ABC123"
         let pin = "9Z8Y7X"
