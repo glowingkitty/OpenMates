@@ -60,6 +60,25 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         XCTAssertTrue(sendButton(in: app).isEnabled)
     }
 
+    func testClosingMainWindowKeepsQuickAccessRunningAndReactivationRestoresWindow() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache"]
+        app.launch()
+
+        let mainWindow = app.windows.firstMatch
+        XCTAssertTrue(mainWindow.waitForExistence(timeout: 15), "Expected the regular OpenMates window on launch")
+
+        mainWindow.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(waitForWindowCount(0, in: app), "Expected Command-W to close the regular window")
+        XCTAssertNotEqual(app.state, .notRunning, "Closing the regular window must keep Quick Access running")
+
+        app.activate()
+        XCTAssertTrue(
+            app.windows.firstMatch.waitForExistence(timeout: 10),
+            "Expected Dock activation to restore the regular OpenMates window"
+        )
+    }
+
     private func launchQuickCapturePreview(seedAttachment: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         var arguments = [
@@ -85,5 +104,11 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
     private func sendButton(in app: XCUIApplication) -> XCUIElement {
         let identified = element(in: app, identifier: "quick-capture-send-button")
         return identified.exists ? identified : app.buttons["Send"].firstMatch
+    }
+
+    private func waitForWindowCount(_ count: Int, in app: XCUIApplication) -> Bool {
+        let predicate = NSPredicate { _, _ in app.windows.count == count }
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: nil)
+        return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
     }
 }
