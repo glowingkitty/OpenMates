@@ -1,5 +1,14 @@
 // Media embed renderers — video, image, audio, PDF.
 // Downloads and decrypts S3-stored media via S3MediaClient.
+//
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/music/MusicGenerateEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
+// Tokens:  ColorTokens.generated.swift, GradientTokens.generated.swift,
+//          SpacingTokens.generated.swift, TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 #if os(iOS)
@@ -377,6 +386,359 @@ struct VideoRenderer: View {
             }
         }
     }
+}
+
+// MARK: - Generated music
+
+struct MusicGenerateEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var payload: GeneratedMediaPayload { GeneratedMediaPayload(data) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            HStack(spacing: .spacing6) {
+                musicCover(size: 70)
+                VStack(alignment: .leading, spacing: .spacing3) {
+                    Text(payload.modeLabel ?? GeneratedMediaText.generatedMusic)
+                        .font(.omP).fontWeight(.semibold).foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
+                    Text(payload.prompt ?? GeneratedMediaText.generatingMusic)
+                        .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(2)
+                    mediaState
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.spacing6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .accessibilityIdentifier("music-generate-preview")
+
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: .spacing8) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: .spacing10) { musicCover(size: 180); musicPlayer }
+                    VStack(spacing: .spacing8) { musicCover(size: 180); musicPlayer }
+                }
+                .padding(.spacing10)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                .shadow(color: .black.opacity(0.12), radius: 15, x: 0, y: 8)
+
+                VStack(alignment: .leading, spacing: .spacing7) {
+                    if let prompt = payload.prompt { detail(GeneratedMediaText.prompt, prompt) }
+                    detail(GeneratedMediaText.model, payload.model ?? "Lyria")
+                    if let duration = payload.duration { detail(GeneratedMediaText.duration, Self.duration(duration)) }
+                    if let generatedAt = payload.generatedAt { detail(GeneratedMediaText.generated, generatedAt) }
+                    if let watermarking = payload.watermarking { detail(GeneratedMediaText.watermarking, watermarking) }
+                }
+                .padding(.spacing10)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                .shadow(color: .black.opacity(0.12), radius: 15, x: 0, y: 8)
+            }
+            .padding(.spacing10)
+            .frame(maxWidth: 980, alignment: .leading)
+            .accessibilityIdentifier("music-generate-fullscreen")
+        }
+    }
+
+    @ViewBuilder private var mediaState: some View {
+        if payload.status == "error" {
+            Text(payload.error ?? GeneratedMediaText.musicError).font(.omXs).foregroundStyle(Color.error)
+        } else if payload.status == "finished" {
+            GeneratedAudioControl(payload: payload, compact: true)
+        } else {
+            Capsule().fill(Color.grey20).frame(maxWidth: .infinity).frame(height: 8)
+        }
+    }
+
+    private var musicPlayer: some View {
+        VStack(alignment: .leading, spacing: .spacing7) {
+            Text(payload.modeLabel ?? GeneratedMediaText.generatedMusic)
+                .font(.omH3).fontWeight(.bold).foregroundStyle(Color.fontPrimary)
+            if payload.status == "error" {
+                Text(payload.error ?? GeneratedMediaText.musicError).font(.omSmall).foregroundStyle(Color.error)
+            } else if payload.status == "finished" {
+                GeneratedAudioControl(payload: payload, compact: false)
+            } else {
+                HStack(spacing: .spacing3) {
+                    ProgressView().tint(Color.buttonPrimary)
+                    Text(GeneratedMediaText.loadingAudio).font(.omSmall).foregroundStyle(Color.fontSecondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func musicCover(size: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: .radius6)
+            .fill(LinearGradient.appMusic)
+            .frame(width: size, height: size)
+            .overlay(Icon("music", size: size > 100 ? 72 : 34).foregroundStyle(Color.grey0))
+            .shadow(color: .black.opacity(0.18), radius: 11, x: 0, y: 8)
+    }
+
+    private func detail(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(label).font(.omXs).fontWeight(.semibold).foregroundStyle(Color.fontSecondary)
+            Text(value).font(.omP).foregroundStyle(Color.fontPrimary).textSelection(.enabled)
+        }
+    }
+
+    fileprivate static func duration(_ seconds: Double) -> String {
+        "\(Int(seconds) / 60):\(String(format: "%02d", Int(seconds) % 60))"
+    }
+}
+
+// MARK: - Generated video
+
+struct VideoGenerateEmbedRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var payload: GeneratedMediaPayload { GeneratedMediaPayload(data) }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            Group {
+                if payload.status == "finished" {
+                    GeneratedVideoPlayer(payload: payload)
+                } else {
+                    statusPlaceholder
+                }
+            }
+            .padding(.spacing6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier("video-generate-preview")
+
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: .spacing8) {
+                Group {
+                    if payload.status == "finished" {
+                        GeneratedVideoPlayer(payload: payload)
+                    } else {
+                        statusPlaceholder
+                    }
+                }
+                .frame(minHeight: 240)
+                .background(Color.grey100)
+                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+
+                VStack(alignment: .leading, spacing: .spacing6) {
+                    if let prompt = payload.prompt { detail(GeneratedMediaText.prompt, prompt) }
+                    HStack(alignment: .top, spacing: .spacing10) {
+                        if let model = payload.model { detail(GeneratedMediaText.model, model) }
+                        if let resolution = payload.resolution { detail(GeneratedMediaText.resolution, resolution) }
+                        if let duration = payload.duration { detail(GeneratedMediaText.duration, MusicGenerateEmbedRenderer.duration(duration)) }
+                    }
+                }
+                .padding(.spacing8)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+            }
+            .padding(.spacing12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("video-generate-fullscreen")
+        }
+    }
+
+    private var statusPlaceholder: some View {
+        VStack(spacing: .spacing4) {
+            Icon("videos", size: 34)
+                .foregroundStyle(payload.status == "error" ? Color.error : Color.fontTertiary)
+            Text(payload.status == "error" ? payload.error ?? GeneratedMediaText.videoError : payload.prompt ?? GeneratedMediaText.generatingVideo)
+                .font(.omSmall).fontWeight(.medium)
+                .foregroundStyle(payload.status == "error" ? Color.error : Color.fontPrimary)
+                .multilineTextAlignment(.center).lineLimit(3)
+            if payload.status != "error" { ProgressView().tint(Color.buttonPrimary) }
+        }
+        .padding(.spacing8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func detail(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(label).font(.omXs).fontWeight(.bold).foregroundStyle(Color.fontSecondary)
+            Text(value).font(.omP).foregroundStyle(Color.fontPrimary).textSelection(.enabled)
+        }
+    }
+}
+
+private struct GeneratedAudioControl: View {
+    let payload: GeneratedMediaPayload
+    let compact: Bool
+
+    @State private var player: AVAudioPlayer?
+    @State private var isPlaying = false
+    @State private var isLoading = false
+    @State private var loadError: String?
+
+    var body: some View {
+        HStack(spacing: .spacing4) {
+            Button {
+                togglePlayback()
+            } label: {
+                HStack(spacing: .spacing3) {
+                    if isLoading { ProgressView().tint(Color.fontPrimary) }
+                    else { Icon(isPlaying ? "pause" : "play", size: compact ? 16 : 20) }
+                    if let duration = payload.duration { Text(MusicGenerateEmbedRenderer.duration(duration)) }
+                }
+            }
+            .buttonStyle(OMSecondaryButtonStyle())
+            .disabled(isLoading || payload.mediaURL == nil)
+            .accessibilityIdentifier(compact ? "music-generate-audio" : "music-generate-fullscreen-audio")
+
+            if let loadError {
+                Text(loadError).font(.omTiny).foregroundStyle(Color.error).lineLimit(2)
+            }
+        }
+    }
+
+    private func togglePlayback() {
+        if let player {
+            player.isPlaying ? player.pause() : player.play()
+            isPlaying = player.isPlaying
+            return
+        }
+        guard let mediaURL = payload.mediaURL else { return }
+        isLoading = true
+        Task {
+            do {
+                let data: Data
+                if payload.directURL != nil {
+                    guard let url = URL(string: mediaURL) else { throw URLError(.badURL) }
+                    data = try await URLSession.shared.data(from: url).0
+                } else {
+                    data = try await S3MediaClient.shared.fetchAndDecrypt(
+                        s3Url: mediaURL, aesKeyHex: payload.aesKey ?? "", aesNonceHex: payload.aesNonce ?? "", s3Key: payload.s3Key
+                    )
+                }
+                #if os(iOS)
+                try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+                try AVAudioSession.sharedInstance().setActive(true)
+                #endif
+                let loadedPlayer = try AVAudioPlayer(data: data)
+                loadedPlayer.prepareToPlay()
+                loadedPlayer.play()
+                player = loadedPlayer
+                isPlaying = true
+            } catch {
+                loadError = error.localizedDescription
+            }
+            isLoading = false
+        }
+    }
+}
+
+private struct GeneratedVideoPlayer: View {
+    let payload: GeneratedMediaPayload
+
+    @State private var localURL: URL?
+    @State private var loadError: String?
+
+    var body: some View {
+        Group {
+            if let directURL = payload.directURL.flatMap(URL.init(string:)) {
+                VideoPlayerView(url: directURL)
+            } else if let localURL {
+                VideoPlayerView(url: localURL)
+            } else if let loadError {
+                Text(loadError).font(.omSmall).foregroundStyle(Color.error).padding(.spacing8)
+            } else {
+                ProgressView().tint(Color.grey0)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task(id: payload.mediaURL) { await loadEncryptedVideo() }
+        .onDisappear { if let localURL { try? FileManager.default.removeItem(at: localURL) } }
+    }
+
+    private func loadEncryptedVideo() async {
+        guard payload.directURL == nil, let mediaURL = payload.mediaURL,
+              let aesKey = payload.aesKey, let aesNonce = payload.aesNonce else { return }
+        do {
+            let data = try await S3MediaClient.shared.fetchAndDecrypt(
+                s3Url: mediaURL, aesKeyHex: aesKey, aesNonceHex: aesNonce, s3Key: payload.s3Key
+            )
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("openmates-generated-video", isDirectory: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let url = directory.appendingPathComponent("\(UUID().uuidString).mp4")
+            try data.write(to: url, options: .atomic)
+            localURL = url
+        } catch {
+            loadError = error.localizedDescription
+        }
+    }
+}
+
+private struct GeneratedMediaPayload {
+    let prompt: String?
+    let model: String?
+    let status: String
+    let error: String?
+    let mode: String?
+    let duration: Double?
+    let resolution: String?
+    let generatedAt: String?
+    let watermarking: String?
+    let directURL: String?
+    let mediaURL: String?
+    let s3Key: String?
+    let aesKey: String?
+    let aesNonce: String?
+
+    init(_ data: [String: AnyCodable]?) {
+        prompt = EmbedMediaPayload.string(data, keys: ["prompt"])
+        model = EmbedMediaPayload.string(data, keys: ["model"])
+        status = EmbedMediaPayload.string(data, keys: ["status"]) ?? "processing"
+        error = EmbedMediaPayload.string(data, keys: ["error", "error_message"])
+        mode = EmbedMediaPayload.string(data, keys: ["mode"])
+        duration = Self.number(data?["duration_seconds"]?.value) ?? Self.originalNumber(data, key: "duration_seconds")
+        resolution = EmbedMediaPayload.string(data, keys: ["resolution"])
+        generatedAt = EmbedMediaPayload.string(data, keys: ["generated_at"])
+        watermarking = EmbedMediaPayload.string(data, keys: ["watermarking"])
+        directURL = EmbedMediaPayload.string(data, keys: ["previewAudioUrl", "preview_audio_url", "previewVideoUrl", "preview_video_url"])
+        s3Key = EmbedMediaPayload.s3Key(from: data)
+        mediaURL = directURL ?? EmbedMediaPayload.s3URL(from: data)
+        aesKey = EmbedMediaPayload.string(data, keys: ["aes_key"])
+        aesNonce = EmbedMediaPayload.string(data, keys: ["aes_nonce"])
+    }
+
+    var modeLabel: String? {
+        guard let mode, !mode.isEmpty else { return nil }
+        return mode.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+
+    private static func number(_ value: Any?) -> Double? {
+        if let value = value as? Double { return value }
+        if let value = value as? Int { return Double(value) }
+        return nil
+    }
+
+    private static func originalNumber(_ data: [String: AnyCodable]?, key: String) -> Double? {
+        guard let files = data?["files"]?.value as? [String: Any],
+              let original = files["original"] as? [String: Any] else { return nil }
+        return number(original[key])
+    }
+}
+
+@MainActor
+private enum GeneratedMediaText {
+    static var generatingMusic: String { LocalizationManager.shared.text("embeds.music_generate.generating") }
+    static var loadingAudio: String { LocalizationManager.shared.text("embeds.music_generate.loading") }
+    static var musicError: String { LocalizationManager.shared.text("embeds.music_generate.error") }
+    static var prompt: String { LocalizationManager.shared.text("embeds.music_generate.prompt_label") }
+    static var model: String { LocalizationManager.shared.text("embeds.music_generate.model_label") }
+    static var duration: String { LocalizationManager.shared.text("embeds.music_generate.duration") }
+    static var generated: String { LocalizationManager.shared.text("embeds.music_generate.generated_at") }
+    static var watermarking: String { LocalizationManager.shared.text("embeds.music_generate.watermarking") }
+    static var resolution: String { LocalizationManager.shared.text("embeds.image_generate.resolution") }
+    static var generatingVideo: String { LocalizationManager.shared.text("app_skills.videos.generate") }
+    static var videoError: String { AppStrings.error }
+    static var generatedMusic: String { LocalizationManager.shared.text("app_skills.music.generate") }
 }
 
 // MARK: - Recording (encrypted audio on S3)
