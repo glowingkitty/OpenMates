@@ -1060,7 +1060,7 @@ struct MainAppView: View {
 
     private func activeAppChrome(viewportWidth: CGFloat) -> some View {
         let sideBySideSettingsWidth = resolvedSideBySideSettingsWidth(viewportWidth: viewportWidth)
-        VStack(spacing: 0) {
+        return VStack(spacing: 0) {
             OpenMatesWebHeader(
                 viewportWidth: viewportWidth,
                 isAuthenticated: shouldShowAuthenticatedHeaderAffordances || showAuthSheet,
