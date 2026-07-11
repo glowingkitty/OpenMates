@@ -22,7 +22,7 @@ struct ChatImportView: View {
     @State private var errorMessage: String?
 
     private var importTypes: [UTType] {
-        [.zip] + ["yaml", "yml"].compactMap(UTType.init(filenameExtension:))
+        [.zip] + ["yaml", "yml"].compactMap { UTType(filenameExtension: $0) }
     }
 
     var body: some View {
@@ -83,7 +83,13 @@ struct ChatImportView: View {
             chats = try parse(url: url)
             guard !chats.isEmpty else { throw ImportError.noChats }
         } catch {
-            errorMessage = error.localizedDescription
+            if let importError = error as? ImportError {
+                errorMessage = importError == .invalidFormat
+                    ? AppStrings.importInvalidFormat
+                    : AppStrings.importNoChats
+            } else {
+                errorMessage = error.localizedDescription
+            }
             NativeDiagnostics.error("Chat import parse failed", category: "settings.account")
         }
     }
@@ -181,14 +187,7 @@ private struct ImportedChat: Decodable {
     let creditsCharged: Int
 }
 
-private enum ImportError: LocalizedError {
+private enum ImportError: Error, Equatable {
     case invalidFormat
     case noChats
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidFormat: return AppStrings.importInvalidFormat
-        case .noChats: return AppStrings.importNoChats
-        }
-    }
 }
