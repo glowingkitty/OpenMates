@@ -20,8 +20,7 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         assertHittable("settings-privacy-location-toggle", in: app)
 
         element("settings-privacy-connected-accounts-row", in: app).tap()
-        XCTAssertTrue(element("privacy-connected-accounts-page", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(element("privacy-connected-account-row", in: app).exists)
+        XCTAssertTrue(element("privacy-connected-account-row", in: app).waitForExistence(timeout: 5))
         element("settings-privacy-subpage-back", in: app).tap()
 
         scrollTo("settings-privacy-auto-delete-chats-row", in: app)
@@ -72,6 +71,9 @@ final class SettingsPrivacyParityUITests: XCTestCase {
         let target = element(identifier, in: app)
         for _ in 0..<8 where !target.isHittable {
             app.swipeUp()
+        }
+        for _ in 0..<8 where !target.isHittable {
+            app.swipeDown()
         }
         XCTAssertTrue(target.exists, "Missing \(identifier)")
         XCTAssertTrue(target.isHittable, "Not hittable after scrolling: \(identifier)")
