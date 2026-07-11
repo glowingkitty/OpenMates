@@ -459,7 +459,12 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_unified_detail_metadata.py
+        run_id: local-pytest-unified-detail-metadata-4-failed-20260711T155212Z
+        subject_commit: c90d365d7
+        timestamp: "2026-07-11T15:52:12Z"
+        summary: Task and Plan rejected the later explicit save as a version conflict, Project retained the client version, and Workflow exposed no metadata version.
     green_phase:
       required: true
       expected: pass
@@ -696,7 +701,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add red shared-header and detail-route contracts
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-6, S-8]
