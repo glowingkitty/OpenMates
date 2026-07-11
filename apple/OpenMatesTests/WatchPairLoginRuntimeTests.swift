@@ -261,6 +261,14 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertTrue(methodSource.contains("errorHandler: nil"))
         XCTAssertFalse(methodSource.contains("replyHandler: {"))
         XCTAssertFalse(methodSource.contains("errorHandler: {"))
+
+        let delegateStart = try XCTUnwrap(
+            source.range(of: "nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any])", range: methodEnd.upperBound..<source.endIndex)
+        )
+        let watchSectionEnd = try XCTUnwrap(source.range(of: "#endif", range: delegateStart.upperBound..<source.endIndex))
+        let delegateSource = source[delegateStart.lowerBound..<watchSectionEnd.lowerBound]
+        XCTAssertTrue(delegateSource.contains("WatchPairLoginConnectivityPayload.parseApproval(message)"))
+        XCTAssertTrue(delegateSource.contains("bridge.approvalHandler?(approval)"))
     }
 
     func testDecryptLoginBundleReturnsBundleAndMasterKey() async throws {

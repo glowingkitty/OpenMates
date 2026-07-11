@@ -289,7 +289,7 @@ acceptance_criteria:
     scenario: S-5
     text: Callback ordering and repeated lifecycle events maintain one active attempt and do not crash the Watch process.
     required: true
-    status: satisfied
+    status: failed
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-004, T-APPLE-005, T-APPLE-006, T-SCRIPT-001]
@@ -555,11 +555,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests/testWatchSendLoginRequestDoesNotInstallOffActorReplyHandler
+        run_id: "remote=macos-peer exit_code=0; 1 test"
+        subject_commit: 37b4559
+        timestamp: "2026-07-11T21:06:50Z"
 
 verifications:
   - id: V-USER-001
