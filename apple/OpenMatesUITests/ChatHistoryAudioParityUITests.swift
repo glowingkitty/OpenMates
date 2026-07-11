@@ -83,7 +83,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         XCTAssertTrue(application.descendants(matching: .any)["recording-model"].exists)
         XCTAssertTrue(application.descendants(matching: .any)["recording-correction-state"].exists)
 
-        application.descendants(matching: .any)["recording-preview"].tap()
+        recordingCard(in: application, value: "Ready").tap()
 
         let fullscreen = application.descendants(matching: .any)["recording-fullscreen"]
         let fullscreenPlay = application.descendants(matching: .any)["recording-fullscreen-playback-toggle"]
