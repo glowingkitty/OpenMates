@@ -70,7 +70,8 @@ enum ShareLinkCrypto {
         let shortKey = randomBase62(length: 6)
         let encryptionKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: shortKey,
-            salt: Data("\(shortURLSaltPrefix)\(token)".utf8)
+            salt: Data("\(shortURLSaltPrefix)\(token)".utf8),
+            iterations: 200_000
         )
         return (token, shortKey, try encryptURLSafe(Data(longURL.absoluteString.utf8), using: encryptionKey))
     }

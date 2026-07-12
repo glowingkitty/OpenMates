@@ -61,9 +61,14 @@ actor CryptoManager {
         return Data(hash).base64EncodedString()
     }
 
-    /// Derive wrapping key from password using PBKDF2-SHA256 with 100,000 iterations.
-    /// Mirrors web: crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" })
-    func deriveWrappingKeyFromPassword(password: String, salt: Data) -> SymmetricKey {
+    /// Derive a wrapping key using PBKDF2-SHA256.
+    /// Defaults to the web's 100,000-round password contract; callers with a
+    /// separate protocol, such as durable share URLs, provide their own count.
+    func deriveWrappingKeyFromPassword(
+        password: String,
+        salt: Data,
+        iterations: UInt32 = 100_000
+    ) -> SymmetricKey {
         var derivedKey = Data(count: 32) // 256 bits
         let passwordData = password.data(using: .utf8)!
 
@@ -77,7 +82,7 @@ actor CryptoManager {
                         saltBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
                         salt.count,
                         CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                        100_000,
+                        iterations,
                         derivedBytes.baseAddress?.assumingMemoryBound(to: UInt8.self),
                         32
                     )
