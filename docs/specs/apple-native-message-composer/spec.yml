@@ -204,14 +204,19 @@ attempts:
     approach: Add a focused iPhone sheet preview/fullscreen visual contract, concrete sheet fixture data, and the generated Sheets gradient route before remote simulator verification.
     outcome: failed_as_expected
     recorded_at: "2026-07-12T17:17:12Z"
+  - id: ATTEMPT-2
+    task_id: TASK-20
+    approach: Assert the decorative Sheets gradient directly through its accessibility identifier.
+    outcome: rejected
+    recorded_at: "2026-07-12T17:23:03Z"
 
 handoff:
   current_task_id: TASK-20
-  next_action: Deploy the TASK-20 source and test changes, then run the focused iPhone UI test as the red/green proof on the resulting commit.
+  next_action: Deploy the approved screenshot-plus-source verification contract, rerun the focused iPhone UI test, then build the shared macOS target.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/EmbedRenderingParityUITests
-  expected_outcome: The focused iPhone UI test passes and retains preview/fullscreen screenshots after the deployed Sheets gradient and spreadsheet renderer changes.
+  expected_outcome: The focused iPhone UI test passes with retained preview/fullscreen screenshots; generated-token routing is statically verified by the appSheets source mapping.
   blocker: null
-  last_verified_commit: aa66b77bf
+  last_verified_commit: 35fec7d21
 
 scenarios:
   - id: S-1

@@ -115,7 +115,6 @@ final class EmbedRenderingParityUITests: XCTestCase {
             app.descendants(matching: .any)["sheet-fullscreen-table"].waitForExistence(timeout: 5),
             "Sheets fullscreen must preserve spreadsheet-specific content."
         )
-        XCTAssertTrue(app.descendants(matching: .any)["embed-app-gradient-sheets"].exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Sheets embed must not render default List/table chrome")
         attachScreenshot(name: "Sheets fullscreen")
     }
