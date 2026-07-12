@@ -3335,7 +3335,11 @@ final class ChatSendPipeline {
         }
         let encryptedTitle: String?
         if (chat.titleV ?? 0) == 0 {
-            encryptedTitle = chat.encryptedTitle ?? (try await crypto.encryptContent("", key: keyMaterial.key))
+            if let existingEncryptedTitle = chat.encryptedTitle {
+                encryptedTitle = existingEncryptedTitle
+            } else {
+                encryptedTitle = try await crypto.encryptContent("", key: keyMaterial.key)
+            }
         } else {
             encryptedTitle = nil
         }
