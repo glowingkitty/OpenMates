@@ -81,7 +81,7 @@ final class NativeComposerTextView: NSObject {
     func makePlatformView() -> UITextView {
         let textView = UITextView(usingTextLayoutManager: true)
         textView.delegate = self
-        textView.autocapitalizationType = .sentences
+        textView.autocapitalizationType = .none
         let piiTapRecognizer = UITapGestureRecognizer(target: self, action: #selector(handlePIITap(_:)))
         piiTapRecognizer.cancelsTouchesInView = false
         textView.addGestureRecognizer(piiTapRecognizer)

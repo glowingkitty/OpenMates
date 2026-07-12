@@ -34,8 +34,8 @@ final class NativeComposerControllerTests: XCTestCase {
 
         XCTAssertEqual(controller.attributedString.string, "Before\u{FFFC}\nAfter")
         XCTAssertEqual(controller.selection, NSRange(location: 8, length: 0))
-        XCTAssertEqual(controller.document.nodes.map(\.kind), ["text", "embed", "text", "text"])
-        XCTAssertEqual(controller.document.nodes.compactMap(\.source), ["Before", "\n", "After"])
+        XCTAssertEqual(controller.document.nodes.map(\.kind), ["text", "embed", "text"])
+        XCTAssertEqual(controller.document.nodes.compactMap(\.source), ["Before", "\nAfter"])
     }
 
     func testEmbedUpdatePreservesAttachmentIdentityAndSelection() throws {

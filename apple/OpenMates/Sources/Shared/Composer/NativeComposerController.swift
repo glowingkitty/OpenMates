@@ -109,11 +109,18 @@ final class NativeComposerController {
             throw NativeComposerControllerError.invalidSelection(selection)
         }
 
-        let nodes = try nodesByInserting(embed, atUTF16Offset: selection.location)
+        let embedLocation = selection.location
+        let nodesWithEmbed = try nodesByInserting(embed, atUTF16Offset: embedLocation)
+        let nodes = try nodesByInsertingText(
+            "\n",
+            into: nodesWithEmbed,
+            atUTF16Offset: embedLocation + 1,
+            preferredNodeID: nil
+        )
         apply(
             document: ComposerDocumentV1(version: document.version, nodes: nodes),
-            selection: NSRange(location: selection.location + 1, length: 0),
-            markedTextRange: adjusted(markedTextRange, insertingAt: selection.location, length: 1)
+            selection: NSRange(location: embedLocation + 2, length: 0),
+            markedTextRange: adjusted(markedTextRange, insertingAt: embedLocation, length: 2)
         )
     }
 
