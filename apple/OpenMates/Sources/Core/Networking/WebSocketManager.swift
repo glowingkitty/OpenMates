@@ -144,7 +144,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         _ type: String,
         timeout: Duration = .seconds(20),
         matching predicate: @escaping ([String: Any]) -> Bool
-    ) async throws -> [String: Any] {
+    ) async throws -> WebSocketResponse {
         let waiterId = UUID()
         return try await withCheckedThrowingContinuation { continuation in
             messageWaiters[waiterId] = MessageWaiter(type: type, predicate: predicate, continuation: continuation)
@@ -161,7 +161,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         responseType: String,
         timeout: Duration = .seconds(20),
         matching predicate: @escaping ([String: Any]) -> Bool
-    ) async throws -> [String: Any] {
+    ) async throws -> WebSocketResponse {
         let waiterId = UUID()
         return try await withCheckedThrowingContinuation { continuation in
             messageWaiters[waiterId] = MessageWaiter(
@@ -544,7 +544,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         }
         for (id, waiter) in matches {
             messageWaiters.removeValue(forKey: id)
-            waiter.continuation.resume(returning: payload)
+            waiter.continuation.resume(returning: WebSocketResponse(fields: payload))
         }
     }
 
@@ -653,12 +653,12 @@ protocol ChatWebSocketTransport: AnyObject {
         responseType: String,
         timeout: Duration,
         matching predicate: @escaping ([String: Any]) -> Bool
-    ) async throws -> [String: Any]
+    ) async throws -> WebSocketResponse
     func waitForMessage(
         _ type: String,
         timeout: Duration,
         matching predicate: @escaping ([String: Any]) -> Bool
-    ) async throws -> [String: Any]
+    ) async throws -> WebSocketResponse
 }
 
 extension ChatWebSocketTransport {
@@ -666,13 +666,13 @@ extension ChatWebSocketTransport {
         _ message: WSOutboundMessage,
         responseType: String,
         matching predicate: @escaping ([String: Any]) -> Bool
-    ) async throws -> [String: Any] {
+    ) async throws -> WebSocketResponse {
         try await sendAndWait(message, responseType: responseType, timeout: .seconds(20), matching: predicate)
     }
     func waitForMessage(
         _ type: String,
         matching predicate: @escaping ([String: Any]) -> Bool
-    ) async throws -> [String: Any] {
+    ) async throws -> WebSocketResponse {
         try await waitForMessage(type, timeout: .seconds(20), matching: predicate)
     }
 }

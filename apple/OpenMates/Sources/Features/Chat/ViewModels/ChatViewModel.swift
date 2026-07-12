@@ -3492,12 +3492,12 @@ final class ChatSendPipeline {
         outboundPayload: [String: Any],
         transport: ChatWebSocketTransport
     ) async throws {
-        let acknowledgement = try await transport.sendAndWait(
+        let acknowledgement = (try await transport.sendAndWait(
             WSOutboundMessage(type: "chat_turn_preflight", payload: preflightPayload),
             responseType: "chat_turn_preflight_ack"
         ) {
                 $0["turn_id"] as? String == turnId
-        }
+        }).fields
         guard let preflightId = acknowledgement["preflight_id"] as? String, !preflightId.isEmpty,
               let state = acknowledgement["state"] as? String,
               state == "PREPARED" || state == "LEGACY" else {

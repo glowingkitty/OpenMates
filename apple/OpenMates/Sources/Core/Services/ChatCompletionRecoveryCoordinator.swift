@@ -185,7 +185,7 @@ final class ChatCompletionRecoveryCoordinator {
     }
 
     private func claim(jobId: String) async throws -> [String: Any] {
-        try await transport.sendAndWait(
+        let response = try await transport.sendAndWait(
             WSOutboundMessage(type: "recovery_job_claim", payload: [
                 "protocol_version": Self.protocolVersion,
                 "job_id": jobId,
@@ -194,6 +194,7 @@ final class ChatCompletionRecoveryCoordinator {
         ) {
                 $0["job_id"] as? String == jobId
         }
+        return response.fields
     }
 
     private func recover(_ job: AvailableJob, claim: [String: Any]) async throws {
@@ -261,7 +262,7 @@ final class ChatCompletionRecoveryCoordinator {
             modelName: recovered.modelName
         )
         pendingLocalMessages[job.jobId] = localMessage
-        let acknowledgement = try await transport.sendAndWait(
+        let acknowledgement = (try await transport.sendAndWait(
             WSOutboundMessage(type: "recovery_job_persist", payload: [
                 "protocol_version": Self.protocolVersion,
                 "job_id": job.jobId,
@@ -273,7 +274,7 @@ final class ChatCompletionRecoveryCoordinator {
             responseType: "recovery_job_persisted"
         ) {
                 $0["job_id"] as? String == job.jobId
-        }
+        }).fields
         guard Self.intValue(acknowledgement["lease_generation"]) == leaseGeneration else {
             throw RecoveryError.invalidAcknowledgement
         }

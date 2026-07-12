@@ -415,7 +415,7 @@ private final class RecoveryRecordingTransport: ChatWebSocketTransport {
         responseType: String,
         timeout: Duration,
         matching predicate: @escaping ([String: Any]) -> Bool
-    ) async throws -> [String: Any] {
+    ) async throws -> WebSocketResponse {
         try await send(message)
         return try await waitForMessage(responseType, timeout: timeout, matching: predicate)
     }
@@ -424,12 +424,12 @@ private final class RecoveryRecordingTransport: ChatWebSocketTransport {
         _ type: String,
         timeout: Duration,
         matching predicate: @escaping ([String: Any]) -> Bool
-    ) async throws -> [String: Any] {
+    ) async throws -> WebSocketResponse {
         guard let index = responses[type]?.firstIndex(where: predicate),
               let response = responses[type]?.remove(at: index) else {
             throw RecoveryTestError.missingResponse(type)
         }
-        return response
+        return WebSocketResponse(fields: response)
     }
 }
 
