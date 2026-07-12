@@ -64,6 +64,7 @@ struct AttachmentPicker: View {
                 .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 6)
                 .offset(y: -44)
                 .zIndex(10)
+                .accessibilityIdentifier("attachment-menu")
             }
         }
         .onChange(of: selectedPhotoItem) { _, newValue in
