@@ -67,7 +67,7 @@ test('shares a web search embed via fullscreen share button', async ({
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 
 	// ── Step 2: Open a persisted encrypted web-search embed ───────────────
-	const response = await page.goto(SHARED_CHAT_WITH_WEB_SEARCH, { waitUntil: 'networkidle' });
+	const response = await page.goto(SHARED_CHAT_WITH_WEB_SEARCH, { waitUntil: 'domcontentloaded' });
 	expect(response?.status()).toBe(200);
 	const webPreview = page
 		.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]')
