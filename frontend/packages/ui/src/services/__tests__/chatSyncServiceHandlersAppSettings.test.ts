@@ -241,6 +241,17 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       }],
     });
 
+    mocks.chatDB.getMessage.mockResolvedValue({ status: "synced" });
+    await handleRecoveryJobsAvailableImpl(service, {
+      jobs: [{
+        job_id: "job-1",
+        chat_id: "chat-1",
+        turn_id: "turn-1",
+        assistant_message_id: "assistant-1",
+        chat_key_version: 1,
+      }],
+    });
+
     expect(mocks.chatDB.getEncryptedFields).toHaveBeenCalledOnce();
     expect(mocks.webSocketService.sendMessage).toHaveBeenNthCalledWith(
       2,
