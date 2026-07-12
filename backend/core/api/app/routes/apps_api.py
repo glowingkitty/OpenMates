@@ -1973,6 +1973,78 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
     logger.info("Registered custom route: POST /v1/apps/audio/skills/transcribe")
 
 
+def _register_models3d_custom_routes(app: FastAPI, app_name: str) -> None:
+    """Register the authenticated 3D generation endpoint for uploaded image inputs."""
+    class Model3DGenerateRequest(BaseModel):
+        prompt: str | None = None
+        image_embed_refs: list[str] | None = None
+        image_views: list[dict[str, Any]] | None = None
+
+    async def generate_handler(
+        body: Model3DGenerateRequest,
+        user_info: Dict[str, Any] = SessionOrApiKeyAuth,
+        cache_service: CacheService = Depends(get_cache_service),
+        directus_service: DirectusService = Depends(get_directus_service),
+    ) -> SkillResponse:
+        user_id = str(user_info["user_id"])
+        request_data = body.model_dump(exclude_none=True)
+        image_embed_ids = list(request_data.get("image_embed_refs") or [])
+        image_embed_ids.extend(
+            str(view.get("embed_ref") or "")
+            for view in request_data.get("image_views") or []
+            if isinstance(view, dict)
+        )
+
+        expected_user_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        for embed_id in image_embed_ids:
+            embed = await directus_service.embed.get_embed_by_id(embed_id)
+            if not embed or embed.get("hashed_user_id") != expected_user_hash:
+                raise HTTPException(status_code=404, detail="Uploaded image not found")
+
+        vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+        if not vault_key_id:
+            profile_result = await directus_service.users.get_user_profile(user_id)
+            profile = profile_result[1] if profile_result else None
+            vault_key_id = profile.get("vault_key_id") if profile else None
+        if not vault_key_id:
+            raise HTTPException(status_code=500, detail="Cannot resolve encryption key for 3D generation")
+
+        if user_info.get("api_key_hash") and image_embed_ids:
+            from backend.apps.models3d.skills.generate_skill import DEFAULT_MODEL_CREDITS
+
+            await require_api_key_budget_for_charge(
+                directus_service,
+                user_info=user_info,
+                requested_credits=DEFAULT_MODEL_CREDITS,
+            )
+
+        # REST callers send uploaded embed IDs; the skill resolves its normal
+        # user-facing references through this server-verified mapping.
+        request_data["_file_path_index"] = {embed_id: embed_id for embed_id in image_embed_ids}
+        request_data["_user_vault_key_id"] = vault_key_id
+        result = await call_app_skill(
+            app_id="models3d",
+            skill_id="generate",
+            input_data=request_data,
+            parameters={},
+            user_info=user_info,
+            enforce_rest_exposure_policy=False,
+        )
+        return SkillResponse(success=True, data=result, credits_charged=None)
+
+    app.add_api_route(
+        path="/v1/apps/models3d/skills/generate",
+        endpoint=limiter.limit("10/minute")(generate_handler),
+        methods=["POST"],
+        response_model=SkillResponse,
+        tags=[f"Apps | {app_name.capitalize()}"],
+        name="models3d_generate",
+        summary="Generate a 3D model",
+        description="Generate a 3D model from text, an uploaded image, or uploaded multi-view images.",
+    )
+    logger.info("Registered custom route: POST /v1/apps/models3d/skills/generate")
+
+
 def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
     """Register the canonical Code Run app-skill endpoint."""
     from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
@@ -3149,6 +3221,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             _register_travel_custom_routes(app, app_name)
         if app_id == "audio":
             _register_audio_custom_routes(app, app_name)
+        if app_id == "models3d":
+            _register_models3d_custom_routes(app, app_name)
         if app_id == "code":
             _register_code_custom_routes(app, app_name)
         

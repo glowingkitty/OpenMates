@@ -17,6 +17,8 @@ RUN apt-get clean && \
             curl \
             git \
             gosu \
+            nodejs \
+            npm \
             libcairo2 \
             libpango-1.0-0 \
             libpangocairo-1.0-0 \
@@ -35,6 +37,11 @@ COPY requirements.txt /app/
 # Install Python dependencies and explicitly install celery
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir pytest pytest-asyncio pytest-json-report
+
+# glTF Transform derives the bounded Meshopt/WebP GLB used only by models3d
+# fullscreen embeds. Version 4.3 supports the worker image's Node 20 runtime.
+RUN npm install --global @gltf-transform/cli@4.3.0 \
+    && gltf-transform --version
 
 # Copy application code
 COPY . /app/

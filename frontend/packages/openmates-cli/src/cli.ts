@@ -2032,7 +2032,9 @@ async function handleApps(
     }
 
     try {
-      const inputData = buildSkillInput(flags, inlineTokens, schemaParams);
+      const inputData = app === "models3d" && skill === "generate"
+        ? await buildModels3DGenerateInput(client, flags, inlineTokens, schemaParams)
+        : buildSkillInput(flags, inlineTokens, schemaParams);
       const data = await client.runSkill({ app, skill, inputData, apiKey });
       if (flags.json === true) {
         printJson(data);
@@ -2286,6 +2288,37 @@ function buildSkillInput(
     return { requests: [{ [paramName]: inlineText }] };
   }
   return {};
+}
+
+async function buildModels3DGenerateInput(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+  inlineTokens: string[],
+  schemaParams: Array<{ name: string; required: boolean; inputShape?: "requests" | "flat" }>,
+): Promise<Record<string, unknown>> {
+  const imagePath = typeof flags.image === "string" ? flags.image : undefined;
+  if (!imagePath) return buildSkillInput(flags, inlineTokens, schemaParams);
+  if (typeof flags.input === "string" || inlineTokens.length > 0) {
+    throw new Error("Use either a text prompt or --image <path> for 3D generation, not both.");
+  }
+  if (!client.hasSession()) {
+    throw new Error("Image-based 3D generation requires `openmates login` to upload the reference image.");
+  }
+
+  const processed = processFiles([imagePath], null);
+  if (processed.blocked.length > 0 || processed.errors.length > 0 || processed.embeds.length !== 1) {
+    const reason = [...processed.blocked, ...processed.errors]
+      .map((entry) => entry.error)
+      .join("; ") || "no image embed produced";
+    throw new Error(`Failed to prepare 3D reference image: ${reason}`);
+  }
+  const fileEmbed = processed.embeds[0];
+  if (!fileEmbed.requiresUpload || !fileEmbed.localPath || fileEmbed.embed.type !== "image") {
+    throw new Error("3D generation requires a supported image file.");
+  }
+
+  const uploadResult = await uploadFile(fileEmbed.localPath, client.getSession());
+  return { image_embed_refs: [uploadResult.embed_id] };
 }
 
 function getEffectiveRequiredParams<T extends { name: string; required: boolean; inputShape?: "requests" | "flat" }>(
@@ -6905,6 +6938,7 @@ function printAppsHelp(): void {
   openmates apps skill-info <app-id> <skill-id> [--json]
   openmates apps <app-id> <skill-id> "<query>" [--json]
   openmates apps <app-id> <skill-id> --input '<json>' [--json]
+  openmates apps models3d generate --image ./reference.png [--json]
   openmates apps code run --language python --code 'print("Hello")'
   openmates apps code run --entry main.py --file main.py [--file requirements.txt]
   openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
@@ -6920,6 +6954,7 @@ Examples:
   openmates apps web search "latest AI news"
   openmates apps news search "climate change"
   openmates apps ai ask "Summarise this: ..."
+  openmates apps models3d generate --image ./chair.png
   openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
   openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
   openmates apps travel booking-link --token "<booking_token from search result>"

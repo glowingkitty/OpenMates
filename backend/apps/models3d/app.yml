@@ -1,0 +1,94 @@
+id: models3d
+name_translation_key: models3d
+description_translation_key: models3d.description
+icon_image: 3dmodels.svg
+category: creative
+last_updated: "2026-07-12"
+embed_types:
+  - id: generate
+    category: app-skill-use
+    skill_id: generate
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: models3d/Model3DGenerateEmbedPreview.svelte
+    fullscreen_component: models3d/Model3DGenerateEmbedFullscreen.svelte
+    icon: 3dmodels
+    gradient_var: "--color-app-3dmodels"
+    i18n_namespace: embeds.models3d.generate
+    content_fields:
+      - name: status
+        type: string
+        required: true
+      - name: input_mode
+        type: string
+      - name: prompt
+        type: string
+      - name: provider
+        type: string
+      - name: provider_model
+        type: string
+      - name: files
+        type: object
+        required: true
+      - name: s3_base_url
+        type: string
+        required: true
+      - name: aes_key
+        type: string
+        required: true
+      - name: vault_wrapped_aes_key
+        type: string
+        required: true
+instructions:
+  - instruction: |
+      When models3d-generate starts, acknowledge the request naturally without
+      exposing task IDs, embed IDs, provider URLs, or encryption details.
+skills:
+  - id: generate
+    name_translation_key: app_skills.models3d.generate
+    description_translation_key: app_skills.models3d.generate.description
+    icon_image: 3dmodels.svg
+    api_config:
+      expose_get: true
+      expose_post: false
+    preprocessor_hint: >
+      Generate a 3D model from exactly one prompt, one attached image, or two to
+      four labeled reference images. Use front, back, left, and right labels for
+      multi-view input. Do not claim print readiness before validation.
+    class_path: backend.apps.models3d.skills.generate_skill.GenerateSkill
+    providers:
+      - Hi3D
+    pricing:
+      per_unit:
+        credits: 25
+        unit_name: model
+    tool_schema:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: Text description used to create a reference image before 3D generation.
+        image_embed_refs:
+          type: array
+          items:
+            type: string
+          maxItems: 1
+          description: One attached image embed reference.
+        image_views:
+          type: array
+          minItems: 2
+          maxItems: 4
+          items:
+            type: object
+            properties:
+              embed_ref:
+                type: string
+              view:
+                type: string
+                enum: [front, back, left, right]
+            required: [embed_ref, view]
+      oneOf:
+        - required: [prompt]
+        - required: [image_embed_refs]
+        - required: [image_views]

@@ -2874,6 +2874,19 @@ describe("documented CLI command reference", () => {
     });
   });
 
+  it("requires login before accepting a local models3d reference image", () => {
+    const result = runCliWithoutSessionResult([
+      "apps",
+      "models3d",
+      "generate",
+      "--image",
+      "./chair.png",
+    ]);
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Image-based 3D generation requires `openmates login`/);
+  });
+
   it("docs command reference matches docs help", () => {
     const doc = readRepoText("docs/user-guide/cli/docs.md");
     const help = runCli(["docs", "--help"]);

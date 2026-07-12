@@ -136,6 +136,11 @@ class GenerateSkill(BaseSkill):
         except ValueError as exc:
             return {"error": str(exc)}
 
+        if plan.input_mode == "text":
+            return {
+                "error": "Text-to-3D is not available until reference image artifact retention is implemented"
+            }
+
         placeholder_embed_ids = kwargs.get("placeholder_embed_ids") or []
         embed_id = next((value for value in placeholder_embed_ids if value), str(uuid.uuid4()))
         task_args = {
@@ -147,8 +152,11 @@ class GenerateSkill(BaseSkill):
             "reference_image_model": plan.reference_image_model,
             "user_id": kwargs.get("user_id"),
             "user_vault_key_id": kwargs.get("user_vault_key_id"),
+            "api_key_hash": kwargs.get("api_key_hash"),
+            "device_hash": kwargs.get("device_hash"),
             "chat_id": self._current_chat_id,
             "message_id": self._current_message_id,
+            "external_request": kwargs.get("external_request", False),
             "app_id": self.app_id,
             "skill_id": self.skill_id,
             "embed_id": embed_id,

@@ -12,10 +12,12 @@ import json
 import logging
 import struct
 from collections.abc import Awaitable, Callable
+from io import BytesIO
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
+from PIL import Image, UnidentifiedImageError
 
 from .models import Hi3DTaskResult, Hi3DTaskState, Hi3DView
 
@@ -24,11 +26,18 @@ logger = logging.getLogger(__name__)
 
 API_BASE_URL = "https://api.hitem3d.ai/open-api/v1"
 DEFAULT_MAX_DOWNLOAD_BYTES = 150 * 1024 * 1024
+DEFAULT_MAX_COVER_BYTES = 10 * 1024 * 1024
 DEFAULT_POLL_INTERVAL_SECONDS = 10.0
 DEFAULT_MAX_POLLS = 120
 _VIEW_ORDER = (Hi3DView.FRONT, Hi3DView.BACK, Hi3DView.LEFT, Hi3DView.RIGHT)
 _ALLOWED_DOWNLOAD_HOST_SUFFIXES = (".zaohaowu.net", ".hitem3d.ai", ".hi3d.ai")
 _ALLOWED_GLB_CONTENT_TYPES = {"application/octet-stream", "model/gltf-binary"}
+_ALLOWED_COVER_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+_PIL_TO_MIME_TYPE = {
+    "JPEG": "image/jpeg",
+    "PNG": "image/png",
+    "WEBP": "image/webp",
+}
 
 
 class Hi3DProviderError(RuntimeError):
@@ -238,6 +247,58 @@ class Hi3DClient:
         payload = bytes(content)
         self._validate_glb(payload)
         return payload
+
+    async def download_cover(
+        self,
+        url: str,
+        *,
+        max_bytes: int = DEFAULT_MAX_COVER_BYTES,
+    ) -> tuple[bytes, str]:
+        """Download and validate the temporary provider cover before it expires."""
+        current_url = url
+        content = bytearray()
+        try:
+            for _ in range(4):
+                self._validate_download_url(current_url)
+                async with self._http_client.stream(
+                    "GET",
+                    current_url,
+                    follow_redirects=False,
+                ) as response:
+                    if response.is_redirect:
+                        location = response.headers.get("location")
+                        if not location:
+                            raise Hi3DProviderError("Hi3D cover redirect has no location")
+                        current_url = urljoin(current_url, location)
+                        self._validate_download_url(current_url)
+                        continue
+                    response.raise_for_status()
+                    self._validate_download_url(str(response.url))
+                    content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    if content_type not in _ALLOWED_COVER_CONTENT_TYPES:
+                        raise Hi3DProviderError("Hi3D cover has an invalid content type")
+                    async for chunk in response.aiter_bytes():
+                        content.extend(chunk)
+                        if len(content) > max_bytes:
+                            raise Hi3DProviderError("Hi3D cover exceeds the configured size limit")
+                    break
+            else:
+                raise Hi3DProviderError("Hi3D cover exceeded the redirect limit")
+        except Hi3DProviderError:
+            raise
+        except httpx.HTTPError as exc:
+            raise Hi3DProviderError("Hi3D cover download failed") from exc
+
+        payload = bytes(content)
+        try:
+            with Image.open(BytesIO(payload)) as image:
+                image.verify()
+                mime_type = _PIL_TO_MIME_TYPE.get(image.format or "")
+        except (UnidentifiedImageError, OSError) as exc:
+            raise Hi3DProviderError("Hi3D cover is not a valid image") from exc
+        if not mime_type:
+            raise Hi3DProviderError("Hi3D cover image format is not supported")
+        return payload, mime_type
 
     @staticmethod
     def _validate_download_url(url: str) -> None:

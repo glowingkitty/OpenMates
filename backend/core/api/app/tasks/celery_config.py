@@ -147,6 +147,7 @@ TASK_CONFIG = [
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
+    {'name': 'app_images',  'module': 'backend.apps.models3d.tasks'},  # 3D generation tasks share media worker resources
     {'name': 'app_music',   'module': 'backend.apps.music.tasks'},  # Music generation tasks
     {'name': 'app_videos',  'module': 'backend.apps.videos.tasks'},  # Video generation tasks
     {'name': 'app_code',    'module': 'backend.apps.code.tasks'},  # Code Run sandbox execution tasks

@@ -141,7 +141,7 @@ async def download_generated_asset(
         )
         if not encrypted_bytes:
             raise HTTPException(status_code=404, detail="Generated asset file missing")
-        aes_nonce = base64.b64decode(record.get("aes_nonce") or "")
+        aes_nonce = base64.b64decode(variant_meta.get("aes_nonce") or record.get("aes_nonce") or "")
         plaintext = AESGCM(aes_key).decrypt(aes_nonce, encrypted_bytes, None)
     except HTTPException:
         raise

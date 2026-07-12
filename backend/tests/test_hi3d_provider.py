@@ -11,9 +11,11 @@ import asyncio
 import json
 import logging
 import struct
+from io import BytesIO
 
 import httpx
 import pytest
+from PIL import Image
 
 from backend.shared.providers.hi3d.client import Hi3DClient, Hi3DProviderError
 from backend.shared.providers.hi3d.models import Hi3DTaskState, Hi3DView
@@ -39,6 +41,7 @@ def _glb_with_duplicate_json() -> bytes:
 
 VALID_GLB = _glb()
 DOWNLOAD_URL = "https://hitem3dstatic.zaohaowu.net/model.glb"
+COVER_URL = "https://hitem3dstatic.zaohaowu.net/cover.webp"
 
 
 def _client(handler: httpx.MockTransport) -> tuple[Hi3DClient, httpx.AsyncClient]:
@@ -181,6 +184,49 @@ async def test_download_glb_rejects_unapproved_host() -> None:
     try:
         with pytest.raises(Hi3DProviderError, match="host"):
             await client.download_glb("http://127.0.0.1/internal.glb")
+    finally:
+        await http_client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_download_cover_validates_provider_image_and_returns_mime_type() -> None:
+    image = Image.new("RGB", (4, 4), color=(234, 118, 0))
+    output = BytesIO()
+    image.save(output, format="WEBP")
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=output.getvalue(), headers={"content-type": "image/webp"})
+
+    client, http_client = _client(httpx.MockTransport(handler))
+    try:
+        content, mime_type = await client.download_cover(COVER_URL)
+    finally:
+        await http_client.aclose()
+
+    assert content == output.getvalue()
+    assert mime_type == "image/webp"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("payload", "content_type", "message"),
+    [
+        (b"not-an-image", "image/webp", "image"),
+        (b"not-an-image", "text/html", "content type"),
+    ],
+)
+async def test_download_cover_rejects_invalid_image_content(
+    payload: bytes,
+    content_type: str,
+    message: str,
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=payload, headers={"content-type": content_type})
+
+    client, http_client = _client(httpx.MockTransport(handler))
+    try:
+        with pytest.raises(Hi3DProviderError, match=message):
+            await client.download_cover(COVER_URL)
     finally:
         await http_client.aclose()
 

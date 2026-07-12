@@ -11,6 +11,24 @@ import pytest
 from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
 
+if "boto3" not in sys.modules:
+    boto3_module = types.ModuleType("boto3")
+    boto3_module.client = lambda *_args, **_kwargs: None
+    sys.modules["boto3"] = boto3_module
+
+if "botocore" not in sys.modules:
+    botocore_module = types.ModuleType("botocore")
+    botocore_config_module = types.ModuleType("botocore.config")
+    botocore_config_module.Config = lambda *_args, **_kwargs: None
+    botocore_exceptions_module = types.ModuleType("botocore.exceptions")
+    botocore_exceptions_module.ClientError = Exception
+    botocore_exceptions_module.ReadTimeoutError = Exception
+    botocore_exceptions_module.ConnectTimeoutError = Exception
+    botocore_exceptions_module.EndpointConnectionError = Exception
+    sys.modules["botocore"] = botocore_module
+    sys.modules["botocore.config"] = botocore_config_module
+    sys.modules["botocore.exceptions"] = botocore_exceptions_module
+
 if "slowapi" not in sys.modules:
     slowapi_module = types.ModuleType("slowapi")
 
@@ -35,6 +53,7 @@ from backend.shared.python_utils.generated_assets import (
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.shared.python_utils.generated_assets import create_download_token
 from backend.shared.python_utils.generated_assets.service import _token_secret
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 async def _source(*chunks: bytes):
@@ -230,6 +249,16 @@ class _FakeGeneratedAssetS3:
             yield chunk
 
 
+class _FakeBoundedAssetS3:
+    environment = "development"
+
+    def __init__(self, encrypted: bytes) -> None:
+        self.encrypted = encrypted
+
+    async def get_file(self, *_args, **_kwargs):
+        return self.encrypted
+
+
 @pytest.mark.asyncio
 async def test_chunked_master_download_uses_streaming_response() -> None:
     key = b"\x71" * 32
@@ -294,6 +323,43 @@ async def test_unknown_master_encryption_is_rejected_before_response() -> None:
             directus_service=directus,
             s3_service=_FakeGeneratedAssetS3(),
         )
+
+
+@pytest.mark.asyncio
+async def test_bounded_variant_uses_its_own_nonce_not_legacy_record_nonce() -> None:
+    key = b"\x72" * 32
+    variant_nonce = b"\x31" * 12
+    encrypted = AESGCM(key).encrypt(variant_nonce, b"provider-poster", None)
+    token = create_download_token(asset_id="model-1", user_id="user-1", variant="poster")
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    directus = _FakeDirectus(
+        {
+            "content_type": "model/gltf-binary",
+            "files_metadata": {
+                "poster": {
+                    "s3_key": "models/poster.webp.enc",
+                    "format": "webp",
+                    "mime_type": "image/webp",
+                    "aes_nonce": __import__("base64").b64encode(variant_nonce).decode(),
+                }
+            },
+            "aes_key": __import__("base64").b64encode(key).decode(),
+            "aes_nonce": __import__("base64").b64encode(b"\x32" * 12).decode(),
+            "original_filename": "model.glb",
+        }
+    )
+
+    response = await download_generated_asset(
+        asset_id="model-1",
+        variant="poster",
+        request=request,
+        token=token,
+        directus_service=directus,
+        s3_service=_FakeBoundedAssetS3(encrypted),
+    )
+
+    assert response.body == b"provider-poster"
+    assert response.media_type == "image/webp"
 
 
 def test_download_token_issuance_fails_closed_in_production_without_secret(monkeypatch) -> None:

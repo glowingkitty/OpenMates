@@ -363,3 +363,67 @@ def test_code_run_app_skill_route_starts_direct_run(monkeypatch) -> None:
     assert captured["target_embed_id"] is None
     assert captured["target_path"] == "main.py"
     assert captured["enable_internet"] is True
+
+
+def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    user = User(id="user-1", username="alice", vault_key_id="vault-1", credits=10)
+    expected_user_hash = hashlib.sha256(user.id.encode()).hexdigest()
+    user_info = {
+        "user_id": user.id,
+        "api_key_encrypted_name": "",
+        "api_key_hash": "api-key-hash",
+        "api_key_metadata": {"allowed_app_skills": ["models3d.generate"]},
+        "device_hash": None,
+    }
+
+    class FakeCache:
+        async def get_user_vault_key_id(self, user_id):
+            assert user_id == user.id
+            return "vault-1"
+
+    class FakeEmbedService:
+        async def get_embed_by_id(self, embed_id):
+            assert embed_id == "embed-chair"
+            return {"embed_id": embed_id, "hashed_user_id": expected_user_hash}
+
+    async def fake_call_app_skill(**kwargs):
+        captured.update(kwargs)
+        return {"task_id": "task-model-1", "status": "processing"}
+
+    async def fake_require_api_key_budget_for_charge(directus_service, *, user_info, requested_credits):
+        captured["budget"] = {
+            "directus_service": directus_service,
+            "user_info": user_info,
+            "requested_credits": requested_credits,
+        }
+
+    app = FastAPI()
+    app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
+    app.dependency_overrides[apps_api.get_cache_service] = lambda: FakeCache()
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: types.SimpleNamespace(embed=FakeEmbedService())
+    monkeypatch.setattr(apps_api, "call_app_skill", fake_call_app_skill)
+    monkeypatch.setattr(apps_api, "require_api_key_budget_for_charge", fake_require_api_key_budget_for_charge)
+    apps_api._register_models3d_custom_routes(app, "models3d")
+
+    response = TestClient(app).post(
+        "/v1/apps/models3d/skills/generate",
+        json={"image_embed_refs": ["embed-chair"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": True,
+        "data": {"task_id": "task-model-1", "status": "processing"},
+        "error": None,
+        "credits_charged": None,
+    }
+    assert captured["input_data"] == {
+        "image_embed_refs": ["embed-chair"],
+        "_file_path_index": {"embed-chair": "embed-chair"},
+        "_user_vault_key_id": "vault-1",
+    }
+    assert captured["enforce_rest_exposure_policy"] is False
+    assert captured["user_info"] is user_info
+    assert captured["budget"]["user_info"] is user_info
+    assert captured["budget"]["requested_credits"] == 25
