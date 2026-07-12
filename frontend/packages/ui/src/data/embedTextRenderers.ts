@@ -134,6 +134,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:travel:get_flight': renderFlight,
 	'app:images:generate': renderImageGenerate,
 	'app:images:generate_draft': renderImageGenerate,
+	'app:models3d:generate': renderGenericAppSkill,
 	'app:images:search': renderImagesSearch,
 	'app:images:view': renderImage,
 	'app:images:vectorize': renderGenericAppSkill,
