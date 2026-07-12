@@ -638,6 +638,65 @@ describe("memory request system messages", () => {
 });
 
 describe("CLI saved-chat recovery preflight", () => {
+  it("stops before inference when saved-chat preflight requires a client update", async () => {
+    const captured: { frameTypes: string[] } = { frameTypes: [] };
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          success: true,
+          ws_token: "fresh-ws-token",
+          user: { id: "11111111-1111-4111-8111-111111111111" },
+        }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string };
+          captured.frameTypes.push(frame.type);
+          if (frame.type === "chat_turn_preflight") {
+            ws.send(JSON.stringify({
+              type: "error",
+              payload: {
+                code: "client_update_required",
+                message: "Please update OpenMates before sending another saved chat message.",
+              },
+            }));
+          }
+        });
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(
+        client.sendMessage({ message: "This must not reach inference" }),
+        /OpenMates CLI update required\. Run `openmates upgrade` and retry\./,
+      );
+      assert.equal(captured.frameTypes.includes("chat_turn_preflight"), true);
+      assert.equal(captured.frameTypes.includes("chat_message_added"), false);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("waits for preflight ack and keeps durable transaction content encrypted", async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";

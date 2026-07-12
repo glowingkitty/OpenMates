@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createRequire } from "node:module";
 
-import { OpenMatesWsClient } from "../src/ws.ts";
+import { OpenMatesWsClient, WebSocketProtocolError } from "../src/ws.ts";
 
 const require = createRequire(import.meta.url);
 const { WebSocketServer } = require("ws");
@@ -188,6 +188,37 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.content, "Here are the listings I found.");
       assert.equal(response.category, "general_knowledge");
       assert.equal(response.recoveryJobId, "11111111-1111-4111-8111-111111111111");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("rejects client_update_required with concise CLI update guidance", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => socket.send(JSON.stringify({
+        type: "error",
+        payload: {
+          code: "client_update_required",
+          message: "Please update OpenMates before sending another saved chat message.",
+        },
+      })), 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-update-required",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      await assert.rejects(
+        client.collectAiResponse("user-message", "chat-update-required", { timeoutMs: 1_000 }),
+        (error) => error instanceof WebSocketProtocolError
+          && error.code === "client_update_required"
+          && /OpenMates CLI update required/.test(error.message),
+      );
     } finally {
       client.close();
     }

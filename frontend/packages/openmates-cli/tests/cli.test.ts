@@ -69,6 +69,78 @@ function runCliWithoutSessionResult(args: string[]): { status: number | null; st
   }
 }
 
+async function withUpdateRequiredMock<T>(
+  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[] }) => Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), `openmates-cli-update-required-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  const frameTypes: string[] = [];
+  mkdirSync(stateDir, { recursive: true });
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer((request, response) => {
+    if (request.method === "POST" && request.url === "/v1/auth/session") {
+      writeJson(response, {
+        success: true,
+        ws_token: "fresh-ws-token",
+        user: { id: "11111111-1111-4111-8111-111111111111" },
+      });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+      writeJson(response, { data: { app_settings_memories: [] } });
+      return;
+    }
+    if (request.method === "GET" && request.url === "/v1/learning-mode") {
+      writeJson(response, { enabled: false, age_group: null, failed_attempts: 0, deactivation_blocked_until: null });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  server.on("upgrade", (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.on("message", (raw) => {
+        const frame = JSON.parse(raw.toString()) as { type: string };
+        frameTypes.push(frame.type);
+        if (frame.type === "chat_turn_preflight") {
+          ws.send(JSON.stringify({
+            type: "error",
+            payload: {
+              code: "client_update_required",
+              message: "Please update OpenMates before sending another saved chat message.",
+            },
+          }));
+        }
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, tempHome, frameTypes });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 async function runCliWithEmptyCacheSession(
   apiUrl: string,
   args: string[],
@@ -1206,6 +1278,44 @@ async function withFlatWeatherSkillMockApi<T>(
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 }
+
+describe("CLI update-required cutover", () => {
+  it("prints concise update-required guidance, reports no success, and exits nonzero", async () => {
+    await withUpdateRequiredMock(async ({ apiUrl, tempHome, frameTypes }) => {
+      const result = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
+        execFile(
+          "node",
+          ["dist/cli.js", "chats", "new", "This must not reach inference", "--no-pii-detection"],
+          {
+            cwd: PACKAGE_ROOT,
+            encoding: "utf-8",
+            env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome, OPENMATES_API_URL: apiUrl },
+            timeout: 25_000,
+          },
+          (error, stdout, stderr) => resolve({
+            status: error && "code" in error && typeof error.code === "number" ? error.code : 0,
+            stdout,
+            stderr,
+          }),
+        );
+      });
+
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /OpenMates CLI update required\. Run `openmates upgrade` and retry\./);
+      assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /success/i);
+      assert.equal(frameTypes.includes("chat_turn_preflight"), true);
+      assert.equal(frameTypes.includes("chat_message_added"), false);
+    });
+  });
+
+  it("leaves read-only local example history available", () => {
+    const result = runCliWithoutSessionResult(["chats", "show", "1", "--json"]);
+    assert.equal(result.status, 0);
+    const output = JSON.parse(result.stdout) as { messages?: unknown[] };
+    assert.ok(Array.isArray(output.messages));
+    assert.ok(output.messages.length > 0);
+  });
+});
 
 describe("SDK entrypoint", () => {
   it("does not run CLI help when imported", () => {

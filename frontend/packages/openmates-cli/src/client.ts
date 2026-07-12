@@ -3541,7 +3541,7 @@ export class OpenMatesClient {
       messagePayload.encrypted_embeds = encryptedEmbeds;
     }
 
-    const precollectedResponse = params.precollectResponse
+    let precollectedResponse = params.precollectResponse && params.incognito
       ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream })
       : null;
 
@@ -3602,14 +3602,26 @@ export class OpenMatesClient {
       }
 
       const preflightAck = ws.waitForMessage("chat_turn_preflight_ack");
-      await ws.sendAsync("chat_turn_preflight", preflightPayload);
-      const ackPayload = (await preflightAck).payload as Record<string, unknown>;
+      let ackPayload: Record<string, unknown>;
+      try {
+        await ws.sendAsync("chat_turn_preflight", preflightPayload);
+        ackPayload = (await preflightAck).payload as Record<string, unknown>;
+      } catch (error) {
+        ws.close();
+        throw error;
+      }
       if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
+        ws.close();
         throw new Error("Encrypted chat preflight acknowledgement omitted preflight_id.");
       }
       Object.assign(messagePayload, {
         protocol_version: protocolVersion,
         preflight_id: ackPayload.preflight_id,
+      });
+    }
+    if (params.precollectResponse && !params.incognito) {
+      precollectedResponse = ws.collectAiResponse(messageId, chatId, {
+        onStream: params.onStream,
       });
     }
     const confirmed = ws.waitForMessage(
@@ -3876,7 +3888,7 @@ export class OpenMatesClient {
       }
     } else {
       try {
-        const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
+        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, streamOpts));
         assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;

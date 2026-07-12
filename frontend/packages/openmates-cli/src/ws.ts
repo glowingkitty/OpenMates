@@ -96,6 +96,39 @@ const SUB_CHAT_EVENT_TYPES = new Set<string>([
 const SUB_CHAT_PARENT_STATUS_MESSAGE =
   "I've started the sub-chats and will continue once they finish.";
 const SUB_CHAT_COMPLETION_TIMEOUT_MS = 10 * 60_000;
+const CLIENT_UPDATE_REQUIRED_GUIDANCE =
+  "OpenMates CLI update required. Run `openmates upgrade` and retry.";
+
+export class WebSocketProtocolError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "WebSocketProtocolError";
+    this.code = code;
+  }
+}
+
+function websocketProtocolError(envelope: WsEnvelope): Error | null {
+  const payload = envelope.payload && typeof envelope.payload === "object"
+    ? envelope.payload as Record<string, unknown>
+    : {};
+  const code = envelope.type === "client_update_required"
+    ? envelope.type
+    : envelope.type === "error" && typeof payload.code === "string"
+      ? payload.code
+      : null;
+  if (code === "client_update_required") {
+    return new WebSocketProtocolError(code, CLIENT_UPDATE_REQUIRED_GUIDANCE);
+  }
+  if (envelope.type === "error") {
+    return new WebSocketProtocolError(
+      code ?? "websocket_error",
+      typeof payload.message === "string" ? payload.message : "Unknown WebSocket error",
+    );
+  }
+  return null;
+}
 
 export class OpenMatesWsClient {
   private readonly socket: InstanceType<typeof WebSocket>;
@@ -200,6 +233,12 @@ export class OpenMatesWsClient {
         try {
           const parsed = JSON.parse(rawData.toString()) as WsEnvelope;
           if (typeof parsed.type === "string") seenTypes.add(parsed.type);
+          const protocolError = websocketProtocolError(parsed);
+          if (protocolError) {
+            cleanup();
+            reject(protocolError);
+            return;
+          }
           if (parsed.type !== expectedType) {
             return;
           }
@@ -260,6 +299,12 @@ export class OpenMatesWsClient {
       const onMessage = (rawData: RawData) => {
         try {
           const parsed = JSON.parse(rawData.toString()) as WsEnvelope;
+          const protocolError = websocketProtocolError(parsed);
+          if (protocolError) {
+            cleanup();
+            reject(protocolError);
+            return;
+          }
           if (parsed.type === terminatorType) {
             cleanup();
             resolve(collected);
@@ -569,15 +614,10 @@ export class OpenMatesWsClient {
           const p = (parsed.payload ?? {}) as Record<string, unknown>;
           const type = parsed.type;
 
-          if (type === "error") {
+          const protocolError = websocketProtocolError(parsed);
+          if (protocolError) {
             cleanup();
-            reject(
-              new Error(
-                typeof p.message === "string"
-                  ? p.message
-                  : "Unknown chat error",
-              ),
-            );
+            reject(protocolError);
             return;
           }
 

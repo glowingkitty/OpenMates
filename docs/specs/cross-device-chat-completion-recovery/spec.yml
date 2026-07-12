@@ -122,7 +122,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
+  subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
 
 approvals:
   product_contract:
@@ -209,6 +209,11 @@ decisions:
     decision: npm and pip SDK saved-chat sends participate in the same preflight, sealed recovery, minimum-protocol, and update-required contracts as CLI.
     reason: The user expanded implementation scope to SDKs before web and Apple; API-key clients must not retain an unsafe alternate saved-chat path.
     decided_at: "2026-07-11T23:23:27Z"
+  - id: D-16
+    status: active
+    decision: Retry pending inference publication through an identical client resubmission using the stable outbox and Celery task identities; duplicate worker deliveries are suppressed by the durable inference claim.
+    reason: Autonomous outbox replay would require durable server-decryptable chat plaintext, while client-assisted replay preserves the zero-knowledge boundary and remains idempotent after acknowledgement loss or process failure.
+    decided_at: "2026-07-12T02:39:57Z"
 
 performance_baseline:
   captured_at: "2026-07-11T23:53:29Z"
@@ -281,12 +286,12 @@ attempts:
     evidence: Subject 287af0d passed 30 focused Python recovery tests and 21 Directus transaction tests; the strengthened suite also found and fixed an identical new-chat preflight retry mismatch caused by mutable updated_at.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Deploy the durable Directus-backed cutover controller while epoch 0 remains authoritative, then rerun T-CUTOVER-EPOCH on the committed subject.
-  command: python3 scripts/sessions.py prepare-deploy --session a152
-  expected_outcome: Durable pause, legacy admission ownership, zero-in-flight activation, socket closure ordering, cache-loss fallback, and epoch monotonicity are committed without activating epoch 1.
+  current_task_id: TASK-6
+  next_action: Inspect and run the web recovery contract against the currently deployed dev subject, then implement only the missing browser recovery behavior before deployment.
+  command: python3 scripts/tests.py run --spec connection-resilience.spec.ts
+  expected_outcome: The live-dev red run identifies the first browser-specific recovery gap while the completed CLI and SDK contracts remain green.
   blocker: null
-  last_verified_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
+  last_verified_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
 
 scenarios:
   - id: S-1
@@ -777,9 +782,9 @@ tests:
       evidence:
         status: passed
         command: npm --prefix frontend/packages/openmates-cli run test:unit:crypto -- --test-name-pattern chat-completion-recovery
-        run_id: local-33932be5-cli-crypto-green-2
-        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
-        timestamp: "2026-07-12T01:46:00Z"
+        run_id: local-22fe-cli-crypto-green-1
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:55:52Z"
         summary: All five CLI recovery-vector checks passed; the complete crypto file reported 29 passing tests.
 
   - id: T-PIP-CRYPTO-VECTORS
@@ -1011,7 +1016,7 @@ tests:
   - id: T-CLI-RECOVERY
     type: unit
     file: frontend/packages/openmates-cli/tests/client.test.ts
-    command: npm --prefix frontend/packages/openmates-cli test -- --test-name-pattern recovery
+    command: npm --prefix frontend/packages/openmates-cli run test:t-cli-recovery
     covers: [AC-1, AC-3, AC-6]
     assertions:
       - CLI waits for preflight acknowledgement before submitting inference
@@ -1021,16 +1026,28 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: npm --prefix frontend/packages/openmates-cli run test:t-cli-recovery
+        run_id: local-ad92-cli-recovery-red-1
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:43:00Z"
+        summary: The new update-required recovery case stalled until timeout because waitForMessage ignored the server error frame, proving the preflight could not fail fast before inference submission.
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: npm --prefix frontend/packages/openmates-cli run test:t-cli-recovery
+        run_id: local-22fe-cli-recovery-green-1
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:55:52Z"
+        summary: Three focused CLI tests passed preflight-before-send ordering, encrypted terminal claim/persist handling, lazy recovery-key registration for old chats, and fail-fast update-required rejection before chat_message_added.
 
   - id: T-CLI-UPDATE-REQUIRED
     type: unit
     file: frontend/packages/openmates-cli/tests/cli.test.ts
-    command: npm --prefix frontend/packages/openmates-cli run test:unit:cli -- --test-name-pattern update-required
+    command: npm --prefix frontend/packages/openmates-cli run test:t-cli-update-required
     covers: [AC-10]
     assertions:
       - a legacy-protocol rejection prints concise update guidance
@@ -1039,11 +1056,23 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: skipped_with_reason
+        command: npm --prefix frontend/packages/openmates-cli run test:t-cli-update-required
+        run_id: local-ad92-cli-update-required-red-setup
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:45:00Z"
+        reason: The first CLI subprocess red run stopped on an incomplete Learning Mode mock before reaching the product assertion; the underlying ignored-error transport gap was independently reproduced by T-CLI-RECOVERY and no passing pre-fix result is claimed.
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: npm --prefix frontend/packages/openmates-cli run test:t-cli-update-required
+        run_id: local-22fe-cli-update-required-green-1
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:55:52Z"
+        summary: The focused CLI subprocess tests passed concise upgrade guidance, nonzero send exit, absence of success output and inference submission, plus unaffected read-only local example history.
 
   - id: T-NPM-SDK-RECOVERY
     type: unit
@@ -1058,11 +1087,23 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: missing_test
+        command: git show HEAD:frontend/packages/openmates-cli/tests/sdk.test.ts
+        run_id: discovery-22fe-npm-sdk-recovery-red
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:57:55Z"
+        reason: The committed backend cutover subject's npm SDK contract file had no saved-chat recovery tests.
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/sdk.test.ts
+        run_id: local-22fe-npm-sdk-recovery-green-1
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:57:55Z"
+        summary: All 15 npm SDK contracts passed, including epoch-1 encrypted preflight, API-key recovery identity, unavailable-job timeout, key-material fail-closed behavior, and non-persistent new-chat behavior.
 
   - id: T-PIP-SDK-RECOVERY
     type: pytest
@@ -1077,11 +1118,23 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: missing_test
+        command: git show HEAD:packages/openmates-python/tests/test_sdk.py
+        run_id: discovery-22fe-pip-sdk-recovery-red
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:57:55Z"
+        reason: The committed backend cutover subject's pip SDK contract file had no saved-chat recovery tests.
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+        run_id: local-22fe-pip-sdk-recovery-green-1
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:57:55Z"
+        summary: All 15 pip SDK contracts passed, including saved-chat preflight, stable recovery identity, fail-closed missing key material, bounded recovery polling, and non-persistent new-chat behavior.
 
   - id: T-LEGACY-CLI-CUTOVER
     type: manual
@@ -1095,11 +1148,24 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: missing_test
+        command: python3 scripts/test_legacy_cli_cutover.py --cli-version 0.14.0 --env dev
+        run_id: discovery-ad92-legacy-cli-cutover-red
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:40:00Z"
+        reason: The committed backend cutover subject did not contain scripts/test_legacy_cli_cutover.py.
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/test_legacy_cli_cutover.py --cli-version 0.14.0 --env dev
+        run_id: local-22fe-legacy-cli-cutover-green-1
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:55:52Z"
+        reason: A deterministic released-protocol fixture must verify the cutover boundary without reading or mutating live server-authoritative epoch state.
+        summary: The pinned 0.14.0 legacy frame was rejected with client_update_required at an in-memory boundary before inference, while local read-only history remained usable; no live epoch state was read or changed.
 
   - id: T-CUTOVER-EPOCH
     type: pytest
@@ -1125,7 +1191,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_chat_recovery_protocol_cutover.py
+        run_id: local-22fe-cutover-epoch-green-1
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T02:55:52Z"
+        summary: Six controller tests passed authoritative cache-loss fallback, fail-closed reads, nonzero legacy drain refusal, all-old-socket closure before activation, and rejection without publishing epoch one.
 
   - id: T-WEB-RECOVERY
     type: playwright
@@ -1402,7 +1474,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Wire backend inference, authorization, retention, and cutover
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-4, S-5, S-6, S-7, S-8, S-10, S-11]
@@ -1426,7 +1498,7 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Implement CLI preflight, recovery worker, and clean-cutover error
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-8]
@@ -1448,7 +1520,7 @@ tasks:
     independently_deployable: false
   - id: TASK-5B
     title: Implement npm and pip SDK saved-chat recovery
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-8, S-12]
