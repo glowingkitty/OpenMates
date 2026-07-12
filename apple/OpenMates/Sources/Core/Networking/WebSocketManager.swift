@@ -156,6 +156,36 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         }
     }
 
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        timeout: Duration = .seconds(20),
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> [String: Any] {
+        let waiterId = UUID()
+        return try await withCheckedThrowingContinuation { continuation in
+            messageWaiters[waiterId] = MessageWaiter(
+                type: responseType,
+                predicate: predicate,
+                continuation: continuation
+            )
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    try await send(message)
+                } catch {
+                    guard let waiter = messageWaiters.removeValue(forKey: waiterId) else { return }
+                    waiter.continuation.resume(throwing: error)
+                }
+            }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: timeout)
+                guard let waiter = self?.messageWaiters.removeValue(forKey: waiterId) else { return }
+                waiter.continuation.resume(throwing: WebSocketError.messageTimeout)
+            }
+        }
+    }
+
     var isConnected: Bool {
         connectionState == .connected
     }
@@ -618,6 +648,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 @MainActor
 protocol ChatWebSocketTransport: AnyObject {
     func send(_ message: WSOutboundMessage) async throws
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> [String: Any]
     func waitForMessage(
         _ type: String,
         timeout: Duration,
@@ -626,6 +662,13 @@ protocol ChatWebSocketTransport: AnyObject {
 }
 
 extension ChatWebSocketTransport {
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> [String: Any] {
+        try await sendAndWait(message, responseType: responseType, timeout: .seconds(20), matching: predicate)
+    }
     func waitForMessage(
         _ type: String,
         matching predicate: @escaping ([String: Any]) -> Bool

@@ -410,6 +410,16 @@ private final class RecoveryRecordingTransport: ChatWebSocketTransport {
         sentPayloads.append((object["payload"] as? [String: Any]) ?? [:])
     }
 
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> [String: Any] {
+        try await send(message)
+        return try await waitForMessage(responseType, timeout: timeout, matching: predicate)
+    }
+
     func waitForMessage(
         _ type: String,
         timeout: Duration,

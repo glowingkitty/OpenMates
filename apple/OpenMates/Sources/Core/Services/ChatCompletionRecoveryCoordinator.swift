@@ -185,16 +185,15 @@ final class ChatCompletionRecoveryCoordinator {
     }
 
     private func claim(jobId: String) async throws -> [String: Any] {
-        let claimWait = Task { @MainActor in
-            try await transport.waitForMessage("recovery_job_claimed") {
+        try await transport.sendAndWait(
+            WSOutboundMessage(type: "recovery_job_claim", payload: [
+                "protocol_version": Self.protocolVersion,
+                "job_id": jobId,
+            ]),
+            responseType: "recovery_job_claimed"
+        ) {
                 $0["job_id"] as? String == jobId
-            }
         }
-        try await transport.send(WSOutboundMessage(type: "recovery_job_claim", payload: [
-            "protocol_version": Self.protocolVersion,
-            "job_id": jobId,
-        ]))
-        return try await claimWait.value
     }
 
     private func recover(_ job: AvailableJob, claim: [String: Any]) async throws {
@@ -262,20 +261,19 @@ final class ChatCompletionRecoveryCoordinator {
             modelName: recovered.modelName
         )
         pendingLocalMessages[job.jobId] = localMessage
-        let persistedWait = Task { @MainActor in
-            try await transport.waitForMessage("recovery_job_persisted") {
+        let acknowledgement = try await transport.sendAndWait(
+            WSOutboundMessage(type: "recovery_job_persist", payload: [
+                "protocol_version": Self.protocolVersion,
+                "job_id": job.jobId,
+                "lease_token": leaseToken,
+                "lease_generation": leaseGeneration,
+                "expected_messages_v": chatVersion(job.chatId) ?? 0,
+                "encrypted_assistant_message": encryptedMessage,
+            ]),
+            responseType: "recovery_job_persisted"
+        ) {
                 $0["job_id"] as? String == job.jobId
-            }
         }
-        try await transport.send(WSOutboundMessage(type: "recovery_job_persist", payload: [
-            "protocol_version": Self.protocolVersion,
-            "job_id": job.jobId,
-            "lease_token": leaseToken,
-            "lease_generation": leaseGeneration,
-            "expected_messages_v": chatVersion(job.chatId) ?? 0,
-            "encrypted_assistant_message": encryptedMessage,
-        ]))
-        let acknowledgement = try await persistedWait.value
         guard Self.intValue(acknowledgement["lease_generation"]) == leaseGeneration else {
             throw RecoveryError.invalidAcknowledgement
         }
