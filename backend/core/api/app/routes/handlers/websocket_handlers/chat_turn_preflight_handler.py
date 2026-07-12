@@ -39,12 +39,27 @@ def canonicalize_inference_request(inference_request: dict[str, Any]) -> bytes:
     ).encode("utf-8")
 
 
-def build_inference_commitment(inference_request: dict[str, Any]) -> str:
+def _commitment_key() -> bytes:
     commitment_key = os.getenv("CHAT_RECOVERY_COMMITMENT_KEY")
-    if not commitment_key:
-        raise RuntimeError("CHAT_RECOVERY_COMMITMENT_KEY is not configured")
+    if commitment_key:
+        return commitment_key.encode("utf-8")
+
+    # Existing deployments already require this secret for internal transactions.
+    # Derive a purpose-bound key so an API restart cannot disable all saved-chat
+    # sends when the optional recovery-specific variable has not been provisioned.
+    internal_token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+    if internal_token:
+        return hmac.new(
+            internal_token.encode("utf-8"),
+            b"openmates:chat-recovery-commitment:v1",
+            hashlib.sha256,
+        ).digest()
+    raise RuntimeError("CHAT_RECOVERY_COMMITMENT_KEY or INTERNAL_API_SHARED_TOKEN is required")
+
+
+def build_inference_commitment(inference_request: dict[str, Any]) -> str:
     return hmac.new(
-        commitment_key.encode("utf-8"),
+        _commitment_key(),
         canonicalize_inference_request(inference_request),
         hashlib.sha256,
     ).hexdigest()

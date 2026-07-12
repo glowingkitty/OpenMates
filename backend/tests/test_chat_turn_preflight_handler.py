@@ -105,6 +105,7 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
 @pytest.mark.asyncio
 async def test_preflight_fails_closed_without_commitment_key(monkeypatch) -> None:
     monkeypatch.delenv("CHAT_RECOVERY_COMMITMENT_KEY", raising=False)
+    monkeypatch.delenv("INTERNAL_API_SHARED_TOKEN", raising=False)
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
     manager = FakeManager()
 
@@ -130,6 +131,23 @@ async def test_preflight_fails_closed_without_commitment_key(monkeypatch) -> Non
             "device-hash",
         )
     ]
+
+
+def test_preflight_derives_a_purpose_bound_commitment_key_from_internal_token(monkeypatch) -> None:
+    monkeypatch.delenv("CHAT_RECOVERY_COMMITMENT_KEY", raising=False)
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "internal-token")
+    inference_request = _payload()["inference_request"]
+
+    expected_key = hmac.new(
+        b"internal-token", b"openmates:chat-recovery-commitment:v1", hashlib.sha256
+    ).digest()
+    expected = hmac.new(
+        expected_key,
+        json.dumps(inference_request, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+    assert chat_turn_preflight_handler.build_inference_commitment(inference_request) == expected
 
 
 @pytest.mark.asyncio
