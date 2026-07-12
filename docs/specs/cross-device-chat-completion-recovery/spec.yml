@@ -122,7 +122,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: cddcb413c36b7df1b24ac7bef012403d3ef5a998
+  subject_commit: 6ca62928a
 
 approvals:
   product_contract:
@@ -255,15 +255,20 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-12T01:05:41Z"
     evidence: GitHub Actions run 29174719802 reached commit 18eab755a but the shim lacked crypto.subtle.sign; the focused test must install Node WebCrypto before exercising browser-compatible recovery vectors.
+  - id: ATTEMPT-6
+    task_id: TASK-2
+    approach: Run the targeted Apple shared-vector XCTest after browser vectors passed.
+    outcome: blocked
+    recorded_at: "2026-07-12T01:15:47Z"
+    evidence: The remote Xcode invocation succeeded but executed zero tests because ChatCompletionRecoveryTests.swift was not included in the OpenMatesTests target Sources phase.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy the focused Node WebCrypto Vitest setup and updated TASK-2 evidence, then rerun Vitest against that commit before Apple verification.
-  command: >-
-    python3 scripts/sessions.py deploy --session f5e3 --title "test: stabilize browser recovery vectors" --message "Install Node WebCrypto for deterministic browser recovery vector tests and record the failed committed Vitest run."
-  expected_outcome: The browser recovery vector tests pass under repository-controlled Vitest; unrelated existing failures remain separately attributable.
+  next_action: Deploy the missing ChatCompletionRecoveryTests target membership, then rerun the targeted XCTest and refresh all TASK-2 vector evidence on one subject commit.
+  command: python3 scripts/sessions.py prepare-deploy --session 7d2b
+  expected_outcome: The targeted Apple shared recovery-vector XCTest executes one test instead of zero and passes.
   blocker: null
-  last_verified_commit: 47b5faf18fb33d73d29b792f472505b5bd33bb37
+  last_verified_commit: 6ca62928a
 
 scenarios:
   - id: S-1
@@ -811,12 +816,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: failed
+        status: passed
         command: python3 scripts/tests.py run -- --suite vitest
-        run_id: gha-29174719802
-        subject_commit: 18eab755a
-        timestamp: "2026-07-12T01:05:41Z"
-        summary: The committed RFC 5869 implementation reached the focused vector test, which failed because the repository Vitest crypto shim lacked crypto.subtle.sign; two unrelated existing Vitest failures also remained.
+        run_id: gha-29174864948
+        subject_commit: 6ca62928a
+        timestamp: "2026-07-12T01:11:38Z"
+        summary: All browser recovery exact-vector, tamper, malformed-envelope, all-zero shared-secret, and payload-limit checks passed; two unrelated pre-existing Vitest failures remained.
 
   - id: T-APPLE-CRYPTO-VECTORS
     type: unit

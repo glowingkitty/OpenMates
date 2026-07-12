@@ -251,6 +251,7 @@
 		C0FFEE000000000000051002 /* NativeComposerInlineEmbedUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000051001 /* NativeComposerInlineEmbedUITests.swift */; };
 		C0FFEE000000000000052002 /* NativeComposerDraftEditUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000052001 /* NativeComposerDraftEditUITests.swift */; };
 		C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */; };
+		C0FFEE000000000000053002 /* ChatCompletionRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000053001 /* ChatCompletionRecoveryTests.swift */; };
 		C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000012001 /* ChatSyncParityTests.swift */; };
 		D5AF70000000000000000002 /* DraftSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AF70000000000000000001 /* DraftSyncCoordinator.swift */; };
 		D5AF70000000000000000003 /* DraftSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5AF70000000000000000001 /* DraftSyncCoordinator.swift */; };
@@ -1048,6 +1049,7 @@
 		C0FFEE000000000000036006 /* WorkflowViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowViews.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingAssistantResponseQueue.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSendPipelineParityTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000053001 /* ChatCompletionRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCompletionRecoveryTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamingLifecycleParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatSenderParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnonymousChatStreamingParityTests.swift; sourceTree = "<group>"; };
@@ -1764,6 +1766,7 @@
 		C0FFEE000000000000002012 /* OpenMatesTests */ = {
 			isa = PBXGroup;
 			children = (
+				C0FFEE000000000000053001 /* ChatCompletionRecoveryTests.swift */,
 				B70000000000000000000005 /* SettingsPrivacyParityTests.swift */,
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
 				C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */,
@@ -3047,6 +3050,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
+				C0FFEE000000000000053002 /* ChatCompletionRecoveryTests.swift in Sources */,
 				C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */,
 				C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */,
 				C0FFEE000000000000049031 /* WatchAuthStoreTests.swift in Sources */,
