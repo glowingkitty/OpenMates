@@ -29,6 +29,8 @@ python3 scripts/sessions.py end --session <ID>
 ## Key Rules
 
 - **Always use `sessions.py deploy`** — never raw `git commit`. It bypasses session tracking.
+- **Active executable specs are non-interruptible:** When the current work has an active `docs/specs/<slug>/spec.yml`, do not stop, summarize, or defer because the task is large, the turn is long, tests fail, the worktree is concurrent, or context is tight. Continue the smallest actionable task, compact if needed, and use the durable handoff to resume. A final response is allowed only after `python3 scripts/spec_verify.py <spec> --json` reports complete, or after the current task records a structured `handoff.blocker` with `task_id`, `requires_user_input: true`, `reason`, `question`, and `next_action`. Future-task gates never block the current task.
+- **File waits are not user blockers:** When a file lease is temporarily unavailable, keep the task active. Work on non-conflicting steps when possible and wait for the targeted lease-grant resume signal; do not end the session or ask the user to retry.
 - If deploy fails due to a **pre-existing hook bug**, use `sessions.py deploy --no-verify`.
 - **Mode escalation:** If a `--mode question` session needs file edits, end it and restart with `--mode feature` or `--mode bug`.
 - **Concurrent sessions:** Re-read files before editing. Check git status before committing. Use `lock/unlock` for Docker/Vercel.

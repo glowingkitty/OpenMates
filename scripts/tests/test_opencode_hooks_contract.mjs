@@ -18,3 +18,9 @@ test("Apple audit exit code two remains blocking", () => {
   assert.match(source, /commandArgs\[0\]\?\.endsWith\("audit_ui_control_visibility\.py"\)/);
   assert.doesNotMatch(source, /allowHookWarning = true/);
 });
+
+test("loaded hook uses chat-scoped file leases without idle spec continuation", () => {
+  assert.match(source, /createFileLeaseCoordinator/);
+  assert.match(source, /OPENCODE_SESSION_ID/);
+  assert.doesNotMatch(source, /createSpecAutoContinue|session\.idle|opencode-spec-continuation/);
+});

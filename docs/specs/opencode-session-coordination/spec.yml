@@ -1,0 +1,522 @@
+schema_version: 2
+id: opencode-session-coordination
+title: OpenCode Web Session Coordination
+status: verified
+
+goal: >
+  Make concurrent OpenCode web chats safe and persistent in one shared worktree.
+  Use the OpenCode chat ID as the authoritative agent identity, remove the buggy
+  idle spec auto-continuation trigger, coordinate writes through renewable
+  file-set leases and an event-driven wait queue, and simplify spec instructions
+  according to risk while requiring agents to continue approved work until done
+  or genuinely blocked on important user input.
+
+scope:
+  in:
+    - Remove deterministic idle spec auto-continuation and message-history spec detection.
+    - Use each OpenCode `ses_*` chat ID as the authoritative identity for repo sessions, file ownership, and queued access.
+    - Bind `sessions.py` records to the calling OpenCode chat without Zellij-based identity resolution.
+    - Acquire requested file sets atomically in canonical order with one owner, renewable TTL, and heartbeat metadata.
+    - Queue conflicting requests fairly and automatically grant the complete file set after release or stale-owner expiry.
+    - Resume only chats waiting for file leases; never inject generic spec-completion prompts into idle chats.
+    - Keep `spec.yml` single-writer while allowing non-conflicting files to progress concurrently.
+    - Strengthen agent and skill instructions to continue approved tasks until complete or important user input is required.
+    - Introduce risk-tiered spec guidance so normal work carries less ledger overhead than auth, encryption, billing, privacy, permissions, sync, migrations, and similarly high-risk work.
+  out:
+    - Separate Git worktrees or branches per OpenCode chat.
+    - Zellij as an identity, routing, ownership, or lock primitive for OpenCode web chats.
+    - Periodic per-chat polling for file availability.
+    - Automatic continuation of arbitrary idle spec chats.
+    - Merging conflicting edits automatically.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP authentication returned 401; `gh issue list` found no matching issue.
+  docs:
+    - AGENTS.md
+    - .claude/rules/session-lifecycle.md
+    - .claude/rules/planning.md
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/sessions.py
+    - .claude/hooks/pre-edit-guard.sh
+    - scripts/spec_verify.py
+    - scripts/audit_opencode_spec_workflow.py
+  tests:
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_spec_autocontinue.mjs
+    - scripts/tests/test_sessions_stale_read.py
+    - scripts/tests/test_spec_workflow_validation.py
+  external_research:
+    - MCP Agent Mail uses project-scoped agent identities and renewable advisory file leases, but intentionally has no automatic wait queue.
+    - Distributed-lock guidance recommends bounded leases and fencing/ownership checks because expired owners may still attempt writes.
+    - Concurrent coding-agent projects commonly prefer worktree isolation; this contract instead uses explicit leases because the user requires one shared OpenCode web worktree.
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This developer-tooling change has no Apple product counterpart.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Which identity is authoritative for OpenCode web sessions?
+      answer: The OpenCode `ses_*` chat ID; do not use Zellij.
+    - question: Which shared-worktree collision model should replace the current setup?
+      answer: Atomic renewable file-set leases with an event-driven wait queue and automatic resume after grant.
+    - question: Should deterministic idle spec auto-resume remain?
+      answer: No. Remove it and enforce completion through agent and skill instructions instead.
+    - question: How should spec complexity change?
+      answer: Use risk-tiered specs; reserve the full evidence ledger for high-risk work.
+    - question: How should crashed owners be handled?
+      answer: Expire stale leases and automatically grant the next complete queued request.
+  vision_summary: >
+    OpenCode web chat IDs are the sole coordination identity. Chats share one
+    worktree, request atomic renewable leases for their intended file set, wait
+    without ending when files are busy, and are resumed when the set is granted.
+    Generic idle spec prompting is removed; concise instructions require agents
+    to continue approved work unless important user input is truly required.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-12T17:55:34Z"
+  implementation_plan:
+    status: not_required
+    reason: The user approved the identity, lease queue, expiry, continuation, and risk-tier decisions explicitly.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: OpenCode `ses_*` chat IDs are authoritative; repo session IDs are secondary metadata.
+    reason: All OpenCode web chats share one process and Zellij identity, while the hook receives the exact OpenCode session ID.
+    decided_at: "2026-07-12T17:55:34Z"
+  - id: D-2
+    status: active
+    decision: Remove deterministic idle spec continuation completely.
+    reason: It repeatedly injected long instructions into an unrelated chat and cannot be made safe through message-history inference.
+    decided_at: "2026-07-12T17:55:34Z"
+  - id: D-3
+    status: active
+    decision: Use atomic renewable file-set leases with a fair wait queue, central expiry sweep, and automatic resume only after lease grant.
+    reason: This prevents partial acquisition deadlocks and avoids asking the user to manually retry temporary file conflicts.
+    decided_at: "2026-07-12T17:55:34Z"
+  - id: D-4
+    status: active
+    decision: Use risk-tiered spec requirements.
+    reason: The current full ledger is valuable for high-risk changes but creates excessive administrative work for ordinary features.
+    decided_at: "2026-07-12T17:55:34Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Detect a spec from chat message history and continue on every session.idle event.
+    outcome: rejected
+    recorded_at: "2026-07-12T17:55:34Z"
+    reason: It routed the models3d spec into this unrelated coordination chat and repeatedly spammed the user.
+
+handoff:
+  current_task_id: TASK-4
+  next_action: Verify the completed executable spec, deploy the reviewed changes, and restart OpenCode to load the new hook runtime.
+  command: python3 scripts/spec_verify.py docs/specs/opencode-session-coordination/spec.yml --json
+  expected_outcome: All required acceptance criteria and verification evidence pass.
+  blocker: null
+  last_verified_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+
+scenarios:
+  - id: S-1
+    title: An idle spec chat receives no synthetic continuation prompt
+    given:
+      - An OpenCode web chat mentions or owns an incomplete executable spec.
+    when:
+      - The chat becomes idle without waiting for a file lease.
+    then:
+      - No plugin prompt is injected.
+      - Agent and skill instructions remain responsible for continuing approved work.
+  - id: S-2
+    title: Concurrent chats queue for one atomic file set
+    given:
+      - Chat A owns files `a.py` and `b.py` under a live lease.
+      - Chat B requests both files for one task.
+    when:
+      - Chat B attempts its first edit.
+    then:
+      - Chat B edits neither file and enters `waiting_for_files` once.
+      - Releasing or expiring Chat A grants both files atomically to Chat B.
+      - Chat B receives one concise resume prompt tied to the granted request.
+  - id: S-3
+    title: A crashed owner cannot block progress forever
+    given:
+      - Chat A owns a file set but stops heartbeating.
+      - Chat B is first in the compatible wait queue.
+    when:
+      - The central lease sweep observes expiry.
+    then:
+      - Chat A loses ownership with a monotonically newer lease generation.
+      - Chat B receives the complete set and may edit.
+      - A stale Chat A edit is rejected by generation or ownership checks.
+  - id: S-4
+    title: Instructions scale requirements by risk and continue execution
+    given:
+      - A product contract is approved and implementation tasks remain.
+    when:
+      - An agent encounters a failing test, context pressure, a temporary file wait, or a later-phase gate.
+    then:
+      - The agent continues the current actionable task or waits for its lease without ending.
+      - Only important unresolved user input may pause the current task.
+      - Ordinary changes use a lighter spec contract while high-risk domains retain full evidence requirements.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: OpenCode emits no synthetic prompt solely because a session with an incomplete spec becomes idle.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-NODE-IDLE
+  - id: AC-2
+    scenario: S-2
+    text: File-set acquisition is atomic and conflicting chats are queued without making partial edits.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-LEASES
+      - T-NODE-LEASE-HOOK
+  - id: AC-3
+    scenario: S-2
+    text: A queued chat is resumed exactly once after its complete requested file set is granted.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-NODE-LEASE-HOOK
+  - id: AC-4
+    scenario: S-3
+    text: Expired ownership is transferred fairly and stale owners cannot write under an old lease generation.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-LEASES
+  - id: AC-5
+    scenario: S-4
+    text: Shared instructions require continued execution until all approved tasks complete or important user input is required.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-AUDIT-WORKFLOW
+  - id: AC-6
+    scenario: S-4
+    text: Spec guidance defines lighter normal specs and full high-risk specs without weakening verification for risky domains.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-AUDIT-WORKFLOW
+
+tests:
+  - id: T-NODE-IDLE
+    type: unit
+    file: scripts/tests/test_opencode_spec_autocontinue.mjs
+    command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs
+    covers:
+      - AC-1
+    assertions:
+      - session.idle never calls client.session.prompt for spec continuation
+      - the legacy continuation prompt text is absent from the loaded plugin
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: passed_unexpectedly
+        command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs
+        run_id: local-red-2026-07-12-idle
+        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        timestamp: "2026-07-12T19:29:12Z"
+        reason: The legacy idle continuation implementation was already absent from the verified revision, so the newly added no-idle-prompt contract passed during the red-phase check.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs
+        run_id: local-green-2026-07-12-node
+        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        timestamp: "2026-07-12T19:29:12Z"
+  - id: T-PYTEST-LEASES
+    type: pytest
+    file: scripts/tests/test_opencode_file_leases.py
+    command: python3 -m pytest scripts/tests/test_opencode_file_leases.py
+    covers:
+      - AC-2
+      - AC-4
+    assertions:
+      - one chat atomically acquires a canonical file set
+      - a conflict creates one FIFO queued request without partial ownership
+      - release and expiry grant the next compatible request
+      - stale generations cannot authorize writes
+      - abandoned waiters expire without starving compatible requests
+      - concurrent OpenCode session registrations preserve every authoritative binding
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_opencode_file_leases.py
+        run_id: local-red-2026-07-12-lease-races
+        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        timestamp: "2026-07-12T19:29:12Z"
+        reason: The new waiter-expiry, notification-claim, and concurrent-registration contracts failed before their implementations were added.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_opencode_file_leases.py scripts/tests/test_opencode_spec_workflow_audit.py
+        run_id: local-green-2026-07-12-python
+        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        timestamp: "2026-07-12T19:29:12Z"
+  - id: T-NODE-LEASE-HOOK
+    type: unit
+    file: scripts/tests/test_opencode_file_lease_hook.mjs
+    command: node --test scripts/tests/test_opencode_file_lease_hook.mjs
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - hook operations use the calling OpenCode session ID
+      - denied edits are not executed
+      - newly granted waiters receive one concise resume prompt
+      - unrelated chats receive no prompt
+      - overlapping same-chat edits cannot supersede an in-flight generation
+      - direct Bash source mutations are rejected before execution
+      - deterministic prompt message IDs deduplicate cross-coordinator delivery
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: node --test scripts/tests/test_opencode_file_lease_hook.mjs
+        run_id: local-red-2026-07-12-hook-races
+        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        timestamp: "2026-07-12T19:29:12Z"
+        reason: Pre-execution Bash guarding, in-flight generation protection, and cross-coordinator notification deduplication contracts failed before the hook was corrected.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs scripts/tests/test_opencode_file_lease_hook.mjs scripts/tests/test_opencode_hooks_contract.mjs
+        run_id: local-green-2026-07-12-node
+        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        timestamp: "2026-07-12T19:29:12Z"
+  - id: T-AUDIT-WORKFLOW
+    type: pytest
+    file: scripts/tests/test_opencode_spec_workflow_audit.py
+    command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - workflow audit rejects deterministic idle spec continuation
+      - workflow audit requires continue-until-complete instructions
+      - workflow audit requires risk-tiered spec guidance
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: passed_unexpectedly
+        command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py
+        run_id: local-red-2026-07-12-workflow
+        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        timestamp: "2026-07-12T19:29:12Z"
+        reason: The risk-tier and continuation instruction changes were already present when the focused audit contract was first run.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_opencode_spec_workflow.py
+        run_id: local-green-2026-07-12-workflow
+        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        timestamp: "2026-07-12T19:29:12Z"
+
+implementation_plan:
+  spec_path: docs/specs/opencode-session-coordination/spec.yml
+  existing_patterns:
+    - scripts/sessions.py atomic JSON state writes and stale-session pruning
+    - .opencode/plugins/openmates-hooks.js access to exact OpenCode session IDs
+    - scripts/spec_verify.py structured blocker semantics
+  architecture: >
+    Add a small deterministic lease coordinator with durable state, atomic
+    acquire/release/heartbeat/sweep operations, FIFO queued requests, and lease
+    generations. The OpenCode hook passes its exact `sessionID` to the
+    coordinator before edits and prompts only sessions returned as newly granted
+    waiters. Remove all session.idle prompting. Keep completion behavior in
+    shared instructions and simplify spec requirements by risk tier.
+  data_flow:
+    - A chat starts a repo session; the hook records its exact OpenCode `ses_*` identity.
+    - Before an edit, the hook requests the complete normalized file set atomically.
+    - The coordinator grants it or records one queued request and rejects the edit.
+    - Tool activity renews leases owned by that chat.
+    - Release, deploy/end, or expiry grants compatible queued requests in FIFO order.
+    - The hook sends one concise resume prompt only to newly granted waiting chats.
+  affected_files:
+    - path: .opencode/plugins/openmates-hooks.js
+      reason: Remove idle continuation and integrate identity-aware lease operations.
+    - path: scripts/opencode_file_leases.py
+      reason: Durable lease, queue, expiry, and generation coordinator.
+    - path: scripts/sessions.py
+      reason: Store the authoritative OpenCode chat identity on repo session records.
+    - path: .claude/rules/session-lifecycle.md
+      reason: Define continue-until-complete and temporary file-wait behavior.
+    - path: docs/contributing/guides/spec-driven-development.md
+      reason: Define risk-tiered specs and narrow valid user blockers.
+    - path: scripts/audit_opencode_spec_workflow.py
+      reason: Deterministically enforce the new workflow and forbid idle continuation.
+  verification_strategy:
+    - node --test scripts/tests/test_opencode_spec_autocontinue.mjs
+    - python3 -m pytest scripts/tests/test_opencode_file_leases.py
+    - node --test scripts/tests/test_opencode_file_lease_hook.mjs
+    - python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py
+  verification_order:
+    - Remove idle prompting and prove no synthetic prompt first.
+    - Verify lease coordinator state transitions second.
+    - Verify hook identity, blocking, and targeted resume third.
+    - Verify instruction and risk-tier audits last.
+
+tasks:
+  - id: TASK-1
+    title: Remove deterministic idle spec continuation
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - .opencode/plugins/openmates-hooks.js
+      - scripts/tests/test_opencode_spec_autocontinue.mjs
+      - scripts/audit_opencode_spec_workflow.py
+    ownership:
+      files:
+        - .opencode/plugins/openmates-hooks.js
+        - scripts/tests/test_opencode_spec_autocontinue.mjs
+        - scripts/audit_opencode_spec_workflow.py
+      shared_files: []
+    verification_ids:
+      - T-NODE-IDLE
+    dependencies: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-2
+    independently_deployable: true
+  - id: TASK-2
+    title: Implement authoritative identity and lease coordinator
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-2
+        - AC-4
+    expected_files:
+      - scripts/opencode_file_leases.py
+      - scripts/sessions.py
+      - scripts/tests/test_opencode_file_leases.py
+    ownership:
+      files:
+        - scripts/opencode_file_leases.py
+        - scripts/sessions.py
+        - scripts/tests/test_opencode_file_leases.py
+      shared_files: []
+    verification_ids:
+      - T-PYTEST-LEASES
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks:
+      - TASK-3
+    independently_deployable: false
+  - id: TASK-3
+    title: Integrate queued leases and targeted resume into OpenCode hook
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - .opencode/plugins/openmates-hooks.js
+      - scripts/tests/test_opencode_file_lease_hook.mjs
+    ownership:
+      files:
+        - .opencode/plugins/openmates-hooks.js
+        - scripts/tests/test_opencode_file_lease_hook.mjs
+      shared_files: []
+    verification_ids:
+      - T-NODE-LEASE-HOOK
+    dependencies:
+      - TASK-2
+    blockers: []
+    follow_up_tasks:
+      - TASK-4
+    independently_deployable: false
+  - id: TASK-4
+    title: Simplify spec tiers and strengthen completion instructions
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+    expected_files:
+      - AGENTS.md
+      - .claude/rules/session-lifecycle.md
+      - .claude/rules/planning.md
+      - docs/contributing/guides/spec-driven-development.md
+      - scripts/audit_opencode_spec_workflow.py
+      - scripts/tests/test_opencode_spec_workflow_audit.py
+    ownership:
+      files:
+        - AGENTS.md
+        - .claude/rules/session-lifecycle.md
+        - .claude/rules/planning.md
+        - docs/contributing/guides/spec-driven-development.md
+        - scripts/audit_opencode_spec_workflow.py
+        - scripts/tests/test_opencode_spec_workflow_audit.py
+      shared_files: []
+    verification_ids:
+      - T-AUDIT-WORKFLOW
+    dependencies:
+      - TASK-3
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true

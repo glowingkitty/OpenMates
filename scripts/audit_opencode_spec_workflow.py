@@ -17,13 +17,17 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OPENCODE_CONFIG = REPO_ROOT / "opencode.json"
+OPENCODE_COORDINATION_PLUGIN = Path(".opencode/plugins/openmates-hooks.js")
 REQUIRED_INSTRUCTIONS = {
     ".claude/rules/planning.md",
     ".claude/rules/testing.md",
     "docs/contributing/guides/spec-driven-development.md",
 }
 PLAN_PROMPT_TERMS = {
-    "Do not edit",
+    "risk tier",
+    "Tier 1",
+    "Tier 2",
+    "may edit only",
     "one clarifying question",
     "coverage_status",
     "verification_ids",
@@ -41,6 +45,7 @@ PLAN_EDIT_PERMISSION_ITEMS = (
 )
 SKILL_TERMS = {
     ".claude/skills/specify/SKILL.md": {
+        "Risk tier",
         "coverage_status",
         "verification_ids",
         "assumptions",
@@ -63,6 +68,7 @@ SKILL_TERMS = {
         "handoff",
     },
     ".claude/skills/verify-spec/SKILL.md": {
+        "Continue On Failure",
         "coverage_status",
         "required assumptions",
         "failed required checks",
@@ -71,6 +77,20 @@ SKILL_TERMS = {
     },
 }
 CANONICAL_SKILLS = tuple(SKILL_TERMS)
+INSTRUCTION_TERMS = {
+    "AGENTS.md": {"continue through all actionable tasks", "temporary file waits"},
+    ".claude/rules/session-lifecycle.md": {
+        "Active executable specs are non-interruptible",
+        "File waits are not user blockers",
+    },
+    "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2"},
+}
+OPENCODE_COORDINATION_TERMS = {
+    "createFileLeaseCoordinator",
+    "OPENCODE_SESSION_ID",
+    "opencode_file_leases.py",
+}
+FORBIDDEN_COORDINATION_TERMS = {"session.idle", "createSpecAutoContinue"}
 
 
 def _load_opencode_config(path: Path = OPENCODE_CONFIG) -> dict[str, Any]:
@@ -132,8 +152,44 @@ def audit_skill_mirrors(root: Path = REPO_ROOT) -> list[str]:
     return failures
 
 
+def audit_instructions(root: Path = REPO_ROOT) -> list[str]:
+    failures: list[str] = []
+    for rel_path, terms in INSTRUCTION_TERMS.items():
+        path = root / rel_path
+        if not path.exists():
+            failures.append(f"missing workflow instruction: {rel_path}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for term in sorted(terms):
+            if term not in text:
+                failures.append(f"{rel_path} missing required workflow term: {term}")
+    return failures
+
+
+def audit_opencode_coordination(root: Path = REPO_ROOT) -> list[str]:
+    failures: list[str] = []
+    path = root / OPENCODE_COORDINATION_PLUGIN
+    if not path.exists():
+        return ["missing OpenCode session coordination plugin"]
+
+    source = path.read_text(encoding="utf-8")
+    for term in sorted(OPENCODE_COORDINATION_TERMS):
+        if term not in source:
+            failures.append(f"OpenCode coordination plugin missing required term: {term}")
+    for term in sorted(FORBIDDEN_COORDINATION_TERMS):
+        if term in source:
+            failures.append(f"OpenCode coordination plugin contains forbidden idle continuation term: {term}")
+    return failures
+
+
 def audit() -> list[str]:
-    return audit_config(_load_opencode_config()) + audit_skills() + audit_skill_mirrors()
+    return (
+        audit_config(_load_opencode_config())
+        + audit_skills()
+        + audit_skill_mirrors()
+        + audit_instructions()
+        + audit_opencode_coordination()
+    )
 
 
 def main() -> int:

@@ -6,11 +6,14 @@
 // the canonical hooks from `.claude/hooks/`.
 
 import { spawnSync } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const BASH_TOOLS = new Set(["bash", "Bash"]);
 const READ_TOOLS = new Set(["read", "Read"]);
 const PROJECT_ROOT = "/home/superdev/projects/OpenMates";
+const LEASE_SWEEP_INTERVAL_MS = 30_000;
+const LEASE_HEARTBEAT_INTERVAL_MS = 60_000;
 const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
 const POST_EDIT_LINTS = [
   `${PROJECT_ROOT}/scripts/lint-design-tokens.sh`,
@@ -30,7 +33,6 @@ const CLI_AUTH_ERROR_PATTERNS = [
   /Email encryption key is missing\. Run [`']openmates login[`'] again/i,
   /Requires login \(run [`']openmates login[`'] first\)\./i,
 ];
-
 function normalizeToolName(tool) {
   if (tool === "edit") return "Edit";
   if (tool === "write") return "Write";
@@ -55,6 +57,168 @@ function bashCommand(args) {
   if (typeof args === "string") return args;
   if (!args || typeof args !== "object") return "";
   return args.command || args.cmd || args.script || "";
+}
+
+function defaultRunLease(command, sessionID, files = [], generation) {
+  const args = [`${PROJECT_ROOT}/scripts/opencode_file_leases.py`, command];
+  if (sessionID) args.push("--session", sessionID);
+  if (files.length) args.push("--files", ...files);
+  if (generation !== undefined) args.push("--generation", String(generation));
+  const result = spawnSync("python3", args, {
+    cwd: PROJECT_ROOT,
+    encoding: "utf8",
+  });
+  const stdout = (result.stdout || "").trim();
+  if (result.status !== 0 && result.status !== 2) {
+    throw new Error((result.stderr || stdout || `File lease ${command} failed`).trim());
+  }
+  return stdout ? JSON.parse(stdout) : {};
+}
+
+function defaultHasActiveBinding(sessionID) {
+  const result = spawnSync("python3", [`${PROJECT_ROOT}/scripts/sessions.py`, "status", "--json"], {
+    cwd: PROJECT_ROOT,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) return true;
+  const state = JSON.parse(result.stdout || "{}");
+  return Object.values(state.sessions || {}).some((session) => session.opencode_session_id === sessionID);
+}
+
+export function createFileLeaseCoordinator({
+  client,
+  runLease = defaultRunLease,
+  hasActiveBinding = defaultHasActiveBinding,
+}) {
+  const lastHeartbeat = new Map();
+  const activeEdits = new Map();
+  const deliveringNotifications = new Set();
+  const notifierID = `opencode-${randomUUID()}`;
+
+  function beginEdit(sessionID, files) {
+    const active = activeEdits.get(sessionID) || [];
+    const requested = new Set(files);
+    if (active.some((edit) => edit.files.some((file) => requested.has(file)))) {
+      throw new Error("An overlapping edit is already in flight for this OpenCode chat; retry after it completes.");
+    }
+    active.push({ files });
+    activeEdits.set(sessionID, active);
+  }
+
+  function finishEdit(sessionID, files) {
+    const active = activeEdits.get(sessionID) || [];
+    const completed = new Set(files);
+    const index = active.findIndex(
+      (edit) => edit.files.length === completed.size && edit.files.every((file) => completed.has(file)),
+    );
+    if (index !== -1) active.splice(index, 1);
+    if (active.length === 0) {
+      activeEdits.delete(sessionID);
+      return;
+    }
+    activeEdits.set(sessionID, active);
+  }
+
+  async function notifyGrants() {
+    const claimed = await runLease("claim", notifierID, []);
+    for (const grant of claimed?.notifications || []) {
+      const notificationKey = `${grant.session_id}:${grant.generation}`;
+      if (deliveringNotifications.has(notificationKey)) continue;
+      deliveringNotifications.add(notificationKey);
+      try {
+        const messageID = `msg_${createHash("sha256").update(`file-lease:${notificationKey}`).digest("hex").slice(0, 26)}`;
+        await client.session.prompt({
+          path: { id: grant.session_id },
+          body: {
+            messageID,
+            parts: [{
+              type: "text",
+              text: `Your requested file lease is now available for: ${grant.files.join(", ")}. Resume the blocked edit step now.`,
+            }],
+          },
+        });
+        await runLease("acknowledge", grant.session_id, [], grant.generation);
+      } catch (error) {
+        console.error(`[opencode-file-leases] grant notification failed session=${grant.session_id}`, error);
+      } finally {
+        deliveringNotifications.delete(notificationKey);
+      }
+    }
+  }
+
+  return {
+    prepareCommand(input, output) {
+      const command = bashCommand(output?.args || input?.args);
+      if (!input?.sessionID || !/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) return;
+      if (/--opencode-session\b/.test(command) || /[;&|]/.test(command)) return;
+      output.args.command = `${command} --opencode-session ${input.sessionID}`;
+    },
+    async heartbeat(sessionID) {
+      if (!sessionID) return;
+      const now = Date.now();
+      if (now - (lastHeartbeat.get(sessionID) || 0) < LEASE_HEARTBEAT_INTERVAL_MS) return;
+      lastHeartbeat.set(sessionID, now);
+      await runLease("heartbeat", sessionID, []);
+      await notifyGrants();
+    },
+    async beforeEdit(sessionID, files) {
+      const requestedFiles = [...new Set(files)].sort();
+      if (!sessionID || requestedFiles.length === 0) return;
+      beginEdit(sessionID, requestedFiles);
+      try {
+        const result = await runLease("acquire", sessionID, requestedFiles);
+        if (result.status === "waiting") {
+          throw new Error(
+            `Waiting for file lease (queue position ${result.position}): ${result.files.join(", ")}. ` +
+            "Do not end the task; this chat will be resumed automatically after the complete file set is granted.",
+          );
+        }
+        const authorization = await runLease("authorize", sessionID, requestedFiles, result.generation);
+        if (!authorization.authorized) {
+          throw new Error(`File lease generation ${result.generation} is no longer valid; retry the edit acquisition.`);
+        }
+      } catch (error) {
+        finishEdit(sessionID, requestedFiles);
+        throw error;
+      }
+    },
+    afterEdit(sessionID, files) {
+      finishEdit(sessionID, [...new Set(files)].sort());
+    },
+    guardBash(command) {
+      const repositoryMutation = /\bgit\s+apply\b/.test(command);
+      const directMutation = /\b(?:sed\s+-i|perl\s+-pi|tee|touch|cp|mv|rm|truncate|install|rsync|patch|dd)\b/.test(command)
+        || />>?/.test(command)
+        || /\b(?:python3?|node)\b.*\b(?:open|write_text|write_bytes|writeFile(?:Sync)?|appendFile(?:Sync)?)\s*\(/.test(command);
+      const repositorySource = /(?:^|[\s"'(])(?:frontend|backend|scripts|docs|apple|\.opencode|\.claude)\//.test(command)
+        || /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)(?:[\s"',)]|$)/.test(command);
+      if (repositoryMutation || (directMutation && repositorySource)) {
+        throw new Error("Use apply_patch for source-file changes so the file lease can be acquired and verified.");
+      }
+    },
+    async afterCommand(sessionID, command, outputText) {
+      if (!sessionID) return;
+      const ended = /python3\s+scripts\/sessions\.py\s+(?:end\b|deploy\b.*--end\b)/.test(command)
+        && /Session [a-f0-9]+ ended and removed/i.test(outputText);
+      if (ended && !await hasActiveBinding(sessionID)) {
+        await runLease("release", sessionID, []);
+        await notifyGrants();
+      }
+    },
+    async sweep() {
+      for (const [sessionID, active] of activeEdits) {
+        if (active.length === 0) continue;
+        await runLease("heartbeat", sessionID, []);
+      }
+      await runLease("sweep", "", []);
+      await notifyGrants();
+    },
+    setShellEnvironment(input, output) {
+      if (!input?.sessionID) return;
+      output.env ||= {};
+      output.env.OPENCODE_SESSION_ID = input.sessionID;
+    },
+  };
 }
 
 function commandRunsOpenMatesCli(command) {
@@ -202,26 +366,43 @@ function filePayload(event, file) {
   };
 }
 
-export const OpenMatesHooks = async () => {
+export const OpenMatesHooks = async ({ client, runLease, hasActiveBinding, runHookBridge = runBridge }) => {
+  const fileLeases = createFileLeaseCoordinator({ client, runLease, hasActiveBinding });
+  const sweepTimer = setInterval(() => {
+    fileLeases.sweep().catch((error) => console.error("[opencode-file-leases] sweep failed", error));
+  }, LEASE_SWEEP_INTERVAL_MS);
+  sweepTimer.unref?.();
+
   return {
+    "shell.env": async (input, output) => {
+      fileLeases.setShellEnvironment(input, output);
+    },
     "tool.execute.before": async (input, output) => {
       const tool = input.tool || "";
       if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool)) return;
 
+      if (BASH_TOOLS.has(tool)) {
+        fileLeases.guardBash(bashCommand(output?.args || input?.args));
+      }
+      fileLeases.prepareCommand(input, output);
+      await fileLeases.heartbeat(input.sessionID);
+
       if (EDIT_TOOLS.has(tool)) {
-        for (const file of editedFiles(input?.args || output?.args)) {
+        const files = editedFiles(input?.args || output?.args);
+        for (const file of files) {
           runStaleRead("check", input.sessionID, file);
         }
-      }
-
-      if (!READ_TOOLS.has(tool)) {
-        runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args));
+        runHookBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args));
+        await fileLeases.beforeEdit(input.sessionID, files);
+      } else if (!READ_TOOLS.has(tool)) {
+        runHookBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args));
       }
     },
     "tool.execute.after": async (input, output) => {
       const tool = input.tool || "";
       if (BASH_TOOLS.has(tool)) {
         const command = bashCommand(toolArgs(input, output));
+        await fileLeases.afterCommand(input.sessionID, command, output?.output || "");
         if (isCliAuthFailure(command, output?.output || "")) {
           appendCliLoginHint(output);
         }
@@ -237,6 +418,7 @@ export const OpenMatesHooks = async () => {
       if (!EDIT_TOOLS.has(tool)) return;
 
       const args = input?.args || toolArgs(input, output);
+      fileLeases.afterEdit(input.sessionID, editedFiles(args));
       runBridge("PostToolUse", bridgePayload("PostToolUse", tool, args));
 
       for (const file of editedFiles(args)) {

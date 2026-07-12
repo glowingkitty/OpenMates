@@ -39,6 +39,10 @@ Before planning any new feature or provider implementation:
 
 Every non-trivial task needs a checklist of verifiable acceptance criteria before implementation.
 
+Use the risk tiers in `docs/contributing/guides/spec-driven-development.md`.
+Ordinary Tier 1 work uses a concise issue or session contract; do not require a
+full YAML evidence ledger solely because work is multi-file or user-facing.
+
 For full-spec work, required acceptance criteria need explicit verification IDs,
 user confirmation, waiver, or accepted blocker records. Define the test contract
 before implementation; red evidence may be flexible, but record what happened
@@ -48,11 +52,10 @@ and why.
 
 **2 tries max** with the same approach. Minor variations count as the same approach.
 
-On the 3rd attempt:
-1. STOP
-2. Run `sessions.py context --doc debugging` to re-read the full guide
-3. State the **new approach** and why it differs
-4. Ask the user for confirmation
+On the 3rd attempt, stop repeating that approach, load the debugging guide, and
+switch to a materially different method. Continue the approved task without
+asking the user unless choosing the new method requires an unresolved product,
+architecture, security, privacy, migration, or rollout decision.
 
 ## Two-Commit Rule for Refactors
 
@@ -60,4 +63,7 @@ When moving a function between modules, ALL call sites must be updated in the sa
 
 ## Unexpected Failures
 
-If you hit a failure not related to your task: STOP. Check `git log -5 -- <broken-file>`. If your session didn't change it, report to user.
+If you hit an unrelated failure, isolate it and check `git log -5 -- <broken-file>`.
+Do not modify unrelated work. Continue the current task when possible; ask the
+user only when the unrelated failure makes the current task impossible and
+requires their decision.

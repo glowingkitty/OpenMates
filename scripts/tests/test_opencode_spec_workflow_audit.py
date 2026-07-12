@@ -99,3 +99,25 @@ def test_opencode_spec_workflow_audit_detects_skill_mirror_drift(tmp_path):
     failures = audit.audit_skill_mirrors(tmp_path)
 
     assert any("mirror drifted" in failure for failure in failures)
+
+
+def test_opencode_spec_workflow_audit_requires_coordination_plugin(tmp_path):
+    audit = load_audit_module()
+
+    failures = audit.audit_opencode_coordination(tmp_path)
+
+    assert failures == ["missing OpenCode session coordination plugin"]
+
+
+def test_opencode_spec_workflow_audit_rejects_idle_spec_continuation(tmp_path):
+    audit = load_audit_module()
+    plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
+    plugin.parent.mkdir(parents=True)
+    plugin.write_text(
+        "createFileLeaseCoordinator OPENCODE_SESSION_ID opencode_file_leases.py session.idle",
+        encoding="utf-8",
+    )
+
+    failures = audit.audit_opencode_coordination(tmp_path)
+
+    assert any("forbidden idle continuation" in failure for failure in failures)

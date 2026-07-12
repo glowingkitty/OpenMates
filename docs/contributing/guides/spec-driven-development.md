@@ -25,28 +25,38 @@ remain Schema V1 and are validated under the legacy contract until they are
 actively resumed for material implementation work. Do not bulk-migrate old
 specs solely to satisfy this guide.
 
-## When Specs Are Required
+## Risk Tiers
 
-Automatically use the spec workflow before implementation when work is complex,
-risky, user-facing, or likely to be misunderstood:
+Choose the lightest contract that safely protects the work:
 
-- New user-facing features with multiple states or paths.
-- Multi-file changes across frontend, backend, data, docs, or tests.
+### Tier 2: Full Executable Spec
+
+Use `docs/specs/<slug>/spec.yml` for high-risk or durable multi-session work:
+
 - Auth, encryption, billing, privacy, teams, sharing, permissions, sync, AI
-  pipeline, provider integrations, or migrations.
-- New API routes, app skills, embed types, background jobs, cron jobs, or
-  Directus schema changes.
-- Features where the test plan is not obvious within two minutes.
-- Bugs where expected behavior is disputed or needs product clarification.
-- Tasks likely to span more than one OpenCode session.
+  pipeline, provider integrations, migrations, and Directus schema changes.
+- New API routes, app skills, embed types, background jobs, or cron jobs when
+  their contract crosses trust, persistence, or deployment boundaries.
+- Work with material architecture/rollout decisions, disputed behavior, or
+  multiple independent implementation sessions.
 
-Use an inline spec for smaller behavior changes:
+Tier 2 keeps the full approval, decision, task, handoff, and evidence ledger.
 
-- Small UI behavior changes with one happy path and one obvious assertion.
-- Simple backend fixes with clear input and output.
-- Refactors where behavior must stay unchanged and the spec is mostly invariants
-  plus regression tests.
-- Existing issues that already include clear examples and acceptance criteria.
+### Tier 1: Inline Contract
+
+Use a concise issue or session task for ordinary non-trivial work, including
+most multi-file and user-facing changes with clear behavior. Record only:
+
+- Goal and explicit non-goals.
+- Verifiable acceptance criteria.
+- Ordered implementation slices or affected areas.
+- Exact relevant checks and any genuine user decision still required.
+
+Do not create a YAML full spec merely because a change touches several files or
+has UI states. Escalate to Tier 2 only when the risk or durable coordination
+needs above are present.
+
+### Tier 0: No Spec
 
 Skip specs for trivial or mechanical work:
 
@@ -101,6 +111,13 @@ For full specs:
 14. Run green-phase tests in CLI → web → Apple order, record evidence in
     `spec.yml`, and run `python3 scripts/spec_verify.py
     docs/specs/<slug>/spec.yml`.
+
+An active implementation spec is non-interruptible. Continue from its current
+handoff until verification completes; task size, context pressure, test failure,
+concurrent work, and a later-phase gate are not stop conditions. A pause requires
+a structured `handoff.blocker` for the **current** task with `task_id`,
+`requires_user_input: true`, `reason`, `question`, and `next_action`. Do not use
+an unstructured or future-task blocker to suppress current-task implementation.
 
 Material changes to an acceptance criterion, test assertion, contract,
 assumption, or linked implementation invalidate its green evidence. Preserve the
@@ -188,7 +205,8 @@ must include the existing scenarios, acceptance criteria, tests,
 - `attempts`: failed, rejected, blocked, planned, or successful approaches linked
   to the task they informed.
 - `handoff`: current task, exact next command, expected outcome, blocker, and
-  last verified revision.
+  last verified revision. A blocker pauses continuation only when it is a
+  structured user-input blocker for that current task.
 - task `ownership`, `dependencies`, `expected_files`, verification IDs, blockers,
   and follow-up links.
 

@@ -19,16 +19,20 @@ updating a spec.
 
 Classify the task before creating files:
 
-| Level | Use when | Artifact |
+| Risk tier | Use when | Artifact |
 | --- | --- | --- |
-| No spec | Trivial/mechanical work | Session notes only |
-| Inline spec | Small behavior change | Issue or session brief |
-| Full spec | Complex, risky, multi-session work | `docs/specs/<slug>/spec.yml` |
+| Tier 0 | Trivial/mechanical work | No spec |
+| Tier 1 | Ordinary non-trivial work with clear behavior | Issue or session contract |
+| Tier 2 | High-risk or durable multi-session work | `docs/specs/<slug>/spec.yml` |
 
-Full specs are required for auth, encryption, billing, privacy, teams, sharing,
+Tier 2 full specs are required for auth, encryption, billing, privacy, teams, sharing,
 permissions, sync, AI pipeline, provider integrations, migrations, new API
 routes, app skills, embed types, background jobs, cron jobs, and Directus schema
 changes.
+
+Use Tier 1 for most multi-file and user-facing work when goal, acceptance
+criteria, test path, and implementation order are already clear. Multi-file
+scope alone is not a reason to create a full YAML ledger.
 
 If a full spec is unnecessary, explain why and produce the inline spec in the
 current response or session task instead of creating files.

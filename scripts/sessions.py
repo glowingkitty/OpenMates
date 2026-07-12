@@ -412,6 +412,32 @@ def _save_sessions(data: dict) -> None:
         tmp.replace(SESSIONS_FILE)
 
 
+def _mutate_sessions(callback):
+    """Run one sessions.json read-modify-write transaction under its file lock."""
+    SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = SESSIONS_FILE.with_suffix(".lock")
+    with open(lock_path, "a+") as lock_fd:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        try:
+            if SESSIONS_FILE.exists():
+                try:
+                    with open(SESSIONS_FILE) as sessions_file:
+                        data = json.load(sessions_file)
+                except (json.JSONDecodeError, OSError):
+                    data = _default_sessions()
+            else:
+                data = _default_sessions()
+            result = callback(data)
+            tmp = SESSIONS_FILE.with_suffix(".tmp")
+            with open(tmp, "w") as sessions_file:
+                json.dump(data, sessions_file, indent=2)
+                sessions_file.write("\n")
+            tmp.replace(SESSIONS_FILE)
+            return result
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+
+
 def _default_sessions() -> dict:
     """Return a clean default sessions structure."""
     return {
@@ -2091,7 +2117,14 @@ def _linear_start_integration(
     identifier = issue_data.get("identifier", linear_issue_arg or "")
     data["sessions"][sid]["linear_issue_id"] = identifier
     data["sessions"][sid]["linear_uuid"] = linear_issue_id
-    _save_sessions(data)
+
+    def store_linear_binding(current: dict) -> None:
+        if sid not in current.get("sessions", {}):
+            raise RuntimeError(f"Session {sid} ended before Linear linking completed")
+        current["sessions"][sid]["linear_issue_id"] = identifier
+        current["sessions"][sid]["linear_uuid"] = linear_issue_id
+
+    _mutate_sessions(store_linear_binding)
 
     # Mark In Progress + add label
     update_issue_status(linear_issue_id, "In Progress")
@@ -2197,21 +2230,44 @@ def _linear_complete_session(
     print(f"  Linear: {linear_id} → {'Done' if mode in ('docs', 'question') else 'In Review'}")
 
 
+def bind_opencode_session(data: dict, session_id: str, opencode_session_id: str) -> None:
+    """Bind one authoritative OpenCode chat identity to a repo session."""
+    if not re.fullmatch(r"ses_[A-Za-z0-9]+", opencode_session_id):
+        raise ValueError(f"Invalid OpenCode session ID: {opencode_session_id}")
+    sessions = data.get("sessions", {})
+    if session_id not in sessions:
+        raise ValueError(f"Unknown repo session ID: {session_id}")
+    for other_id, session in sessions.items():
+        if other_id != session_id and session.get("opencode_session_id") == opencode_session_id:
+            session["opencode_session_id"] = None
+    sessions[session_id]["opencode_session_id"] = opencode_session_id
+
+
+def register_session_record(
+    session_record: dict,
+    opencode_session_id: str | None = None,
+) -> tuple[str, list[str], list[str], dict]:
+    """Atomically register one repo session and its authoritative OpenCode chat."""
+    def register(data: dict) -> tuple[str, list[str], list[str], dict]:
+        pruned = _prune_stale(data)
+        cleared_locks = _prune_stale_locks(data)
+        session_id = secrets.token_hex(2)
+        attempts = 0
+        while session_id in data.get("sessions", {}) and attempts < 10:
+            session_id = secrets.token_hex(2)
+            attempts += 1
+        if session_id in data.get("sessions", {}):
+            raise RuntimeError("Could not generate a unique session ID")
+        data["sessions"][session_id] = dict(session_record)
+        if opencode_session_id:
+            bind_opencode_session(data, session_id, opencode_session_id)
+        return session_id, pruned, cleared_locks, data
+
+    return _mutate_sessions(register)
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Start a new session with tag-based doc preloading and git context."""
-    data = _load_sessions()
-
-    # Prune stale sessions and locks
-    pruned = _prune_stale(data)
-    cleared_locks = _prune_stale_locks(data)
-
-    # Generate session ID (with collision guard)
-    sid = secrets.token_hex(2)
-    attempts = 0
-    while sid in data.get("sessions", {}) and attempts < 10:
-        sid = secrets.token_hex(2)
-        attempts += 1
-
     # Resolve tags: explicit --tags override auto-inference from --task
     tags = []
     if hasattr(args, "tags") and args.tags:
@@ -2252,6 +2308,10 @@ def cmd_start(args: argparse.Namespace) -> None:
     mode = args.mode
 
     task_id_arg = getattr(args, "task_id", None)
+    linked_task = _load_task(task_id_arg) if task_id_arg else None
+    if task_id_arg and not linked_task:
+        print(f"Warning: --task-id {task_id_arg!r} not found; ignoring.", file=sys.stderr)
+        task_id_arg = None
 
     # Register session
     #
@@ -2274,21 +2334,18 @@ def cmd_start(args: argparse.Namespace) -> None:
         "task_id": task_id_arg,
         "linear_issue_id": None,
         "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
+        "opencode_session_id": None,
     }
-    data["sessions"][sid] = session_record
+    opencode_session_id = getattr(args, "opencode_session", None)
+    sid, pruned, cleared_locks, data = register_session_record(
+        session_record,
+        opencode_session_id,
+    )
 
     # Link task file to this session if --task-id was given
-    if task_id_arg:
-        linked_task = _load_task(task_id_arg)
-        if linked_task:
-            linked_task["session"] = sid
-            _save_task(linked_task)
-        else:
-            print(f"Warning: --task-id {task_id_arg!r} not found; ignoring.", file=sys.stderr)
-            task_id_arg = None
-            data["sessions"][sid]["task_id"] = None
-
-    _save_sessions(data)
+    if linked_task:
+        linked_task["session"] = sid
+        _save_task(linked_task)
 
     # ── Linear integration ────────────────────────────────────────────────
     linear_issue_id = getattr(args, "linear_issue", None)
@@ -2978,13 +3035,28 @@ def _resolve_session_from_zellij(sessions: dict) -> Optional[str]:
     return None  # 0 matches (no session in this tab) or >1 (ambiguous)
 
 
+def _resolve_session_identity(sessions: dict) -> Optional[str]:
+    """Prefer the exact OpenCode chat identity over the legacy Zellij fallback."""
+    opencode_session_id = os.environ.get("OPENCODE_SESSION_ID")
+    if opencode_session_id:
+        matches = [
+            sid
+            for sid, info in sessions.items()
+            if info.get("opencode_session_id") == opencode_session_id
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        return None
+    return _resolve_session_from_zellij(sessions)
+
+
 def cmd_track(args: argparse.Namespace) -> None:
     """Track one or more files as modified by this session (without write lock).
 
-    If --session is omitted, resolves identity from $ZELLIJ_SESSION_NAME via
-    `_resolve_session_from_zellij`. If no match (env unset, no session in
-    this tab, or ambiguous), exits silently — better to under-track than to
-    ghost-attach a file to the wrong session.
+    If --session is omitted, resolves the exact OpenCode chat identity first and
+    uses the legacy Zellij identity only when no OpenCode identity is present.
+    If no unambiguous match exists, exits silently rather than ghost-attaching a
+    file to the wrong session.
 
     Accepts multiple file paths: --file f1 f2 f3.
     """
@@ -2995,7 +3067,7 @@ def cmd_track(args: argparse.Namespace) -> None:
     if not sid:
         if not sessions:
             return  # No active session — silently ignore
-        sid = _resolve_session_from_zellij(sessions)
+        sid = _resolve_session_identity(sessions)
         if sid is None:
             # Identity unresolved: env var unset, no matching session in this
             # Zellij tab, or ambiguous (multiple sessions sharing one tab).
@@ -5862,6 +5934,7 @@ def main() -> None:
         "Controls which context sections are shown.",
     )
     p_start.add_argument("--task", "-t", help="Task description")
+    p_start.add_argument("--opencode-session", help=argparse.SUPPRESS)
     p_start.add_argument(
         "--tags",
         help="Comma-separated tags (e.g., 'frontend,debug'). "

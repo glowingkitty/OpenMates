@@ -113,7 +113,7 @@ Use OpenCode skills proactively when the task matches their purpose. Do not wait
 for the user to name the skill if the intent is clear.
 
 Spec-driven development:
-- Auto-select `specify` before implementing complex, risky, multi-session, or multi-system work. Do not wait for the user to name the skill when the intent is clearly implementation.
+- Use the risk tiers in `docs/contributing/guides/spec-driven-development.md`. Auto-select `specify` for Tier 2 high-risk or durable multi-session work; use a concise inline contract for ordinary Tier 1 work instead of forcing a full YAML ledger.
 - Full specs are required for auth, encryption, billing, privacy, teams, sharing, permissions, sync, AI pipeline changes, provider integrations, migrations, new API routes, app skills, embed types, background jobs, cron jobs, and Directus schema changes.
 - Full specs use one executable YAML source of truth at `docs/specs/<slug>/spec.yml`; do not create separate Markdown spec, plan, or task files for new specs.
 - New full specs declare `schema_version: 2`; active legacy specs migrate only when materially resumed. Schema V2 records approvals, decisions, attempts, handoff, task ownership, and evidence subject commits in the same `spec.yml`.
@@ -121,6 +121,7 @@ Spec-driven development:
 - Use `plan-from-spec` and `tasks-from-spec` after a full spec is approved; they update `implementation_plan` and `tasks` inside `spec.yml`.
 - Write or update the tests listed in `spec.yml` before feature code. Record red-phase evidence before implementation. For Playwright, red and green runs target live `app.dev.openmates.org`; green evidence is only valid after deploy and Vercel is Ready.
 - Run `python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml` after spec edits and `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before marking the spec complete or deploying full-spec work.
+- Once an approved spec or session task is implementing, continue through all actionable tasks and failed checks. Pause only for important unresolved user input; task size, context pressure, test failures, and temporary file waits are not completion states.
 - Record evidence with the command, run ID, timestamp, and tested subject commit. A material contract, test, assumption, or implementation change invalidates linked green evidence until replacement evidence is recorded.
 - Use an inline spec instead of a full spec for small behavior changes; skip specs for trivial or mechanical work. See `docs/contributing/guides/spec-driven-development.md` for the boundary.
 

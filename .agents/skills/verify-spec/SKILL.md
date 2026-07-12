@@ -104,10 +104,14 @@ Deploy note:
 - Residual risk: <none or concise note>
 ```
 
-### Step 5: Stop On Failure
+### Step 5: Continue On Failure
 
-If status is `fail`, do not deploy. Fix the gap, update the spec if product
-intent changed, or ask the user to accept a documented risk.
+If status is `fail`, do not deploy or end the implementation session. Resume the
+smallest actionable task, fix the gap, and update the durable handoff. Ask the
+user only when the current task needs a genuinely unresolved decision; record a
+structured `handoff.blocker` with `task_id`, `requires_user_input: true`,
+`reason`, `question`, and `next_action`. A future-task gate, a failing test,
+context pressure, task size, or a concurrent worktree is not a valid stop reason.
 
 ## Rules
 
