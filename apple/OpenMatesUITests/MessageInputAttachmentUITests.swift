@@ -197,8 +197,8 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
         app.buttons["attach-files-button"].tap()
 
-        let attachmentMenu = element(in: app, identifier: "attachment-menu")
-        XCTAssertTrue(attachmentMenu.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Photo Library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Browse Files"].waitForExistence(timeout: 5))
         for identifier in actionIDs {
             XCTAssertEqual(app.buttons[identifier].frame, actionFrames[identifier])
         }
