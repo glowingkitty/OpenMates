@@ -207,9 +207,7 @@ struct AppleSharePanel: View {
                 .font(.omSmall)
                 .foregroundStyle(Color.fontPrimary)
             Spacer(minLength: .spacing2)
-            OMToggle(isOn: isOn)
-                .accessibilityElement(children: .ignore)
-                .accessibilityIdentifier(identifier)
+            OMToggle(isOn: isOn, accessibilityIdentifier: identifier)
         }
     }
 
