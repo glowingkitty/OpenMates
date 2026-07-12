@@ -331,6 +331,7 @@ export class OpenMatesWsClient {
     newChatSuggestions: string[];
     embeds: SendEmbedDataFrame[];
     subChatEvents: SubChatEvent[];
+    recoveryJobId: string | null;
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
     const onStream = options?.onStream;
@@ -342,6 +343,7 @@ export class OpenMatesWsClient {
       let taskId: string | null = null;
       let category: string | null = null;
       let modelName: string | null = null;
+      let recoveryJobId: string | null = null;
       let followUpSuggestions: string[] = [];
       let newChatSuggestions: string[] = [];
       const subChatEvents: SubChatEvent[] = [];
@@ -379,6 +381,12 @@ export class OpenMatesWsClient {
         if (typeof p.category === "string" && p.category) category = p.category;
         if (typeof p.model_name === "string" && p.model_name)
           modelName = p.model_name;
+        if (
+          typeof p.recovery_job_id === "string"
+          && p.recovery_job_id
+          && p.recovery_protocol_version === 1
+        )
+          recoveryJobId = p.recovery_job_id;
       };
 
       const extractMessageContent = (message: Record<string, unknown>): string => {
@@ -416,6 +424,7 @@ export class OpenMatesWsClient {
             newChatSuggestions,
             embeds: [...embeds.values()],
             subChatEvents,
+            recoveryJobId,
           });
           return;
         }
@@ -436,6 +445,7 @@ export class OpenMatesWsClient {
               newChatSuggestions,
               embeds: [...embeds.values()],
               subChatEvents,
+              recoveryJobId,
             });
           }, asyncEmbedWaitMs);
           return;
@@ -453,6 +463,7 @@ export class OpenMatesWsClient {
           newChatSuggestions,
           embeds: [...embeds.values()],
           subChatEvents,
+          recoveryJobId,
         });
       };
 
@@ -728,6 +739,7 @@ export class OpenMatesWsClient {
             newChatSuggestions,
             embeds: [...embeds.values()],
             subChatEvents,
+            recoveryJobId,
           });
           return;
         }

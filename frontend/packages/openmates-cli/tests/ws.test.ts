@@ -152,6 +152,8 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
               full_content_so_far: "Here are the listings I found.",
               category: "general_knowledge",
               model_name: "Gemini 3 Flash",
+              recovery_job_id: "11111111-1111-4111-8111-111111111111",
+              recovery_protocol_version: 1,
             },
           }),
         );
@@ -185,6 +187,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.messageId, "assistant-message-2");
       assert.equal(response.content, "Here are the listings I found.");
       assert.equal(response.category, "general_knowledge");
+      assert.equal(response.recoveryJobId, "11111111-1111-4111-8111-111111111111");
     } finally {
       client.close();
     }

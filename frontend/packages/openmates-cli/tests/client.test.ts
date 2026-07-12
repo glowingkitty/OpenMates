@@ -72,6 +72,7 @@ const {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
+  sealChatCompletionRecoveryPayload,
 } = await import("../src/crypto.ts");
 
 after(() => {
@@ -636,17 +637,29 @@ describe("memory request system messages", () => {
   });
 });
 
-describe("CLI chat PII redaction payloads", () => {
-  it("sends redacted user content and encrypted PII mappings", async () => {
+describe("CLI saved-chat recovery preflight", () => {
+  it("waits for preflight ack and keeps durable transaction content encrypted", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const assistantMessageId = "33333333-3333-4333-8333-333333333333";
+    const recoveryJobId = "44444444-4444-4444-8444-444444444444";
     const captured: {
       messagePayload?: Record<string, unknown>;
-      metadataPayload?: Record<string, unknown>;
-    } = {};
+      preflightPayload?: Record<string, unknown>;
+      persistPayload?: Record<string, unknown>;
+      frameTypes: string[];
+      preflightAcknowledged: boolean;
+      terminalSent: boolean;
+    } = { frameTypes: [], preflightAcknowledged: false, terminalSent: false };
+    let sealedPayloadForTest: string | null = null;
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
         response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+        response.end(JSON.stringify({
+          success: true,
+          ws_token: "fresh-ws-token",
+          user: { id: ownerId },
+        }));
         return;
       }
       if (
@@ -662,9 +675,45 @@ describe("CLI chat PII redaction payloads", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
-        ws.on("message", (raw) => {
+        ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          captured.frameTypes.push(frame.type);
+          if (frame.type === "chat_turn_preflight") {
+            captured.preflightPayload = frame.payload;
+            const sealedPayload = await sealChatCompletionRecoveryPayload(
+              new TextEncoder().encode(JSON.stringify({
+                assistant_message_id: assistantMessageId,
+                category: "general_knowledge",
+                chat_id: frame.payload.chat_id,
+                content: "ok",
+                job_id: recoveryJobId,
+                key_version: 1,
+                model_name: "test-model",
+                turn_id: frame.payload.turn_id,
+              })),
+              {
+                recoveryPublicKey: String(frame.payload.recovery_public_key),
+                ownerId,
+                chatId: String(frame.payload.chat_id),
+                turnId: String(frame.payload.turn_id),
+                jobId: recoveryJobId,
+                assistantMessageId,
+                keyVersion: 1,
+              },
+            );
+            sealedPayloadForTest = JSON.stringify(sealedPayload);
+            setTimeout(() => {
+              captured.preflightAcknowledged = true;
+              ws.send(JSON.stringify({
+                type: "chat_turn_preflight_ack",
+                payload: {
+                  preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                },
+              }));
+            }, 10);
+          }
           if (frame.type === "chat_message_added") {
+            assert.equal(captured.preflightAcknowledged, true);
             captured.messagePayload = frame.payload;
             const message = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({
@@ -674,19 +723,20 @@ describe("CLI chat PII redaction payloads", () => {
                 message_id: message.message_id,
               },
             }));
-          }
-          if (frame.type === "encrypted_chat_metadata") {
-            captured.metadataPayload = frame.payload;
             setTimeout(() => {
+              captured.terminalSent = true;
               ws.send(JSON.stringify({
-                type: "ai_background_response_completed",
+                type: "ai_message_update",
                 payload: {
                   chat_id: frame.payload.chat_id,
-                  user_message_id: frame.payload.message_id,
-                  message_id: "assistant-message-id",
-                  full_content: "ok",
+                  user_message_id: message.message_id,
+                  message_id: assistantMessageId,
+                  full_content_so_far: "ok",
+                  is_final_chunk: true,
                   category: "general_knowledge",
                   model_name: "test-model",
+                  recovery_job_id: recoveryJobId,
+                  recovery_protocol_version: 1,
                 },
               }));
               ws.send(JSON.stringify({
@@ -695,11 +745,30 @@ describe("CLI chat PII redaction payloads", () => {
               }));
             }, 10);
           }
-          if (frame.type === "ai_response_completed") {
-            const message = frame.payload.message as Record<string, unknown>;
+          if (frame.type === "recovery_job_claim") {
+            assert.equal(frame.payload.job_id, recoveryJobId);
+            assert.equal(captured.terminalSent, true);
+            assert.ok(sealedPayloadForTest);
             ws.send(JSON.stringify({
-              type: "ai_response_storage_confirmed",
-              payload: { message_id: message.message_id },
+              type: "recovery_job_claimed",
+              payload: {
+                job_id: recoveryJobId,
+                state: "LEASED",
+                lease_token: "lease-token-1",
+                lease_generation: 3,
+                sealed_payload: sealedPayloadForTest,
+                chat_id: captured.preflightPayload?.chat_id,
+                turn_id: captured.preflightPayload?.turn_id,
+                assistant_message_id: assistantMessageId,
+                chat_key_version: 1,
+              },
+            }));
+          }
+          if (frame.type === "recovery_job_persist") {
+            captured.persistPayload = frame.payload;
+            ws.send(JSON.stringify({
+              type: "recovery_job_persisted",
+              payload: { job_id: recoveryJobId, state: "TERMINAL", committed_messages_v: 2 },
             }));
           }
         });
@@ -726,20 +795,240 @@ describe("CLI chat PII redaction payloads", () => {
       assert.equal(JSON.stringify(captured.messagePayload).includes("sarah@example.com"), false);
       assert.equal(JSON.stringify(captured.messagePayload).includes("+1 (555) 123-4567"), false);
 
-      assert.equal(typeof captured.metadataPayload?.encrypted_pii_mappings, "string");
+      assert.ok(captured.preflightPayload);
+      assert.equal(captured.frameTypes.indexOf("chat_turn_preflight") < captured.frameTypes.indexOf("chat_message_added"), true);
+      assert.equal(captured.frameTypes.includes("encrypted_chat_metadata"), false);
+      const inferenceRequest = captured.preflightPayload.inference_request as Record<string, unknown>;
+      const finalInferenceRequest = { ...captured.messagePayload };
+      delete finalInferenceRequest.protocol_version;
+      delete finalInferenceRequest.preflight_id;
+      assert.deepEqual(inferenceRequest, finalInferenceRequest);
+
+      const encryptedUserMessage = captured.preflightPayload.encrypted_user_message as Record<string, unknown>;
+      assert.deepEqual(Object.keys(encryptedUserMessage).sort(), [
+        "chat_id",
+        "client_message_id",
+        "created_at",
+        "encrypted_content",
+        "encrypted_pii_mappings",
+        "role",
+        "updated_at",
+      ]);
+      assert.equal(typeof encryptedUserMessage.encrypted_pii_mappings, "string");
+      assert.equal(JSON.stringify(encryptedUserMessage).includes("Email [EMAIL_1_com]"), false);
+      assert.equal(JSON.stringify(encryptedUserMessage).includes("sarah@example.com"), false);
+      const newChatMetadata = captured.preflightPayload.encrypted_chat_metadata as Record<string, unknown>;
+      assert.deepEqual(Object.keys(newChatMetadata).sort(), [
+        "created_at",
+        "encrypted_chat_key",
+        "encrypted_title",
+        "updated_at",
+      ]);
+
       const masterKey = Buffer.alloc(32);
-      const encryptedChatKey = String(captured.metadataPayload?.encrypted_chat_key);
+      const encryptedChatKey = String(captured.preflightPayload.encrypted_chat_key);
       const chatKey = await decryptBytesWithAesGcm(encryptedChatKey, masterKey);
       assert.ok(chatKey);
       const mappingsJson = await decryptWithAesGcmCombined(
-        String(captured.metadataPayload?.encrypted_pii_mappings),
+        String(encryptedUserMessage.encrypted_pii_mappings),
         chatKey,
       );
       assert.deepEqual(JSON.parse(mappingsJson ?? "[]"), [
         { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
         { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
       ]);
+      assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
+      assert.equal(captured.frameTypes.includes("recovery_job_claim"), true);
+      assert.equal(captured.frameTypes.includes("recovery_job_persist"), true);
+      assert.ok(captured.persistPayload);
+      assert.equal(captured.persistPayload.job_id, recoveryJobId);
+      assert.equal(captured.persistPayload.lease_token, "lease-token-1");
+      assert.equal(captured.persistPayload.lease_generation, 3);
+      assert.equal(captured.persistPayload.expected_messages_v, 1);
+      const encryptedAssistant = captured.persistPayload.encrypted_assistant_message as Record<string, unknown>;
+      assert.equal(encryptedAssistant.client_message_id, assistantMessageId);
+      assert.equal(
+        await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_content), chatKey),
+        "ok",
+      );
+      assert.equal(
+        await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_sender_name), chatKey),
+        "Assistant",
+      );
+      assert.equal(
+        await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_category), chatKey),
+        "general_knowledge",
+      );
+      assert.equal(
+        await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_model_name), chatKey),
+        "test-model",
+      );
     } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("lazily registers epoch-1 recovery material for an old saved chat", async () => {
+    const chatId = "11111111-1111-4111-8111-111111111111";
+    const ownerId = "22222222-2222-4222-8222-222222222222";
+    const assistantMessageId = "33333333-3333-4333-8333-333333333333";
+    const recoveryJobId = "44444444-4444-4444-8444-444444444444";
+    const rawChatKey = new Uint8Array(32).fill(7);
+    const encryptedChatKey = await encryptBytesWithAesGcm(rawChatKey, new Uint8Array(32));
+    writeFileSync(join(stateDir, "sync_cache.json"), JSON.stringify({
+      syncedAt: Date.now(),
+      totalChatCount: 1,
+      loadedChatCount: 1,
+      chats: [{
+        details: { id: chatId, encrypted_chat_key: encryptedChatKey, messages_v: 7 },
+        messages: [],
+      }],
+      embeds: [],
+      embedKeys: [],
+    }));
+
+    const captured: {
+      preflightPayload?: Record<string, unknown>;
+      messagePayload?: Record<string, unknown>;
+      persistPayload?: Record<string, unknown>;
+      frameTypes: string[];
+    } = { frameTypes: [] };
+    let sealedPayloadForTest: string | null = null;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          success: true,
+          ws_token: "fresh-ws-token",
+          user: { id: ownerId },
+        }));
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false"
+      ) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.on("message", async (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          captured.frameTypes.push(frame.type);
+          if (frame.type === "chat_turn_preflight") {
+            captured.preflightPayload = frame.payload;
+            sealedPayloadForTest = JSON.stringify(await sealChatCompletionRecoveryPayload(
+              new TextEncoder().encode(JSON.stringify({
+                assistant_message_id: assistantMessageId,
+                category: null,
+                chat_id: chatId,
+                content: "ok",
+                job_id: recoveryJobId,
+                key_version: 1,
+                model_name: null,
+                turn_id: frame.payload.turn_id,
+              })),
+              {
+                recoveryPublicKey: String(frame.payload.recovery_public_key),
+                ownerId,
+                chatId,
+                turnId: String(frame.payload.turn_id),
+                jobId: recoveryJobId,
+                assistantMessageId,
+                keyVersion: 1,
+              },
+            ));
+            ws.send(JSON.stringify({
+              type: "chat_turn_preflight_ack",
+              payload: { preflight_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" },
+            }));
+          }
+          if (frame.type === "chat_message_added") {
+            captured.messagePayload = frame.payload;
+            const message = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({
+              type: "chat_message_confirmed",
+              payload: { chat_id: chatId, message_id: message.message_id },
+            }));
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "ai_message_update",
+                payload: {
+                  chat_id: chatId,
+                  user_message_id: message.message_id,
+                  message_id: assistantMessageId,
+                  full_content_so_far: "ok",
+                  is_final_chunk: true,
+                  recovery_job_id: recoveryJobId,
+                  recovery_protocol_version: 1,
+                },
+              }));
+              ws.send(JSON.stringify({ type: "post_processing_metadata", payload: { chat_id: chatId } }));
+            }, 10);
+          }
+          if (frame.type === "recovery_job_claim") {
+            assert.ok(sealedPayloadForTest);
+            ws.send(JSON.stringify({
+              type: "recovery_job_claimed",
+              payload: {
+                job_id: recoveryJobId,
+                state: "LEASED",
+                lease_token: "lease-token-old-chat",
+                lease_generation: 2,
+                sealed_payload: sealedPayloadForTest,
+                chat_id: chatId,
+                turn_id: captured.preflightPayload?.turn_id,
+                assistant_message_id: assistantMessageId,
+                chat_key_version: 1,
+              },
+            }));
+          }
+          if (frame.type === "recovery_job_persist") {
+            captured.persistPayload = frame.payload;
+            ws.send(JSON.stringify({
+              type: "recovery_job_persisted",
+              payload: { job_id: recoveryJobId, state: "TERMINAL", committed_messages_v: 9 },
+            }));
+          }
+        });
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await client.sendMessage({ message: "Continue this old chat", chatId });
+
+      assert.ok(captured.preflightPayload);
+      assert.equal(captured.preflightPayload.expected_messages_v, 7);
+      assert.equal(captured.preflightPayload.encrypted_chat_key, encryptedChatKey);
+      assert.equal(captured.preflightPayload.chat_key_version, 1);
+      assert.equal(typeof captured.preflightPayload.recovery_public_key, "string");
+      assert.equal(captured.preflightPayload.encrypted_chat_metadata, undefined);
+      assert.equal(captured.frameTypes.includes("encrypted_chat_metadata"), false);
+      assert.equal(captured.messagePayload?.protocol_version, 1);
+      assert.equal(captured.messagePayload?.preflight_id, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+      assert.equal(captured.messagePayload?.turn_id, captured.preflightPayload.turn_id);
+      assert.equal(captured.messagePayload?.recovery_public_key, captured.preflightPayload.recovery_public_key);
+      assert.equal(captured.messagePayload?.chat_key_version, 1);
+      assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
+      assert.equal(captured.persistPayload?.expected_messages_v, 8);
+      assert.equal(captured.persistPayload?.lease_token, "lease-token-old-chat");
+      assert.equal(captured.persistPayload?.lease_generation, 2);
+    } finally {
+      rmSync(join(stateDir, "sync_cache.json"), { force: true });
       wss.close();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -749,7 +1038,9 @@ describe("CLI chat PII redaction payloads", () => {
 
 describe("CLI incognito chat payloads", () => {
   it("can include known Learning Mode context without changing incognito state", async () => {
-    const captured: { messagePayload?: Record<string, unknown> } = {};
+    const captured: { messagePayload?: Record<string, unknown>; frameTypes: string[] } = {
+      frameTypes: [],
+    };
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
@@ -764,6 +1055,7 @@ describe("CLI incognito chat payloads", () => {
       wss.handleUpgrade(request, socket, head, (ws) => {
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          captured.frameTypes.push(frame.type);
           if (frame.type !== "chat_message_added") return;
 
           captured.messagePayload = frame.payload;
@@ -813,6 +1105,10 @@ describe("CLI incognito chat payloads", () => {
         enabled: true,
         age_group: "16_18",
       });
+      assert.equal(captured.frameTypes.includes("chat_turn_preflight"), false);
+      assert.equal(captured.frameTypes.includes("encrypted_chat_metadata"), false);
+      assert.equal(captured.messagePayload?.protocol_version, undefined);
+      assert.equal(captured.messagePayload?.preflight_id, undefined);
     } finally {
       wss.close();
       server.closeAllConnections();

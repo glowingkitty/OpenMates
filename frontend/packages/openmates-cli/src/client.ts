@@ -18,6 +18,8 @@ import {
   decryptBundle,
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
+  deriveChatCompletionRecoveryKeypair,
+  openChatCompletionRecoveryEnvelope,
   deriveEmbedKeyFromChatKey,
   deriveEmailEncryptionKeyB64,
   encryptWithAesGcmCombined,
@@ -30,6 +32,7 @@ import {
   hashEmail,
   type RecoveryKeyMaterial,
   type ApiKeyCryptoMaterial,
+  type ChatCompletionRecoveryEnvelope,
   type SignupCryptoMaterial,
 } from "./crypto.js";
 import { OpenMatesHttpClient } from "./http.js";
@@ -3366,7 +3369,11 @@ export class OpenMatesClient {
       }
     }
 
-    const { ws, session } = await this.openWsClient();
+    const { ws, session, ownerId } = await this.openWsClient();
+    if (!params.incognito && !ownerId) {
+      ws.close();
+      throw new Error("Authenticated user identity is required for saved chat recovery.");
+    }
 
     const messageId = randomUUID();
     const createdAt = Math.floor(Date.now() / 1000);
@@ -3387,9 +3394,59 @@ export class OpenMatesClient {
       : [];
     assertNoConnectedAccountSecretLeak(connectedAccountTokenRefs);
 
-    // ── Phase 1: Plaintext message for AI processing ──
-    // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
     const piiMappings = params.piiMappings ?? [];
+
+    // Saved chats must resolve their immutable raw key before constructing the
+    // inference request because preflight commits the matching encrypted row.
+    let chatKeyBytes: Uint8Array | null = null;
+    let encryptedChatKey: string | null = null;
+    let baselineMessagesV = 0;
+    let savedTurnId: string | null = null;
+
+    if (!params.incognito) {
+      const masterKey = this.getMasterKeyBytes();
+
+      if (isNewChat) {
+        chatKeyBytes = globalThis.crypto
+          ? new Uint8Array(globalThis.crypto.getRandomValues(new Uint8Array(32)))
+          : new Uint8Array(
+              (await import("node:crypto")).webcrypto.getRandomValues(
+                new Uint8Array(32),
+              ),
+            );
+        encryptedChatKey = await encryptBytesWithAesGcm(
+          chatKeyBytes,
+          masterKey,
+        );
+      } else {
+        const cache = loadSyncCache() ?? (await this.ensureSynced());
+        const chat = cache.chats.find(
+          (c) =>
+            String(c.details.id ?? "") === chatId ||
+            String(c.details.id ?? "").startsWith(chatId),
+        );
+        if (chat) {
+          baselineMessagesV =
+            typeof chat.details.messages_v === "number"
+              ? chat.details.messages_v
+              : 0;
+          const encKey =
+            typeof chat.details.encrypted_chat_key === "string"
+              ? chat.details.encrypted_chat_key
+              : null;
+          if (encKey) {
+            chatKeyBytes = await decryptBytesWithAesGcm(encKey, masterKey);
+            encryptedChatKey = encKey;
+          }
+        }
+        if (!chatKeyBytes || !encryptedChatKey) {
+          throw new Error(`Encrypted chat key not found for chat '${chatId}'. Sync and try again.`);
+        }
+      }
+    }
+
+    // ── Inference request ──
+    // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
 
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
@@ -3405,6 +3462,10 @@ export class OpenMatesClient {
         chat_has_title: Boolean(params.chatId),
       },
     };
+
+    if (isNewChat && encryptedChatKey) {
+      messagePayload.encrypted_chat_key = encryptedChatKey;
+    }
 
     if (memoryMetadataKeys.length > 0) {
       messagePayload.app_settings_memories_metadata = memoryMetadataKeys;
@@ -3448,58 +3509,6 @@ export class OpenMatesClient {
       }));
     }
 
-    // For non-incognito chats, resolve or generate the chat key and include
-    // the encrypted_chat_key in Phase 1 so the server can store it for sync.
-    // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage() key logic
-    let chatKeyBytes: Uint8Array | null = null;
-    let encryptedChatKey: string | null = null;
-    let baselineMessagesV = 0;
-
-    if (!params.incognito) {
-      const masterKey = this.getMasterKeyBytes();
-
-      if (isNewChat) {
-        // New chat — generate a fresh 32-byte AES-256 key
-        chatKeyBytes = globalThis.crypto
-          ? new Uint8Array(globalThis.crypto.getRandomValues(new Uint8Array(32)))
-          : new Uint8Array(
-              (await import("node:crypto")).webcrypto.getRandomValues(
-                new Uint8Array(32),
-              ),
-            );
-        // Encrypt the chat key with the master key for server storage
-        encryptedChatKey = await encryptBytesWithAesGcm(
-          chatKeyBytes,
-          masterKey,
-        );
-        messagePayload.encrypted_chat_key = encryptedChatKey;
-      } else {
-        // Existing chat — decrypt the chat key from the sync cache.
-        // Chat keys don't change, so stale cache is fine — avoid a full
-        // Phase 3 sync just to retrieve a key we likely already have.
-        const cache = loadSyncCache() ?? (await this.ensureSynced());
-        const chat = cache.chats.find(
-          (c) =>
-            String(c.details.id ?? "") === chatId ||
-            String(c.details.id ?? "").startsWith(chatId),
-        );
-        if (chat) {
-          baselineMessagesV =
-            typeof chat.details.messages_v === "number"
-              ? chat.details.messages_v
-              : 0;
-          const encKey =
-            typeof chat.details.encrypted_chat_key === "string"
-              ? chat.details.encrypted_chat_key
-              : null;
-          if (encKey) {
-            chatKeyBytes = await decryptBytesWithAesGcm(encKey, masterKey);
-            encryptedChatKey = encKey;
-          }
-        }
-      }
-    }
-
     if (params.preparedEmbeds && params.preparedEmbeds.length > 0) {
       messagePayload.embeds = params.preparedEmbeds.map((embed) => ({
         embed_id: embed.embedId,
@@ -3536,6 +3545,73 @@ export class OpenMatesClient {
       ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream })
       : null;
 
+    if (!params.incognito && chatKeyBytes && encryptedChatKey) {
+      const protocolVersion = 1;
+      const chatKeyVersion = 1;
+      const turnId = randomUUID();
+      savedTurnId = turnId;
+      const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
+        Buffer.from(chatKeyBytes).toString("base64url"),
+        chatId,
+        chatKeyVersion,
+      );
+      const encryptedContent = await encryptWithAesGcmCombined(
+        params.message,
+        chatKeyBytes,
+      );
+      const encryptedUserMessage: Record<string, unknown> = {
+        client_message_id: messageId,
+        chat_id: chatId,
+        encrypted_content: encryptedContent,
+        role: "user",
+        created_at: createdAt,
+        updated_at: createdAt,
+      };
+
+      if (piiMappings.length > 0) {
+        encryptedUserMessage.encrypted_pii_mappings = await encryptWithAesGcmCombined(
+          JSON.stringify(piiMappings),
+          chatKeyBytes,
+        );
+      }
+
+      Object.assign(messagePayload, {
+        turn_id: turnId,
+        recovery_public_key: recoveryKeypair.publicKey,
+        chat_key_version: chatKeyVersion,
+      });
+      const preflightPayload: Record<string, unknown> = {
+        protocol_version: protocolVersion,
+        chat_id: chatId,
+        turn_id: turnId,
+        message_id: messageId,
+        chat_key_version: chatKeyVersion,
+        encrypted_chat_key: encryptedChatKey,
+        recovery_public_key: recoveryKeypair.publicKey,
+        expected_messages_v: baselineMessagesV,
+        encrypted_user_message: encryptedUserMessage,
+        inference_request: messagePayload,
+      };
+      if (isNewChat) {
+        preflightPayload.encrypted_chat_metadata = {
+          encrypted_title: await encryptWithAesGcmCombined("", chatKeyBytes),
+          encrypted_chat_key: encryptedChatKey,
+          created_at: createdAt,
+          updated_at: createdAt,
+        };
+      }
+
+      const preflightAck = ws.waitForMessage("chat_turn_preflight_ack");
+      await ws.sendAsync("chat_turn_preflight", preflightPayload);
+      const ackPayload = (await preflightAck).payload as Record<string, unknown>;
+      if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
+        throw new Error("Encrypted chat preflight acknowledgement omitted preflight_id.");
+      }
+      Object.assign(messagePayload, {
+        protocol_version: protocolVersion,
+        preflight_id: ackPayload.preflight_id,
+      });
+    }
     const confirmed = ws.waitForMessage(
       "chat_message_confirmed",
       (payload) => {
@@ -3546,44 +3622,6 @@ export class OpenMatesClient {
     );
     await ws.sendAsync("chat_message_added", messagePayload);
     await confirmed;
-
-    // ── Phase 2: Encrypted metadata for Directus persistence + cross-device sync ──
-    // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage()
-    // Without this, the message is only cached for AI but never persisted to Directus,
-    // so the web app and other devices cannot sync the message.
-    if (!params.incognito && chatKeyBytes) {
-      const encryptedContent = await encryptWithAesGcmCombined(
-        params.message,
-        chatKeyBytes,
-      );
-      const encryptedSenderName = await encryptWithAesGcmCombined(
-        "User",
-        chatKeyBytes,
-      );
-
-      const metadataPayload: Record<string, unknown> = {
-        chat_id: chatId,
-        message_id: messageId,
-        encrypted_content: encryptedContent,
-        encrypted_sender_name: encryptedSenderName,
-        created_at: createdAt,
-        encrypted_chat_key: encryptedChatKey,
-        versions: {
-          messages_v: 0,
-          title_v: 0,
-          last_edited_overall_timestamp: createdAt,
-        },
-      };
-
-      if (piiMappings.length > 0) {
-        metadataPayload.encrypted_pii_mappings = await encryptWithAesGcmCombined(
-          JSON.stringify(piiMappings),
-          chatKeyBytes,
-        );
-      }
-
-      ws.send("encrypted_chat_metadata", metadataPayload);
-    }
 
     let assistant = "";
     let assistantMessageId: string | null = null;
@@ -3861,53 +3899,148 @@ export class OpenMatesClient {
           };
         }
 
-        if (chatKeyBytes && assistant) {
-          const completedAt = Math.floor(Date.now() / 1000);
-          const encryptedAssistantContent = await encryptWithAesGcmCombined(
-            assistant,
-            chatKeyBytes,
-          );
-          const encryptedCategory = category
-            ? await encryptWithAesGcmCombined(category, chatKeyBytes)
-            : undefined;
-          const encryptedModelName = modelName
-            ? await encryptWithAesGcmCombined(modelName, chatKeyBytes)
-            : undefined;
-          const persistedAssistantMessageId = assistantMessageId ?? randomUUID();
-
-          ws.send("ai_response_completed", {
-            chat_id: chatId,
-            message: {
-              message_id: persistedAssistantMessageId,
-              chat_id: chatId,
-              role: "assistant",
-              created_at: completedAt,
-              status: "synced",
-              user_message_id: messageId,
-              encrypted_content: encryptedAssistantContent,
-              encrypted_category: encryptedCategory,
-              encrypted_model_name: encryptedModelName,
-            },
-            versions: {
-              messages_v: baselineMessagesV + 2,
-              last_edited_overall_timestamp: completedAt,
-            },
-          });
-
-          await ws.waitForMessage(
-            "ai_response_storage_confirmed",
-            (payload) => {
-              const p = payload as Record<string, unknown>;
-              return p.message_id === persistedAssistantMessageId;
-            },
+        if (chatKeyBytes) {
+          if (!resp.recoveryJobId || !savedTurnId || !ownerId) {
+            throw new Error("Saved chat completion did not include recoverable terminal identity.");
+          }
+          const recoveryJobId = resp.recoveryJobId;
+          const claimPromise = ws.waitForMessage(
+            "recovery_job_claimed",
+            (payload) => (payload as Record<string, unknown>).job_id === recoveryJobId,
             20_000,
           );
+          await ws.sendAsync("recovery_job_claim", {
+            protocol_version: 1,
+            job_id: recoveryJobId,
+          });
+          const claim = (await claimPromise).payload as Record<string, unknown>;
+          const leaseToken = typeof claim.lease_token === "string" ? claim.lease_token : null;
+          const leaseGeneration = typeof claim.lease_generation === "number"
+            && Number.isSafeInteger(claim.lease_generation)
+            ? claim.lease_generation
+            : null;
+          const assistantId = typeof claim.assistant_message_id === "string"
+            ? claim.assistant_message_id
+            : null;
+          const keyVersion = typeof claim.chat_key_version === "number"
+            && Number.isSafeInteger(claim.chat_key_version)
+            ? claim.chat_key_version
+            : null;
+          if (
+            claim.state !== "LEASED"
+            || !leaseToken
+            || leaseGeneration === null
+            || leaseGeneration < 1
+            || !assistantId
+            || keyVersion === null
+            || keyVersion !== 1
+            || claim.chat_id !== chatId
+            || claim.turn_id !== savedTurnId
+            || typeof claim.sealed_payload !== "string"
+          ) {
+            throw new Error("Recovery job claim returned invalid lease or identity data.");
+          }
+
+          const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
+            Buffer.from(chatKeyBytes).toString("base64url"),
+            chatId,
+            keyVersion,
+          );
+          let envelope: Record<string, unknown>;
+          try {
+            envelope = JSON.parse(claim.sealed_payload) as Record<string, unknown>;
+          } catch {
+            throw new Error("Recovery job contained an invalid sealed envelope.");
+          }
+          const plaintext = await openChatCompletionRecoveryEnvelope(
+            envelope as unknown as ChatCompletionRecoveryEnvelope,
+            {
+              recoveryPrivateKey: recoveryKeypair.privateKey,
+              ownerId,
+              chatId,
+              turnId: savedTurnId,
+              jobId: recoveryJobId,
+              assistantMessageId: assistantId,
+              keyVersion,
+            },
+          );
+          let recovered: Record<string, unknown>;
+          try {
+            recovered = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext)) as Record<string, unknown>;
+          } catch {
+            throw new Error("Recovery job plaintext was not valid UTF-8 JSON.");
+          }
+          const expectedRecoveryFields = [
+            "assistant_message_id",
+            "category",
+            "chat_id",
+            "content",
+            "job_id",
+            "key_version",
+            "model_name",
+            "turn_id",
+          ];
+          if (
+            Object.keys(recovered).sort().join(",") !== expectedRecoveryFields.join(",")
+            || recovered.assistant_message_id !== assistantId
+            || recovered.chat_id !== chatId
+            || recovered.turn_id !== savedTurnId
+            || recovered.job_id !== recoveryJobId
+            || recovered.key_version !== keyVersion
+            || typeof recovered.content !== "string"
+            || (recovered.category !== null && typeof recovered.category !== "string")
+            || (recovered.model_name !== null && typeof recovered.model_name !== "string")
+            || recovered.content !== assistant
+            || recovered.category !== category
+            || recovered.model_name !== modelName
+          ) {
+            throw new Error("Recovery job plaintext did not match the terminal completion identity.");
+          }
+
+          const completedAt = Math.floor(Date.now() / 1000);
+          const encryptedAssistantContent = await encryptWithAesGcmCombined(
+            recovered.content,
+            chatKeyBytes,
+          );
+          const encryptedSenderName = await encryptWithAesGcmCombined("Assistant", chatKeyBytes);
+          const encryptedCategory = recovered.category
+            ? await encryptWithAesGcmCombined(recovered.category, chatKeyBytes)
+            : undefined;
+          const encryptedModelName = recovered.model_name
+            ? await encryptWithAesGcmCombined(recovered.model_name, chatKeyBytes)
+            : undefined;
+          const persistedPromise = ws.waitForMessage(
+            "recovery_job_persisted",
+            (payload) => (payload as Record<string, unknown>).job_id === recoveryJobId,
+            20_000,
+          );
+          await ws.sendAsync("recovery_job_persist", {
+            protocol_version: 1,
+            job_id: recoveryJobId,
+            lease_token: leaseToken,
+            lease_generation: leaseGeneration,
+            expected_messages_v: baselineMessagesV + 1,
+            encrypted_assistant_message: {
+              client_message_id: assistantId,
+              chat_id: chatId,
+              encrypted_content: encryptedAssistantContent,
+              encrypted_sender_name: encryptedSenderName,
+              encrypted_category: encryptedCategory,
+              encrypted_model_name: encryptedModelName,
+              role: "assistant",
+              user_message_id: messageId,
+              created_at: completedAt,
+              updated_at: completedAt,
+            },
+          });
+          await persistedPromise;
+          assistantMessageId = assistantId;
           await this.persistStreamedEmbeds({
             ws,
             embeds: resp.embeds,
             chatId,
             chatKeyBytes,
-            fallbackMessageId: persistedAssistantMessageId,
+            fallbackMessageId: assistantId,
           });
           await this.persistPostProcessingMetadata({
             ws,
@@ -6452,12 +6585,13 @@ export class OpenMatesClient {
   private async openWsClient(): Promise<{
     ws: OpenMatesWsClient;
     session: OpenMatesSession;
+    ownerId: string | null;
   }> {
-    await this.refreshWsToken();
+    const ownerId = await this.refreshWsToken();
     const session = this.requireSession();
     const ws = this.makeWsClient(session);
     await ws.open();
-    return { ws, session };
+    return { ws, session, ownerId };
   }
 
   /**
@@ -6466,12 +6600,13 @@ export class OpenMatesClient {
    * /auth/session call, but the CLI stores it from login and never updates it.
    * This method fetches a fresh ws_token and captures any rotated cookies.
    */
-  private async refreshWsToken(): Promise<void> {
+  private async refreshWsToken(): Promise<string | null> {
     const session = this.requireSession();
     try {
       const res = await this.http.post<{
         success?: boolean;
         ws_token?: string;
+        user?: { id?: string; user_id?: string };
       }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
       if (res.ok && res.data.ws_token) {
         session.wsToken = res.data.ws_token;
@@ -6480,9 +6615,15 @@ export class OpenMatesClient {
       // automatically via captureCookies — just persist the updated map).
       session.cookies = this.http.getCookieMap();
       saveSession(session);
+      return typeof res.data.user?.id === "string"
+        ? res.data.user.id
+        : typeof res.data.user?.user_id === "string"
+          ? res.data.user.user_id
+          : null;
     } catch {
       // Best-effort — if /auth/session fails, proceed with the existing
       // wsToken and let the WebSocket auth cookie fallback handle it.
+      return null;
     }
   }
 
@@ -6837,6 +6978,8 @@ export class OpenMatesClient {
         },
         20_000,
       );
+      // Legacy pending_ai_response sync compatibility only. Epoch-1 live sends
+      // persist through the fenced recovery_job_persist transaction above.
       await ws.sendAsync("ai_response_completed", {
         chat_id: chatId,
         message: encryptedMessage,
