@@ -1,3 +1,4 @@
+schema_version: 2
 id: apple-native-message-composer
 title: Apple Native Message Composer
 status: implementing
@@ -25,6 +26,9 @@ scope:
     - Existing Apple-native pickers, camera, microphone, MapKit, PencilKit, upload, encryption, and send services connected through typed composer commands.
     - Full parity verification before a single production cutover across all Apple hosts.
     - iOS, iPadOS, and macOS keyboard, pointer, accessibility, localization, cold-boot, offline-draft, and performance verification.
+    - Every inserted embed leaves a following editable text line and moves the cursor to that line.
+    - Existing-chat web-search embeds hydrate their referenced child embeds and render the web-equivalent result count and favicon summary.
+    - Existing-chat sheet embeds render web-equivalent preview and fullscreen spreadsheet surfaces, including Sheets app chrome and gradient.
   out:
     - Migrating existing message or draft database records to ComposerDocument JSON.
     - Persisting TextKit attributed strings, Tiptap JSON, UIKit objects, AppKit objects, or local file URLs as the durable message format.
@@ -50,6 +54,8 @@ context_discovery:
     - docs/specs/apple-unified-message-composer/spec.yml
     - docs/specs/apple-tiptap-webview-composer/spec.yml
     - docs/specs/apple-welcome-composer-action-parity/spec.yml
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/specs/apple-pii-detection-web-parity/spec.yml
     - apple/AGENTS.md
     - .claude/rules/apple-ui.md
   online_research:
@@ -70,6 +76,8 @@ context_discovery:
     - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift already provides one native shell across Apple hosts.
     - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift currently supplies the editable WebView surface and must be removed from production composer paths.
     - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift currently renders pending previews outside the editable document.
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift resolves parent/child search result graphs when all related records are available.
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift currently renders a non-parity sheet preview/fullscreen surface.
     - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift currently owns pendingComposerEmbeds and appends references after text at send time.
     - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift implements web-compatible message/chat-key/master-key formats A, C, and D.
     - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift manages wrapped per-chat keys and must not silently replace an existing chat key.
@@ -86,6 +94,8 @@ context_discovery:
     - apple/OpenMatesUITests/ChatFlowParityUITests.swift
     - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
     - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
     - scripts/apple_composer_audit.py
 
 apple_impact:
@@ -96,7 +106,13 @@ apple_impact:
     - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
     - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
     - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
     - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
     - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
     - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
     - apple/OpenMates/Sources/Core/Services/DraftService.swift
@@ -145,13 +161,57 @@ clarification:
       answer: Use a shared product schema while preserving compatibility with existing chats.
     - question: Should the shared schema require database conversion?
       answer: No. ComposerDocument is an in-memory contract; canonical markdown and embed references remain persisted.
+    - question: Should the current Apple TestFlight composer regressions be fixed as one release scope or split between interaction blockers and audio parity?
+      answer: All reported composer, audio, PII, attachment, drawing, web-search, and sheet regressions belong in one repair scope.
+    - question: Must the repaired behavior cover macOS as well as iOS?
+      answer: The shared behavior must work on iOS and macOS; iPhone Apple UI tests are the required interaction proof for this repair.
   vision_summary: >
-    Build one Apple-framework-only native composer for every Apple host and cut
-    over only after full web behavior and visual parity are proven. A shared,
-    versioned ComposerDocument defines editing semantics for both web and Apple,
-    while canonical markdown remains the durable format so existing chats and
-    drafts continue to work without migration.
+    Repair the shared Apple-native composer and existing-chat embed renderers so
+    they behave and render like the web app. Every embed leaves a usable text
+    line, typing remains responsive and unmodified, PII never scans embed
+    metadata or hides controls, and audio, drawing, web-search, and sheet
+    previews/fullscreens retain their web-specific content and chrome. The same
+    implementation must serve iOS and macOS, with iPhone UI tests proving the
+    interactive flow and a macOS build proving the shared surface compiles.
   approved_by_user: true
+
+implementation_state:
+  subject_commit: 379db70bf
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-12T00:00:00Z"
+  implementation_plan:
+    status: not_required
+    reason: Existing native composer, renderer, and embed hydration boundaries remain the approved architecture.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Repair the reported Apple composer and existing-chat embed regressions in one shared release scope.
+    reason: The defects share composer state, attachment layout, and renderer/hydration boundaries; isolated patches would preserve inconsistent behavior.
+    decided_at: "2026-07-12T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use iPhone XCUITests for interaction proof while keeping the implementation shared with macOS.
+    reason: The reported TestFlight evidence is iPhone-specific, while the same TextKit and renderer paths compile for both Apple platforms.
+    decided_at: "2026-07-12T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-20
+    approach: Define focused native red tests before changing the shared composer controller, TextKit adapter, or host layout.
+    outcome: planned
+    recorded_at: "2026-07-12T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-20
+  next_action: Add focused iPhone XCUITest and native unit regressions, then run them red against the current implementation.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+  expected_outcome: The new composer regression assertions fail before the implementation changes.
+  blocker: null
+  last_verified_commit: 379db70bf
 
 scenarios:
   - id: S-1
@@ -351,6 +411,31 @@ scenarios:
       - Embed cards are left-aligned in document order and retain valid dimensions, controls, and content after rotation.
       - Expand fills the available composer container using the web fullscreen gutter contract, collapse restores normal height, and both controls remain visible and hittable after rotation.
 
+  - id: S-17
+    title: Composer editing, PII, attachment actions, and drawing remain usable around embeds
+    given:
+      - The iOS or macOS composer contains text and one or more inserted embeds.
+      - The keyboard is visible and PII detection, the attachment menu, or the drawing tool may be active.
+    when:
+      - The user inserts an embed, types after it, opens the attachment menu, dismisses/excludes PII, or draws and saves a sketch.
+    then:
+      - Each embed is followed by a distinct editable text line and the insertion point lands on that line.
+      - Typing performs no unwanted sentence capitalization and remains responsive without serializing or rebuilding unrelated embed views on every keystroke.
+      - PII detection scans editable user text only, never location/embed metadata, and its warning UI cannot push the action row below the keyboard.
+      - The attachment menu overlays the action row without reflowing its buttons.
+      - PencilKit strokes remain visible while drawing, and the saved sketch uses the correct image preview without clipping.
+
+  - id: S-18
+    title: Existing-chat specialized embeds retain web result data and visual identity
+    given:
+      - An existing chat contains finished audio recording, web-search, or sheet embeds and their persisted related records.
+    when:
+      - The user opens the chat, views the preview, or opens the embed fullscreen surface.
+    then:
+      - Audio retains the recording preview, transcript, and Audio app gradient after transcription completes.
+      - Web search loads referenced children, shows the correct result count and favicon summary, and opens the child result grid.
+      - Sheets use the Sheets app gradient and render the web-equivalent preview and fullscreen spreadsheet structure instead of a generic table card.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -380,7 +465,7 @@ acceptance_criteria:
     scenario: S-4
     text: Uploading, transcribing, error, retry, cancellation, removal, finished, deferred-send, and exactly-once resume states update one stable embed atom and match web behavior.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-EMBED-LIFECYCLE, T-APPLE-UPLOAD-AUDIO-UI, T-APPLE-RECORDING-WAVEFORM-UNIT, T-APPLE-RECORDING-WAVEFORM-UI, T-WEB-COMPOSER-REGRESSION]
@@ -388,7 +473,7 @@ acceptance_criteria:
     scenario: S-5
     text: Native typing/paste conversion covers the current web URL, code, document, table, clipboard embed, and attachment classification behaviors without cursor/order loss.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WEB-DOCUMENT-CONTRACT, T-APPLE-PARSE-PASTE]
@@ -396,7 +481,7 @@ acceptance_criteria:
     scenario: S-6
     text: Native mention atoms and PII decorations match web insertion, display, settings, exclusion, and canonical serialization behavior.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-MENTION-PII, T-WEB-DOCUMENT-CONTRACT]
@@ -480,6 +565,22 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-INLINE-EMBED-UI, T-APPLE-COMPOSER-TOOLS-UI, T-APPLE-VISUAL-PARITY, V-WEB-RENDERED-COMPARISON]
+  - id: AC-17
+    scenario: S-17
+    text: Embed insertion always creates a following editable line, typing stays responsive without unwanted capitalization, PII cannot scan embed metadata or obscure actions, attachment menus overlay controls, and saved drawings render as visible image previews.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-COMPOSER-REGRESSIONS]
+  - id: AC-18
+    scenario: S-18
+    text: Existing-chat audio, web-search, and sheet embeds preserve web-equivalent specialized previews and fullscreen content, including transcript, child hydration, result metadata/favicons, and app-specific gradients.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-PERSISTED-EMBED-PARITY]
 
 assumptions:
   - id: A-1
@@ -1444,6 +1545,66 @@ tests:
         timestamp: "2026-07-11T10:30:04Z"
         summary: OpenMates_macOS and its share extension compiled successfully with the shared AppKit composer and updated preview/layout sources.
 
+  - id: T-APPLE-COMPOSER-REGRESSIONS
+    type: unit
+    file: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    covers: [AC-3, AC-4, AC-5, AC-6, AC-10, AC-16, AC-17]
+    assertions:
+      - inserting any composer embed creates a following editable text line and positions the caret there
+      - typing does not auto-capitalize user text and remains responsive with an inline embed present
+      - location/embed metadata never produces a PII phone match and PII UI keeps every action button above the keyboard
+      - the attachment picker overlays the action row without changing action-button frames
+      - PencilKit strokes are visible before save and the resulting image embed preview is not clipped
+      - recording completion retains the audio preview and visible transcript instead of falling back to a generic recording card
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: 379db70bf
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-APPLE-PERSISTED-EMBED-PARITY
+    type: unit
+    file: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/EmbedRenderingParityUITests
+    covers: [AC-14, AC-18]
+    assertions:
+      - a persisted web-search parent resolves its referenced website children and renders their count and favicon summary
+      - web-search fullscreen displays the resolved child result cards
+      - sheet preview and fullscreen expose the Sheets app gradient and spreadsheet-specific content instead of generic table chrome
+      - audio, web-search, and sheet screenshots are retained for review against the deployed web embed contract
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: 379db70bf
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
 verifications:
   - id: V-WEB-RENDERED-COMPARISON
     kind: artifact_review
@@ -1496,6 +1657,7 @@ verifications:
 
 implementation_plan:
   spec: docs/specs/apple-native-message-composer/spec.yml
+  spec_path: docs/specs/apple-native-message-composer/spec.yml
   first_slice:
     title: Prove TextKit attachment, selection, IME, and undo semantics in an isolated dev preview
     scenarios: [S-1, S-3, S-7]
@@ -1668,6 +1830,9 @@ implementation_plan:
     - "AC-13: T-APPLE-SUBMIT, T-WEB-DOCUMENT-CONTRACT"
     - "AC-14: T-APPLE-RENDERER-COVERAGE, T-APPLE-INLINE-EMBED-UI, paired artifacts"
     - "AC-15: web/Apple encryption fixtures, draft migration, static audit, security review"
+    - "AC-16: T-APPLE-INLINE-EMBED-UI, T-APPLE-COMPOSER-TOOLS-UI, paired rendered-web artifacts"
+    - "AC-17: T-APPLE-COMPOSER-REGRESSIONS"
+    - "AC-18: T-APPLE-PERSISTED-EMBED-PARITY, paired rendered-web artifacts"
   open_questions_and_resolution:
     - Q-1 performance thresholds are resolved by a baseline task before production integration; thresholds are written into this plan and tests before AC-12 can pass.
     - Q-2 renderer gaps are resolved by generated inventory; missing/fallback-only categories are explicit implementation tasks and blockers.
@@ -1688,6 +1853,9 @@ tasks:
     blockers: []
     dependencies: []
     follow_up_tasks: [TASK-5]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: true
 
   - id: TASK-2
@@ -1704,6 +1872,9 @@ tasks:
     blockers: [A-2]
     dependencies: [TASK-1]
     follow_up_tasks: [TASK-6]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: true
 
   - id: TASK-3
@@ -1721,6 +1892,9 @@ tasks:
     blockers: [A-3]
     dependencies: []
     follow_up_tasks: [TASK-7]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: true
 
   - id: TASK-4
@@ -1739,6 +1913,9 @@ tasks:
     blockers: [A-6]
     dependencies: []
     follow_up_tasks: [TASK-10]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: true
 
   - id: TASK-5
@@ -1755,6 +1932,9 @@ tasks:
     blockers: [TASK-1]
     dependencies: [TASK-1]
     follow_up_tasks: [TASK-6, TASK-9]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: true
 
   - id: TASK-6
@@ -1773,6 +1953,9 @@ tasks:
     blockers: [TASK-2, TASK-5]
     dependencies: [TASK-2, TASK-5]
     follow_up_tasks: [TASK-7, TASK-11]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-7
@@ -1794,6 +1977,9 @@ tasks:
     blockers: []
     dependencies: [TASK-3, TASK-6]
     follow_up_tasks: [TASK-11, TASK-14]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-8
@@ -1813,6 +1999,9 @@ tasks:
     blockers: [A-4, TASK-5]
     dependencies: [TASK-5]
     follow_up_tasks: [TASK-11, TASK-12, TASK-13]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-9
@@ -1833,6 +2022,9 @@ tasks:
     blockers: [TASK-5]
     dependencies: [TASK-5]
     follow_up_tasks: [TASK-11]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-10
@@ -1852,6 +2044,9 @@ tasks:
     blockers: [TASK-4, TASK-5]
     dependencies: [TASK-4, TASK-5]
     follow_up_tasks: [TASK-11]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-11
@@ -1871,6 +2066,9 @@ tasks:
     blockers: [TASK-6, TASK-7, TASK-8, TASK-9, TASK-10]
     dependencies: [TASK-6, TASK-7, TASK-8, TASK-9, TASK-10]
     follow_up_tasks: [TASK-12, TASK-13, TASK-14, TASK-18]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-12
@@ -1888,6 +2086,9 @@ tasks:
     blockers: [TASK-8, TASK-11]
     dependencies: [TASK-8, TASK-11]
     follow_up_tasks: [TASK-15]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-13
@@ -1906,6 +2107,9 @@ tasks:
     blockers: [TASK-8, TASK-11]
     dependencies: [TASK-8, TASK-11]
     follow_up_tasks: [TASK-15]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-14
@@ -1925,6 +2129,9 @@ tasks:
     blockers: [Q-1, TASK-7, TASK-11, TASK-18]
     dependencies: [TASK-7, TASK-11, TASK-18]
     follow_up_tasks: [TASK-15]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-18
@@ -1953,6 +2160,9 @@ tasks:
     blockers: [TASK-11]
     dependencies: [TASK-11]
     follow_up_tasks: [TASK-14]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-15
@@ -1971,6 +2181,9 @@ tasks:
     blockers: [TASK-12, TASK-13, TASK-14]
     dependencies: [TASK-12, TASK-13, TASK-14]
     follow_up_tasks: [TASK-16]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-16
@@ -1986,6 +2199,9 @@ tasks:
     blockers: [TASK-15]
     dependencies: [TASK-15]
     follow_up_tasks: [TASK-17]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-17
@@ -2001,11 +2217,14 @@ tasks:
     blockers: [TASK-16]
     dependencies: [TASK-16]
     follow_up_tasks: []
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
   - id: TASK-19
     title: Correct production composer tools, previews, rotation, alignment, and fullscreen parity
-    status: in_progress
+    status: needs_fix
     phase: working_tasks
     covers:
       scenarios: [S-3, S-9, S-10, S-12, S-14, S-16]
@@ -2025,6 +2244,114 @@ tasks:
     blockers: []
     dependencies: [TASK-7, TASK-11, TASK-14]
     follow_up_tasks: [TASK-16, TASK-17]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
+    independently_deployable: false
+
+  - id: TASK-20
+    title: Add red regression coverage for composer interaction and persisted embed parity
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-17, S-18]
+      acceptance_criteria: [AC-17, AC-18]
+    expected_files:
+      - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+      - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+      - apple/OpenMatesTests/NativeComposerControllerTests.swift
+      - docs/specs/apple-native-message-composer/spec.yml
+    verification_ids: [T-APPLE-COMPOSER-REGRESSIONS, T-APPLE-PERSISTED-EMBED-PARITY]
+    blockers: []
+    dependencies: []
+    follow_up_tasks: [TASK-21, TASK-22]
+    ownership:
+      files:
+        - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+        - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+        - apple/OpenMatesTests/NativeComposerControllerTests.swift
+        - docs/specs/apple-native-message-composer/spec.yml
+      shared_files: []
+    independently_deployable: false
+
+  - id: TASK-21
+    title: Repair native composer interaction, audio, and drawing regressions
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-4, S-5, S-6, S-10, S-16, S-17]
+      acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-10, AC-16, AC-17]
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+      - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+      - apple/OpenMates/Sources/Shared/Composer/NativeComposerSession.swift
+      - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+      - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentViewProvider.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    verification_ids: [T-APPLE-COMPOSER-REGRESSIONS, T-APPLE-INLINE-EMBED-UI, T-APPLE-UPLOAD-AUDIO-UI]
+    blockers: []
+    dependencies: [TASK-20]
+    follow_up_tasks: [TASK-23]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+        - apple/OpenMates/Sources/Shared/Composer/NativeComposerTextView.swift
+        - apple/OpenMates/Sources/Shared/Composer/NativeComposerSession.swift
+        - apple/OpenMates/Sources/Shared/Composer/AppleComposerEmbedPreview.swift
+        - apple/OpenMates/Sources/Shared/Composer/ComposerAttachmentViewProvider.swift
+        - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+        - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+        - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+      shared_files: []
+    independently_deployable: false
+
+  - id: TASK-22
+    title: Repair persisted web-search and sheet embed rendering parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-14, S-18]
+      acceptance_criteria: [AC-14, AC-18]
+    expected_files:
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+      - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    verification_ids: [T-APPLE-PERSISTED-EMBED-PARITY, T-APPLE-VISUAL-PARITY]
+    blockers: []
+    dependencies: [TASK-20]
+    follow_up_tasks: [TASK-23]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
+        - apple/OpenMates/Sources/Features/Embeds/Renderers/WebSearchEmbedRenderer.swift
+        - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+        - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+        - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+        - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+      shared_files: []
+    independently_deployable: false
+
+  - id: TASK-23
+    title: Verify repaired Apple composer and embed parity on iPhone and macOS
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-17, S-18]
+      acceptance_criteria: [AC-17, AC-18]
+    expected_files:
+      - docs/specs/apple-native-message-composer/spec.yml
+    verification_ids: [T-APPLE-COMPOSER-REGRESSIONS, T-APPLE-PERSISTED-EMBED-PARITY, T-APPLE-MACOS-BUILD, V-WEB-RENDERED-COMPARISON]
+    blockers: []
+    dependencies: [TASK-21, TASK-22]
+    follow_up_tasks: [TASK-16, TASK-17]
+    ownership:
+      files: [docs/specs/apple-native-message-composer/spec.yml]
+      shared_files: []
     independently_deployable: false
 
 risks:

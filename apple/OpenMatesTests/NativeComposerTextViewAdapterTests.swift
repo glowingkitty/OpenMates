@@ -187,7 +187,7 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
     }
 
     #if canImport(UIKit)
-    func testEquivalentSynchronizationPreservesAttributedTextAndSentenceCapitalization() throws {
+    func testEquivalentSynchronizationPreservesAttributedTextWithoutAutoCapitalization() throws {
         let controller = try NativeComposerController(
             document: ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "Hello")]),
             selection: NSRange(location: 5, length: 0)
@@ -197,12 +197,12 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         let sentinel = NSAttributedString.Key("synthetic-input-trait-sentinel")
         textView.textStorage.addAttribute(sentinel, value: true, range: NSRange(location: 0, length: 1))
 
-        textView.autocapitalizationType = .sentences
+        textView.autocapitalizationType = .none
         try controller.loadDocument(ComposerDocumentV1(version: 1, nodes: [.text(id: "text-2", source: "Hello")]))
         adapter.synchronize(textView)
 
         XCTAssertEqual(textView.attributedText.attribute(sentinel, at: 0, effectiveRange: nil) as? Bool, true)
-        XCTAssertEqual(textView.autocapitalizationType, .sentences)
+        XCTAssertEqual(textView.autocapitalizationType, .none)
     }
 
     func testPIIDecorationsUseWarningBackgroundAndExcludeOnlyTappedIdentity() throws {

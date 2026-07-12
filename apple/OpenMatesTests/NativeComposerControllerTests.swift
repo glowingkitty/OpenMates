@@ -16,7 +16,7 @@ import AppKit
 
 @MainActor
 final class NativeComposerControllerTests: XCTestCase {
-    func testInsertEmbedPreservesDocumentOrderAndSelection() throws {
+    func testInsertEmbedCreatesFollowingEditableLineAndPlacesSelectionThere() throws {
         let controller = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("BeforeAfter"),
             selection: NSRange(location: 6, length: 0)
@@ -32,13 +32,10 @@ final class NativeComposerControllerTests: XCTestCase {
 
         try controller.insertEmbed(embed)
 
-        XCTAssertEqual(controller.attributedString.string, "Before\u{FFFC}After")
-        XCTAssertEqual(controller.selection, NSRange(location: 7, length: 0))
-        XCTAssertEqual(controller.document.nodes.map(\.id), [
-            "composer:text:0",
-            "composer:embed:fixture",
-            "composer:text:1",
-        ])
+        XCTAssertEqual(controller.attributedString.string, "Before\u{FFFC}\nAfter")
+        XCTAssertEqual(controller.selection, NSRange(location: 8, length: 0))
+        XCTAssertEqual(controller.document.nodes.map(\.kind), ["text", "embed", "text", "text"])
+        XCTAssertEqual(controller.document.nodes.compactMap(\.source), ["Before", "\n", "After"])
     }
 
     func testEmbedUpdatePreservesAttachmentIdentityAndSelection() throws {
