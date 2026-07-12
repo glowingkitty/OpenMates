@@ -176,7 +176,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: c059e9029
+  subject_commit: 5cb6e8d
 
 approvals:
   product_contract:
@@ -214,14 +214,24 @@ attempts:
     approach: Verify the decorative gradient through its generated-token route plus retained fullscreen screenshot while asserting interactive spreadsheet surfaces directly.
     outcome: succeeded
     recorded_at: "2026-07-12T17:30:28Z"
+  - id: ATTEMPT-4
+    task_id: TASK-21
+    approach: Expose the attachment popup and its PhotosPicker/File action children through SwiftUI accessibility identifiers.
+    outcome: rejected
+    recorded_at: "2026-07-12T18:41:24Z"
+  - id: ATTEMPT-5
+    task_id: TASK-21
+    approach: Verify the real attachment-button tap preserves every action-button frame and retain the rendered OS-picker popup as a simulator screenshot artifact.
+    outcome: succeeded
+    recorded_at: "2026-07-12T18:45:22Z"
 
 handoff:
   current_task_id: TASK-21
-  next_action: Inspect the shared native composer source against the remaining S-17 attachment, PII, and drawing contracts before modifying behavior.
-  command: python3 scripts/sessions.py check-tests --session fcec
-  expected_outcome: Existing coverage and source ownership identify the smallest remaining TASK-21 behavior gap.
+  next_action: Inspect the composer PII pipeline and its current UI contracts for the remaining metadata-exclusion and action-row behavior gap.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerMentionPIITests
+  expected_outcome: Existing PII unit evidence identifies whether a focused composer UI regression is still required for S-17.
   blocker: null
-  last_verified_commit: c059e9029
+  last_verified_commit: 5cb6e8d
 
 scenarios:
   - id: S-1
@@ -1572,21 +1582,21 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
-        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerControllerTests
-        run_id: apple-remote-a7dad89-controller-red
-        subject_commit: a7dad89
-        timestamp: "2026-07-12T08:11:32Z"
-        summary: The controller retained the embed-boundary selection and did not insert the required following newline/text node.
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+        run_id: apple-remote-15baa0f-attachment-menu-red
+        subject_commit: 15baa0f
+        timestamp: "2026-07-12T18:23:50Z"
+        summary: The new attachment-menu regression failed because the system PhotosPicker popup did not expose its child actions through XCUITest accessibility queries.
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/EmbedRenderingParityUITests
-        run_id: apple-remote-c059e90-embed-parity
-        subject_commit: c059e9029
-        timestamp: "2026-07-12T17:30:28Z"
-        summary: The iPhone 17 simulator ran 3/3 EmbedRenderingParityUITests successfully and retained Sheets preview/fullscreen screenshots. Static source inspection confirms the fullscreen route uses LinearGradient.appSheets from GradientTokens.generated.swift.
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+        run_id: apple-remote-5cb6e8d-composer-regressions
+        subject_commit: 5cb6e8d
+        timestamp: "2026-07-12T18:45:22Z"
+        summary: The iPhone 17 simulator ran 7/7 composer attachment and PII tests. The attachment test tapped the real picker trigger, proved every action button retained its frame, and retained the rendered popup screenshot because OS PhotosPicker child rows are not XCUITest-accessible.
 
   - id: T-APPLE-PERSISTED-EMBED-PARITY
     type: unit
