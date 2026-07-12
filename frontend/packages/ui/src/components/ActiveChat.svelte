@@ -7300,7 +7300,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {
-        if (!CHAT_DETAILS_SETTINGS_ENABLED) return;
+        if (!CHAT_DETAILS_SETTINGS_ENABLED && tab !== 'share') return;
         if (!currentChat?.chat_id) return;
         activeChatStore.setActiveChat(currentChat.chat_id);
         chatDetailsInitialTab = tab;
@@ -7309,7 +7309,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     function handleOpenChatDetailsSettingsEvent(event: Event) {
         const chatDetailsEvent = event as CustomEvent<{ chatId?: string | null; tab?: ChatDetailsTab }>;
-        if (!CHAT_DETAILS_SETTINGS_ENABLED) {
+        if (!CHAT_DETAILS_SETTINGS_ENABLED && chatDetailsEvent.detail?.tab !== 'share') {
             chatDetailsEvent.preventDefault();
             return;
         }
@@ -7322,7 +7322,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /** Open the unified chat details panel directly on the Share tab. */
     function handleShareChat() {
-        if (!CHAT_DETAILS_SETTINGS_ENABLED) return;
         console.debug("[ActiveChat] Share chat button clicked, opening chat details share tab");
         openChatDetailsSettings('share');
     }
@@ -10965,7 +10964,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     >
                         <!-- Left side buttons -->
                         <div class="left-buttons">
-                            {#if CHAT_DETAILS_SETTINGS_ENABLED && !showWelcome && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
+                            {#if !showWelcome && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                                 <!-- Share button - opens settings menu with share submenu -->
                                 <!-- Hidden for intro, example, and legal chats (public/static chats the user doesn't own) -->
                                 <div class="new-chat-button-wrapper">
@@ -12211,7 +12210,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {/await}
             {/if}
 
-            {#if CHAT_DETAILS_SETTINGS_ENABLED && showChatDetailsSettings && currentChat}
+            {#if (CHAT_DETAILS_SETTINGS_ENABLED || chatDetailsInitialTab === 'share') && showChatDetailsSettings && currentChat}
                 <ChatDetailsSettingsPage
                     chat={currentChat}
                     messages={currentMessages}
