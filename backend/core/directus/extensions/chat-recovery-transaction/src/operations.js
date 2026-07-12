@@ -214,7 +214,8 @@ const responseForPreflight = (row) => ({
   billing_identity: row.billing_identity, outbox_id: row.outbox_id,
 });
 const samePreflight = (row, values) => Object.entries(values).every(([key, value]) => row[key] === value);
-const sameChatMetadata = (chat, metadata) => Object.entries(metadata).every(([key, value]) => chat[key] === value);
+const sameChatMetadata = (chat, metadata) => Object.entries(metadata)
+  .every(([key, value]) => key === 'updated_at' || chat[key] === value);
 
 async function preparePreflight(database, raw, now) {
   const body = operationBody(raw, 'prepare_preflight');
