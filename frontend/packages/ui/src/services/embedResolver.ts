@@ -401,6 +401,24 @@ export async function decodeToonContent(
     return null;
   }
 
+  // Older persisted embeds may use the JSON fallback format. Decode that format
+  // directly so valid fallback content does not emit a spurious TOON error.
+  if (toonContent.trimStart().startsWith("{")) {
+    try {
+      return toRecord(recoverCodeEmbedFromToon(toonContent, JSON.parse(toonContent)));
+    } catch (error) {
+      console.error(
+        "[embedResolver] Error parsing JSON embed content:",
+        error instanceof Error ? error.message : String(error),
+        {
+          contentLength: toonContent.length,
+          contentPreview: toonContent.substring(0, 200),
+        },
+      );
+      return null;
+    }
+  }
+
   await initToonDecoder();
 
   if (toonDecode) {

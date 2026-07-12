@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authStore } from "../../stores/authState";
 import {
+	decodeToonContent,
   recoverCodeEmbedFromToon,
   requestEmbedFromServerOnce,
 } from "../embedResolver";
@@ -25,7 +26,26 @@ beforeEach(() => {
 });
 
 describe("recoverCodeEmbedFromToon", () => {
-  it("recovers multiline code and lineCount from malformed decoded TOON", () => {
+	it("decodes JSON fallback content without logging a TOON error", async () => {
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			const decoded = await decodeToonContent(
+				JSON.stringify({ app_id: "web", skill_id: "search", result_count: 1 }),
+			);
+
+			expect(decoded).toMatchObject({
+				app_id: "web",
+				skill_id: "search",
+				result_count: 1,
+			});
+			expect(consoleError).not.toHaveBeenCalled();
+		} finally {
+			consoleError.mockRestore();
+		}
+	});
+
+	it("recovers multiline code and lineCount from malformed decoded TOON", () => {
     const toonContent = `type: code
 language: python
 code: "# Sample list
