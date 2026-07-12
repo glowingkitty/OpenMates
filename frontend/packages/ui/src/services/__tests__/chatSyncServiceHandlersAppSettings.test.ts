@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     replaceMessageById: vi.fn(),
     saveMessage: vi.fn(),
     updateChat: vi.fn(),
+    getEncryptedFields: vi.fn(),
   },
   chatKeyManager: {
     getKey: vi.fn(),
@@ -30,6 +31,13 @@ const mocks = vi.hoisted(() => ({
   ensureChatKeySafeForWrite: vi.fn(),
   encryptWithChatKey: vi.fn(),
   markDeviceReceivedFreeTestingCreditsFromNotification: vi.fn(),
+  webSocketService: {
+    on: vi.fn(),
+    off: vi.fn(),
+    sendMessage: vi.fn(),
+  },
+  deriveChatCompletionRecoveryKeypair: vi.fn(),
+  openChatCompletionRecoveryEnvelope: vi.fn(),
 }));
 
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
@@ -51,6 +59,13 @@ vi.mock("../chatKeyWriteGuard", () => ({
 vi.mock("../encryption/MessageEncryptor", () => ({
   encryptWithChatKey: mocks.encryptWithChatKey,
 }));
+vi.mock("../websocketService", () => ({
+  webSocketService: mocks.webSocketService,
+}));
+vi.mock("../../utils/chatCompletionRecovery", () => ({
+  deriveChatCompletionRecoveryKeypair: mocks.deriveChatCompletionRecoveryKeypair,
+  openChatCompletionRecoveryEnvelope: mocks.openChatCompletionRecoveryEnvelope,
+}));
 vi.mock("../i18n/translations", () => ({
   text: vi.fn((key: string) => key),
 }));
@@ -59,7 +74,10 @@ vi.mock("../stores/serverStatusStore", () => ({
     mocks.markDeviceReceivedFreeTestingCreditsFromNotification,
 }));
 
-import { handlePendingAIResponseImpl } from "../chatSyncServiceHandlersAppSettings";
+import {
+  handlePendingAIResponseImpl,
+} from "../chatSyncServiceHandlersAppSettings";
+import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
 
 describe("handlePendingAIResponseImpl", () => {
   beforeEach(() => {
@@ -73,6 +91,13 @@ describe("handlePendingAIResponseImpl", () => {
     mocks.chatDB.replaceMessageById.mockResolvedValue(true);
     mocks.chatDB.saveMessage.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    mocks.chatDB.getEncryptedFields.mockResolvedValue({
+      encrypted_content: "encrypted-content",
+      encrypted_sender_name: "encrypted-sender",
+      encrypted_category: "encrypted-category",
+      encrypted_model_name: "encrypted-model",
+    });
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
   });
 
   it("replaces a stale streaming assistant row with the completed pending response", async () => {
@@ -147,5 +172,89 @@ describe("handlePendingAIResponseImpl", () => {
     expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
     expect(service.sendCompletedAIResponse).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("handleRecoveryJobsAvailableImpl", () => {
+  it("claims, locally encrypts, persists, and fences exactly one sealed assistant completion", async () => {
+    const handlers = new Map<string, (payload: unknown) => void>();
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.set(type, handler);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string) => {
+      handlers.delete(type);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (type: string) => {
+      if (type === "recovery_job_claim") {
+        handlers.get("recovery_job_claimed")?.({
+          job_id: "job-1",
+          state: "LEASED",
+          lease_token: "lease-token",
+          lease_generation: 2,
+          sealed_payload: '{"v":1}',
+          chat_id: "chat-1",
+          turn_id: "turn-1",
+          assistant_message_id: "assistant-1",
+          chat_key_version: 1,
+        });
+      }
+      if (type === "recovery_job_persist") {
+        handlers.get("recovery_job_persisted")?.({
+          job_id: "job-1",
+          state: "TERMINAL",
+          committed_messages_v: 3,
+        });
+      }
+    });
+    mocks.chatDB.getMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1",
+      user_id: "user-1",
+      messages_v: 2,
+    });
+    mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
+    mocks.openChatCompletionRecoveryEnvelope.mockResolvedValue(
+      new TextEncoder().encode(JSON.stringify({
+        assistant_message_id: "assistant-1",
+        category: "general",
+        chat_id: "chat-1",
+        content: "Recovered response",
+        job_id: "job-1",
+        key_version: 1,
+        model_name: "model-1",
+        turn_id: "turn-1",
+      })),
+    );
+    const service = {
+      dispatchEvent: vi.fn(),
+      hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+    } as unknown as ChatSynchronizationService;
+
+    await handleRecoveryJobsAvailableImpl(service, {
+      jobs: [{
+        job_id: "job-1",
+        chat_id: "chat-1",
+        turn_id: "turn-1",
+        assistant_message_id: "assistant-1",
+        chat_key_version: 1,
+      }],
+    });
+
+    expect(mocks.chatDB.getEncryptedFields).toHaveBeenCalledOnce();
+    expect(mocks.webSocketService.sendMessage).toHaveBeenNthCalledWith(
+      2,
+      "recovery_job_persist",
+      expect.objectContaining({
+        job_id: "job-1",
+        lease_token: "lease-token",
+        lease_generation: 2,
+        expected_messages_v: 2,
+      }),
+    );
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({ messages_v: 3 }),
+    );
   });
 });

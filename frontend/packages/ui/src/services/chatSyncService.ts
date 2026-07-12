@@ -60,6 +60,7 @@ import * as aiHandlers from "./chatSyncServiceHandlersAI";
 import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
 import * as coreSyncHandlers from "./chatSyncServiceHandlersCoreSync";
 import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
+import { handleRecoveryJobsAvailableImpl } from "./chatSyncServiceHandlersRecovery";
 import * as senders from "./chatSyncServiceSenders";
 import { flushPendingEmbedOperations } from "./embedSenders";
 import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
@@ -929,6 +930,16 @@ export class ChatSynchronizationService extends EventTarget {
       ),
     );
 
+    // Recovery availability can arrive immediately after connection establishment.
+    // Register its already-loaded handler before any dynamic handler imports so an
+    // available sealed completion is never dropped.
+    webSocketService.on("recovery_jobs_available", (payload) =>
+      handleRecoveryJobsAvailableImpl(
+        this,
+        payload as Parameters<typeof handleRecoveryJobsAvailableImpl>[1],
+      ),
+    );
+
     // IMPORTANT: "request_app_settings_memories" and "dismiss_app_settings_memories_dialog"
     // are registered synchronously (not inside a dynamic import .then()) to avoid a race
     // condition where the server sends these events immediately after the AI task completes —
@@ -1435,6 +1446,9 @@ export class ChatSynchronizationService extends EventTarget {
   /** Mark that a full phased sync completed this session. Reconnects will skip re-sync. */
   public markInitialSyncCompleted(): void {
     this.hasCompletedInitialSync = true;
+  }
+  public get hasCompletedInitialSync_FOR_HANDLERS_ONLY(): boolean {
+    return this.hasCompletedInitialSync;
   }
   public get serverChatOrder_FOR_HANDLERS_ONLY(): string[] {
     return this.serverChatOrder;

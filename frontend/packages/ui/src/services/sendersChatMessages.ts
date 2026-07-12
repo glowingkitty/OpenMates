@@ -36,6 +36,80 @@ import { get } from "svelte/store";
 import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
 import type { PreparedConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { assertNoConnectedAccountSecretLeak } from "./connectedAccountTokenBrokerService";
+import { deriveChatCompletionRecoveryKeypair } from "../utils/chatCompletionRecovery";
+import { generateUUID } from "../message_parsing/utils";
+
+const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
+const CHAT_RECOVERY_KEY_VERSION = 1;
+const CHAT_PREFLIGHT_TIMEOUT_MS = 20_000;
+const PREFLIGHT_ERROR_CODES = new Set([
+	"client_update_required",
+	"durable_preflight_failed",
+	"immutable_chat_key_mismatch",
+	"preflight_expired",
+	"preflight_mismatch",
+	"preflight_required",
+	"recovery_key_mismatch",
+	"version_conflict"
+]);
+
+// The acknowledged protocol does not echo turn_id. Keep one preflight in flight
+// per browser service so the one-shot acknowledgement is unambiguously bound to
+// the request that opened its waiter.
+let preflightTail: Promise<void> = Promise.resolve();
+
+async function runSerializedPreflight<T>(operation: () => Promise<T>): Promise<T> {
+	const previous = preflightTail.catch(() => undefined);
+	let release: () => void = () => undefined;
+	preflightTail = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await previous;
+	try {
+		return await operation();
+	} finally {
+		release();
+	}
+}
+
+function encodeBase64Url(bytes: Uint8Array): string {
+	let binary = "";
+	for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
+	return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function waitForPreflightAcknowledgement(turnId: string): Promise<{ preflight_id: string }> {
+	return new Promise((resolve, reject) => {
+		const timeout = window.setTimeout(() => {
+			cleanup();
+			reject(new Error("Encrypted chat preflight acknowledgement timed out."));
+		}, CHAT_PREFLIGHT_TIMEOUT_MS);
+		const handleAck = (payload: unknown) => {
+			const ack = payload as { turn_id?: string; preflight_id?: string };
+			if (ack.turn_id && ack.turn_id !== turnId) return;
+			if (!ack.preflight_id) {
+				cleanup();
+				reject(new Error("Encrypted chat preflight acknowledgement omitted preflight_id."));
+				return;
+			}
+			cleanup();
+			resolve({ preflight_id: ack.preflight_id });
+		};
+		const handleError = (payload: unknown) => {
+			const error = payload as { code?: string; message?: string };
+			if (!error.code || !PREFLIGHT_ERROR_CODES.has(error.code)) return;
+			cleanup();
+			reject(new Error(error.message || "Encrypted chat preflight was rejected."));
+		};
+		const cleanup = () => {
+			window.clearTimeout(timeout);
+			webSocketService.off("chat_turn_preflight_ack", handleAck);
+			webSocketService.off("error", handleError);
+		};
+		webSocketService.on("chat_turn_preflight_ack", handleAck);
+		webSocketService.on("error", handleError);
+	});
+}
 
 async function abortUnsafeKeyMismatch(
 	chatId: string,
@@ -705,6 +779,11 @@ export async function sendNewMessageImpl(
 
 	// Phase 1 payload: ONLY fields needed for AI processing
 	interface SendMessagePayload {
+		protocol_version?: number;
+		preflight_id?: string;
+		turn_id?: string;
+		recovery_public_key?: string;
+		chat_key_version?: number;
 		chat_id: string;
 		parent_id?: string | null;
 		broadcast?: boolean;
@@ -1174,10 +1253,87 @@ export async function sendNewMessageImpl(
 		}
 	);
 
+	if (!isIncognitoChat) {
+		if (!encryptedChatKey) {
+			throw new Error(`Saved chat ${message.chat_id} has no encrypted chat key for durable preflight.`);
+		}
+		const chatKey =
+			chatKeyManager.getKeySync(message.chat_id) ||
+			(await chatKeyManager.getKey(message.chat_id));
+		if (!chatKey || !(await ensureChatKeySafeForWrite(message.chat_id, chatKey, "chat turn preflight"))) {
+			throw new Error(`Saved chat ${message.chat_id} has no safe chat key for durable preflight.`);
+		}
+		const turnId = generateUUID();
+		const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
+			encodeBase64Url(chatKey),
+			message.chat_id,
+			CHAT_RECOVERY_KEY_VERSION
+		);
+		const encryptedFields = await chatDB.getEncryptedFields(message, message.chat_id);
+		if (!encryptedFields.encrypted_content) {
+			throw new Error("Durable chat preflight requires encrypted user content.");
+		}
+		Object.assign(payload, {
+			turn_id: turnId,
+			recovery_public_key: recoveryKeypair.publicKey,
+			chat_key_version: CHAT_RECOVERY_KEY_VERSION
+		});
+		const preflightPayload: Record<string, unknown> = {
+			protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION,
+			chat_id: message.chat_id,
+			turn_id: turnId,
+			message_id: message.message_id,
+			chat_key_version: CHAT_RECOVERY_KEY_VERSION,
+			encrypted_chat_key: encryptedChatKey,
+			recovery_public_key: recoveryKeypair.publicKey,
+			// The local user row is saved before this sender runs, so messages_v is
+			// already one ahead of the server version the atomic preflight expects.
+			expected_messages_v: Math.max(0, (chat?.messages_v ?? 1) - 1),
+			encrypted_user_message: {
+				client_message_id: message.message_id,
+				chat_id: message.chat_id,
+				role: "user",
+				encrypted_content: encryptedFields.encrypted_content,
+				encrypted_sender_name: encryptedFields.encrypted_sender_name,
+				encrypted_pii_mappings: encryptedFields.encrypted_pii_mappings,
+				created_at: message.created_at,
+				updated_at: message.created_at
+			},
+			inference_request: payload
+		};
+		if (!chatHasTitle) {
+			preflightPayload.encrypted_chat_metadata = {
+				encrypted_title: chat?.encrypted_title ?? (await encryptWithChatKey("", chatKey)),
+				encrypted_chat_key: encryptedChatKey,
+				created_at: chat?.created_at ?? message.created_at,
+				updated_at: chat?.updated_at ?? message.created_at
+			};
+		}
+
+		// The commitment covers the exact inference payload. Inject tracing before
+		// preflight and never mutate that payload between acknowledgement and send.
+		injectTraceparent(payload as unknown as Record<string, unknown>);
+		try {
+			const { preflight_id } = await runSerializedPreflight(async () => {
+				const acknowledgement = waitForPreflightAcknowledgement(turnId);
+				await webSocketService.sendMessage("chat_turn_preflight", preflightPayload);
+				return acknowledgement;
+			});
+			payload.protocol_version = CHAT_RECOVERY_PROTOCOL_VERSION;
+			payload.preflight_id = preflight_id;
+		} catch (error) {
+			await chatDB.updateMessageStatus(message.message_id, "failed");
+			serviceInstance.dispatchEvent(
+				new CustomEvent("messageStatusChanged", {
+					detail: { chatId: message.chat_id, messageId: message.message_id, status: "failed" }
+				})
+			);
+			throw error;
+		}
+	}
+
 	// OTel: WebSocket dispatch span — the actual send over the wire
 	const wsDispatchSpan = tracer.startSpan('message.send.websocket_dispatch');
-	// Inject W3C traceparent into WS payload for backend trace correlation
-	injectTraceparent(payload as unknown as Record<string, unknown>);
 	try {
 		await webSocketService.sendMessage("chat_message_added", payload);
 	} catch (error) {
