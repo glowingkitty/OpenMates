@@ -73,6 +73,32 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Native chat share sheet")
     }
 
+    func testChatShareConfigurationMatchesWebContract() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-share"]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-share"
+        app.launch()
+
+        XCTAssertTrue(
+            accessibilityElement(in: app, identifier: "share-chat-preview").waitForExistence(timeout: 10),
+            "Expected the custom chat preview shown by the web share configuration. Visible UI: \(visibleStateLabels(in: app))"
+        )
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-options-section").exists)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-community-toggle").exists)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-highlights-toggle").exists)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-password-toggle").exists)
+        XCTAssertEqual(
+            app.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier == %@", "duration-option"))
+                .count,
+            8,
+            "Expected every web expiration choice, including no expiration and one minute."
+        )
+        XCTAssertFalse(app.tables.firstMatch.exists, "Share configuration must use custom OpenMates product UI, not Form/List chrome")
+
+        attachScreenshot(name: "Chat share configuration")
+    }
+
     func testSafariShareSheetSendsURLThroughOpenMatesExtension() throws {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)

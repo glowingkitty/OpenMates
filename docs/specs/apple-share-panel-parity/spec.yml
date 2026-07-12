@@ -1,0 +1,560 @@
+schema_version: 2
+id: apple-share-panel-parity
+title: Apple Chat And Embed Share Panel Web Parity
+status: implementing
+
+goal: >
+  Let iOS and macOS users create, manage, copy, scan, and system-share encrypted
+  chat and embed links through the same product contract and custom OpenMates UI
+  as the web share panel.
+
+scope:
+  in:
+    - A shared custom Apple share panel for chat and embed entry points.
+    - Web-compatible encrypted long links with fragment-only secrets, password protection, and all web expiration options.
+    - Durable short-link creation with the same safe long-link fallback as web.
+    - Chat and embed previews, share controls, QR fullscreen, copy feedback, change-settings, and chat stop-sharing controls.
+    - Chat-only community, PII, and highlights controls with their privacy explanations.
+    - The OS share sheet as a follow-on action after link generation.
+    - iOS and macOS XCTest coverage with synthetic, sanitized fixtures.
+  out:
+    - Changing the existing web/backend share-link format, backend API, or public share routes.
+    - Sending a share fragment secret, password, chat content, or embed content to OpenMates servers beyond the existing web metadata contract.
+    - Replacing the OS-owned system share sheet with custom UI.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP authentication returned 401; gh fallback search for 'share Apple embed chat' found no related issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/share-short-links-og-images/spec.yml
+    - docs/specs/apple-chat-management-sharing-parity/spec.yml
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+  code_patterns:
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/packages/ui/src/services/shareEncryption.ts
+    - frontend/packages/ui/src/services/embedShareEncryption.ts
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+  tests:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/shareEncryption.test.ts
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMatesUITests/SharePanelParityUITests.swift
+  parity_expectations:
+    - Product-owned share configuration and generated-link UI uses OpenMates components and generated tokens, not stock Form, NavigationStack, toolbar, or sheet chrome.
+    - Link generation exactly matches the current web crypto and URL contracts; recipients can open Apple-created links in the web app.
+    - The rendered web share panel remains the visual and interaction source of truth for equivalent iPhone and macOS states.
+  verification:
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/SharePanelParityUITests"
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py build-macos
+  intentional_native_differences:
+    - The OS system share sheet is opened only after the custom generated-link panel and remains platform-owned.
+    - Native QR rendering and text rasterization may differ while preserving the same content, structure, controls, and generated token values.
+
+clarification:
+  rounds:
+    - question: Should Apple match every web share option, including community, PII/highlight, password, expiration, short-link fallback, and unshare behavior?
+      answer: "Yes, correct. Full parity with web app."
+    - question: Should the work ship for both iOS and macOS?
+      answer: "Yes."
+    - question: Should the Apple panel additionally expose the OS share sheet after a link is generated?
+      answer: "Yes, trigger the share sheet as well."
+  vision_summary: >
+    Apple share chat and share embed must be complete product parity with the web
+    panel on iOS and macOS. The app-owned configuration and generated-link states
+    must use custom OpenMates UI; after generation users may invoke the normal
+    platform share sheet.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 270b3a9d0
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-12"
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-12"
+    reason: User explicitly approved creating the plan, implementation, and tests after the complete parity scope was confirmed.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Port the existing client-side web share cryptography byte-for-byte at the contract level rather than adding server-generated Apple links.
+    reason: The web contract keeps encryption keys and short-link secrets in URL fragments and supports offline long-link creation.
+    decided_at: "2026-07-12"
+  - id: D-2
+    status: active
+    decision: Use one custom share panel model and view for chat and embed modes, with explicitly scoped chat-only options.
+    reason: The web implementation is one SettingsShare surface and separate native flows have already drifted in behavior and styling.
+    decided_at: "2026-07-12"
+  - id: D-3
+    status: active
+    decision: Keep the system share sheet as an optional post-generation action only.
+    reason: It is OS-owned UI, while configuration and generated-link management are OpenMates product UI.
+    decided_at: "2026-07-12"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Audit existing web and Apple share flows before introducing a native implementation.
+    outcome: succeeded
+    recorded_at: "2026-07-12"
+    notes: >
+      Confirmed Apple chat calls an incompatible /v1/chats/share endpoint and
+      Apple embed calls an incompatible /v1/chats/{chatId}/embeds/{embedId}/share
+      endpoint. Neither flow constructs web-compatible encrypted fragment links
+      or durable short links; the embed flow also uses forbidden stock UI.
+
+handoff:
+  current_task_id: TASK-2
+  next_action: Add a focused red SharePanelParityUITests fixture for chat and embed configurations.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/SharePanelParityUITests"
+  expected_outcome: The new native parity test fails because the custom panel and web-compatible share states do not exist.
+  blocker: null
+  last_verified_commit: 270b3a9d0
+
+scenarios:
+  - id: S-1
+    title: Owner opens web-equivalent chat sharing configuration
+    given:
+      - Alice owns an encrypted private chat with an available chat key.
+    when:
+      - Alice chooses Share Chat in the Apple chat actions.
+    then:
+      - A custom OpenMates share panel opens with a chat preview, description, Share chat action, password control, all web expiration choices, community, highlights, and conditionally PII controls.
+      - The panel contains no stock navigation, form, toolbar, or app-owned sheet chrome.
+  - id: S-2
+    title: Owner creates a compatible protected or expiring chat link
+    given:
+      - Alice is on the chat configuration panel.
+    when:
+      - Alice selects any web duration and optionally enters a password of at most ten characters.
+      - Alice chooses Share chat.
+    then:
+      - Apple creates `/s/<token>#<shortKey>` when the existing short-link API is available, otherwise `/share/chat/<id>#key=<blob>`.
+      - The blob uses the same PBKDF2/AES-GCM parameters and URL-encoded key fields as web.
+      - The key, password, and fragment secret are not logged or sent to the backend.
+  - id: S-3
+    title: Owner manages an already shared chat
+    given:
+      - Alice opens a chat previously shared from Apple or web.
+    when:
+      - Alice opens Share Chat.
+    then:
+      - The panel restores the existing encrypted owner-facing share URL where available and shows copy, QR, change settings, stop sharing, and system-share actions.
+      - Stop sharing restores private status and removes the local owner-facing stored share URL without exposing it in plaintext.
+  - id: S-4
+    title: Owner opens web-equivalent embed sharing configuration
+    given:
+      - Alice opens a finished encrypted embed fullscreen and its effective embed key is available.
+    when:
+      - Alice chooses Share Embed.
+    then:
+      - The current fullscreen closes or remains correctly layered while one custom OpenMates panel opens with an embed preview, description, Share embed action, password control, and all web expiration choices.
+      - Chat-only community, highlights, PII, and stop-sharing controls are absent.
+  - id: S-5
+    title: Owner copies, scans, adjusts, or system-shares an embed link
+    given:
+      - Apple generated an encrypted embed link.
+    when:
+      - Alice copies the link, opens the QR fullscreen, changes settings, or chooses Share via system.
+    then:
+      - Copy feedback is visible, the QR encodes the displayed URL, changes return to the configuration state, and the OS share sheet receives the displayed URL.
+  - id: S-6
+    title: Link generation fails without hiding the cause
+    given:
+      - A key is missing, a password is invalid, or short-link creation is unavailable.
+    when:
+      - Alice generates a share link.
+    then:
+      - Missing keys and invalid passwords are shown as visible errors without generating a link.
+      - Network/timeout short-link failures visibly use the long encrypted-link fallback.
+      - Other permission or API failures remain visible and do not silently downgrade behavior.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: iOS and macOS Share Chat open one custom OpenMates configuration panel with every applicable web chat setting and preview.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-UI-001, T-APPLE-UI-002]
+  - id: AC-2
+    scenario: S-2
+    text: Apple creates web-compatible encrypted chat links, uses durable short links when possible, and visibly falls back to a valid long link only for network/timeout short-link failures.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-UNIT-001, T-APPLE-UI-001]
+  - id: AC-3
+    scenario: S-3
+    text: Apple restores, copies, QR-encodes, changes, system-shares, and stops sharing owned chats without plaintext persistence of owner-facing secrets.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-UI-001, T-APPLE-UI-002]
+  - id: AC-4
+    scenario: S-4
+    text: iOS and macOS Share Embed open the same custom panel in embed mode with preview, password, and all web expiration controls, without chat-only controls or stock product UI.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-UI-001, T-APPLE-UI-002]
+  - id: AC-5
+    scenario: S-5
+    text: Generated links have visible copy feedback, matching QR content, settings reset, and a post-generation OS share action on both platforms.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-UI-001, T-APPLE-UI-002]
+  - id: AC-6
+    scenario: S-6
+    text: Apple exposes invalid key/password/API errors and only falls back to the long encrypted URL under the same safe conditions as web.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-UNIT-001, T-APPLE-UI-001]
+
+assumptions:
+  - id: A-1
+    text: Apple CryptoManager's CommonCrypto PBKDF2 and CryptoKit AES-GCM primitives can reproduce the web share format exactly.
+    category: crypto
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+        summary: Existing Apple crypto uses PBKDF2-SHA256 with 100,000 iterations and AES-GCM with 12-byte nonces.
+  - id: A-2
+    text: ChatKeyManager and EmbedKeyManager can supply the effective chat or embed key to the share panel without new cross-skill imports.
+    category: crypto
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+        summary: ChatKeyManager exposes chat keys and EmbedKeyManager derives effective embed keys from wrapped key entries.
+  - id: A-3
+    text: The existing short-link backend API accepts the web payload from Apple clients.
+    category: api
+    required_before: task_execution
+    status: checking
+    evidence:
+      - source: docs/specs/share-short-links-og-images/spec.yml
+        summary: The shared API contract is POST /v1/share/short-url with an opaque encrypted URL and content metadata.
+
+contracts:
+  api:
+    - route: POST /v1/share/short-url
+      request: "{ token, encrypted_url, content_type, content_id, password_protected, ttl_seconds }"
+      response: "{ success: true, expires_at: number | null }"
+      errors:
+        - Long encrypted URL fallback only for network, timeout, or unavailable API conditions.
+        - Visible error for invalid input, authentication, ownership, or unexpected API errors.
+    - route: POST /v1/share/chat/metadata
+      request: "Existing shared metadata payload including is_shared, privacy flags, and client-encrypted owner short URL."
+      response: "Existing web-compatible metadata acknowledgement."
+    - route: POST /v1/share/chat/unshare
+      request: "{ chat_id }"
+      response: "Existing unshare acknowledgement."
+  data:
+    - Chat share blobs serialize chat_encryption_key, generated_at, duration_seconds, and pwd exactly as web before AES-GCM encryption.
+    - Embed share blobs serialize embed_encryption_key, generated_at, duration_seconds, and pwd exactly as web before AES-GCM encryption.
+    - Owner-facing short URLs are encrypted at rest using the chat key when persisted locally or in existing metadata.
+    - Share state records preserve is_shared, is_private, share_pii, share_highlights, and community settings across sync.
+  ui_states:
+    - Configuration: preview, description, primary action, optional controls, validation, loading, and visible errors.
+    - Generated: copy, short/long fallback indication, QR, QR fullscreen, expiry information, change settings, stop sharing for chats, and system share.
+    - Chat mode shows community, highlights, and conditionally PII controls; embed mode does not.
+  privacy_security:
+    - Never log plaintext key material, passwords, complete share URLs, URL fragments, or user content.
+    - The backend receives only opaque short-link ciphertext and safe metadata already permitted by the web share contract.
+    - Password length is limited to ten characters before cryptographic work.
+    - UI tests use synthetic identifiers and fixtures and never assert real share URLs or secret values.
+
+tests:
+  - id: T-APPLE-UNIT-001
+    type: unit
+    file: apple/OpenMatesTests/ShareLinkCryptoTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ShareLinkCryptoTests"
+    covers: [AC-2, AC-6]
+    assertions:
+      - Deterministic fixture inputs produce decryptable web-format chat and embed key blobs.
+      - Password and duration fields round-trip for every supported duration.
+      - Short-link encryption payloads keep the long URL and fragment secret opaque.
+      - Invalid password and missing-key conditions return typed visible-error inputs rather than a generated link.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+  - id: T-APPLE-UI-001
+    type: unit
+    file: apple/OpenMatesUITests/SharePanelParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/SharePanelParityUITests"
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    assertions:
+      - Synthetic chat and embed preview launch states expose matching named custom panel controls.
+      - Chat mode shows chat-only controls and embed mode omits them.
+      - Password and duration changes move through configuration, generated-link, QR, change-settings, and system-share affordances.
+      - The test rejects stock Form, NavigationStack, toolbar, and app-owned sheet controls in the product share panel source contract.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+  - id: T-APPLE-UI-002
+    type: unit
+    file: apple/OpenMatesUITests/SharePanelParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing "OpenMatesUITests/SharePanelParityUITests"
+    covers: [AC-1, AC-3, AC-4, AC-5]
+    assertions:
+      - The macOS chat and embed panel fixtures show the same custom product controls and generated-link states as iOS.
+      - The macOS system-share action remains available only after generation.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+  - id: T-WEB-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    command: python3 scripts/tests.py run --spec share-chat-flow.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-2, AC-3]
+    assertions:
+      - Existing web chat sharing contract remains green after Apple-only work.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: { status: not_applicable, command: "", run_id: "", subject_commit: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+  - id: T-WEB-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    command: python3 scripts/tests.py run --spec share-embed-flow.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-2, AC-4]
+    assertions:
+      - Existing web embed sharing contract remains green after Apple-only work.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: { status: not_applicable, command: "", run_id: "", subject_commit: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+
+verifications:
+  - id: V-APPLE-VISUAL-001
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-4, AC-5]
+    status: pending
+    evidence:
+      status: ""
+      summary: Compare iPhone and macOS simulator screenshots for configuration, generated-link, and QR-fullscreen states to the equivalent rendered web panel states.
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/apple-share-panel-parity/spec.yml
+  existing_patterns:
+    - The browser SettingsShare.svelte is the single source for chat and embed share panel behavior.
+    - CryptoManager already supplies PBKDF2 and AES-GCM building blocks required by the web share format.
+    - MainAppView appOverlay supplies custom OpenMates panel chrome and EmbedFullscreenContainer already owns the embed-share trigger.
+  architecture: >
+    Add a small Apple share-crypto service that reproduces the web serialization,
+    PBKDF2, AES-GCM, URL-safe base64, and short-link encryption contracts. Replace
+    divergent ChatShareView and ShareEmbedView implementations with a shared,
+    mode-driven custom product panel that receives chat/embed key material through
+    existing key managers. Keep only the post-generation OS share action platform
+    native. Persist and sync chat share metadata through the existing share routes
+    and local encrypted chat records rather than creating a new backend protocol.
+  data_flow:
+    - Chat or embed action provides a typed share target and effective encryption key.
+    - The panel validates password/settings and creates the web-compatible long encrypted URL locally.
+    - Authenticated owners attempt the existing durable short-link API; only the opaque encrypted URL is sent.
+    - The panel marks/share-syncs the native chat or embed metadata through existing API and local persistence paths.
+    - The generated state presents copy, QR, adjustment, unshare where applicable, and system-share actions.
+  affected_files:
+    - path: apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift
+      reason: Web-compatible share-key and short-link crypto with no plaintext logging.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+      reason: Replace incompatible endpoint-based implementation with the shared product panel.
+    - path: apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+      reason: Remove stock Form/NavigationStack/toolbar implementation and use embed mode of the shared panel.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/AppleSharePanel.swift
+      reason: Shared custom configuration and generated-link UI for chat and embed modes.
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Present the shared panel from chat actions with correct custom overlay state.
+    - path: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+      reason: Present the shared panel from embed fullscreen without stock sheet chrome.
+    - path: apple/OpenMatesTests/ShareLinkCryptoTests.swift
+      reason: Cross-client crypto contract fixtures.
+    - path: apple/OpenMatesUITests/SharePanelParityUITests.swift
+      reason: iOS and macOS UI state and source-contract coverage.
+  verification_strategy:
+    - Add and run red ShareLinkCryptoTests and SharePanelParityUITests before production implementation.
+    - Run the focused remote iOS and macOS tests after implementation.
+    - Deploy, wait for dev readiness, then run existing web share-chat and share-embed Playwright specs.
+    - Run python3 scripts/verify_parity.py --run --web-spec share-chat-flow.spec.ts --apple test with the focused Apple test when supported by the wrapper.
+    - Capture sanitized simulator screenshots and review them against the rendered web panel.
+  verification_order:
+    - Apple crypto contract test
+    - Apple iOS and macOS UI tests
+    - Deployed web share chat and embed regression specs
+    - Visual artifact review
+
+tasks:
+  - id: TASK-1
+    title: Establish cross-client share crypto contract
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-2, S-4]
+      acceptance_criteria: [AC-2, AC-4]
+    expected_files:
+      - frontend/packages/ui/src/services/shareEncryption.ts
+      - frontend/packages/ui/src/services/embedShareEncryption.ts
+      - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    verification: [T-APPLE-UNIT-001]
+    verification_ids: [T-APPLE-UNIT-001]
+    dependencies: []
+    ownership:
+      files:
+        - frontend/packages/ui/src/services/shareEncryption.ts
+        - frontend/packages/ui/src/services/embedShareEncryption.ts
+        - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+  - id: TASK-2
+    title: Add red native share crypto and panel parity tests
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - apple/OpenMatesTests/ShareLinkCryptoTests.swift
+      - apple/OpenMatesUITests/SharePanelParityUITests.swift
+    verification: [T-APPLE-UNIT-001, T-APPLE-UI-001, T-APPLE-UI-002]
+    verification_ids: [T-APPLE-UNIT-001, T-APPLE-UI-001, T-APPLE-UI-002]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - apple/OpenMatesTests/ShareLinkCryptoTests.swift
+        - apple/OpenMatesUITests/SharePanelParityUITests.swift
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-3, TASK-4]
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement web-compatible Apple share crypto and persistence
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-3, S-6]
+      acceptance_criteria: [AC-2, AC-3, AC-6]
+    expected_files:
+      - apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+    verification: [T-APPLE-UNIT-001]
+    verification_ids: [T-APPLE-UNIT-001]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift
+        - apple/OpenMates/Sources/Features/Chat/Views/ChatShareView.swift
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-4
+    title: Implement shared custom chat and embed share panel
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/AppleSharePanel.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    verification: [T-APPLE-UI-001, T-APPLE-UI-002]
+    verification_ids: [T-APPLE-UI-001, T-APPLE-UI-002]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Features/Chat/Views/AppleSharePanel.swift
+        - apple/OpenMates/Sources/Features/Embeds/Views/ShareEmbedView.swift
+      shared_files:
+        - apple/OpenMates/Sources/App/MainAppView.swift
+        - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Verify cross-client and visual parity
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - docs/specs/apple-share-panel-parity/spec.yml
+    verification: [T-APPLE-UNIT-001, T-APPLE-UI-001, T-APPLE-UI-002, T-WEB-E2E-001, T-WEB-E2E-002, V-APPLE-VISUAL-001]
+    verification_ids: [T-APPLE-UNIT-001, T-APPLE-UI-001, T-APPLE-UI-002, T-WEB-E2E-001, T-WEB-E2E-002, V-APPLE-VISUAL-001]
+    dependencies: [TASK-3, TASK-4]
+    ownership:
+      files:
+        - docs/specs/apple-share-panel-parity/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - A byte-level difference in Apple PBKDF2, AES-GCM combined-data handling, or base64url encoding can make Apple-created links unreadable by web clients.
+  - Existing Apple Chat and Embed models may lack share metadata fields necessary to restore web-created owner links and sync all chat-only options.
+  - Native visual parity requires rendered browser and simulator evidence; source-level correspondence alone is insufficient.
+  - The current worktree is shared and dirty, so edits to shared app-shell files need a fresh read immediately before modification.
+
+open_questions:
+  - none
