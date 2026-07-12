@@ -111,11 +111,10 @@ final class NativeComposerController {
 
         let embedLocation = selection.location
         let nodesWithEmbed = try nodesByInserting(embed, atUTF16Offset: embedLocation)
-        let nodes = try nodesByInsertingText(
-            "\n",
+        let nodes = try nodesByInserting(
+            ComposerNodeV1(kind: "hardBreak", id: "composer:break:\(embed.id)"),
             into: nodesWithEmbed,
             atUTF16Offset: embedLocation + 1,
-            preferredNodeID: nil
         )
         apply(
             document: ComposerDocumentV1(version: document.version, nodes: nodes),
@@ -222,8 +221,9 @@ final class NativeComposerController {
             location: document.nodes[..<index].reduce(0) { $0 + semanticLength(of: $1) },
             length: 1
         )
-        let result = try deleting(range: range)
-        applyDeletion(result, range: range, selection: adjusted(selection, deleting: range))
+        let deletionRange = expandedEmbedDeletionRange(range)
+        let result = try deleting(range: deletionRange)
+        applyDeletion(result, range: deletionRange, selection: adjusted(selection, deleting: deletionRange))
     }
 
     func deleteBackward() throws {
@@ -232,8 +232,9 @@ final class NativeComposerController {
             return
         }
         guard let range = deletionRangeBefore(selection.location) else { return }
-        let result = try deleting(range: range)
-        applyDeletion(result, range: range, selection: NSRange(location: range.location, length: 0))
+        let deletionRange = expandedEmbedDeletionRange(range)
+        let result = try deleting(range: deletionRange)
+        applyDeletion(result, range: deletionRange, selection: NSRange(location: deletionRange.location, length: 0))
     }
 
     func deleteForward() throws {
@@ -242,8 +243,9 @@ final class NativeComposerController {
             return
         }
         guard let range = deletionRangeAfter(selection.location) else { return }
-        let result = try deleting(range: range)
-        applyDeletion(result, range: range, selection: selection)
+        let deletionRange = expandedEmbedDeletionRange(range)
+        let result = try deleting(range: deletionRange)
+        applyDeletion(result, range: deletionRange, selection: selection)
     }
 
     func deleteSelection() throws {
@@ -564,6 +566,22 @@ final class NativeComposerController {
             cursor += length
         }
         return nil
+    }
+
+    private func expandedEmbedDeletionRange(_ range: NSRange) -> NSRange {
+        guard range.length == 1 else { return range }
+
+        var cursor = 0
+        for (index, node) in document.nodes.enumerated() {
+            let length = semanticLength(of: node)
+            defer { cursor += length }
+            guard node.kind == "embed", cursor == range.location else { continue }
+            guard document.nodes.indices.contains(index + 1), document.nodes[index + 1].kind == "hardBreak" else {
+                return range
+            }
+            return NSRange(location: range.location, length: 2)
+        }
+        return range
     }
 
     private var semanticLength: Int {

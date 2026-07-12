@@ -34,8 +34,8 @@ final class NativeComposerControllerTests: XCTestCase {
 
         XCTAssertEqual(controller.attributedString.string, "Before\u{FFFC}\nAfter")
         XCTAssertEqual(controller.selection, NSRange(location: 8, length: 0))
-        XCTAssertEqual(controller.document.nodes.map(\.kind), ["text", "embed", "text"])
-        XCTAssertEqual(controller.document.nodes.compactMap(\.source), ["Before", "\nAfter"])
+        XCTAssertEqual(controller.document.nodes.map(\.kind), ["text", "embed", "hardBreak", "text"])
+        XCTAssertEqual(controller.document.nodes.compactMap(\.source), ["Before", "After"])
     }
 
     func testEmbedUpdatePreservesAttachmentIdentityAndSelection() throws {
@@ -85,7 +85,7 @@ final class NativeComposerControllerTests: XCTestCase {
         let textView = UITextView(usingTextLayoutManager: true)
         textView.attributedText = controller.attributedString
         XCTAssertNotNil(textView.textLayoutManager)
-        XCTAssertEqual(textView.attributedText.string.utf16.count, 12)
+        XCTAssertEqual(textView.attributedText.string.utf16.count, 13)
         let attachment = try XCTUnwrap(
             textView.attributedText.attribute(
                 .attachment,
@@ -118,7 +118,7 @@ final class NativeComposerControllerTests: XCTestCase {
         let textView = NSTextView(usingTextLayoutManager: true)
         textView.textStorage?.setAttributedString(controller.attributedString)
         XCTAssertNotNil(textView.textLayoutManager)
-        XCTAssertEqual(textView.string.utf16.count, 12)
+        XCTAssertEqual(textView.string.utf16.count, 13)
         #endif
     }
 
@@ -156,6 +156,7 @@ final class NativeComposerControllerTests: XCTestCase {
         try atStart.insertEmbed(embed)
         XCTAssertEqual(atStart.document.nodes.map(\.id), [
             "composer:embed:boundary",
+            "composer:break:composer:embed:boundary",
             "composer:text:0",
         ])
 
@@ -167,6 +168,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertEqual(atEnd.document.nodes.map(\.id), [
             "composer:text:0",
             "composer:embed:boundary",
+            "composer:break:composer:embed:boundary",
         ])
     }
 
@@ -178,7 +180,7 @@ final class NativeComposerControllerTests: XCTestCase {
 
         try controller.insertEmbed(fixtureEmbed(id: "composer:text:1"))
 
-        XCTAssertEqual(Set(controller.document.nodes.map(\.id)).count, 3)
+        XCTAssertEqual(Set(controller.document.nodes.map(\.id)).count, 4)
         XCTAssertEqual(controller.document.nodes.last?.id, "composer:text:2")
     }
 
