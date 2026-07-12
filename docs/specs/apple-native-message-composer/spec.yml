@@ -176,7 +176,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: aa66b77bf
+  subject_commit: c059e9029
 
 approvals:
   product_contract:
@@ -209,14 +209,19 @@ attempts:
     approach: Assert the decorative Sheets gradient directly through its accessibility identifier.
     outcome: rejected
     recorded_at: "2026-07-12T17:23:03Z"
+  - id: ATTEMPT-3
+    task_id: TASK-20
+    approach: Verify the decorative gradient through its generated-token route plus retained fullscreen screenshot while asserting interactive spreadsheet surfaces directly.
+    outcome: succeeded
+    recorded_at: "2026-07-12T17:30:28Z"
 
 handoff:
-  current_task_id: TASK-20
-  next_action: Deploy the approved screenshot-plus-source verification contract, rerun the focused iPhone UI test, then build the shared macOS target.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/EmbedRenderingParityUITests
-  expected_outcome: The focused iPhone UI test passes with retained preview/fullscreen screenshots; generated-token routing is statically verified by the appSheets source mapping.
+  current_task_id: TASK-21
+  next_action: Inspect the shared native composer source against the remaining S-17 attachment, PII, and drawing contracts before modifying behavior.
+  command: python3 scripts/sessions.py check-tests --session fcec
+  expected_outcome: Existing coverage and source ownership identify the smallest remaining TASK-21 behavior gap.
   blocker: null
-  last_verified_commit: 35fec7d21
+  last_verified_commit: c059e9029
 
 scenarios:
   - id: S-1
@@ -1545,10 +1550,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
-        run_id: "apple-remote-e8391d7-macos-build"
-        subject_commit: "e8391d76a"
-        timestamp: "2026-07-11T10:30:04Z"
-        summary: OpenMates_macOS and its share extension compiled successfully with the shared AppKit composer and updated preview/layout sources.
+        run_id: "apple-remote-c059e90-macos-build"
+        subject_commit: "c059e9029"
+        timestamp: "2026-07-12T17:31:25Z"
+        summary: OpenMates_macOS and its share extension compiled successfully with the shared Sheets renderer and fullscreen gradient route; unsigned compile verification avoids an unrelated development-profile requirement.
 
   - id: T-APPLE-COMPOSER-REGRESSIONS
     type: unit
@@ -1576,11 +1581,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/EmbedRenderingParityUITests
+        run_id: apple-remote-c059e90-embed-parity
+        subject_commit: c059e9029
+        timestamp: "2026-07-12T17:30:28Z"
+        summary: The iPhone 17 simulator ran 3/3 EmbedRenderingParityUITests successfully and retained Sheets preview/fullscreen screenshots. Static source inspection confirms the fullscreen route uses LinearGradient.appSheets from GradientTokens.generated.swift.
 
   - id: T-APPLE-PERSISTED-EMBED-PARITY
     type: unit
@@ -1606,11 +1612,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+        run_id: apple-remote-c059e90-composer-regressions
+        subject_commit: c059e9029
+        timestamp: "2026-07-12T17:34:33Z"
+        summary: The iPhone 17 simulator ran 6/6 composer attachment, PII, pending-preview, keyboard-action, and restoration UI tests successfully.
 
 verifications:
   - id: V-WEB-RENDERED-COMPARISON
@@ -2258,7 +2265,7 @@ tasks:
 
   - id: TASK-20
     title: Add red regression coverage for composer interaction and persisted embed parity
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-17, S-18]
@@ -2287,7 +2294,7 @@ tasks:
 
   - id: TASK-21
     title: Repair native composer interaction, audio, and drawing regressions
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-3, S-4, S-5, S-6, S-10, S-16, S-17]
