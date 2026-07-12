@@ -75,8 +75,19 @@ enum ShareLinkCrypto {
         return (token, shortKey, try encryptURLSafe(Data(longURL.absoluteString.utf8), using: encryptionKey))
     }
 
-    static func shortURL(webURL: URL, token: String, shortKey: String) -> URL {
-        webURL.appendingPathComponent("s/\(token)").appending(fragment: shortKey)
+    static func shortURL(webURL: URL, token: String, shortKey: String) throws -> URL {
+        try urlWithFragment(webURL.appendingPathComponent("s/\(token)"), fragment: shortKey)
+    }
+
+    static func urlWithFragment(_ url: URL, fragment: String) throws -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            throw ShareLinkCryptoError.urlConstructionFailed
+        }
+        components.fragment = fragment
+        guard let fragmentURL = components.url else {
+            throw ShareLinkCryptoError.urlConstructionFailed
+        }
+        return fragmentURL
     }
 
     private static func encryptURLSafe(_ plaintext: Data, using key: SymmetricKey) throws -> String {
@@ -111,4 +122,5 @@ enum ShareLinkCrypto {
 
 enum ShareLinkCryptoError: Error {
     case serializationFailed
+    case urlConstructionFailed
 }

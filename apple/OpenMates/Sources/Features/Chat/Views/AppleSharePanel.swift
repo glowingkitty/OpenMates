@@ -131,7 +131,7 @@ struct AppleSharePanel: View {
                         .font(.omP.weight(.semibold))
                         .foregroundStyle(Color.fontPrimary)
                         .lineLimit(2)
-                    if let summary, !summary.isEmpty {
+                    if let summary = context.summary, !summary.isEmpty {
                         Text(summary)
                             .font(.omXs)
                             .foregroundStyle(Color.fontSecondary)
@@ -340,10 +340,12 @@ struct AppleSharePanel: View {
                     keyField: context.keyField
                 )
                 let webURL = await APIClient.shared.webAppURL
-                let longURL = webURL
-                    .appendingPathComponent(context.path)
-                    .appendingPathComponent(context.id)
-                    .appending(fragment: "key=\(blob)")
+                let longURL = try ShareLinkCrypto.urlWithFragment(
+                    webURL
+                        .appendingPathComponent(context.path)
+                        .appendingPathComponent(context.id),
+                    fragment: "key=\(blob)"
+                )
                 let primaryURL = try await durableShortURL(for: longURL, webURL: webURL)
                 generatedURL = primaryURL.url
                 usedLongFallback = primaryURL.usedLongFallback
@@ -367,7 +369,7 @@ struct AppleSharePanel: View {
                 "ttl_seconds": duration == .noExpiration ? NSNull() : duration.rawValue
             ]
             let _: Data = try await APIClient.shared.request(.post, path: "/v1/share/short-url", body: body)
-            return (ShareLinkCrypto.shortURL(webURL: webURL, token: encrypted.token, shortKey: encrypted.shortKey), false)
+            return (try ShareLinkCrypto.shortURL(webURL: webURL, token: encrypted.token, shortKey: encrypted.shortKey), false)
         } catch let error as URLError where error.code == .notConnectedToInternet || error.code == .timedOut {
             return (longURL, true)
         }
