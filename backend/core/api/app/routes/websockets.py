@@ -4,6 +4,7 @@ import json
 import asyncio # Added asyncio
 import time
 import uuid
+import os
 from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
 # Import necessary services and utilities
@@ -47,6 +48,13 @@ from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_su
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
+from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
+from .handlers.websocket_handlers.chat_recovery_job_handlers import (
+    handle_recovery_job_claim,
+    handle_recovery_job_persist,
+    handle_recovery_job_renew,
+    send_available_recovery_jobs,
+)
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
@@ -2019,6 +2027,17 @@ async def websocket_endpoint(
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
 
+    if int(os.getenv("CHAT_RECOVERY_PROTOCOL_EPOCH", "0")) >= 1:
+        asyncio.create_task(
+            send_available_recovery_jobs(
+                manager=manager,
+                directus_service=directus_service,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                device_fingerprint_hash=device_fingerprint_hash,
+            )
+        )
+
     # Deliver any pending reminder notifications that fired while the user was offline.
     # This runs as a background task so it doesn't block the WebSocket message loop.
     asyncio.create_task(
@@ -2107,6 +2126,46 @@ async def websocket_endpoint(
             elif message_type == "ping":
                 await manager.send_personal_message({"type": "pong"}, user_id, device_fingerprint_hash)
             
+
+            elif message_type == "chat_turn_preflight":
+                await handle_chat_turn_preflight(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "recovery_job_claim":
+                await handle_recovery_job_claim(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "recovery_job_renew":
+                await handle_recovery_job_renew(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "recovery_job_persist":
+                await handle_recovery_job_persist(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
 
             elif message_type == "chat_message_added":
                 # This now handles new messages sent by the client.

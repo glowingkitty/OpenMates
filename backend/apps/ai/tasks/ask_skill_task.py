@@ -27,6 +27,7 @@ from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService # Assuming this is the correct path
 from backend.core.api.app.services.skill_registry import build_skill_registry
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.log_sanitization import sanitize_request_data_for_logging
@@ -482,6 +483,27 @@ async def _update_user_task_execution_state_with_new_directus(
         await directus_service.close()
 
 
+async def _mark_recovery_inference_failed(
+    request_data: AskSkillRequest,
+    task_id: str,
+    failure_category: str,
+) -> None:
+    if not request_data.recovery_task_id:
+        return
+    directus_service = DirectusService()
+    try:
+        await ChatRecoveryService(directus_service).execute(
+            "mark_inference_failed",
+            {
+                "protocol_version": 1,
+                "inference_task_id": task_id,
+                "failure_category": failure_category,
+            },
+        )
+    finally:
+        await directus_service.close()
+
+
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
@@ -533,6 +555,29 @@ async def _async_process_ai_skill_ask_task(
             encryption_service=encryption_service_instance 
         )
         logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
+
+        if request_data.recovery_task_id:
+            if request_data.recovery_task_id != task_id:
+                raise RuntimeError("Celery task ID does not match durable recovery task identity")
+            claim = await ChatRecoveryService(directus_service_instance).execute(
+                "claim_inference",
+                {"protocol_version": 1, "inference_task_id": task_id},
+            )
+            if not claim.get("claimed"):
+                logger.info(
+                    "[Task ID: %s] Skipping duplicate recovery task delivery in state=%s",
+                    task_id,
+                    claim.get("state"),
+                )
+                return {
+                    "status": "duplicate_recovery_task_ignored",
+                    "preprocessing_summary": {},
+                    "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
 
         await _update_user_task_execution_state(
             request_data,
@@ -2430,6 +2475,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after soft time limit: {cleanup_err}")
         try:
+            loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "soft_time_limit"))
+        except Exception as recovery_err:
+            logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
+        try:
             loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
                 request_data,
                 ai_execution_state="failed",
@@ -2466,6 +2515,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
         try:
+            loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "runtime_error"))
+        except Exception as recovery_err:
+            logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
+        try:
             loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
                 request_data,
                 ai_execution_state="failed",
@@ -2500,6 +2553,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after exception: {cleanup_err}")
+        try:
+            loop.run_until_complete(_mark_recovery_inference_failed(request_data, task_id, "unhandled_error"))
+        except Exception as recovery_err:
+            logger.error(f"[Task ID: {task_id}] Failed to mark recovery inference failed: {recovery_err}")
         try:
             loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
                 request_data,

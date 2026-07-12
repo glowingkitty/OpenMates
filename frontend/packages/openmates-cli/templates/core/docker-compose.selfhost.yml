@@ -72,7 +72,7 @@ services:
       retries: 3
 
   cms:
-    image: directus/directus:11.5
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-dev}
     container_name: cms
     restart: unless-stopped
     env_file: ../../.env
@@ -87,13 +87,13 @@ services:
       DB_DATABASE: ${DATABASE_NAME}
       DB_USER: ${DATABASE_USERNAME}
       DB_PASSWORD: ${DATABASE_PASSWORD}
+      INTERNAL_API_SHARED_TOKEN: ${INTERNAL_API_SHARED_TOKEN}
       CACHE_ENABLED: "true"
       CACHE_STORE: redis
       REDIS_HOST: cache
       REDIS_PASSWORD: ${DRAGONFLY_PASSWORD}
     volumes:
       - directus-uploads:/directus/uploads
-      - directus-extensions:/directus/extensions
     networks: [openmates]
     depends_on:
       cms-database:
@@ -101,10 +101,11 @@ services:
       cache:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/ping"]
+      test: ["CMD", "/usr/local/bin/openmates-directus-health"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 8s
+      start_period: 60s
+      retries: 12
 
   cms-database:
     image: postgres:13-alpine
@@ -132,6 +133,8 @@ services:
       ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
       ADMIN_PASSWORD: ${DATABASE_ADMIN_PASSWORD}
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      INTERNAL_API_SHARED_TOKEN: ${INTERNAL_API_SHARED_TOKEN}
+      CHAT_RECOVERY_MIGRATION_PATH: /usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql
     networks: [openmates]
     depends_on: [cms]
     restart: "no"
@@ -370,8 +373,6 @@ volumes:
     name: openmates-postgres-data
   directus-uploads:
     name: openmates-directus-uploads
-  directus-extensions:
-    name: openmates-directus-extensions
   cache-data:
     name: openmates-cache-data
   openobserve-data:

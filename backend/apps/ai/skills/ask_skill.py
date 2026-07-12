@@ -71,6 +71,11 @@ class AskSkillRequest(BaseModel):
     connected_account_permission_state: Optional[Dict[str, Any]] = Field(default=None, description="Permission continuation state for connected-account approvals.")
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
     benchmark_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Sanitized CLI benchmark metadata for usage source tagging.")
+    recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
+    recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
+    recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")
+    recovery_public_key: Optional[str] = Field(default=None, description="Raw X25519 recovery public key encoded as unpadded base64url.")
+    chat_key_version: Optional[int] = Field(default=None, description="Immutable cryptographic chat-key version.")
     is_app_settings_memories_continuation: bool = Field(default=False, description="True if this task is a continuation after app settings/memories confirmation/rejection. Prevents infinite loops by skipping pending context storage if data is still missing.")
     is_connected_account_permission_continuation: bool = Field(default=False, description="True if this task is a continuation after connected-account permission confirmation/rejection.")
     is_focus_mode_continuation: bool = Field(default=False, description="True if this task is a continuation after focus mode auto-confirm or rejection. The user message was already persisted before the deferred activation pause.")
@@ -321,7 +326,8 @@ class AskSkill(BaseSkill):
                 },
                 queue="app_ai",  # Route to the 'app_ai' queue, as configured in celery_config.py
                 exchange="app_ai",  # Match the exchange declared in celery_config.py task_queues
-                routing_key="app_ai"  # Match the routing_key declared in celery_config.py task_queues
+                routing_key="app_ai",  # Match the routing_key declared in celery_config.py task_queues
+                task_id=request.recovery_task_id,
             )
             task_id = task_signature.id
             logger.info(f"Celery task 'apps.ai.tasks.skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")

@@ -1054,6 +1054,7 @@ _EXPLICIT_TASK_ROUTES = {
     # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
     "app.tasks.persistence_tasks.persist_chat_title": "persistence",
     "app.tasks.persistence_tasks.persist_chat_pinned": "persistence",
+    "app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs": "persistence",
     "app.tasks.persistence_tasks.persist_user_draft": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_message": "persistence",
     "app.tasks.persistence_tasks.persist_chat_and_draft_on_logout": "persistence",
@@ -1208,6 +1209,11 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'cleanup-expired-chat-recovery-jobs': {
+        'task': 'app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs',
+        'schedule': timedelta(hours=1),
+        'options': {'queue': 'persistence'},
+    },
     # --- Health checks that feed /v1/health (used by the Apps) ---
     # NOTE: The independent status service (backend/status/) handles the status PAGE,
     # but the core API's /v1/health endpoint reads from these Redis cache keys.

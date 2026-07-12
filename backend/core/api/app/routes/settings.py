@@ -38,6 +38,11 @@ from backend.core.api.app.utils.report_issue_ids import (
 )
 from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
+    invalidate_recovery_jobs_for_account_deletion,
+    invalidate_recovery_leases_for_device,
+)
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -1306,6 +1311,22 @@ async def delete_api_key(
         # Get the key_hash to delete the associated encryption key
         key_hash = key_to_delete.get('key_hash')
         hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+
+        # Revoke recovery leases before deleting the credential that owns them.
+        api_key_devices = await directus_service.get_api_key_devices(key_id, user_id=current_user.id)
+        for device in api_key_devices or []:
+            device_hash = device.get('device_hash')
+            if device_hash:
+                try:
+                    await invalidate_recovery_leases_for_device(
+                        directus_service=directus_service,
+                        user_id_hash=hashed_user_id,
+                        device_fingerprint_hash=device_hash,
+                    )
+                except ChatRecoveryProtocolError as recovery_error:
+                    if recovery_error.status_code != 404:
+                        raise
+                    logger.info("Recovery extension unavailable; API-key invalidation is a safe no-op")
         
         # Delete the API key record
         delete_success = await directus_service.delete_api_key(key_id)
@@ -1453,6 +1474,7 @@ async def approve_api_key_device(
         # Invalidate device approval cache
         api_key_id = user_device.get('api_key_id')
         device_hash = user_device.get('device_hash')
+
         if api_key_id and device_hash and hasattr(directus_service, 'cache') and directus_service.cache:
             device_approval_cache_key = f"api_key_device_approval:{api_key_id}:{device_hash}"
             try:
@@ -1487,6 +1509,18 @@ async def revoke_api_key_device(
         # Get device_hash for cache invalidation before deletion
         api_key_id = user_device.get('api_key_id')
         device_hash = user_device.get('device_hash')
+
+        if device_hash:
+            try:
+                await invalidate_recovery_leases_for_device(
+                    directus_service=directus_service,
+                    user_id_hash=hashlib.sha256(current_user.id.encode()).hexdigest(),
+                    device_fingerprint_hash=device_hash,
+                )
+            except ChatRecoveryProtocolError as recovery_error:
+                if recovery_error.status_code != 404:
+                    raise
+                logger.info("Recovery extension unavailable; device invalidation is a safe no-op")
         
         # Revoke the device
         success, message = await directus_service.revoke_api_key_device(device_id)
@@ -4139,6 +4173,16 @@ async def delete_account(
             raise HTTPException(status_code=400, detail="Invalid authentication method")
         
         # Trigger Celery task for account deletion
+        try:
+            await invalidate_recovery_jobs_for_account_deletion(
+                directus_service=directus_service,
+                user_id_hash=user_id_hash,
+            )
+        except ChatRecoveryProtocolError as recovery_error:
+            if recovery_error.status_code != 404:
+                raise
+            logger.info("Recovery extension unavailable; account invalidation is a safe no-op")
+
         from backend.core.api.app.tasks.celery_config import app
         task_result = app.send_task(
             name="delete_user_account",

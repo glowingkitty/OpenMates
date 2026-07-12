@@ -122,3 +122,38 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     assert manager.calls[0] == ("set_active_chat", "user-123", "device-123", "chat-123")
     assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
     cache_service.set_active_ai_task.assert_awaited_once_with("chat-123", "task-123")
+
+
+def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    manager = FakeManager()
+    cache_service = SimpleNamespace(
+        get_active_ai_task=AsyncMock(return_value="active-task-123"),
+    )
+    enqueue = AsyncMock()
+    monkeypatch.setenv("CHAT_RECOVERY_PROTOCOL_EPOCH", "1")
+    monkeypatch.setattr(message_received_handler, "enqueue_chat_turn", enqueue)
+
+    asyncio.run(
+        message_received_handler.handle_message_received(
+            websocket=SimpleNamespace(),
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=SimpleNamespace(),
+            encryption_service=SimpleNamespace(),
+            user_id="user-123",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "chat-123",
+                "message": {"message_id": "msg-123", "content": "retry me"},
+                "protocol_version": 1,
+                "preflight_id": "preflight-123",
+            },
+        )
+    )
+
+    enqueue.assert_not_awaited()
+    assert manager.calls == [
+        ("send_personal_message", "error", "user-123", "device-123")
+    ]

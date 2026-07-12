@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+import pytest
 
 
 class FakeResponse:
@@ -163,3 +164,88 @@ def test_ensure_backend_collection_permissions_creates_missing_crud(monkeypatch)
         "free_testing_credit_grants": {"create", "read", "update", "delete"},
         "free_testing_credits_budget": {"create", "read", "update", "delete"},
     }
+
+
+def test_chat_recovery_migration_executes_and_verifies_all_indexes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    setup_schemas = load_setup_schemas_module()
+    migration = tmp_path / "migrate_chat_recovery_unique_indexes.sql"
+    migration.write_text("CREATE UNIQUE INDEX recovery_test ON test_table (id);", encoding="utf-8")
+    executed: list[tuple[str, Any]] = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def execute(self, query, params=None):
+            executed.append((str(query), params))
+
+        def fetchall(self):
+            return [(name,) for name in setup_schemas.CHAT_RECOVERY_INDEXES]
+
+    class FakeConnection:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup_schemas, "CHAT_RECOVERY_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup_schemas, "connect_database", lambda: FakeConnection())
+
+    setup_schemas.apply_and_verify_chat_recovery_indexes()
+
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert "FROM pg_indexes" in executed[1][0]
+    assert executed[1][1] == (list(setup_schemas.CHAT_RECOVERY_INDEXES),)
+
+
+def test_chat_recovery_endpoint_health_uses_internal_token(monkeypatch) -> None:
+    setup_schemas = load_setup_schemas_module()
+    requests_seen: list[dict[str, Any]] = []
+
+    def fake_post(url, headers, json, timeout):
+        requests_seen.append({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        return FakeResponse(200, {"data": {"jobs": []}})
+
+    monkeypatch.setattr(setup_schemas, "INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    monkeypatch.setattr(setup_schemas.requests, "post", fake_post)
+
+    setup_schemas.verify_chat_recovery_endpoint()
+
+    assert requests_seen == [{
+        "url": "http://cms:8055/chat-recovery-transaction/",
+        "headers": {"X-Internal-Service-Token": "test-internal-token"},
+        "json": {
+            "operation": "list_available_jobs",
+            "data": {
+                "protocol_version": 1,
+                "hashed_user_id": "0" * 64,
+                "device_hash": "setup-health-check",
+            },
+        },
+        "timeout": 10,
+    }]
+
+
+def test_chat_recovery_migration_is_required(monkeypatch, tmp_path: Path) -> None:
+    setup_schemas = load_setup_schemas_module()
+    missing_migration = tmp_path / "missing.sql"
+    monkeypatch.setattr(
+        setup_schemas,
+        "CHAT_RECOVERY_MIGRATION_PATH",
+        str(missing_migration),
+    )
+
+    with pytest.raises(RuntimeError, match="Required chat recovery migration is missing"):
+        setup_schemas.apply_and_verify_chat_recovery_indexes()

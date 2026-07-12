@@ -9,7 +9,7 @@ WORKDIR /usr/src/app
 COPY . .
 
 # Install dependencies
-RUN pip install --no-cache-dir requests pyyaml python-dotenv
+RUN pip install --no-cache-dir requests pyyaml python-dotenv "psycopg[binary]"
 
 # Create schemas directory for mounting
 RUN mkdir -p /usr/src/app/schemas

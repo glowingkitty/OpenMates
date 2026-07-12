@@ -22,7 +22,7 @@ on:
       - 'backend/core/api/app/routes/payments.py'
       - 'backend/core/api/app/routes/settings.py'
       - 'backend/core/api/app/utils/invite_code.py'
-      - 'backend/core/directus/setup/setup_schemas.py'
+      - 'backend/core/directus/**'
       - 'backend/core/vault/setup/**'
       - 'backend/tests/test_self_host_signup_requirements.py'
       - 'frontend/apps/web_app/Dockerfile'
@@ -45,7 +45,7 @@ on:
       - 'backend/core/api/app/routes/payments.py'
       - 'backend/core/api/app/routes/settings.py'
       - 'backend/core/api/app/utils/invite_code.py'
-      - 'backend/core/directus/setup/setup_schemas.py'
+      - 'backend/core/directus/**'
       - 'backend/core/vault/setup/**'
       - 'backend/tests/test_self_host_signup_requirements.py'
       - 'frontend/apps/web_app/Dockerfile'
@@ -159,6 +159,7 @@ jobs:
 
           build_with_retry -t ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG} -f backend/core/api/Dockerfile.selfhost .
           build_with_retry -t ghcr.io/glowingkitty/openmates-docs-worker:${IMAGE_TAG} --build-arg OPENMATES_IMAGE_TAG=${IMAGE_TAG} -f backend/core/api/Dockerfile.docs.selfhost .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-directus:${IMAGE_TAG} -f backend/core/directus/Dockerfile backend/core/directus
           build_with_retry -t ghcr.io/glowingkitty/openmates-cms-setup:${IMAGE_TAG} -f backend/core/directus/Dockerfile.setup.selfhost backend/core/directus
           build_with_retry -t ghcr.io/glowingkitty/openmates-vault-setup:${IMAGE_TAG} -f backend/core/vault/setup/Dockerfile backend/core/vault/setup
           build_with_retry -t ghcr.io/glowingkitty/openmates-admin-sidecar:${IMAGE_TAG} -f backend/admin_sidecar/Dockerfile .
@@ -237,7 +238,7 @@ jobs:
 
       - name: Check backend and web Docker containers
         run: |
-          for container in api webapp; do
+          for container in api webapp cms; do
             status="$(docker inspect -f '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")"
             echo "$container $status"
             test "$status" = "true healthy"

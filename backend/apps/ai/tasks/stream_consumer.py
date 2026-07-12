@@ -19,6 +19,8 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
@@ -1709,6 +1711,41 @@ def _fix_backticked_inline_embed_references(aggregated_response: str, log_prefix
     return modified
 
 
+async def _persist_sealed_recovery_job(
+    *,
+    directus_service: DirectusService,
+    request_data: AskSkillRequest,
+    task_id: str,
+    content: str,
+    category: str | None,
+    model_name: str | None,
+) -> dict[str, Any] | None:
+    if not request_data.recovery_task_id:
+        return None
+    required = {
+        "recovery_preflight_id": request_data.recovery_preflight_id,
+        "recovery_turn_id": request_data.recovery_turn_id,
+        "recovery_public_key": request_data.recovery_public_key,
+        "chat_key_version": request_data.chat_key_version,
+    }
+    if any(value is None for value in required.values()):
+        raise RuntimeError("Epoch-1 task is missing sealed recovery context")
+    data = build_sealed_recovery_job_data(
+        owner_id=request_data.user_id,
+        owner_hash=request_data.user_id_hash,
+        chat_id=request_data.chat_id,
+        turn_id=request_data.recovery_turn_id,
+        preflight_id=request_data.recovery_preflight_id,
+        task_id=task_id,
+        recovery_public_key=request_data.recovery_public_key,
+        chat_key_version=request_data.chat_key_version,
+        content=content,
+        category=category,
+        model_name=model_name,
+    )
+    return await ChatRecoveryService(directus_service).execute("create_sealed_job", data)
+
+
 def _create_redis_payload(
     task_id: str,
     request_data: AskSkillRequest,
@@ -1746,6 +1783,9 @@ def _create_redis_payload(
     
     if category:
         payload["category"] = category
+
+    if request_data.recovery_task_id:
+        payload["recovery_provisional"] = not is_final
     
     # rejection_reason indicates this is a system message (e.g., "insufficient_credits"),
     # not an AI response. Frontend uses this to render as a system notice instead of an assistant bubble.
@@ -8231,6 +8271,26 @@ async def _consume_main_processing_stream(
         (not is_error or was_revoked_during_stream or was_soft_limited_during_stream) and
         not is_server_error
     )
+
+    recovery_job = None
+    if request_data.recovery_task_id and not is_server_error:
+        recovery_job = await _persist_sealed_recovery_job(
+            directus_service=directus_service,
+            request_data=request_data,
+            task_id=task_id,
+            content=aggregated_response,
+            category=preprocessing_result.category or "general_knowledge",
+            model_name=stream_model_name,
+        )
+    elif request_data.recovery_task_id and is_server_error:
+        await ChatRecoveryService(directus_service).execute(
+            "mark_inference_failed",
+            {
+                "protocol_version": 1,
+                "inference_task_id": task_id,
+                "failure_category": "provider_error",
+            },
+        )
     
     billing_info = {}
     billing_error = None
@@ -8349,6 +8409,9 @@ async def _consume_main_processing_stream(
         total_credits=billing_info.get("total_credits"),
         category=preprocessing_result.category or "general_knowledge"
     )
+    if recovery_job:
+        final_payload["recovery_job_id"] = recovery_job["job_id"]
+        final_payload["recovery_protocol_version"] = 1
     await _publish_to_redis(
         cache_service, redis_channel_name, final_payload, log_prefix,
         f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"

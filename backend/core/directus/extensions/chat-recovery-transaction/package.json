@@ -1,0 +1,13 @@
+{
+  "name": "directus-extension-chat-recovery-transaction",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": { "test": "node --test test/*.test.js" },
+  "directus:extension": {
+    "type": "endpoint",
+    "path": "dist/index.js",
+    "source": "src/index.js",
+    "host": "^11.5.0"
+  }
+}

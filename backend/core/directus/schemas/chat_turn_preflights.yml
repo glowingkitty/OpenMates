@@ -1,0 +1,96 @@
+# Durable authorization record for one encrypted private-chat turn.
+# Content-bearing fields contain client ciphertext or one-way digests only.
+# This collection is internal and must not receive public Directus permissions.
+chat_turn_preflights:
+  type: collection
+  note: "Internal durable chat-turn preflight and deletion guard records"
+  fields:
+    id:
+      type: uuid
+      primary: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+    chat_id:
+      type: uuid
+      required: true
+    turn_id:
+      type: uuid
+      required: true
+    user_message_id:
+      type: string
+      length: 255
+      required: true
+    device_hash:
+      type: string
+      length: 128
+      required: true
+    chat_key_version:
+      type: integer
+      required: true
+    wrapped_chat_key:
+      type: text
+      required: true
+      note: "[Client-encrypted] Canonical wrapped chat key for this key version"
+    recovery_public_key:
+      type: string
+      length: 43
+      required: true
+      note: "Unpadded base64url raw 32-byte X25519 public key"
+    encrypted_user_digest:
+      type: string
+      length: 64
+      required: true
+    inference_commitment:
+      type: string
+      length: 64
+      required: true
+      note: "HMAC-SHA256 commitment only; inference plaintext is never stored"
+    commitment_version:
+      type: integer
+      required: true
+    expected_messages_v:
+      type: integer
+      required: true
+    committed_messages_v:
+      type: integer
+      required: true
+    state:
+      type: string
+      length: 16
+      required: true
+    inference_task_id:
+      type: uuid
+      nullable: true
+    billing_identity:
+      type: uuid
+      nullable: true
+    outbox_id:
+      type: uuid
+      nullable: true
+    prepared_at:
+      type: datetime
+      required: true
+    enqueued_at:
+      type: datetime
+      nullable: true
+    running_at:
+      type: datetime
+      nullable: true
+    failed_at:
+      type: datetime
+      nullable: true
+    failure_category:
+      type: string
+      length: 64
+      nullable: true
+    terminal_at:
+      type: datetime
+      nullable: true
+    expires_at:
+      type: datetime
+      required: true
+    deletion_invalidated_at:
+      type: datetime
+      nullable: true

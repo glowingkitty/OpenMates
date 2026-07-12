@@ -267,12 +267,18 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-12T01:51:14Z"
     evidence: Remote checkout 33932be5f compiled ChatCompletionRecoveryTests.swift in OpenMatesTests and executed one selected test with zero failures.
+  - id: ATTEMPT-8
+    task_id: TASK-3
+    approach: Run all four focused backend contracts, implement authenticated lease renewal plus device/chat/account invalidation and cleanup entry points, then rerun the Python boundary and Directus extension suites.
+    outcome: succeeded
+    recorded_at: "2026-07-12T01:59:54Z"
+    evidence: The focused backend run advanced from 11 passing and 9 failing tests to 20 passing tests; the adjacent WebSocket suite reached 22 passing tests, the Directus extension suite passed 12 tests, and deployment/index/service checks passed 12 tests. Full green evidence remains pending because transactional rollback failpoints and complete state-machine assertions are not yet represented in the named pytest contracts.
 
 handoff:
   current_task_id: TASK-3
-  next_action: Run the focused transactional recovery persistence tests, reconcile their results with T-BACKEND-PREFLIGHT, T-BACKEND-RECOVERY-JOBS, T-BACKEND-RECOVERY-AUTH, and T-BACKEND-RECOVERY-RETENTION, then fix the smallest failing contract.
-  command: python3 -m pytest backend/tests/test_chat_turn_preflight_handler.py backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_chat_recovery_service.py backend/tests/test_chat_recovery_websocket_handlers.py backend/tests/test_chat_recovery_unique_indexes.py backend/tests/test_chat_recovery_directus_deployment.py
-  expected_outcome: Focused persistence tests identify the first remaining TASK-3 contract gap without involving client lifecycle work.
+  next_action: Deploy the inactive backend recovery foundation, rerun the focused persistence suite on that subject commit, and add transaction rollback/fencing coverage before marking TASK-3 done.
+  command: python3 scripts/sessions.py prepare-deploy --session a152
+  expected_outcome: Epoch 0 remains authoritative while the committed subject contains the recovery schemas, extension, handlers, lifecycle invalidation, cleanup schedule, and focused tests.
   blocker: null
   last_verified_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
 
@@ -878,7 +884,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed_unexpectedly
+        command: python3 -m pytest backend/tests/test_chat_turn_preflight.py backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_chat_completion_recovery_authorization.py backend/tests/test_chat_completion_recovery_retention.py
+        run_id: local-b621-backend-recovery-red-1
+        subject_commit: 0393cc455
+        timestamp: "2026-07-12T01:56:43Z"
+        summary: The focused preflight file passed, revealing that its current behavioral cases do not yet cover every listed transactional/failpoint assertion.
     green_phase:
       required: true
       expected: pass
@@ -901,7 +913,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed_unexpectedly
+        command: python3 -m pytest backend/tests/test_chat_turn_preflight.py backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_chat_completion_recovery_authorization.py backend/tests/test_chat_completion_recovery_retention.py
+        run_id: local-b621-backend-recovery-red-1
+        subject_commit: 0393cc455
+        timestamp: "2026-07-12T01:56:43Z"
+        summary: The focused sealed-job file passed, revealing that its current cases do not yet cover the complete lease, fencing, and transactional terminal contract.
     green_phase:
       required: true
       expected: pass
@@ -920,7 +938,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_chat_turn_preflight.py backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_chat_completion_recovery_authorization.py backend/tests/test_chat_completion_recovery_retention.py
+        run_id: local-b621-backend-recovery-red-1
+        subject_commit: 0393cc455
+        timestamp: "2026-07-12T01:56:43Z"
+        summary: Authorization failed on missing renew, delete, retry, acknowledgement, and device-revocation entry points; authenticated renewal was then implemented and behaviorally verified, leaving four failures.
     green_phase:
       required: true
       expected: pass
@@ -942,7 +966,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_chat_turn_preflight.py backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_chat_completion_recovery_authorization.py backend/tests/test_chat_completion_recovery_retention.py
+        run_id: local-b621-backend-recovery-red-1
+        subject_commit: 0393cc455
+        timestamp: "2026-07-12T01:56:43Z"
+        summary: Retention failed on missing cleanup, chat/account deletion invalidation, and durable acknowledgement entry points.
     green_phase:
       required: true
       expected: pass
@@ -1311,7 +1341,7 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Implement transactional recovery persistence primitives
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-7, S-10]

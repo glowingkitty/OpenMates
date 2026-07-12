@@ -173,6 +173,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - image: openmates-directus
+            file: backend/core/directus/Dockerfile
+            context: backend/core/directus
           - image: openmates-cms-setup
             file: backend/core/directus/Dockerfile.setup.selfhost
             context: backend/core/directus

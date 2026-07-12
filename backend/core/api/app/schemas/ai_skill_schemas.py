@@ -44,5 +44,10 @@ class AskSkillRequest(BaseModel):
     budget_limit: Optional[int] = Field(default=None, description="Optional credit limit for this sub-chat subtree.")
     budget_spent: int = Field(default=0, description="Cumulative credit spent under this sub-chat subtree.")
     user_task_id: Optional[str] = Field(default=None, description="Product task ID when this ask is executing a user task.")
+    recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
+    recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
+    recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")
+    recovery_public_key: Optional[str] = Field(default=None, description="Raw X25519 recovery public key encoded as unpadded base64url.")
+    chat_key_version: Optional[int] = Field(default=None, description="Immutable cryptographic chat-key version.")
 
 # Add other shared AI skill-related schemas here if needed in the future.

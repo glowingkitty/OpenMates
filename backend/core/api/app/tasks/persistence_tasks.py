@@ -24,6 +24,33 @@ logger = logging.getLogger(__name__)
 MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29
 
 
+async def _async_cleanup_expired_chat_recovery_jobs() -> dict[str, Any]:
+    from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
+        cleanup_expired_recovery_jobs,
+    )
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+    try:
+        return await cleanup_expired_recovery_jobs(directus_service=directus_service)
+    except ChatRecoveryProtocolError as exc:
+        if exc.status_code == 404:
+            logger.info("Recovery extension unavailable; periodic cleanup is a safe no-op")
+            return {"expired_jobs": 0, "expired_tombstones": 0}
+        logger.error("Recovery cleanup failed with protocol code %s", exc.code, exc_info=True)
+        raise
+
+
+@app.task(name="app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs")
+def cleanup_expired_chat_recovery_jobs() -> dict[str, Any]:
+    try:
+        return asyncio.run(_async_cleanup_expired_chat_recovery_jobs())
+    except Exception:
+        logger.exception("Periodic chat recovery cleanup failed")
+        raise
+
+
 def _validate_client_encrypted_chat_payload(message_id: str, encrypted_content: str) -> None:
     """Reject non-client-encrypted payloads before they reach chat history."""
     if not encrypted_content:

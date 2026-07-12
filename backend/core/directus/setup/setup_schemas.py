@@ -15,6 +15,7 @@ CMS_URL = 'http://cms:8055'
 ADMIN_EMAIL = os.getenv('DATABASE_ADMIN_EMAIL')
 ADMIN_PASSWORD = os.getenv('DATABASE_ADMIN_PASSWORD')
 DIRECTUS_TOKEN = os.getenv('DIRECTUS_TOKEN')
+INTERNAL_API_SHARED_TOKEN = os.getenv('INTERNAL_API_SHARED_TOKEN')
 
 # Print environment variables for debugging
 print("Environment variables loaded.")
@@ -24,6 +25,23 @@ print(f"DIRECTUS_TOKEN: {'*****' if DIRECTUS_TOKEN else 'Not set'}")
 
 # Schema directories - use environment variable or default
 SCHEMAS_DIR = os.getenv('SCHEMAS_DIR', '/usr/src/app/schemas')
+CHAT_RECOVERY_MIGRATION_PATH = os.getenv(
+    'CHAT_RECOVERY_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql',
+)
+CHAT_RECOVERY_INDEXES = (
+    'chat_turn_preflights_owner_chat_turn_uq',
+    'chat_turn_preflights_user_message_uq',
+    'chat_turn_preflights_task_uq',
+    'chat_turn_preflights_billing_uq',
+    'chat_inference_outbox_preflight_uq',
+    'chat_inference_outbox_task_uq',
+    'chat_inference_outbox_billing_uq',
+    'chat_recovery_jobs_owner_chat_turn_uq',
+    'chat_recovery_jobs_preflight_uq',
+    'chat_recovery_jobs_task_uq',
+    'chat_recovery_jobs_assistant_message_uq',
+)
 
 BACKEND_PERMISSION_COLLECTIONS = (
     'anonymous_free_usage_budget',
@@ -832,6 +850,80 @@ def signup_mode_uses_invites():
     mode = os.getenv("SELF_HOST_SIGNUP_MODE", "invite_only").strip().lower()
     return mode in {"invite_only", "invite_and_domain"}
 
+
+def connect_database():
+    """Create the setup-only PostgreSQL connection used for index migrations."""
+    import psycopg
+
+    return psycopg.connect(
+        host=os.getenv('DB_HOST', 'cms-database'),
+        port=int(os.getenv('DB_PORT', '5432')),
+        dbname=os.getenv('DB_DATABASE') or os.getenv('DATABASE_NAME'),
+        user=os.getenv('DB_USER') or os.getenv('DATABASE_USERNAME'),
+        password=os.getenv('DB_PASSWORD') or os.getenv('DATABASE_PASSWORD'),
+        connect_timeout=10,
+    )
+
+
+def apply_and_verify_chat_recovery_indexes():
+    """Apply the idempotent recovery migration and require every unique index."""
+    if not os.path.isfile(CHAT_RECOVERY_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required chat recovery migration is missing: {CHAT_RECOVERY_MIGRATION_PATH}"
+        )
+
+    with open(CHAT_RECOVERY_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(CHAT_RECOVERY_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(CHAT_RECOVERY_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Chat recovery index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(CHAT_RECOVERY_INDEXES)} chat recovery indexes")
+
+
+def verify_chat_recovery_endpoint():
+    """Require the baked extension to answer an authenticated metadata-only read."""
+    if not INTERNAL_API_SHARED_TOKEN:
+        raise RuntimeError('INTERNAL_API_SHARED_TOKEN is required for Directus setup')
+    response = requests.post(
+        f"{CMS_URL}/chat-recovery-transaction/",
+        headers={"X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN},
+        json={
+            "operation": "list_available_jobs",
+            "data": {
+                "protocol_version": 1,
+                "hashed_user_id": "0" * 64,
+                "device_hash": "setup-health-check",
+            },
+        },
+        timeout=10,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Chat recovery endpoint verification failed with HTTP {response.status_code}"
+        )
+    jobs = response.json().get('data', {}).get('jobs')
+    if not isinstance(jobs, list):
+        raise RuntimeError('Chat recovery endpoint returned an invalid health response')
+    print('Verified chat recovery Directus endpoint')
+
 def setup_schemas():
     """Main function to set up schemas."""
     wait_for_directus()
@@ -899,6 +991,11 @@ def setup_schemas():
                 print("\n--- Ensuring backend collection permissions ---")
                 ensure_backend_collection_permissions(token)
 
+        print("\n--- Applying chat recovery database indexes ---")
+        apply_and_verify_chat_recovery_indexes()
+
+        print("\n--- Verifying chat recovery Directus endpoint ---")
+        verify_chat_recovery_endpoint()
 
         # Only create the first signup invite code if the 'invite_codes'
         # collection was newly created during this run (i.e., first setup).

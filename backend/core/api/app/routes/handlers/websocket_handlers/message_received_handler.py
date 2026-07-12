@@ -10,6 +10,7 @@ import json
 import hashlib # Import hashlib for hashing user_id
 import uuid
 import time # Import time for performance timing
+import os
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 
@@ -22,6 +23,8 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
 from backend.shared.python_utils.learning_mode import build_learning_mode_context
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import enqueue_chat_turn
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -180,6 +183,63 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 device_fingerprint_hash
             )
             return
+
+        recovery_enqueue_result: dict[str, Any] | None = None
+        protocol_epoch = int(os.getenv("CHAT_RECOVERY_PROTOCOL_EPOCH", "0"))
+        if not is_incognito and protocol_epoch >= 1:
+            if payload.get("protocol_version") != 1 or not payload.get("preflight_id"):
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "client_update_required",
+                            "message": "Please update OpenMates before sending another saved chat message.",
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+            active_recovery_task_id = await cache_service.get_active_ai_task(chat_id)
+            if active_recovery_task_id:
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "active_task_in_progress",
+                            "message": "Wait for the current response to finish, then retry this message.",
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+            inference_request = {
+                key: value
+                for key, value in payload.items()
+                if key not in {"protocol_version", "preflight_id"}
+            }
+            try:
+                recovery_enqueue_result = await enqueue_chat_turn(
+                    directus_service=directus_service,
+                    user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    preflight_id=payload["preflight_id"],
+                    inference_request=inference_request,
+                )
+            except ChatRecoveryProtocolError as exc:
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": exc.code,
+                            "message": "Durable encrypted preflight did not authorize this request.",
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
 
         # CRITICAL: For incognito chats, skip Directus operations (no persistence, no ownership checks)
         # Incognito chats are not stored in Directus and should not be synced to other devices
@@ -608,7 +668,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             version_update_result = await cache_service.save_chat_message_and_update_versions(
                 user_id=user_id,
                 chat_id=chat_id,
-                message_data=message_for_cache
+                message_data=message_for_cache,
+                explicit_messages_v=(
+                    recovery_enqueue_result.get("committed_messages_v")
+                    if recovery_enqueue_result
+                    else None
+                ),
             )
             cache_save_time = time.time() - cache_save_start
             logger.info(f"[PERF] Cache save took {cache_save_time:.3f}s for message {message_id}, user_id={user_id}")
@@ -1616,6 +1681,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             is_sub_chat=db_is_sub_chat,
             budget_limit=db_budget_limit,
             budget_spent=db_budget_spent,
+            recovery_task_id=(recovery_enqueue_result or {}).get("inference_task_id"),
+            recovery_preflight_id=(payload.get("preflight_id") if recovery_enqueue_result else None),
+            recovery_turn_id=(payload.get("turn_id") if recovery_enqueue_result else None),
+            recovery_public_key=(payload.get("recovery_public_key") if recovery_enqueue_result else None),
+            chat_key_version=(payload.get("chat_key_version") if recovery_enqueue_result else None),
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 
@@ -1679,6 +1749,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
 
             if ai_task_id:
+                if recovery_enqueue_result:
+                    expected_task_id = recovery_enqueue_result["inference_task_id"]
+                    if ai_task_id != expected_task_id:
+                        raise RuntimeError("AI dispatcher returned a task ID that differs from durable preflight")
+                    await ChatRecoveryService(directus_service).execute(
+                        "mark_outbox_dispatched",
+                        {
+                            "protocol_version": 1,
+                            "outbox_id": recovery_enqueue_result["outbox_id"],
+                            "inference_task_id": expected_task_id,
+                        },
+                    )
                 await cache_service.set_active_ai_task(chat_id, ai_task_id)
                 await manager.send_personal_message(
                     message={
