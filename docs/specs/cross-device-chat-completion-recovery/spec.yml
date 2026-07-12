@@ -284,14 +284,22 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-12T02:16:52Z"
     evidence: Subject 287af0d passed 30 focused Python recovery tests and 21 Directus transaction tests; the strengthened suite also found and fixed an identical new-chat preflight retry mismatch caused by mutable updated_at.
+  - id: ATTEMPT-10
+    task_id: TASK-6
+    approach: Add browser preflight ordering and cross-tab cold-boot coverage, deploy the web lifecycle, and exercise it against the inactive epoch-zero rollout boundary.
+    outcome: blocked
+    recorded_at: "2026-07-12T06:38:03Z"
+    evidence: Runs 29178941080 through 29182774273 exposed and fixed stale dev API routing, missing commitment-key provisioning, malformed pre-migration cutover state, PostgreSQL JSON serialization, and fixture assertion errors. The final run proved ordered LEGACY acknowledgement and one secondary-client response, then failed after IndexedDB deletion because epoch zero intentionally creates no sealed recovery job; durable web recovery requires the later controlled epoch-one verification gate.
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Add web preflight and recovery lifecycle coverage to connection-resilience.spec.ts, then implement the Svelte sender/sync path against the committed backend protocol.
-  command: python3 scripts/tests.py run --spec connection-resilience.spec.ts
-  expected_outcome: The deployed dev web app fails the new recovery assertions before the web implementation is deployed.
-  blocker: null
-  last_verified_commit: 531a0ec
+  current_task_id: TASK-7
+  next_action: Add failing Apple app-level preflight, inactive-chat recovery, and revoked-device claim tests before implementing the native WebSocket recovery lifecycle.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests
+  expected_outcome: Shared vectors pass while the new Apple app-level lifecycle tests fail before native implementation.
+  blocker:
+    reason: T-WEB-RECOVERY green verification requires the controlled epoch-one cutover because epoch zero intentionally acknowledges LEGACY mode without creating sealed recovery jobs.
+    recheck_condition: Complete Apple, released-legacy CLI, performance, and privacy gates, then activate epoch one and rerun the web recovery spec.
+  last_verified_commit: 2efb46d
 
 scenarios:
   - id: S-1
@@ -799,7 +807,7 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: passed_unexpectedly
+        status: failed_as_expected
         command: python3 -m pytest packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
         run_id: local-6e0b-pip-crypto-red-1
         subject_commit: 143d33492290fee934e6eb1a4c7e3dd0390e98e8
@@ -1208,22 +1216,22 @@ tests:
       evidence:
         status: passed_unexpectedly
         command: python3 scripts/tests.py run -- --spec connection-resilience.spec.ts
-        run_id: gha-29177596772
-        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
-        timestamp: "2026-07-12T03:05:00Z"
-        summary: The pre-CLI-deployment live-dev connection resilience spec passed, showing its existing assertions did not reproduce a missing browser recovery behavior.
+        run_id: gha-29182774273
+        subject_commit: 2efb46de1
+        timestamp: "2026-07-12T06:38:03Z"
+        summary: The deployed browser sent preflight, received an explicit LEGACY acknowledgement before inference, and another tab received exactly one response; deleting IndexedDB removed that response because inactive epoch zero intentionally creates no durable sealed recovery job.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: passed
+        status: blocked
         command: python3 scripts/tests.py run -- --spec connection-resilience.spec.ts
-        run_id: gha-29177799123
-        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
-        timestamp: "2026-07-12T03:12:51Z"
+        run_id: gha-29182774273
+        subject_commit: 2efb46de1
+        timestamp: "2026-07-12T06:38:03Z"
         target: app.dev.openmates.org
-        deployment_reference: dpl_4x8npQBXcnK2MpU4w751Juwn77Qc
-        summary: The post-deploy live-dev connection resilience spec passed on the Ready 9ba0ae126 deployment.
+        deployment_reference: dpl_4KwKZQH6JYoWqrUemNEey8sgBNwW
+        reason: Durable sealed-job recovery cannot execute while the server-authoritative protocol epoch remains zero; activation is intentionally deferred until web, Apple, released-legacy CLI, performance, and privacy gates are ready.
 
   - id: T-APPLE-RECOVERY
     type: unit
@@ -1570,7 +1578,7 @@ tasks:
     independently_deployable: false
   - id: TASK-6
     title: Implement web preflight and app-level recovery
-    status: in_progress
+    status: blocked
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5]
@@ -1586,12 +1594,13 @@ tasks:
     ownership:
       files: [frontend/apps/web_app/tests/connection-resilience.spec.ts]
       shared_files: [frontend/packages/ui/src/services/sendersChatMessages.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts]
-    blockers: []
+    blockers:
+      - T-WEB-RECOVERY green requires controlled epoch-one activation after Apple and final rollout gates.
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-7
     title: Implement Apple preflight and app-level recovery
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
