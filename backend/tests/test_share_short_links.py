@@ -14,6 +14,7 @@ import sys
 import types
 
 import pytest
+from pydantic import ValidationError
 
 
 class _StubLimiter:
@@ -34,6 +35,7 @@ limiter_stub = types.ModuleType("backend.core.api.app.services.limiter")
 limiter_stub.limiter = _StubLimiter()
 auth_deps_stub = types.ModuleType("backend.core.api.app.routes.auth_routes.auth_dependencies")
 auth_deps_stub.get_current_user = lambda: None
+auth_deps_stub.get_current_user_or_api_key = lambda: None
 user_stub = types.ModuleType("backend.core.api.app.models.user")
 user_stub.User = object
 
@@ -68,6 +70,11 @@ resolve_short_url = getattr(
     "__wrapped__",
     share_routes.resolve_short_url,
 )
+revoke_short_url = getattr(
+    share_routes.revoke_short_url,
+    "__wrapped__",
+    share_routes.revoke_short_url,
+)
 get_shared_embed = getattr(
     share_routes.get_shared_embed,
     "__wrapped__",
@@ -85,7 +92,11 @@ class FakeUser:
 
 
 class FakeChatMethods:
+    def __init__(self) -> None:
+        self.seen_chat_ids: list[str] = []
+
     async def get_chat_metadata(self, chat_id: str, admin_required: bool = False):
+        self.seen_chat_ids.append(chat_id)
         if chat_id == "missing-chat":
             return None
         return {
@@ -130,13 +141,23 @@ class FakeDirectusService:
         self.chat = FakeChatMethods()
         self.embed = FakeEmbedMethods()
         self.short_links: list[dict] = []
+        self.template_projections: list[dict] = []
+        self.workflows: list[dict] = []
         self.updated_items: list[tuple[str, str, dict]] = []
 
     async def get_items(self, collection: str, params: dict | None = None, **_kwargs):
+        params = params or {}
+        if collection == "workflow_template_projections":
+            template_id = params.get("filter[template_id][_eq]")
+            rows = self.template_projections
+            return [row for row in rows if row["template_id"] == template_id][:1]
+        if collection == "workflows":
+            workflow_id = params.get("filter[id][_eq]")
+            rows = self.workflows
+            return [row for row in rows if row["id"] == workflow_id][:1]
         if collection != "share_short_links":
             return []
 
-        params = params or {}
         token = params.get("filter[token][_eq]")
         rows = self.short_links
         if token:
@@ -159,6 +180,11 @@ class FakeDirectusService:
 
     async def update_item(self, collection: str, item_id: str, payload: dict, **_kwargs):
         self.updated_items.append((collection, item_id, payload))
+        if collection == "share_short_links":
+            for row in self.short_links:
+                if row.get("id") == item_id:
+                    row.update(payload)
+                    break
         return {"id": item_id, **payload}
 
 
@@ -195,6 +221,12 @@ class FailingCreateDirectusService(FakeDirectusService):
         return False, {"status_code": 403, "text": "permission denied"}
 
 
+class FailingUpdateDirectusService(FakeDirectusService):
+    async def update_item(self, collection: str, item_id: str, payload: dict, **_kwargs):
+        self.updated_items.append((collection, item_id, payload))
+        return None
+
+
 class FakeCacheService:
     def __init__(self) -> None:
         self.short_links: dict[str, dict] = {}
@@ -205,6 +237,18 @@ class FakeCacheService:
             "ttl_seconds": ttl_seconds,
         }
         return True
+
+    async def resolve_short_url(self, token: str):
+        record = self.short_links.get(token)
+        if not record:
+            return None
+        return record["encrypted_url"]
+
+    async def get_resolve_count(self, _token: str) -> int:
+        return 0
+
+    async def increment_resolve_count(self, _token: str) -> None:
+        return None
 
 
 class FakeEncryptionService:
@@ -282,6 +326,118 @@ async def test_create_short_url_uses_cache_fallback_when_durable_storage_is_unav
 
 
 @pytest.mark.asyncio
+async def test_workflow_template_short_link_never_accepts_fragment_key_and_is_revocable():
+    directus = FakeDirectusService()
+    workflow_owner_hash = "user_sha256:" + hashlib.sha256(FakeUser.id.encode()).hexdigest()
+    directus.template_projections.append(
+        {
+            "template_id": "template-rain-v1",
+            "workflow_id": "workflow-rain-v1",
+            "hashed_user_id": workflow_owner_hash,
+            "source_version": 3,
+            "revoked_at": None,
+        }
+    )
+    directus.workflows.append(
+        {
+            "id": "workflow-rain-v1",
+            "hashed_user_id": workflow_owner_hash,
+            "version": 3,
+            "status": "active",
+        }
+    )
+
+    with pytest.raises(ValidationError, match="fragment_key"):
+        share_routes.CreateShortUrlRequest(
+            token="Abc123XY",
+            encrypted_url="opaque-ciphertext",
+            content_type="workflow_template",
+            content_id="template-rain-v1",
+            fragment_key="never-send-this",
+        )
+
+    payload = share_routes.CreateShortUrlRequest(
+        token="Abc123XY",
+        encrypted_url="opaque-ciphertext",
+        content_type="workflow_template",
+        content_id="template-rain-v1",
+    )
+    response = await create_short_url(
+        request=None,
+        payload=payload,
+        current_user=FakeUser(),
+        directus_service=directus,
+    )
+    revoked = await revoke_short_url(token="Abc123XY", current_user=FakeUser(), directus_service=directus)
+
+    assert response["success"] is True
+    assert revoked["success"] is True
+    with pytest.raises(share_routes.HTTPException, match="expired or not found"):
+        await resolve_short_url(request=None, token="Abc123XY", directus_service=directus)
+
+
+@pytest.mark.asyncio
+async def test_short_link_revocation_fails_closed_when_update_fails():
+    directus = FailingUpdateDirectusService()
+    directus.short_links.append(
+        {
+            "id": "row-1",
+            "token": "Abc123XY",
+            "encrypted_url": "opaque-ciphertext",
+            "content_type": "workflow_template",
+            "content_id": "template-rain-v1",
+            "hashed_user_id": hashlib.sha256(FakeUser.id.encode()).hexdigest(),
+            "password_protected": False,
+            "expires_at": None,
+            "revoked_at": None,
+        }
+    )
+
+    with pytest.raises(share_routes.HTTPException, match="Failed to revoke short link"):
+        await revoke_short_url(token="Abc123XY", current_user=FakeUser(), directus_service=directus)
+
+    assert directus.short_links[0]["revoked_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_workflow_template_short_link_fails_closed_without_durable_revocation_storage():
+    directus = FailingCreateDirectusService()
+    workflow_owner_hash = "user_sha256:" + hashlib.sha256(FakeUser.id.encode()).hexdigest()
+    directus.template_projections.append(
+        {
+            "template_id": "template-rain-v1",
+            "workflow_id": "workflow-rain-v1",
+            "hashed_user_id": workflow_owner_hash,
+            "source_version": 3,
+            "revoked_at": None,
+        }
+    )
+    directus.workflows.append(
+        {
+            "id": "workflow-rain-v1",
+            "hashed_user_id": workflow_owner_hash,
+            "version": 3,
+            "status": "active",
+        }
+    )
+    payload = share_routes.CreateShortUrlRequest(
+        token="Abc123XY",
+        encrypted_url="opaque-ciphertext",
+        content_type="workflow_template",
+        content_id="template-rain-v1",
+    )
+
+    with pytest.raises(share_routes.HTTPException, match="temporarily unavailable"):
+        await create_short_url(
+            request=None,
+            payload=payload,
+            current_user=FakeUser(),
+            directus_service=directus,
+            cache_service=FakeCacheService(),
+        )
+
+
+@pytest.mark.asyncio
 async def test_resolve_short_url_returns_only_encrypted_url():
     directus = FakeDirectusService()
     directus.short_links.append(
@@ -303,6 +459,64 @@ async def test_resolve_short_url_returns_only_encrypted_url():
     )
 
     assert response == {"encrypted_url": "opaque-ciphertext"}
+
+
+@pytest.mark.asyncio
+async def test_revoked_durable_short_url_does_not_fall_back_to_cache():
+    directus = FakeDirectusService()
+    directus.short_links.append(
+        {
+            "token": "Abc123XY",
+            "encrypted_url": "revoked-durable-ciphertext",
+            "content_type": "workflow_template",
+            "content_id": "template-rain-v1",
+            "password_protected": False,
+            "expires_at": None,
+            "revoked_at": 123,
+        }
+    )
+    cache = FakeCacheService()
+    await cache.store_short_url("Abc123XY", "legacy-cache-ciphertext", 3600)
+
+    with pytest.raises(share_routes.HTTPException, match="expired or not found"):
+        await resolve_short_url(
+            request=None,
+            token="Abc123XY",
+            directus_service=directus,
+            cache_service=cache,
+        )
+
+
+@pytest.mark.asyncio
+async def test_workflow_template_short_url_metadata_uses_generic_preview_without_chat_lookup():
+    directus = FakeDirectusService()
+    directus.short_links.append(
+        {
+            "token": "Abc123XY",
+            "encrypted_url": "opaque-ciphertext",
+            "content_type": "workflow_template",
+            "content_id": "chat-1",
+            "password_protected": False,
+            "expires_at": None,
+            "revoked_at": None,
+        }
+    )
+    get_metadata = getattr(
+        share_routes.get_short_url_metadata,
+        "__wrapped__",
+        share_routes.get_short_url_metadata,
+    )
+
+    response = await get_metadata(
+        request=object(),
+        token="Abc123XY",
+        directus_service=directus,
+        encryption_service=FakeEncryptionService(),
+    )
+
+    assert response["title"] == "Shared Workflow Template - OpenMates"
+    assert response["content_type"] == "workflow_template"
+    assert directus.chat.seen_chat_ids == []
 
 
 @pytest.mark.asyncio

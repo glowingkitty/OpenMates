@@ -265,7 +265,18 @@ def test_workflow_tasks_cleanup_and_event_dispatch(monkeypatch) -> None:
 
     service = workflow_service()
     monkeypatch.setattr(workflow_tasks, "_WORKFLOW_SERVICE", service)
-    monkeypatch.setattr(workflow_tasks, "_WORKFLOW_EVENT_SERVICE", WorkflowEventService())
+
+    class FakeRuntime:
+        def __init__(self) -> None:
+            self.seen: set[tuple[str, str]] = set()
+
+        async def execute(self, operation: str, data: dict) -> dict:
+            assert operation == "accept_event_trigger"
+            key = (data["trigger_id"], data["event_id"])
+            if key in self.seen:
+                return {"accepted": False, "run_id": "run-1"}
+            self.seen.add(key)
+            return {"accepted": True, "run_id": "run-1", "version_id": "version-1"}
 
     temporary = service.create_workflow("alice", "Temporary weather", one_time_weather_graph(), lifecycle="temporary")
     assert temporary.auto_delete_at is not None
@@ -279,20 +290,24 @@ def test_workflow_tasks_cleanup_and_event_dispatch(monkeypatch) -> None:
         "config": {
             "event": {
                 "source": "chat_message",
-                "scope": {"chat_id": "chat-1"},
+                "scope": {"chat_id": "chat-1", "project_id": "project-1"},
                 "filters": {"phrase": "rain"},
                 "rate_limit": {"max_per_hour": 1},
             }
         },
     }
-    workflow = service.create_workflow("alice", "Rain event", event_graph, enabled=True)
+    service.create_workflow("alice", "Rain event", event_graph, enabled=True)
     dispatched = workflow_tasks.dispatch_workflow_event(
         "alice",
-        {"source": "chat_message", "scope": {"chat_id": "chat-1"}, "payload": {"text": "rain later"}, "occurred_at": 1},
+        {"event_id": "event-1", "source": "chat_message", "scope": {"chat_id": "chat-1", "project_id": "project-1"}, "payload": {"text": "rain later"}, "occurred_at": 1},
+        runtime_service=FakeRuntime(),
+        workflow_service=service,
     )
-    assert dispatched == {"matched_workflow_ids": [workflow.id], "matched_count": 1}
-    rate_limited = workflow_tasks.dispatch_workflow_event(
+    assert dispatched == {"accepted_run_ids": ["run-1"], "accepted_count": 1}
+    ignored = workflow_tasks.dispatch_workflow_event(
         "alice",
-        {"source": "chat_message", "scope": {"chat_id": "chat-1"}, "payload": {"text": "rain again"}, "occurred_at": 2},
+        {"event_id": "event-2", "source": "chat_message", "scope": {"chat_id": "chat-1", "project_id": "project-2"}, "payload": {"text": "rain again"}, "occurred_at": 2},
+        runtime_service=FakeRuntime(),
+        workflow_service=service,
     )
-    assert rate_limited == {"matched_workflow_ids": [], "matched_count": 0}
+    assert ignored == {"accepted_run_ids": [], "accepted_count": 0}

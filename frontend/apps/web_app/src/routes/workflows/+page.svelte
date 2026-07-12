@@ -12,7 +12,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { Header, Settings, Notification, WorkspaceHomeShell, WorkspaceReportIssueButton, WorkflowDetailPage, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, workflowDetailAdapter, workflowWorkspaceStore } from '@repo/ui';
+  import { Header, Settings, Notification, WorkspaceHomeShell, WorkspaceReportIssueButton, WorkflowDetailPage, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, workflowWorkspaceStore } from '@repo/ui';
   import { userProfile } from '@repo/ui/stores/userProfile';
   import type { DailyInspiration, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowRun, WorkflowSummary } from '@repo/ui';
 
@@ -273,18 +273,6 @@
     } finally {
       saving = false;
     }
-  }
-
-  async function saveWorkflowHeaderTitle(title: string): Promise<void> {
-    if (!selectedWorkflow) return;
-    const workflow = await workflowDetailAdapter.saveTitle(selectedWorkflow, title);
-    resetEditor(workflow);
-  }
-
-  async function saveWorkflowHeaderDescription(description: string): Promise<void> {
-    if (!selectedWorkflow) return;
-    const workflow = await workflowDetailAdapter.saveDescription(selectedWorkflow, description);
-    resetEditor(workflow);
   }
 
   function rainAlertGraph(): WorkflowGraph {
@@ -706,22 +694,15 @@
               title={editorTitle || selectedWorkflow.title}
               description={editorDescription || selectedWorkflow.description || selectedWorkflow.trigger_summary || 'Manual workflow'}
               createdAt={selectedWorkflow.created_at}
-              onSaveTitle={saveWorkflowHeaderTitle}
-              onSaveDescription={saveWorkflowHeaderDescription}
+              nextRunAt={selectedWorkflow.next_run_at}
+              enabled={selectedWorkflow.enabled}
+              dirty={editorDirty}
+              {saving}
+              onToggleEnabled={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)}
+              onSaveWorkflow={saveSelectedWorkflow}
+              onUndoWorkflow={undoEditorChanges}
+              onCreateWorkflow={createBlankWorkflow}
             />
-            <div class="workflow-context-actions">
-              <span>Workflow</span>
-              <div>
-                {#if editorDirty}
-                  <button type="button" data-testid="undo-workflow" onclick={undoEditorChanges} disabled={saving}>Undo</button>
-                  <button type="button" data-testid="save-workflow" onclick={saveSelectedWorkflow} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
-                {/if}
-                <button type="button" data-testid="toggle-workflow" onclick={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)} disabled={saving}>
-                  {selectedWorkflow.enabled ? 'Workflow on' : 'Workflow off'}
-                </button>
-                <button type="button" data-testid="create-blank-workflow" onclick={createBlankWorkflow} disabled={saving}>New workflow</button>
-              </div>
-            </div>
 
             <div class="workflow-editor" data-testid="workflow-editor">
               <div class="node-stack shortcut-flow" data-testid="workflow-node-stack">
@@ -1088,38 +1069,6 @@
 
   .workflow-detail {
     padding: 0;
-  }
-
-  .workflow-context-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--spacing-8);
-    padding: var(--spacing-8) var(--spacing-12);
-  }
-
-  .workflow-context-actions > span {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-small);
-    font-weight: 800;
-  }
-
-  .workflow-context-actions > div {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: var(--spacing-4);
-  }
-
-  .workflow-context-actions button {
-    color: var(--color-font-primary);
-    background: var(--color-grey-20);
-  }
-
-  .workflow-context-actions button[data-testid="save-workflow"] {
-    color: var(--color-font-button);
-    background: var(--color-button-primary);
   }
 
   .workflow-mini-card {

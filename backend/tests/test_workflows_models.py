@@ -201,18 +201,18 @@ def test_event_trigger_nodes_require_scoped_rate_limited_metadata() -> None:
     with pytest.raises(ValidationError, match="event.scope"):
         WorkflowGraph.model_validate(graph)
 
-    graph["nodes"][0]["config"] = {"event": {"source": "chat_message", "scope": {"chat_id": "chat-1"}, "filters": {}, "rate_limit": {"max_per_hour": 1}}}
+    graph["nodes"][0]["config"] = {"event": {"source": "chat_message", "scope": {"chat_id": "chat-1", "project_id": "project-1"}, "filters": {}, "rate_limit": {"max_per_hour": 1}}}
     with pytest.raises(ValidationError, match="event.filters"):
         WorkflowGraph.model_validate(graph)
 
-    graph["nodes"][0]["config"] = {"event": {"source": "chat_message", "scope": {"chat_id": "chat-1"}, "filters": {"phrase": "rain"}, "rate_limit": {"max_per_hour": 0}}}
+    graph["nodes"][0]["config"] = {"event": {"source": "chat_message", "scope": {"chat_id": "chat-1", "project_id": "project-1"}, "filters": {"phrase": "rain"}, "rate_limit": {"max_per_hour": 0}}}
     with pytest.raises(ValidationError, match="event.rate_limit"):
         WorkflowGraph.model_validate(graph)
 
     graph["nodes"][0]["config"] = {
         "event": {
             "source": "chat_message",
-            "scope": {"chat_id": "chat-1"},
+            "scope": {"chat_id": "chat-1", "project_id": "project-1"},
             "filters": {"phrase": "rain"},
             "rate_limit": {"max_per_hour": 1},
         }
@@ -273,6 +273,37 @@ def test_directus_workflow_repository_persists_workflow_records_without_plaintex
     assert "Berlin" not in raw_workflow_rows
     assert "Daily rain alert" not in raw_blob_rows
     assert "Berlin" not in raw_blob_rows
+
+
+def test_directus_workflow_repository_updates_accepted_run_by_public_run_id() -> None:
+    repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
+    fake_client = FakeDirectusClient()
+    setattr(repository, "_client", fake_client)
+    fake_client.collections["workflow_runs"] = {
+        "directus-row": {"id": "directus-row", "run_id": "accepted-run"}
+    }
+
+    repository.save_run(
+        {
+            "id": "accepted-run",
+            "workflow_id": "workflow-1",
+            "version_id": "version-1",
+            "owner_hash": "user_sha256:owner",
+            "trigger_type": "schedule",
+            "status": "completed",
+            "started_at": 100,
+            "finished_at": 101,
+            "cost_summary": {},
+            "content_retention_mode": "last_5",
+            "content_available": False,
+            "content_storage": "durable",
+        }
+    )
+
+    rows = fake_client.collections["workflow_runs"]
+    assert list(rows) == ["directus-row"]
+    assert rows["directus-row"]["run_id"] == "accepted-run"
+    assert rows["directus-row"]["status"] == "completed"
 
 
 def test_workflow_cipher_uses_existing_vault_encryption_service() -> None:

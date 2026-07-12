@@ -68,7 +68,7 @@ test.describe('Workspace sidebar', () => {
       await expect(workflowRow).toBeVisible({ timeout: 30000 });
       await workflowRow.click();
       await expect(page.getByTestId('workflow-editor')).toBeVisible({ timeout: 30000 });
-      await expect(page.getByTestId('workflow-title-input')).toHaveValue(title);
+      await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
     } finally {
       if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
     }

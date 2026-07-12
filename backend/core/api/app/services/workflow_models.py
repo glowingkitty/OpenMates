@@ -484,6 +484,8 @@ def _validate_event_trigger_config(config: dict[str, Any]) -> None:
     scope = event_config.get("scope")
     if not isinstance(scope, dict) or not scope:
         raise WorkflowValidationError("Event trigger nodes require event.scope")
+    if not (scope.get("project_id") or scope.get("project_hash") or scope.get("hashed_project_id")):
+        raise WorkflowValidationError("Event trigger nodes require event.scope.project_id")
     filters = event_config.get("filters")
     if not isinstance(filters, (dict, list)) or not filters:
         raise WorkflowValidationError("Event trigger nodes require event.filters")

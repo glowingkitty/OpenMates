@@ -156,9 +156,11 @@ services:
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       SCHEMAS_DIR: "/usr/src/app/schemas"
       CHAT_RECOVERY_MIGRATION_PATH: "/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql"
+      WORKFLOW_RUNTIME_MIGRATION_PATH: "/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql"
     volumes:
       - ./directus/schemas:/usr/src/app/schemas:ro
       - ./directus/setup/migrate_chat_recovery_unique_indexes.sql:/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql:ro
+      - ./directus/setup/migrate_workflow_runtime_indexes.sql:/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql:ro
     networks:
       - openmates
     depends_on:

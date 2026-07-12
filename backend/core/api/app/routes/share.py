@@ -13,14 +13,14 @@ from typing import Dict, Any, Optional, List, Literal
 from urllib.parse import urlparse
 from urllib.request import Request as UrlRequest, urlopen
 from fastapi import APIRouter, HTTPException, Request, Depends, Query, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services import cache_config
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -1206,6 +1206,8 @@ DEFAULT_CHAT_TITLE = "Shared Chat - OpenMates"
 DEFAULT_CHAT_DESCRIPTION = "View this shared conversation on OpenMates"
 DEFAULT_EMBED_TITLE = "Shared Embed - OpenMates"
 DEFAULT_EMBED_DESCRIPTION = "View this shared content on OpenMates"
+DEFAULT_WORKFLOW_TEMPLATE_TITLE = "Shared Workflow Template - OpenMates"
+DEFAULT_WORKFLOW_TEMPLATE_DESCRIPTION = "Import this reusable workflow template on OpenMates"
 
 OG_IMAGE_WIDTH = 1200
 OG_IMAGE_HEIGHT = 630
@@ -1236,10 +1238,12 @@ OG_CATEGORY_GRADIENTS: Dict[str, tuple[str, str]] = {
 
 class CreateShortUrlRequest(BaseModel):
     """Request model for creating a short URL."""
+    model_config = ConfigDict(extra="forbid")
+
     token: str = Field(..., description="Lookup token (6-12 base62 chars, generated client-side)")
     encrypted_url: str = Field(..., description="AES-GCM encrypted share URL blob (opaque to server)")
-    content_type: Literal["chat", "embed"] = Field(..., description="Shared content type")
-    content_id: str = Field(..., description="Chat ID or embed ID associated with the share")
+    content_type: Literal["chat", "embed", "workflow_template"] = Field(..., description="Shared content type")
+    content_id: str = Field(..., description="Chat, embed, or Workflow template ID associated with the share")
     password_protected: bool = Field(default=False, description="Whether crawler metadata must hide content metadata")
     ttl_seconds: Optional[int] = Field(
         default=None,
@@ -1306,6 +1310,43 @@ async def _verify_short_link_target(
             raise HTTPException(status_code=404, detail="Chat not found")
         if chat.get("hashed_user_id") != current_user_hash:
             raise HTTPException(status_code=403, detail="You do not have permission to share this chat")
+        return current_user_hash
+
+    if payload.content_type == "workflow_template":
+        projection_owner_hash = "user_sha256:" + current_user_hash
+        projections = await directus_service.get_items(
+            "workflow_template_projections",
+            params={
+                "filter[template_id][_eq]": payload.content_id,
+                "fields": "template_id,workflow_id,hashed_user_id,source_version,revoked_at",
+                "limit": 1,
+            },
+            admin_required=True,
+        )
+        if not projections:
+            raise HTTPException(status_code=404, detail="Workflow template projection not found")
+        projection = projections[0]
+        if projection.get("hashed_user_id") != projection_owner_hash:
+            raise HTTPException(status_code=403, detail="You do not have permission to share this workflow template")
+        if projection.get("revoked_at"):
+            raise HTTPException(status_code=409, detail="Workflow template projection is revoked")
+
+        workflows = await directus_service.get_items(
+            "workflows",
+            params={
+                "filter[id][_eq]": projection["workflow_id"],
+                "fields": "id,version,status,hashed_user_id",
+                "limit": 1,
+            },
+            admin_required=True,
+        )
+        if not workflows:
+            raise HTTPException(status_code=409, detail="Workflow template projection is stale")
+        workflow = workflows[0]
+        if workflow.get("hashed_user_id") != projection_owner_hash:
+            raise HTTPException(status_code=403, detail="You do not have permission to share this workflow template")
+        if workflow.get("status") == "deleted" or int(workflow.get("version") or 0) != int(projection["source_version"]):
+            raise HTTPException(status_code=409, detail="Workflow template projection is stale")
         return current_user_hash
 
     embed = await directus_service.embed.get_embed_by_id(payload.content_id)
@@ -1460,6 +1501,19 @@ async def _build_short_url_metadata(
             "image_text": DEFAULT_EMBED_DESCRIPTION,
             "image": "/images/og-image.jpg",
             "content_type": "embed",
+            "password_protected": password_protected,
+            "category": None,
+            "icon": None,
+            "image_bubbles": [],
+        }
+
+    if content_type == "workflow_template":
+        return {
+            "title": DEFAULT_WORKFLOW_TEMPLATE_TITLE,
+            "description": DEFAULT_WORKFLOW_TEMPLATE_DESCRIPTION,
+            "image_text": DEFAULT_WORKFLOW_TEMPLATE_DESCRIPTION,
+            "image": "/images/og-image.jpg",
+            "content_type": "workflow_template",
             "password_protected": password_protected,
             "category": None,
             "icon": None,
@@ -1842,7 +1896,7 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
 async def create_short_url(
     request: Request,
     payload: CreateShortUrlRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
@@ -1904,20 +1958,16 @@ async def create_short_url(
                 },
             )
         except ShortUrlStorageUnavailable as exc:
+            if payload.content_type == "workflow_template":
+                logger.warning("Durable short URL storage unavailable for a workflow template share: %s", exc)
+                raise HTTPException(status_code=503, detail="Workflow template sharing is temporarily unavailable") from exc
             logger.warning(
                 "Durable short URL storage unavailable; using cache fallback for token=%s: %s",
                 payload.token,
                 exc,
             )
             expires_at = await _store_short_url_cache_fallback(payload, cache_service, now)
-        logger.info(
-            "Short URL created: token=%s, content_type=%s, content_id=%s, expires_at=%s, user=%s",
-            payload.token,
-            payload.content_type,
-            payload.content_id,
-            expires_at,
-            current_user.id,
-        )
+        logger.info("Short URL created: token=%s, content_type=%s, expires_at=%s", payload.token, payload.content_type, expires_at)
 
         return {"success": True, "expires_at": expires_at}
 
@@ -1926,6 +1976,36 @@ async def create_short_url(
     except Exception as e:
         logger.error(f"Error creating short URL: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to create short URL")
+
+
+@router.delete("/short-url/{token}")
+async def revoke_short_url(
+    token: str,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Revoke an owner-authorized durable short URL without touching runtime content."""
+    if not SHORT_URL_TOKEN_PATTERN.match(token):
+        raise HTTPException(status_code=404, detail="Not found")
+    record = await _get_short_link_record(token, directus_service)
+    if not record:
+        raise HTTPException(status_code=404, detail="Short link not found")
+    if record.get("hashed_user_id") != hashlib.sha256(current_user.id.encode()).hexdigest():
+        raise HTTPException(status_code=403, detail="You do not have permission to revoke this short link")
+    if record.get("revoked_at"):
+        return {"success": True, "revoked_at": record["revoked_at"]}
+
+    now = int(time.time())
+    updated = await directus_service.update_item(
+        SHORT_URL_COLLECTION,
+        record["id"],
+        {"revoked_at": now, "updated_at": now},
+        admin_required=True,
+    )
+    if updated is None:
+        raise HTTPException(status_code=500, detail="Failed to revoke short link")
+    logger.info("Short URL revoked: token=%s, content_type=%s", token, record.get("content_type"))
+    return {"success": True, "revoked_at": now}
 
 
 @router.get("/short-url/{token}", response_model=ResolveShortUrlResponse)
@@ -1956,6 +2036,8 @@ async def resolve_short_url(
         record = await _get_short_link_record(token, directus_service)
         if record and not _short_link_is_expired_or_revoked(record):
             return {"encrypted_url": record["encrypted_url"]}
+        if record:
+            raise HTTPException(status_code=404, detail="Short link expired or not found")
 
         # Legacy fallback for old Redis-backed /s/#token-shortKey links created
         # before durable short links moved the token into the path.

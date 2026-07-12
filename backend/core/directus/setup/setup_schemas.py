@@ -42,6 +42,16 @@ CHAT_RECOVERY_INDEXES = (
     'chat_recovery_jobs_task_uq',
     'chat_recovery_jobs_assistant_message_uq',
 )
+WORKFLOW_RUNTIME_MIGRATION_PATH = os.getenv(
+    'WORKFLOW_RUNTIME_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql',
+)
+WORKFLOW_RUNTIME_INDEXES = (
+    'workflow_triggers_due_claim_idx',
+    'workflow_runs_acceptance_identity_uq',
+    'workflow_event_receipts_trigger_event_uq',
+    'workflow_template_projections_workflow_uq',
+)
 
 BACKEND_PERMISSION_COLLECTIONS = (
     'anonymous_free_usage_budget',
@@ -898,6 +908,39 @@ def apply_and_verify_chat_recovery_indexes():
     print(f"Verified {len(CHAT_RECOVERY_INDEXES)} chat recovery indexes")
 
 
+def apply_and_verify_workflow_runtime_indexes():
+    """Apply the Workflow runtime migration before its scheduler can be enabled."""
+    if not os.path.isfile(WORKFLOW_RUNTIME_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required workflow runtime migration is missing: {WORKFLOW_RUNTIME_MIGRATION_PATH}"
+        )
+
+    with open(WORKFLOW_RUNTIME_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(WORKFLOW_RUNTIME_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(WORKFLOW_RUNTIME_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Workflow runtime index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(WORKFLOW_RUNTIME_INDEXES)} workflow runtime indexes")
+
+
 def verify_chat_recovery_endpoint():
     """Require the baked extension to answer an authenticated metadata-only read."""
     if not INTERNAL_API_SHARED_TOKEN:
@@ -996,6 +1039,9 @@ def setup_schemas():
 
         print("\n--- Verifying chat recovery Directus endpoint ---")
         verify_chat_recovery_endpoint()
+
+        print("\n--- Applying workflow runtime database indexes ---")
+        apply_and_verify_workflow_runtime_indexes()
 
         # Only create the first signup invite code if the 'invite_codes'
         # collection was newly created during this run (i.e., first setup).

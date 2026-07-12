@@ -78,6 +78,14 @@ export class OpenMatesHttpClient {
     return this.request<T>("PATCH", path, body, headers);
   }
 
+  async put<T>(
+    path: string,
+    body?: unknown,
+    headers: Record<string, string> = {},
+  ): Promise<HttpResponse<T>> {
+    return this.request<T>("PUT", path, body, headers);
+  }
+
   async getBinary(
     path: string,
     headers: Record<string, string> = {},
@@ -144,7 +152,7 @@ export class OpenMatesHttpClient {
   }
 
   private async request<T>(
-    method: "GET" | "POST" | "DELETE" | "PATCH",
+    method: "GET" | "POST" | "DELETE" | "PATCH" | "PUT",
     path: string,
     body?: unknown,
     headers: Record<string, string> = {},

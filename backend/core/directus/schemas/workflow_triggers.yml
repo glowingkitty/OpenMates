@@ -9,8 +9,7 @@ workflow_triggers:
     trigger_id:
       type: string
       note: "[Indexed, Unique] Public trigger id."
-      options:
-        unique: true
+      unique: true
     workflow_id:
       type: string
       note: "[Indexed] Public workflow id."
@@ -20,15 +19,30 @@ workflow_triggers:
     hashed_user_id:
       type: string
       note: "[Indexed] SHA256(user_id) of the owner."
+    hashed_project_id:
+      type: string
+      note: "[Indexed, Nullable] SHA256(project_id) when the trigger is project-scoped."
     trigger_type:
       type: string
-      note: "schedule, manual, or webhook."
-    schedule_config:
-      type: json
-      note: "Plaintext schedule routing metadata. Must not contain private prompts."
-    webhook_ref:
+      note: "[Indexed] manual, schedule, webhook, or event."
+    source:
       type: string
-      note: "Nullable webhook reference for future webhook triggers."
+      note: "[Indexed, Nullable] Event source routing field."
+    event_type:
+      type: string
+      note: "[Indexed, Nullable] Event type routing field."
+    encrypted_schedule_config_ref:
+      type: string
+      note: "Vault blob reference for recurrence configuration."
+    encrypted_event_predicate_ref:
+      type: string
+      note: "Vault blob reference for structured event filters."
+    encrypted_webhook_config_ref:
+      type: string
+      note: "Vault blob reference for webhook configuration and secrets."
+    encrypted_required_start_input_schema_ref:
+      type: string
+      note: "Vault blob reference for manual input schema containing user text."
     enabled:
       type: boolean
       default: false
@@ -36,9 +50,22 @@ workflow_triggers:
     next_run_at:
       type: integer
       note: "[Indexed, Nullable] Unix timestamp for scheduler queries."
-    last_claimed_at:
+    claim_status:
+      type: string
+      note: "Nullable claimed state used by the atomic scheduler boundary."
+    claim_token_hash:
+      type: string
+      note: "Nullable hash of the worker claim token."
+    claim_generation:
       type: integer
-      note: "Nullable timestamp used for duplicate-run protection."
+      default: 0
+      note: "Monotonic claim generation that rejects stale advance requests."
+    claimed_at:
+      type: integer
+      note: "Nullable timestamp when a worker accepted this occurrence."
+    claim_expires_at:
+      type: integer
+      note: "Nullable timestamp after which a stalled claim may be recovered."
     created_at:
       type: integer
       note: "Unix timestamp."

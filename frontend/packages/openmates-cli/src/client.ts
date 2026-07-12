@@ -471,6 +471,55 @@ export interface WorkflowCapability {
   metadata?: Record<string, unknown>;
 }
 
+export interface WorkflowTemplateProjectionUpsertParams {
+  templateId: string;
+  sourceVersion: number;
+  ciphertext: string;
+  ciphertextChecksum: string;
+  ownerWrappedKey: string;
+  projectionSchemaVersion: number;
+}
+
+export interface WorkflowTemplateProjectionResult {
+  template_id: string;
+  source_version: number;
+  updated_at: number;
+}
+
+export interface WorkflowTemplateImportPayload {
+  template_version: number;
+  title: string;
+  description?: string | null;
+  trigger_template: Record<string, unknown>;
+  node_templates?: Array<Record<string, unknown>>;
+  edge_templates?: Array<Record<string, unknown>>;
+  variables_schema?: Record<string, unknown>;
+  required_capabilities?: string[];
+  binding_requirements?: Array<Record<string, unknown>>;
+}
+
+export interface ImportedWorkflowTemplate extends WorkflowDetail {
+  binding_requirements: Array<Record<string, unknown>>;
+}
+
+export interface WorkflowTemplateShortUrlParams {
+  token: string;
+  encryptedUrl: string;
+  templateId: string;
+  ttlSeconds?: number | null;
+  passwordProtected?: boolean;
+}
+
+export interface WorkflowTemplateShortUrlResult {
+  success: boolean;
+  expires_at?: number | null;
+}
+
+export interface ShortUrlRevokeResult {
+  success: boolean;
+  revoked_at?: number | null;
+}
+
 export type InterestTagId =
   | "software_development"
   | "business_development"
@@ -4905,6 +4954,75 @@ export class OpenMatesClient {
       throw new Error(`Workflow capabilities failed with HTTP ${response.status}`);
     }
     return response.data.capabilities ?? [];
+  }
+
+  async upsertWorkflowTemplateProjection(
+    workflowId: string,
+    params: WorkflowTemplateProjectionUpsertParams,
+  ): Promise<WorkflowTemplateProjectionResult> {
+    this.requireSession();
+    const response = await this.http.put<WorkflowTemplateProjectionResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection`,
+      {
+        template_id: params.templateId,
+        source_version: params.sourceVersion,
+        ciphertext: params.ciphertext,
+        ciphertext_checksum: params.ciphertextChecksum,
+        owner_wrapped_key: params.ownerWrappedKey,
+        projection_schema_version: params.projectionSchemaVersion,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template projection upsert failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async createWorkflowTemplateShortUrl(params: WorkflowTemplateShortUrlParams): Promise<WorkflowTemplateShortUrlResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowTemplateShortUrlResult>(
+      "/v1/share/short-url",
+      {
+        token: params.token,
+        encrypted_url: params.encryptedUrl,
+        content_type: "workflow_template",
+        content_id: params.templateId,
+        password_protected: params.passwordProtected ?? false,
+        ...(params.ttlSeconds !== undefined ? { ttl_seconds: params.ttlSeconds } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template short URL create failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async revokeShortUrl(token: string): Promise<ShortUrlRevokeResult> {
+    this.requireSession();
+    const response = await this.http.delete<ShortUrlRevokeResult>(
+      `/v1/share/short-url/${encodeURIComponent(token)}`,
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Short URL revoke failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async importWorkflowTemplate(payload: WorkflowTemplateImportPayload): Promise<ImportedWorkflowTemplate> {
+    this.requireSession();
+    const response = await this.http.post<{ workflow?: ImportedWorkflowTemplate }>(
+      "/v1/workflows/template-import",
+      payload,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow template import failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
   }
 
   async startWorkflowInput(params: WorkflowInputStartParams): Promise<WorkflowInputSessionResult> {

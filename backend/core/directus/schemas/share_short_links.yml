@@ -21,11 +21,11 @@ share_short_links:
 
     content_type:
       type: string
-      note: "Shared content type. Current values: chat, embed. Future values may include project and workflow."
+      note: "Shared content type. Current values: chat, embed, workflow_template."
 
     content_id:
       type: string
-      note: "Chat ID, embed ID, or future shareable content ID associated with this short link."
+      note: "Chat ID, embed ID, or client-encrypted Workflow template ID associated with this short link."
 
     hashed_user_id:
       type: string

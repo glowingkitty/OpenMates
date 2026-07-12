@@ -43,6 +43,13 @@ import type {
   WorkflowInputSessionDetail,
   WorkflowInputSessionResult,
   WorkflowInputStartParams,
+  WorkflowTemplateImportPayload,
+  WorkflowTemplateProjectionResult,
+  WorkflowTemplateProjectionUpsertParams,
+  WorkflowTemplateShortUrlParams,
+  WorkflowTemplateShortUrlResult,
+  ImportedWorkflowTemplate,
+  ShortUrlRevokeResult,
   WorkflowRunContentRetention,
   WorkflowRunDetail,
   WorkflowSummary,
@@ -255,6 +262,10 @@ export class OpenMates {
 
   async patch<T>(path: string, body?: unknown): Promise<T> {
     return this.requestWithMethod<T>("PATCH", path, body);
+  }
+
+  async put<T>(path: string, body?: unknown): Promise<T> {
+    return this.requestWithMethod<T>("PUT", path, body);
   }
 
   async delete<T>(path: string, body?: unknown): Promise<T> {
@@ -1436,6 +1447,41 @@ export class OpenMatesWorkflows {
     const response = await this.client.get<{ run?: WorkflowRunDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`);
     if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
     return response.run;
+  }
+
+  async upsertTemplateProjection(
+    workflowId: string,
+    params: WorkflowTemplateProjectionUpsertParams,
+  ): Promise<WorkflowTemplateProjectionResult> {
+    return this.client.put<WorkflowTemplateProjectionResult>(`/v1/workflows/${encodeURIComponent(workflowId)}/template-projection`, {
+      template_id: params.templateId,
+      source_version: params.sourceVersion,
+      ciphertext: params.ciphertext,
+      ciphertext_checksum: params.ciphertextChecksum,
+      owner_wrapped_key: params.ownerWrappedKey,
+      projection_schema_version: params.projectionSchemaVersion,
+    });
+  }
+
+  async createTemplateShortUrl(params: WorkflowTemplateShortUrlParams): Promise<WorkflowTemplateShortUrlResult> {
+    return this.client.request<WorkflowTemplateShortUrlResult>("/v1/share/short-url", {
+      token: params.token,
+      encrypted_url: params.encryptedUrl,
+      content_type: "workflow_template",
+      content_id: params.templateId,
+      password_protected: params.passwordProtected ?? false,
+      ...(params.ttlSeconds !== undefined ? { ttl_seconds: params.ttlSeconds } : {}),
+    });
+  }
+
+  async revokeShortUrl(token: string): Promise<ShortUrlRevokeResult> {
+    return this.client.delete<ShortUrlRevokeResult>(`/v1/share/short-url/${encodeURIComponent(token)}`);
+  }
+
+  async importTemplate(payload: WorkflowTemplateImportPayload): Promise<ImportedWorkflowTemplate> {
+    const response = await this.client.request<{ workflow?: ImportedWorkflowTemplate }>("/v1/workflows/template-import", payload);
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow template import response missing workflow" });
+    return response.workflow;
   }
 }
 

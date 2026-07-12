@@ -12,7 +12,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
@@ -25,6 +25,13 @@ from backend.core.api.app.services.workflow_service import (
     WorkflowFeatureDisabledError,
     WorkflowNotFoundError,
     WorkflowService,
+)
+from backend.core.api.app.services.workflow_template_service import (
+    WorkflowTemplateImportError,
+    WorkflowTemplateImportPayload,
+    WorkflowTemplateProjectionError,
+    WorkflowTemplateProjectionService,
+    WorkflowTemplateProjectionStaleError,
 )
 
 
@@ -70,6 +77,19 @@ class WorkflowInputFollowUpRequest(BaseModel):
     text: str = Field(min_length=1, max_length=20_000)
 
 
+class WorkflowTemplateProjectionUpsertRequest(BaseModel):
+    """Opaque projection data; fragment/template keys are not API fields."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    template_id: str = Field(min_length=1, max_length=200)
+    source_version: int = Field(ge=1)
+    ciphertext: str = Field(min_length=1, max_length=100_000)
+    ciphertext_checksum: str = Field(min_length=1, max_length=200)
+    owner_wrapped_key: str = Field(min_length=1, max_length=100_000)
+    projection_schema_version: int = Field(ge=1)
+
+
 def get_workflow_service(request: Request) -> WorkflowService:
     service = getattr(request.app.state, "workflow_service", None)
     if service is None:
@@ -86,6 +106,14 @@ def get_workflow_input_service(request: Request) -> WorkflowInputService:
             repository=DirectusWorkflowInputRepository(),
         )
         request.app.state.workflow_input_service = service
+    return service
+
+
+def get_workflow_template_service(request: Request) -> WorkflowTemplateProjectionService:
+    service = getattr(request.app.state, "workflow_template_service", None)
+    if service is None:
+        service = WorkflowTemplateProjectionService(get_workflow_service(request))
+        request.app.state.workflow_template_service = service
     return service
 
 
@@ -115,6 +143,10 @@ def _handle_workflow_error(exc: Exception) -> None:
         raise HTTPException(status_code=404, detail="Workflow not found") from exc
     if isinstance(exc, WorkflowMissingInputError):
         raise HTTPException(status_code=400, detail="MISSING_WORKFLOW_INPUT") from exc
+    if isinstance(exc, WorkflowTemplateProjectionStaleError):
+        raise HTTPException(status_code=409, detail="STALE_TEMPLATE_PROJECTION") from exc
+    if isinstance(exc, (WorkflowTemplateProjectionError, WorkflowTemplateImportError)):
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
@@ -281,6 +313,49 @@ async def undo_workflow_input(
         return {"session": result.model_dump(mode="json")}
     except Exception as exc:
         _handle_workflow_input_error(exc)
+
+
+@router.put("/{workflow_id}/template-projection")
+async def upsert_workflow_template_projection(
+    workflow_id: str,
+    body: WorkflowTemplateProjectionUpsertRequest,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowTemplateProjectionService = Depends(get_workflow_template_service),
+) -> dict[str, Any]:
+    try:
+        projection = await run_in_threadpool(
+            service.upsert_projection,
+            workflow_id,
+            current_user.id,
+            template_id=body.template_id,
+            source_version=body.source_version,
+            ciphertext=body.ciphertext,
+            ciphertext_checksum=body.ciphertext_checksum,
+            owner_wrapped_key=body.owner_wrapped_key,
+            projection_schema_version=body.projection_schema_version,
+        )
+        return {
+            "template_id": projection.template_id,
+            "source_version": projection.source_version,
+            "updated_at": projection.updated_at,
+        }
+    except Exception as exc:
+        _handle_workflow_error(exc)
+
+
+@router.post("/template-import")
+async def import_workflow_template(
+    body: WorkflowTemplateImportPayload,
+    current_user: User = Depends(get_current_user_or_api_key),
+    service: WorkflowTemplateProjectionService = Depends(get_workflow_template_service),
+) -> dict[str, Any]:
+    try:
+        imported = await run_in_threadpool(service.import_template, current_user.id, body)
+        workflow = imported.workflow.model_dump(mode="json", by_alias=True)
+        workflow["binding_requirements"] = imported.binding_requirements
+        return {"workflow": workflow}
+    except Exception as exc:
+        _handle_workflow_error(exc)
 
 
 @router.get("/{workflow_id}")

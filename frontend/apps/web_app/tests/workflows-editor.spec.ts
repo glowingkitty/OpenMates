@@ -55,8 +55,14 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-editor')).toBeVisible();
 			await expect(page).toHaveURL(/\/workflows\/[^/?#]+/);
 			await expect(page.getByTestId('workflows-list')).toHaveCount(0);
-			await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', 'workspace-detail');
+			await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', 'workflow-detail');
+			await expect(page.getByTestId('workflow-detail-actions')).toBeVisible();
+			const headerBox = await page.getByTestId('workspace-detail-header').boundingBox();
+			const actionsBox = await page.getByTestId('workflow-detail-actions').boundingBox();
+			if (!headerBox || !actionsBox) throw new Error('Workflow header and actions must be measurable.');
+			expect(actionsBox.x).toBeLessThan(headerBox.x + headerBox.width / 2);
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily rain alert');
+			await expect(page.getByTestId('workflow-detail-metadata')).toContainText(/Next run (soon|in \d+ min|in \d+ hr|in \d+ days?)/);
 			await expect(page.getByTestId('workflow-title-input')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-description-input')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-retention-select')).toHaveCount(0);

@@ -20,12 +20,25 @@ workflow_runs:
     hashed_user_id:
       type: string
       note: "[Indexed] SHA256(user_id) of the owner."
+    hashed_project_id:
+      type: string
+      note: "[Indexed, Nullable] SHA256(project_id) for project-scoped runs."
     trigger_id:
       type: string
       note: "Nullable trigger id."
     trigger_type:
       type: string
-      note: "schedule, manual, webhook, or test."
+      note: "schedule, manual, webhook, event, or test."
+    acceptance_idempotency_key:
+      type: string
+      note: "[Indexed, Unique] Trigger occurrence acceptance key."
+      unique: true
+    claim_token_hash:
+      type: string
+      note: "Nullable hash linking an accepted run to its trigger claim."
+    accepted_at:
+      type: integer
+      note: "Unix timestamp when this concrete execution was accepted."
     status:
       type: string
       note: "queued, running, waiting, completed, failed, or cancelled."

@@ -15,8 +15,19 @@ from typing import Any
 class WorkflowAppSkillAdapter:
     """Dispatch workflow app-skill nodes and normalize their workflow outputs."""
 
-    def __init__(self, registry: Any | None = None) -> None:
+    def __init__(self, registry: Any | None = None, binding_revalidator: Any | None = None) -> None:
         self.registry = registry
+        self.binding_revalidator = binding_revalidator
+
+    async def revalidate_binding(self, binding_ref: Any, user_id: str, app_id: str, skill_id: str) -> None:
+        """Require a runtime resolver to re-check opaque provider bindings."""
+        if not isinstance(binding_ref, str) or not binding_ref:
+            raise PermissionError("Workflow provider binding is invalid")
+        if self.binding_revalidator is None:
+            raise PermissionError("Workflow provider binding revalidation is unavailable")
+        approved = await self.binding_revalidator.revalidate(binding_ref, user_id, app_id, skill_id)
+        if approved is not True:
+            raise PermissionError("Workflow provider binding is no longer authorized")
 
     async def execute(self, app_id: str, skill_id: str, request: dict[str, Any]) -> dict[str, Any]:
         registry = self.registry

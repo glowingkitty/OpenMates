@@ -12,7 +12,10 @@ RUN apk add --no-cache curl postgresql-client
 COPY --chown=node:node extensions /directus/extensions
 RUN mkdir -p /directus/extensions/chat-recovery-transaction/dist \
     && cp /directus/extensions/chat-recovery-transaction/src/*.js \
-        /directus/extensions/chat-recovery-transaction/dist/
+        /directus/extensions/chat-recovery-transaction/dist/ \
+    && mkdir -p /directus/extensions/workflow-runtime-transaction/dist \
+    && cp /directus/extensions/workflow-runtime-transaction/src/*.js \
+        /directus/extensions/workflow-runtime-transaction/dist/
 
 COPY --chmod=755 <<'START_SCRIPT' /usr/local/bin/openmates-directus-start
 #!/bin/sh
@@ -21,6 +24,8 @@ set -eu
 : "${INTERNAL_API_SHARED_TOKEN:?INTERNAL_API_SHARED_TOKEN is required}"
 test -r /directus/extensions/chat-recovery-transaction/package.json
 test -r /directus/extensions/chat-recovery-transaction/dist/index.js
+test -r /directus/extensions/workflow-runtime-transaction/package.json
+test -r /directus/extensions/workflow-runtime-transaction/dist/index.js
 
 node cli.js bootstrap
 pm2-runtime start ecosystem.config.cjs &
@@ -54,6 +59,27 @@ if [ "$endpoint_status" != "401" ]; then
   exit 1
 fi
 
+endpoint_status=""
+attempt=0
+while [ "$attempt" -lt 30 ]; do
+  endpoint_status="$(curl --silent --show-error --output /tmp/workflow-runtime-startup.json \
+    --write-out '%{http_code}' --request POST \
+    --header 'Content-Type: application/json' \
+    --data '{"operation":"health_check","data":{"protocol_version":1}}' \
+    http://127.0.0.1:8055/workflow-runtime-transaction/ || true)"
+  if [ "$endpoint_status" = "401" ]; then
+    break
+  fi
+  attempt=$((attempt + 1))
+  sleep 2
+done
+if [ "$endpoint_status" != "401" ]; then
+  echo "FATAL: workflow-runtime-transaction endpoint failed startup verification (HTTP ${endpoint_status:-none})" >&2
+  kill -TERM "$directus_pid" 2>/dev/null || true
+  wait "$directus_pid" || true
+  exit 1
+fi
+
 wait "$directus_pid"
 START_SCRIPT
 
@@ -75,6 +101,13 @@ curl --fail --silent --show-error --output /tmp/chat-recovery-health.json \
   --data '{"operation":"list_available_jobs","data":{"protocol_version":1,"hashed_user_id":"0000000000000000000000000000000000000000000000000000000000000000","device_hash":"health-check"}}' \
   http://127.0.0.1:8055/chat-recovery-transaction/
 
+curl --fail --silent --show-error --output /tmp/workflow-runtime-health.json \
+  --request POST \
+  --header 'Content-Type: application/json' \
+  --header "X-Internal-Service-Token: ${INTERNAL_API_SHARED_TOKEN}" \
+  --data '{"operation":"health_check","data":{"protocol_version":1}}' \
+  http://127.0.0.1:8055/workflow-runtime-transaction/
+
 index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
   --host "$DB_HOST" --port "$DB_PORT" --username "$DB_USER" --dbname "$DB_DATABASE" \
   --tuples-only --no-align --command "
@@ -95,6 +128,20 @@ index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'chat_recovery_jobs_assistant_message_uq'
       );")"
 test "$index_count" = "11"
+
+workflow_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
+  --host "$DB_HOST" --port "$DB_PORT" --username "$DB_USER" --dbname "$DB_DATABASE" \
+  --tuples-only --no-align --command "
+    SELECT count(*)
+    FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND indexname IN (
+        'workflow_triggers_due_claim_idx',
+        'workflow_runs_acceptance_identity_uq',
+        'workflow_event_receipts_trigger_event_uq',
+        'workflow_template_projections_workflow_uq'
+      );")"
+test "$workflow_index_count" = "4"
 HEALTH_SCRIPT
 
 USER node

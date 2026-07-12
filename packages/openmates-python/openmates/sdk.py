@@ -103,6 +103,9 @@ class OpenMates:
     def _patch(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("PATCH", path, payload)
 
+    def _put(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request("PUT", path, payload)
+
     def _delete(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._request("DELETE", path, payload)
 
@@ -119,6 +122,8 @@ class OpenMates:
             response = requests.post(f"{self._api_url}{path}", **request_kwargs)
         elif method == "PATCH":
             response = requests.patch(f"{self._api_url}{path}", **request_kwargs)
+        elif method == "PUT":
+            response = requests.put(f"{self._api_url}{path}", **request_kwargs)
         elif method == "DELETE":
             response = requests.delete(f"{self._api_url}{path}", **request_kwargs)
         else:
@@ -1109,6 +1114,59 @@ class OpenMatesWorkflows:
 
     def run_detail(self, workflow_id: str, run_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}").get("run", {})
+
+    def upsert_template_projection(
+        self,
+        workflow_id: str,
+        *,
+        template_id: str,
+        source_version: int,
+        ciphertext: str,
+        ciphertext_checksum: str,
+        owner_wrapped_key: str,
+        projection_schema_version: int,
+    ) -> dict[str, Any]:
+        return self._client._put(
+            f"/v1/workflows/{_quote(workflow_id)}/template-projection",
+            {
+                "template_id": template_id,
+                "source_version": source_version,
+                "ciphertext": ciphertext,
+                "ciphertext_checksum": ciphertext_checksum,
+                "owner_wrapped_key": owner_wrapped_key,
+                "projection_schema_version": projection_schema_version,
+            },
+        )
+
+    def create_template_short_url(
+        self,
+        *,
+        token: str,
+        encrypted_url: str,
+        template_id: str,
+        ttl_seconds: int | None = None,
+        password_protected: bool = False,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "token": token,
+            "encrypted_url": encrypted_url,
+            "content_type": "workflow_template",
+            "content_id": template_id,
+            "password_protected": password_protected,
+        }
+        if ttl_seconds is not None:
+            payload["ttl_seconds"] = ttl_seconds
+        return self._client._post("/v1/share/short-url", payload)
+
+    def revoke_short_url(self, token: str) -> dict[str, Any]:
+        return self._client._delete(f"/v1/share/short-url/{_quote(token)}")
+
+    def import_template(self, payload: dict[str, Any]) -> dict[str, Any]:
+        response = self._client._post("/v1/workflows/template-import", payload)
+        workflow = response.get("workflow")
+        if not isinstance(workflow, dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow template import response missing workflow"})
+        return workflow
 
 
 class OpenMatesAccount:

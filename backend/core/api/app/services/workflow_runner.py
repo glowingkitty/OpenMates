@@ -46,9 +46,14 @@ class WorkflowRunner:
         vault_key_id: str | None = None,
         trigger_type: str = "manual",
         input_payload: dict[str, Any] | None = None,
+        run_id: str | None = None,
+        version_id: str | None = None,
     ) -> WorkflowRunDetail:
         self.workflow_service.validate_manual_run_input(workflow, input_payload)
-        run_id = str(uuid.uuid4())
+        if run_id is not None and not version_id:
+            raise ValueError("Accepted workflow runs require a pinned version_id")
+        run_id = run_id or str(uuid.uuid4())
+        version_id = version_id or workflow.current_version_id
         started_at = int(time.time())
         context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}}
         node_runs: list[WorkflowNodeRun] = []
@@ -67,14 +72,14 @@ class WorkflowRunner:
             if visited_count > max_nodes:
                 raise ValueError("Workflow execution exceeded max_nodes")
             node = nodes_by_id[current_node_id]
-            node_run = await self._run_node(run_id, workflow.id, node, context)
+            node_run = await self._run_node(run_id, workflow.id, node, context, user_id)
             node_runs.append(node_run)
             context["nodes"][node.id] = {"output": node_run.output_summary, "status": node_run.status.value}
             if node_run.status == WorkflowNodeRunStatus.FAILED:
                 run = WorkflowRunDetail(
                     id=run_id,
                     workflow_id=workflow.id,
-                    version_id=workflow.current_version_id,
+                    version_id=version_id,
                     trigger_type=trigger_type,
                     status=WorkflowRunStatus.FAILED,
                     started_at=started_at,
@@ -89,7 +94,7 @@ class WorkflowRunner:
         run = WorkflowRunDetail(
             id=run_id,
             workflow_id=workflow.id,
-            version_id=workflow.current_version_id,
+            version_id=version_id,
             trigger_type=trigger_type,
             status=WorkflowRunStatus.COMPLETED,
             started_at=started_at,
@@ -114,10 +119,17 @@ class WorkflowRunner:
                 return edge.to_node
         return candidates[0].to_node
 
-    async def _run_node(self, run_id: str, workflow_id: str, node: WorkflowNode, context: dict[str, Any]) -> WorkflowNodeRun:
+    async def _run_node(
+        self,
+        run_id: str,
+        workflow_id: str,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        user_id: str,
+    ) -> WorkflowNodeRun:
         started_at = int(time.time())
         try:
-            output = await self._execute_node(node, context)
+            output = await self._execute_node(node, context, user_id)
             return WorkflowNodeRun(
                 id=str(uuid.uuid4()),
                 run_id=run_id,
@@ -146,11 +158,11 @@ class WorkflowRunner:
                 input_summary=node.input_mapping,
             )
 
-    async def _execute_node(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+    async def _execute_node(self, node: WorkflowNode, context: dict[str, Any], user_id: str) -> dict[str, Any]:
         if node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER}:
             return {"triggered": True, "trigger": node.type.value}
         if node.type == WorkflowNodeType.APP_SKILL_ACTION:
-            return await self._execute_app_skill(node, context)
+            return await self._execute_app_skill(node, context, user_id)
         if node.type == WorkflowNodeType.DECISION:
             matched = _evaluate_predicate(node.config["predicate"], context)
             return {"matched": matched, "branch": "yes" if matched else "no"}
@@ -166,9 +178,15 @@ class WorkflowRunner:
             return {"ended": True}
         return {"skipped": True, "skipped_reason": f"node_type_{node.type.value}_not_executable"}
 
-    async def _execute_app_skill(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+    async def _execute_app_skill(self, node: WorkflowNode, context: dict[str, Any], user_id: str) -> dict[str, Any]:
         app_id = node.config["app_id"]
         skill_id = node.config["skill_id"]
+        binding_ref = node.config.get("binding_ref")
+        if binding_ref is not None:
+            revalidate_binding = getattr(self.app_skill_adapter, "revalidate_binding", None)
+            if not callable(revalidate_binding):
+                raise PermissionError("Workflow provider binding revalidation is unavailable")
+            await revalidate_binding(binding_ref, user_id, app_id, skill_id)
         request = _resolve_template(node.config.get("input") or {}, context)
         request.update(_resolve_template(node.input_mapping, context))
         return await self.app_skill_adapter.execute(app_id, skill_id, request)

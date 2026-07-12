@@ -53,6 +53,12 @@ class FakeActionAdapter:
         return {"queued": True, "channel": channel, "title": config.get("title"), "body": config.get("body")}
 
 
+class RejectingBindingAppSkillAdapter(FakeAppSkillAdapter):
+    async def revalidate_binding(self, binding_ref, user_id, app_id, skill_id):
+        del binding_ref, user_id, app_id, skill_id
+        raise PermissionError("Workflow provider binding is revoked")
+
+
 def rain_graph(rain_probability: int = 70) -> dict:
     return {
         "version": 1,
@@ -256,3 +262,23 @@ async def test_temporary_workflow_remains_after_run_until_cleanup() -> None:
     assert service.cleanup_expired_temporary_workflows("alice", now=workflow.auto_delete_at + 1) == 1
     with pytest.raises(KeyError):
         service.get_workflow(workflow.id, "alice")
+
+
+@pytest.mark.asyncio
+async def test_provider_binding_revalidation_fails_before_app_skill_execution() -> None:
+    service = workflow_service()
+    graph = rain_graph()
+    graph["nodes"][1]["config"]["binding_ref"] = "binding:opaque:weather"
+    workflow = service.create_workflow("alice", "Bound forecast", graph, enabled=True)
+    app_adapter = RejectingBindingAppSkillAdapter()
+
+    run = await WorkflowRunner(service, app_skill_adapter=app_adapter, action_adapter=FakeActionAdapter()).run_workflow(
+        workflow,
+        "alice",
+        trigger_type="schedule",
+    )
+
+    assert run.status == "failed"
+    assert run.node_runs[-1].node_id == "weather"
+    assert run.node_runs[-1].error_summary == "Workflow provider binding is revoked"
+    assert app_adapter.calls == []
