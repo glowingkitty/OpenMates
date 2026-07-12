@@ -697,9 +697,16 @@ test('secondary client recovers exactly one saved assistant message after origin
 		await expect(coldBootAssistantMessages.first()).toContainText('Paris');
 		await expect(coldBootAssistantMessages).toHaveCount(1);
 	} finally {
-		if (!secondary.isClosed() && chatId) {
-			await deleteChatById(secondary, chatId);
+		try {
+			if (!secondary.isClosed() && chatId) {
+				await deleteChatById(secondary, chatId);
+			}
+		} catch (cleanupError) {
+			logCheckpoint('Cleanup could not find the recovery test chat.', {
+				error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+			});
+		} finally {
+			await context.close();
 		}
-		await context.close();
 	}
 });
