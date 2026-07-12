@@ -11,6 +11,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 import CoreImage.CIFilterBuiltins
+import CryptoKit
 import SwiftUI
 #if os(iOS)
 import UIKit
