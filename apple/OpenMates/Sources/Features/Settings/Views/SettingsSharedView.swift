@@ -35,7 +35,7 @@ struct SettingsSharedView: View {
                     OMSettingsRow(title: AppStrings.back, icon: "back", showsChevron: false) {
                         self.selectedChatId = nil
                     }
-                    ChatShareView(chatId: selectedChatId)
+                    ChatShareView(chatId: selectedChatId, chat: chatStore.chat(for: selectedChatId))
                 }
                 .accessibilityIdentifier("settings-shared-share-settings")
             } else if showsTip {
@@ -78,6 +78,9 @@ struct SettingsSharedView: View {
                     }
                 }
             }
+        }
+        .onChange(of: initialChatId) { _, newChatId in
+            selectedChatId = newChatId
         }
     }
 

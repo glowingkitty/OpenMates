@@ -665,6 +665,7 @@ struct MainAppView: View {
             lastForegroundInteractionAt = Date()
         } else {
             reportIssuePrefill = nil
+            settingsShareChatId = nil
         }
     }
 
