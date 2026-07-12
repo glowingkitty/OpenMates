@@ -294,6 +294,10 @@ struct SettingsView: View {
             activeReferralCodeRequest = newValue
             navigateTo(.billing)
         }
+        .onChange(of: shareChatId) { _, newChatId in
+            guard newChatId != nil else { return }
+            navigateTo(.shared)
+        }
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("--ui-test-reset-incognito-explainer") {
                 IncognitoExplainerSeenState().resetForUITestingOnce()
