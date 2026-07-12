@@ -102,6 +102,28 @@ final class NativeComposerMentionPIITests: XCTestCase {
         XCTAssertEqual(snapshot.document.nodes[2].canonicalSource, embed.canonicalSource)
     }
 
+    func testDocumentRedactionDoesNotScanEmbedMetadata() {
+        let phone = "+49 170 1234567"
+        let email = "person@composer-fixture.invalid"
+        let embed = ComposerNodeV1.embed(
+            id: "embed-1",
+            embedType: "maps-location",
+            canonicalSource: "```json\n{\"phone\":\"\(phone)\"}\n```",
+            referenceOnly: true,
+            display: .init(title: "Location", mediaKind: "maps-location")
+        )
+        let document = ComposerDocumentV1(
+            version: 1,
+            nodes: [.text(id: "text-1", source: "Email \(email)"), embed]
+        )
+
+        let result = ComposerPIIDecorations.redactedDocument(document: document)
+
+        XCTAssertEqual(result.mappings.map(\.original), [email])
+        XCTAssertFalse(result.document.nodes[0].source?.contains(email) ?? true)
+        XCTAssertEqual(result.document.nodes[1].canonicalSource, embed.canonicalSource)
+    }
+
     func testNativePIIDecorationMapsCanonicalRangePastEmbedToVisibleTextOffset() throws {
         let email = "person@composer-fixture.invalid"
         let embed = ComposerNodeV1.embed(
