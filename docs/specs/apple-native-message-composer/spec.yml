@@ -1561,11 +1561,12 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: 379db70bf
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerControllerTests
+        run_id: apple-remote-a7dad89-controller-red
+        subject_commit: a7dad89
+        timestamp: "2026-07-12T08:11:32Z"
+        summary: The controller retained the embed-boundary selection and did not insert the required following newline/text node.
     green_phase:
       required: true
       expected: pass

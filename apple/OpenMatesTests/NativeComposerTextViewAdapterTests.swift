@@ -197,7 +197,7 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         let sentinel = NSAttributedString.Key("synthetic-input-trait-sentinel")
         textView.textStorage.addAttribute(sentinel, value: true, range: NSRange(location: 0, length: 1))
 
-        textView.autocapitalizationType = .none
+        XCTAssertEqual(textView.autocapitalizationType, .none)
         try controller.loadDocument(ComposerDocumentV1(version: 1, nodes: [.text(id: "text-2", source: "Hello")]))
         adapter.synchronize(textView)
 
