@@ -207,11 +207,15 @@ attempts:
 
 handoff:
   current_task_id: TASK-20
-  next_action: Run the persisted web-search child/favicons unit contract, then add the focused iPhone renderer parity assertion for the direct persisted parent route.
+  next_action: Re-run the persisted web-search child/favicons unit contract after the concurrent Apple share-panel compile regression is repaired.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SkillApplicationParityTests
   expected_outcome: The unit contract proves persisted child resolution; the next UI assertion must fail before sheet/web-search visual parity work.
-  blocker: null
-  last_verified_commit: c60c7d1
+  blocker:
+    type: external_compile_failure
+    source: apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift and apple/OpenMates/Sources/Features/Chat/Views/AppleSharePanel.swift
+    detail: Concurrent share-panel commits now fail the iPhone unit-test build because URL.appending(fragment:) is unsupported and AppleSharePanel references an unavailable summary symbol.
+    next_action: Wait for the owner of the share-panel change to repair the compile failure, then re-run the focused test.
+  last_verified_commit: 4b26cb91d
 
 scenarios:
   - id: S-1

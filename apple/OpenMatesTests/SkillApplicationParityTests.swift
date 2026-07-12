@@ -157,9 +157,11 @@ final class SkillApplicationParityTests: XCTestCase {
                 "result_count": AnyCodable(2),
                 "embed_ids": AnyCodable(["persisted-web-child-1", "persisted-web-child-2"]),
             ]),
+            parentEmbedId: nil,
             appId: "web",
             skillId: "search",
-            embedIds: "persisted-web-child-1|persisted-web-child-2"
+            embedIds: "persisted-web-child-1|persisted-web-child-2",
+            createdAt: "2026-07-12T00:00:00Z"
         )
         let firstChild = EmbedRecord(
             id: "persisted-web-child-1",
@@ -170,7 +172,10 @@ final class SkillApplicationParityTests: XCTestCase {
                 "favicon": AnyCodable("https://example.com/favicon.ico"),
             ]),
             parentEmbedId: parent.id,
-            appId: "web"
+            appId: "web",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: "2026-07-12T00:00:01Z"
         )
         let secondChild = EmbedRecord(
             id: "persisted-web-child-2",
@@ -178,7 +183,10 @@ final class SkillApplicationParityTests: XCTestCase {
             status: .finished,
             data: .raw(["url": AnyCodable("https://example.org/two")]),
             parentEmbedId: parent.id,
-            appId: "web"
+            appId: "web",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: "2026-07-12T00:00:02Z"
         )
 
         let model = SearchSkillPreviewModel(
@@ -186,7 +194,7 @@ final class SkillApplicationParityTests: XCTestCase {
             allEmbedRecords: [parent.id: parent, firstChild.id: firstChild, secondChild.id: secondChild]
         )
 
-        XCTAssertEqual(model.websiteResults.map(\.embed.id), [firstChild.id, secondChild.id])
+        XCTAssertEqual(model.websiteResults.map { $0.embed.id }, [firstChild.id, secondChild.id])
         XCTAssertEqual(model.previewResultCount, 2)
         XCTAssertTrue(model.websiteResults.first?.faviconURL?.contains("example.com") == true)
     }
