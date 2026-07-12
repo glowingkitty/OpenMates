@@ -2237,11 +2237,15 @@ struct ChatView: View {
         }
         let snapshotNodeIDs = deferredComposerSendNodeIDs[snapshot.requestId] ?? []
         let embeds = snapshotNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
-        let markdown = try ComposerMarkdownAdapter.serialize(snapshot.document)
-        let redaction = await enhancedRedactionResult(in: markdown, excludedIds: context.excludedPIIIds)
+        let redaction = ComposerPIIDecorations.redactedDocument(
+            document: snapshot.document,
+            excludedIds: context.excludedPIIIds,
+            options: piiPrivacySettingsStore.detectionOptions()
+        )
+        let markdown = try ComposerMarkdownAdapter.serialize(redaction.document)
         viewModel.error = nil
         await viewModel.sendMessage(
-            redaction.redactedText,
+            markdown,
             piiMappings: redaction.mappings,
             broadcastToSiblings: context.broadcastToSiblings,
             composerEmbeds: embeds
@@ -2570,9 +2574,17 @@ struct ChatView: View {
         }
         guard decision == .submit else { return }
 
+        let redaction: ComposerDocumentPIIRedactionResult
+        let originalText: String
         let text: String
         do {
-            text = try composerSession.canonicalMarkdownForSend()
+            originalText = try ComposerMarkdownAdapter.serialize(document)
+            redaction = ComposerPIIDecorations.redactedDocument(
+                document: document,
+                excludedIds: piiExclusions,
+                options: piiPrivacySettingsStore.detectionOptions()
+            )
+            text = try ComposerMarkdownAdapter.serialize(redaction.document)
         } catch {
             NativeDiagnostics.error(
                 "Composer send serialization failed: \(type(of: error))",
@@ -2581,7 +2593,7 @@ struct ChatView: View {
             viewModel.error = AppStrings.error
             return
         }
-        let excludedIds = piiExclusions
+        let piiMappings = redaction.mappings
         let documentNodeIDs = document.nodes.filter { $0.kind == "embed" }.map(\.id)
         let composerEmbeds = documentNodeIDs.compactMap { resolvedComposerEmbeds[$0] }
         messageText = ""
@@ -2591,17 +2603,14 @@ struct ChatView: View {
         mentionQuery = nil
 
         Task { @MainActor in
-            let redaction = await enhancedRedactionResult(in: text, excludedIds: excludedIds)
-            let sanitizedText = redaction.redactedText
-            let piiMappings = redaction.mappings
             await viewModel.sendMessage(
-                sanitizedText,
+                text,
                 piiMappings: piiMappings,
                 broadcastToSiblings: broadcastToSiblingSubChats,
                 composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds
             )
             if viewModel.error != nil {
-                messageText = text
+                messageText = originalText
             } else {
                 for nodeID in documentNodeIDs {
                     resolvedComposerEmbeds.removeValue(forKey: nodeID)
@@ -2715,20 +2724,22 @@ struct ChatView: View {
         }
     }
 
-    private func updatePIIMatches(for text: String) {
+    private func updatePIIMatches(for _: String) {
         let options = piiPrivacySettingsStore.detectionOptions()
-        let regexMatches = PIIDetector.detect(in: text, options: options)
+        let visibleText = ComposerPIIDecorations.visibleText(document: composerSession.controller.document)
+        let regexMatches = PIIDetector.detect(in: visibleText, options: options)
         detectedPIIMatches = regexMatches
         let currentIds = Set(detectedPIIMatches.map(\.id))
         piiExclusions = piiExclusions.intersection(currentIds)
 
         enhancedPIIDetectionTask?.cancel()
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+        guard !visibleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               enhancedPIIModelController.modelDetector != nil else { return }
-        let snapshot = text
+        let snapshot = visibleText
         enhancedPIIDetectionTask = Task { @MainActor in
             let result = await enhancedDetector.detect(in: snapshot, options: options)
-            guard !Task.isCancelled, snapshot == messageText else { return }
+            guard !Task.isCancelled,
+                  snapshot == ComposerPIIDecorations.visibleText(document: composerSession.controller.document) else { return }
             detectedPIIMatches = result.matches
             let currentIds = Set(result.matches.map(\.id))
             piiExclusions = piiExclusions.intersection(currentIds)
@@ -2737,17 +2748,6 @@ struct ChatView: View {
 
     private var enhancedDetector: EnhancedPIIDetector {
         EnhancedPIIDetector(modelDetector: enhancedPIIModelController.modelDetector)
-    }
-
-    private func enhancedRedactionResult(in text: String, excludedIds: Set<String>) async -> PIIRedactionResult {
-        let options = piiPrivacySettingsStore.detectionOptions()
-        let detection = await enhancedDetector.detect(in: text, options: options)
-        return PIIDetector.redactionResult(
-            in: text,
-            matches: detection.matches,
-            excludedIds: excludedIds,
-            options: options
-        )
     }
 
     private func updateMentionQuery(for text: String) {

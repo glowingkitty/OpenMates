@@ -18,8 +18,89 @@ struct ComposerPIIRedactionSnapshot: Equatable, Sendable {
     let mappings: [ComposerPIIMapping]
 }
 
+struct ComposerDocumentPIIRedactionResult: Equatable, Sendable {
+    let document: ComposerDocumentV1
+    let mappings: [PIIMapping]
+}
+
 struct ComposerPIIDecorations {
     private static let emailPattern = #"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#
+
+    static func visibleText(document: ComposerDocumentV1) -> String {
+        document.nodes.map { node in
+            switch node.kind {
+            case "text":
+                node.source ?? ""
+            case "hardBreak":
+                "\n"
+            case "mention", "embed":
+                "\u{FFFC}"
+            default:
+                ""
+            }
+        }.joined()
+    }
+
+    static func redactedDocument(
+        document: ComposerDocumentV1,
+        excludedIds: Set<String> = [],
+        options: PIIDetectionOptions = PIIDetectionOptions()
+    ) -> ComposerDocumentPIIRedactionResult {
+        let effectiveOptions = PIIDetectionOptions(
+            excludedIds: options.excludedIds.union(excludedIds),
+            disabledCategories: options.disabledCategories,
+            personalDataEntries: options.personalDataEntries
+        )
+        let matches = PIIDetector.detect(in: visibleText(document: document), options: effectiveOptions)
+        var textRanges: [(nodeIndex: Int, range: NSRange)] = []
+        var location = 0
+
+        for (index, node) in document.nodes.enumerated() {
+            switch node.kind {
+            case "text":
+                let length = node.source?.utf16.count ?? 0
+                textRanges.append((index, NSRange(location: location, length: length)))
+                location += length
+            case "hardBreak", "mention", "embed":
+                location += 1
+            default:
+                continue
+            }
+        }
+
+        var nodes = document.nodes
+        var mappings: [PIIMapping] = []
+        for textRange in textRanges {
+            let localMatches = matches.compactMap { match -> PIIMatch? in
+                guard NSLocationInRange(match.range.location, textRange.range),
+                      NSMaxRange(match.range) <= NSMaxRange(textRange.range) else {
+                    return nil
+                }
+                return PIIMatch(
+                    id: match.id,
+                    type: match.type,
+                    value: match.value,
+                    range: NSRange(
+                        location: match.range.location - textRange.range.location,
+                        length: match.range.length
+                    ),
+                    placeholder: match.placeholder
+                )
+            }
+            guard let source = nodes[textRange.nodeIndex].source, !localMatches.isEmpty else { continue }
+
+            nodes[textRange.nodeIndex] = .text(
+                id: nodes[textRange.nodeIndex].id,
+                source: PIIDetector.redactedText(source, matches: localMatches, excludedIds: effectiveOptions.excludedIds)
+            )
+            mappings.append(contentsOf: PIIDetector.mappings(for: localMatches, excludedIds: effectiveOptions.excludedIds))
+        }
+
+        return ComposerDocumentPIIRedactionResult(
+            document: ComposerDocumentV1(version: document.version, nodes: nodes),
+            mappings: mappings
+        )
+    }
 
     func redactedSnapshot(document: ComposerDocumentV1) -> ComposerPIIRedactionSnapshot {
         var mappings: [ComposerPIIMapping] = []
