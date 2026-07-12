@@ -84,7 +84,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
+  subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
 
 approvals:
   product_contract:
@@ -125,12 +125,12 @@ attempts:
     reason: It routed the models3d spec into this unrelated coordination chat and repeatedly spammed the user.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Verify the completed executable spec, deploy the reviewed changes, and restart OpenCode to load the new hook runtime.
-  command: python3 scripts/spec_verify.py docs/specs/opencode-session-coordination/spec.yml --json
-  expected_outcome: All required acceptance criteria and verification evidence pass.
+  current_task_id: TASK-3
+  next_action: Deploy the verified canonical-bridge identity fix and restart OpenCode to load it.
+  command: 'python3 scripts/sessions.py deploy --session 50de --title "fix: preserve OpenCode bridge identity" --message "Propagate exact chat identity through canonical hook subprocesses."'
+  expected_outcome: The fix is pushed to dev and the restarted server no longer attaches unrelated edits to this repo session.
   blocker: null
-  last_verified_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
+  last_verified_commit: 5d7374a539914e9e718272505146e734f7d8930c
 
 scenarios:
   - id: S-1
@@ -231,6 +231,16 @@ acceptance_criteria:
     verification_scope: custom
     verification_ids:
       - T-AUDIT-WORKFLOW
+  - id: AC-7
+    scenario: S-2
+    text: Canonical pre/post tool hooks receive the exact OpenCode chat identity and never fall back to shared Zellij identity when an exact ID is present.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-IDENTITY
+      - T-NODE-LEASE-HOOK
 
 tests:
   - id: T-NODE-IDLE
@@ -258,9 +268,9 @@ tests:
       evidence:
         status: passed
         command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs
-        run_id: local-green-2026-07-12-node
-        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
-        timestamp: "2026-07-12T19:29:12Z"
+        run_id: local-green-2026-07-12-bridge-identity
+        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        timestamp: "2026-07-12T19:42:23Z"
   - id: T-PYTEST-LEASES
     type: pytest
     file: scripts/tests/test_opencode_file_leases.py
@@ -291,9 +301,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_file_leases.py scripts/tests/test_opencode_spec_workflow_audit.py
-        run_id: local-green-2026-07-12-python
-        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
-        timestamp: "2026-07-12T19:29:12Z"
+        run_id: local-green-2026-07-12-python-identity
+        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        timestamp: "2026-07-12T19:42:23Z"
   - id: T-NODE-LEASE-HOOK
     type: unit
     file: scripts/tests/test_opencode_file_lease_hook.mjs
@@ -325,9 +335,38 @@ tests:
       evidence:
         status: passed
         command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs scripts/tests/test_opencode_file_lease_hook.mjs scripts/tests/test_opencode_hooks_contract.mjs
-        run_id: local-green-2026-07-12-node
-        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
-        timestamp: "2026-07-12T19:29:12Z"
+        run_id: local-green-2026-07-12-bridge-identity
+        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        timestamp: "2026-07-12T19:42:23Z"
+  - id: T-PYTEST-IDENTITY
+    type: pytest
+    file: backend/tests/test_sessions_py_identity.py
+    command: python3 -m pytest backend/tests/test_sessions_py_identity.py
+    covers:
+      - AC-7
+    assertions:
+      - exact OpenCode chat identity takes precedence over shared Zellij identity
+      - an unknown exact OpenCode identity never falls back to Zellij
+      - Claude sessions retain the unique-Zellij fallback when no OpenCode identity exists
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_sessions_py_identity.py
+        run_id: local-red-2026-07-12-bridge-identity
+        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        timestamp: "2026-07-12T19:42:23Z"
+        reason: The inherited exact OpenCode ID exposed that the legacy fixture and canonical pre-edit guard still assumed Zellij-only identity.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_sessions_py_identity.py scripts/tests/test_opencode_file_leases.py scripts/tests/test_opencode_spec_workflow_audit.py
+        run_id: local-green-2026-07-12-python-identity
+        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        timestamp: "2026-07-12T19:42:23Z"
   - id: T-AUDIT-WORKFLOW
     type: pytest
     file: scripts/tests/test_opencode_spec_workflow_audit.py
@@ -355,9 +394,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/audit_opencode_spec_workflow.py
-        run_id: local-green-2026-07-12-workflow
-        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
-        timestamp: "2026-07-12T19:29:12Z"
+        run_id: local-green-2026-07-12-python-identity
+        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        timestamp: "2026-07-12T19:42:23Z"
 
 implementation_plan:
   spec_path: docs/specs/opencode-session-coordination/spec.yml
@@ -471,8 +510,11 @@ tasks:
         - AC-2
         - AC-3
         - AC-4
+        - AC-7
     expected_files:
       - .opencode/plugins/openmates-hooks.js
+      - .claude/hooks/pre-edit-guard.sh
+      - backend/tests/test_sessions_py_identity.py
       - scripts/tests/test_opencode_file_lease_hook.mjs
     ownership:
       files:
@@ -481,6 +523,7 @@ tasks:
       shared_files: []
     verification_ids:
       - T-NODE-LEASE-HOOK
+      - T-PYTEST-IDENTITY
     dependencies:
       - TASK-2
     blockers: []

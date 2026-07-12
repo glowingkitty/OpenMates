@@ -103,6 +103,24 @@ test("loaded hook rejects direct source mutation before command execution", asyn
 });
 
 
+test("loaded hook forwards the exact OpenCode chat identity to the canonical bridge", async () => {
+  const bridgeCalls = [];
+  const hooks = await OpenMatesHooks({
+    client: { session: { prompt: async () => {} } },
+    runHookBridge: (...args) => bridgeCalls.push(args),
+    runLease: async (command) => command === "claim" ? { notifications: [] } : {},
+  });
+
+  await hooks["tool.execute.before"](
+    { tool: "bash", sessionID: "ses_exact", args: { command: "git status --short" } },
+    { args: { command: "git status --short" } },
+  );
+
+  assert.equal(bridgeCalls.length, 1);
+  assert.equal(bridgeCalls[0][2], "ses_exact");
+});
+
+
 test("rejected pre-tool policy does not strand an active edit", async () => {
   let rejectPolicy = true;
   const hooks = await OpenMatesHooks({

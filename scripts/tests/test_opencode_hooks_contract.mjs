@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const source = readFileSync(new URL("../../.opencode/plugins/openmates-hooks.js", import.meta.url), "utf8");
+const preEditGuard = readFileSync(new URL("../../.claude/hooks/pre-edit-guard.sh", import.meta.url), "utf8");
 
 test("stale-read check uses pre-execution input arguments", () => {
   assert.match(source, /editedFiles\(input\?\.args \|\| output\?\.args\)/);
@@ -21,6 +22,11 @@ test("Apple audit exit code two remains blocking", () => {
 
 test("loaded hook uses chat-scoped file leases without idle spec continuation", () => {
   assert.match(source, /createFileLeaseCoordinator/);
-  assert.match(source, /OPENCODE_SESSION_ID/);
+  assert.match(source, /env: sessionID \? \{ \.\.\.process\.env, OPENCODE_SESSION_ID: sessionID \}/);
   assert.doesNotMatch(source, /createSpecAutoContinue|session\.idle|opencode-spec-continuation/);
+});
+
+test("canonical pre-edit guard prefers exact OpenCode identity", () => {
+  assert.match(preEditGuard, /if \[ -n "\$OPENCODE_SESSION_ID" \]/);
+  assert.match(preEditGuard, /select\(\.value\.opencode_session_id == \$id\)/);
 });

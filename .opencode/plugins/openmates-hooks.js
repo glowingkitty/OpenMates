@@ -248,9 +248,10 @@ Run this from the repo root to log the CLI into the dev test account automatical
 Then retry the OpenMates CLI command. The script reads OPENMATES_TEST_ACCOUNT_* values from .env/process.env and writes the normal ~/.openmates/session.json used by the CLI.`;
 }
 
-function runBridge(event, payload) {
+function runBridge(event, payload, sessionID) {
   const result = spawnSync("bash", [BRIDGE, event], {
     cwd: PROJECT_ROOT,
+    env: sessionID ? { ...process.env, OPENCODE_SESSION_ID: sessionID } : process.env,
     input: JSON.stringify(payload),
     encoding: "utf8",
   });
@@ -392,10 +393,10 @@ export const OpenMatesHooks = async ({ client, runLease, hasActiveBinding, runHo
         for (const file of files) {
           runStaleRead("check", input.sessionID, file);
         }
-        runHookBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args));
+        runHookBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
         await fileLeases.beforeEdit(input.sessionID, files);
       } else if (!READ_TOOLS.has(tool)) {
-        runHookBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args));
+        runHookBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args), input.sessionID);
       }
     },
     "tool.execute.after": async (input, output) => {
@@ -419,7 +420,7 @@ export const OpenMatesHooks = async ({ client, runLease, hasActiveBinding, runHo
 
       const args = input?.args || toolArgs(input, output);
       fileLeases.afterEdit(input.sessionID, editedFiles(args));
-      runBridge("PostToolUse", bridgePayload("PostToolUse", tool, args));
+      runBridge("PostToolUse", bridgePayload("PostToolUse", tool, args), input.sessionID);
 
       for (const file of editedFiles(args)) {
         const payload = filePayload("PostToolUse", file);
