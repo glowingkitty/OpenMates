@@ -84,7 +84,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+  subject_commit: dcc0e6ad69a8fb48c7e912f827de8b0f0a3f5391
 
 approvals:
   product_contract:
@@ -130,7 +130,7 @@ handoff:
   command: 'python3 scripts/sessions.py deploy --session 50de --title "fix: preserve OpenCode bridge identity" --message "Propagate exact chat identity through canonical hook subprocesses."'
   expected_outcome: The fix is pushed to dev and the restarted server no longer attaches unrelated edits to this repo session.
   blocker: null
-  last_verified_commit: 5d7374a539914e9e718272505146e734f7d8930c
+  last_verified_commit: dcc0e6ad69a8fb48c7e912f827de8b0f0a3f5391
 
 scenarios:
   - id: S-1
@@ -269,7 +269,7 @@ tests:
         status: passed
         command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs
         run_id: local-green-2026-07-12-bridge-identity
-        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        subject_commit: dcc0e6ad69a8fb48c7e912f827de8b0f0a3f5391
         timestamp: "2026-07-12T19:42:23Z"
   - id: T-PYTEST-LEASES
     type: pytest
@@ -302,7 +302,7 @@ tests:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_file_leases.py scripts/tests/test_opencode_spec_workflow_audit.py
         run_id: local-green-2026-07-12-python-identity
-        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        subject_commit: dcc0e6ad69a8fb48c7e912f827de8b0f0a3f5391
         timestamp: "2026-07-12T19:42:23Z"
   - id: T-NODE-LEASE-HOOK
     type: unit
@@ -336,7 +336,7 @@ tests:
         status: passed
         command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs scripts/tests/test_opencode_file_lease_hook.mjs scripts/tests/test_opencode_hooks_contract.mjs
         run_id: local-green-2026-07-12-bridge-identity
-        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        subject_commit: dcc0e6ad69a8fb48c7e912f827de8b0f0a3f5391
         timestamp: "2026-07-12T19:42:23Z"
   - id: T-PYTEST-IDENTITY
     type: pytest
@@ -365,7 +365,7 @@ tests:
         status: passed
         command: python3 -m pytest backend/tests/test_sessions_py_identity.py scripts/tests/test_opencode_file_leases.py scripts/tests/test_opencode_spec_workflow_audit.py
         run_id: local-green-2026-07-12-python-identity
-        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        subject_commit: dcc0e6ad69a8fb48c7e912f827de8b0f0a3f5391
         timestamp: "2026-07-12T19:42:23Z"
   - id: T-AUDIT-WORKFLOW
     type: pytest
@@ -395,7 +395,7 @@ tests:
         status: passed
         command: python3 scripts/audit_opencode_spec_workflow.py
         run_id: local-green-2026-07-12-python-identity
-        subject_commit: 5d7374a539914e9e718272505146e734f7d8930c
+        subject_commit: dcc0e6ad69a8fb48c7e912f827de8b0f0a3f5391
         timestamp: "2026-07-12T19:42:23Z"
 
 implementation_plan:
