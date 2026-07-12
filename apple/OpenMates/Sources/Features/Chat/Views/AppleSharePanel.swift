@@ -351,7 +351,7 @@ struct AppleSharePanel: View {
                 usedLongFallback = primaryURL.usedLongFallback
                 await onGenerated(primaryURL.url, usedLongFallback, duration)
             } catch {
-                error = AppStrings.error
+                self.error = AppStrings.error
                 NativeDiagnostics.error("Share link generation failed", category: "sharing")
             }
         }
