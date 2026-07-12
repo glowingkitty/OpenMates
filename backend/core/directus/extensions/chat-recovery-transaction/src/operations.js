@@ -229,6 +229,10 @@ async function lockedProtocolState(trx) {
     };
     await trx(PROTOCOL_STATE).insert(row);
   }
+  if (row.active_legacy_tasks == null && row.protocol_epoch === 0 && row.legacy_in_flight === 0) {
+    row.active_legacy_tasks = [];
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({ active_legacy_tasks: [] });
+  }
   if (!Array.isArray(row.active_legacy_tasks)
     || row.legacy_in_flight !== row.active_legacy_tasks.length) fail(500, 'cutover_state_corrupt');
   return row;

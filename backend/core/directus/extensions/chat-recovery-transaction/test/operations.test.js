@@ -281,6 +281,37 @@ test('legacy admission is serialized, durable, and released exactly once', async
   assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, ['message-b']);
 });
 
+test('epoch-zero cutover state repairs a missing empty legacy task list', async () => {
+  const database = fakeDatabase({
+    chat_recovery_protocol_state: [{
+      id: 'chat-recovery', protocol_epoch: 0, sends_paused: false,
+      legacy_in_flight: 0, active_legacy_tasks: null,
+    }],
+  });
+
+  const state = await executeOperation(database, 'get_cutover_state', { protocol_version: 1 });
+
+  assert.equal(state.protocol_epoch, 0);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, []);
+});
+
+test('cutover state keeps unsafe missing legacy task lists fail-closed', async () => {
+  for (const state of [
+    { protocol_epoch: 0, legacy_in_flight: 1 },
+    { protocol_epoch: 1, legacy_in_flight: 0 },
+  ]) {
+    const database = fakeDatabase({
+      chat_recovery_protocol_state: [{
+        id: 'chat-recovery', sends_paused: false, active_legacy_tasks: null, ...state,
+      }],
+    });
+    await assert.rejects(
+      executeOperation(database, 'get_cutover_state', { protocol_version: 1 }),
+      (error) => error instanceof ProtocolError && error.code === 'cutover_state_corrupt',
+    );
+  }
+});
+
 test('pause and activation are atomic and epoch monotonic', async () => {
   const database = fakeDatabase({ chat_recovery_protocol_state: [] });
   await executeOperation(database, 'set_sends_paused', { protocol_version: 1, sends_paused: true });
