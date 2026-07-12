@@ -216,8 +216,17 @@ struct DevQuickCaptureAttachmentPreviewView: View {
 #endif
 
 struct DevChatSharePreviewView: View {
+    private let context = AppleShareContext(
+        contentType: .chat,
+        id: "ui-test-chat-share",
+        title: "Share preview chat",
+        summary: "Synthetic chat share preview",
+        key: SymmetricKey(data: Data(repeating: 0, count: 32)),
+        chatId: "ui-test-chat-share"
+    )
+
     var body: some View {
-        ChatShareView(chatId: "ui-test-chat-share")
+        AppleSharePanel(context: context, onClose: {}, onGenerated: { _, _, _ in })
             .accessibilityIdentifier("chat-share-preview")
     }
 }
