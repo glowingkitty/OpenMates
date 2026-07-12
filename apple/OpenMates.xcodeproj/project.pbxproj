@@ -634,6 +634,10 @@
 		F2862F8645CA164C75FA6A04 /* OpenMatesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DAC483AA3335BAB3069AD2B /* OpenMatesApp.swift */; };
 		F2C8C1CBFA62E58BB77809C2 /* HealthSearchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26ACFA25575D0443B600F0A2 /* HealthSearchIntent.swift */; };
 		F387E8E87488BEEBEAB2BF21 /* CryptoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */; };
+		F76400000000000000000003 /* ShareLinkCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76400000000000000000001 /* ShareLinkCrypto.swift */; };
+		F76400000000000000000004 /* ShareLinkCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76400000000000000000001 /* ShareLinkCrypto.swift */; };
+		F76400000000000000000005 /* AppleSharePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76400000000000000000002 /* AppleSharePanel.swift */; };
+		F76400000000000000000006 /* AppleSharePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76400000000000000000002 /* AppleSharePanel.swift */; };
 		F3AFDA4A070DCB2D02D2FC59 /* EmbedContextMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE764FDBE95761A12B79B1B9 /* EmbedContextMenuView.swift */; };
 		F3DFFE681A29A34B353336F9 /* ForkProgressBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25713DDF92D2E7ACF6D4E4B /* ForkProgressBannerView.swift */; };
 		F41A2ED1BB247017E78B42BF /* DeviceVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05CCC941953D164ECF4C25A3 /* DeviceVerificationView.swift */; };
@@ -788,6 +792,8 @@
 		10E4F0D8583B6A6B1E504AEB /* ImagesSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesSearchEmbedRenderer.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000035001 /* MindMapEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapEmbedRenderer.swift; sourceTree = "<group>"; };
 		13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoManager.swift; sourceTree = "<group>"; };
+		F76400000000000000000001 /* ShareLinkCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkCrypto.swift; sourceTree = "<group>"; };
+		F76400000000000000000002 /* AppleSharePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSharePanel.swift; sourceTree = "<group>"; };
 		151F47FC0A1C13A3A3FC3ABF /* PasswordLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordLoginView.swift; sourceTree = "<group>"; };
 		1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLogsView.swift; sourceTree = "<group>"; };
 		18F626DBB5DC4CFCA1A618E7 /* SettingsMatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsMatesView.swift; sourceTree = "<group>"; };
@@ -1821,6 +1827,7 @@
 			children = (
 				B9FBFD8D921E0469DA412993 /* ChatKeyManager.swift */,
 				13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */,
+				F76400000000000000000001 /* ShareLinkCrypto.swift */,
 				2010DA119E370FEB468BB19E /* KeychainHelper.swift */,
 			);
 			path = Crypto;
@@ -1895,6 +1902,7 @@
 				D82141164C0949C2F8C28C00 /* ChatPaginationView.swift */,
 				6C4E9F72D9FCA3E904FB5B97 /* ChatSearchView.swift */,
 				C7DFBC3D2D8AFBC4367D6CB5 /* ChatShareView.swift */,
+				F76400000000000000000002 /* AppleSharePanel.swift */,
 				4C81AB019DC95300C00108EE /* ChatView.swift */,
 				FB531014DF91F38A7DD04A2B /* DailyInspirationView.swift */,
 				41E019B11E74836197058244 /* ExampleChatsView.swift */,
@@ -2518,6 +2526,8 @@
 				DD26A49438933FC88A097561 /* ChatPaginationView.swift in Sources */,
 				9AA0DAEE4312F4FD5D4B93BC /* ChatSearchView.swift in Sources */,
 				B44ADF2FE2103DD5D3D4DE8F /* ChatShareView.swift in Sources */,
+				F76400000000000000000003 /* ShareLinkCrypto.swift in Sources */,
+				F76400000000000000000005 /* AppleSharePanel.swift in Sources */,
 				160675982DDF9FEA819708A4 /* ChatStore.swift in Sources */,
 				970F714FA8D6B70D27C6CDD3 /* ChatView.swift in Sources */,
 				62551C9057B4C346B711D337 /* ChatViewModel.swift in Sources */,
@@ -2760,6 +2770,8 @@
 				31E2D37AB5BCAE9C588CDD35 /* ChatPaginationView.swift in Sources */,
 				F00B62B6169A0248631F2C0F /* ChatSearchView.swift in Sources */,
 				83F909D23614C7551F699A60 /* ChatShareView.swift in Sources */,
+				F76400000000000000000004 /* ShareLinkCrypto.swift in Sources */,
+				F76400000000000000000006 /* AppleSharePanel.swift in Sources */,
 				7494FFB680B36D61FA3B5132 /* ChatStore.swift in Sources */,
 				EC00D69F3D477073B8F2181F /* ChatView.swift in Sources */,
 				7668BDEE4DFA644309DAEBBD /* ChatViewModel.swift in Sources */,

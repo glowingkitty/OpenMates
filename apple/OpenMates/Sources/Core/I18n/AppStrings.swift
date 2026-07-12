@@ -895,7 +895,32 @@ enum AppStrings {
     static var send: String { L("common.send") }
     static var share: String { L("common.share") }
     static var shareChat: String { L("settings.share.share_chat") }
+    static var shareEmbed: String { L("settings.share.share_embed") }
     static var sharingChatStatus: String { L("settings.share.sharing_chat_status") }
+    static var sharingEmbedStatus: String { L("settings.share.sharing_embed_status") }
+    static var shareDescription: String { L("settings.share.share_description") }
+    static var shareEmbedDescription: String { L("settings.share.share_embed_description") }
+    static var optionalShareSettings: String { L("settings.share.optional_settings") }
+    static var sharePasswordProtection: String { L("settings.share.password_protection") }
+    static var sharePasswordPlaceholder: String { L("settings.share.password_placeholder") }
+    static var shareTimeLimit: String { L("settings.share.time_limit") }
+    static var shareNoExpiration: String { L("settings.share.no_expiration") }
+    static var shareOneMinute: String { L("settings.share.one_minute") }
+    static var shareOneHour: String { L("settings.share.one_hour") }
+    static var shareTwentyFourHours: String { L("settings.share.twenty_four_hours") }
+    static var shareSevenDays: String { L("settings.share.seven_days") }
+    static var shareFourteenDays: String { L("settings.share.fourteen_days") }
+    static var shareThirtyDays: String { L("settings.share.thirty_days") }
+    static var shareNinetyDays: String { L("settings.share.ninety_days") }
+    static var shareCommunity: String { L("settings.share.share_with_community") }
+    static var shareHighlights: String { L("settings.share.include_highlights") }
+    static var shareSensitiveData: String { L("settings.share.include_sensitive_data") }
+    static var shareQRCode: String { L("settings.share.qr_code") }
+    static var shareChangeSettings: String { L("settings.share.change_settings") }
+    static var shareClickToCopy: String { L("settings.share.click_to_copy") }
+    static var shareLinkCopied: String { L("settings.share.link_copied") }
+    static var shareUnshare: String { L("settings.share.unshare") }
+    static var shareExpirationPrefix: String { L("settings.share.link_will_expire_in") }
     static var pin: String { L("common.pin") }
     static var unpin: String { L("common.unpin") }
     static var archive: String { L("common.archive") }

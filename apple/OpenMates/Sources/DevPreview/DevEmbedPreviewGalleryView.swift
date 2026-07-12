@@ -14,6 +14,7 @@
 // ────────────────────────────────────────────────────────────────────
 
 #if DEBUG
+import CryptoKit
 import SwiftUI
 
 struct DevPreviewRootView: View {
@@ -28,6 +29,8 @@ struct DevPreviewRootView: View {
             DevChatOpeningPreviewView(forceRecordingOverlay: true)
         case .chatShare:
             DevChatSharePreviewView()
+        case .embedShare:
+            DevEmbedSharePreviewView()
         case .quickCapture:
             #if os(macOS)
             MacMenuBarQuickCaptureView()
@@ -216,6 +219,22 @@ struct DevChatSharePreviewView: View {
     var body: some View {
         ChatShareView(chatId: "ui-test-chat-share")
             .accessibilityIdentifier("chat-share-preview")
+    }
+}
+
+struct DevEmbedSharePreviewView: View {
+    private let context = AppleShareContext(
+        contentType: .embed,
+        id: "ui-test-embed-share",
+        title: "Web search",
+        summary: "Synthetic embed share preview",
+        key: SymmetricKey(data: Data(repeating: 1, count: 32)),
+        chatId: "ui-test-chat-share"
+    )
+
+    var body: some View {
+        ShareEmbedView(context: context, onClose: {}, onGenerated: { _, _, _ in })
+            .accessibilityIdentifier("embed-share-preview")
     }
 }
 

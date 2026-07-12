@@ -1165,7 +1165,7 @@ struct MainAppView: View {
 
         if showShareChat, let chatId = selectedChatId {
             appOverlay(title: AppStrings.share, isPresented: $showShareChat) {
-                ChatShareView(chatId: chatId)
+                ChatShareView(chatId: chatId, chat: chatStore.chat(for: chatId))
             }
         }
 

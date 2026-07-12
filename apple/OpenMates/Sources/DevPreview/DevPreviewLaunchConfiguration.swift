@@ -18,6 +18,7 @@ struct DevPreviewLaunchConfiguration: Equatable {
         case chatOpening = "chat-opening"
         case chatOpeningRecording = "chat-opening-recording"
         case chatShare = "chat-share"
+        case embedShare = "embed-share"
         case quickCapture = "quick-capture"
         case composerEmbeds = "composer-embeds"
         case composerDraftEdit = "composer-draft-edit"
@@ -67,7 +68,7 @@ struct DevPreviewLaunchConfiguration: Equatable {
                   let surface = Surface(rawValue: parts[1]) else {
                 return nil
             }
-            if surface == .chatOpening || surface == .chatOpeningRecording || surface == .chatShare || surface == .quickCapture || surface == .composerEmbeds || surface == .composerDraftEdit {
+            if surface == .chatOpening || surface == .chatOpeningRecording || surface == .chatShare || surface == .embedShare || surface == .quickCapture || surface == .composerEmbeds || surface == .composerDraftEdit {
                 return DevPreviewLaunchConfiguration(surface: surface, appSlug: .web)
             }
             let app = parts.dropFirst(2).first.flatMap(DevEmbedPreviewApp.init(rawValue:))
@@ -86,6 +87,10 @@ struct DevPreviewLaunchConfiguration: Equatable {
 
         if url.path.hasPrefix("/dev/preview/chat-share") {
             return DevPreviewLaunchConfiguration(surface: .chatShare, appSlug: .web)
+        }
+
+        if url.path.hasPrefix("/dev/preview/embed-share") {
+            return DevPreviewLaunchConfiguration(surface: .embedShare, appSlug: .web)
         }
 
         if url.path.hasPrefix("/dev/preview/quick-capture") {

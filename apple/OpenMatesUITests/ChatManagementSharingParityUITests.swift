@@ -99,6 +99,28 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Chat share configuration")
     }
 
+    func testEmbedShareConfigurationMatchesWebContract() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embed-share"]
+        app.launchEnvironment["DEV_PREVIEW"] = "embed-share"
+        app.launch()
+
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-embed-preview").waitForExistence(timeout: 10))
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-options-section").exists)
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "share-password-toggle").exists)
+        XCTAssertEqual(
+            app.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier == %@", "duration-option"))
+                .count,
+            8
+        )
+        XCTAssertFalse(accessibilityElement(in: app, identifier: "share-community-toggle").exists)
+        XCTAssertFalse(accessibilityElement(in: app, identifier: "share-highlights-toggle").exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Share embed must not render default Form/List chrome")
+
+        attachScreenshot(name: "Embed share configuration")
+    }
+
     func testSafariShareSheetSendsURLThroughOpenMatesExtension() throws {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
