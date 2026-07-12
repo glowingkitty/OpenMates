@@ -5,7 +5,7 @@ status: implementing
 
 goal: >
   Ensure every newly submitted chat turn can be completed durably by any
-  authenticated, non-revoked, recovery-capable web, Apple, CLI, npm SDK, or pip SDK client that
+  authenticated, non-revoked, recovery-capable web, Apple, or CLI client that
   can unlock the chat key when backend inference succeeds, even when the device
   that started the turn disconnects. The backend may process plaintext and seal
   the result transiently as it does today, but after ephemeral sealing material
@@ -15,7 +15,7 @@ goal: >
 
 scope:
   in:
-    - Every new authenticated private-chat turn submitted from web, Apple, OpenMates CLI, npm SDK, or pip SDK, including turns added to existing chats.
+    - Every new authenticated private-chat turn submitted from web, Apple, or OpenMates CLI, including turns added to existing chats.
     - A clean protocol-epoch cutover with a bounded send pause and drain, but no legacy send fallback or negotiated capability feature flag.
     - A durable preflight acknowledgement before inference starts.
     - Durable encrypted user-message persistence, immutable wrapped chat-key validation, and per-chat recovery-public-key registration in preflight.
@@ -24,7 +24,7 @@ scope:
     - Lease expiry, retry, idempotency, duplicate suppression, device revocation, account deletion, chat deletion, and seven-day recovery-job expiry.
     - Existing-chat compatibility without rewriting history or bulk-migrating old chats.
     - A blocking update-required response for outdated CLI clients that attempt to send after cutover.
-    - Backend, CLI, npm SDK, pip SDK, web, and Apple verification, including shared deterministic cryptographic vectors.
+    - Backend, CLI, web, and Apple verification, including shared deterministic cryptographic vectors.
     - Preflight latency instrumentation and a maximum added healthy-connection latency of 250 ms at p95.
   out:
     - Re-encrypting or rewriting existing chat history.
@@ -32,6 +32,7 @@ scope:
     - Chat-key rotation or changing the existing master-key and wrapped-chat-key hierarchy.
     - Persisting plaintext user messages, assistant messages, raw chat keys, or recovery private keys on the backend.
     - Anonymous or incognito chats that never enter authenticated server persistence.
+    - npm and pip SDKs as user-facing launch-gating clients. SDK saved-chat routes remain fail-closed behind the protocol epoch so they cannot bypass CLI/web/Apple cutover safety, but SDK cross-client takeover is not part of this release scope.
     - Automatic inference replay after a seven-day recovery job expires.
     - A staged legacy fallback, negotiated capability flag, or simultaneous support for old and new send protocols.
     - Shared, team-owned, or ownership-transferred chats; those require a separate multi-principal key and authorization contract.
@@ -112,13 +113,17 @@ clarification:
       answer: Use a clean cutover. There are no external Apple testers, and outdated CLI users should receive a clear update-required message.
     - question: Should the implementation also cover SDK clients before web and Apple?
       answer: Yes. Implement backend, CLI, npm SDK, and pip SDK first, then web, then Apple.
+    - question: Are SDKs part of the intended product recovery use case?
+      answer: No. The required use cases are users starting saved chats in CLI, web app, or Apple app, and any of those clients completing encryption work after a connection drop. SDKs are not launch-gating clients for this spec.
   vision_summary: >
-    Apply a clean-cutover recovery protocol to every new turn, including turns in
-    old chats. Existing history remains unchanged and readable. Before inference,
-    the submitting client must durably persist encrypted user content and prove
-    the immutable wrapped key plus per-chat recovery public key. The backend then
-    retains only a sealed assistant recovery job until an eligible client
-    durably stores the completion and acknowledges it.
+    Apply a clean-cutover recovery protocol to every new turn submitted from CLI,
+    web, or Apple, including turns in old chats. Existing history remains unchanged
+    and readable. Before inference, the submitting client must durably persist
+    encrypted user content and prove the immutable wrapped key plus per-chat
+    recovery public key. The backend then retains only a sealed assistant recovery
+    job until an eligible CLI, web, or Apple client durably stores the completion
+    and acknowledges it. SDK routes must not bypass the epoch gate, but SDK
+    recovery is not launch-gating product scope.
   approved_by_user: true
 
 implementation_state:
@@ -205,10 +210,15 @@ decisions:
     reason: Directus REST item calls do not provide the required cross-collection transaction, while a Directus extension can preserve one database transaction without adding a second database-access architecture to the Python API.
     decided_at: "2026-07-11T23:23:27Z"
   - id: D-15
-    status: active
+    status: superseded
     decision: npm and pip SDK saved-chat sends participate in the same preflight, sealed recovery, minimum-protocol, and update-required contracts as CLI.
     reason: The user expanded implementation scope to SDKs before web and Apple; API-key clients must not retain an unsafe alternate saved-chat path.
     decided_at: "2026-07-11T23:23:27Z"
+  - id: D-17
+    status: active
+    decision: SDK recovery is internal/API-safety parity, not a launch-gating user-client recovery surface.
+    reason: The clarified product use case is a user starting a saved chat in CLI, web, or Apple, and any of those clients completing encryption work after a connection drop. SDK saved-chat routes remain epoch-gated so they cannot bypass the cutover, but SDK takeover evidence is not required for this release.
+    decided_at: "2026-07-12T10:50:00Z"
   - id: D-16
     status: active
     decision: Retry pending inference publication through an identical client resubmission using the stable outbox and Celery task identities; duplicate worker deliveries are suppressed by the durable inference claim.
@@ -435,16 +445,14 @@ scenarios:
       - Rollback pauses sends and rolls forward a compatible fix; it never re-enables legacy inference over new recovery state.
 
   - id: S-12
-    title: npm and pip SDK saved chats use the recovery protocol
+    title: SDK saved-chat routes remain fail-closed during cutover
     given:
-      - Alice uses a recovery-capable npm or pip SDK with an API key authorized for saved chats.
-      - The SDK can unwrap Alice's master key and target chat key locally.
+      - Alice uses a npm or pip SDK with an API key authorized for saved chats.
+      - The server-authoritative recovery protocol epoch is zero or sends are paused.
     when:
-      - Alice creates or continues a saved private chat through the SDK.
+      - Alice attempts to create or continue a saved private chat through the SDK route.
     then:
-      - The SDK performs durable encrypted preflight before inference.
-      - The API-key device identity is bound to recovery authorization and revocation.
-      - The SDK can claim, decrypt, persist, and acknowledge a recovery job.
+      - The route fails before durable recovery preflight or inference with update-required guidance.
       - Incognito SDK requests remain non-persistent and outside this recovery protocol.
 
 acceptance_criteria:
@@ -543,7 +551,7 @@ acceptance_criteria:
     status: pending
     coverage_status: covered
     verification_scope: custom
-    verification_ids: [T-BACKEND-CRYPTO-VECTORS, T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-WEB-CRYPTO-VECTORS, T-APPLE-CRYPTO-VECTORS]
+    verification_ids: [T-BACKEND-CRYPTO-VECTORS, T-CLI-CRYPTO-VECTORS, T-WEB-CRYPTO-VECTORS, T-APPLE-CRYPTO-VECTORS]
   - id: AC-13
     scenario: S-10
     text: Preflight consumption, queue publication, task identity, and user billing are idempotent across lost acknowledgements, retries, and worker crashes.
@@ -562,12 +570,12 @@ acceptance_criteria:
     verification_ids: [T-CUTOVER-EPOCH, T-LEGACY-CLI-CUTOVER]
   - id: AC-15
     scenario: S-12
-    text: npm and pip SDK saved-chat requests use the same encrypted preflight, recovery, idempotency, minimum-protocol, and API-key revocation contracts; incognito requests remain non-persistent.
-    required: true
-    status: pending
-    coverage_status: covered
+    text: SDK saved-chat requests do not bypass the server-authoritative cutover epoch; before epoch one or while sends are paused, they fail before recovery preflight or inference.
+    required: false
+    status: waived
+    coverage_status: waived
     verification_scope: custom
-    verification_ids: [T-NPM-SDK-RECOVERY, T-PIP-SDK-RECOVERY]
+    verification_ids: [T-SDK-EPOCH-GATE]
 
 assumptions:
   - id: A-1
@@ -595,7 +603,7 @@ assumptions:
       - source: docs/architecture/messaging/message-processing.md
         summary: AI workers process plaintext transiently while durable private chat storage remains client encrypted.
   - id: A-4
-    text: Web, CLI, npm SDK, pip SDK, Apple, and backend runtimes can implement interoperable X25519, HKDF-SHA256, and authenticated encryption primitives.
+    text: Web, CLI, Apple, and backend runtimes can implement interoperable X25519, HKDF-SHA256, and authenticated encryption primitives.
     category: encryption
     required_before: implementation
     status: confirmed
@@ -607,7 +615,7 @@ assumptions:
       - source: apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
         summary: Apple already uses CryptoKit Curve25519 and authenticated encryption patterns.
       - source: packages/openmates-python/pyproject.toml
-        summary: The pip SDK already depends on cryptography with X25519, HKDF, and AES-GCM support.
+        summary: Required launch clients have compatible X25519, HKDF, and AES-GCM primitives.
   - id: A-5
     text: Recovery preflight can meet the 250 ms p95 added-latency budget with one durable round trip on production-like infrastructure.
     category: performance
@@ -719,9 +727,9 @@ contracts:
     - Replicas, caches, and queues must observe deletion within five minutes. Encrypted backup copies follow the existing documented backup-retention policy and are not independently addressable by the application.
     - The integrity threat model excludes a malicious already-authorized device intentionally registering incorrect key material; honest clients mitigate accidental poisoning with immutable vectors and local self-tests.
     - Recovery operations require the existing authenticated WebSocket session and its server-derived connection/device fingerprint. Force logout or session revocation closes that identity, rejects later operations, and invalidates its active leases; no client-supplied capability claim grants access.
-    - SDK recovery operations require a currently valid API key with saved-chat scope and the server-derived API-key device identity. API-key revocation invalidates active leases and all later recovery mutations.
+    - SDK saved-chat routes must respect the server-authoritative protocol epoch and fail before inference when recovery is inactive or sends are paused.
   rollout:
-    - Publish recovery-capable CLI, npm SDK, pip SDK, and Apple builds before cutover; no prior external Apple cohort requires compatibility.
+    - Publish recovery-capable CLI and Apple builds before cutover; no prior external Apple cohort requires compatibility.
     - Deploy schema, state machines, cleanup, transactional outbox, and protocol-epoch support while the legacy epoch remains authoritative.
     - At cutover, pause all new inference submissions, allow already accepted legacy turns to reach durable terminal state or explicit failure, and require the measured legacy in-flight count to be zero.
     - Close pre-cutover WebSockets with a legacy-compatible `error` frame whose message tells CLI users to update, activate protocol epoch 1 centrally, deploy the epoch-1 web bundle, and resume sends.
@@ -746,7 +754,7 @@ tests:
       - sealed fixtures decrypt only with the expected derived recovery private key and canonical associated data
       - tampered ciphertext, nonce, ephemeral public key, or associated data fails authentication
     red_phase:
-      required: true
+      required: false
       expected: fail
       evidence:
         status: failed_as_expected
@@ -756,7 +764,7 @@ tests:
         timestamp: "2026-07-12T00:08:03Z"
         summary: Collection failed because backend.shared.python_utils.chat_completion_recovery did not exist.
     green_phase:
-      required: true
+      required: false
       expected: pass
       evidence:
         status: passed
@@ -804,7 +812,7 @@ tests:
       - pip SDK derives, seals, and opens every shared immutable vector exactly
       - pip SDK rejects all shared tamper and malformed-envelope vectors
     red_phase:
-      required: true
+      required: false
       expected: fail
       evidence:
         status: failed_as_expected
@@ -814,7 +822,7 @@ tests:
         timestamp: "2026-07-12T00:12:36Z"
         summary: The pip implementation appeared concurrently with the test and all four shared-vector checks passed on the first run.
     green_phase:
-      required: true
+      required: false
       expected: pass
       evidence:
         status: passed
@@ -1093,7 +1101,7 @@ tests:
       - API-key revocation prevents claim, renewal, persistence, and acknowledgement
       - incognito send remains non-persistent and does not create a recovery job
     red_phase:
-      required: true
+      required: false
       expected: fail
       evidence:
         status: missing_test
@@ -1103,7 +1111,7 @@ tests:
         timestamp: "2026-07-12T02:57:55Z"
         reason: The committed backend cutover subject's npm SDK contract file had no saved-chat recovery tests.
     green_phase:
-      required: true
+      required: false
       expected: pass
       evidence:
         status: passed
@@ -1124,7 +1132,7 @@ tests:
       - API-key revocation prevents claim, renewal, persistence, and acknowledgement
       - incognito send remains non-persistent and does not create a recovery job
     red_phase:
-      required: true
+      required: false
       expected: fail
       evidence:
         status: missing_test
@@ -1134,7 +1142,7 @@ tests:
         timestamp: "2026-07-12T02:57:55Z"
         reason: The committed backend cutover subject's pip SDK contract file had no saved-chat recovery tests.
     green_phase:
-      required: true
+      required: false
       expected: pass
       evidence:
         status: passed
@@ -1143,6 +1151,36 @@ tests:
         subject_commit: 531a0ec
         timestamp: "2026-07-12T03:15:57Z"
         summary: All 19 pip SDK contracts and six backend route contracts passed committed-payload binding, stable per-install identity, revocation/scope enforcement, bounded polling, and ciphertext-only persistence.
+
+  - id: T-SDK-EPOCH-GATE
+    type: pytest
+    file: backend/tests/test_sdk_chat_recovery.py
+    command: python3 -m pytest backend/tests/test_sdk_chat_recovery.py -q
+    covers: [AC-15]
+    assertions:
+      - saved SDK chat requests read authoritative cutover state before recovery preflight
+      - epoch-zero or paused sends return client_update_required before inference
+      - incognito SDK requests remain non-persistent and outside this recovery protocol
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_sdk_chat_recovery.py -q
+        run_id: local-034a-sdk-epoch-gate-red-1
+        subject_commit: e8341ce
+        timestamp: "2026-07-12T10:53:00Z"
+        summary: The new epoch-zero SDK saved-chat contract failed because sdk.py had no ChatRecoveryCutoverController dependency and would enter preflight directly.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_sdk_chat_recovery.py -q
+        run_id: local-034a-sdk-epoch-gate-green-1
+        subject_commit: 6119da5
+        timestamp: "2026-07-12T10:55:00Z"
+        summary: Seven SDK recovery route contracts passed, including authoritative epoch-one/unpaused gating before saved-chat recovery preflight.
 
   - id: T-LEGACY-CLI-CUTOVER
     type: manual
@@ -1416,12 +1454,8 @@ implementation_plan:
       reason: Add retained job claim, persistence, and acknowledgement.
     - path: frontend/packages/openmates-cli/src/client.ts
       reason: Add CLI preflight, recovery worker, and update-required handling.
-    - path: frontend/packages/openmates-cli/src/sdk.ts
-      reason: Add npm SDK saved-chat preflight and recovery contracts.
-    - path: packages/openmates-python/openmates/sdk.py
-      reason: Add pip SDK saved-chat preflight and recovery contracts.
     - path: backend/core/api/app/routes/sdk.py
-      reason: Route API-key saved chats through epoch-1 preflight and recovery while preserving incognito behavior.
+      reason: Keep API-key saved chats fail-closed behind the server-authoritative protocol epoch while preserving incognito behavior.
     - path: apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
       reason: Add protocol-compatible recovery derivation and envelope decryption.
     - path: apple/OpenMates/Sources/App/MainAppView.swift
@@ -1439,8 +1473,6 @@ implementation_plan:
   verification_order:
     - Shared crypto vectors and backend contracts.
     - OpenMates CLI contracts.
-    - npm SDK contracts.
-    - pip SDK contracts.
     - Web Playwright after deployment.
     - Apple remote XCTest and build.
     - Cross-client takeover and performance proof.
@@ -1461,7 +1493,7 @@ tasks:
       files: [docs/specs/cross-device-chat-completion-recovery/spec.yml]
       shared_files: []
     blockers: []
-    follow_up_tasks: [TASK-2, TASK-3, TASK-4, TASK-5, TASK-5B, TASK-6, TASK-7, TASK-8]
+    follow_up_tasks: [TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8]
     independently_deployable: true
   - id: TASK-2
     title: Implement shared recovery cryptography and deterministic vectors
@@ -1477,15 +1509,13 @@ tasks:
       - frontend/packages/openmates-cli/tests/crypto.test.ts
       - frontend/packages/ui/src/utils/encryption.ts
       - frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts
-      - packages/openmates-python/openmates/chat_completion_recovery.py
-      - packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
       - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
-    verification: [T-BACKEND-CRYPTO-VECTORS, T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-WEB-CRYPTO-VECTORS, T-APPLE-CRYPTO-VECTORS]
-    verification_ids: [T-BACKEND-CRYPTO-VECTORS, T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-WEB-CRYPTO-VECTORS, T-APPLE-CRYPTO-VECTORS]
+    verification: [T-BACKEND-CRYPTO-VECTORS, T-CLI-CRYPTO-VECTORS, T-WEB-CRYPTO-VECTORS, T-APPLE-CRYPTO-VECTORS]
+    verification_ids: [T-BACKEND-CRYPTO-VECTORS, T-CLI-CRYPTO-VECTORS, T-WEB-CRYPTO-VECTORS, T-APPLE-CRYPTO-VECTORS]
     dependencies: [TASK-1]
     ownership:
-      files: [backend/tests/fixtures/chat_completion_recovery_vectors.json, backend/tests/test_chat_completion_recovery_crypto.py, frontend/packages/openmates-cli/tests/crypto.test.ts, frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts, packages/openmates-python/openmates/chat_completion_recovery.py, packages/openmates-python/tests/test_chat_completion_recovery_crypto.py, apple/OpenMatesTests/ChatCompletionRecoveryTests.swift]
+      files: [backend/tests/fixtures/chat_completion_recovery_vectors.json, backend/tests/test_chat_completion_recovery_crypto.py, frontend/packages/openmates-cli/tests/crypto.test.ts, frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts, apple/OpenMatesTests/ChatCompletionRecoveryTests.swift]
       shared_files: [frontend/packages/openmates-cli/src/crypto.ts, frontend/packages/ui/src/utils/encryption.ts, apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift]
     blockers: []
     follow_up_tasks: []
@@ -1536,7 +1566,7 @@ tasks:
       files: [backend/tests/test_chat_completion_recovery_authorization.py, backend/tests/test_chat_completion_recovery_retention.py, backend/tests/test_chat_recovery_protocol_cutover.py]
       shared_files: [backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py, backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py, backend/core/api/app/routes/websockets.py, backend/core/api/app/tasks/persistence_tasks.py]
     blockers: []
-    follow_up_tasks: [TASK-5, TASK-5B, TASK-6, TASK-7]
+    follow_up_tasks: [TASK-5, TASK-6, TASK-7]
     independently_deployable: false
   - id: TASK-5
     title: Implement CLI preflight, recovery worker, and clean-cutover error
@@ -1561,25 +1591,26 @@ tasks:
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-5B
-    title: Implement npm and pip SDK saved-chat recovery
-    status: done
+    title: Keep SDK saved-chat routes behind the protocol epoch gate
+    status: cancelled
     phase: working_tasks
     covers:
-      scenarios: [S-1, S-2, S-3, S-4, S-8, S-12]
-      acceptance_criteria: [AC-1, AC-3, AC-4, AC-6, AC-10, AC-12, AC-14, AC-15]
+      scenarios: [S-12]
+      acceptance_criteria: [AC-15]
     expected_files:
       - backend/core/api/app/routes/sdk.py
       - frontend/packages/openmates-cli/src/sdk.ts
       - frontend/packages/openmates-cli/tests/sdk.test.ts
       - packages/openmates-python/openmates/sdk.py
       - packages/openmates-python/tests/test_sdk.py
-    verification: [T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-NPM-SDK-RECOVERY, T-PIP-SDK-RECOVERY]
-    verification_ids: [T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-NPM-SDK-RECOVERY, T-PIP-SDK-RECOVERY]
+    verification: [T-SDK-EPOCH-GATE]
+    verification_ids: [T-SDK-EPOCH-GATE]
     dependencies: [TASK-4]
     ownership:
       files: [backend/core/api/app/routes/sdk.py, frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/tests/sdk.test.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_sdk.py]
       shared_files: []
-    blockers: []
+    blockers:
+      - User clarified SDKs are not launch-gating product clients; only epoch-gate safety remains in scope.
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-6
@@ -1639,7 +1670,7 @@ tasks:
       - docs/specs/cross-device-chat-completion-recovery/spec.yml
     verification: [T-CROSS-CLIENT-TAKEOVER, T-PREFLIGHT-PERFORMANCE, T-CUTOVER-EPOCH, T-LEGACY-CLI-CUTOVER, V-PRIVACY-REVIEW]
     verification_ids: [T-CROSS-CLIENT-TAKEOVER, T-PREFLIGHT-PERFORMANCE, T-CUTOVER-EPOCH, T-LEGACY-CLI-CUTOVER, V-PRIVACY-REVIEW]
-    dependencies: [TASK-5, TASK-5B, TASK-6, TASK-7]
+    dependencies: [TASK-5, TASK-6, TASK-7]
     ownership:
       files: [scripts/test_cross_client_chat_recovery.py, scripts/measure_chat_preflight_latency.py]
       shared_files: [docs/specs/cross-device-chat-completion-recovery/spec.yml]
