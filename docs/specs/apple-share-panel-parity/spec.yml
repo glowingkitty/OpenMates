@@ -120,14 +120,25 @@ attempts:
       Apple embed calls an incompatible /v1/chats/{chatId}/embeds/{embedId}/share
       endpoint. Neither flow constructs web-compatible encrypted fragment links
       or durable short links; the embed flow also uses forbidden stock UI.
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Run the focused iOS UI contract test on the remote Mac before implementation.
+    outcome: blocked
+    recorded_at: "2026-07-12"
+    notes: >
+      The remote iOS test build stopped before the share assertion because
+      ChatCompletionRecoveryCoordinator.swift from commit 7ac45d7d7 has Swift 6
+      Sendable errors involving Task<[String: Any], Error>. That file is not
+      owned or modified by this session.
 
 handoff:
   current_task_id: TASK-2
-  next_action: Add a focused red SharePanelParityUITests fixture for chat and embed configurations.
+  next_action: Re-run the focused iOS share configuration test after the recovery coordinator compile errors are fixed on dev.
   command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/SharePanelParityUITests"
-  expected_outcome: The new native parity test fails because the custom panel and web-compatible share states do not exist.
-  blocker: null
-  last_verified_commit: 270b3a9d0
+  expected_outcome: The test reaches the custom share configuration assertion and fails because the web parity controls do not exist yet.
+  blocker:
+    reason: "Remote iOS build is blocked by Swift 6 Sendable errors in ChatCompletionRecoveryCoordinator.swift from 7ac45d7d7."
+  last_verified_commit: b4fbf24
 
 scenarios:
   - id: S-1
@@ -306,15 +317,15 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence: { status: missing_test, command: "", run_id: "", subject_commit: "b4fbf24", timestamp: "2026-07-12", reason: "ShareLinkCryptoTests will be added after the red UI contract can compile." }
     green_phase:
       required: true
       expected: pass
       evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
   - id: T-APPLE-UI-001
     type: unit
-    file: apple/OpenMatesUITests/SharePanelParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/SharePanelParityUITests"
+    file: apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatManagementSharingParityUITests/testChatShareConfigurationMatchesWebContract"
     covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
     assertions:
       - Synthetic chat and embed preview launch states expose matching named custom panel controls.
@@ -324,15 +335,15 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence: { status: skipped_with_reason, command: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing \"OpenMatesUITests/ChatManagementSharingParityUITests/testChatShareConfigurationMatchesWebContract\"", run_id: "remote-macos-peer-exit-65", subject_commit: "b4fbf24", timestamp: "2026-07-12", reason: "Blocked before test execution by unrelated ChatCompletionRecoveryCoordinator.swift Swift 6 Sendable build errors." }
     green_phase:
       required: true
       expected: pass
       evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
   - id: T-APPLE-UI-002
     type: unit
-    file: apple/OpenMatesUITests/SharePanelParityUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing "OpenMatesUITests/SharePanelParityUITests"
+    file: apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing "OpenMatesUITests/ChatManagementSharingParityUITests/testChatShareConfigurationMatchesWebContract"
     covers: [AC-1, AC-3, AC-4, AC-5]
     assertions:
       - The macOS chat and embed panel fixtures show the same custom product controls and generated-link states as iOS.
@@ -340,7 +351,7 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence: { status: skipped_with_reason, command: "", run_id: "", subject_commit: "b4fbf24", timestamp: "2026-07-12", reason: "Not run because the iOS build is already blocked before execution by unrelated Swift 6 Sendable errors." }
     green_phase:
       required: true
       expected: pass
@@ -465,8 +476,8 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Add red native share crypto and panel parity tests
-    status: in_progress
-    phase: running_checks
+    status: blocked
+    phase: blocked
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
@@ -481,7 +492,8 @@ tasks:
         - apple/OpenMatesTests/ShareLinkCryptoTests.swift
         - apple/OpenMatesUITests/SharePanelParityUITests.swift
       shared_files: []
-    blockers: []
+    blockers:
+      - "Remote iOS test build cannot compile ChatCompletionRecoveryCoordinator.swift from 7ac45d7d7."
     follow_up_tasks: [TASK-3, TASK-4]
     independently_deployable: false
   - id: TASK-3
