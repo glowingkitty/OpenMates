@@ -802,7 +802,12 @@ private enum WebSocketError: LocalizedError {
 private struct MessageWaiter {
     let type: String
     let predicate: ([String: Any]) -> Bool
-    let continuation: CheckedContinuation<[String: Any], Error>
+    let continuation: CheckedContinuation<WebSocketResponse, Error>
+}
+
+/// Keeps untyped decoded WebSocket JSON at the main-actor transport boundary.
+struct WebSocketResponse: @unchecked Sendable {
+    let fields: [String: Any]
 }
 
 // MARK: - Notifications
