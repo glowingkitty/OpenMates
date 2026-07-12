@@ -325,7 +325,7 @@ provider_groups:
           - No user identifiers; Groq does not know which user requested each piece of content
       alibaba:
         privacy_policy: https://www.alibabacloud.com/help/en/legal/latest/alibaba-cloud-international-website-privacy-policy
-        location: China
+        location: Hong Kong
         used_for:
           - Qwen-family model inference when an Alibaba-hosted model is selected
         data_shared:
@@ -389,7 +389,28 @@ provider_groups:
           - Source images when editing
 
   # =====================================================================
-  # Group E — Music generation. Only used when you invoke a music skill.
+  # Group E — 3D model generation. Only used when you invoke a 3D skill.
+  # =====================================================================
+  model_generation:
+    description: >
+      This provider is only used when you invoke a 3D model generation skill.
+      If you never use the 3D models app, none of your data is shared with it.
+    providers:
+      hi3d:
+        privacy_policy: https://docs.hi3d.ai/en/api/resources/privacy-policy  # verified 2026-07-11
+        location: China
+        legal_entity: Mathmagic
+        used_for:
+          - textured 3D model generation via the models3d.generate skill
+        data_shared:
+          - Reference images supplied by you
+          - Reference images generated from your text prompt when using text-to-3D
+          - Generation settings needed to produce the requested model
+          - Note: Hi3D's Terms license Inputs and Outputs for AI model improvement and training
+          - Note: Hi3D publishes no exact API retention period or per-task deletion endpoint; its policy provides account and personal-data deletion rights
+
+  # =====================================================================
+  # Group F — Music generation. Only used when you invoke a music skill.
   # =====================================================================
   music_generation:
     description: >

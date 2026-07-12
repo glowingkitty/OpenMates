@@ -135,7 +135,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
+  subject_commit: 0e72d2dc6
 
 approvals:
   product_contract:
@@ -182,6 +182,11 @@ decisions:
     decision: Complete CLI, npm SDK, and pip SDK before web; gate Apple on explicit user approval of deployed web evidence.
     reason: The user explicitly required this sequence.
     decided_at: "2026-07-11T22:19:04Z"
+  - id: D-8
+    status: active
+    decision: Treat Hi3D retention and deletion as a disclosed limitation rather than claiming provider-side per-task deletion.
+    reason: The verified policy provides account/personal-data deletion rights but no exact API retention period or documented per-task deletion endpoint.
+    decided_at: "2026-07-11T23:50:23Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -193,11 +198,13 @@ attempts:
 
 handoff:
   current_task_id: TASK-1
-  next_action: Write provider and storage red-phase tests before implementation.
-  command: python3 -m pytest backend/tests/test_hi3d_provider.py
-  expected_outcome: Contract tests fail because the Hi3D provider wrapper and models3d app do not exist yet.
-  blocker: null
-  last_verified_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
+  next_action: Obtain or generate licensed representative 30 MB, 60 MB, and 100 MB GLB fixtures and run the optimization/streaming benchmark.
+  command: python3 scripts/api_tests/benchmark_models3d_assets.py --fixtures 30mb,60mb,100mb
+  expected_outcome: The benchmark remains red until licensed fixtures are present outside git and optimization tooling is implemented.
+  blocker:
+    reason: Licensed representative 30 MB, 60 MB, and 100 MB GLB benchmark fixtures are not yet available, and Hi3D has no verified per-task deletion API.
+    next_action: Keep T-BENCH-001 red, document retention limits in all privacy surfaces, and obtain or generate non-committed licensed benchmark assets before web optimization work.
+  last_verified_commit: 0e72d2dc6
 
 scenarios:
   - id: S-1
@@ -379,13 +386,15 @@ assumptions:
       - source: V-PRINT-ARTIFACTS
         summary: Validate sample outputs in PrusaSlicer and Bambu Studio before exposing print-ready labels.
   - id: A-5
-    text: Hi3D deletion/API retention controls are sufficient to end the model-improvement license when OpenMates deletes provider content.
+    text: Hi3D does not document an exact API retention period or per-task deletion endpoint, so OpenMates must disclose that provider-side limitation before first use.
     category: privacy
     required_before: implementation
-    status: blocked
-    blocker:
-      reason: Public docs describe deletion rights but no verified per-task deletion API or exact API retention period.
-      next_action: Obtain written provider confirmation or document the limitation explicitly in consent and privacy policy.
+    status: corrected
+    evidence:
+      - source: https://docs.hi3d.ai/en/api/resources/privacy-policy
+        summary: Verified 2026-07-11; the policy states purpose-limited retention and account/personal-data deletion rights but no exact API duration or per-task endpoint.
+      - source: shared/docs/privacy_policy.yml
+        summary: The public disclosure explicitly states model-improvement use and the unverified API retention/deletion limitation.
   - id: A-6
     text: Apple can render a generated USDZ derivative with acceptable fidelity after web approval.
     category: apple
@@ -489,7 +498,16 @@ tests:
         subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
         timestamp: "2026-07-11T23:12:22Z"
         summary: Collection failed because backend.shared.providers.hi3d does not exist.
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        run_id: local-pytest-models3d-foundations-20260711T233339Z
+        subject_commit: 0e72d2dc6
+        timestamp: "2026-07-11T23:33:39Z"
+        summary: All 27 provider, GLB safety, chunked AEAD, print validation, and consent tests passed.
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_models3d_generate_task.py
@@ -522,7 +540,16 @@ tests:
         subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
         timestamp: "2026-07-11T23:12:22Z"
         summary: Collection failed because chunked generated-asset helpers do not exist.
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        run_id: local-pytest-models3d-foundations-20260711T233339Z
+        subject_commit: 0e72d2dc6
+        timestamp: "2026-07-11T23:33:39Z"
+        summary: Chunked authenticated-encryption framing, corruption, truncation, frame bounds, and trailing-data tests passed.
   - id: T-PYTEST-004
     type: pytest
     file: backend/tests/test_models3d_print_exports.py
@@ -542,7 +569,16 @@ tests:
         subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
         timestamp: "2026-07-11T23:12:22Z"
         summary: Collection failed because models3d print-export validators do not exist.
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        run_id: local-pytest-models3d-foundations-20260711T233339Z
+        subject_commit: 0e72d2dc6
+        timestamp: "2026-07-11T23:33:39Z"
+        summary: STL/3MF structure, manifoldness, units metadata, material metadata, and archive limit tests passed.
   - id: T-PYTEST-005
     type: pytest
     file: backend/tests/test_models3d_provider_consent.py
@@ -562,17 +598,35 @@ tests:
         subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
         timestamp: "2026-07-11T23:12:22Z"
         summary: Collection failed because the models3d provider-consent gate does not exist.
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        run_id: local-pytest-models3d-foundations-20260711T233339Z
+        subject_commit: 0e72d2dc6
+        timestamp: "2026-07-11T23:33:39Z"
+        summary: Missing, stale, current, and withdrawn Hi3D disclosure versions passed fail-closed tests.
   - id: T-AUDIT-001
     type: lint
     file: scripts/audit_app_provider_contracts.py
-    command: python3 scripts/audit_app_provider_contracts.py
+    command: python3 scripts/audit_app_provider_contracts.py --require-app models3d --require-provider hi3d
     covers: [AC-12, AC-19]
     assertions:
       - Hi3D provider metadata and privacy/training disclosures are complete
       - verified privacy URL and all legal source surfaces agree
       - models3d is registered and the stale 3d app placeholder is absent
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/audit_app_provider_contracts.py --require-app models3d --require-provider hi3d
+        run_id: local-app-provider-audit-red-20260711T235023Z
+        subject_commit: 0e72d2dc6
+        timestamp: "2026-07-11T23:50:23Z"
+        summary: Hi3D metadata and all disclosure surfaces pass individually; the full audit remains red because canonical backend/apps/models3d/app.yml is not implemented yet.
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-BENCH-001
     type: lint
@@ -818,7 +872,7 @@ tasks:
     verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001, T-BENCH-001]
     dependencies: []
     ownership: {files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py, backend/tests/test_models3d_provider_consent.py], shared_files: [scripts/audit_app_provider_contracts.py]}
-    blockers: [Resolve A-5 provider deletion/retention before production source implementation.]
+    blockers: []
     follow_up_tasks: [TASK-2]
     independently_deployable: false
   - id: TASK-2
@@ -831,7 +885,7 @@ tasks:
     verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-BENCH-001]
     dependencies: [TASK-1]
     ownership: {files: [backend/shared/providers/hi3d/client.py, backend/shared/providers/hi3d/models.py, backend/apps/models3d/app.yml, backend/apps/models3d/skills/generate_skill.py, backend/apps/models3d/tasks/generate_task.py], shared_files: [backend/shared/python_utils/generated_assets/service.py]}
-    blockers: [A-2, A-3, A-5]
+    blockers: [A-2, A-3]
     follow_up_tasks: [TASK-3, TASK-4]
     independently_deployable: false
   - id: TASK-3
@@ -849,15 +903,15 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Update Hi3D privacy, consent, provider metadata, and docs
-    status: pending
-    phase: blocked
+    status: in_progress
+    phase: working_tasks
     covers: {scenarios: [S-10], acceptance_criteria: [AC-11, AC-12]}
     expected_files: [shared/docs/privacy_policy.yml, shared/docs/provider_training_policies.yml, frontend/packages/ui/src/i18n/sources/legal/privacy.yml, frontend/packages/ui/src/legal/buildLegalContent.ts, frontend/packages/ui/src/legal/documents/privacy-policy.ts, frontend/packages/ui/src/config/links.ts, backend/providers/hi3d.yml]
     verification: [T-PYTEST-005, T-AUDIT-001]
     verification_ids: [T-PYTEST-005, T-AUDIT-001]
     dependencies: [TASK-1]
     ownership: {files: [backend/providers/hi3d.yml, shared/docs/provider_training_policies.yml], shared_files: [shared/docs/privacy_policy.yml, frontend/packages/ui/src/i18n/sources/legal/privacy.yml, frontend/packages/ui/src/legal/buildLegalContent.ts, frontend/packages/ui/src/legal/documents/privacy-policy.ts, frontend/packages/ui/src/config/links.ts]}
-    blockers: [A-5]
+    blockers: []
     follow_up_tasks: [TASK-5]
     independently_deployable: false
   - id: TASK-5

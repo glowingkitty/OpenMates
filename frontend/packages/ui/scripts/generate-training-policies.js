@@ -70,7 +70,7 @@ function main() {
     "export interface ProviderTrainingPolicy {",
     "  readonly id: string;",
     '  readonly status: "no_training" | "no_training_opt_out" | "limited_use";',
-    '  readonly provider_group: "ai_models" | "image_generation";',
+    '  readonly provider_group: "ai_models" | "image_generation" | "model_generation";',
     "  readonly policy_url: string;",
     "  readonly terms_url: string | null;",
     "  readonly source_document: string;",

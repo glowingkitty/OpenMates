@@ -10,6 +10,7 @@ Architecture context: docs/architecture/apps/app-skills.md
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -23,6 +24,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 APPS_ROOT = REPO_ROOT / "backend" / "apps"
 PROVIDERS_ROOT = REPO_ROOT / "backend" / "providers"
 UI_STATIC_ROOT = REPO_ROOT / "frontend" / "packages" / "ui" / "static"
+PRIVACY_POLICY_PATH = REPO_ROOT / "shared" / "docs" / "privacy_policy.yml"
+TRAINING_POLICY_PATH = REPO_ROOT / "shared" / "docs" / "provider_training_policies.yml"
+LEGAL_LINKS_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "config" / "links.ts"
+LEGAL_CONTENT_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "legal" / "buildLegalContent.ts"
+LEGAL_I18N_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "i18n" / "sources" / "legal" / "privacy.yml"
+GENERATED_TRAINING_PATH = REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "legal" / "trainingPolicies.generated.ts"
 VIRTUAL_PROVIDER_IDS = {"pretalx"}
 
 
@@ -49,7 +56,25 @@ def _load_yaml(path: Path) -> Any:
 
 
 def _rel(path: Path) -> str:
-    return str(path.relative_to(REPO_ROOT))
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def _privacy_provider(data: Any, provider_id: str) -> dict[str, Any] | None:
+    if not isinstance(data, dict):
+        return None
+    groups = data.get("provider_groups")
+    if not isinstance(groups, dict):
+        return None
+    for group in groups.values():
+        if not isinstance(group, dict):
+            continue
+        providers = group.get("providers")
+        if isinstance(providers, dict) and isinstance(providers.get(provider_id), dict):
+            return providers[provider_id]
+    return None
 
 
 def provider_files() -> list[Path]:
@@ -113,6 +138,42 @@ def audit_provider_file(path: Path) -> list[AuditIssue]:
     if privacy_policy and not privacy_policy.startswith("https://"):
         issues.append(AuditIssue(rel, "privacy_policy must use https://"))
 
+    if data.get("requires_training_disclosure"):
+        training_data = _load_yaml(TRAINING_POLICY_PATH)
+        training_providers = training_data.get("providers", {}) if isinstance(training_data, dict) else {}
+        privacy_entry = _privacy_provider(_load_yaml(PRIVACY_POLICY_PATH), provider_id)
+        links_text = LEGAL_LINKS_PATH.read_text(encoding="utf-8")
+        legal_text = LEGAL_CONTENT_PATH.read_text(encoding="utf-8")
+        i18n_data = _load_yaml(LEGAL_I18N_PATH)
+        generated_text = GENERATED_TRAINING_PATH.read_text(encoding="utf-8")
+        expected_i18n_key = f"providers.model_generation.{provider_id}.description"
+        disclosure_surfaces = (
+            (
+                TRAINING_POLICY_PATH,
+                isinstance(training_providers.get(provider_id), dict)
+                and training_providers[provider_id].get("policy_url") == privacy_policy,
+            ),
+            (
+                PRIVACY_POLICY_PATH,
+                isinstance(privacy_entry, dict) and privacy_entry.get("privacy_policy") == privacy_policy,
+            ),
+            (
+                LEGAL_LINKS_PATH,
+                bool(re.search(rf"\b{re.escape(provider_id)}:\s*[\"']{re.escape(privacy_policy)}[\"']", links_text)),
+            ),
+            (LEGAL_CONTENT_PATH, f"providers.model_generation.{provider_id}" in legal_text),
+            (LEGAL_I18N_PATH, isinstance(i18n_data, dict) and expected_i18n_key in i18n_data),
+            (
+                GENERATED_TRAINING_PATH,
+                f'"id":"{provider_id}"' in generated_text and privacy_policy in generated_text,
+            ),
+        )
+        for disclosure_path, present in disclosure_surfaces:
+            if not present:
+                issues.append(
+                    AuditIssue(rel, f"training disclosure is missing from {_rel(disclosure_path)}")
+                )
+
     return issues
 
 
@@ -174,10 +235,30 @@ def audit_paths(paths: list[Path]) -> list[AuditIssue]:
     return issues
 
 
+def required_paths(app_ids: list[str], provider_ids: list[str]) -> tuple[list[Path], list[AuditIssue]]:
+    paths: list[Path] = []
+    issues: list[AuditIssue] = []
+    for app_id in app_ids:
+        path = APPS_ROOT / app_id / "app.yml"
+        if path.is_file():
+            paths.append(path)
+        else:
+            issues.append(AuditIssue(_rel(path), f"required app metadata is missing for '{app_id}'"))
+    for provider_id in provider_ids:
+        path = PROVIDERS_ROOT / f"{provider_id}.yml"
+        if path.is_file():
+            paths.append(path)
+        else:
+            issues.append(AuditIssue(_rel(path), f"required provider metadata is missing for '{provider_id}'"))
+    return paths, issues
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Audit app/provider metadata contracts.")
     parser.add_argument("paths", nargs="*", help="Specific app/provider files to audit. Defaults to staged relevant files.")
     parser.add_argument("--all", action="store_true", help="Audit all app.yml and backend provider YAML files.")
+    parser.add_argument("--require-app", action="append", default=[], help="Require and audit an app ID.")
+    parser.add_argument("--require-provider", action="append", default=[], help="Require and audit a provider ID.")
     args = parser.parse_args(argv)
 
     if args.all:
@@ -187,7 +268,9 @@ def main(argv: list[str] | None = None) -> int:
     else:
         paths = _staged_paths()
 
-    issues = audit_paths(paths)
+    required, issues = required_paths(args.require_app, args.require_provider)
+    paths.extend(required)
+    issues.extend(audit_paths(paths))
     if issues:
         print("[app-provider-contracts] Issues found:", file=sys.stderr)
         for issue in issues[:80]:

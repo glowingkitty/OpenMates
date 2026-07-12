@@ -1,3 +1,103 @@
+providers.model_generation.heading:
+  context: Subheading for 3D model generation providers in the privacy policy
+  en: 3D model generation (only when you use a 3D model skill)
+  de: 3D-Modellgenerierung (nur wenn du einen 3D-Modell-Skill verwendest)
+  zh: 3D 模型生成（仅当你使用 3D 模型技能时）
+  es: Generación de modelos 3D (solo cuando usas una habilidad de modelos 3D)
+  fr: Génération de modèles 3D (uniquement quand tu utilises une compétence de modèle 3D)
+  pt: Geração de modelos 3D (apenas quando você usa uma skill de modelo 3D)
+  ru: Генерация 3D-моделей (только при использовании навыка 3D-моделирования)
+  ja: 3Dモデル生成（3Dモデルスキルを使用する場合のみ）
+  ko: 3D 모델 생성 (3D 모델 스킬을 사용할 때만)
+  it: Generazione di modelli 3D (solo quando usi una skill per modelli 3D)
+  tr: 3D model oluşturma (yalnızca bir 3D model yeteneği kullandığında)
+  vi: Tạo mô hình 3D (chỉ khi bạn sử dụng kỹ năng mô hình 3D)
+  id: Pembuatan model 3D (hanya saat kamu menggunakan skill model 3D)
+  pl: Generowanie modeli 3D (tylko gdy używasz umiejętności modelu 3D)
+  nl: 3D-modelgeneratie (alleen wanneer je een 3D-modelskill gebruikt)
+  ar: إنشاء نماذج ثلاثية الأبعاد (فقط عند استخدام مهارة نماذج ثلاثية الأبعاد)
+  hi: 3D मॉडल जनरेशन (केवल तब जब आप 3D मॉडल स्किल का उपयोग करते हैं)
+  th: การสร้างโมเดล 3 มิติ (เฉพาะเมื่อคุณใช้สกิลโมเดล 3 มิติเท่านั้น)
+  cs: Generování 3D modelů (pouze pokud používáš dovednost pro 3D modely)
+  sv: Generering av 3D-modeller (endast när du använder en 3D-modellfärdighet)
+  he: יצירת מודלים בתלת-ממד (רק בשימוש במיומנות של מודל תלת-ממד)
+  verified_by_human: []
+
+providers.model_generation.description:
+  context: Description for the 3D model generation provider group in the privacy policy
+  en: This provider is only used when you invoke a 3D model generation skill. If you never use the 3D models app, none of your data is shared with it.
+  de: Dieser Anbieter wird nur verwendet, wenn du einen 3D-Modellgenerierungs-Skill aufrufst. Wenn du die 3D-Modelle-App nie nutzt, werden keine deiner Daten mit ihm geteilt.
+  zh: 仅当你调用 3D 模型生成技能时，才会使用此服务商。如果你从不使用 3D 模型应用，你的任何数据都不会与其共享。
+  es: Este proveedor solo se utiliza cuando invocas una habilidad de generación de modelos 3D. Si nunca usas la aplicación de modelos 3D, no se comparte ninguno de tus datos con él.
+  fr: "Ce fournisseur est uniquement utilisé quand tu invoques une compétence de génération de modèles 3D. Si tu n'utilises jamais l'application de modèles 3D, aucune de tes données ne lui est partagée."
+  pt: Este provedor é usado apenas quando você invoca uma skill de geração de modelos 3D. Se você nunca usar o app de modelos 3D, nenhum dos seus dados será compartilhado com ele.
+  ru: Этот провайдер используется только при вызове навыка генерации 3D-моделей. Если ты никогда не пользуешься приложением для 3D-моделей, твои данные ему не передаются.
+  ja: このプロバイダーは、3Dモデル生成スキルを呼び出した場合にのみ使用されます。3Dモデルアプリを使用しない限り、データが共有されることはありません。
+  ko: 이 제공업체는 3D 모델 생성 스킬을 호출할 때만 사용됩니다. 3D 모델 앱을 전혀 사용하지 않는다면 어떠한 데이터도 공유되지 않습니다.
+  it: "Questo fornitore viene utilizzato solo quando invochi una skill di generazione di modelli 3D. Se non usi mai l'app dei modelli 3D, nessuno dei tuoi dati viene condiviso con esso."
+  tr: Bu sağlayıcı yalnızca bir 3D model oluşturma yeteneğini çağırdığında kullanılır. 3D modeller uygulamasını hiç kullanmazsan, verilerinin hiçbiri bu sağlayıcıyla paylaşılmaz.
+  vi: Nhà cung cấp này chỉ được sử dụng khi bạn kích hoạt một kỹ năng tạo mô hình 3D. Nếu bạn không bao giờ sử dụng ứng dụng mô hình 3D, không có dữ liệu nào của bạn được chia sẻ với nhà cung cấp này.
+  id: Penyedia ini hanya digunakan saat kamu memanggil skill pembuatan model 3D. Jika kamu tidak pernah menggunakan aplikasi model 3D, tidak ada datamu yang dibagikan dengannya.
+  pl: Ten dostawca jest używany tylko wtedy, gdy wywołasz umiejętność generowania modeli 3D. Jeśli nigdy nie korzystasz z aplikacji do modeli 3D, żadne Twoje dane nie są mu udostępniane.
+  nl: Deze provider wordt alleen gebruikt wanneer je een skill voor het genereren van 3D-modellen aanroept. Als je de 3D-modellen-app nooit gebruikt, worden er geen gegevens mee gedeeld.
+  ar: يتم استخدام هذا المزود فقط عند استدعاء مهارة إنشاء نماذج ثلاثية الأبعاد. إذا لم تستخدم تطبيق النماذج ثلاثية الأبعاد مطلقًا، فلن تتم مشاركة أي من بياناتك معه.
+  hi: इस प्रदाता का उपयोग केवल तब किया जाता है जब आप 3D मॉडल जनरेशन स्किल का उपयोग करते हैं। यदि आप कभी भी 3D मॉडल ऐप का उपयोग नहीं करते हैं, तो आपका कोई भी डेटा इसके साथ साझा नहीं किया जाता है।
+  th: ผู้ให้บริการนี้จะถูกใช้งานเมื่อคุณเรียกใช้สกิลการสร้างโมเดล 3 มิติเท่านั้น หากคุณไม่เคยใช้งานแอปโมเดล 3 มิติ ข้อมูลของคุณจะไม่มีการแชร์กับผู้ให้บริการนี้
+  cs: Tento poskytovatel se využívá pouze v případě, že vyvoláš dovednost pro generování 3D modelů. Pokud aplikaci pro 3D modely nikdy nepoužiješ, nebudou s ním sdílena žádná tvá data.
+  sv: Denna leverantör används endast när du anropar en färdighet för generering av 3D-modeller. Om du aldrig använder 3D-modellappen delas ingen av din data med den.
+  he: ספק זה נמצא בשימוש רק כאשר מופעלת מיומנות ליצירת מודלים בתלת-ממד. אם לא תשתמש באפליקציית המודלים בתלת-ממד, אף חלק מהנתונים שלך לא ישותף איתו.
+  verified_by_human: []
+
+providers.model_generation.hi3d.heading:
+  context: Provider heading for Hi3D in the privacy policy
+  en: Hi3D (3D model generation)
+  de: Hi3D (3D-Modellgenerierung)
+  zh: Hi3D（3D 模型生成）
+  es: Hi3D (generación de modelos 3D)
+  fr: Hi3D (génération de modèles 3D)
+  pt: Hi3D (geração de modelos 3D)
+  ru: Hi3D (генерация 3D-моделей)
+  ja: Hi3D（3Dモデル生成）
+  ko: Hi3D (3D 모델 생성)
+  it: Hi3D (generazione di modelli 3D)
+  tr: Hi3D (3D model oluşturma)
+  vi: Hi3D (tạo mô hình 3D)
+  id: Hi3D (pembuatan model 3D)
+  pl: Hi3D (generowanie modeli 3D)
+  nl: Hi3D (3D-modelgeneratie)
+  ar: Hi3D (إنشاء نماذج ثلاثية الأبعاد)
+  hi: Hi3D (3D मॉडल जनरेशन)
+  th: Hi3D (การสร้างโมเดล 3 มิติ)
+  cs: Hi3D (generování 3D modelů)
+  sv: Hi3D (generering av 3D-modeller)
+  he: Hi3D (יצירת מודלים בתלת-ממד)
+  verified_by_human: []
+
+providers.model_generation.hi3d.description:
+  context: Hi3D data sharing, model improvement, retention, and deletion disclosure
+  en: Hi3D receives reference images you supply or images generated from your text prompt, plus generation settings. Its Terms license Inputs and Outputs for AI model improvement and training. Hi3D publishes no exact API retention period or per-task deletion endpoint; its policy provides account and personal-data deletion rights. OpenMates requires your confirmation before first use.
+  de: Hi3D erhält von dir bereitgestellte Referenzbilder oder aus deinem Text-Prompt generierte Bilder sowie Generierungseinstellungen. Die Nutzungsbedingungen lizenzieren Inputs und Outputs zur Verbesserung und zum Training von KI-Modellen. Hi3D veröffentlicht keine genaue API-Aufbewahrungsfrist oder einen Lösch-Endpunkt pro Aufgabe; die Richtlinie gewährt Rechte zur Löschung des Kontos und personenbezogener Daten. OpenMates erfordert deine Bestätigung vor der ersten Nutzung.
+  zh: Hi3D 会接收你提供的参考图像或根据你的文本提示生成的图像，以及生成设置。其条款授权将输入和输出用于 AI 模型的改进和训练。Hi3D 未公布确切的 API 数据保留期限或针对单个任务的删除端点；其政策提供了账号和个人数据的删除权。OpenMates 在首次使用前需要你的确认。
+  es: Hi3D recibe las imágenes de referencia que proporciones o las imágenes generadas a partir de tu prompt, además de los ajustes de generación. Sus Condiciones otorgan licencias sobre las Entradas y Salidas para la mejora y el entrenamiento de modelos de IA. Hi3D no publica un periodo de retención de API exacto ni un endpoint de eliminación por tarea; su política otorga derechos de eliminación de cuenta y datos personales. OpenMates requiere tu confirmación antes del primer uso.
+  fr: "Hi3D reçoit les images de référence que tu fournis ou les images générées à partir de ton invite textuelle, ainsi que les paramètres de génération. Ses conditions d'utilisation autorisent l'exploitation des entrées et des sorties pour l'amélioration et l'entraînement de modèles d'IA. Hi3D ne publie aucune période de rétention API exacte ni de point de terminaison de suppression par tâche ; sa politique prévoit des droits de suppression de compte et de données personnelles. OpenMates nécessite ta confirmation avant la première utilisation."
+  pt: A Hi3D recebe imagens de referência que forneces ou imagens geradas a partir do teu prompt de texto, além das definições de geração. Os seus Termos licenciam Entradas e Saídas para melhoria e treino de modelos de IA. A Hi3D não publica um período exato de retenção da API ou um endpoint de eliminação por tarefa; a sua política prevê direitos de eliminação de conta e de dados pessoais. O OpenMates requer a tua confirmação antes da primeira utilização.
+  ru: Hi3D получает предоставляемые тобой эталонные изображения или изображения, созданные по твоему текстовому запросу, а также настройки генерации. Его Условия лицензируют Входные и Выходные данные для улучшения и обучения моделей ИИ. Hi3D не публикует точный период хранения данных API или эндпоинт для удаления отдельных задач; его политика предусматривает права на удаление аккаунта и персональных данных. OpenMates требует твоего подтверждения перед первым использованием.
+  ja: Hi3Dは、提供された参照画像、テキストプロンプトから生成された画像、および生成設定を受け取ります。利用規約により、入力および出力はAIモデルの改善とトレーニングのためにライセンスされます。Hi3Dは具体的なAPI保持期間やタスクごとの削除エンドポイントを公開していませんが、ポリシーによりアカウントおよび個人データの削除権が認められています。OpenMatesは初回利用前に確認を求めます。
+  ko: Hi3D는 사용자가 제공한 참조 이미지 또는 텍스트 프롬프트로 생성된 이미지와 생성 설정을 수신합니다. 이용 약관에 따라 입력 및 출력 데이터는 AI 모델 개선 및 학습에 사용될 수 있습니다. Hi3D는 정확한 API 보관 기간이나 작업별 삭제 엔드포인트를 공개하지 않지만, 정책을 통해 계정 및 개인 정보 삭제 권한을 보장합니다. OpenMates는 처음 사용하기 전에 사용자의 확인을 요청합니다.
+  it: "Hi3D riceve le immagini di riferimento che fornisci o le immagini generate dal tuo prompt testuale, oltre alle impostazioni di generazione. I suoi Termini concedono in licenza Input e Output per il miglioramento e l'addestramento dei modelli IA. Hi3D non pubblica un periodo esatto di conservazione delle API o un endpoint di eliminazione per singola attività; la sua informativa prevede diritti di eliminazione dell'account e dei dati personali. OpenMates richiede la tua conferma prima del primo utilizzo."
+  tr: Hi3D, sağladığın referans görselleri veya metin isteminden üretilen görselleri ve üretim ayarlarını alır. Şartları, Girdileri ve Çıktıları yapay zeka modeli iyileştirme ve eğitimi için lisanslar. Hi3D kesin bir API saklama süresi veya görev başına silme uç noktası yayınlamaz; politikası hesap ve kişisel veri silme hakları tanır. OpenMates ilk kullanımdan önce onayını gerektirir.
+  vi: Hi3D nhận các hình ảnh tham chiếu bạn cung cấp hoặc hình ảnh được tạo từ lời nhắc văn bản của bạn, cùng với các cài đặt tạo hình. Các Điều khoản của nó cấp phép cho Đầu vào và Đầu ra để cải thiện và huấn luyện mô hình AI. Hi3D không công bố thời gian lưu trữ API chính xác hoặc điểm cuối xóa theo từng tác vụ; chính sách của nó cung cấp quyền xóa tài khoản và dữ liệu cá nhân. OpenMates yêu cầu sự xác nhận của bạn trước khi sử dụng lần đầu.
+  id: Hi3D menerima gambar referensi yang kamu berikan atau gambar yang dihasilkan dari perintah teksmu, serta pengaturan pembuatan. Ketentuannya melisensikan Input dan Output untuk peningkatan dan pelatihan model AI. Hi3D tidak mempublikasikan periode retensi API yang pasti atau endpoint penghapusan per tugas; kebijakannya memberikan hak penghapusan akun dan data pribadi. OpenMates memerlukan konfirmasimu sebelum penggunaan pertama.
+  pl: Hi3D otrzymuje dostarczone przez Ciebie obrazy referencyjne lub obrazy wygenerowane na podstawie Twojego polecenia tekstowego, a także ustawienia generowania. Jego Warunki licencjonują Dane wejściowe i Dane wyjściowe w celu ulepszania i trenowania modeli AI. Hi3D nie publikuje dokładnego okresu przechowywania danych API ani punktu końcowego do usuwania poszczególnych zadań; jego polityka przewiduje prawo do usunięcia konta i danych osobowych. OpenMates wymaga Twojego potwierdzenia przed pierwszym użyciem.
+  nl: Hi3D ontvangt referentieafbeeldingen die je verstrekt of afbeeldingen die zijn gegenereerd op basis van je tekstprompt, plus generatie-instellingen. De voorwaarden verlenen een licentie op Inputs en Outputs voor de verbetering en training van AI-modellen. Hi3D publiceert geen exacte API-bewaarperiode of verwijderings-endpoint per taak; het beleid voorziet in rechten voor het verwijderen van accounts en persoonlijke gegevens. OpenMates vereist je bevestiging voor het eerste gebruik.
+  ar: تتلقى Hi3D الصور المرجعية التي تقدمها أو الصور التي يتم إنشاؤها من مطالبتك النصية، بالإضافة إلى إعدادات الإنشاء. ترخص شروطها المدخلات والمخرجات لتحسين نماذج الذكاء الاصطناعي وتدريبها. لا تنشر Hi3D فترة احتفاظ محددة لواجهة برمجة التطبيقات (API) أو نقطة نهاية لحذف المهام الفردية؛ توفر سياستها حقوق حذف الحساب والبيانات الشخصية. يتطلب OpenMates تأكيدك قبل الاستخدام الأول.
+  hi: Hi3D आपके द्वारा दी गई संदर्भ छवियों या आपके टेक्स्ट प्रॉम्प्ट से उत्पन्न छवियों के साथ-साथ जनरेशन सेटिंग्स प्राप्त करता है। इसकी शर्तें AI मॉडल सुधार और प्रशिक्षण के लिए इनपुट और आउटपुट को लाइसेंस देती हैं। Hi3D कोई सटीक API प्रतिधारण अवधि या प्रति-कार्य विलोपन एंडपॉइंट प्रकाशित नहीं करता है; इसकी नीति खाता और व्यक्तिगत-डेटा विलोपन अधिकार प्रदान करती है। OpenMates को पहले उपयोग से पहले आपकी पुष्टि की आवश्यकता होती है।
+  th: Hi3D ได้รับรูปภาพอ้างอิงที่คุณระบุหรือรูปภาพที่สร้างขึ้นจากข้อความแจ้งของคุณ รวมถึงการตั้งค่าการสร้าง ข้อกำหนดการใช้งานอนุญาตให้ใช้ข้อมูลนำเข้าและข้อมูลส่งออกเพื่อปรับปรุงและฝึกฝนโมเดล AI Hi3D ไม่ได้ระบุระยะเวลาการเก็บรักษาข้อมูล API ที่แน่นอนหรือช่องทางการลบข้อมูลรายรายการ แต่นโยบายให้สิทธิ์ในการลบบัญชีและข้อมูลส่วนบุคคล OpenMates กำหนดให้คุณต้องยืนยันก่อนการใช้งานครั้งแรก
+  cs: Hi3D přijímá referenční obrázky, které poskytneš, nebo obrázky vygenerované z tvého textového zadání, a také nastavení generování. Jeho podmínky licencují vstupy a výstupy pro účely vylepšování a trénování modelů AI. Hi3D nezveřejňuje přesnou dobu uchovávání dat v API ani koncový bod pro smazání jednotlivých úloh; jeho zásady poskytují práva na smazání účtu a osobních údajů. OpenMates vyžaduje před prvním použitím tvé potvrzení.
+  sv: "Hi3D tar emot referensbilder som du tillhandahåller eller bilder som genererats från din textprompt, samt inställningar för generering. Dess villkor licensierar indata och utdata för förbättring och träning av AI-modeller. Hi3D publicerar ingen exakt lagringsperiod för API:et eller slutpunkt för radering per uppgift; dess policy ger rättigheter för radering av konto och personuppgifter. OpenMates kräver din bekräftelse före första användningen."
+  he: Hi3D מקבלת תמונות ייחוס שסיפקת או תמונות שנוצרו מהנחיית הטקסט שלך, בתוספת הגדרות היצירה. תנאי השימוש שלה מעניקים רישיון לקלטים ולפלטים לצורך שיפור ואימון מודלי בינה מלאכותית (AI). Hi3D אינה מפרסמת תקופת שמירת נתונים מדויקת ב-API או נקודת קצה למחיקה עבור כל משימה; המדיניות שלה מעניקה זכויות למחיקת חשבון ונתונים אישיים. OpenMates דורשת את אישורך לפני השימוש הראשון.
+  verified_by_human: []
+
 providers.fitness.heading:
   context: Subheading for Fitness providers
   en: Fitness search (only when you use the fitness skill)

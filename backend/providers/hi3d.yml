@@ -1,0 +1,36 @@
+# backend/providers/hi3d.yml
+#
+# Hi3D image-to-3D generation metadata for models3d.generate.
+# V1 uses the v2.1 fast PBR GLB API and passes provider cost through without
+# markup. API credentials live at kv/data/providers/hi3d.
+
+provider_id: hi3d
+name: Hi3D
+description: AI image-to-3D generation with textured GLB output.
+logo_svg: icons/hi3d.svg
+privacy_policy: https://docs.hi3d.ai/en/api/resources/privacy-policy # verified 2026-07-11
+requires_training_disclosure: true
+
+models:
+  - id: hitem3dv2.1-fast-pbr
+    name: Hi3D v2.1 Fast PBR
+    description: Fast image-to-3D generation with PBR textures and GLB output.
+    country_origin: HK
+    for_app_skill: models3d.generate
+    input_types:
+      - image
+    output_types:
+      - model_3d
+    default_server: hi3d
+    servers:
+      - id: hi3d
+        name: Hi3D API
+        model_id: hitem3dv2.1-fast-pbr
+        region: global
+    pricing:
+      per_unit:
+        credits: 25
+        unit_name: model
+    costs:
+      output_per_model:
+        credits: 25

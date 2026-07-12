@@ -254,3 +254,28 @@ providers:
       is ever reset (e.g., after a ToS update), re-disable immediately.
     opted_out_date: "2026-04-16"
     last_verified: "2026-04-16T11:15:00Z"
+
+  hi3d:
+    status: limited_use
+    provider_group: model_generation
+    policy_url: https://docs.hi3d.ai/en/api/resources/privacy-policy
+    terms_url: https://docs.hi3d.ai/en/api/resources/terms-of-use
+    quote: >
+      To improve the Company's AI models, algorithms, and related technologies
+      and services (including use for labeling, classification, content
+      moderation, and model training purposes). Where feasible, the Company
+      will endeavor to anonymize or aggregate such data before use.
+    source_document: "Hi3D Terms of Use, User Content and License Grant"
+    mechanism: >
+      Hi3D's Terms grant a license to use Inputs and Outputs for model improvement
+      and training. Hi3D does not publish an API opt-out. Its
+      policy gives account and personal-data deletion rights but does not state
+      an exact API retention period or expose a documented per-task deletion API.
+    notes: >
+      OpenMates therefore requires a versioned disclosure before first use and
+      does not promise that deleting an OpenMates model immediately deletes the
+      corresponding provider-side task or ends all service-improvement use.
+    action_required: >
+      Keep the first-use disclosure explicit. Re-audit quarterly and replace
+      this limitation if Hi3D provides contractual API retention or deletion controls.
+    last_verified: "2026-07-11T00:00:00Z"
