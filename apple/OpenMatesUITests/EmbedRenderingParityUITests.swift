@@ -96,6 +96,31 @@ final class EmbedRenderingParityUITests: XCTestCase {
         attachScreenshot(name: "Versioned code embed timeline")
     }
 
+    func testSheetsPreviewAndFullscreenUseSpreadsheetChrome() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "sheets"]
+        app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+        app.launchEnvironment["DEV_PREVIEW_APP"] = "sheets"
+        app.launch()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["sheet-preview-table"].waitForExistence(timeout: 8),
+            "Sheets preview must render spreadsheet cells instead of a generic table card."
+        )
+        XCTAssertTrue(app.descendants(matching: .any)["embed-app-gradient-sheets"].exists)
+        attachScreenshot(name: "Sheets preview")
+
+        app.descendants(matching: .any)["embed-preview"].firstMatch.tap()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["sheet-fullscreen-table"].waitForExistence(timeout: 5),
+            "Sheets fullscreen must preserve spreadsheet-specific content."
+        )
+        XCTAssertTrue(app.descendants(matching: .any)["embed-app-gradient-sheets"].exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Sheets embed must not render default List/table chrome")
+        attachScreenshot(name: "Sheets fullscreen")
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
