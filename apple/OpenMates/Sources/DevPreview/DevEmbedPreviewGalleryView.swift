@@ -226,7 +226,7 @@ struct DevChatSharePreviewView: View {
     )
 
     var body: some View {
-        AppleSharePanel(context: context, onClose: {}, onGenerated: { _, _, _ in })
+        AppleSharePanel(context: context, onClose: {}, onGenerated: { _, _, _ in }, onStopSharing: nil)
             .accessibilityIdentifier("chat-share-preview")
     }
 }
