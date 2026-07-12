@@ -176,7 +176,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 5cb6e8d
+  subject_commit: bd4a58b
 
 approvals:
   product_contract:
@@ -224,14 +224,19 @@ attempts:
     approach: Verify the real attachment-button tap preserves every action-button frame and retain the rendered OS-picker popup as a simulator screenshot artifact.
     outcome: succeeded
     recorded_at: "2026-07-12T18:45:22Z"
+  - id: ATTEMPT-6
+    task_id: TASK-21
+    approach: Project native composer documents into editable text before PII detection and redact only mapped text nodes before canonical serialization.
+    outcome: succeeded
+    recorded_at: "2026-07-12T18:57:21Z"
 
 handoff:
   current_task_id: TASK-21
-  next_action: Inspect the composer PII pipeline and its current UI contracts for the remaining metadata-exclusion and action-row behavior gap.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerMentionPIITests
-  expected_outcome: Existing PII unit evidence identifies whether a focused composer UI regression is still required for S-17.
+  next_action: Inspect the PencilKit sketch save path and existing visual contract for the remaining S-17 stroke visibility and image-preview clipping gap.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
+  expected_outcome: Existing drawing coverage identifies the smallest remaining TASK-21 behavior gap.
   blocker: null
-  last_verified_commit: 5cb6e8d
+  last_verified_commit: bd4a58b
 
 scenarios:
   - id: S-1
@@ -1036,18 +1041,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: missing_test
-        run_id: "legacy-no-red-run"
-        timestamp: "2026-07-11T00:39:00Z"
-        summary: Mention and PII implementation predated a recorded red run; no retrospective failure was fabricated.
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerMentionPIITests
+        run_id: apple-remote-61bb21a-pii-metadata-red
+        subject_commit: 61bb21a
+        timestamp: "2026-07-12T18:51:00Z"
+        summary: The new document-redaction contract failed to compile because no text-node-only redactor existed.
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        run_id: "apple-remote-109f139-unit-214"
-        timestamp: "2026-07-10T14:32:17Z"
-        summary: The complete OpenMatesTests target passed 214/214; NativeComposerMentionPIITests passed 5/5 for registered mention atoms, active-query replacement, surrounding selection/order, and visible-text-only PII redaction.
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/NativeComposerMentionPIITests
+        run_id: apple-remote-bd4a58b-mention-pii
+        subject_commit: bd4a58b
+        timestamp: "2026-07-12T18:55:19Z"
+        summary: NativeComposerMentionPIITests passed 7/7, including document redaction that excludes an embedded phone number from detection while redacting editable text.
 
   - id: T-APPLE-DRAFT-EDIT-UI
     type: unit
@@ -1593,10 +1602,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
-        run_id: apple-remote-5cb6e8d-composer-regressions
-        subject_commit: 5cb6e8d
-        timestamp: "2026-07-12T18:45:22Z"
-        summary: The iPhone 17 simulator ran 7/7 composer attachment and PII tests. The attachment test tapped the real picker trigger, proved every action button retained its frame, and retained the rendered popup screenshot because OS PhotosPicker child rows are not XCUITest-accessible.
+        run_id: apple-remote-bd4a58b-composer-regressions
+        subject_commit: bd4a58b
+        timestamp: "2026-07-12T18:57:21Z"
+        summary: The iPhone 17 simulator ran 7/7 composer attachment and PII tests after document-level PII redaction switched to text-node-only processing. The attachment test retained its real-picker geometry and screenshot evidence.
 
   - id: T-APPLE-PERSISTED-EMBED-PARITY
     type: unit
