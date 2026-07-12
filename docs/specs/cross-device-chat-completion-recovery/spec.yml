@@ -293,13 +293,13 @@ attempts:
 
 handoff:
   current_task_id: TASK-8
-  next_action: Create and run the deterministic cross-client takeover and preflight-latency scripts, then complete the released-legacy CLI and controlled epoch-one activation gates.
-  command: python3 scripts/test_cross_client_chat_recovery.py --env dev
-  expected_outcome: The script provides repeatable owner/device recovery evidence without exposing plaintext or recovery secrets.
+  next_action: Add sanitized durable-preflight and enqueue timing telemetry before creating the preflight-latency script.
+  command: python3 -m pytest backend/tests/test_sdk_chat_recovery.py -q
+  expected_outcome: SDK saved-chat traffic rejects recovery preflight unless the authoritative cutover state is epoch one and sends are unpaused.
   blocker:
     reason: T-WEB-RECOVERY green verification requires the controlled epoch-one cutover because epoch zero intentionally acknowledges LEGACY mode without creating sealed recovery jobs.
-    recheck_condition: Complete released-legacy CLI, cross-client, performance, and privacy gates, then activate epoch one and rerun the web recovery spec.
-  last_verified_commit: c2875a1
+    recheck_condition: Complete released-legacy CLI, cross-client, performance, and privacy gates, provision disposable approved dev credentials, then activate epoch one and rerun the web recovery spec.
+  last_verified_commit: 6119da5
 
 scenarios:
   - id: S-1
