@@ -173,6 +173,37 @@ final class MessageInputAttachmentUITests: XCTestCase {
         attachScreenshot(name: "Image composer preview restored above iPad keyboard")
     }
 
+    func testAttachmentMenuOverlaysComposerActions() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        editor.typeText("Attachment menu")
+
+        let actionIDs = ["attach-files-button", "share-location-button", "sketch-button", "take-photo-button", "send-button"]
+        let actionFrames = Dictionary(uniqueKeysWithValues: actionIDs.map { identifier in
+            (identifier, app.buttons[identifier].frame)
+        })
+
+        app.buttons["attach-files-button"].tap()
+
+        let attachmentMenu = element(in: app, identifier: "attachment-menu")
+        XCTAssertTrue(attachmentMenu.waitForExistence(timeout: 5))
+        for identifier in actionIDs {
+            XCTAssertEqual(app.buttons[identifier].frame, actionFrames[identifier])
+        }
+    }
+
     private func launchChatOpeningPreview(arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening"] + arguments
