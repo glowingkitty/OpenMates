@@ -7,21 +7,33 @@
  */
 
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { webcrypto } from "node:crypto";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+  type ChatCompletionRecoveryEnvelope,
   buildRecoveryAssociatedData,
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
   sealChatCompletionRecoveryPayload,
 } from "./chatCompletionRecovery";
 
+const MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
+const mockedCrypto = globalThis.crypto;
 const vectors = JSON.parse(
   readFileSync(
     new URL("../../../../../backend/tests/fixtures/chat_completion_recovery_vectors.json", import.meta.url),
     "utf8",
   ),
 ).vectors;
+
+beforeAll(() => {
+  Object.defineProperty(globalThis, "crypto", { value: webcrypto, writable: true });
+});
+
+afterAll(() => {
+  Object.defineProperty(globalThis, "crypto", { value: mockedCrypto, writable: true });
+});
 
 describe("chat completion recovery shared vectors", () => {
   for (const vector of vectors) {
@@ -92,6 +104,64 @@ describe("chat completion recovery shared vectors", () => {
         assistantMessageId: vector.assistant_message_id,
         keyVersion: vector.key_version,
       })).rejects.toThrow();
+    });
+
+    it(`rejects malformed envelopes for ${vector.name}`, async () => {
+      const options = {
+        recoveryPrivateKey: vector.recovery_private_key,
+        ownerId: vector.owner_id,
+        chatId: vector.chat_id,
+        turnId: vector.turn_id,
+        jobId: vector.job_id,
+        assistantMessageId: vector.assistant_message_id,
+        keyVersion: vector.key_version,
+      };
+      const malformed = [
+        { ...vector.envelope, v: 2 },
+        { ...vector.envelope, unexpected: "field" },
+        { v: 1, epk: vector.envelope.epk, nonce: vector.envelope.nonce },
+        { ...vector.envelope, nonce: `${vector.envelope.nonce}=` },
+        { ...vector.envelope, epk: "A" },
+        { ...vector.envelope, ciphertext: "AA" },
+      ];
+
+      for (const envelope of malformed) {
+        await expect(openChatCompletionRecoveryEnvelope(
+          envelope as ChatCompletionRecoveryEnvelope,
+          options,
+        )).rejects.toThrow();
+      }
+    });
+
+    it(`rejects an all-zero X25519 shared secret for ${vector.name}`, async () => {
+      const zeroPublicKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+      await expect(openChatCompletionRecoveryEnvelope(
+        { ...vector.envelope, epk: zeroPublicKey },
+        {
+          recoveryPrivateKey: vector.recovery_private_key,
+          ownerId: vector.owner_id,
+          chatId: vector.chat_id,
+          turnId: vector.turn_id,
+          jobId: vector.job_id,
+          assistantMessageId: vector.assistant_message_id,
+          keyVersion: vector.key_version,
+        },
+      )).rejects.toThrow();
+    });
+
+    it(`rejects payloads larger than 16 MiB for ${vector.name}`, async () => {
+      await expect(sealChatCompletionRecoveryPayload(
+        new Uint8Array(MAX_PAYLOAD_BYTES + 1),
+        {
+          recoveryPublicKey: vector.recovery_public_key,
+          ownerId: vector.owner_id,
+          chatId: vector.chat_id,
+          turnId: vector.turn_id,
+          jobId: vector.job_id,
+          assistantMessageId: vector.assistant_message_id,
+          keyVersion: vector.key_version,
+        },
+      )).rejects.toThrow("plaintext must be no larger than");
     });
   }
 });
