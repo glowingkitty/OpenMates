@@ -77,7 +77,13 @@ function fakeDatabase(seed, injectedFailure = null) {
         async insert(value) {
           maybeFail('insert', table);
           store[table] ??= [];
-          for (const row of Array.isArray(value) ? value : [value]) store[table].push(structuredClone(row));
+          for (const row of Array.isArray(value) ? value : [value]) {
+            const stored = structuredClone(row);
+            if (table === 'chat_recovery_protocol_state' && typeof stored.active_legacy_tasks === 'string') {
+              stored.active_legacy_tasks = JSON.parse(stored.active_legacy_tasks);
+            }
+            store[table].push(stored);
+          }
           return 1;
         },
         async update(values) {
@@ -85,7 +91,12 @@ function fakeDatabase(seed, injectedFailure = null) {
           const found = matching();
           for (const row of found) {
             for (const [field, value] of Object.entries(values)) {
-              row[field] = value?.rawExpression === `${field} + 1` ? row[field] + 1 : structuredClone(value);
+              if (table === 'chat_recovery_protocol_state'
+                && field === 'active_legacy_tasks' && typeof value === 'string') {
+                row[field] = JSON.parse(value);
+              } else {
+                row[field] = value?.rawExpression === `${field} + 1` ? row[field] + 1 : structuredClone(value);
+              }
             }
           }
           return found.length;

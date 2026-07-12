@@ -227,7 +227,7 @@ async function lockedProtocolState(trx) {
       legacy_in_flight: 0,
       active_legacy_tasks: [],
     };
-    await trx(PROTOCOL_STATE).insert(row);
+    await trx(PROTOCOL_STATE).insert({ ...row, active_legacy_tasks: JSON.stringify([]) });
   }
   const hasLegacyTaskMapPlaceholder = row.active_legacy_tasks
     && typeof row.active_legacy_tasks === 'object'
@@ -236,7 +236,9 @@ async function lockedProtocolState(trx) {
   if ((row.active_legacy_tasks == null || hasLegacyTaskMapPlaceholder)
     && row.protocol_epoch === 0 && row.legacy_in_flight === 0) {
     row.active_legacy_tasks = [];
-    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({ active_legacy_tasks: [] });
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({
+      active_legacy_tasks: JSON.stringify([]),
+    });
   }
   if (!Array.isArray(row.active_legacy_tasks)
     || row.legacy_in_flight !== row.active_legacy_tasks.length) fail(500, 'cutover_state_corrupt');
@@ -270,7 +272,7 @@ async function admitLegacyInference(database, raw) {
     }
     const activeTasks = [...row.active_legacy_tasks, taskIdentity];
     await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({
-      active_legacy_tasks: activeTasks,
+      active_legacy_tasks: JSON.stringify(activeTasks),
       legacy_in_flight: activeTasks.length,
     });
     return {
@@ -291,7 +293,7 @@ async function releaseLegacyInference(database, raw) {
     }
     const activeTasks = row.active_legacy_tasks.filter((identity) => identity !== taskIdentity);
     await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({
-      active_legacy_tasks: activeTasks,
+      active_legacy_tasks: JSON.stringify(activeTasks),
       legacy_in_flight: activeTasks.length,
     });
     return {

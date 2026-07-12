@@ -694,7 +694,7 @@ test('secondary client recovers exactly one saved assistant message after origin
 		await ensureSidebarClosed(secondary);
 		const recoveredAssistantMessages = secondary.getByTestId('message-assistant');
 		await expect(recoveredAssistantMessages).toHaveCount(1, { timeout: 120000 });
-		await expect(recoveredAssistantMessages.first()).toContainText('Paris', { timeout: 120000 });
+		await expect(recoveredAssistantMessages.first()).toContainText('Berlin', { timeout: 120000 });
 		await expect(recoveredAssistantMessages).toHaveCount(1);
 
 		await secondary.close();
@@ -705,7 +705,7 @@ test('secondary client recovers exactly one saved assistant message after origin
 		await ensureSidebarClosed(secondary);
 		const coldBootAssistantMessages = secondary.getByTestId('message-assistant');
 		await expect(coldBootAssistantMessages).toHaveCount(1, { timeout: 60000 });
-		await expect(coldBootAssistantMessages.first()).toContainText('Paris');
+		await expect(coldBootAssistantMessages.first()).toContainText('Berlin');
 		await expect(coldBootAssistantMessages).toHaveCount(1);
 	} finally {
 		try {
