@@ -603,9 +603,12 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func settingsDestinationContent(_ destination: SettingsDestination) -> some View {
+        let accessibilityIdentifier = destination == .shared && shareChatId != nil
+            ? "settings-shared-share-settings"
+            : destination.pageAccessibilityIdentifier
         destinationContent(for: destination)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityIdentifier(destination.pageAccessibilityIdentifier)
+            .accessibilityIdentifier(accessibilityIdentifier)
             .environment(\.omSettingsScrollOffsetHandler, OMSettingsScrollOffsetHandler { offset in
                 destinationScrollTop = offset
             })
