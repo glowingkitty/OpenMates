@@ -27,6 +27,22 @@ import UIKit
 import AppKit
 #endif
 
+enum MainAppLayoutParity {
+    static let settingsPanelWidth: CGFloat = 323
+
+    static func sideBySideSettingsWidth(isOpen: Bool, dragOffset: CGFloat) -> CGFloat {
+        if isOpen {
+            return max(0, min(settingsPanelWidth, settingsPanelWidth - max(0, dragOffset)))
+        }
+        return max(0, min(settingsPanelWidth, -dragOffset))
+    }
+
+    static func inspirationHeight(for size: CGSize, isSettingsOpen: Bool) -> CGFloat {
+        if size.width <= 730 { return 190 }
+        return isSettingsOpen ? 240 : max(240, size.height * 0.35)
+    }
+}
+
 struct MainAppView: View {
     let launchCommand: AppWindowLaunchCommand?
 
@@ -1133,10 +1149,10 @@ struct MainAppView: View {
 
     private func resolvedSideBySideSettingsWidth(viewportWidth: CGFloat) -> CGFloat {
         guard isSettingsSideBySide(width: viewportWidth) else { return 0 }
-        if showSettings {
-            return max(0, min(323, 323 - max(0, shellDragOffset)))
-        }
-        return max(0, min(323, -shellDragOffset))
+        return MainAppLayoutParity.sideBySideSettingsWidth(
+            isOpen: showSettings,
+            dragOffset: shellDragOffset
+        )
     }
 
     @ViewBuilder
@@ -5520,8 +5536,7 @@ struct NewChatWelcomeView: View {
     }
 
     private static func inspirationBannerHeight(for size: CGSize, isSettingsOpen: Bool) -> CGFloat {
-        if size.width <= 730 { return 190 }
-        return isSettingsOpen ? 240 : max(240, size.height * 0.35)
+        MainAppLayoutParity.inspirationHeight(for: size, isSettingsOpen: isSettingsOpen)
     }
 
     private func showPreviousInspiration() {
