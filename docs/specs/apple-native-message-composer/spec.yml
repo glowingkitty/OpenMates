@@ -207,11 +207,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-20
-  next_action: Add focused iPhone XCUITest and native unit regressions, then run them red against the current implementation.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
-  expected_outcome: The new composer regression assertions fail before the implementation changes.
+  next_action: Run the persisted web-search child/favicons unit contract, then add the focused iPhone renderer parity assertion for the direct persisted parent route.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SkillApplicationParityTests
+  expected_outcome: The unit contract proves persisted child resolution; the next UI assertion must fail before sheet/web-search visual parity work.
   blocker: null
-  last_verified_commit: 379db70bf
+  last_verified_commit: c60c7d1
 
 scenarios:
   - id: S-1

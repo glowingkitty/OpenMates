@@ -65,7 +65,13 @@ struct EmbedContentView: View {
             } else {
             switch embedType {
             // Web
-            case .webSearch, .newsSearch:
+            case .webSearch:
+                WebSearchEmbedRenderer(
+                    model: SearchSkillPreviewModel(embed: embed, allEmbedRecords: allEmbedRecords),
+                    mode: mode,
+                    onOpenEmbed: onOpenEmbed
+                )
+            case .newsSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "results")
             case .webWebsite:
                 WebsiteEmbedRenderer(data: rawData, mode: mode)
