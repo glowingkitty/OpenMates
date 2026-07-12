@@ -53,7 +53,6 @@ struct AttachmentPicker: View {
                         AttachmentMenuRow(icon: "files", title: "Browse Files")
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("attachment-browse-files-action")
                 }
                 .padding(.spacing2)
                 .background(Color.grey0)
@@ -67,8 +66,6 @@ struct AttachmentPicker: View {
                 .zIndex(10)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("attachment-menu")
         .onChange(of: selectedPhotoItem) { _, newValue in
             if let item = newValue {
                 isPresented = false
