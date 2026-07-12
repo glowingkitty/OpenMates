@@ -9,6 +9,54 @@ import XCTest
 @testable import OpenMates
 
 final class ChatCompletionRecoveryTests: XCTestCase {
+    func testSavedChatInferenceWaitsForPreflightAcknowledgement() async throws {
+        XCTFail(
+            "Missing Apple send seam: ChatSendPipeline must emit chat_turn_preflight, await the matching " +
+            "chat_turn_preflight_ack, and only then emit chat_message_added for a saved chat."
+        )
+    }
+
+    func testExistingChatRegistersRecoveryMaterialWithoutRewritingHistory() async throws {
+        XCTFail(
+            "Missing Apple preflight seam: an existing chat must derive and register recovery_public_key " +
+            "and encrypted_chat_key while preserving its existing encrypted metadata and message history."
+        )
+    }
+
+    func testRecoveryAvailabilityClaimsOnlyWithUnlockedKeyAndEligibleDevice() async throws {
+        XCTFail(
+            "Missing app-level recovery coordinator: recovery_jobs_available must claim only after the " +
+            "chat key is unlocked and the authenticated device is eligible."
+        )
+    }
+
+    func testClaimedSealedCompletionIsReencryptedPersistedOnceAndAcknowledged() async throws {
+        XCTFail(
+            "Missing app-level recovery persistence seam: recovery_job_claimed must decrypt the sealed " +
+            "completion locally, encrypt it with the chat key, persist it once, and send recovery_job_persist " +
+            "with the claim lease_generation and lease_token."
+        )
+    }
+
+    func testDuplicateRecoveryAvailabilityIsIdempotent() async throws {
+        XCTFail(
+            "Missing app-level recovery idempotency seam: duplicate recovery_jobs_available events for one " +
+            "job must produce at most one claim and one persisted assistant message."
+        )
+    }
+
+    func testRevokedDeviceDoesNotClaimRecoveryJob() async throws {
+        XCTFail(
+            "Missing device-eligibility recovery seam: a revoked device must not send recovery_job_claim."
+        )
+    }
+
+    func testLockedChatKeyDoesNotClaimRecoveryJob() async throws {
+        XCTFail(
+            "Missing chat-key recovery seam: a locked or unavailable chat key must not send recovery_job_claim."
+        )
+    }
+
     func testSharedCryptoVectors() async throws {
         let vector = RecoveryVector.shared
         let chatKey = SymmetricKey(data: try decodeBase64URL(vector.chatKey))
