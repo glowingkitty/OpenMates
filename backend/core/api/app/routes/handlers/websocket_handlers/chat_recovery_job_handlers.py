@@ -115,6 +115,7 @@ async def _send_protocol_error(
     user_id: str,
     device_hash: str,
     exc: ChatRecoveryProtocolError,
+    job_id: str | None,
 ) -> None:
     await manager.send_personal_message(
         {
@@ -122,6 +123,7 @@ async def _send_protocol_error(
             "payload": {
                 "code": exc.code,
                 "message": "Encrypted completion recovery was rejected.",
+                "job_id": job_id,
             },
         },
         user_id,
@@ -154,7 +156,9 @@ async def handle_recovery_job_claim(
             device_fingerprint_hash,
         )
     except ChatRecoveryProtocolError as exc:
-        await _send_protocol_error(manager, user_id, device_fingerprint_hash, exc)
+        await _send_protocol_error(
+            manager, user_id, device_fingerprint_hash, exc, payload.get("job_id")
+        )
 
 
 async def handle_recovery_job_renew(
@@ -184,7 +188,9 @@ async def handle_recovery_job_renew(
             device_fingerprint_hash,
         )
     except ChatRecoveryProtocolError as exc:
-        await _send_protocol_error(manager, user_id, device_fingerprint_hash, exc)
+        await _send_protocol_error(
+            manager, user_id, device_fingerprint_hash, exc, payload.get("job_id")
+        )
 
 
 async def handle_recovery_job_persist(
@@ -218,4 +224,6 @@ async def handle_recovery_job_persist(
             device_fingerprint_hash,
         )
     except ChatRecoveryProtocolError as exc:
-        await _send_protocol_error(manager, user_id, device_fingerprint_hash, exc)
+        await _send_protocol_error(
+            manager, user_id, device_fingerprint_hash, exc, payload.get("job_id")
+        )

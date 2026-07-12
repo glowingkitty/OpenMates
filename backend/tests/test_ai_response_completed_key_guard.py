@@ -34,6 +34,16 @@ class FakeCacheService:
         return None
 
 
+class FakeCutoverController:
+    epoch = 0
+
+    def __init__(self, *_args) -> None:
+        pass
+
+    async def get_epoch(self) -> int:
+        return self.epoch
+
+
 class FakeChatService:
     def __init__(self, authoritative_fingerprint: str) -> None:
         self.authoritative_fingerprint = authoritative_fingerprint
@@ -102,6 +112,12 @@ async def _run_rejects_mismatched_ciphertext_fingerprint(monkeypatch):
         "send_task",
         fake_send_task,
     )
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "ChatRecoveryCutoverController",
+        FakeCutoverController,
+    )
+    FakeCutoverController.epoch = 0
 
     manager = FakeManager()
     await handle_ai_response_completed(
@@ -150,6 +166,12 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
         "send_task",
         fake_send_task,
     )
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "ChatRecoveryCutoverController",
+        FakeCutoverController,
+    )
+    FakeCutoverController.epoch = 0
 
     manager = FakeManager()
     await handle_ai_response_completed(
@@ -181,3 +203,31 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
             "device-123",
         )
     ]
+
+
+def test_ai_response_completed_is_rejected_after_recovery_cutover(monkeypatch):
+    asyncio.run(_run_rejects_legacy_completion_after_recovery_cutover(monkeypatch))
+
+
+async def _run_rejects_legacy_completion_after_recovery_cutover(monkeypatch):
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "ChatRecoveryCutoverController",
+        FakeCutoverController,
+    )
+    FakeCutoverController.epoch = 1
+    manager = FakeManager()
+
+    await handle_ai_response_completed(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCacheService(),
+        directus_service=FakeDirectusService("1a5b3b7c"),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload=make_payload("1a5b3b7c"),
+    )
+
+    assert manager.personal_messages[0][0]["payload"]["code"] == "recovery_persistence_required"

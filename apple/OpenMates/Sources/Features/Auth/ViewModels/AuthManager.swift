@@ -26,6 +26,12 @@ final class AuthManager: ObservableObject {
         await MainActor.run { _shared?.currentUser?.id }
     }
 
+    static func isRecoveryEligibleDevice() async -> Bool {
+        await MainActor.run {
+            _shared?.state == .authenticated && _shared?.sessionValidationState == .onlineAuthenticated
+        }
+    }
+
     enum AuthState: Equatable {
         case initializing
         case unauthenticated

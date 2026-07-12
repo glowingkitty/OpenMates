@@ -46,6 +46,10 @@ final class ChatKeyManager: ObservableObject {
         chatKeys[chatId] != nil
     }
 
+    func markInitialSyncReady() {
+        isReady = true
+    }
+
     // MARK: - Bulk loading
 
     /// Unwrap and cache chat keys for a batch of chats.

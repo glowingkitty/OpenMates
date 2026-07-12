@@ -146,6 +146,8 @@
 		0F99B1EAD3C2F9DB935B0BB4 /* NewsletterSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F34D30BDD3CA6FB3E99D6F3 /* NewsletterSettingsView.swift */; };
 		0FAE66BBAFAEF660A11C0001 /* AnonymousFreeUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAE66BBAFAEF660A11C0000 /* AnonymousFreeUsageService.swift */; };
 		0FAE66BBAFAEF660A11C0002 /* AnonymousFreeUsageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAE66BBAFAEF660A11C0000 /* AnonymousFreeUsageService.swift */; };
+		0FAE66BBAFAEF660A11C0011 /* ChatCompletionRecoveryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAE66BBAFAEF660A11C0010 /* ChatCompletionRecoveryCoordinator.swift */; };
+		0FAE66BBAFAEF660A11C0012 /* ChatCompletionRecoveryCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAE66BBAFAEF660A11C0010 /* ChatCompletionRecoveryCoordinator.swift */; };
 		0FD5C9343DD03830A8A1D0DC /* EmbedBasicInfoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 473BBCB35F21B98B24DB2DDB /* EmbedBasicInfoBar.swift */; };
 		E1A0E57A8C5C4F0E92A10103 /* EventEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0E57A8C5C4F0E92A10101 /* EventEmbedRenderer.swift */; };
 		E1A0E57A8C5C4F0E92A10104 /* EventsSearchEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0E57A8C5C4F0E92A10102 /* EventsSearchEmbedRenderer.swift */; };
@@ -828,6 +830,7 @@
 		3E76CFDAA08AA7F288658EA2 /* SettingsStorageFull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStorageFull.swift; sourceTree = "<group>"; };
 		3E83213DE2F85D4A37475DB3 /* PendingUploadStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUploadStore.swift; sourceTree = "<group>"; };
 		0FAE66BBAFAEF660A11C0000 /* AnonymousFreeUsageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnonymousFreeUsageService.swift; sourceTree = "<group>"; };
+		0FAE66BBAFAEF660A11C0010 /* ChatCompletionRecoveryCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCompletionRecoveryCoordinator.swift; sourceTree = "<group>"; };
 		3FF87BFEDD0901768A27407A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FDD100000000000000000001 /* BrandAssets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = BrandAssets.xcassets; sourceTree = "<group>"; };
 		4010DCCB3CAAB4051B50AE07 /* OpenMatesShareExtensionMacOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesShareExtensionMacOS.entitlements; sourceTree = "<group>"; };
@@ -1475,6 +1478,7 @@
 			isa = PBXGroup;
 			children = (
 				0FAE66BBAFAEF660A11C0000 /* AnonymousFreeUsageService.swift */,
+				0FAE66BBAFAEF660A11C0010 /* ChatCompletionRecoveryCoordinator.swift */,
 				AD2F1CD833F2B5BFF432DF0E /* DraftService.swift */,
 				D5AF70000000000000000001 /* DraftSyncCoordinator.swift */,
 				4011158DF04A05A08516EA7D /* EditMessageStore.swift */,
@@ -2616,6 +2620,7 @@
 				BD39ADEB1143AFB7A91C5EB4 /* OfflineSyncBridge.swift in Sources */,
 				C0FFEE000000000000037002 /* PendingAssistantResponseQueue.swift in Sources */,
 				0FAE66BBAFAEF660A11C0001 /* AnonymousFreeUsageService.swift in Sources */,
+				0FAE66BBAFAEF660A11C0011 /* ChatCompletionRecoveryCoordinator.swift in Sources */,
 				F2862F8645CA164C75FA6A04 /* OpenMatesApp.swift in Sources */,
 				60648E65A03DA89373DFBB9D /* OpenMatesSharedEnvironment.swift in Sources */,
 				8CD29BDF95C08BC345F649E3 /* OpenMatesShortcuts.swift in Sources */,
@@ -2858,6 +2863,7 @@
 				02C2F9D9D1747B51FD08AF8F /* OfflineSyncBridge.swift in Sources */,
 				C0FFEE000000000000037003 /* PendingAssistantResponseQueue.swift in Sources */,
 				0FAE66BBAFAEF660A11C0002 /* AnonymousFreeUsageService.swift in Sources */,
+				0FAE66BBAFAEF660A11C0012 /* ChatCompletionRecoveryCoordinator.swift in Sources */,
 				F24AABC9FF504F337AE8A394 /* OpenMatesApp.swift in Sources */,
 				8EF96D6DF01E60DD1D952AAA /* OpenMatesSharedEnvironment.swift in Sources */,
 				6B70F67D0D296932288BA70D /* OpenMatesShortcuts.swift in Sources */,

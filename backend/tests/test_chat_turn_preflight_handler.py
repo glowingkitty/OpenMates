@@ -102,6 +102,7 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     ).hexdigest()
     assert manager.messages[0][0]["type"] == "chat_turn_preflight_ack"
     assert manager.messages[0][0]["payload"]["preflight_id"] == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    assert manager.messages[0][0]["payload"]["turn_id"] == payload["turn_id"]
 
 
 @pytest.mark.asyncio
@@ -164,6 +165,7 @@ async def test_preflight_fails_closed_without_commitment_key(monkeypatch) -> Non
                 "payload": {
                     "code": "durable_preflight_failed",
                     "message": "Encrypted chat preflight is temporarily unavailable.",
+                    "turn_id": "22222222-2222-4222-8222-222222222222",
                 },
             },
             "user-1",

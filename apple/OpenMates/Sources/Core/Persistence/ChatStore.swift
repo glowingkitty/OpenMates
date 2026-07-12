@@ -118,6 +118,15 @@ final class ChatStore: ObservableObject {
         persistIfAllowed { $0.onChatsReceived([chats[index]]) }
     }
 
+    func advanceMessagesVersion(chatId: String, to committedVersion: Int) {
+        guard committedVersion >= 0,
+              let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
+        let currentVersion = chats[index].messagesV ?? 0
+        guard committedVersion > currentVersion else { return }
+        chats[index] = chats[index].withMessagesVersion(committedVersion)
+        persistIfAllowed { $0.onChatsReceived([chats[index]]) }
+    }
+
     func updateActiveFocus(chatId: String, encryptedActiveFocusId: String?, activeFocusId: String?) {
         guard let index = chats.firstIndex(where: { $0.id == chatId }) else { return }
         chats[index] = chats[index].withActiveFocus(
@@ -311,6 +320,41 @@ final class ChatStore: ObservableObject {
 }
 
 private extension Chat {
+    func withMessagesVersion(_ messagesVersion: Int) -> Chat {
+        Chat(
+            id: id,
+            title: title,
+            lastMessageAt: lastMessageAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            isArchived: isArchived,
+            isPinned: isPinned,
+            appId: appId,
+            category: category,
+            icon: icon,
+            chatSummary: chatSummary,
+            encryptedTitle: encryptedTitle,
+            encryptedCategory: encryptedCategory,
+            encryptedIcon: encryptedIcon,
+            encryptedChatSummary: encryptedChatSummary,
+            encryptedChatKey: encryptedChatKey,
+            messagesV: messagesVersion,
+            titleV: titleV,
+            draftV: draftV,
+            lastVisibleMessageId: lastVisibleMessageId,
+            parentId: parentId,
+            isSubChat: isSubChat,
+            subChatSettings: subChatSettings,
+            budgetLimit: budgetLimit,
+            budgetSpent: budgetSpent,
+            encryptedActiveFocusId: encryptedActiveFocusId,
+            activeFocusId: activeFocusId,
+            isPrivate: isPrivate,
+            isHidden: isHidden,
+            isHiddenCandidate: isHiddenCandidate
+        )
+    }
+
     func withDraftVersion(_ draftVersion: Int) -> Chat {
         Chat(
             id: id,

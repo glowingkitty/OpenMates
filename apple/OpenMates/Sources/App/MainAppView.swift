@@ -2827,15 +2827,17 @@ struct MainAppView: View {
         NativeSyncPerfLog.info("phase=assistantCompletionApplied source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)) role=\(role.rawValue)")
         await showAssistantNotificationIfNeeded(chat: updatedChat, message: message, source: source)
 
-        do {
-            _ = try await ChatSendPipeline().persistCompletedAssistantMessage(
-                message,
-                userMessageId: userMessageId,
-                wsManager: wsManager,
-                chatStore: chatStore
-            )
-        } catch {
-            print("[MainApp] Failed to persist assistant completion source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)): \(error)")
+        if !wsManager.ownsRecoveryPersistence(messageId: messageId) {
+            do {
+                _ = try await ChatSendPipeline().persistCompletedAssistantMessage(
+                    message,
+                    userMessageId: userMessageId,
+                    wsManager: wsManager,
+                    chatStore: chatStore
+                )
+            } catch {
+                print("[MainApp] Failed to persist assistant completion source=\(source) chat=\(chatId.prefix(8)) message=\(messageId.prefix(8)): \(error)")
+            }
         }
     }
 
@@ -2928,6 +2930,7 @@ struct MainAppView: View {
             encryptedChatKey: encryptedChatKey,
             masterKey: masterKey
         )
+        await wsManager.handleRecoveryChatKeyAvailabilityChanged()
     }
 
     private func handleSyncEvent(_ notification: Notification) {
@@ -3184,6 +3187,8 @@ struct MainAppView: View {
                     await flushBackgroundSyncedContent(reason: "syncComplete")
                 }
                 syncBridge?.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
+                ChatKeyManager.shared.markInitialSyncReady()
+                await appSession.markRecoveryInitialSyncReady()
 
             default:
                 await loadInitialData()
@@ -3661,6 +3666,8 @@ private struct AIBackgroundResponseCompletedPayload: Decodable {
     let interruptedBySoftLimit: Bool?
     let interruptedByRevocation: Bool?
     let rejectionReason: String?
+    let recoveryJobId: String?
+    let recoveryProtocolVersion: Int?
 }
 
 private struct PendingAIResponsePayload: Decodable {

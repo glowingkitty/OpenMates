@@ -144,6 +144,7 @@ async def handle_chat_turn_preflight(
             "prepare_preflight",
             transaction_data,
         )
+        result["turn_id"] = payload["turn_id"]
         await manager.send_personal_message(
             {"type": "chat_turn_preflight_ack", "payload": result},
             user_id,
@@ -156,6 +157,7 @@ async def handle_chat_turn_preflight(
                 "payload": {
                     "code": exc.code,
                     "message": "Encrypted chat preflight was rejected.",
+                    "turn_id": payload.get("turn_id"),
                 },
             },
             user_id,
@@ -174,6 +176,7 @@ async def handle_chat_turn_preflight(
                 "payload": {
                     "code": "durable_preflight_failed",
                     "message": "Encrypted chat preflight is temporarily unavailable.",
+                    "turn_id": payload.get("turn_id"),
                 },
             },
             user_id,

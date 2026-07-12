@@ -78,6 +78,7 @@ async def test_preflight_ack_is_emitted_only_after_durable_commit(monkeypatch) -
     assert manager.messages[0]["payload"] == {
         "code": "version_conflict",
         "message": "Encrypted chat preflight was rejected.",
+        "turn_id": "22222222-2222-4222-8222-222222222222",
     }
 
 
@@ -105,7 +106,9 @@ async def test_preflight_persists_canonical_server_identity_without_plaintext(mo
     assert "inference_request" not in data
     assert "plaintext for inference" not in repr(data)
     assert manager.messages == [{"type": "chat_turn_preflight_ack", "payload": {
-        "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED"
+        "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "state": "PREPARED",
+        "turn_id": "22222222-2222-4222-8222-222222222222",
     }}]
 
 

@@ -9,52 +9,197 @@ import XCTest
 @testable import OpenMates
 
 final class ChatCompletionRecoveryTests: XCTestCase {
-    func testSavedChatInferenceWaitsForPreflightAcknowledgement() async throws {
-        XCTFail(
-            "Missing Apple send seam: ChatSendPipeline must emit chat_turn_preflight, await the matching " +
-            "chat_turn_preflight_ack, and only then emit chat_message_added for a saved chat."
+    @MainActor
+    func testSavedChatCommitsTheExactPreflightInferencePayload() async throws {
+        let transport = RecoveryRecordingTransport(responses: [
+            "chat_turn_preflight_ack": [["turn_id": "turn-1", "preflight_id": "preflight-1", "state": "PREPARED"]]
+        ])
+        let inferenceRequest: [String: Any] = [
+            "chat_id": "chat-1",
+            "message": ["message_id": "message-1", "content": "plaintext"],
+            "turn_id": "turn-1",
+            "recovery_public_key": "public-key",
+            "chat_key_version": 1,
+        ]
+        let preflight = ChatSendPipeline().savedChatPreflightPayload(
+            chatId: "chat-1",
+            turnId: "turn-1",
+            messageId: "message-1",
+            encryptedChatKey: "wrapped-key",
+            recoveryPublicKey: "public-key",
+            expectedMessagesVersion: 1,
+            encryptedUserMessage: ["client_message_id": "message-1"],
+            inferenceRequest: inferenceRequest,
+            encryptedTitle: nil,
+            createdAt: 1
+        )
+        try await ChatSendPipeline().sendSavedChatTurn(
+            turnId: "turn-1",
+            preflightPayload: preflight,
+            outboundPayload: inferenceRequest,
+            transport: transport
+        )
+
+        XCTAssertEqual(transport.sentTypes, ["chat_turn_preflight", "chat_message_added"])
+        let committed = transport.sentPayloads[1]
+        XCTAssertEqual(committed["preflight_id"] as? String, "preflight-1")
+        XCTAssertEqual(committed["turn_id"] as? String, "turn-1")
+        var committedInference = committed
+        committedInference.removeValue(forKey: "protocol_version")
+        committedInference.removeValue(forKey: "preflight_id")
+        XCTAssertTrue(
+            NSDictionary(dictionary: transport.sentPayloads[0]["inference_request"] as? [String: Any] ?? [:])
+                .isEqual(to: committedInference)
         )
     }
 
-    func testExistingChatRegistersRecoveryMaterialWithoutRewritingHistory() async throws {
-        XCTFail(
-            "Missing Apple preflight seam: an existing chat must derive and register recovery_public_key " +
-            "and encrypted_chat_key while preserving its existing encrypted metadata and message history."
+    @MainActor
+    func testNewChatPreflightIncludesRequiredEncryptedTitleMetadata() {
+        let payload = ChatSendPipeline().savedChatPreflightPayload(
+            chatId: "chat-1",
+            turnId: "turn-1",
+            messageId: "message-1",
+            encryptedChatKey: "wrapped-key",
+            recoveryPublicKey: "public-key",
+            expectedMessagesVersion: 1,
+            encryptedUserMessage: ["client_message_id": "message-1"],
+            inferenceRequest: ["chat_id": "chat-1", "turn_id": "turn-1"],
+            encryptedTitle: "encrypted-title",
+            createdAt: 123
         )
+
+        let metadata = payload["encrypted_chat_metadata"] as? [String: Any]
+        XCTAssertEqual(Set(metadata?.keys.map { $0 } ?? []), Set(["encrypted_title", "encrypted_chat_key", "created_at", "updated_at"]))
+        XCTAssertEqual(metadata?["encrypted_title"] as? String, "encrypted-title")
+        XCTAssertEqual(metadata?["encrypted_chat_key"] as? String, "wrapped-key")
     }
 
+    @MainActor
+    func testExistingChatPreflightDoesNotRewriteMetadata() {
+        let payload = ChatSendPipeline().savedChatPreflightPayload(
+            chatId: "chat-1",
+            turnId: "turn-1",
+            messageId: "message-1",
+            encryptedChatKey: "wrapped-key",
+            recoveryPublicKey: "public-key",
+            expectedMessagesVersion: 7,
+            encryptedUserMessage: ["client_message_id": "message-1"],
+            inferenceRequest: ["chat_id": "chat-1", "turn_id": "turn-1"],
+            encryptedTitle: nil,
+            createdAt: 123
+        )
+
+        XCTAssertNil(payload["encrypted_chat_metadata"])
+        XCTAssertEqual(payload["expected_messages_v"] as? Int, 7)
+        XCTAssertEqual(payload["recovery_public_key"] as? String, "public-key")
+    }
+
+    @MainActor
     func testRecoveryAvailabilityClaimsOnlyWithUnlockedKeyAndEligibleDevice() async throws {
-        XCTFail(
-            "Missing app-level recovery coordinator: recovery_jobs_available must claim only after the " +
-            "chat key is unlocked and the authenticated device is eligible."
-        )
+        let fixture = try makeRecoveryFixture()
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "recovery_job_persist"])
+        XCTAssertEqual(fixture.persisted.messages.count, 1)
     }
 
+    @MainActor
     func testClaimedSealedCompletionIsReencryptedPersistedOnceAndAcknowledged() async throws {
-        XCTFail(
-            "Missing app-level recovery persistence seam: recovery_job_claimed must decrypt the sealed " +
-            "completion locally, encrypt it with the chat key, persist it once, and send recovery_job_persist " +
-            "with the claim lease_generation and lease_token."
-        )
+        let fixture = try makeRecoveryFixture()
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+
+        let message = try XCTUnwrap(fixture.persisted.messages.first)
+        XCTAssertEqual(message.content, "Recovered hello")
+        XCTAssertNotNil(message.encryptedContent)
+        XCTAssertNotEqual(message.encryptedContent, message.content)
+        let persistPayload = fixture.transport.sentPayloads[1]
+        XCTAssertEqual(persistPayload["lease_generation"] as? Int, 2)
+        XCTAssertEqual(persistPayload["lease_token"] as? String, "synthetic-lease-token")
+        XCTAssertEqual(fixture.persisted.committedMessagesVersions, [8])
+        let encrypted = try XCTUnwrap(persistPayload["encrypted_assistant_message"] as? [String: Any])
+        XCTAssertNil(encrypted["content"])
+        XCTAssertNotNil(encrypted["encrypted_content"])
     }
 
+    @MainActor
     func testDuplicateRecoveryAvailabilityIsIdempotent() async throws {
-        XCTFail(
-            "Missing app-level recovery idempotency seam: duplicate recovery_jobs_available events for one " +
-            "job must produce at most one claim and one persisted assistant message."
-        )
+        let fixture = try makeRecoveryFixture()
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        XCTAssertEqual(fixture.transport.sentTypes.filter { $0 == "recovery_job_claim" }.count, 1)
+        XCTAssertEqual(fixture.persisted.messages.count, 1)
     }
 
+    @MainActor
     func testRevokedDeviceDoesNotClaimRecoveryJob() async throws {
-        XCTFail(
-            "Missing device-eligibility recovery seam: a revoked device must not send recovery_job_claim."
-        )
+        let fixture = try makeRecoveryFixture(isEligible: false)
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        XCTAssertTrue(fixture.transport.sentTypes.isEmpty)
     }
 
+    @MainActor
     func testLockedChatKeyDoesNotClaimRecoveryJob() async throws {
-        XCTFail(
-            "Missing chat-key recovery seam: a locked or unavailable chat key must not send recovery_job_claim."
+        let fixture = try makeRecoveryFixture(hasKey: false)
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        XCTAssertTrue(fixture.transport.sentTypes.isEmpty)
+    }
+
+    @MainActor
+    func testRecoveryReceivedBeforeInitialSyncQueuesUntilReady() async throws {
+        let fixture = try makeRecoveryFixture()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+        XCTAssertTrue(fixture.transport.sentTypes.isEmpty)
+
+        await fixture.coordinator.markInitialSyncReady()
+        XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "recovery_job_persist"])
+    }
+
+    @MainActor
+    func testTerminalRecoveryStreamRoutesToCoordinatorPersistence() async throws {
+        let fixture = try makeRecoveryFixture()
+        fixture.coordinator.handleTerminalStream([
+            "is_final_chunk": true,
+            "recovery_protocol_version": 1,
+            "recovery_job_id": RecoveryVector.shared.jobId,
+            "chat_id": RecoveryVector.shared.chatId,
+            "message_id": RecoveryVector.shared.assistantMessageId,
+        ])
+        XCTAssertTrue(fixture.coordinator.ownsRecoveryPersistence(messageId: RecoveryVector.shared.assistantMessageId))
+        XCTAssertTrue(fixture.transport.sentTypes.isEmpty)
+
+        await fixture.coordinator.markInitialSyncReady()
+        XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim", "recovery_job_persist"])
+    }
+
+    @MainActor
+    func testRecoveryEnvelopeRejectsUnknownFields() async throws {
+        let fixture = try makeRecoveryFixture(hasUnknownEnvelopeField: true)
+        await fixture.coordinator.markInitialSyncReady()
+        await fixture.coordinator.handleAvailableJobs(fixture.availability)
+
+        XCTAssertEqual(fixture.transport.sentTypes, ["recovery_job_claim"])
+        XCTAssertTrue(fixture.persisted.messages.isEmpty)
+    }
+
+    @MainActor
+    func testLegacyPreflightAcknowledgementPreservesSendWithoutRecoveryClaim() async throws {
+        let transport = RecoveryRecordingTransport(responses: [
+            "chat_turn_preflight_ack": [["turn_id": "turn-legacy", "preflight_id": "legacy-id", "state": "LEGACY"]]
+        ])
+        try await ChatSendPipeline().sendSavedChatTurn(
+            turnId: "turn-legacy",
+            preflightPayload: [
+                "turn_id": "turn-legacy",
+                "inference_request": ["chat_id": "chat-1", "turn_id": "turn-legacy"],
+            ],
+            outboundPayload: ["chat_id": "chat-1", "turn_id": "turn-legacy"],
+            transport: transport
         )
+        XCTAssertEqual(transport.sentTypes, ["chat_turn_preflight", "chat_message_added"])
+        XCTAssertFalse(transport.sentTypes.contains("recovery_job_claim"))
     }
 
     func testSharedCryptoVectors() async throws {
@@ -179,6 +324,121 @@ final class ChatCompletionRecoveryTests: XCTestCase {
         let replacement = value.first == "A" ? "B" : "A"
         return replacement + String(value.dropFirst())
     }
+
+    @MainActor
+    private func makeRecoveryFixture(
+        isEligible: Bool = true,
+        hasKey: Bool = true,
+        hasUnknownEnvelopeField: Bool = false
+    ) throws -> RecoveryFixture {
+        let vector = RecoveryVector.shared
+        var envelope: [String: Any] = [
+            "v": 1,
+            "epk": vector.ephemeralPublicKey,
+            "nonce": vector.nonce,
+            "ciphertext": vector.ciphertext,
+        ]
+        if hasUnknownEnvelopeField {
+            envelope["unexpected"] = true
+        }
+        let sealedPayload = try XCTUnwrap(String(data: JSONSerialization.data(withJSONObject: envelope), encoding: .utf8))
+        let transport = RecoveryRecordingTransport(responses: [
+            "recovery_job_claimed": [[
+                "job_id": vector.jobId,
+                "state": "LEASED",
+                "lease_token": "synthetic-lease-token",
+                "lease_generation": 2,
+                "chat_id": vector.chatId,
+                "turn_id": vector.turnId,
+                "assistant_message_id": vector.assistantMessageId,
+                "chat_key_version": Int(vector.keyVersion),
+                "sealed_payload": sealedPayload,
+            ]],
+            "recovery_job_persisted": [[
+                "job_id": vector.jobId,
+                "state": "TERMINAL",
+                "lease_generation": 2,
+                "committed_messages_v": 8,
+            ]],
+        ])
+        let persisted = RecoveryMessageRecorder()
+        let key = SymmetricKey(data: try decodeBase64URL(vector.chatKey))
+        let coordinator = ChatCompletionRecoveryCoordinator(
+            transport: transport,
+            authenticatedOwnerId: { vector.ownerId },
+            isDeviceEligible: { isEligible },
+            chatKey: { _ in hasKey ? key : nil },
+            isChatKeyReady: { true },
+            chatVersion: { _ in 7 },
+            containsMessage: { chatId, messageId in
+                persisted.messages.contains { $0.chatId == chatId && $0.id == messageId }
+            },
+            persistMessage: { persisted.messages.append($0) },
+            applyCommittedMessagesVersion: { _, version in
+                persisted.committedMessagesVersions.append(version)
+            }
+        )
+        return RecoveryFixture(
+            coordinator: coordinator,
+            transport: transport,
+            persisted: persisted,
+            availability: ["jobs": [[
+                "job_id": vector.jobId,
+                "chat_id": vector.chatId,
+                "turn_id": vector.turnId,
+                "assistant_message_id": vector.assistantMessageId,
+                "chat_key_version": Int(vector.keyVersion),
+            ]]]
+        )
+    }
+}
+
+@MainActor
+private final class RecoveryRecordingTransport: ChatWebSocketTransport {
+    private var responses: [String: [[String: Any]]]
+    private(set) var sentTypes: [String] = []
+    private(set) var sentPayloads: [[String: Any]] = []
+
+    init(responses: [String: [[String: Any]]]) {
+        self.responses = responses
+    }
+
+    func send(_ message: WSOutboundMessage) async throws {
+        let data = try JSONEncoder().encode(message)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        sentTypes.append(try XCTUnwrap(object["type"] as? String))
+        sentPayloads.append((object["payload"] as? [String: Any]) ?? [:])
+    }
+
+    func waitForMessage(
+        _ type: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> [String: Any] {
+        guard let index = responses[type]?.firstIndex(where: predicate),
+              let response = responses[type]?.remove(at: index) else {
+            throw RecoveryTestError.missingResponse(type)
+        }
+        return response
+    }
+}
+
+@MainActor
+private final class RecoveryMessageRecorder {
+    var messages: [Message] = []
+    var committedMessagesVersions: [Int] = []
+}
+
+@MainActor
+private struct RecoveryFixture {
+    let coordinator: ChatCompletionRecoveryCoordinator
+    let transport: RecoveryRecordingTransport
+    let persisted: RecoveryMessageRecorder
+    let availability: [String: Any]
+}
+
+private enum RecoveryTestError: Error {
+    case missingResponse(String)
 }
 
 private struct RecoveryVector {

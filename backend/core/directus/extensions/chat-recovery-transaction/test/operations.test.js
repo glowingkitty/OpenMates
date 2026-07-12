@@ -574,10 +574,22 @@ test('persist_terminal atomically commits ciphertext and erases recovery materia
   };
   const result = await executeOperation(database, 'persist_terminal', body, new Date(now.getTime() + 1000));
   const retry = await executeOperation(database, 'persist_terminal', body, new Date(now.getTime() + 2000));
+  const terminalClaim = await executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: OWNER, device_hash: 'device-a',
+  }, new Date(now.getTime() + 3000));
 
   assert.equal(result.idempotent, false);
   assert.equal(result.committed_messages_v, 2);
   assert.equal(retry.idempotent, true);
+  assert.deepEqual(terminalClaim, {
+    job_id: JOB_ID,
+    state: 'TERMINAL',
+    chat_id: CHAT_ID,
+    turn_id: TURN_ID,
+    assistant_message_id: 'assistant-message-1',
+    chat_key_version: 1,
+    committed_messages_v: 2,
+  });
   assert.equal(database.rows.messages.length, 2);
   assert.equal(database.rows.chats[0].messages_v, 2);
   assert.equal(database.rows.chat_turn_preflights[0].state, 'TERMINAL');

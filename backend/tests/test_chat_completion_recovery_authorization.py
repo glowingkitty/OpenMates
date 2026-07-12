@@ -58,6 +58,7 @@ async def test_rejected_job_request_discloses_no_payload_or_chat_metadata(monkey
     assert manager.messages == [{"type": "error", "payload": {
         "code": "recovery_job_not_found",
         "message": "Encrypted completion recovery was rejected.",
+        "job_id": "11111111-1111-4111-8111-111111111111",
     }}]
     assert "sensitive" not in repr(manager.messages)
 

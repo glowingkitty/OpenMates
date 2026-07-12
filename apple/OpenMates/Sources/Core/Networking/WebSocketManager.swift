@@ -14,6 +14,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var connectTask: Task<Void, Never>?
     private var activeConnectionKey: ConnectionKey?
     private var didOpenCurrentSocket = false
+    private var messageWaiters: [UUID: MessageWaiter] = [:]
+    private(set) var recoveryCoordinator: ChatCompletionRecoveryCoordinator?
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
         config.httpCookieAcceptPolicy = .always
@@ -106,6 +108,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             reconnectDelay = 1.0
             startPingTimer()
             receiveMessages()
+            await recoveryCoordinator?.handleTransportConnected()
             try? await requestPhasedSync(syncState: syncState)
         }
     }
@@ -131,6 +134,26 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             throw WebSocketError.encodingFailed
         }
         try await webSocketTask.send(.string(json))
+    }
+
+    func configureRecoveryCoordinator(_ coordinator: ChatCompletionRecoveryCoordinator) {
+        recoveryCoordinator = coordinator
+    }
+
+    func waitForMessage(
+        _ type: String,
+        timeout: Duration = .seconds(20),
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> [String: Any] {
+        let waiterId = UUID()
+        return try await withCheckedThrowingContinuation { continuation in
+            messageWaiters[waiterId] = MessageWaiter(type: type, predicate: predicate, continuation: continuation)
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: timeout)
+                guard let waiter = self?.messageWaiters.removeValue(forKey: waiterId) else { return }
+                waiter.continuation.resume(throwing: WebSocketError.messageTimeout)
+            }
+        }
     }
 
     var isConnected: Bool {
@@ -224,6 +247,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // MARK: - Message routing
 
     private func routeMessage(_ msg: WSInboundParsed, raw: Data) {
+        if msg.type == "error" {
+            rejectWaiters(with: msg.fields)
+        }
+        resolveWaiters(type: msg.type, payload: msg.fields)
         switch msg.type {
         // Keepalive
         case "pong":
@@ -275,6 +302,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             let category = msg.stringField("category")
             let modelName = msg.stringField("model_name")
             let rejectionReason = msg.stringField("rejection_reason")
+            recoveryCoordinator?.handleTerminalStream(msg.fields)
             Task {
                 await StreamingClient.shared.dispatch(
                     .chunk(
@@ -422,12 +450,14 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
               "message_highlight_updated", "message_highlight_removed", "draft_embed_deleted",
               "last_opened_updated", "key_delivery_confirmed", "system_message_confirmed",
               "new_system_message", "reminder_fired", "pending_ai_response",
-              "ai_response_storage_confirmed", "ai_background_response_completed",
+              "ai_response_storage_confirmed",
               "chat_compression_started", "chat_compression_completed",
               "encrypted_metadata_stored", "post_processing_metadata_stored",
               "focus_mode_activated",
               "spawn_sub_chats", "sub_chat_confirmation_required",
-              "sub_chat_confirmation_resolved", "sub_chat_progress", "sub_chat_stopped":
+              "sub_chat_confirmation_resolved", "sub_chat_progress", "sub_chat_stopped",
+              "ai_background_response_completed":
+            recoveryCoordinator?.handleTerminalStream(msg.fields)
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]
@@ -460,6 +490,12 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         case "native_client_lifecycle_ack":
             break
 
+        case "recovery_jobs_available":
+            Task { await recoveryCoordinator?.handleAvailableJobs(msg.fields) }
+
+        case "chat_turn_preflight_ack", "recovery_job_claimed", "recovery_job_persisted":
+            break
+
         case "force_logout":
             let reason = msg.stringField("reason") ?? "session_revoked"
             NotificationCenter.default.post(
@@ -470,6 +506,39 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         default:
             print("[WS] Unhandled: \(msg.type)")
         }
+    }
+
+    private func resolveWaiters(type: String, payload: [String: Any]) {
+        let matches = messageWaiters.filter { _, waiter in
+            waiter.type == type && waiter.predicate(payload)
+        }
+        for (id, waiter) in matches {
+            messageWaiters.removeValue(forKey: id)
+            waiter.continuation.resume(returning: payload)
+        }
+    }
+
+    private func rejectWaiters(with payload: [String: Any]) {
+        let code = payload["code"] as? String ?? "server_error"
+        let matchingWaiters = messageWaiters.filter { _, waiter in waiter.predicate(payload) }
+        for id in matchingWaiters.keys {
+            messageWaiters.removeValue(forKey: id)
+        }
+        for waiter in matchingWaiters.values {
+            waiter.continuation.resume(throwing: WebSocketError.remote(code: code))
+        }
+    }
+
+    func ownsRecoveryPersistence(messageId: String) -> Bool {
+        recoveryCoordinator?.ownsRecoveryPersistence(messageId: messageId) ?? false
+    }
+
+    func markRecoveryInitialSyncReady() async {
+        await recoveryCoordinator?.markInitialSyncReady()
+    }
+
+    func handleRecoveryChatKeyAvailabilityChanged() async {
+        await recoveryCoordinator?.handleChatKeyAvailabilityChanged()
     }
 
     // MARK: - Ping timer
@@ -496,6 +565,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         pingTimer?.invalidate()
         pingTimer = nil
         webSocketTask = nil
+        recoveryCoordinator?.handleTransportDisconnected()
         guard shouldReconnect else {
             connectionState = .disconnected
             return
@@ -544,6 +614,27 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         }
     }
 }
+
+@MainActor
+protocol ChatWebSocketTransport: AnyObject {
+    func send(_ message: WSOutboundMessage) async throws
+    func waitForMessage(
+        _ type: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> [String: Any]
+}
+
+extension ChatWebSocketTransport {
+    func waitForMessage(
+        _ type: String,
+        matching predicate: @escaping ([String: Any]) -> Bool
+    ) async throws -> [String: Any] {
+        try await waitForMessage(type, timeout: .seconds(20), matching: predicate)
+    }
+}
+
+extension WebSocketManager: ChatWebSocketTransport {}
 
 extension WebSocketManager: DraftSyncTransport {}
 
@@ -622,6 +713,13 @@ private struct WSInboundParsed: Decodable {
         if let v = rootFields?[key]?.value as? [Any] { return v.compactMap { $0 as? String } }
         return nil
     }
+
+    var fields: [String: Any] {
+        var values = rootFields?.mapValues(\.value) ?? [:]
+        data?.forEach { values[$0.key] = $0.value.value }
+        payload?.forEach { values[$0.key] = $0.value.value }
+        return values
+    }
 }
 
 // MARK: - Outbound message
@@ -641,6 +739,8 @@ struct WSOutboundMessage: Encodable {
 private enum WebSocketError: LocalizedError {
     case notConnected
     case encodingFailed
+    case messageTimeout
+    case remote(code: String)
 
     var errorDescription: String? {
         switch self {
@@ -648,8 +748,18 @@ private enum WebSocketError: LocalizedError {
             return "WebSocket is not connected"
         case .encodingFailed:
             return "Failed to encode WebSocket message"
+        case .messageTimeout:
+            return "Timed out waiting for WebSocket message"
+        case .remote(let code):
+            return "WebSocket request was rejected: \(code)"
         }
     }
+}
+
+private struct MessageWaiter {
+    let type: String
+    let predicate: ([String: Any]) -> Bool
+    let continuation: CheckedContinuation<[String: Any], Error>
 }
 
 // MARK: - Notifications

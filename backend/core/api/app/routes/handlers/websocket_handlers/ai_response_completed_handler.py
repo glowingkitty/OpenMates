@@ -9,6 +9,7 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.shared.python_utils.chat_ciphertext_fingerprint import (
     authoritative_chat_fingerprint,
     validate_message_matches_authoritative_fingerprint,
@@ -44,6 +45,21 @@ async def handle_ai_response_completed(
         pass
     try:
         try:
+            # Epoch one persists assistant completions exclusively through the
+            # fenced recovery job. Legacy clients remain supported at epoch zero.
+            if await ChatRecoveryCutoverController(cache_service, directus_service).get_epoch() >= 1:
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "recovery_persistence_required",
+                            "message": "This saved-chat completion must use encrypted recovery persistence.",
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
             chat_id = payload.get("chat_id")
             message_payload_from_client = payload.get("message")
             versions = payload.get("versions")  # Get version info for multi-device sync

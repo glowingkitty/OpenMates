@@ -147,7 +147,12 @@ final class AppSessionCoordinator: ObservableObject {
     private var didLoadFromDisk = false
     private var didStartNetworkMonitoring = false
 
-    private init() {}
+    private init() {
+        webSocketManager.configureRecoveryCoordinator(ChatCompletionRecoveryCoordinator(
+            transport: webSocketManager,
+            chatStore: chatStore
+        ))
+    }
 
     func prepareAuthenticatedRuntime(lastOpenedChatId: String?) -> OfflineSyncBridge {
         let bridge = offlineBridge()
@@ -168,8 +173,13 @@ final class AppSessionCoordinator: ObservableObject {
 
     func resetTransientRuntime() {
         webSocketManager.disconnect()
+        webSocketManager.recoveryCoordinator?.reset()
         chatStore.clearInMemory()
         didLoadFromDisk = false
+    }
+
+    func markRecoveryInitialSyncReady() async {
+        await webSocketManager.markRecoveryInitialSyncReady()
     }
 
     private func offlineBridge() -> OfflineSyncBridge {

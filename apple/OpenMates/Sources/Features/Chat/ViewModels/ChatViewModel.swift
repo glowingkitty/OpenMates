@@ -1039,7 +1039,8 @@ final class ChatViewModel: ObservableObject {
                 assistantCategoryByMessageId.removeValue(forKey: messageId)
                 assistantModelNameByMessageId.removeValue(forKey: messageId)
                 Task { @MainActor in
-                    if !IncognitoChatSession.isIncognitoChatId(chatId) {
+                    if !IncognitoChatSession.isIncognitoChatId(chatId),
+                       !(wsManager?.ownsRecoveryPersistence(messageId: messageId) ?? false) {
                         await persistCompletedAssistantMessage(
                             assistantMessage,
                             userMessageId: userMessageIdByAssistantMessageId[messageId],
@@ -1174,7 +1175,8 @@ final class ChatViewModel: ObservableObject {
             thinkingTokenCount: partial.thinkingTokenCount
         )
         appendOrReplaceTransientMessage(completed)
-        guard !IncognitoChatSession.isIncognitoChatId(chatId) else { return }
+        guard !IncognitoChatSession.isIncognitoChatId(chatId),
+              !(wsManager?.ownsRecoveryPersistence(messageId: messageId) ?? false) else { return }
         Task { @MainActor in
             await persistCompletedAssistantMessage(
                 completed,
@@ -3309,11 +3311,54 @@ final class ChatSendPipeline {
             outboundPayload["encrypted_pii_mappings"] = encryptedPIIMappings
         }
 
+        let turnId = UUID().uuidString.lowercased()
+        let recoveryKeyPair = try await crypto.deriveRecoveryKeyPair(
+            chatKey: keyMaterial.key,
+            chatId: chat.id,
+            keyVersion: 1
+        )
+        // This exact object is committed by the server before inference starts.
+        // Only the transport wrapper gains preflight fields after acknowledgement.
+        outboundPayload["turn_id"] = turnId
+        outboundPayload["recovery_public_key"] = recoveryKeyPair.publicKey
+        outboundPayload["chat_key_version"] = ChatCompletionRecoveryCoordinator.protocolVersion
+        var encryptedUserMessage: [String: Any] = [
+            "client_message_id": messageId,
+            "chat_id": chat.id,
+            "encrypted_content": encryptedContent,
+            "role": "user",
+            "created_at": createdAtUnix,
+            "updated_at": createdAtUnix,
+        ]
+        if let encryptedPIIMappings {
+            encryptedUserMessage["encrypted_pii_mappings"] = encryptedPIIMappings
+        }
+        let encryptedTitle: String?
+        if (chat.titleV ?? 0) == 0 {
+            encryptedTitle = chat.encryptedTitle ?? (try await crypto.encryptContent("", key: keyMaterial.key))
+        } else {
+            encryptedTitle = nil
+        }
+        let preflightPayload = savedChatPreflightPayload(
+            chatId: chat.id,
+            turnId: turnId,
+            messageId: messageId,
+            encryptedChatKey: keyMaterial.encryptedChatKey,
+            recoveryPublicKey: recoveryKeyPair.publicKey,
+            expectedMessagesVersion: max(chat.messagesV ?? existingMessages.count, existingMessages.count),
+            encryptedUserMessage: encryptedUserMessage,
+            inferenceRequest: outboundPayload,
+            encryptedTitle: encryptedTitle,
+            createdAt: createdAtUnix
+        )
+
         if waitForRemoteSend {
             try await sendRemoteUserMessage(
                 chatId: chat.id,
                 activateChat: activateChat,
                 wsManager: wsManager,
+                turnId: turnId,
+                preflightPayload: preflightPayload,
                 outboundPayload: outboundPayload
             )
         } else {
@@ -3323,6 +3368,8 @@ final class ChatSendPipeline {
                         chatId: chat.id,
                         activateChat: activateChat,
                         wsManager: wsManager,
+                        turnId: turnId,
+                        preflightPayload: preflightPayload,
                         outboundPayload: outboundPayload
                     )
                 } catch {
@@ -3423,16 +3470,88 @@ final class ChatSendPipeline {
     private func sendRemoteUserMessage(
         chatId: String,
         activateChat: Bool,
-        wsManager: WebSocketManager,
+        wsManager: ChatWebSocketTransport,
+        turnId: String,
+        preflightPayload: [String: Any],
         outboundPayload: [String: Any]
     ) async throws {
         if activateChat {
-            try await sendSetActiveChat(chatId, wsManager: wsManager)
+            try await wsManager.send(WSOutboundMessage(type: "set_active_chat", payload: ["chat_id": chatId]))
         }
-        try await wsManager.send(WSOutboundMessage(
+        try await sendSavedChatTurn(
+            turnId: turnId,
+            preflightPayload: preflightPayload,
+            outboundPayload: outboundPayload,
+            transport: wsManager
+        )
+    }
+
+    func sendSavedChatTurn(
+        turnId: String,
+        preflightPayload: [String: Any],
+        outboundPayload: [String: Any],
+        transport: ChatWebSocketTransport
+    ) async throws {
+        let acknowledgementWait = Task { @MainActor in
+            try await transport.waitForMessage("chat_turn_preflight_ack") {
+                $0["turn_id"] as? String == turnId
+            }
+        }
+        try await transport.send(WSOutboundMessage(type: "chat_turn_preflight", payload: preflightPayload))
+        let acknowledgement = try await acknowledgementWait.value
+        guard let preflightId = acknowledgement["preflight_id"] as? String, !preflightId.isEmpty,
+              let state = acknowledgement["state"] as? String,
+              state == "PREPARED" || state == "LEGACY" else {
+            throw ChatSendError.webSocketUnavailable
+        }
+        guard let committedTurnId = outboundPayload["turn_id"] as? String,
+              committedTurnId == turnId,
+              let preflightInference = preflightPayload["inference_request"] as? [String: Any],
+              NSDictionary(dictionary: preflightInference).isEqual(to: outboundPayload) else {
+            throw ChatSendError.webSocketUnavailable
+        }
+        var committedPayload = outboundPayload
+        committedPayload["protocol_version"] = ChatCompletionRecoveryCoordinator.protocolVersion
+        committedPayload["preflight_id"] = preflightId
+        try await transport.send(WSOutboundMessage(
             type: "chat_message_added",
-            payload: outboundPayload
+            payload: committedPayload
         ))
+    }
+
+    func savedChatPreflightPayload(
+        chatId: String,
+        turnId: String,
+        messageId: String,
+        encryptedChatKey: String,
+        recoveryPublicKey: String,
+        expectedMessagesVersion: Int,
+        encryptedUserMessage: [String: Any],
+        inferenceRequest: [String: Any],
+        encryptedTitle: String?,
+        createdAt: Int
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "protocol_version": ChatCompletionRecoveryCoordinator.protocolVersion,
+            "chat_id": chatId,
+            "turn_id": turnId,
+            "message_id": messageId,
+            "chat_key_version": ChatCompletionRecoveryCoordinator.protocolVersion,
+            "encrypted_chat_key": encryptedChatKey,
+            "recovery_public_key": recoveryPublicKey,
+            "expected_messages_v": expectedMessagesVersion,
+            "encrypted_user_message": encryptedUserMessage,
+            "inference_request": inferenceRequest,
+        ]
+        if let encryptedTitle {
+            payload["encrypted_chat_metadata"] = [
+                "encrypted_title": encryptedTitle,
+                "encrypted_chat_key": encryptedChatKey,
+                "created_at": createdAt,
+                "updated_at": createdAt,
+            ]
+        }
+        return payload
     }
 
     func sendEncryptedUserStoragePackage(

@@ -607,7 +607,18 @@ async function leaseJob(database, raw, now) {
   const deviceHash = string(body.device_hash, 'invalid_device', 128);
   return database.transaction(async (trx) => {
     const row = activeJob(await trx(JOBS).where({ id: jobId }).forUpdate().first(), ownerHash, now);
-    if (row.state === 'TERMINAL') return { job_id: row.id, state: 'TERMINAL' };
+    if (row.state === 'TERMINAL') {
+      const chat = await ownedChat(trx, row.chat_id, ownerHash);
+      return {
+        job_id: row.id,
+        state: 'TERMINAL',
+        chat_id: row.chat_id,
+        turn_id: row.turn_id,
+        assistant_message_id: row.assistant_message_id,
+        chat_key_version: row.chat_key_version,
+        committed_messages_v: chat.messages_v,
+      };
+    }
     if (row.state === 'LEASED' && new Date(row.lease_expires_at) > now) fail(409, 'lease_conflict');
     const sameHolder = row.lease_holder_hash === deviceHash;
     const tenureStarted = sameHolder && row.tenure_started_at ? new Date(row.tenure_started_at) : now;
