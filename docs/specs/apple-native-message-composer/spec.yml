@@ -176,7 +176,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 379db70bf
+  subject_commit: aa66b77bf
 
 approvals:
   product_contract:
@@ -201,21 +201,17 @@ decisions:
 attempts:
   - id: ATTEMPT-1
     task_id: TASK-20
-    approach: Define focused native red tests before changing the shared composer controller, TextKit adapter, or host layout.
-    outcome: planned
-    recorded_at: "2026-07-12T00:00:00Z"
+    approach: Add a focused iPhone sheet preview/fullscreen visual contract, concrete sheet fixture data, and the generated Sheets gradient route before remote simulator verification.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-12T17:17:12Z"
 
 handoff:
   current_task_id: TASK-20
-  next_action: Re-run the persisted web-search child/favicons unit contract after the concurrent Apple share-panel compile regression is repaired.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SkillApplicationParityTests
-  expected_outcome: The unit contract proves persisted child resolution; the next UI assertion must fail before sheet/web-search visual parity work.
-  blocker:
-    type: external_compile_failure
-    source: apple/OpenMates/Sources/Core/Crypto/ShareLinkCrypto.swift and apple/OpenMates/Sources/Features/Chat/Views/AppleSharePanel.swift
-    detail: Concurrent share-panel commits now fail the iPhone unit-test build because URL.appending(fragment:) is unsupported and AppleSharePanel references an unavailable summary symbol.
-    next_action: Wait for the owner of the share-panel change to repair the compile failure, then re-run the focused test.
-  last_verified_commit: 4b26cb91d
+  next_action: Deploy the TASK-20 source and test changes, then run the focused iPhone UI test as the red/green proof on the resulting commit.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/EmbedRenderingParityUITests
+  expected_outcome: The focused iPhone UI test passes and retains preview/fullscreen screenshots after the deployed Sheets gradient and spreadsheet renderer changes.
+  blocker: null
+  last_verified_commit: aa66b77bf
 
 scenarios:
   - id: S-1
@@ -1595,11 +1591,12 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: 379db70bf
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/EmbedRenderingParityUITests
+        run_id: apple-remote-aa66b77-sheets-red
+        subject_commit: aa66b77bf
+        timestamp: "2026-07-12T17:17:12Z"
+        summary: The focused Sheets test failed because the deployed preview lacked the spreadsheet accessibility identifier; the two pre-existing embed gallery tests passed.
     green_phase:
       required: true
       expected: pass
@@ -2265,6 +2262,8 @@ tasks:
       - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
       - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
       - apple/OpenMatesTests/NativeComposerControllerTests.swift
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
       - docs/specs/apple-native-message-composer/spec.yml
     verification_ids: [T-APPLE-COMPOSER-REGRESSIONS, T-APPLE-PERSISTED-EMBED-PARITY]
     blockers: []
@@ -2275,6 +2274,8 @@ tasks:
         - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
         - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
         - apple/OpenMatesTests/NativeComposerControllerTests.swift
+        - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+        - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
         - docs/specs/apple-native-message-composer/spec.yml
       shared_files: []
     independently_deployable: false

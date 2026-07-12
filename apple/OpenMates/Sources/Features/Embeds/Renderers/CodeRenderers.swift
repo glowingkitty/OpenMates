@@ -13,8 +13,10 @@
 //          frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
-//          TypographyTokens.generated.swift
+//          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
@@ -899,6 +901,7 @@ private struct SheetPreviewTable: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .clipped()
+        .accessibilityIdentifier("sheet-preview-table")
     }
 
     private func sheetCell(_ text: String, isHeader: Bool, isMuted: Bool = false, alternate: Bool = false) -> some View {
@@ -973,6 +976,7 @@ private struct SheetFullscreenTable: View {
         .onAppear {
             filters = Array(repeating: "", count: table.headers.count)
         }
+        .accessibilityIdentifier("sheet-fullscreen-table")
     }
 
     @ViewBuilder

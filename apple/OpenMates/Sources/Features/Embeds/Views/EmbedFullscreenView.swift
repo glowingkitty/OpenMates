@@ -100,6 +100,7 @@ struct EmbedFullscreenView: View {
             if let appId = embedType?.appId {
                 AppGradientBackground(appId: appId)
                     .frame(height: 120)
+                    .accessibilityIdentifier("embed-app-gradient-\(appId)")
                     .accessibilityHidden(true)
             } else {
                 LinearGradient.primary
@@ -551,6 +552,7 @@ struct AppGradientBackground: View {
         case "music": return AnyShapeStyle(LinearGradient.appMusic)
         case "mail": return AnyShapeStyle(LinearGradient.appMail)
         case "docs": return AnyShapeStyle(LinearGradient.appDocs)
+        case "sheets": return AnyShapeStyle(LinearGradient.appSheets)
         case "mindmaps": return AnyShapeStyle(LinearGradient.appDiagrams)
         case "pdf": return AnyShapeStyle(LinearGradient.appPdf)
         case "home": return AnyShapeStyle(LinearGradient.appHome)
