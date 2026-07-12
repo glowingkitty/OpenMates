@@ -29,6 +29,12 @@ const CIPHERTEXT_HEADER_LENGTH = 2 + FINGERPRINT_LENGTH; // 6 bytes
 const API_KEY_PREFIX = "sk-api-";
 const API_KEY_RANDOM_LENGTH = 32;
 const API_KEY_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
+const CHAT_RECOVERY_MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
+const CHAT_RECOVERY_KEY_BYTES = 32;
+const CHAT_RECOVERY_NONCE_BYTES = 12;
+const CHAT_RECOVERY_AAD_PREFIX = new TextEncoder().encode("OMCR1");
+const CHAT_RECOVERY_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function base64ToBytes(input: string): Uint8Array {
   return new Uint8Array(Buffer.from(input, "base64"));
@@ -42,6 +48,238 @@ function toArrayBuffer(input: Uint8Array): ArrayBuffer {
   const output = new ArrayBuffer(input.byteLength);
   new Uint8Array(output).set(input);
   return output;
+}
+
+function bytesToBase64Url(input: Uint8Array): string {
+  return Buffer.from(input).toString("base64url");
+}
+
+function base64UrlToBytes(input: string, field: string, expectedLength?: number): Uint8Array {
+  if (!input || input.includes("=")) {
+    throw new Error(`${field} must be non-empty unpadded base64url`);
+  }
+  const decoded = new Uint8Array(Buffer.from(input, "base64url"));
+  if (bytesToBase64Url(decoded) !== input) {
+    throw new Error(`${field} must be canonical base64url`);
+  }
+  if (expectedLength !== undefined && decoded.length !== expectedLength) {
+    throw new Error(`${field} must decode to ${expectedLength} bytes`);
+  }
+  return decoded;
+}
+
+function uint32(value: number, field: string): Uint8Array {
+  if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
+    throw new Error(`${field} must be an unsigned 32-bit integer`);
+  }
+  const encoded = new Uint8Array(4);
+  new DataView(encoded.buffer).setUint32(0, value, false);
+  return encoded;
+}
+
+function recoveryKeyVersion(value: number): Uint8Array {
+  if (value === 0) {
+    throw new Error("key_version must be greater than zero");
+  }
+  return uint32(value, "key_version");
+}
+
+function canonicalUuid(value: string, field: string): Uint8Array {
+  if (!CHAT_RECOVERY_UUID_PATTERN.test(value)) {
+    throw new Error(`${field} must be a canonical lowercase UUID`);
+  }
+  return new TextEncoder().encode(value);
+}
+
+function concatBytes(...values: Uint8Array[]): Uint8Array {
+  const output = new Uint8Array(values.reduce((total, value) => total + value.length, 0));
+  let offset = 0;
+  for (const value of values) {
+    output.set(value, offset);
+    offset += value.length;
+  }
+  return output;
+}
+
+function lengthPrefix(value: Uint8Array): Uint8Array {
+  return concatBytes(uint32(value.length, "length"), value);
+}
+
+async function sha256(input: Uint8Array): Promise<Uint8Array> {
+  return new Uint8Array(await cryptoApi.subtle.digest("SHA-256", toArrayBuffer(input)));
+}
+
+async function hkdfSha256(input: Uint8Array, salt: Uint8Array, info: Uint8Array): Promise<Uint8Array> {
+  const key = await cryptoApi.subtle.importKey("raw", toArrayBuffer(input), "HKDF", false, ["deriveBits"]);
+  const bits = await cryptoApi.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: toArrayBuffer(salt),
+      info: toArrayBuffer(info),
+    },
+    key,
+    256,
+  );
+  return new Uint8Array(bits);
+}
+
+export interface ChatCompletionRecoveryIdentity {
+  ownerId: string;
+  chatId: string;
+  turnId: string;
+  jobId: string;
+  assistantMessageId: string;
+  keyVersion: number;
+}
+
+export interface ChatCompletionRecoveryEnvelope {
+  v: number;
+  epk: string;
+  nonce: string;
+  ciphertext: string;
+}
+
+export async function deriveChatCompletionRecoveryKeypair(
+  chatKey: string,
+  chatId: string,
+  keyVersion: number,
+): Promise<{ privateKey: string; publicKey: string }> {
+  const rawChatKey = base64UrlToBytes(chatKey, "chat_key", CHAT_RECOVERY_KEY_BYTES);
+  const salt = await sha256(new TextEncoder().encode("openmates:chat-recovery:v1"));
+  const info = concatBytes(lengthPrefix(canonicalUuid(chatId, "chat_id")), recoveryKeyVersion(keyVersion));
+  const privateKey = await hkdfSha256(rawChatKey, salt, info);
+  return {
+    privateKey: bytesToBase64Url(privateKey),
+    publicKey: bytesToBase64Url(nacl.scalarMult.base(privateKey)),
+  };
+}
+
+export function buildRecoveryAssociatedData(values: {
+  owner_id: string;
+  chat_id: string;
+  turn_id: string;
+  job_id: string;
+  assistant_message_id: string;
+  key_version: number;
+}): string {
+  const associatedData = concatBytes(
+    CHAT_RECOVERY_AAD_PREFIX,
+    lengthPrefix(canonicalUuid(values.owner_id, "owner_id")),
+    lengthPrefix(canonicalUuid(values.chat_id, "chat_id")),
+    lengthPrefix(canonicalUuid(values.turn_id, "turn_id")),
+    lengthPrefix(canonicalUuid(values.job_id, "job_id")),
+    lengthPrefix(canonicalUuid(values.assistant_message_id, "assistant_message_id")),
+    recoveryKeyVersion(values.key_version),
+  );
+  return bytesToBase64Url(associatedData);
+}
+
+function recoveryAssociatedData(identity: ChatCompletionRecoveryIdentity): Uint8Array {
+  return base64UrlToBytes(
+    buildRecoveryAssociatedData({
+      owner_id: identity.ownerId,
+      chat_id: identity.chatId,
+      turn_id: identity.turnId,
+      job_id: identity.jobId,
+      assistant_message_id: identity.assistantMessageId,
+      key_version: identity.keyVersion,
+    }),
+    "associated_data",
+  );
+}
+
+async function recoveryEnvelopeKey(sharedSecret: Uint8Array, associatedData: Uint8Array): Promise<Uint8Array> {
+  if (sharedSecret.every((value) => value === 0)) {
+    throw new Error("X25519 shared secret must not be all zero");
+  }
+  const salt = await sha256(new TextEncoder().encode("openmates:chat-recovery-envelope:v1"));
+  return hkdfSha256(sharedSecret, salt, await sha256(associatedData));
+}
+
+export async function sealChatCompletionRecoveryPayload(
+  plaintext: Uint8Array,
+  options: ChatCompletionRecoveryIdentity & {
+    recoveryPublicKey: string;
+    ephemeralPrivateKey?: string;
+    nonce?: string;
+  },
+): Promise<ChatCompletionRecoveryEnvelope> {
+  if (plaintext.length > CHAT_RECOVERY_MAX_PAYLOAD_BYTES) {
+    throw new Error(`plaintext must be no larger than ${CHAT_RECOVERY_MAX_PAYLOAD_BYTES}`);
+  }
+  const recoveryPublicKey = base64UrlToBytes(
+    options.recoveryPublicKey,
+    "recovery_public_key",
+    CHAT_RECOVERY_KEY_BYTES,
+  );
+  const ephemeralPrivateKey = options.ephemeralPrivateKey
+    ? base64UrlToBytes(options.ephemeralPrivateKey, "ephemeral_private_key", CHAT_RECOVERY_KEY_BYTES)
+    : cryptoApi.getRandomValues(new Uint8Array(CHAT_RECOVERY_KEY_BYTES));
+  const nonce = options.nonce
+    ? base64UrlToBytes(options.nonce, "nonce", CHAT_RECOVERY_NONCE_BYTES)
+    : cryptoApi.getRandomValues(new Uint8Array(CHAT_RECOVERY_NONCE_BYTES));
+  const ephemeralPublicKey = nacl.scalarMult.base(ephemeralPrivateKey);
+  const sharedSecret = nacl.scalarMult(ephemeralPrivateKey, recoveryPublicKey);
+  const associatedData = recoveryAssociatedData(options);
+  const envelopeKeyBytes = await recoveryEnvelopeKey(sharedSecret, associatedData);
+  const envelopeKey = await cryptoApi.subtle.importKey(
+    "raw",
+    toArrayBuffer(envelopeKeyBytes),
+    { name: "AES-GCM" },
+    false,
+    ["encrypt"],
+  );
+  const ciphertext = new Uint8Array(await cryptoApi.subtle.encrypt(
+    { name: "AES-GCM", iv: toArrayBuffer(nonce), additionalData: toArrayBuffer(associatedData) },
+    envelopeKey,
+    toArrayBuffer(plaintext),
+  ));
+  return {
+    v: CHAT_RECOVERY_PROTOCOL_VERSION,
+    epk: bytesToBase64Url(ephemeralPublicKey),
+    nonce: bytesToBase64Url(nonce),
+    ciphertext: bytesToBase64Url(ciphertext),
+  };
+}
+
+export async function openChatCompletionRecoveryEnvelope(
+  envelope: ChatCompletionRecoveryEnvelope,
+  options: ChatCompletionRecoveryIdentity & { recoveryPrivateKey: string },
+): Promise<Uint8Array> {
+  if (
+    !envelope
+    || Object.keys(envelope).sort().join(",") !== "ciphertext,epk,nonce,v"
+    || envelope.v !== CHAT_RECOVERY_PROTOCOL_VERSION
+  ) {
+    throw new Error("invalid recovery envelope fields or version");
+  }
+  const recoveryPrivateKey = base64UrlToBytes(
+    options.recoveryPrivateKey,
+    "recovery_private_key",
+    CHAT_RECOVERY_KEY_BYTES,
+  );
+  const ephemeralPublicKey = base64UrlToBytes(envelope.epk, "epk", CHAT_RECOVERY_KEY_BYTES);
+  const nonce = base64UrlToBytes(envelope.nonce, "nonce", CHAT_RECOVERY_NONCE_BYTES);
+  const ciphertext = base64UrlToBytes(envelope.ciphertext, "ciphertext");
+  if (ciphertext.length < 16 || ciphertext.length - 16 > CHAT_RECOVERY_MAX_PAYLOAD_BYTES) {
+    throw new Error("ciphertext payload size is invalid");
+  }
+  const associatedData = recoveryAssociatedData(options);
+  const sharedSecret = nacl.scalarMult(recoveryPrivateKey, ephemeralPublicKey);
+  const envelopeKeyBytes = await recoveryEnvelopeKey(sharedSecret, associatedData);
+  const envelopeKey = await cryptoApi.subtle.importKey(
+    "raw",
+    toArrayBuffer(envelopeKeyBytes),
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"],
+  );
+  return new Uint8Array(await cryptoApi.subtle.decrypt(
+    { name: "AES-GCM", iv: toArrayBuffer(nonce), additionalData: toArrayBuffer(associatedData) },
+    envelopeKey,
+    toArrayBuffer(ciphertext),
+  ));
 }
 
 export function generateSalt(length = EMAIL_SALT_LENGTH): Uint8Array {

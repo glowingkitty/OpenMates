@@ -1,0 +1,1416 @@
+schema_version: 2
+id: cross-device-chat-completion-recovery
+title: Cross-Device Encrypted Chat Completion Recovery
+status: implementing
+
+goal: >
+  Ensure every newly submitted chat turn can be completed durably by any
+  authenticated, non-revoked, recovery-capable web, Apple, CLI, npm SDK, or pip SDK client that
+  can unlock the chat key when backend inference succeeds, even when the device
+  that started the turn disconnects. The backend may process plaintext and seal
+  the result transiently as it does today, but after ephemeral sealing material
+  is erased, durable storage alone must contain only client-encrypted chat rows
+  and a time-limited sealed recovery job that cannot be decrypted from at-rest
+  data.
+
+scope:
+  in:
+    - Every new authenticated private-chat turn submitted from web, Apple, OpenMates CLI, npm SDK, or pip SDK, including turns added to existing chats.
+    - A clean protocol-epoch cutover with a bounded send pause and drain, but no legacy send fallback or negotiated capability feature flag.
+    - A durable preflight acknowledgement before inference starts.
+    - Durable encrypted user-message persistence, immutable wrapped chat-key validation, and per-chat recovery-public-key registration in preflight.
+    - A domain-separated recovery keypair deterministically derived from the existing per-chat key on capable clients.
+    - Backend-created sealed assistant-completion recovery jobs that any eligible device can lease, decrypt, persist with the chat key, and acknowledge.
+    - Lease expiry, retry, idempotency, duplicate suppression, device revocation, account deletion, chat deletion, and seven-day recovery-job expiry.
+    - Existing-chat compatibility without rewriting history or bulk-migrating old chats.
+    - A blocking update-required response for outdated CLI clients that attempt to send after cutover.
+    - Backend, CLI, npm SDK, pip SDK, web, and Apple verification, including shared deterministic cryptographic vectors.
+    - Preflight latency instrumentation and a maximum added healthy-connection latency of 250 ms at p95.
+  out:
+    - Re-encrypting or rewriting existing chat history.
+    - Bulk-registering recovery public keys for chats before their next post-cutover send.
+    - Chat-key rotation or changing the existing master-key and wrapped-chat-key hierarchy.
+    - Persisting plaintext user messages, assistant messages, raw chat keys, or recovery private keys on the backend.
+    - Anonymous or incognito chats that never enter authenticated server persistence.
+    - Automatic inference replay after a seven-day recovery job expires.
+    - A staged legacy fallback, negotiated capability flag, or simultaneous support for old and new send protocols.
+    - Shared, team-owned, or ownership-transferred chats; those require a separate multi-principal key and authorization contract.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP authentication returned 401 during discovery.
+    - gh issue search found no dedicated cross-device encrypted completion recovery issue.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/core/encryption-architecture.md
+    - docs/architecture/core/chat-encryption-implementation.md
+    - docs/architecture/messaging/message-processing.md
+    - docs/architecture/data/sync.md
+    - docs/specs/apple-durable-chat-persistence-parity/spec.yml
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - apple/AGENTS.md
+    - Directus API extension services documentation for Knex-backed server-side transactions.
+  code_patterns:
+    - backend/core/api/app/routes/websockets.py currently converts get-and-clear pending AI responses into `pending_ai_response` events.
+    - backend/core/api/app/routes/connection_manager.py currently uses foreground connection state to decide whether a user is completion-capable.
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py validates and stores client-encrypted chat metadata and messages.
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py currently accepts work before a dedicated durable recovery preflight exists.
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py accepts client-encrypted assistant completion storage.
+    - backend/core/api/app/tasks/persistence_tasks.py contains durable encrypted-chat persistence and key/version validation behavior.
+    - frontend/packages/ui/src/services/sendersChatMessages.ts builds web encrypted user-message storage payloads.
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts and chatSyncServiceHandlersAppSettings.ts own web inactive-chat and pending-response completion.
+    - frontend/packages/openmates-cli/src/client.ts owns CLI encrypted metadata, WebSocket lifecycle, and pending-response handling.
+    - apple/OpenMates/Sources/App/MainAppView.swift and ChatViewModel.swift own Apple app-level completion and encrypted persistence.
+    - Web and CLI already depend on tweetnacl; Apple already uses CryptoKit Curve25519 primitives.
+  tests:
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_websocket_set_active_chat.py
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+  parity_expectations:
+    - Apple participates in the same preflight, recovery-key derivation, sealed-job lease, durable persistence, and acknowledgement protocol as web and CLI.
+    - The Apple app owns recovery outside the mounted chat view so an inactive chat can complete.
+    - Existing Apple chat history remains readable without migration; the first post-cutover send registers recovery material during preflight.
+    - Apple never logs or sends a raw chat key, recovery private key, or plaintext recovery payload to durable backend storage.
+    - Any update-required or recovery-expired message uses AppStrings and existing OpenMates UI primitives.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests
+    - A cross-device test where an Apple-origin turn is durably completed by web or CLI after Apple disconnects.
+  intentional_native_differences:
+    - Apple uses CryptoKit, Keychain, SwiftData, and App Group storage while preserving byte-for-byte protocol compatibility with TypeScript and Python implementations.
+
+clarification:
+  rounds:
+    - question: Which clients must support cross-device completion recovery in the first release?
+      answer: Web, Apple, and CLI; npm and pip SDKs are excluded.
+    - question: Should sealed recovery be optional or required from the first release?
+      answer: Required for every new turn from the first release.
+    - question: How long may an incomplete sealed recovery job remain on the backend?
+      answer: Seven days, with immediate sealed-payload and lease deletion after durable acknowledgement, chat deletion, or account deletion.
+    - question: May inference begin before encrypted user persistence and key-envelope acknowledgement?
+      answer: No. Preflight must succeed first, with no more than 250 ms added p95 latency on a healthy connection.
+    - question: Should rollout negotiate legacy client capabilities or use a clean cutover?
+      answer: Use a clean cutover. There are no external Apple testers, and outdated CLI users should receive a clear update-required message.
+    - question: Should the implementation also cover SDK clients before web and Apple?
+      answer: Yes. Implement backend, CLI, npm SDK, and pip SDK first, then web, then Apple.
+  vision_summary: >
+    Apply a clean-cutover recovery protocol to every new turn, including turns in
+    old chats. Existing history remains unchanged and readable. Before inference,
+    the submitting client must durably persist encrypted user content and prove
+    the immutable wrapped key plus per-chat recovery public key. The backend then
+    retains only a sealed assistant recovery job until an eligible client
+    durably stores the completion and acknowledges it.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: cddcb413c36b7df1b24ac7bef012403d3ef5a998
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-11T23:23:27Z"
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-11T23:53:29Z"
+    reason: User approved the Directus transaction extension, provisional streaming boundary, clean protocol-epoch cutover, and implementation order.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Recovery is mandatory for every new authenticated turn on web, Apple, and CLI.
+    reason: Conditional recovery would preserve the current origin-device failure mode.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-2
+    status: active
+    decision: Use one deterministic, domain-separated X25519 recovery keypair per chat-key version, with only the public key registered on the backend.
+    reason: Every device with the chat key can recover the same private key without server escrow or a separate synchronized secret.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-3
+    status: active
+    decision: Inference is blocked until durable encrypted user-message, immutable wrapped-key, and recovery-public-key preflight acknowledgement.
+    reason: Starting inference first can create an assistant result with no durable encrypted user turn or usable recovery key.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-4
+    status: active
+    decision: Every completed inference creates a sealed recovery job before terminal completion delivery, regardless of foreground connection state.
+    reason: Connection presence does not prove that the connected device can decrypt or durably persist the completion.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-5
+    status: active
+    decision: Incomplete recovery jobs expire after seven days; sealed payload and lease material are deleted immediately after durable acknowledgement, chat deletion, or account deletion.
+    reason: This bounds encrypted retention while giving users a practical reconnection window.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-6
+    status: active
+    decision: Existing chats are not bulk-migrated; their first post-cutover send registers recovery material during preflight.
+    reason: Existing ciphertext and wrapped keys remain valid, and lazy registration avoids risky history rewrites.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-7
+    status: active
+    decision: Use a clean protocol cutover with no legacy fallback or capability feature flag.
+    reason: Web updates atomically, Apple has no external testers, and outdated CLI users can be blocked with an explicit update instruction.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-8
+    status: active
+    decision: Added healthy-connection send-to-processing latency must remain at or below 250 ms p95.
+    reason: Durable safety must not introduce a noticeable composer delay.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-9
+    status: active
+    decision: Activate the clean cutover through one server-authoritative protocol epoch after pausing new sends and draining all accepted legacy turns.
+    reason: A bounded drain avoids mixed legacy/new in-flight state without introducing per-client capability negotiation or a lasting fallback.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-10
+    status: active
+    decision: Preflight consumption, inference identity, user billing identity, and durable queue publication form one idempotent state transition backed by a transactional outbox.
+    reason: Lost acknowledgements and retries must never create duplicate inference or duplicate user billing.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-11
+    status: active
+    decision: A turn is not successful server-side until its sealed recovery job is durably committed. Persistence retries reuse stable identities, but a worker process crash does not automatically replay inference or side-effectful tools.
+    reason: Terminal delivery must follow durable recovery, while automatic inference replay could duplicate provider/tool side effects or show a different answer.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-12
+    status: active
+    decision: Assistant encrypted persistence and terminal recovery acknowledgement commit in one database transaction with a monotonic lease fencing generation.
+    reason: This removes the ambiguous crash window between message persistence and job deletion and rejects stale lease holders deterministically.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-13
+    status: active
+    decision: The protocol protects honest compatible clients from server-side plaintext persistence and accidental races; a malicious authorized device that intentionally corrupts its own chat key metadata is outside the integrity threat model.
+    reason: A zero-knowledge backend cannot independently prove that an X25519 public key was deterministically derived from an unknown chat key.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-14
+    status: active
+    decision: Keep multi-record transactions inside a narrowly scoped internal Directus endpoint extension using Directus-provided Knex transactions; the Python API remains the authenticated protocol boundary and does not receive direct database credentials.
+    reason: Directus REST item calls do not provide the required cross-collection transaction, while a Directus extension can preserve one database transaction without adding a second database-access architecture to the Python API.
+    decided_at: "2026-07-11T23:23:27Z"
+  - id: D-15
+    status: active
+    decision: npm and pip SDK saved-chat sends participate in the same preflight, sealed recovery, minimum-protocol, and update-required contracts as CLI.
+    reason: The user expanded implementation scope to SDKs before web and Apple; API-key clients must not retain an unsafe alternate saved-chat path.
+    decided_at: "2026-07-11T23:23:27Z"
+
+performance_baseline:
+  captured_at: "2026-07-11T23:53:29Z"
+  subject_commit: cddcb413c36b7df1b24ac7bef012403d3ef5a998
+  client: OpenMates CLI 0.14.6 using the default hosted API
+  request: "Reply with exactly: BASELINE"
+  execution: Five sequential new saved chats with no concurrent requests.
+  model_observed: Gemini 3 Flash
+  metric: End-to-end CLI wall time from process start through completed response, including sync, model processing, post-processing, and CLI overhead.
+  samples_seconds: [30.74, 22.77, 22.05, 37.83, 18.26]
+  mean_seconds: 26.33
+  median_seconds: 22.77
+  nearest_rank_p95_seconds: 37.83
+  interpretation: This five-request baseline is supplemental and noisy; the required 250 ms criterion remains the separately instrumented preflight-only delta.
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Extend the current get-and-clear `pending_ai_response` behavior and infer recovery capability from foreground connection state.
+    outcome: rejected
+    recorded_at: "2026-07-11T23:23:27Z"
+    evidence: A foreground connection can disconnect or lack an unlocked chat key, and get-and-clear delivery loses work before durable encrypted persistence acknowledgement.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Store plaintext assistant completion until a client reconnects.
+    outcome: rejected
+    recorded_at: "2026-07-11T23:23:27Z"
+    evidence: Plaintext durable storage violates the existing zero-knowledge chat persistence boundary.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Roll out with negotiated capability flags and a temporary legacy send fallback.
+    outcome: rejected
+    recorded_at: "2026-07-11T23:23:27Z"
+    evidence: The user selected a clean cutover because web is atomic, Apple has no external testers, and outdated CLI clients can show an update instruction.
+  - id: ATTEMPT-4
+    task_id: TASK-2
+    approach: Use TweetNaCl box.before as the cross-runtime X25519 shared secret.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-12T00:20:12Z"
+    evidence: The immutable vector produced a different AES-GCM ciphertext because box.before applies NaCl precomputation; raw nacl.scalarMult matches Python cryptography and CryptoKit X25519.
+
+handoff:
+  current_task_id: TASK-2
+  next_action: Deploy the isolated TASK-2 crypto slice, then rerun backend, CLI, pip, Vitest, and Apple vector checks against that commit.
+  command: python3 scripts/sessions.py prepare-deploy --session 6e0b
+  expected_outcome: Deployment preparation includes only the shared recovery crypto fixture, helpers, tests, and this spec ledger.
+  blocker: null
+  last_verified_commit: 0c43a10c0ebda8697a30bdc9291b402bd2aebcba
+
+scenarios:
+  - id: S-1
+    title: New turn cannot start inference before durable encrypted preflight
+    given:
+      - Alice is authenticated on a recovery-capable web, Apple, or CLI client.
+      - Alice can unlock the target chat key.
+    when:
+      - Alice submits a new message.
+    then:
+      - The client persists the encrypted user row, immutable wrapped chat-key envelope, recovery public key, key version, turn id, and message id through one acknowledged preflight contract.
+      - The backend starts inference only after durable preflight success.
+      - A failed or timed-out preflight leaves the message visibly unsent or retryable and starts no billable inference.
+
+  - id: S-2
+    title: Existing chat remains readable and lazily gains recovery support
+    given:
+      - Alice has an existing chat created before rollout with valid encrypted history and a wrapped chat key.
+      - The chat has no registered recovery public key.
+    when:
+      - Alice opens the chat or submits its first post-cutover turn.
+    then:
+      - Opening and decrypting existing history requires no migration or rewrite.
+      - The first post-cutover send derives and registers recovery material during preflight.
+      - Existing ciphertext, message ids, versions, and wrapped key remain unchanged.
+
+  - id: S-3
+    title: Secondary device completes an origin-disconnected turn
+    given:
+      - Alice starts a turn on device A and preflight succeeds.
+      - Device A disconnects before assistant completion is durably stored.
+      - Device B is authenticated, non-revoked, recovery-capable, and can unlock the same chat key.
+    when:
+      - Inference completes and device B synchronizes recovery jobs.
+    then:
+      - After per-job ephemeral secrets are erased, durable backend state stores a sealed completion that cannot be decrypted from at-rest data alone.
+      - Device B leases and decrypts the job, encrypts the assistant data with the chat key, and durably persists it through the normal encrypted message boundary.
+      - Device B acknowledges completion only after durable persistence succeeds.
+      - The final chat contains one assistant turn and the recovery job is deleted.
+
+  - id: S-4
+    title: Concurrent devices cannot duplicate completion
+    given:
+      - Two eligible devices observe the same incomplete recovery job.
+    when:
+      - Both try to claim or persist it during connection churn or lease expiry.
+    then:
+      - At most one active lease exists at a time.
+      - Lease expiry permits takeover without losing the job.
+      - Stable turn and assistant-message ids make repeated persistence idempotent.
+      - A stale acknowledgement cannot delete a newer active lease or an unpersisted job.
+
+  - id: S-5
+    title: Connected origin handles the same durable recovery contract
+    given:
+      - Device A remains connected and can unlock the chat key.
+    when:
+      - Its inference completes normally.
+    then:
+      - The backend still creates the sealed recovery job before delivery.
+      - Device A leases, persists, and acknowledges through the same contract used for takeover.
+      - Foreground connection state never bypasses durable job creation.
+      - Any earlier streamed chunks are provisional; terminal completion is delivered only after the sealed job commits.
+
+  - id: S-6
+    title: Revoked or unauthorized device cannot recover a completion
+    given:
+      - A recovery job exists for Alice's private chat.
+    when:
+      - Another user, a logged-out client, or a revoked Alice device requests or acknowledges the job.
+    then:
+      - The backend rejects the request without revealing sealed payload or sensitive chat metadata.
+      - Device revocation invalidates leases and future recovery access for that device.
+      - Authorization failures are audit-visible without logging plaintext or key material.
+
+  - id: S-7
+    title: Recovery retention and deletion are bounded
+    given:
+      - A sealed job has not been durably acknowledged.
+    when:
+      - Seven days elapse, the chat is deleted, or Alice deletes the account.
+    then:
+      - The sealed payload and associated lease material are deleted.
+      - Expiry does not silently replay inference or invent encrypted content.
+      - A minimal non-sensitive terminal status may inform a capable client that recovery expired.
+
+  - id: S-8
+    title: Outdated CLI is blocked cleanly
+    given:
+      - Alice uses a CLI version that sends the legacy message contract.
+    when:
+      - Alice attempts to submit a post-cutover turn.
+    then:
+      - The backend starts no inference and returns a stable update-required error.
+      - The CLI displays a concise command or package update instruction.
+      - Existing locally accessible chat history remains readable.
+
+  - id: S-9
+    title: Healthy sends meet the latency budget
+    given:
+      - A healthy client connection and normally responsive persistence dependencies.
+    when:
+      - Preflight is added to the send path.
+    then:
+      - Added send-to-processing latency is measured independently of model queue time.
+      - Added preflight latency is at most 250 ms at p95 over the agreed production-like window.
+      - Failures and timeouts remain visible rather than silently falling back to unsafe processing.
+
+  - id: S-10
+    title: Retry after a lost submission acknowledgement does not duplicate inference
+    given:
+      - Durable preflight succeeded for one stable turn id.
+      - The backend committed inference queue publication but the client did not receive its acknowledgement.
+    when:
+      - The client retries submission with the same preflight and turn identity.
+    then:
+      - The backend returns the existing task identity instead of enqueueing another inference.
+      - User billing is keyed to the same turn and cannot be charged twice.
+      - Persistence retries reuse the same assistant-message identity and produce at most one terminal recovery job.
+      - A worker crash after inference starts produces an explicit failed turn and no automatic inference or tool replay.
+
+  - id: S-11
+    title: Clean cutover drains legacy work without mixed protocol state
+    given:
+      - Recovery-capable releases are available for web, Apple, and CLI.
+      - Legacy turns or WebSocket connections may still exist.
+    when:
+      - The operator activates the new protocol epoch.
+    then:
+      - New sends pause while accepted legacy turns drain to terminal persistence or explicit failure.
+      - The epoch changes only after the legacy in-flight count reaches zero and old WebSockets are closed with update-required guidance.
+      - New-protocol sends then resume with no legacy fallback.
+      - Rollback pauses sends and rolls forward a compatible fix; it never re-enables legacy inference over new recovery state.
+
+  - id: S-12
+    title: npm and pip SDK saved chats use the recovery protocol
+    given:
+      - Alice uses a recovery-capable npm or pip SDK with an API key authorized for saved chats.
+      - The SDK can unwrap Alice's master key and target chat key locally.
+    when:
+      - Alice creates or continues a saved private chat through the SDK.
+    then:
+      - The SDK performs durable encrypted preflight before inference.
+      - The API-key device identity is bound to recovery authorization and revocation.
+      - The SDK can claim, decrypt, persist, and acknowledge a recovery job.
+      - Incognito SDK requests remain non-persistent and outside this recovery protocol.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Every web, Apple, and CLI send receives durable encrypted preflight acknowledgement before inference starts; failure starts no inference.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-PREFLIGHT, T-CLI-RECOVERY, T-WEB-RECOVERY, T-APPLE-RECOVERY]
+  - id: AC-2
+    scenario: S-1
+    text: Preflight enforces one immutable canonical wrapped chat key per chat-key version and rejects mismatches atomically without partial writes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-PREFLIGHT]
+  - id: AC-3
+    scenario: S-2
+    text: Existing history remains readable without bulk migration or ciphertext rewrite, while the first post-cutover send lazily registers recovery material.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CLI-RECOVERY, T-WEB-RECOVERY, T-APPLE-RECOVERY]
+  - id: AC-4
+    scenario: S-3
+    text: A non-origin eligible device can recover and durably persist exactly one assistant completion after the origin disconnects.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-RECOVERY-JOBS, T-CROSS-CLIENT-TAKEOVER]
+  - id: AC-5
+    scenario: S-3
+    text: After per-job ephemeral sealing secrets are erased, durable backend state contains only sealed assistant recovery payloads and cannot decrypt them without a client-derived recovery private key.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-CRYPTO-VECTORS, T-BACKEND-RECOVERY-JOBS]
+  - id: AC-6
+    scenario: S-4
+    text: Recovery leases, stable ids, and acknowledgements are takeover-safe and idempotent under retries, stale leases, disconnects, and concurrent clients.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-RECOVERY-JOBS, T-CLI-RECOVERY]
+  - id: AC-7
+    scenario: S-5
+    text: Every completed inference creates a sealed recovery job before terminal completion delivery, including when a foreground origin appears connected; streamed content remains explicitly provisional until then.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-RECOVERY-JOBS]
+  - id: AC-8
+    scenario: S-6
+    text: Only authenticated, non-revoked devices belonging to the chat owner can list, lease, read, persist, or acknowledge recovery jobs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-RECOVERY-AUTH]
+  - id: AC-9
+    scenario: S-7
+    text: Sealed payload and lease material expire after seven days and are deleted immediately after durable acknowledgement, chat deletion, or account deletion; only a minimal 24-hour idempotency tombstone may remain after successful acknowledgement.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-RECOVERY-RETENTION]
+  - id: AC-10
+    scenario: S-8
+    text: Legacy CLI sends fail before inference with a stable update-required response and actionable update information; no legacy fallback remains.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-UPDATE-REQUIRED]
+  - id: AC-11
+    scenario: S-9
+    text: Durable preflight adds no more than 250 ms p95 to healthy send-to-processing latency, measured separately from model queue time.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PREFLIGHT-PERFORMANCE]
+  - id: AC-12
+    scenario: S-3
+    text: Web, Apple, CLI, and backend implementations pass shared deterministic recovery-key and sealed-envelope interoperability vectors.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-CRYPTO-VECTORS, T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-WEB-CRYPTO-VECTORS, T-APPLE-CRYPTO-VECTORS]
+  - id: AC-13
+    scenario: S-10
+    text: Preflight consumption, queue publication, task identity, and user billing are idempotent across lost acknowledgements, retries, and worker crashes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-PREFLIGHT, T-BACKEND-RECOVERY-JOBS]
+  - id: AC-14
+    scenario: S-11
+    text: Cutover uses a server-authoritative epoch, bounded send pause, zero-in-flight drain gate, old-connection closure, and roll-forward-only recovery without a legacy inference fallback.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CUTOVER-EPOCH, T-LEGACY-CLI-CUTOVER]
+  - id: AC-15
+    scenario: S-12
+    text: npm and pip SDK saved-chat requests use the same encrypted preflight, recovery, idempotency, minimum-protocol, and API-key revocation contracts; incognito requests remain non-persistent.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NPM-SDK-RECOVERY, T-PIP-SDK-RECOVERY]
+
+assumptions:
+  - id: A-1
+    text: Every eligible device can obtain the same raw per-chat key after the user unlocks the existing master-key hierarchy.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/core/encryption-architecture.md
+        summary: Existing clients synchronize a wrapped chat key and unwrap it locally with user-held key material.
+  - id: A-2
+    text: Existing chat ciphertext and wrapped chat keys do not need modification to derive a separate recovery keypair.
+    category: migration
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/services/sendersChatMessages.ts
+        summary: Current chat encryption already exposes local raw chat-key material at the client boundary needed for domain-separated derivation.
+  - id: A-3
+    text: Backend inference already handles response plaintext transiently, so sealing the response before durable recovery storage does not add a new plaintext trust boundary.
+    category: privacy_security
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/messaging/message-processing.md
+        summary: AI workers process plaintext transiently while durable private chat storage remains client encrypted.
+  - id: A-4
+    text: Web, CLI, npm SDK, pip SDK, Apple, and backend runtimes can implement interoperable X25519, HKDF-SHA256, and authenticated encryption primitives.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/package.json
+        summary: CLI has tweetnacl and Node cryptographic primitives.
+      - source: frontend/packages/ui/package.json
+        summary: Web UI has tweetnacl and browser SubtleCrypto.
+      - source: apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+        summary: Apple already uses CryptoKit Curve25519 and authenticated encryption patterns.
+      - source: packages/openmates-python/pyproject.toml
+        summary: The pip SDK already depends on cryptography with X25519, HKDF, and AES-GCM support.
+  - id: A-5
+    text: Recovery preflight can meet the 250 ms p95 added-latency budget with one durable round trip on production-like infrastructure.
+    category: performance
+    required_before: completion
+    status: checking
+    evidence:
+      - source: T-PREFLIGHT-PERFORMANCE
+        summary: Must be proven by instrumentation and a production-like performance check before completion.
+  - id: A-6
+    text: The installed Directus extension runtime provides a Knex database context that can execute the required cross-collection transaction.
+    category: persistence
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: Directus API extension service documentation
+        summary: Endpoint and operation handlers receive a database/Knex context, and Directus uses transaction callbacks over that context.
+      - source: backend/core/docker-compose.yml
+        summary: The Directus extensions directory is already mounted into the Directus runtime.
+  - id: A-7
+    text: Recovery access can bind to the existing authenticated WebSocket connection identity and react to force-logout/session revocation.
+    category: auth
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/auth_ws.py
+        summary: Authentication returns a server-derived connection fingerprint with the authenticated user identity.
+      - source: backend/core/api/app/routes/websockets.py
+        summary: Existing force-logout handling closes the revoked connection identity and can trigger lease invalidation.
+
+contracts:
+  api:
+    - route: WebSocket chat_turn_preflight
+      request: "protocol version, chat id, turn id, user message id, encrypted user row, immutable wrapped chat key, chat-key version, recovery public key, expected message version, and the canonical plaintext inference request used only to compute a server-keyed commitment"
+      response: "durable acknowledgement containing preflight id, authoritative versions, accepted key fingerprint, inference-commitment version, and permission to submit inference"
+      errors:
+        - client_update_required when the clean-cutover protocol is absent or unsupported
+        - immutable_chat_key_mismatch when the wrapped key differs for the same key version
+        - recovery_key_mismatch when the registered recovery public key differs for the same chat-key version
+        - version_conflict with authoritative version data for a safe client retry
+        - durable_preflight_failed when persistence did not complete
+    - route: WebSocket message_received
+      request: "the identical canonical inference payload plus acknowledged preflight id and stable turn id"
+      response: "existing queued, processing, streaming, completion, and error lifecycle"
+      errors:
+        - preflight_required when no durable unconsumed preflight exists
+        - preflight_mismatch when chat, turn, user, device, message identity, or server-keyed inference commitment differs
+        - preflight_expired when an unsubmitted preflight exceeded its bounded submission window
+    - route: WebSocket recovery_job_available / recovery_job_claim
+      request: "authenticated device identity, job id, lease request, supported recovery protocol version"
+      response: "job id, lease token, lease expiry, sealed envelope, chat id, turn id, key version, and non-sensitive persistence metadata"
+      errors:
+        - unauthorized or device_revoked without sealed payload disclosure
+        - lease_conflict with retry-after information
+        - recovery_job_expired when retention elapsed
+    - route: Existing encrypted assistant persistence boundary with recovery acknowledgement
+      request: "stable recovery job and lease identities plus client-encrypted assistant rows and authoritative version metadata"
+      response: "durable persistence acknowledgement and terminal job deletion confirmation"
+      errors:
+        - stale_lease without deleting the job
+        - idempotent_already_persisted when stable message identity was previously committed
+        - version_conflict that retains the job for retry
+    - route: REST /v1/sdk/chats saved-chat protocol
+      request: "API-key device identity, protocol epoch 1, client-encrypted preflight package, canonical inference request, and stable idempotency ids"
+      response: "preflight acknowledgement, task/result state, and recovery claim/persistence acknowledgement as needed by synchronous SDK clients"
+      errors:
+        - client_update_required for SDKs without epoch-1 saved-chat support
+        - api_key_revoked or insufficient_scope before recovery payload disclosure
+        - incognito requests bypass durable saved-chat recovery and remain non-persistent
+  data:
+    - Preflight, encrypted user-row persistence, canonical key registration, and version checks commit in one database transaction; acknowledgement is emitted only after commit.
+    - A preflight record is uniquely identified by user, chat, and turn and cannot authorize a different inference payload.
+    - Inference request fields are canonicalized as RFC 8785 JSON covering user text, model, apps/tools, settings, attachments, parent message, and focus mode. Preflight stores only HMAC-SHA256 under a versioned Vault-held server commitment key; plaintext is discarded before acknowledgement.
+    - Preflight states are PREPARED, ENQUEUED, TERMINAL, or ABANDONED; retrying an identical committed state returns its existing identities, while conflicting payload digests fail closed.
+    - PREPARED-to-ENQUEUED transition, stable inference task creation, user billing identity, and queue-outbox publication commit atomically; outbox delivery is retryable and duplicate-safe.
+    - Abandoned PREPARED records retain the already-durable encrypted user row but start no inference and expire after 24 hours; a later retry with the same identity remains idempotent.
+    - One canonical wrapped chat key and one recovery public key exist per chat-key version; mismatches fail closed.
+    - A recovery job contains sealed payload bytes, public routing metadata, stable turn/message ids, key version, monotonic lease generation, lease state, created/expiry timestamps, and no raw recovery private key.
+    - Recovery-job states are AVAILABLE, LEASED, or TERMINAL; lease generations only increase and every mutation compares the current generation as a fencing token.
+    - The server clock controls 60-second leases. A holder may renew while making persistence progress, but after five minutes of continuous tenure a waiting different device receives priority at the next expiry.
+    - Recovery job expiry is exactly seven days from durable job creation unless deletion or acknowledgement occurs first.
+    - Durable assistant persistence and transition of the recovery job to TERMINAL commit in one database transaction and are idempotent on stable job, turn, assistant-message, and lease-generation identities.
+    - Successful acknowledgement immediately erases sealed payload, nonce, ephemeral public key, lease token, holder, and lease expiry. A 24-hour tombstone may retain only job id, owner id, chat id, turn id, assistant-message id, terminal ciphertext digest, and completed timestamp for idempotent retry, then is deleted.
+    - Task completion is not acknowledged and user billing is not finalized until the sealed recovery job is durably committed; persistence retries reuse all stable identities.
+    - Streamed chunks are provisional active-task state. Terminal completion is emitted only after sealed-job commit; a worker process crash emits failure and never automatically replays inference or tool calls.
+    - Chat/account deletion creates a transactional deletion guard before canceling in-flight work so a late worker cannot insert a recovery job after deletion.
+  crypto:
+    - Protocol version is integer 1; identifiers are canonical lowercase UUID strings encoded as UTF-8, lengths are unsigned 32-bit big-endian integers, and key versions are unsigned 32-bit big-endian integers.
+    - Recovery private bytes are HKDF-SHA256 with 32-byte raw chat key input, salt SHA-256 of ASCII `openmates:chat-recovery:v1`, info equal to length-prefixed chat id followed by key version, and output length 32 bytes.
+    - The 32 derived bytes are provided as the raw X25519 private-key representation; each runtime's standards-compliant X25519 operation performs scalar clamping. Public keys are raw 32-byte X25519 values.
+    - Every registration performs a local derive-public-seal-open self-test before submission. The zero-knowledge backend cannot prove derivation from the unknown chat key, which is an explicit threat-model boundary.
+    - Every job uses a fresh random X25519 ephemeral private key. The shared secret is rejected if all zero.
+    - Envelope key is HKDF-SHA256 with X25519 shared-secret input, salt SHA-256 of ASCII `openmates:chat-recovery-envelope:v1`, info equal to SHA-256 of the exact associated-data bytes, and output length 32 bytes.
+    - Payload encryption is AES-256-GCM with a fresh random 12-byte nonce and 16-byte tag. Associated data is ASCII `OMCR1` followed by length-prefixed owner id, chat id, turn id, job id, assistant-message id, and key version.
+    - Envelope JSON fields are exactly `v`, `epk`, `nonce`, and `ciphertext`; byte fields use unpadded base64url, `ciphertext` appends the GCM tag, unknown duplicate fields are rejected, and decoded payload size is capped at 16 MiB.
+    - Decrypted payload is strict UTF-8 JSON containing the stable assistant completion and persistence metadata; schema validation rejects missing, duplicate, unknown security-critical, or mismatched identity fields before chat-key encryption.
+    - A new ephemeral sealing key and nonce are generated for every recovery job; nonce reuse is forbidden. Shared immutable vectors define the exact byte layout before implementation begins.
+  ui_states:
+    - Sending remains pending while preflight is in progress and processing begins only after acknowledgement.
+    - Preflight failures are visible and retryable without implying that inference started.
+    - An outdated CLI displays update-required guidance and exits the send operation non-zero.
+    - Recovery expiry is visible without exposing plaintext or silently replaying paid inference.
+    - Streamed text is labeled by state as provisional until the post-seal terminal event; a worker failure retains the explicit failed state rather than substituting a replayed answer.
+  privacy_security:
+    - Backend durable stores contain no plaintext private chat content, raw chat keys, recovery private keys, master keys, or unwrapped key material.
+    - Logs and traces contain only protocol versions, durations, sanitized error categories, counts, and hashed or prefixed identifiers.
+    - Authorization is checked on list, claim, payload delivery, persistence acknowledgement, deletion, and retry.
+    - Device revocation immediately prevents new claims and acknowledgements and invalidates active leases for that device.
+    - Chat and account deletion make jobs inaccessible and delete primary-store rows in the same logical transaction; active leases are invalidated and late inserts are rejected by deletion guards.
+    - Replicas, caches, and queues must observe deletion within five minutes. Encrypted backup copies follow the existing documented backup-retention policy and are not independently addressable by the application.
+    - The integrity threat model excludes a malicious already-authorized device intentionally registering incorrect key material; honest clients mitigate accidental poisoning with immutable vectors and local self-tests.
+    - Recovery operations require the existing authenticated WebSocket session and its server-derived connection/device fingerprint. Force logout or session revocation closes that identity, rejects later operations, and invalidates its active leases; no client-supplied capability claim grants access.
+    - SDK recovery operations require a currently valid API key with saved-chat scope and the server-derived API-key device identity. API-key revocation invalidates active leases and all later recovery mutations.
+  rollout:
+    - Publish recovery-capable CLI, npm SDK, pip SDK, and Apple builds before cutover; no prior external Apple cohort requires compatibility.
+    - Deploy schema, state machines, cleanup, transactional outbox, and protocol-epoch support while the legacy epoch remains authoritative.
+    - At cutover, pause all new inference submissions, allow already accepted legacy turns to reach durable terminal state or explicit failure, and require the measured legacy in-flight count to be zero.
+    - Close pre-cutover WebSockets with a legacy-compatible `error` frame whose message tells CLI users to update, activate protocol epoch 1 centrally, deploy the epoch-1 web bundle, and resume sends.
+    - Epoch 1 accepts only acknowledged recovery preflight. Legacy clients may continue local/read operations that do not submit inference, but all legacy sends fail before inference with client_update_required.
+    - Rollback after epoch activation pauses sends and rolls forward a protocol-compatible fix. It never lowers the epoch or re-enables legacy inference against epoch-1 state.
+    - No negotiated capability feature flag or legacy send fallback remains after cutover.
+  performance:
+    - Added latency is measured from client send intent through durable preflight acknowledgement and server ENQUEUED commit, minus the same path's preflight-free baseline; model queue and model execution time are excluded.
+    - The production-like check targets the dev API and persistence topology from the designated CI runner region using 100 warm-up turns and at least 1000 measured turns at concurrency 10.
+    - Measurements include client recovery-key derivation or cached-key lookup, encryption, network round trip, durable database commit, and transactional outbox commit.
+    - Results report warm-existing-chat and cold-first-post-cutover-send cohorts separately; each cohort must add at most 250 ms at p95 using the nearest-rank percentile.
+
+tests:
+  - id: T-BACKEND-CRYPTO-VECTORS
+    type: unit
+    file: backend/tests/fixtures/chat_completion_recovery_vectors.json
+    command: python3 -m pytest backend/tests/test_chat_completion_recovery_crypto.py
+    covers: [AC-5, AC-12]
+    assertions:
+      - Python derives, seals, and opens every shared immutable vector exactly
+      - any domain, chat id, key version, or chat-key change produces different recovery material
+      - sealed fixtures decrypt only with the expected derived recovery private key and canonical associated data
+      - tampered ciphertext, nonce, ephemeral public key, or associated data fails authentication
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_chat_completion_recovery_crypto.py
+        run_id: local-6e0b-backend-crypto-red-1
+        subject_commit: a2a520b16e4205c9dd2066532b8f272a398cee05
+        timestamp: "2026-07-12T00:08:03Z"
+        summary: Collection failed because backend.shared.python_utils.chat_completion_recovery did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-CLI-CRYPTO-VECTORS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/crypto.test.ts
+    command: npm --prefix frontend/packages/openmates-cli run test:unit:crypto -- --test-name-pattern chat-completion-recovery
+    covers: [AC-12]
+    assertions:
+      - CLI derives, seals, and opens every shared immutable vector exactly
+      - CLI rejects all shared tamper and malformed-envelope vectors
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: npm --prefix frontend/packages/openmates-cli run test:unit:crypto -- --test-name-pattern chat-completion-recovery
+        run_id: local-6e0b-cli-crypto-red-1
+        subject_commit: 143d33492290fee934e6eb1a4c7e3dd0390e98e8
+        timestamp: "2026-07-12T00:10:16Z"
+        summary: Module loading failed because the CLI recovery crypto exports did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-PIP-CRYPTO-VECTORS
+    type: pytest
+    file: packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
+    command: python3 -m pytest packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
+    covers: [AC-12]
+    assertions:
+      - pip SDK derives, seals, and opens every shared immutable vector exactly
+      - pip SDK rejects all shared tamper and malformed-envelope vectors
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: passed_unexpectedly
+        command: python3 -m pytest packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
+        run_id: local-6e0b-pip-crypto-red-1
+        subject_commit: 143d33492290fee934e6eb1a4c7e3dd0390e98e8
+        timestamp: "2026-07-12T00:12:36Z"
+        summary: The pip implementation appeared concurrently with the test and all four shared-vector checks passed on the first run.
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-WEB-CRYPTO-VECTORS
+    type: vitest
+    file: frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-12]
+    assertions:
+      - browser-compatible TypeScript derives, seals, and opens every shared immutable vector exactly
+      - browser-compatible TypeScript rejects all shared tamper and malformed-envelope vectors
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        command: python3 scripts/tests.py run -- --suite vitest
+        run_id: gha-29173383433
+        subject_commit: 143d33492290fee934e6eb1a4c7e3dd0390e98e8
+        timestamp: "2026-07-12T00:13:44Z"
+        summary: The dispatched subject predated the new vector test; the suite exposed two unrelated existing failures and did not contain this test.
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-APPLE-CRYPTO-VECTORS
+    type: unit
+    file: apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests/testSharedCryptoVectors
+    covers: [AC-12]
+    assertions:
+      - CryptoKit derives and opens every backend-produced shared immutable vector exactly
+      - CryptoKit-produced deterministic test envelopes are opened by the Python verifier
+      - Apple rejects all shared tamper and malformed-envelope vectors
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests/testSharedCryptoVectors
+        run_id: discovery-6e0b-apple-crypto-red
+        subject_commit: 143d33492290fee934e6eb1a4c7e3dd0390e98e8
+        timestamp: "2026-07-12T00:20:12Z"
+        summary: The committed subject did not yet contain ChatCompletionRecoveryTests; remote execution is deferred until the crypto slice is committed as required by the Apple workflow.
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-BACKEND-PREFLIGHT
+    type: pytest
+    file: backend/tests/test_chat_turn_preflight.py
+    command: python3 -m pytest backend/tests/test_chat_turn_preflight.py
+    covers: [AC-1, AC-2, AC-13]
+    assertions:
+      - inference is rejected until durable preflight succeeds
+      - preflight atomically persists encrypted user content and canonical key metadata
+      - duplicate identical preflight is idempotent
+      - failpoints before and after transaction commit leave no partial preflight state
+      - the installed Directus extension rolls back cross-collection writes and denies non-service accountability
+      - lost submit acknowledgement returns the same task and billing identity without republishing inference
+      - PREPARED-to-ENQUEUED transition and queue outbox commit atomically
+      - wrapped-key, recovery-key, identity, and version mismatches fail without partial persistence
+      - an old chat with no recovery public key registers it on first post-cutover preflight without rewriting history
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-BACKEND-RECOVERY-JOBS
+    type: pytest
+    file: backend/tests/test_chat_completion_recovery_jobs.py
+    command: python3 -m pytest backend/tests/test_chat_completion_recovery_jobs.py
+    covers: [AC-4, AC-5, AC-6, AC-7, AC-13]
+    assertions:
+      - completion stores a sealed job before terminally notifying any connected client
+      - foreground connection state does not skip job creation
+      - one active lease exists and takeover works after lease expiry
+      - monotonic fencing rejects stale renewals, persistence, and acknowledgements
+      - assistant persistence and terminal job transition commit in one transaction
+      - stable task, billing, job, turn, and message ids make worker and client retries idempotent
+      - a worker crash before sealed commit emits explicit failure, does not replay inference or tools automatically, and does not duplicate user billing
+      - backend records no plaintext response in the durable recovery job
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-BACKEND-RECOVERY-AUTH
+    type: pytest
+    file: backend/tests/test_chat_completion_recovery_authorization.py
+    command: python3 -m pytest backend/tests/test_chat_completion_recovery_authorization.py
+    covers: [AC-8]
+    assertions:
+      - another user, logged-out client, and revoked device cannot list, claim, read, or acknowledge a job
+      - revocation invalidates an active device lease
+      - unauthorized clients cannot renew, persist, delete, retry, or terminally acknowledge a job
+      - rejected requests disclose no sealed payload or sensitive chat metadata
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-BACKEND-RECOVERY-RETENTION
+    type: pytest
+    file: backend/tests/test_chat_completion_recovery_retention.py
+    command: python3 -m pytest backend/tests/test_chat_completion_recovery_retention.py
+    covers: [AC-9]
+    assertions:
+      - unacknowledged jobs expire at seven days
+      - durable acknowledgement immediately erases sealed payload and lease material and retains only the allowed 24-hour tombstone
+      - the tombstone is deleted after 24 hours
+      - chat deletion and account deletion remove jobs and lease material
+      - deletion guards reject a late worker insert racing chat or account deletion
+      - active leases become inaccessible immediately and replica/cache cleanup meets the five-minute SLA
+      - expiry never triggers automatic inference replay
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-CLI-RECOVERY
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: npm --prefix frontend/packages/openmates-cli test -- --test-name-pattern recovery
+    covers: [AC-1, AC-3, AC-6]
+    assertions:
+      - CLI waits for preflight acknowledgement before submitting inference
+      - CLI derives and registers recovery public keys for new and existing chats
+      - CLI leases, decrypts, persists, and acknowledges inactive-chat jobs
+      - retries preserve stable ids and do not duplicate assistant messages
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-CLI-UPDATE-REQUIRED
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: npm --prefix frontend/packages/openmates-cli run test:unit:cli -- --test-name-pattern update-required
+    covers: [AC-10]
+    assertions:
+      - a legacy-protocol rejection prints concise update guidance
+      - no inference success is reported and the send exits non-zero
+      - read-only local history behavior remains unaffected
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-NPM-SDK-RECOVERY
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/sdk.test.ts
+    covers: [AC-15]
+    assertions:
+      - saved-chat send includes epoch-1 encrypted preflight and waits for acknowledgement
+      - SDK recovery uses the API-key device identity and stable idempotency ids
+      - API-key revocation prevents claim, renewal, persistence, and acknowledgement
+      - incognito send remains non-persistent and does not create a recovery job
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-PIP-SDK-RECOVERY
+    type: pytest
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    covers: [AC-15]
+    assertions:
+      - saved-chat send includes epoch-1 encrypted preflight and waits for acknowledgement
+      - SDK recovery uses the API-key device identity and stable idempotency ids
+      - API-key revocation prevents claim, renewal, persistence, and acknowledgement
+      - incognito send remains non-persistent and does not create a recovery job
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-LEGACY-CLI-CUTOVER
+    type: manual
+    file: scripts/test_legacy_cli_cutover.py
+    command: python3 scripts/test_legacy_cli_cutover.py --cli-version 0.14.0 --env dev
+    covers: [AC-10, AC-14]
+    assertions:
+      - the last released legacy CLI renders the server's legacy-compatible error message with update guidance
+      - the legacy send starts no inference and exits non-zero
+      - legacy local and read-only history operations remain usable
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-CUTOVER-EPOCH
+    type: pytest
+    file: backend/tests/test_chat_recovery_protocol_cutover.py
+    command: python3 -m pytest backend/tests/test_chat_recovery_protocol_cutover.py
+    covers: [AC-14]
+    assertions:
+      - epoch activation refuses to proceed while legacy in-flight count is nonzero
+      - paused sends start no inference during drain
+      - old WebSockets receive update-required error and close before epoch activation
+      - epoch cannot be lowered after new-protocol state exists
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-WEB-RECOVERY
+    type: playwright
+    file: frontend/apps/web_app/tests/connection-resilience.spec.ts
+    command: python3 scripts/tests.py run --spec connection-resilience.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-3]
+    assertions:
+      - web waits for preflight acknowledgement before showing AI processing
+      - an old chat remains readable and registers recovery material on its first new send
+      - reload or disconnect does not clear a completion before durable encrypted persistence acknowledgement
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: ""}
+
+  - id: T-APPLE-RECOVERY
+    type: unit
+    file: apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests
+    covers: [AC-1, AC-3]
+    assertions:
+      - Apple waits for preflight acknowledgement before inference submission
+      - Apple derives and registers recovery material for an existing chat without rewriting history
+      - app-level recovery persists and acknowledges an inactive-chat completion
+      - revoked or locked-key state does not claim a job
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-CROSS-CLIENT-TAKEOVER
+    type: manual
+    file: scripts/test_cross_client_chat_recovery.py
+    command: python3 scripts/test_cross_client_chat_recovery.py --env dev
+    covers: [AC-4]
+    assertions:
+      - a turn preflighted by one client completes after that client disconnects
+      - a different eligible client persists the assistant completion
+      - all participating clients later decrypt one identical assistant turn
+      - backend recovery state is deleted only after durable persistence acknowledgement
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-PREFLIGHT-PERFORMANCE
+    type: manual
+    file: scripts/measure_chat_preflight_latency.py
+    command: python3 scripts/measure_chat_preflight_latency.py --env dev --warmup 100 --samples 1000 --concurrency 10
+    covers: [AC-11]
+    assertions:
+      - instrumentation separates preflight duration from queue and model duration
+      - warm and cold production-like cohorts each add at most 250 ms p95 by nearest-rank calculation
+      - the report records runner region class, payload size, durability mode, baseline, and subject commit
+      - timeout and persistence failures start no inference
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+verifications:
+  - id: V-PRIVACY-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-5, AC-8, AC-9, AC-12]
+    status: pending
+    evidence: {status: "", summary: "", timestamp: ""}
+
+implementation_plan:
+  spec_path: docs/specs/cross-device-chat-completion-recovery/spec.yml
+  existing_patterns:
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+  architecture: >
+    Pending implementation-plan approval. The Python API remains the authenticated
+    WebSocket and worker boundary. A narrowly scoped internal Directus endpoint
+    extension owns Knex transactions across preflight, encrypted message, outbox,
+    recovery-job, and terminal acknowledgement records. One durable preflight
+    exists per turn, one immutable recovery public key exists per chat-key version,
+    and one sealed completion job exists per completed turn. Eligible clients
+    claim jobs with server-clock leases and monotonic fencing generations.
+  data_flow:
+    - For example, client A derives recovery public key K1 for chat C1 key version 1 and submits turn T1, encrypted user message U1, wrapped key W1, and K1.
+    - The Directus transaction extension validates ownership and immutable keys, writes U1 plus PREPARED preflight P1, and returns a durable acknowledgement.
+    - Client A submits inference for P1. One transaction changes P1 to ENQUEUED, creates stable task A1 and billing identity T1, and inserts outbox O1.
+    - An outbox dispatcher publishes A1. Duplicate dispatch or submission returns A1 and cannot create a second user charge.
+    - The worker completes A1, seals assistant payload M1 to K1, and commits recovery job J1 before reporting task completion.
+    - Eligible client B claims J1 at fencing generation 4, decrypts M1, encrypts assistant row E1 with the normal chat key, and submits E1 with generation 4.
+    - One Directus transaction writes E1, advances authoritative chat versions, removes J1's sealed payload, and marks J1 terminal. Stale generations cannot mutate this state.
+    - A cleanup worker removes terminal metadata and expires AVAILABLE or LEASED jobs after seven days; deletion guards prevent late task insertion after chat/account deletion.
+  api_data_ui_privacy_impacts:
+    api:
+      - New WebSocket preflight, recovery availability/claim/renew, and terminal persistence message types.
+      - Existing message_received requires protocol epoch 1 and an acknowledged preflight id.
+      - Existing legacy-compatible error frames carry update-required guidance before closing old connections.
+    data:
+      - Three new Directus collections for preflights, recovery jobs, and inference outbox records, plus immutable recovery-key metadata on chat key versions.
+      - Unique constraints cover owner/chat/turn, chat/key-version, task, billing, job, and assistant-message identities.
+    ui:
+      - Web and Apple show pending-send state during preflight and explicit retry/update/expiry states; no existing history UI is rewritten.
+      - CLI prints the backend's update command guidance and exits failed sends non-zero.
+    privacy_security:
+      - Sealed recovery bytes are the only durable server copy of assistant plaintext-equivalent recovery content.
+      - The internal Directus endpoint requires the existing service accountability token, exposes no public role permission, validates bounded payload sizes, and emits no key or content logs.
+  migration_rollout:
+    - Add empty collections and nullable recovery-key metadata; do not backfill chat history or recovery keys.
+    - Publish CLI and Apple support, deploy backend and Directus extension with legacy epoch authoritative, and validate dormant paths.
+    - Enter a bounded maintenance send pause, drain legacy accepted turns to zero, close old WebSockets, activate epoch 1, deploy the web bundle, and resume sends.
+    - The first epoch-1 send for each valid historical chat registers K1 while preserving W1 and all existing ciphertext.
+    - Rollback after activation is roll-forward only: pause sends, repair epoch-1 code, and resume without lowering the epoch.
+  observability:
+    - Record preflight latency, state-transition latency, outbox lag, sealed-job creation lag, available/leased/expired counts, lease contention, stale-fence rejection, takeover count, and terminal persistence latency.
+    - Alert on inference without preflight, task completion without a sealed job, jobs approaching seven days, outbox age, deletion-guard rejection spikes, or p95 preflight regression.
+    - Logs contain protocol epoch, state names, durations, counts, error categories, and hashed/prefixed ids only.
+  assumptions_to_check:
+    - A-4 implementation correctness is checked first by immutable Python, browser TypeScript, CLI TypeScript, and Swift vectors before backend or client feature implementation.
+    - TASK-3 starts with a failing Directus extension transaction test that proves rollback and internal-only accountability against the installed runtime.
+    - TASK-4 tests current chat/account deletion and device-revocation hooks invoking recovery invalidation synchronously.
+  acceptance_criteria_mapping:
+    - AC-1, AC-2, and AC-13 are gated by T-BACKEND-PREFLIGHT plus client recovery tests.
+    - AC-3 is gated by existing-chat assertions in T-CLI-RECOVERY, T-WEB-RECOVERY, and T-APPLE-RECOVERY.
+    - AC-4 through AC-9 are gated by backend job/auth/retention tests and T-CROSS-CLIENT-TAKEOVER.
+    - AC-10 and AC-14 are gated by current and released-legacy CLI cutover tests plus T-CUTOVER-EPOCH.
+    - AC-11 is gated by T-PREFLIGHT-PERFORMANCE using the defined production-like cohorts.
+    - AC-12 is gated independently in Python, CLI TypeScript, browser TypeScript, and Swift.
+  risks_open_questions:
+    - Material approval is required for the new internal Directus transaction extension and protocol-epoch maintenance cutover.
+    - Cross-runtime vectors may disprove A-4; implementation remains blocked until all four runtimes pass.
+    - A malicious authorized device can poison its own chat recovery key and remains outside the integrity threat model; accidental incompatibility is covered by local self-tests and cross-runtime vectors.
+    - The 250 ms cold-registration cohort may require connection reuse or schema/index tuning but cannot bypass durable acknowledgement.
+  affected_files:
+    - path: backend/core/directus/schemas/chat_turn_preflights.yml
+      reason: Durable turn/preflight state and idempotency identities.
+    - path: backend/core/directus/schemas/chat_completion_recovery_jobs.yml
+      reason: Sealed payload, lease fencing, retention, and terminal state.
+    - path: backend/core/directus/schemas/chat_inference_outbox.yml
+      reason: Transactional inference publication without duplicate billing or queue work.
+    - path: backend/core/directus/extensions/chat-recovery-transaction/
+      reason: Internal Knex transaction boundary for preflight, outbox, encrypted assistant persistence, and terminal recovery state.
+    - path: backend/core/api/app/services/chat_recovery_service.py
+      reason: Authenticated Python client for the internal transaction endpoint and recovery state machine.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+      reason: Enforce preflight before inference.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+      reason: Reuse immutable key and encrypted-row validation in preflight.
+    - path: backend/core/api/app/routes/websockets.py
+      reason: Replace destructive pending delivery with retained recovery-job notifications.
+    - path: backend/core/api/app/tasks/persistence_tasks.py
+      reason: Persist preflight, sealed jobs, leases, and terminal acknowledgement safely.
+    - path: frontend/packages/ui/src/services/sendersChatMessages.ts
+      reason: Add web preflight and recovery-public-key registration.
+    - path: frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+      reason: Add retained job claim, persistence, and acknowledgement.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Add CLI preflight, recovery worker, and update-required handling.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: Add npm SDK saved-chat preflight and recovery contracts.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: Add pip SDK saved-chat preflight and recovery contracts.
+    - path: backend/core/api/app/routes/sdk.py
+      reason: Route API-key saved chats through epoch-1 preflight and recovery while preserving incognito behavior.
+    - path: apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+      reason: Add protocol-compatible recovery derivation and envelope decryption.
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Own inactive-chat recovery at app scope.
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Gate Apple inference on preflight.
+  verification_strategy:
+    - Validate and approve exact protocol/crypto plan before tests or feature code.
+    - Add shared deterministic cryptographic vectors and run them independently in Python, CLI TypeScript, browser TypeScript, and Swift.
+    - Add red backend preflight, outbox/idempotency, recovery lifecycle, authorization, retention, deletion-race, and cutover-epoch tests.
+    - Add red CLI contract tests before web and Apple implementation.
+    - Deploy before Playwright green verification.
+    - Run Apple remote unit/build verification after backend, CLI, and web are green.
+    - Finish with cross-client takeover and p95 performance evidence.
+  verification_order:
+    - Shared crypto vectors and backend contracts.
+    - OpenMates CLI contracts.
+    - npm SDK contracts.
+    - pip SDK contracts.
+    - Web Playwright after deployment.
+    - Apple remote XCTest and build.
+    - Cross-client takeover and performance proof.
+
+tasks:
+  - id: TASK-1
+    title: Approve protocol, cryptography, persistence, and rollout plan
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9, S-10, S-11, S-12]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15]
+    expected_files: [docs/specs/cross-device-chat-completion-recovery/spec.yml]
+    verification: [V-PRIVACY-REVIEW]
+    verification_ids: [V-PRIVACY-REVIEW]
+    dependencies: []
+    ownership:
+      files: [docs/specs/cross-device-chat-completion-recovery/spec.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-2, TASK-3, TASK-4, TASK-5, TASK-5B, TASK-6, TASK-7, TASK-8]
+    independently_deployable: true
+  - id: TASK-2
+    title: Implement shared recovery cryptography and deterministic vectors
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-6]
+      acceptance_criteria: [AC-5, AC-12]
+    expected_files:
+      - backend/tests/fixtures/chat_completion_recovery_vectors.json
+      - backend/tests/test_chat_completion_recovery_crypto.py
+      - frontend/packages/openmates-cli/src/crypto.ts
+      - frontend/packages/openmates-cli/tests/crypto.test.ts
+      - frontend/packages/ui/src/utils/encryption.ts
+      - frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts
+      - packages/openmates-python/openmates/chat_completion_recovery.py
+      - packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
+      - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+      - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    verification: [T-BACKEND-CRYPTO-VECTORS, T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-WEB-CRYPTO-VECTORS, T-APPLE-CRYPTO-VECTORS]
+    verification_ids: [T-BACKEND-CRYPTO-VECTORS, T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-WEB-CRYPTO-VECTORS, T-APPLE-CRYPTO-VECTORS]
+    dependencies: [TASK-1]
+    ownership:
+      files: [backend/tests/fixtures/chat_completion_recovery_vectors.json, backend/tests/test_chat_completion_recovery_crypto.py, frontend/packages/openmates-cli/tests/crypto.test.ts, frontend/packages/ui/src/utils/chatCompletionRecovery.test.ts, packages/openmates-python/openmates/chat_completion_recovery.py, packages/openmates-python/tests/test_chat_completion_recovery_crypto.py, apple/OpenMatesTests/ChatCompletionRecoveryTests.swift]
+      shared_files: [frontend/packages/openmates-cli/src/crypto.ts, frontend/packages/ui/src/utils/encryption.ts, apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement transactional recovery persistence primitives
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-7, S-10]
+      acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-9, AC-13]
+    expected_files:
+      - backend/core/directus/schemas/chat_turn_preflights.yml
+      - backend/core/directus/schemas/chat_completion_recovery_jobs.yml
+      - backend/core/directus/schemas/chat_inference_outbox.yml
+      - backend/core/directus/extensions/chat-recovery-transaction/
+      - backend/core/api/app/services/chat_recovery_service.py
+      - backend/tests/test_chat_turn_preflight.py
+      - backend/tests/test_chat_completion_recovery_jobs.py
+    verification: [T-BACKEND-PREFLIGHT, T-BACKEND-RECOVERY-JOBS]
+    verification_ids: [T-BACKEND-PREFLIGHT, T-BACKEND-RECOVERY-JOBS]
+    dependencies: [TASK-2]
+    ownership:
+      files: [backend/core/directus/schemas/chat_turn_preflights.yml, backend/core/directus/schemas/chat_completion_recovery_jobs.yml, backend/core/directus/schemas/chat_inference_outbox.yml, backend/core/directus/extensions/chat-recovery-transaction/, backend/core/api/app/services/chat_recovery_service.py, backend/tests/test_chat_turn_preflight.py, backend/tests/test_chat_completion_recovery_jobs.py]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Wire backend inference, authorization, retention, and cutover
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3, S-4, S-5, S-6, S-7, S-8, S-10, S-11]
+      acceptance_criteria: [AC-1, AC-4, AC-6, AC-7, AC-8, AC-9, AC-10, AC-13, AC-14]
+    expected_files:
+      - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+      - backend/core/api/app/routes/websockets.py
+      - backend/core/api/app/tasks/persistence_tasks.py
+      - backend/tests/test_chat_completion_recovery_authorization.py
+      - backend/tests/test_chat_completion_recovery_retention.py
+      - backend/tests/test_chat_recovery_protocol_cutover.py
+    verification: [T-BACKEND-PREFLIGHT, T-BACKEND-RECOVERY-JOBS, T-BACKEND-RECOVERY-AUTH, T-BACKEND-RECOVERY-RETENTION, T-CUTOVER-EPOCH]
+    verification_ids: [T-BACKEND-PREFLIGHT, T-BACKEND-RECOVERY-JOBS, T-BACKEND-RECOVERY-AUTH, T-BACKEND-RECOVERY-RETENTION, T-CUTOVER-EPOCH]
+    dependencies: [TASK-3]
+    ownership:
+      files: [backend/tests/test_chat_completion_recovery_authorization.py, backend/tests/test_chat_completion_recovery_retention.py, backend/tests/test_chat_recovery_protocol_cutover.py]
+      shared_files: [backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py, backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py, backend/core/api/app/routes/websockets.py, backend/core/api/app/tasks/persistence_tasks.py]
+    blockers: []
+    follow_up_tasks: [TASK-5, TASK-5B, TASK-6, TASK-7]
+    independently_deployable: false
+  - id: TASK-5
+    title: Implement CLI preflight, recovery worker, and clean-cutover error
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-8]
+      acceptance_criteria: [AC-1, AC-3, AC-4, AC-6, AC-10, AC-12, AC-14]
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/client.test.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - scripts/test_legacy_cli_cutover.py
+    verification: [T-CLI-CRYPTO-VECTORS, T-CLI-RECOVERY, T-CLI-UPDATE-REQUIRED, T-LEGACY-CLI-CUTOVER]
+    verification_ids: [T-CLI-CRYPTO-VECTORS, T-CLI-RECOVERY, T-CLI-UPDATE-REQUIRED, T-LEGACY-CLI-CUTOVER]
+    dependencies: [TASK-4]
+    ownership:
+      files: [frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/tests/client.test.ts, frontend/packages/openmates-cli/tests/cli.test.ts, scripts/test_legacy_cli_cutover.py]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5B
+    title: Implement npm and pip SDK saved-chat recovery
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-8, S-12]
+      acceptance_criteria: [AC-1, AC-3, AC-4, AC-6, AC-10, AC-12, AC-14, AC-15]
+    expected_files:
+      - backend/core/api/app/routes/sdk.py
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_sdk.py
+    verification: [T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-NPM-SDK-RECOVERY, T-PIP-SDK-RECOVERY]
+    verification_ids: [T-CLI-CRYPTO-VECTORS, T-PIP-CRYPTO-VECTORS, T-NPM-SDK-RECOVERY, T-PIP-SDK-RECOVERY]
+    dependencies: [TASK-4]
+    ownership:
+      files: [backend/core/api/app/routes/sdk.py, frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/tests/sdk.test.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_sdk.py]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-6
+    title: Implement web preflight and app-level recovery
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-3, AC-4, AC-6, AC-12]
+    expected_files:
+      - frontend/packages/ui/src/services/sendersChatMessages.ts
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+      - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    verification: [T-WEB-CRYPTO-VECTORS, T-WEB-RECOVERY]
+    verification_ids: [T-WEB-CRYPTO-VECTORS, T-WEB-RECOVERY]
+    dependencies: [TASK-4]
+    ownership:
+      files: [frontend/apps/web_app/tests/connection-resilience.spec.ts]
+      shared_files: [frontend/packages/ui/src/services/sendersChatMessages.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-7
+    title: Implement Apple preflight and app-level recovery
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-3, AC-4, AC-6, AC-8, AC-12]
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+      - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift
+    verification: [T-APPLE-CRYPTO-VECTORS, T-APPLE-RECOVERY]
+    verification_ids: [T-APPLE-CRYPTO-VECTORS, T-APPLE-RECOVERY]
+    dependencies: [TASK-4]
+    ownership:
+      files: [apple/OpenMatesTests/ChatCompletionRecoveryTests.swift]
+      shared_files: [apple/OpenMates/Sources/App/MainAppView.swift, apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift, apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift, apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-8
+    title: Verify cross-client takeover, latency, privacy, and cutover
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-3, S-6, S-7, S-8, S-9, S-11]
+      acceptance_criteria: [AC-4, AC-5, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-14]
+    expected_files:
+      - scripts/test_cross_client_chat_recovery.py
+      - scripts/measure_chat_preflight_latency.py
+      - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    verification: [T-CROSS-CLIENT-TAKEOVER, T-PREFLIGHT-PERFORMANCE, T-CUTOVER-EPOCH, T-LEGACY-CLI-CUTOVER, V-PRIVACY-REVIEW]
+    verification_ids: [T-CROSS-CLIENT-TAKEOVER, T-PREFLIGHT-PERFORMANCE, T-CUTOVER-EPOCH, T-LEGACY-CLI-CUTOVER, V-PRIVACY-REVIEW]
+    dependencies: [TASK-5, TASK-5B, TASK-6, TASK-7]
+    ownership:
+      files: [scripts/test_cross_client_chat_recovery.py, scripts/measure_chat_preflight_latency.py]
+      shared_files: [docs/specs/cross-device-chat-completion-recovery/spec.yml]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

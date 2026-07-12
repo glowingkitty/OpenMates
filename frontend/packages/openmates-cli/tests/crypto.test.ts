@@ -9,6 +9,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   base64ToBytes,
@@ -25,7 +26,91 @@ import {
   hashEmail,
   hashKey,
   hashItemKey,
+  buildRecoveryAssociatedData,
+  deriveChatCompletionRecoveryKeypair,
+  openChatCompletionRecoveryEnvelope,
+  sealChatCompletionRecoveryPayload,
 } from "../src/crypto.ts";
+
+const recoveryVectors = JSON.parse(
+  readFileSync(
+    new URL("../../../../backend/tests/fixtures/chat_completion_recovery_vectors.json", import.meta.url),
+    "utf8",
+  ),
+).vectors;
+
+describe("chat-completion-recovery shared vectors", () => {
+  for (const vector of recoveryVectors) {
+    it(`matches exact recovery bytes for ${vector.name}`, async () => {
+      const keypair = await deriveChatCompletionRecoveryKeypair(
+        vector.chat_key,
+        vector.chat_id,
+        vector.key_version,
+      );
+      assert.equal(keypair.privateKey, vector.recovery_private_key);
+      assert.equal(keypair.publicKey, vector.recovery_public_key);
+      assert.equal(buildRecoveryAssociatedData(vector), vector.associated_data);
+
+      const envelope = await sealChatCompletionRecoveryPayload(
+        new TextEncoder().encode(vector.plaintext),
+        {
+          recoveryPublicKey: vector.recovery_public_key,
+          ownerId: vector.owner_id,
+          chatId: vector.chat_id,
+          turnId: vector.turn_id,
+          jobId: vector.job_id,
+          assistantMessageId: vector.assistant_message_id,
+          keyVersion: vector.key_version,
+          ephemeralPrivateKey: vector.ephemeral_private_key,
+          nonce: vector.nonce,
+        },
+      );
+      assert.deepEqual(envelope, vector.envelope);
+
+      const opened = await openChatCompletionRecoveryEnvelope(envelope, {
+        recoveryPrivateKey: keypair.privateKey,
+        ownerId: vector.owner_id,
+        chatId: vector.chat_id,
+        turnId: vector.turn_id,
+        jobId: vector.job_id,
+        assistantMessageId: vector.assistant_message_id,
+        keyVersion: vector.key_version,
+      });
+      assert.equal(new TextDecoder().decode(opened), vector.plaintext);
+    });
+
+    for (const field of ["ciphertext", "nonce", "epk"] as const) {
+      it(`rejects ${field} tampering for ${vector.name}`, async () => {
+        const encoded = vector.envelope[field];
+        const envelope = {
+          ...vector.envelope,
+          [field]: `${encoded[0] === "A" ? "B" : "A"}${encoded.slice(1)}`,
+        };
+        await assert.rejects(() => openChatCompletionRecoveryEnvelope(envelope, {
+          recoveryPrivateKey: vector.recovery_private_key,
+          ownerId: vector.owner_id,
+          chatId: vector.chat_id,
+          turnId: vector.turn_id,
+          jobId: vector.job_id,
+          assistantMessageId: vector.assistant_message_id,
+          keyVersion: vector.key_version,
+        }));
+      });
+    }
+
+    it(`rejects associated-data tampering for ${vector.name}`, async () => {
+      await assert.rejects(() => openChatCompletionRecoveryEnvelope(vector.envelope, {
+        recoveryPrivateKey: vector.recovery_private_key,
+        ownerId: vector.owner_id,
+        chatId: vector.chat_id,
+        turnId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        jobId: vector.job_id,
+        assistantMessageId: vector.assistant_message_id,
+        keyVersion: vector.key_version,
+      }));
+    });
+  }
+});
 
 // ---------------------------------------------------------------------------
 // base64 helpers
