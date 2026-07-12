@@ -25,7 +25,7 @@ export interface ChatCompletionRecoveryIdentity {
 }
 
 export interface ChatCompletionRecoveryEnvelope {
-  v: number;
+  v: 1;
   epk: string;
   nonce: string;
   ciphertext: string;
@@ -49,8 +49,8 @@ function encodeBase64Url(input: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function decodeBase64Url(input: string, field: string, expectedLength?: number): Uint8Array {
-  if (!input || input.includes("=") || !/^[A-Za-z0-9_-]+$/.test(input)) {
+function decodeBase64Url(input: unknown, field: string, expectedLength?: number): Uint8Array {
+  if (typeof input !== "string" || !input || input.includes("=") || !/^[A-Za-z0-9_-]+$/.test(input)) {
     throw new Error(`${field} must be non-empty unpadded base64url`);
   }
   const standard = input.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat(-input.length & 3);
@@ -104,18 +104,20 @@ async function sha256(input: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", toArrayBuffer(input)));
 }
 
+async function hmacSha256(keyBytes: Uint8Array, input: Uint8Array): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    toArrayBuffer(keyBytes),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, toArrayBuffer(input)));
+}
+
 async function hkdfSha256(input: Uint8Array, salt: Uint8Array, info: Uint8Array): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey("raw", toArrayBuffer(input), "HKDF", false, ["deriveBits"]);
-  return new Uint8Array(await crypto.subtle.deriveBits(
-    {
-      name: "HKDF",
-      hash: "SHA-256",
-      salt: toArrayBuffer(salt),
-      info: toArrayBuffer(info),
-    },
-    key,
-    256,
-  ));
+  const pseudoRandomKey = await hmacSha256(salt, input);
+  return hmacSha256(pseudoRandomKey, concatBytes(info, new Uint8Array([1])));
 }
 
 export async function deriveChatCompletionRecoveryKeypair(
@@ -215,7 +217,12 @@ export async function openChatCompletionRecoveryEnvelope(
   envelope: ChatCompletionRecoveryEnvelope,
   options: ChatCompletionRecoveryIdentity & { recoveryPrivateKey: string },
 ): Promise<Uint8Array> {
-  if (Object.keys(envelope).sort().join(",") !== "ciphertext,epk,nonce,v" || envelope.v !== PROTOCOL_VERSION) {
+  if (
+    !envelope
+    || typeof envelope !== "object"
+    || Object.keys(envelope).sort().join(",") !== "ciphertext,epk,nonce,v"
+    || envelope.v !== PROTOCOL_VERSION
+  ) {
     throw new Error("invalid recovery envelope fields or version");
   }
   const recoveryPrivateKey = decodeBase64Url(options.recoveryPrivateKey, "recovery_private_key", KEY_BYTES);

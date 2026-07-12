@@ -252,11 +252,12 @@ attempts:
 
 handoff:
   current_task_id: TASK-2
-  next_action: Deploy the isolated TASK-2 crypto slice, then rerun backend, CLI, pip, Vitest, and Apple vector checks against that commit.
-  command: python3 scripts/sessions.py prepare-deploy --session 6e0b
-  expected_outcome: Deployment preparation includes only the shared recovery crypto fixture, helpers, tests, and this spec ledger.
+  next_action: Deploy the browser HKDF compatibility fix and updated TASK-2 evidence, then rerun Vitest against that commit before Apple verification.
+  command: >-
+    python3 scripts/sessions.py deploy --session 3e62 --title "fix: stabilize browser recovery key derivation" --message "Use RFC 5869 HMAC extract-expand for browser recovery vectors and record TASK-2 evidence."
+  expected_outcome: The browser exact-vector test passes under repository-controlled Vitest; unrelated existing failures remain separately attributable.
   blocker: null
-  last_verified_commit: 0c43a10c0ebda8697a30bdc9291b402bd2aebcba
+  last_verified_commit: 47b5faf18fb33d73d29b792f472505b5bd33bb37
 
 scenarios:
   - id: S-1
@@ -715,7 +716,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_chat_completion_recovery_crypto.py
+        run_id: local-3e62-backend-crypto-green-1
+        subject_commit: 47b5faf18fb33d73d29b792f472505b5bd33bb37
+        timestamp: "2026-07-12T00:31:57Z"
+        summary: All six exact-vector, domain-separation, and tamper checks passed.
 
   - id: T-CLI-CRYPTO-VECTORS
     type: unit
@@ -738,7 +745,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: npm --prefix frontend/packages/openmates-cli run test:unit:crypto -- --test-name-pattern chat-completion-recovery
+        run_id: local-3e62-cli-crypto-green-1
+        subject_commit: 47b5faf18fb33d73d29b792f472505b5bd33bb37
+        timestamp: "2026-07-12T00:31:57Z"
+        summary: All five CLI recovery-vector checks passed; the complete crypto file reported 29 passing tests.
 
   - id: T-PIP-CRYPTO-VECTORS
     type: pytest
@@ -761,7 +774,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
+        run_id: local-3e62-pip-crypto-green-1
+        subject_commit: 47b5faf18fb33d73d29b792f472505b5bd33bb37
+        timestamp: "2026-07-12T00:31:57Z"
+        summary: All four pip SDK exact-vector and tamper checks passed.
 
   - id: T-WEB-CRYPTO-VECTORS
     type: vitest
@@ -780,11 +799,18 @@ tests:
         run_id: gha-29173383433
         subject_commit: 143d33492290fee934e6eb1a4c7e3dd0390e98e8
         timestamp: "2026-07-12T00:13:44Z"
+        reason: The dispatched subject predated the browser vector test, so missing_test is the truthful red result.
         summary: The dispatched subject predated the new vector test; the suite exposed two unrelated existing failures and did not contain this test.
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: failed
+        command: python3 scripts/tests.py run -- --suite vitest
+        run_id: gha-29173877212
+        subject_commit: 47b5faf18fb33d73d29b792f472505b5bd33bb37
+        timestamp: "2026-07-12T00:33:32Z"
+        summary: The recovery exact-vector test failed because the Vitest WebCrypto HKDF deriveBits result reached TweetNaCl with an invalid scalar length; two unrelated existing Vitest failures also remained.
 
   - id: T-APPLE-CRYPTO-VECTORS
     type: unit
@@ -804,6 +830,7 @@ tests:
         run_id: discovery-6e0b-apple-crypto-red
         subject_commit: 143d33492290fee934e6eb1a4c7e3dd0390e98e8
         timestamp: "2026-07-12T00:20:12Z"
+        reason: The committed subject did not contain the Apple vector test, so remote execution could not target it before TASK-2 deployment.
         summary: The committed subject did not yet contain ChatCompletionRecoveryTests; remote execution is deferred until the crypto slice is committed as required by the Apple workflow.
     green_phase:
       required: true
@@ -1234,7 +1261,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Implement shared recovery cryptography and deterministic vectors
-    status: in_progress
+    status: needs_fix
     phase: working_tasks
     covers:
       scenarios: [S-3, S-6]
