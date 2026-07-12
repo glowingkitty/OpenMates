@@ -67,6 +67,8 @@ struct AttachmentPicker: View {
                 .zIndex(10)
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("attachment-menu")
         .onChange(of: selectedPhotoItem) { _, newValue in
             if let item = newValue {
                 isPresented = false
