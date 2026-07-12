@@ -56,6 +56,23 @@ final class SettingsFullParityUITests: XCTestCase {
         }
     }
 
+    func testChatShareSettingsOpenAsNestedSettingsDestination() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-share-settings-chat",
+        ]
+        app.launchEnvironment["UI_TEST_CHAT_SHARE_URL"] = "https://app.dev.openmates.org/s/Abc123XY#testKey"
+        app.launch()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["settings-shared-share-settings"].waitForExistence(timeout: 15),
+            "Sharing a chat must open the nested Shared settings destination, not an app overlay."
+        )
+        XCTAssertTrue(app.descendants(matching: .any)["settings-destination-back"].exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Share settings must not render default List/table chrome")
+    }
+
     func testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs() throws {
         let app = XCUIApplication()
         app.launchArguments = [
