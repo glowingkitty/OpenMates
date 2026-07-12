@@ -45,6 +45,19 @@ describe("recoverCodeEmbedFromToon", () => {
 		}
 	});
 
+	it("decodes JSON array fallback content without logging a TOON error", async () => {
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			const decoded = await decodeToonContent(JSON.stringify([{ id: "result-1" }]));
+
+			expect(decoded).toEqual([{ id: "result-1" }]);
+			expect(consoleError).not.toHaveBeenCalled();
+		} finally {
+			consoleError.mockRestore();
+		}
+	});
+
 	it("recovers multiline code and lineCount from malformed decoded TOON", () => {
     const toonContent = `type: code
 language: python

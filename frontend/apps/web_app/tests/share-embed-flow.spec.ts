@@ -34,6 +34,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { verifySearchGrid } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -80,7 +81,7 @@ test('shares a web search embed via fullscreen share button', async ({
 	await webPreview.click();
 	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
-	await expect(fullscreenOverlay.getByTestId('search-template-grid')).toBeVisible({ timeout: 60_000 });
+	await verifySearchGrid(fullscreenOverlay, 1, 60_000);
 	logCheckpoint('Embed fullscreen overlay opened.');
 	await takeStepScreenshot(page, 'embed-fullscreen');
 
