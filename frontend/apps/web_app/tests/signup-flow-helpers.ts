@@ -175,10 +175,10 @@ function createStepScreenshotter(
 		filenamePrefix?: string;
 		artifactsDirname?: string;
 	} = {}
-): (page: any, label: string) => Promise<void> {
+): (page: any, label: string, options?: { fullPage?: boolean }) => Promise<void> {
 	_ensureStepLogInit(artifactsDirname);
 	let screenshotIndex = 1;
-	return async (page: any, label: string): Promise<void> => {
+	return async (page: any, label: string, options?: { fullPage?: boolean }): Promise<void> => {
 		const safeLabel = label
 			.toLowerCase()
 			.replace(/[^a-z0-9-]+/g, '-')
@@ -191,7 +191,7 @@ function createStepScreenshotter(
 		try {
 			await page.screenshot({
 				path: `${artifactsDirname}/${filename}`,
-				fullPage: true,
+				fullPage: options?.fullPage ?? true,
 				timeout: STEP_SCREENSHOT_TIMEOUT_MS
 			});
 		} catch (error) {

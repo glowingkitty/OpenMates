@@ -91,7 +91,7 @@ test('shares a web search embed via fullscreen share button', async ({
 	logCheckpoint('Waiting for web search embed to reach finished state...');
 	await expect(finishedPreview.first()).toBeVisible({ timeout: 90000 });
 	logCheckpoint('Web search embed reached finished state.');
-	await takeStepScreenshot(page, 'embed-finished');
+	await takeStepScreenshot(page, 'embed-finished', { fullPage: false });
 
 	saveWarnErrorLogs('share-embed', 'after_search_finished');
 
