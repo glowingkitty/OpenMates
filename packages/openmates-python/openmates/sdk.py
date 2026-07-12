@@ -13,6 +13,8 @@ from dataclasses import dataclass
 import hashlib
 import json
 import os
+from pathlib import Path
+import math
 import time
 from typing import Any
 from urllib.parse import quote, urlencode, urlparse, urlunparse
@@ -22,10 +24,13 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import requests
 
 from .generated.app_skills import GeneratedAppSkills
+from .chat_completion_recovery import derive_recovery_keypair, open_recovery_envelope
 
 
 DEFAULT_API_URL = "https://api.openmates.org"
 DEFAULT_TIMEOUT_SECONDS = 60
+DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS = 0.5
+DEFAULT_RECOVERY_TIMEOUT_SECONDS = 60.0
 SDK_KDF_ITERATIONS = 100_000
 AES_GCM_IV_LENGTH = 12
 CIPHERTEXT_HEADER_LENGTH = 6
@@ -58,10 +63,12 @@ class ChatResponse:
 class OpenMates:
     """Lazy API-key SDK client."""
 
-    def __init__(self, api_key: str | None = None, api_url: str = DEFAULT_API_URL):
+    def __init__(self, api_key: str | None = None, api_url: str = DEFAULT_API_URL, *, device_id: str | None = None, device_id_path: str | os.PathLike[str] | None = None):
         self._api_key = api_key or os.getenv("OPENMATES_API_KEY")
         self._api_url = api_url.rstrip("/")
+        self._device_id = device_id or _load_or_create_device_id(device_id_path)
         self._master_key: bytes | None = None
+        self._sdk_session: dict[str, Any] | None = None
         self.apps = GeneratedAppSkills(self._run_app_skill)
         self.account = OpenMatesAccount(self)
         self.benchmark = OpenMatesBenchmark(self)
@@ -90,8 +97,8 @@ class OpenMates:
             {"input_data": input_data, "parameters": {}},
         )
 
-    def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", path, payload)
+    def _post(self, path: str, payload: dict[str, Any], *, timeout: float = DEFAULT_TIMEOUT_SECONDS) -> dict[str, Any]:
+        return self._request("POST", path, payload, timeout=timeout)
 
     def _patch(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("PATCH", path, payload)
@@ -99,14 +106,14 @@ class OpenMates:
     def _delete(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._request("DELETE", path, payload)
 
-    def _request(self, method: str, path: str, payload: dict[str, Any] | None) -> dict[str, Any]:
+    def _request(self, method: str, path: str, payload: dict[str, Any] | None, *, timeout: float = DEFAULT_TIMEOUT_SECONDS) -> dict[str, Any]:
         if not self._api_key:
             raise OpenMatesConfigError("OpenMates API key is required")
 
         request_kwargs = {
             "json": payload,
             "headers": self._headers(has_body=payload is not None),
-            "timeout": DEFAULT_TIMEOUT_SECONDS,
+            "timeout": timeout,
         }
         if method == "POST":
             response = requests.post(f"{self._api_url}{path}", **request_kwargs)
@@ -151,7 +158,7 @@ class OpenMates:
             "Accept": "application/json",
             "Authorization": f"Bearer {self._api_key}",
             "X-OpenMates-SDK": "pip",
-            "X-OpenMates-Device-Identity": os.name,
+            "X-OpenMates-Device-Identity": self._device_id,
         }
         if has_body:
             headers["Content-Type"] = "application/json"
@@ -169,10 +176,7 @@ class OpenMates:
         if not self._api_key:
             raise OpenMatesConfigError("OpenMates API key is required")
 
-        session = self._post(
-            "/v1/sdk/session",
-            {"sdk_name": "pip", "device_identity": os.name},
-        )
+        session = self._get_sdk_session()
         wrapper = session.get("key_wrapper") or {}
         encrypted_key = wrapper.get("encrypted_key")
         salt = wrapper.get("salt")
@@ -185,6 +189,14 @@ class OpenMates:
             raise OpenMatesConfigError("Unable to decrypt SDK session master key with API key")
         self._master_key = master_key
         return master_key
+
+    def _get_sdk_session(self) -> dict[str, Any]:
+        if self._sdk_session is None:
+            self._sdk_session = self._post(
+                "/v1/sdk/session",
+                {"sdk_name": "pip", "device_identity": self._device_id},
+            )
+        return self._sdk_session
 
     def _decrypt_chat_metadata(self, chat: dict[str, Any]) -> dict[str, Any]:
         encrypted_chat_key = chat.get("encrypted_chat_key")
@@ -282,6 +294,19 @@ def _quote(value: str) -> str:
     return quote(value, safe="")
 
 
+def _load_or_create_device_id(custom_path: str | os.PathLike[str] | None) -> str:
+    path = Path(custom_path) if custom_path is not None else Path.home() / ".openmates" / "sdk-device-id"
+    if path.exists():
+        stored = path.read_text(encoding="utf-8").strip()
+        if stored:
+            return stored
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    device_id = str(uuid.uuid4())
+    path.write_text(f"{device_id}\n", encoding="utf-8")
+    path.chmod(0o600)
+    return device_id
+
+
 def _with_query(path: str, **query: Any) -> str:
     cleaned = {key: value for key, value in query.items() if value is not None}
     if not cleaned:
@@ -368,6 +393,11 @@ def _encrypt_aes_gcm_text(plaintext: str, key: bytes) -> str:
     iv = os.urandom(AES_GCM_IV_LENGTH)
     encrypted = AESGCM(key).encrypt(iv, plaintext.encode("utf-8"), None)
     return base64.b64encode(CIPHERTEXT_MAGIC + b"\x01\x00\x00\x00" + iv + encrypted).decode("utf-8")
+
+
+def _encrypt_aes_gcm_bytes(plaintext: bytes, key: bytes) -> str:
+    iv = os.urandom(AES_GCM_IV_LENGTH)
+    return base64.b64encode(iv + AESGCM(key).encrypt(iv, plaintext, None)).decode("utf-8")
 
 
 def _base64url_encode(data: bytes) -> str:
@@ -520,7 +550,23 @@ class OpenMatesChats:
         focus_mode: dict[str, str] | None = None,
         memory_ids: list[str] | None = None,
         model: str | None = None,
+        chat_id: str | None = None,
+        title: str | None = None,
+        recovery_poll_interval_seconds: float = DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS,
+        recovery_timeout_seconds: float = DEFAULT_RECOVERY_TIMEOUT_SECONDS,
     ) -> ChatResponse:
+        if save_to_account:
+            return self._send_saved(
+                message,
+                history=history,
+                focus_mode=focus_mode,
+                memory_ids=memory_ids,
+                model=model,
+                chat_id=chat_id,
+                title=title,
+                recovery_poll_interval_seconds=recovery_poll_interval_seconds,
+                recovery_timeout_seconds=recovery_timeout_seconds,
+            )
         data = self._client._post(
             "/v1/sdk/chats",
             {
@@ -534,6 +580,222 @@ class OpenMatesChats:
         )
         response = data.get("response") or {}
         return ChatResponse(content=response.get("content"), raw=data)
+
+    def _send_saved(
+        self,
+        message: str,
+        *,
+        history: Any,
+        focus_mode: dict[str, str] | None,
+        memory_ids: list[str] | None,
+        model: str | None,
+        chat_id: str | None,
+        title: str | None,
+        recovery_poll_interval_seconds: float,
+        recovery_timeout_seconds: float,
+    ) -> ChatResponse:
+        master_key = self._client._get_master_key()
+        session = self._client._get_sdk_session()
+        user = session.get("user") if isinstance(session.get("user"), dict) else {}
+        if not user.get("id"):
+            raise OpenMatesConfigError("SDK session did not include the authenticated user identity")
+
+        saved_chat_id = chat_id or str(uuid.uuid4())
+        turn_id = str(uuid.uuid4())
+        message_id = str(uuid.uuid4())
+        created_at = int(time.time())
+        expected_messages_v = 0
+        encrypted_chat_metadata = None
+        if chat_id:
+            loaded = self.load(chat_id)
+            chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else {}
+            encrypted_chat_key = chat.get("encrypted_chat_key")
+            if not isinstance(encrypted_chat_key, str):
+                raise OpenMatesConfigError("Saved chat does not include encrypted chat key material")
+            chat_key = _decrypt_aes_gcm_bytes(encrypted_chat_key, master_key)
+            if chat_key is None:
+                raise OpenMatesConfigError("Unable to decrypt saved chat key material")
+            expected_messages_v = int(chat.get("messages_v") or 0)
+        else:
+            chat_key = os.urandom(32)
+            encrypted_chat_key = _encrypt_aes_gcm_bytes(chat_key, master_key)
+            encrypted_chat_metadata = {
+                "encrypted_title": _encrypt_aes_gcm_text(title or message[:80], chat_key),
+                "encrypted_chat_key": encrypted_chat_key,
+                "created_at": created_at,
+                "updated_at": created_at,
+            }
+
+        recovery_private_key, recovery_public_key = derive_recovery_keypair(
+            base64.urlsafe_b64encode(chat_key).decode("utf-8").rstrip("="),
+            saved_chat_id,
+            1,
+        )
+        normalized_history = _normalize_history(history)
+        inference_request = {
+            "messages": [*normalized_history, {"role": "user", "content": message}],
+            "model": model,
+            "focus_mode": focus_mode,
+            "memory_ids": memory_ids or [],
+        }
+        payload = {
+            "message": message,
+            "history": normalized_history,
+            "save_to_account": True,
+            "title": title,
+            "focus_mode": focus_mode,
+            "memory_ids": memory_ids or [],
+            "model": model,
+            "protocol_version": 1,
+            "chat_id": saved_chat_id,
+            "turn_id": turn_id,
+            "message_id": message_id,
+            "chat_key_version": 1,
+            "encrypted_chat_key": encrypted_chat_key,
+            "recovery_public_key": recovery_public_key,
+            "expected_messages_v": expected_messages_v,
+            "encrypted_user_message": {
+                "client_message_id": message_id,
+                "chat_id": saved_chat_id,
+                "encrypted_content": _encrypt_aes_gcm_text(message, chat_key),
+                "encrypted_sender_name": _encrypt_aes_gcm_text("User", chat_key),
+                "role": "user",
+                "created_at": created_at,
+                "updated_at": created_at,
+            },
+            "encrypted_chat_metadata": encrypted_chat_metadata,
+            "inference_request": inference_request,
+        }
+        data = self._client._post("/v1/sdk/chats", payload)
+        task_id = data.get("task_id")
+        if not isinstance(task_id, str) or not task_id:
+            raise OpenMatesConfigError("Saved chat dispatch did not return a stable inference task id")
+        claim = self._poll_recovery_claim(
+            task_id,
+            timeout_seconds=recovery_timeout_seconds,
+            poll_interval_seconds=recovery_poll_interval_seconds,
+        )
+        recovered = self._open_recovery_claim(
+            claim,
+            recovery_private_key=recovery_private_key,
+            owner_id=str(user["id"]),
+            chat_id=saved_chat_id,
+            turn_id=turn_id,
+        )
+        completed_at = int(time.time())
+        encrypted_assistant_message = {
+            "client_message_id": recovered["assistant_message_id"],
+            "chat_id": saved_chat_id,
+            "encrypted_content": _encrypt_aes_gcm_text(recovered["content"], chat_key),
+            "encrypted_sender_name": _encrypt_aes_gcm_text("Assistant", chat_key),
+            "role": "assistant",
+            "user_message_id": message_id,
+            "created_at": completed_at,
+            "updated_at": completed_at,
+        }
+        if recovered["category"] is not None:
+            encrypted_assistant_message["encrypted_category"] = _encrypt_aes_gcm_text(recovered["category"], chat_key)
+        if recovered["model_name"] is not None:
+            encrypted_assistant_message["encrypted_model_name"] = _encrypt_aes_gcm_text(recovered["model_name"], chat_key)
+        terminal = self._client._post(
+            f"/v1/sdk/chats/recovery/{_quote(task_id)}/persist",
+            {
+                "protocol_version": 1,
+                "lease_generation": claim["lease_generation"],
+                "lease_token": claim["lease_token"],
+                "expected_messages_v": expected_messages_v + 1,
+                "encrypted_assistant_message": encrypted_assistant_message,
+            },
+        )
+        if terminal.get("state") != "TERMINAL":
+            raise OpenMatesConfigError("Saved chat recovery did not reach terminal persistence")
+        return ChatResponse(content=recovered["content"], raw={**data, "terminal": terminal})
+
+    def _poll_recovery_claim(
+        self,
+        task_id: str,
+        *,
+        timeout_seconds: float,
+        poll_interval_seconds: float,
+    ) -> dict[str, Any]:
+        if not math.isfinite(timeout_seconds) or not math.isfinite(poll_interval_seconds) or timeout_seconds <= 0 or poll_interval_seconds <= 0:
+            raise OpenMatesConfigError("Recovery timeout and poll interval must be finite and positive")
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            try:
+                remaining_seconds = deadline - time.monotonic()
+                if remaining_seconds <= 0:
+                    break
+                return self._client._post(
+                    f"/v1/sdk/chats/recovery/{_quote(task_id)}/claim",
+                    {"protocol_version": 1},
+                    timeout=remaining_seconds,
+                )
+            except OpenMatesApiError as exc:
+                if exc.status_code != 404:
+                    raise
+            remaining_seconds = deadline - time.monotonic()
+            if remaining_seconds <= 0:
+                break
+            time.sleep(min(poll_interval_seconds, remaining_seconds))
+        raise OpenMatesConfigError("Timed out waiting for saved chat recovery")
+
+    @staticmethod
+    def _open_recovery_claim(
+        claim: dict[str, Any],
+        *,
+        recovery_private_key: str,
+        owner_id: str,
+        chat_id: str,
+        turn_id: str,
+    ) -> dict[str, Any]:
+        job_id = claim.get("job_id")
+        assistant_message_id = claim.get("assistant_message_id")
+        key_version = claim.get("chat_key_version")
+        if (
+            claim.get("state") != "LEASED"
+            or not isinstance(claim.get("lease_token"), str)
+            or not isinstance(claim.get("lease_generation"), int)
+            or not isinstance(job_id, str)
+            or not isinstance(assistant_message_id, str)
+            or key_version != 1
+            or claim.get("chat_id") != chat_id
+            or claim.get("turn_id") != turn_id
+            or not isinstance(claim.get("sealed_payload"), str)
+        ):
+            raise OpenMatesConfigError("Recovery job claim returned invalid lease or identity data")
+        try:
+            envelope = json.loads(claim["sealed_payload"])
+            plaintext = open_recovery_envelope(
+                envelope,
+                recovery_private_key=recovery_private_key,
+                owner_id=owner_id,
+                chat_id=chat_id,
+                turn_id=turn_id,
+                job_id=job_id,
+                assistant_message_id=assistant_message_id,
+                key_version=key_version,
+            )
+            recovered = json.loads(plaintext.decode("utf-8", errors="strict"))
+        except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+            raise OpenMatesConfigError("Recovery job contained invalid encrypted terminal data") from exc
+        expected_fields = {
+            "assistant_message_id", "category", "chat_id", "content", "job_id", "key_version", "model_name", "turn_id"
+        }
+        if (
+            not isinstance(recovered, dict)
+            or set(recovered) != expected_fields
+            or recovered.get("assistant_message_id") != assistant_message_id
+            or recovered.get("chat_id") != chat_id
+            or recovered.get("turn_id") != turn_id
+            or recovered.get("job_id") != job_id
+            or recovered.get("key_version") != key_version
+            or not isinstance(recovered.get("content"), str)
+            or (recovered.get("category") is not None and not isinstance(recovered.get("category"), str))
+            or (recovered.get("model_name") is not None and not isinstance(recovered.get("model_name"), str))
+        ):
+            raise OpenMatesConfigError("Recovery job plaintext did not match the terminal completion identity")
+        return recovered
 
     def export(self, chat_id: str, *, format: str | None = None) -> dict[str, Any]:
         return self._client._post(f"/v1/sdk/chats/{_quote(chat_id)}/export", {"format": format or "json", "payload": self.load(chat_id)})

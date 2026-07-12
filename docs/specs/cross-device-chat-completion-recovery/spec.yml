@@ -122,7 +122,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+  subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
 
 approvals:
   product_contract:
@@ -286,12 +286,12 @@ attempts:
     evidence: Subject 287af0d passed 30 focused Python recovery tests and 21 Directus transaction tests; the strengthened suite also found and fixed an identical new-chat preflight retry mismatch caused by mutable updated_at.
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Inspect and run the web recovery contract against the currently deployed dev subject, then implement only the missing browser recovery behavior before deployment.
-  command: python3 scripts/tests.py run --spec connection-resilience.spec.ts
-  expected_outcome: The live-dev red run identifies the first browser-specific recovery gap while the completed CLI and SDK contracts remain green.
-  blocker: null
-  last_verified_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+  current_task_id: TASK-5B
+  next_action: Obtain permission to commit the already-green npm/pip SDK recovery files and restored legacy-cutover script, then rerun their contracts on the resulting committed subject before Apple and performance implementation.
+  command: python3 scripts/spec_verify.py docs/specs/cross-device-chat-completion-recovery/spec.yml --phase green
+  expected_outcome: Once the remaining green work is committed, SDK and legacy evidence can reference a real subject commit instead of the 9ba0ae126 worktree.
+  blocker: The original TASK-5 instruction explicitly prohibited commits, but durable completion now requires committing the green SDK recovery files and scripts/test_legacy_cli_cutover.py so their evidence can reference an actual subject revision. User approval is required to lift that restriction.
+  last_verified_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
 
 scenarios:
   - id: S-1
@@ -753,9 +753,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_chat_completion_recovery_crypto.py
-        run_id: local-33932be5-backend-crypto-green-2
-        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
-        timestamp: "2026-07-12T01:46:00Z"
+        run_id: local-22fe-backend-recovery-green-1
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:01:01Z"
         summary: All six exact-vector, domain-separation, and tamper checks passed.
 
   - id: T-CLI-CRYPTO-VECTORS
@@ -782,9 +782,9 @@ tests:
       evidence:
         status: passed
         command: npm --prefix frontend/packages/openmates-cli run test:unit:crypto -- --test-name-pattern chat-completion-recovery
-        run_id: local-22fe-cli-crypto-green-1
-        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
-        timestamp: "2026-07-12T02:55:52Z"
+        run_id: local-22fe-cli-crypto-green-2
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:03:00Z"
         summary: All five CLI recovery-vector checks passed; the complete crypto file reported 29 passing tests.
 
   - id: T-PIP-CRYPTO-VECTORS
@@ -811,9 +811,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
-        run_id: local-33932be5-pip-crypto-green-2
-        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
-        timestamp: "2026-07-12T01:46:00Z"
+        run_id: local-22fe-pip-crypto-green-1
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:01:01Z"
         summary: All four pip SDK exact-vector and tamper checks passed.
 
   - id: T-WEB-CRYPTO-VECTORS
@@ -841,9 +841,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run -- --suite vitest
-        run_id: gha-29175790114
-        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
-        timestamp: "2026-07-12T01:48:56Z"
+        run_id: gha-29177628083
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:04:00Z"
         summary: The dispatched Vitest workflow succeeded and the browser recovery vector checks passed; the orchestrator separately reported two unrelated pre-existing assertions among 541 tests.
 
   - id: T-APPLE-CRYPTO-VECTORS
@@ -872,9 +872,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests/testSharedCryptoVectors
-        run_id: apple-remote-33932be5-chat-recovery-vectors-1
-        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
-        timestamp: "2026-07-12T01:51:02Z"
+        run_id: apple-remote-9ba0ae126-chat-recovery-vectors-1
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:00:00Z"
         summary: Remote OpenMatesTests compiled ChatCompletionRecoveryTests.swift and executed the one selected shared-vector XCTest with zero failures.
 
   - id: T-BACKEND-PREFLIGHT
@@ -908,9 +908,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_chat_turn_preflight.py backend/tests/test_chat_turn_preflight_handler.py && npm --prefix backend/core/directus/extensions/chat-recovery-transaction test
-        run_id: local-287af0d-backend-preflight-green-1
-        subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
-        timestamp: "2026-07-12T02:16:52Z"
+        run_id: local-22fe-backend-recovery-green-1
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:01:01Z"
         summary: Python boundary tests and rollback-capable Directus tests passed preflight atomicity, exact duplicate idempotency, immutable key rejection, enqueue/outbox atomicity, and rollback failpoints.
 
   - id: T-BACKEND-RECOVERY-JOBS
@@ -943,9 +943,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_chat_recovery_websocket_handlers.py && npm --prefix backend/core/directus/extensions/chat-recovery-transaction test
-        run_id: local-287af0d-backend-jobs-green-1
-        subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
-        timestamp: "2026-07-12T02:16:52Z"
+        run_id: local-22fe-backend-recovery-green-1
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:01:01Z"
         summary: Stable sealed-job construction, authenticated claim/persist boundaries, lease takeover, monotonic fencing, atomic terminal persistence, rollback, payload erasure, and idempotent retry passed.
 
   - id: T-BACKEND-RECOVERY-AUTH
@@ -974,9 +974,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_chat_completion_recovery_authorization.py backend/tests/test_chat_recovery_lifecycle_wiring.py backend/tests/test_chat_recovery_websocket_handlers.py
-        run_id: local-287af0d-backend-auth-green-1
-        subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
-        timestamp: "2026-07-12T02:16:52Z"
+        run_id: local-22fe-backend-recovery-green-1
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:01:01Z"
         summary: Authenticated owner/device binding, sanitized rejection, lease renewal, immediate revocation invalidation, and deletion/revocation hook ordering passed.
 
   - id: T-BACKEND-RECOVERY-RETENTION
@@ -1008,9 +1008,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_chat_completion_recovery_retention.py backend/tests/test_chat_recovery_lifecycle_wiring.py && npm --prefix backend/core/directus/extensions/chat-recovery-transaction test
-        run_id: local-287af0d-backend-retention-green-1
-        subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
-        timestamp: "2026-07-12T02:16:52Z"
+        run_id: local-22fe-backend-recovery-green-1
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:01:01Z"
         summary: Seven-day expiry, 24-hour tombstone deletion, immediate terminal material erasure, chat/account/device invalidation, late sealed-job rejection, and hourly cleanup registration passed.
 
   - id: T-CLI-RECOVERY
@@ -1040,8 +1040,8 @@ tests:
         status: passed
         command: npm --prefix frontend/packages/openmates-cli run test:t-cli-recovery
         run_id: local-22fe-cli-recovery-green-1
-        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
-        timestamp: "2026-07-12T02:55:52Z"
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:01:01Z"
         summary: Three focused CLI tests passed preflight-before-send ordering, encrypted terminal claim/persist handling, lazy recovery-key registration for old chats, and fail-fast update-required rejection before chat_message_added.
 
   - id: T-CLI-UPDATE-REQUIRED
@@ -1069,9 +1069,9 @@ tests:
       evidence:
         status: passed
         command: npm --prefix frontend/packages/openmates-cli run test:t-cli-update-required
-        run_id: local-22fe-cli-update-required-green-1
-        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
-        timestamp: "2026-07-12T02:55:52Z"
+        run_id: local-22fe-cli-update-required-green-2
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:03:00Z"
         summary: The focused CLI subprocess tests passed concise upgrade guidance, nonzero send exit, absence of success output and inference submission, plus unaffected read-only local example history.
 
   - id: T-NPM-SDK-RECOVERY
@@ -1195,14 +1195,14 @@ tests:
         status: passed
         command: python3 -m pytest backend/tests/test_chat_recovery_protocol_cutover.py
         run_id: local-22fe-cutover-epoch-green-1
-        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
-        timestamp: "2026-07-12T02:55:52Z"
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:01:01Z"
         summary: Six controller tests passed authoritative cache-loss fallback, fail-closed reads, nonzero legacy drain refusal, all-old-socket closure before activation, and rejection without publishing epoch one.
 
   - id: T-WEB-RECOVERY
     type: playwright
     file: frontend/apps/web_app/tests/connection-resilience.spec.ts
-    command: python3 scripts/tests.py run --spec connection-resilience.spec.ts
+    command: python3 scripts/tests.py run -- --spec connection-resilience.spec.ts
     target: app.dev.openmates.org
     covers: [AC-1, AC-3]
     assertions:
@@ -1212,11 +1212,25 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed_unexpectedly
+        command: python3 scripts/tests.py run -- --spec connection-resilience.spec.ts
+        run_id: gha-29177596772
+        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
+        timestamp: "2026-07-12T03:05:00Z"
+        summary: The pre-CLI-deployment live-dev connection resilience spec passed, showing its existing assertions did not reproduce a missing browser recovery behavior.
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run -- --spec connection-resilience.spec.ts
+        run_id: gha-29177799123
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:12:51Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_4x8npQBXcnK2MpU4w751Juwn77Qc
+        summary: The post-deploy live-dev connection resilience spec passed on the Ready 9ba0ae126 deployment.
 
   - id: T-APPLE-RECOVERY
     type: unit
@@ -1231,7 +1245,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: missing_test
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests
+        run_id: apple-remote-9ba0ae126-chat-recovery-suite-1
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:12:51Z"
+        reason: The selected suite executed only shared-vector and tamper tests; no Apple preflight, inactive-job persistence, old-chat registration, or revoked-device claim test exists.
     green_phase:
       required: true
       expected: pass
@@ -1250,7 +1270,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: missing_test
+        command: python3 scripts/test_cross_client_chat_recovery.py --env dev
+        run_id: discovery-22fe-cross-client-takeover-red
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:12:51Z"
+        reason: scripts/test_cross_client_chat_recovery.py does not exist.
     green_phase:
       required: true
       expected: pass
@@ -1269,7 +1295,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: missing_test
+        command: python3 scripts/measure_chat_preflight_latency.py --env dev --warmup 100 --samples 1000 --concurrency 10
+        run_id: discovery-22fe-preflight-performance-red
+        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+        timestamp: "2026-07-12T03:12:51Z"
+        reason: scripts/measure_chat_preflight_latency.py does not exist, so A-5 remains checking.
     green_phase:
       required: true
       expected: pass
@@ -1281,8 +1313,11 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-5, AC-8, AC-9, AC-12]
-    status: pending
-    evidence: {status: "", summary: "", timestamp: ""}
+    status: passed
+    evidence:
+      status: passed
+      summary: Artifact review confirmed durable recovery stores only strict sealed envelopes and encrypted message fields, internal extension authentication fails closed, unauthorized projections exclude payload and lease secrets, terminal persistence erases recovery material, and logs/tests use sanitized identifiers without plaintext content or keys.
+      timestamp: "2026-07-12T03:12:51Z"
 
 implementation_plan:
   spec_path: docs/specs/cross-device-chat-completion-recovery/spec.yml

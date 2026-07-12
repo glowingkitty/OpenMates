@@ -9,7 +9,9 @@ Scope: SDK bootstrap routes; chat execution routes are added in later slices.
 import hashlib
 import importlib
 import inspect
+import json
 import time
+import uuid
 from typing import Any, TYPE_CHECKING
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
@@ -19,6 +21,16 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.services.api_key_authorization import (
     ApiKeyAuthorizationService,
     ApiKeyScopeError,
+)
+from backend.core.api.app.services.chat_recovery_service import (
+    ChatRecoveryProtocolError,
+    ChatRecoveryService,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import (
+    COMMITMENT_VERSION,
+    build_inference_commitment,
+    canonicalize_inference_request,
+    enqueue_chat_turn,
 )
 
 from backend.core.api.app.utils.api_key_auth import (
@@ -44,6 +56,29 @@ class SdkChatCreateRequest(BaseModel):
     model: str | None = Field(default=None)
     focus_mode: dict[str, str] | None = Field(default=None)
     stream: bool = Field(default=False)
+    protocol_version: int | None = Field(default=None)
+    chat_id: str | None = Field(default=None)
+    turn_id: str | None = Field(default=None)
+    message_id: str | None = Field(default=None)
+    chat_key_version: int | None = Field(default=None)
+    encrypted_chat_key: str | None = Field(default=None)
+    recovery_public_key: str | None = Field(default=None)
+    expected_messages_v: int | None = Field(default=None)
+    encrypted_user_message: dict[str, Any] | None = Field(default=None)
+    encrypted_chat_metadata: dict[str, Any] | None = Field(default=None)
+    inference_request: dict[str, Any] | None = Field(default=None)
+
+
+class SdkRecoveryClaimRequest(BaseModel):
+    protocol_version: int = Field(default=1)
+
+
+class SdkRecoveryPersistRequest(BaseModel):
+    protocol_version: int = Field(default=1)
+    lease_generation: int
+    lease_token: str
+    expected_messages_v: int
+    encrypted_assistant_message: dict[str, Any]
 
 
 async def _authenticate_sdk_request(request: Request) -> dict[str, Any]:
@@ -224,6 +259,33 @@ def _extract_chat_response_content(result: Any) -> str | None:
     if isinstance(first_choice.get("text"), str):
         return first_choice["text"]
     return None
+
+
+def _sdk_recovery_job_id(inference_task_id: str) -> str:
+    try:
+        namespace = uuid.UUID(inference_task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"error": "invalid_inference_task_id"}) from exc
+    return str(uuid.uuid5(namespace, "recovery-job"))
+
+
+def _sdk_recovery_identity(api_key_info: dict[str, Any]) -> tuple[str, str]:
+    device_hash = api_key_info.get("device_hash")
+    if not isinstance(device_hash, str) or not device_hash:
+        raise HTTPException(status_code=403, detail={"error": "approved_device_required"})
+    user_id = str(api_key_info["user_id"])
+    return hashlib.sha256(user_id.encode()).hexdigest(), device_hash
+
+
+async def _execute_sdk_recovery(
+    request: Request,
+    operation: str,
+    data: dict[str, Any],
+) -> dict[str, Any]:
+    try:
+        return await ChatRecoveryService(request.app.state.directus_service).execute(operation, data)
+    except ChatRecoveryProtocolError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"error": exc.code}) from exc
 
 
 async def _sdk_user_from_api_key(
@@ -796,7 +858,134 @@ async def create_sdk_chat(
     if not request_body.message:
         return {"persistent": request_body.save_to_account, "chat_id": None}
 
-    from backend.core.api.app.services.skill_registry import get_global_registry
+    if request_body.save_to_account:
+        required_fields = {
+            "chat_id": request_body.chat_id,
+            "turn_id": request_body.turn_id,
+            "message_id": request_body.message_id,
+            "chat_key_version": request_body.chat_key_version,
+            "encrypted_chat_key": request_body.encrypted_chat_key,
+            "recovery_public_key": request_body.recovery_public_key,
+            "expected_messages_v": request_body.expected_messages_v,
+            "encrypted_user_message": request_body.encrypted_user_message,
+            "inference_request": request_body.inference_request,
+        }
+        if request_body.protocol_version != 1:
+            raise HTTPException(status_code=426, detail={"error": "client_update_required"})
+        missing = [name for name, value in required_fields.items() if value is None]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "saved_chat_preflight_required", "missing": missing},
+            )
+        device_hash = api_key_info.get("device_hash")
+        if not isinstance(device_hash, str) or not device_hash:
+            raise HTTPException(status_code=403, detail={"error": "approved_device_required"})
+
+        user_id = str(api_key_info["user_id"])
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        encrypted_user_message = dict(request_body.encrypted_user_message or {})
+        if encrypted_user_message.get("chat_id") != request_body.chat_id or encrypted_user_message.get("client_message_id") != request_body.message_id:
+            raise HTTPException(status_code=400, detail={"error": "encrypted_user_message_identity_mismatch"})
+        encrypted_user_message["hashed_user_id"] = hashed_user_id
+        try:
+            inference_request = json.loads(canonicalize_inference_request(request_body.inference_request or {}))
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=400, detail={"error": "invalid_inference_request"}) from exc
+        inference_messages = inference_request.get("messages")
+        if not isinstance(inference_messages, list) or not inference_messages:
+            raise HTTPException(status_code=400, detail={"error": "invalid_inference_request"})
+        current_message = inference_messages[-1]
+        if not isinstance(current_message, dict) or current_message.get("content") != request_body.message:
+            raise HTTPException(status_code=400, detail={"error": "inference_request_mismatch"})
+        try:
+            preflight = await ChatRecoveryService(request.app.state.directus_service).execute(
+                "prepare_preflight",
+                {
+                    "protocol_version": 1,
+                    "hashed_user_id": hashed_user_id,
+                    "chat_id": request_body.chat_id,
+                    "turn_id": request_body.turn_id,
+                    "user_message_id": request_body.message_id,
+                    "device_hash": device_hash,
+                    "chat_key_version": request_body.chat_key_version,
+                    "wrapped_chat_key": request_body.encrypted_chat_key,
+                    "recovery_public_key": request_body.recovery_public_key,
+                    "inference_commitment": build_inference_commitment(inference_request),
+                    "commitment_version": COMMITMENT_VERSION,
+                    "expected_messages_v": request_body.expected_messages_v,
+                    "encrypted_user_message": encrypted_user_message,
+                    **(
+                        {"encrypted_chat_metadata": request_body.encrypted_chat_metadata}
+                        if request_body.encrypted_chat_metadata is not None
+                        else {}
+                    ),
+                },
+            )
+            enqueue = await enqueue_chat_turn(
+                directus_service=request.app.state.directus_service,
+                user_id_hash=hashed_user_id,
+                device_fingerprint_hash=device_hash,
+                preflight_id=str(preflight["preflight_id"]),
+                inference_request=inference_request,
+            )
+        except ChatRecoveryProtocolError as exc:
+            raise HTTPException(status_code=exc.status_code, detail={"error": exc.code}) from exc
+
+        history_messages = [message for message in inference_messages if isinstance(message, dict)]
+        focus_mode = inference_request.get("focus_mode")
+        dispatch_payload = {
+            "chat_id": request_body.chat_id,
+            "message_id": request_body.message_id,
+            "user_id": user_id,
+            "user_id_hash": hashed_user_id,
+            "message_history": [
+                {
+                    "role": message.get("role", "user"),
+                    "content": message.get("content", ""),
+                    "sender_name": message.get("name") or message.get("role", "user"),
+                    "created_at": int(time.time()),
+                }
+                for message in history_messages
+            ],
+            "current_user_content": current_message["content"],
+            "chat_has_title": request_body.encrypted_chat_metadata is None,
+            "is_incognito": False,
+            "is_external": True,
+            "active_focus_id": focus_mode.get("focus_mode_id") if isinstance(focus_mode, dict) else None,
+            "user_preferences": {"model": inference_request.get("model"), "apps_enabled": True},
+            "memory_ids": inference_request.get("memory_ids", []),
+            "recovery_task_id": enqueue.get("inference_task_id"),
+            "recovery_preflight_id": preflight.get("preflight_id"),
+            "recovery_turn_id": request_body.turn_id,
+            "recovery_public_key": request_body.recovery_public_key,
+            "chat_key_version": request_body.chat_key_version,
+            "_api_key_name": api_key_info.get("api_key_encrypted_name", ""),
+            "_api_key_hash": api_key_info.get("api_key_hash"),
+            "_device_hash": device_hash,
+        }
+        from backend.core.api.app.services.skill_registry import get_global_registry
+
+        result = await get_global_registry().dispatch_skill("ai", "ask", dispatch_payload)
+        raw_result = _jsonable(result)
+        task_id = raw_result.get("task_id") if isinstance(raw_result, dict) else None
+        if task_id != enqueue.get("inference_task_id"):
+            raise HTTPException(status_code=502, detail={"error": "inference_task_identity_mismatch"})
+        await _execute_sdk_recovery(
+            request,
+            "mark_outbox_dispatched",
+            {
+                "protocol_version": 1,
+                "outbox_id": enqueue.get("outbox_id"),
+                "inference_task_id": task_id,
+            },
+        )
+        return {
+            "persistent": True,
+            "chat_id": request_body.chat_id,
+            "preflight": enqueue,
+            "task_id": task_id,
+        }
 
     history_messages = [message for message in request_body.history if isinstance(message, dict)]
     payload = {
@@ -816,6 +1005,8 @@ async def create_sdk_chat(
     if request_body.focus_mode:
         payload["focus_mode"] = request_body.focus_mode
 
+    from backend.core.api.app.services.skill_registry import get_global_registry
+
     result = await get_global_registry().dispatch_skill("ai", "ask", payload)
     if hasattr(result, "body_iterator"):
         return {"persistent": request_body.save_to_account, "stream": True}
@@ -826,6 +1017,60 @@ async def create_sdk_chat(
         "chat_id": None,
         "response": {"content": content, "raw": raw_result},
     }
+
+
+@router.post("/chats/recovery/{inference_task_id}/claim")
+async def claim_sdk_chat_recovery(
+    request: Request,
+    inference_task_id: str,
+    request_body: SdkRecoveryClaimRequest,
+) -> dict[str, Any]:
+    api_key_info = await _authenticate_sdk_request(request)
+    _require_chat_scope(api_key_info, "chat:create_saved")
+    if request_body.protocol_version != 1:
+        raise HTTPException(status_code=426, detail={"error": "client_update_required"})
+    hashed_user_id, device_hash = _sdk_recovery_identity(api_key_info)
+    return await _execute_sdk_recovery(
+        request,
+        "lease_job",
+        {
+            "protocol_version": 1,
+            "job_id": _sdk_recovery_job_id(inference_task_id),
+            "hashed_user_id": hashed_user_id,
+            "device_hash": device_hash,
+        },
+    )
+
+
+@router.post("/chats/recovery/{inference_task_id}/persist")
+async def persist_sdk_chat_recovery(
+    request: Request,
+    inference_task_id: str,
+    request_body: SdkRecoveryPersistRequest,
+) -> dict[str, Any]:
+    api_key_info = await _authenticate_sdk_request(request)
+    _require_chat_scope(api_key_info, "chat:create_saved")
+    if request_body.protocol_version != 1:
+        raise HTTPException(status_code=426, detail={"error": "client_update_required"})
+    hashed_user_id, device_hash = _sdk_recovery_identity(api_key_info)
+    encrypted_message = dict(request_body.encrypted_assistant_message)
+    if encrypted_message.get("client_message_id") != inference_task_id:
+        raise HTTPException(status_code=400, detail={"error": "encrypted_assistant_message_identity_mismatch"})
+    encrypted_message["hashed_user_id"] = hashed_user_id
+    return await _execute_sdk_recovery(
+        request,
+        "persist_terminal",
+        {
+            "protocol_version": 1,
+            "job_id": _sdk_recovery_job_id(inference_task_id),
+            "hashed_user_id": hashed_user_id,
+            "device_hash": device_hash,
+            "lease_generation": request_body.lease_generation,
+            "lease_token": request_body.lease_token,
+            "expected_messages_v": request_body.expected_messages_v,
+            "encrypted_assistant_message": encrypted_message,
+        },
+    )
 
 
 @router.get("/chats/{chat_id}")

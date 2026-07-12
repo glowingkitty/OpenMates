@@ -11,6 +11,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const { OpenMates } = await import("../src/sdk.ts");
 const {
@@ -18,6 +21,7 @@ const {
   encryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
   bytesToBase64,
+  sealChatCompletionRecoveryPayload,
   generateSalt,
 } = await import("../src/crypto.ts");
 
@@ -37,6 +41,30 @@ async function withServer(
 }
 
 describe("OpenMates SDK", () => {
+  it("uses an injected opaque device id without deriving it from the platform", async () => {
+    await withServer((request, response) => {
+      assert.equal(request.headers["x-openmates-device-identity"], "managed-device-id");
+      response.end(JSON.stringify({ success: true }));
+    }, async (apiUrl) => {
+      await new OpenMates({ apiKey: "sk-api-test", apiUrl, deviceId: "managed-device-id" }).account.info();
+    });
+  });
+
+  it("persists one opaque device id per installation path", async () => {
+    const deviceIdPath = join(mkdtempSync(join(tmpdir(), "openmates-sdk-")), "device-id");
+    const seen: string[] = [];
+    await withServer((request, response) => {
+      seen.push(String(request.headers["x-openmates-device-identity"]));
+      response.end(JSON.stringify({ success: true }));
+    }, async (apiUrl) => {
+      await new OpenMates({ apiKey: "first-key", apiUrl, deviceIdPath }).account.info();
+      await new OpenMates({ apiKey: "second-key", apiUrl, deviceIdPath }).account.info();
+    });
+    assert.equal(seen[0], seen[1]);
+    assert.equal(seen[0], readFileSync(deviceIdPath, "utf8").trim());
+    assert.equal(readFileSync(deviceIdPath, "utf8").includes("first-key"), false);
+  });
+
   it("does not require connect before running a native app skill", async () => {
     await withServer((request, response) => {
       assert.equal(request.url, "/v1/apps/web/skills/search");
@@ -62,7 +90,7 @@ describe("OpenMates SDK", () => {
         assert.deepEqual(JSON.parse(body).input_data, {
           requests: [{ prompt: "a friendly robot" }],
         });
-        response.writeHead(200, { "content-type": "application/json" });
+        response.setHeader("content-type", "application/json");
         response.end(JSON.stringify({ success: true, image: "ok" }));
       });
     }, async (apiUrl) => {
@@ -81,7 +109,7 @@ describe("OpenMates SDK", () => {
       request.on("data", (chunk) => { body += chunk.toString(); });
       request.on("end", () => {
         assert.equal(JSON.parse(body).save_to_account, false);
-        response.writeHead(200, { "content-type": "application/json" });
+        response.setHeader("content-type", "application/json");
         response.end(JSON.stringify({
           persistent: false,
           response: {
@@ -95,6 +123,190 @@ describe("OpenMates SDK", () => {
       const response = await client.chats.send("hello");
       assert.equal(response.content, "hi");
     });
+  });
+
+  it("preflights saved chats with epoch-1 encrypted recovery material", async () => {
+    const masterKey = generateSalt(32);
+    const material = await createApiKeyCryptoMaterial("Saved chat test", bytesToBase64(masterKey));
+    const apiKey = material.apiKey;
+    const requests: Array<{ url?: string; body: Record<string, unknown>; authorization?: string }> = [];
+    const taskId = "77777777-7777-4777-8777-777777777777";
+    const jobId = "88888888-8888-4888-8888-888888888888";
+    let claimCount = 0;
+
+    await withServer((request, response) => {
+      let body = "";
+      request.on("data", (chunk) => { body += chunk.toString(); });
+      request.on("end", async () => {
+        const parsed = JSON.parse(body) as Record<string, unknown>;
+        requests.push({ url: request.url, body: parsed, authorization: request.headers.authorization });
+        response.setHeader("content-type", "application/json");
+        if (request.url === "/v1/sdk/session") {
+          response.end(JSON.stringify({
+            user: { id: "11111111-1111-4111-8111-111111111111" },
+            key_wrapper: {
+              encrypted_key: material.encryptedMasterKey,
+              salt: material.saltB64,
+              key_iv: material.keyIv,
+            },
+          }));
+          return;
+        }
+        if (request.url === "/v1/sdk/chats") {
+          response.end(JSON.stringify({
+            persistent: true,
+            chat_id: parsed.chat_id,
+            preflight: { state: "ENQUEUED" },
+            task_id: taskId,
+          }));
+          return;
+        }
+        if (request.url === `/v1/sdk/chats/recovery/${taskId}/claim`) {
+          claimCount += 1;
+          if (claimCount === 1) {
+            response.statusCode = 404;
+            response.end(JSON.stringify({ detail: { error: "recovery_job_not_found" } }));
+            return;
+          }
+          const saved = requests.find((entry) => entry.url === "/v1/sdk/chats")!.body;
+          const assistantMessageId = taskId;
+          const plaintext = JSON.stringify({
+            assistant_message_id: assistantMessageId,
+            category: "general",
+            chat_id: saved.chat_id,
+            content: "saved reply",
+            job_id: jobId,
+            key_version: 1,
+            model_name: "test-model",
+            turn_id: saved.turn_id,
+          });
+          const envelope = await sealChatCompletionRecoveryPayload(
+            new TextEncoder().encode(plaintext),
+            {
+              recoveryPublicKey: String(saved.recovery_public_key),
+              ownerId: "11111111-1111-4111-8111-111111111111",
+              chatId: String(saved.chat_id),
+              turnId: String(saved.turn_id),
+              jobId,
+              assistantMessageId,
+              keyVersion: 1,
+            },
+          );
+          response.end(JSON.stringify({
+            job_id: jobId,
+            state: "LEASED",
+            lease_token: "lease-token",
+            lease_generation: 1,
+            sealed_payload: JSON.stringify(envelope),
+            chat_id: saved.chat_id,
+            turn_id: saved.turn_id,
+            assistant_message_id: assistantMessageId,
+            chat_key_version: 1,
+          }));
+          return;
+        }
+        assert.equal(request.url, `/v1/sdk/chats/recovery/${taskId}/persist`);
+        assert.equal(JSON.stringify(parsed).includes("saved reply"), false);
+        assert.equal(parsed.expected_messages_v, 1);
+        assert.equal(typeof (parsed.encrypted_assistant_message as Record<string, unknown>).encrypted_content, "string");
+        response.end(JSON.stringify({ job_id: jobId, state: "TERMINAL", committed_messages_v: 2 }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey, apiUrl });
+      const result = await client.chats.send("save this", {
+        saveToAccount: true,
+        title: "Saved SDK chat",
+        recoveryPollIntervalMs: 1,
+      });
+      assert.equal(result.content, "saved reply");
+    });
+
+    assert.deepEqual(requests.map((request) => request.url), [
+      "/v1/sdk/session",
+      "/v1/sdk/chats",
+      `/v1/sdk/chats/recovery/${taskId}/claim`,
+      `/v1/sdk/chats/recovery/${taskId}/claim`,
+      `/v1/sdk/chats/recovery/${taskId}/persist`,
+    ]);
+    assert.ok(requests.every((request) => request.authorization === `Bearer ${apiKey}`));
+    const saved = requests[1].body;
+    assert.equal(saved.save_to_account, true);
+    assert.equal(saved.protocol_version, 1);
+    assert.match(String(saved.chat_id), /^[0-9a-f-]{36}$/);
+    assert.match(String(saved.turn_id), /^[0-9a-f-]{36}$/);
+    assert.match(String(saved.message_id), /^[0-9a-f-]{36}$/);
+    assert.equal(saved.chat_key_version, 1);
+    assert.equal(typeof saved.encrypted_chat_key, "string");
+    assert.match(String(saved.recovery_public_key), /^[A-Za-z0-9_-]{43}$/);
+    assert.equal("chat_key" in saved, false);
+    assert.equal("master_key" in saved, false);
+    assert.equal(typeof (saved.encrypted_user_message as Record<string, unknown>).encrypted_content, "string");
+    assert.equal(typeof (saved.encrypted_chat_metadata as Record<string, unknown>).encrypted_title, "string");
+  });
+
+  it("times out clearly while a saved recovery job is unavailable", async () => {
+    const masterKey = generateSalt(32);
+    const material = await createApiKeyCryptoMaterial("Saved timeout test", bytesToBase64(masterKey));
+    await withServer((request, response) => {
+      request.resume();
+      request.on("end", () => {
+        response.setHeader("content-type", "application/json");
+        if (request.url === "/v1/sdk/session") {
+          response.end(JSON.stringify({
+            user: { id: "11111111-1111-4111-8111-111111111111" },
+            key_wrapper: {
+              encrypted_key: material.encryptedMasterKey,
+              salt: material.saltB64,
+              key_iv: material.keyIv,
+            },
+          }));
+          return;
+        }
+        if (request.url === "/v1/sdk/chats") {
+          response.end(JSON.stringify({ task_id: "77777777-7777-4777-8777-777777777777" }));
+          return;
+        }
+        response.statusCode = 404;
+        response.end(JSON.stringify({ detail: { error: "recovery_job_not_found" } }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
+      await assert.rejects(
+        () => client.chats.send("save this", {
+          saveToAccount: true,
+          recoveryPollIntervalMs: 1,
+          recoveryTimeoutMs: 5,
+        }),
+        /Timed out waiting for saved chat recovery/,
+      );
+    });
+  });
+
+  it("rejects nonpositive and unbounded recovery poll intervals", async () => {
+    const client = new OpenMates({ apiKey: "sk-api-test", deviceId: "test-device" });
+    for (const recoveryPollIntervalMs of [0, -1, Number.POSITIVE_INFINITY]) {
+      await assert.rejects(
+        () => (client.chats as unknown as { pollRecoveryClaim: (id: string, timeout: number, interval: number) => Promise<unknown> })
+          .pollRecoveryClaim("task", 10, recoveryPollIntervalMs),
+        /finite and positive/,
+      );
+    }
+  });
+
+  it("fails saved chats before send when SDK key material is unavailable", async () => {
+    const urls: string[] = [];
+    await withServer((request, response) => {
+      urls.push(request.url ?? "");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ key_wrapper: {} }));
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      await assert.rejects(
+        () => client.chats.send("save this", { saveToAccount: true }),
+        /API-key-wrapped master key material/,
+      );
+    });
+    assert.deepEqual(urls, ["/v1/sdk/session"]);
   });
 
   it("sends focus mode metadata with new chat messages", async () => {

@@ -8,7 +8,10 @@
  */
 
 import { GeneratedAppSkills } from "./generated/appSkills.js";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import {
   buildEncryptedConnectedAccountImportRow,
   decryptConnectedAccountCliTransferPayload,
@@ -16,8 +19,12 @@ import {
 import {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
+  deriveChatCompletionRecoveryKeypair,
+  encryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
   hashItemKey,
+  openChatCompletionRecoveryEnvelope,
+  type ChatCompletionRecoveryEnvelope,
   unwrapApiKeyMasterKey,
 } from "./crypto.js";
 import {
@@ -57,21 +64,29 @@ import type {
 export type { ProjectSourceCreateInput, ProjectSourceRecord } from "./client.js";
 
 const DEFAULT_API_URL = "https://api.openmates.org";
+const DEFAULT_RECOVERY_POLL_INTERVAL_MS = 500;
+const DEFAULT_RECOVERY_TIMEOUT_MS = 60_000;
 
 export interface OpenMatesOptions {
   apiKey?: string;
   apiUrl?: string;
+  deviceId?: string;
+  deviceIdPath?: string;
 }
 
 export interface ChatCreateOptions {
   saveToAccount?: boolean;
   focusMode?: FocusModeSelection;
+  chatId?: string;
+  title?: string;
 }
 
 export interface ChatSendOptions extends ChatCreateOptions {
   history?: Array<Record<string, unknown>> | { messages?: Array<Record<string, unknown>> };
   memoryIds?: string[];
   model?: string;
+  recoveryPollIntervalMs?: number;
+  recoveryTimeoutMs?: number;
 }
 
 export interface ChatListOptions {
@@ -114,6 +129,9 @@ export interface DraftRecord extends EncryptedDraftRecord {
 }
 
 export interface SdkSessionResponse {
+  user?: {
+    id?: string;
+  };
   key_wrapper?: {
     encrypted_key?: string;
     salt?: string;
@@ -193,11 +211,14 @@ export class OpenMates {
   readonly workflows: OpenMatesWorkflows;
   private readonly apiKey?: string;
   private readonly apiUrl: string;
+  private readonly deviceId: string;
+  private sdkSessionPromise?: Promise<SdkSessionResponse>;
   private masterKeyPromise?: Promise<Uint8Array>;
 
   constructor(options: OpenMatesOptions = {}) {
     this.apiKey = options.apiKey ?? process.env.OPENMATES_API_KEY;
     this.apiUrl = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
+    this.deviceId = options.deviceId ?? loadOrCreateDeviceId(options.deviceIdPath);
     this.apps = new GeneratedAppSkills(this.runAppSkill.bind(this));
     this.account = new OpenMatesAccount(this);
     this.benchmark = new OpenMatesBenchmark(this);
@@ -228,8 +249,8 @@ export class OpenMates {
     });
   }
 
-  async request<T>(path: string, body?: unknown): Promise<T> {
-    return this.requestWithMethod<T>("POST", path, body);
+  async request<T>(path: string, body?: unknown, timeoutMs?: number): Promise<T> {
+    return this.requestWithMethod<T>("POST", path, body, timeoutMs);
   }
 
   async patch<T>(path: string, body?: unknown): Promise<T> {
@@ -279,6 +300,10 @@ export class OpenMates {
 
   masterKey(): Promise<Uint8Array> {
     return this.getMasterKey();
+  }
+
+  sdkSession(): Promise<SdkSessionResponse> {
+    return this.getSdkSession();
   }
 
   async resolveEmbedKeyForShare(embedKeys: EmbedKeyRecord[], embedId: string): Promise<Uint8Array | null> {
@@ -403,7 +428,7 @@ export class OpenMates {
     return null;
   }
 
-  private async requestWithMethod<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async requestWithMethod<T>(method: string, path: string, body?: unknown, timeoutMs?: number): Promise<T> {
     if (!this.apiKey) {
       throw new OpenMatesConfigError("OpenMates API key is required");
     }
@@ -412,6 +437,7 @@ export class OpenMates {
       method,
       headers: this.headers(body !== undefined),
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs),
     });
 
     return this.parseResponse<T>(response);
@@ -426,10 +452,7 @@ export class OpenMates {
     if (!this.apiKey) {
       throw new OpenMatesConfigError("OpenMates API key is required");
     }
-    const session = await this.request<SdkSessionResponse>("/v1/sdk/session", {
-      sdk_name: "npm",
-      device_identity: `${process.platform}:${process.arch}`,
-    });
+    const session = await this.getSdkSession();
     const wrapper = session.key_wrapper;
     if (!wrapper?.encrypted_key || !wrapper.salt || !wrapper.key_iv) {
       throw new OpenMatesConfigError("SDK session did not include API-key-wrapped master key material");
@@ -446,12 +469,20 @@ export class OpenMates {
     return masterKey;
   }
 
+  private getSdkSession(): Promise<SdkSessionResponse> {
+    this.sdkSessionPromise ??= this.request<SdkSessionResponse>("/v1/sdk/session", {
+      sdk_name: "npm",
+      device_identity: this.deviceId,
+    });
+    return this.sdkSessionPromise;
+  }
+
   private headers(hasBody = true): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: "application/json",
       Authorization: `Bearer ${this.apiKey}`,
       "X-OpenMates-SDK": "npm",
-      "X-OpenMates-Device-Identity": `${process.platform}:${process.arch}`,
+      "X-OpenMates-Device-Identity": this.deviceId,
     };
     if (hasBody) {
       headers["Content-Type"] = "application/json";
@@ -473,6 +504,19 @@ export class OpenMates {
 
     return data as T;
   }
+}
+
+function loadOrCreateDeviceId(customPath?: string): string {
+  const path = customPath ?? join(homedir(), ".openmates", "sdk-device-id");
+  if (existsSync(path)) {
+    const stored = readFileSync(path, "utf8").trim();
+    if (stored) return stored;
+  }
+  const deviceId = randomUUID();
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  writeFileSync(path, `${deviceId}\n`, { encoding: "utf8", mode: 0o600 });
+  chmodSync(path, 0o600);
+  return deviceId;
 }
 
 function withQuery(path: string, query: Record<string, string | number | boolean | undefined | null> = {}): string {
@@ -552,10 +596,13 @@ export class OpenMatesChats {
   }
 
   async send(message: string, options: ChatSendOptions = {}): Promise<ChatResponse> {
+    if (options.saveToAccount === true) {
+      return this.sendSaved(message, options);
+    }
     const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
       message,
       history: normalizeHistory(options.history),
-      save_to_account: options.saveToAccount === true,
+      save_to_account: false,
       memory_ids: options.memoryIds ?? [],
       model: options.model,
       focus_mode: options.focusMode
@@ -563,6 +610,247 @@ export class OpenMatesChats {
         : undefined,
     });
     return result.response ?? result;
+  }
+
+  private async sendSaved(message: string, options: ChatSendOptions): Promise<ChatResponse> {
+    const masterKey = await this.client.masterKey();
+    const session = await this.client.sdkSession();
+    if (!session.user?.id) {
+      throw new OpenMatesConfigError("SDK session did not include the authenticated user identity");
+    }
+
+    const chatId = options.chatId ?? randomUUID();
+    const turnId = randomUUID();
+    const messageId = randomUUID();
+    const createdAt = Math.floor(Date.now() / 1000);
+    let chatKey: Uint8Array;
+    let encryptedChatKey: string;
+    let expectedMessagesV = 0;
+    let encryptedChatMetadata: Record<string, unknown> | undefined;
+
+    if (options.chatId) {
+      const loaded = await this.load(chatId);
+      const chat = loaded.chat as EncryptedChatMetadata | undefined;
+      if (!chat?.encrypted_chat_key) {
+        throw new OpenMatesConfigError("Saved chat does not include encrypted chat key material");
+      }
+      const decrypted = await decryptBytesWithAesGcm(chat.encrypted_chat_key, masterKey);
+      if (!decrypted) {
+        throw new OpenMatesConfigError("Unable to decrypt saved chat key material");
+      }
+      chatKey = decrypted;
+      encryptedChatKey = chat.encrypted_chat_key;
+      expectedMessagesV = Number(chat.messages_v ?? 0);
+    } else {
+      chatKey = new Uint8Array(randomBytes(32));
+      encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+      encryptedChatMetadata = {
+        encrypted_title: await encryptWithAesGcmCombined(options.title ?? message.slice(0, 80), chatKey),
+        encrypted_chat_key: encryptedChatKey,
+        created_at: createdAt,
+        updated_at: createdAt,
+      };
+    }
+
+    const recovery = await deriveChatCompletionRecoveryKeypair(
+      Buffer.from(chatKey).toString("base64url"),
+      chatId,
+      1,
+    );
+    const history = normalizeHistory(options.history);
+    const inferenceRequest = {
+      messages: [...history, { role: "user", content: message }],
+      model: options.model,
+      focus_mode: options.focusMode
+        ? { app_id: options.focusMode.appId, focus_mode_id: options.focusMode.focusModeId }
+        : undefined,
+      memory_ids: options.memoryIds ?? [],
+    };
+    const result = await this.client.request<{
+      chat_id?: string;
+      preflight?: Record<string, unknown>;
+      task_id?: string;
+    }>("/v1/sdk/chats", {
+      message,
+      history,
+      save_to_account: true,
+      title: options.title,
+      memory_ids: options.memoryIds ?? [],
+      model: options.model,
+      focus_mode: inferenceRequest.focus_mode,
+      protocol_version: 1,
+      chat_id: chatId,
+      turn_id: turnId,
+      message_id: messageId,
+      chat_key_version: 1,
+      encrypted_chat_key: encryptedChatKey,
+      recovery_public_key: recovery.publicKey,
+      expected_messages_v: expectedMessagesV,
+      encrypted_user_message: {
+        client_message_id: messageId,
+        chat_id: chatId,
+        encrypted_content: await encryptWithAesGcmCombined(message, chatKey),
+        encrypted_sender_name: await encryptWithAesGcmCombined("User", chatKey),
+        role: "user",
+        created_at: createdAt,
+        updated_at: createdAt,
+      },
+      encrypted_chat_metadata: encryptedChatMetadata,
+      inference_request: inferenceRequest,
+    });
+    if (!result.task_id) {
+      throw new OpenMatesConfigError("Saved chat dispatch did not return a stable inference task id");
+    }
+    const claim = await this.pollRecoveryClaim(
+      result.task_id,
+      options.recoveryTimeoutMs ?? DEFAULT_RECOVERY_TIMEOUT_MS,
+      options.recoveryPollIntervalMs ?? DEFAULT_RECOVERY_POLL_INTERVAL_MS,
+    );
+    const recovered = await this.openRecoveryClaim(
+      claim,
+      recovery.privateKey,
+      session.user.id,
+      chatId,
+      turnId,
+    );
+    const completedAt = Math.floor(Date.now() / 1000);
+    const encryptedAssistantMessage: Record<string, unknown> = {
+      client_message_id: recovered.assistantMessageId,
+      chat_id: chatId,
+      encrypted_content: await encryptWithAesGcmCombined(recovered.content, chatKey),
+      encrypted_sender_name: await encryptWithAesGcmCombined("Assistant", chatKey),
+      role: "assistant",
+      user_message_id: messageId,
+      created_at: completedAt,
+      updated_at: completedAt,
+    };
+    if (recovered.category !== null) {
+      encryptedAssistantMessage.encrypted_category = await encryptWithAesGcmCombined(recovered.category, chatKey);
+    }
+    if (recovered.modelName !== null) {
+      encryptedAssistantMessage.encrypted_model_name = await encryptWithAesGcmCombined(recovered.modelName, chatKey);
+    }
+    const terminal = await this.client.request<Record<string, unknown>>(
+      `/v1/sdk/chats/recovery/${encodeURIComponent(result.task_id)}/persist`,
+      {
+        protocol_version: 1,
+        lease_generation: claim.lease_generation,
+        lease_token: claim.lease_token,
+        expected_messages_v: expectedMessagesV + 1,
+        encrypted_assistant_message: encryptedAssistantMessage,
+      },
+    );
+    if (terminal.state !== "TERMINAL") {
+      throw new OpenMatesConfigError("Saved chat recovery did not reach terminal persistence");
+    }
+    return {
+      content: recovered.content,
+      category: recovered.category,
+      model_name: recovered.modelName,
+      chat_id: result.chat_id ?? chatId,
+      task_id: result.task_id,
+      preflight: result.preflight,
+      terminal,
+    };
+  }
+
+  private async pollRecoveryClaim(
+    taskId: string,
+    timeoutMs: number,
+    pollIntervalMs: number,
+  ): Promise<Record<string, unknown>> {
+    if (!Number.isFinite(timeoutMs) || !Number.isFinite(pollIntervalMs) || timeoutMs <= 0 || pollIntervalMs <= 0) {
+      throw new OpenMatesConfigError("Recovery timeout and poll interval must be finite and positive");
+    }
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) break;
+        return await this.client.request<Record<string, unknown>>(
+          `/v1/sdk/chats/recovery/${encodeURIComponent(taskId)}/claim`,
+          { protocol_version: 1 },
+          remainingMs,
+        );
+      } catch (error) {
+        if (!(error instanceof OpenMatesApiError) || error.status !== 404) throw error;
+      }
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) break;
+      await new Promise((resolve) => setTimeout(resolve, Math.min(pollIntervalMs, remainingMs)));
+    }
+    throw new OpenMatesConfigError("Timed out waiting for saved chat recovery");
+  }
+
+  private async openRecoveryClaim(
+    claim: Record<string, unknown>,
+    recoveryPrivateKey: string,
+    ownerId: string,
+    chatId: string,
+    turnId: string,
+  ): Promise<{
+    assistantMessageId: string;
+    content: string;
+    category: string | null;
+    modelName: string | null;
+  }> {
+    const jobId = typeof claim.job_id === "string" ? claim.job_id : null;
+    const assistantMessageId = typeof claim.assistant_message_id === "string" ? claim.assistant_message_id : null;
+    const keyVersion = Number.isSafeInteger(claim.chat_key_version) ? Number(claim.chat_key_version) : null;
+    if (
+      claim.state !== "LEASED"
+      || typeof claim.lease_token !== "string"
+      || !Number.isSafeInteger(claim.lease_generation)
+      || !jobId
+      || !assistantMessageId
+      || keyVersion !== 1
+      || claim.chat_id !== chatId
+      || claim.turn_id !== turnId
+      || typeof claim.sealed_payload !== "string"
+    ) {
+      throw new OpenMatesConfigError("Recovery job claim returned invalid lease or identity data");
+    }
+    let envelope: ChatCompletionRecoveryEnvelope;
+    try {
+      envelope = JSON.parse(claim.sealed_payload) as ChatCompletionRecoveryEnvelope;
+    } catch {
+      throw new OpenMatesConfigError("Recovery job contained an invalid sealed envelope");
+    }
+    const plaintext = await openChatCompletionRecoveryEnvelope(envelope, {
+      recoveryPrivateKey,
+      ownerId,
+      chatId,
+      turnId,
+      jobId,
+      assistantMessageId,
+      keyVersion,
+    });
+    let payload: Record<string, unknown>;
+    try {
+      payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext)) as Record<string, unknown>;
+    } catch {
+      throw new OpenMatesConfigError("Recovery job plaintext was not valid UTF-8 JSON");
+    }
+    const fields = ["assistant_message_id", "category", "chat_id", "content", "job_id", "key_version", "model_name", "turn_id"];
+    if (
+      Object.keys(payload).sort().join(",") !== fields.join(",")
+      || payload.assistant_message_id !== assistantMessageId
+      || payload.chat_id !== chatId
+      || payload.turn_id !== turnId
+      || payload.job_id !== jobId
+      || payload.key_version !== keyVersion
+      || typeof payload.content !== "string"
+      || (payload.category !== null && typeof payload.category !== "string")
+      || (payload.model_name !== null && typeof payload.model_name !== "string")
+    ) {
+      throw new OpenMatesConfigError("Recovery job plaintext did not match the terminal completion identity");
+    }
+    return {
+      assistantMessageId,
+      content: payload.content,
+      category: payload.category as string | null,
+      modelName: payload.model_name as string | null,
+    };
   }
 
   async export(chatId: string, options: { format?: "json" | "markdown" | "yaml" } = {}): Promise<Record<string, unknown>> {

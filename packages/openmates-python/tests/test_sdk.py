@@ -8,12 +8,14 @@ Run: python3 -m pytest packages/openmates-python/tests/test_sdk.py
 
 import base64
 import hashlib
+import json as json_module
 import os
 
 import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from openmates import OpenMates, OpenMatesConfigError
+from openmates.chat_completion_recovery import seal_recovery_payload
 
 
 def _b64(value: bytes) -> str:
@@ -43,6 +45,30 @@ def test_missing_api_key_raises_typed_config_error(monkeypatch):
 
     with pytest.raises(OpenMatesConfigError):
         client.apps.web.search({"requests": [{"query": "hello"}]})
+
+
+def test_device_identity_is_injectable_and_stable_without_api_key_material(monkeypatch, tmp_path):
+    requests_seen = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"ok": True}
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append(headers["X-OpenMates-Device-Identity"])
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    device_path = tmp_path / "device-id"
+    OpenMates(api_key="first-key", device_id_path=device_path).account.info()
+    OpenMates(api_key="second-key", device_id_path=device_path).account.info()
+    OpenMates(api_key="third-key", device_id="managed-id").account.info()
+
+    assert requests_seen[0] == requests_seen[1] == device_path.read_text().strip()
+    assert "first-key" not in device_path.read_text()
+    assert requests_seen[2] == "managed-id"
 
 
 def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
@@ -99,6 +125,180 @@ def test_new_chat_defaults_to_non_persistent(monkeypatch):
     assert response.content == "hi"
     assert requests[0]["url"] == "https://api.openmates.org/v1/sdk/chats"
     assert requests[0]["json"]["save_to_account"] is False
+
+
+def test_saved_chat_preflights_epoch_one_encrypted_recovery_material(monkeypatch):
+    api_key = "sk-api-python-saved"
+    key_wrapper = _wrap_master_key(api_key, os.urandom(32))
+    requests_seen = []
+    task_id = "77777777-7777-4777-8777-777777777777"
+    job_id = "88888888-8888-4888-8888-888888888888"
+    claim_count = 0
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        nonlocal claim_count
+        requests_seen.append({"url": url, "json": json})
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({
+                "user": {"id": "11111111-1111-4111-8111-111111111111"},
+                "key_wrapper": key_wrapper,
+            })
+        if url.endswith("/v1/sdk/chats"):
+            return FakeResponse({"persistent": True, "chat_id": json["chat_id"], "task_id": task_id})
+        if url.endswith(f"/{task_id}/claim"):
+            claim_count += 1
+            if claim_count == 1:
+                response = FakeResponse({"detail": {"error": "recovery_job_not_found"}})
+                response.status_code = 404
+                return response
+            saved = next(request["json"] for request in requests_seen if request["url"].endswith("/v1/sdk/chats"))
+            assistant_message_id = task_id
+            plaintext = json_module.dumps({
+                "assistant_message_id": assistant_message_id,
+                "category": "general",
+                "chat_id": saved["chat_id"],
+                "content": "saved reply",
+                "job_id": job_id,
+                "key_version": 1,
+                "model_name": "test-model",
+                "turn_id": saved["turn_id"],
+            }, sort_keys=True, separators=(",", ":")).encode()
+            envelope = seal_recovery_payload(
+                plaintext,
+                recovery_public_key=saved["recovery_public_key"],
+                owner_id="11111111-1111-4111-8111-111111111111",
+                chat_id=saved["chat_id"],
+                turn_id=saved["turn_id"],
+                job_id=job_id,
+                assistant_message_id=assistant_message_id,
+                key_version=1,
+            )
+            return FakeResponse({
+                "job_id": job_id,
+                "state": "LEASED",
+                "lease_token": "lease-token",
+                "lease_generation": 1,
+                "sealed_payload": json_module.dumps(envelope),
+                "chat_id": saved["chat_id"],
+                "turn_id": saved["turn_id"],
+                "assistant_message_id": assistant_message_id,
+                "chat_key_version": 1,
+            })
+        assert url.endswith(f"/{task_id}/persist")
+        assert "saved reply" not in json_module.dumps(json)
+        assert json["expected_messages_v"] == 1
+        assert isinstance(json["encrypted_assistant_message"]["encrypted_content"], str)
+        return FakeResponse({"job_id": job_id, "state": "TERMINAL", "committed_messages_v": 2})
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key=api_key, device_id="test-device-id")
+    response = client.chats.send(
+        "save this",
+        save_to_account=True,
+        title="Saved pip chat",
+        recovery_poll_interval_seconds=0.001,
+    )
+    assert response.content == "saved reply"
+
+    assert [request["url"] for request in requests_seen] == [
+        "https://api.openmates.org/v1/sdk/session",
+        "https://api.openmates.org/v1/sdk/chats",
+        f"https://api.openmates.org/v1/sdk/chats/recovery/{task_id}/claim",
+        f"https://api.openmates.org/v1/sdk/chats/recovery/{task_id}/claim",
+        f"https://api.openmates.org/v1/sdk/chats/recovery/{task_id}/persist",
+    ]
+    saved = requests_seen[1]["json"]
+    assert saved["save_to_account"] is True
+    assert saved["protocol_version"] == 1
+    assert len(saved["chat_id"]) == 36
+    assert len(saved["turn_id"]) == 36
+    assert len(saved["message_id"]) == 36
+    assert saved["chat_key_version"] == 1
+    assert isinstance(saved["encrypted_chat_key"], str)
+    assert len(saved["recovery_public_key"]) == 43
+    assert "chat_key" not in saved
+    assert "master_key" not in saved
+    assert isinstance(saved["encrypted_user_message"]["encrypted_content"], str)
+    assert isinstance(saved["encrypted_chat_metadata"]["encrypted_title"], str)
+
+
+def test_saved_chat_times_out_when_recovery_job_stays_unavailable(monkeypatch):
+    api_key = "sk-api-python-timeout"
+    key_wrapper = _wrap_master_key(api_key, os.urandom(32))
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({
+                "user": {"id": "11111111-1111-4111-8111-111111111111"},
+                "key_wrapper": key_wrapper,
+            })
+        if url.endswith("/v1/sdk/chats"):
+            return FakeResponse({"task_id": "77777777-7777-4777-8777-777777777777"})
+        response = FakeResponse({"detail": {"error": "recovery_job_not_found"}})
+        response.status_code = 404
+        return response
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    client = OpenMates(api_key=api_key, device_id="test-device-id")
+    with pytest.raises(OpenMatesConfigError, match="Timed out waiting for saved chat recovery"):
+        client.chats.send(
+            "save this",
+            save_to_account=True,
+            recovery_poll_interval_seconds=0.001,
+            recovery_timeout_seconds=0.005,
+        )
+
+
+@pytest.mark.parametrize("poll_interval", [0, -1, float("inf")])
+def test_saved_chat_rejects_nonpositive_or_unbounded_poll_interval(poll_interval):
+    client = OpenMates(api_key="sk-api-test", device_id="test-device")
+    with pytest.raises(OpenMatesConfigError, match="finite and positive"):
+        client.chats._poll_recovery_claim(
+            "task-id",
+            timeout_seconds=1,
+            poll_interval_seconds=poll_interval,
+        )
+
+
+def test_saved_chat_fails_before_send_without_sdk_key_material(monkeypatch):
+    requests_seen = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"key_wrapper": {}}
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append(url)
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    with pytest.raises(OpenMatesConfigError, match="API-key-wrapped master key material"):
+        client.chats.send("save this", save_to_account=True)
+
+    assert requests_seen == ["https://api.openmates.org/v1/sdk/session"]
 
 
 def test_new_chat_can_include_focus_mode(monkeypatch):
@@ -190,7 +390,7 @@ def test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata(monkeypatch):
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
 
-    client = OpenMates(api_key=api_key)
+    client = OpenMates(api_key=api_key, device_id="test-device-id")
     chats = client.chats.list(limit=1)
 
     assert chats[0]["title"] == "Decrypted Python SDK chat"
@@ -198,7 +398,7 @@ def test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata(monkeypatch):
     assert chats[0]["encrypted_title"] == encrypted_title
     assert requests_seen == [
         ("GET", "https://api.openmates.org/v1/sdk/chats?limit=1&offset=0", None),
-        ("POST", "https://api.openmates.org/v1/sdk/session", {"sdk_name": "pip", "device_identity": os.name}),
+        ("POST", "https://api.openmates.org/v1/sdk/session", {"sdk_name": "pip", "device_identity": "test-device-id"}),
     ]
 
 
