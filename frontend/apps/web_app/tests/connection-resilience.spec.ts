@@ -618,6 +618,19 @@ test('secondary client recovers exactly one saved assistant message after origin
 	let secondary = await context.newPage();
 	let chatId = '';
 	const logCheckpoint = createSignupLogger('SAVED_CHAT_RECOVERY');
+	const protocolEvents: Array<{ direction: 'sent' | 'received'; type: string }> = [];
+	origin.on('websocket', (websocket: any) => {
+		const capture = (direction: 'sent' | 'received') => (frame: any) => {
+			try {
+				const message = JSON.parse(String(frame.payload));
+				if (typeof message.type === 'string') protocolEvents.push({ direction, type: message.type });
+			} catch {
+				// WebSocket control frames are not JSON protocol messages.
+			}
+		};
+		websocket.on('framesent', capture('sent'));
+		websocket.on('framereceived', capture('received'));
+	});
 
 	try {
 		await origin.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -630,11 +643,34 @@ test('secondary client recovers exactly one saved assistant message after origin
 
 		const uniquePrompt = `Recover this saved response ${Date.now()}-${test.info().workerIndex}`;
 		const messageEditor = origin.getByTestId('message-editor');
-		await messageEditor.fill(withMockMarker(uniquePrompt, 'chat_flow_capital', 'slow'));
+		await messageEditor.click();
+		await origin.keyboard.type(withMockMarker(uniquePrompt, 'chat_flow_capital', 'slow'));
 		await origin.locator('[data-action="send-message"]').click();
 		await expect(origin).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 		chatId = origin.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
 		expect(chatId).toBeTruthy();
+		await expect
+			.poll(() => protocolEvents.map((event) => `${event.direction}:${event.type}`), {
+				timeout: 30000
+			})
+			.toEqual(
+				expect.arrayContaining([
+					'sent:chat_turn_preflight',
+					'received:chat_turn_preflight_ack',
+					'sent:chat_message_added'
+				])
+			);
+		const preflightSentIndex = protocolEvents.findIndex(
+			(event) => event.direction === 'sent' && event.type === 'chat_turn_preflight'
+		);
+		const preflightAckIndex = protocolEvents.findIndex(
+			(event) => event.direction === 'received' && event.type === 'chat_turn_preflight_ack'
+		);
+		const inferenceSentIndex = protocolEvents.findIndex(
+			(event) => event.direction === 'sent' && event.type === 'chat_message_added'
+		);
+		expect(preflightSentIndex).toBeLessThan(preflightAckIndex);
+		expect(preflightAckIndex).toBeLessThan(inferenceSentIndex);
 
 		await origin.close();
 		logCheckpoint('Closed origin before the deterministic slow response reached terminal persistence.', {
