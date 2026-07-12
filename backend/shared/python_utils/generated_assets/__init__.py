@@ -6,10 +6,12 @@
 # links consistent across apps.
 
 from .service import (
+    CHUNKED_MODEL_ENCRYPTION,
     GeneratedAssetVariant,
     build_download_url,
     cache_s3_file_keys,
     create_download_token,
+    decrypt_generated_asset_variant,
     index_generated_asset,
     validate_download_token,
 )
@@ -17,9 +19,11 @@ from .chunked_encryption import decrypt_chunked_stream, encrypt_chunked_stream
 
 __all__ = [
     "GeneratedAssetVariant",
+    "CHUNKED_MODEL_ENCRYPTION",
     "build_download_url",
     "cache_s3_file_keys",
     "create_download_token",
+    "decrypt_generated_asset_variant",
     "index_generated_asset",
     "validate_download_token",
     "decrypt_chunked_stream",

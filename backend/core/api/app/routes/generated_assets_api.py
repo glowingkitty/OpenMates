@@ -4,19 +4,28 @@
 # private S3; this endpoint validates a short-lived signed URL, decrypts the
 # requested variant in memory, and streams plaintext to API consumers.
 
+from __future__ import annotations
+
 import base64
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
+from urllib.parse import quote
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 
-from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.s3.service import S3UploadService
-from backend.shared.python_utils.generated_assets import validate_download_token
+from backend.shared.python_utils.generated_assets import (
+    CHUNKED_MODEL_ENCRYPTION,
+    decrypt_generated_asset_variant,
+    validate_download_token,
+)
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus import DirectusService
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +64,11 @@ def _content_type_for_variant(record_content_type: str, variant: Dict[str, Any])
     if file_format == "wav":
         return "audio/wav"
     return record_content_type or "application/octet-stream"
+
+
+def _attachment_header(filename: str) -> str:
+    safe_filename = "".join(character for character in filename if character >= " " and character not in {'"', "\\"})
+    return f"attachment; filename*=UTF-8''{quote(safe_filename or 'openmates_generated_asset')}"
 
 
 @router.get("/{asset_id}/files/{variant}/download")
@@ -97,6 +111,29 @@ async def download_generated_asset(
     if not variant_meta or not isinstance(variant_meta, dict) or not variant_meta.get("s3_key"):
         raise HTTPException(status_code=404, detail="Generated asset variant not found")
 
+    media_type = _content_type_for_variant(str(record.get("content_type") or ""), variant_meta)
+    filename = str(record.get("original_filename") or f"openmates_generated_{asset_id}")
+    try:
+        aes_key = base64.b64decode(record.get("aes_key") or "", validate=True)
+        if len(aes_key) != 32:
+            raise ValueError("Generated asset key must be 32 bytes")
+    except Exception as exc:
+        logger.error("%s Generated asset key is invalid", log_prefix, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to decrypt generated asset") from exc
+
+    if variant_meta.get("encryption"):
+        if variant_meta["encryption"] != CHUNKED_MODEL_ENCRYPTION:
+            raise HTTPException(status_code=500, detail="Generated asset has unsupported encryption")
+        encrypted_source = s3_service.get_file_stream(
+            bucket_name=get_bucket_name("chatfiles", s3_service.environment),
+            object_key=variant_meta["s3_key"],
+        )
+        return StreamingResponse(
+            decrypt_generated_asset_variant(variant_meta, encrypted_source, aes_key=aes_key),
+            media_type=media_type,
+            headers={"Content-Disposition": _attachment_header(filename)},
+        )
+
     try:
         encrypted_bytes = await s3_service.get_file(
             bucket_name=get_bucket_name("chatfiles", s3_service.environment),
@@ -104,7 +141,6 @@ async def download_generated_asset(
         )
         if not encrypted_bytes:
             raise HTTPException(status_code=404, detail="Generated asset file missing")
-        aes_key = base64.b64decode(record.get("aes_key") or "")
         aes_nonce = base64.b64decode(record.get("aes_nonce") or "")
         plaintext = AESGCM(aes_key).decrypt(aes_nonce, encrypted_bytes, None)
     except HTTPException:
@@ -113,10 +149,8 @@ async def download_generated_asset(
         logger.error("%s Failed to decrypt generated asset: %s", log_prefix, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to decrypt generated asset")
 
-    media_type = _content_type_for_variant(str(record.get("content_type") or ""), variant_meta)
-    filename = str(record.get("original_filename") or f"openmates_generated_{asset_id}")
     return Response(
         content=plaintext,
         media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": _attachment_header(filename)},
     )

@@ -187,6 +187,11 @@ decisions:
     decision: Treat Hi3D retention and deletion as a disclosed limitation rather than claiming provider-side per-task deletion.
     reason: The verified policy provides account/personal-data deletion rights but no exact API retention period or documented per-task deletion endpoint.
     decided_at: "2026-07-11T23:50:23Z"
+  - id: D-9
+    status: active
+    decision: Benchmark two real Hi3D outputs generated end-to-end through the OpenMates CLI after the skill is implemented.
+    reason: The user confirmed two real outputs are sufficient; requiring pre-supplied 30/60/100 MB fixtures unnecessarily blocked backend and CLI implementation.
+    decided_at: "2026-07-12T00:31:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -197,13 +202,13 @@ attempts:
     reason: The task returned a valid 25.3 MB GLB and poster; both URLs were validated and sent to Discord.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Obtain or generate licensed representative 30 MB, 60 MB, and 100 MB GLB fixtures and run the optimization/streaming benchmark.
-  command: python3 scripts/api_tests/benchmark_models3d_assets.py --fixtures 30mb,60mb,100mb
-  expected_outcome: The benchmark remains red until licensed fixtures are present outside git and optimization tooling is implemented.
+  current_task_id: TASK-2
+  next_action: Write and run the models3d generate-task red contract for text/image routing, cache fallback, billing, and artifact persistence.
+  command: python3 -m pytest backend/tests/test_models3d_generate_task.py
+  expected_outcome: The test fails because the shared image-default seam and models3d generate task do not exist yet.
   blocker:
-    reason: Licensed representative 30 MB, 60 MB, and 100 MB GLB benchmark fixtures are not yet available, and Hi3D has no verified per-task deletion API.
-    next_action: Keep T-BENCH-001 red, document retention limits in all privacy surfaces, and obtain or generate non-committed licensed benchmark assets before web optimization work.
+    reason: Web remains blocked until two real CLI-generated Hi3D outputs pass optimization, streaming, and visual artifact review.
+    next_action: Complete TASK-2 and CLI/SDK contracts, generate two real outputs, then run T-BENCH-001 before TASK-6.
   last_verified_commit: 0e72d2dc6
 
 scenarios:
@@ -370,13 +375,13 @@ assumptions:
       - source: backend/apps/images/skills/generate_skill.py
         summary: Existing selection is currently coupled to image generation and needs a shared-service seam confirmed by a red contract test.
   - id: A-3
-    text: Meshopt plus KTX2 can reduce representative Hi3D models to the preview budget without unacceptable visible loss.
+    text: Meshopt plus KTX2 can reduce two real Hi3D models generated through the OpenMates CLI to the preview budget without unacceptable visible loss.
     category: performance
-    required_before: task_execution
+    required_before: completion
     status: checking
     evidence:
       - source: T-BENCH-001
-        summary: Benchmark three representative 30-100 MB models before fullscreen implementation.
+        summary: Benchmark two real end-to-end CLI outputs before fullscreen implementation.
   - id: A-4
     text: A maintained conversion stack can produce standards-valid STL and 3MF with units and supported color metadata from Hi3D GLB.
     category: printing
@@ -631,22 +636,23 @@ tests:
   - id: T-BENCH-001
     type: lint
     file: scripts/api_tests/benchmark_models3d_assets.py
-    command: python3 scripts/api_tests/benchmark_models3d_assets.py --fixtures 30mb,60mb,100mb
+    command: python3 scripts/api_tests/benchmark_models3d_assets.py --cli-output <FIRST_OUTPUT_GLB> --cli-output <SECOND_OUTPUT_GLB>
     covers: [AC-5, AC-8]
     assertions:
-      - preview meets target or records explicit hard-cap fallback
+      - both real CLI-generated Hi3D outputs are valid and retain their provenance metadata
+      - each preview meets target or records explicit hard-cap fallback
       - visual comparison, decode time, peak memory, and output validation are recorded
       - master streaming stays within the configured memory budget
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: failed_as_expected
-        command: python3 scripts/api_tests/benchmark_models3d_assets.py --fixtures 30mb,60mb,100mb
-        run_id: local-models3d-benchmark-red-20260711T231222Z
-        subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
-        timestamp: "2026-07-11T23:12:22Z"
-        summary: The harness reports missing licensed 30 MB, 60 MB, and 100 MB GLB fixtures.
+        status: missing_test
+        command: python3 scripts/api_tests/benchmark_models3d_assets.py --cli-output <FIRST_OUTPUT_GLB> --cli-output <SECOND_OUTPUT_GLB>
+        run_id: user-approved-two-real-outputs-20260712T003100Z
+        subject_commit: 5cf9fe4
+        timestamp: "2026-07-12T00:31:00Z"
+        summary: The two real output files cannot exist until the backend skill and CLI generation flow are implemented.
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-CLI-001
     type: unit
@@ -797,17 +803,17 @@ implementation_plan:
       dependencies: []
       covers: [AC-4, AC-5, AC-8, AC-11, AC-12, AC-17, AC-18]
       outcome: Add red provider, consent, storage, security, optimization, and print contracts; resolve privacy deletion blocker and conversion tooling before provider implementation.
-      verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001, T-BENCH-001]
+      verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001]
     - id: P2-backend-generate
       dependencies: [P1-provider-storage-red]
       covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-13, AC-17, AC-18]
       outcome: Implement Hi3D wrapper, shared image-default seam, async models3d task, encrypted artifacts, billing, and master downloads. Print exports remain P3/TASK-3.
-      verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-PYTEST-005, T-BENCH-001]
+      verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-PYTEST-005]
     - id: P3-cli-sdk
       dependencies: [P2-backend-generate]
       covers: [AC-1, AC-2, AC-3, AC-14]
       outcome: Implement and prove CLI first, npm SDK second, and pip SDK third. Do not begin web until all are green.
-      verification_ids: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-ORDER-001]
+      verification_ids: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-BENCH-001, T-ORDER-001]
     - id: P4-web
       dependencies: [P3-cli-sdk]
       covers: [AC-6, AC-7, AC-9, AC-10, AC-11, AC-12]
@@ -864,12 +870,12 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add red provider, privacy, storage, optimization, and print contracts
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-4, S-5, S-8, S-9, S-10, S-13], acceptance_criteria: [AC-4, AC-5, AC-8, AC-9, AC-10, AC-11, AC-12, AC-17, AC-18, AC-19]}
     expected_files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py, backend/tests/test_models3d_provider_consent.py, scripts/api_tests/benchmark_models3d_assets.py]
-    verification: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001, T-BENCH-001]
-    verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001, T-BENCH-001]
+    verification: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001]
+    verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001]
     dependencies: []
     ownership: {files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py, backend/tests/test_models3d_provider_consent.py], shared_files: [scripts/audit_app_provider_contracts.py]}
     blockers: []
@@ -877,15 +883,15 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Implement Hi3D provider and models3d backend generation
-    status: pending
-    phase: blocked
+    status: in_progress
+    phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-8, S-13], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-13, AC-17, AC-18]}
     expected_files: [backend/shared/providers/hi3d/client.py, backend/shared/providers/hi3d/models.py, backend/apps/models3d/app.yml, backend/apps/models3d/skills/generate_skill.py, backend/apps/models3d/tasks/generate_task.py, backend/shared/python_utils/generated_assets/service.py]
-    verification: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-BENCH-001]
-    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-BENCH-001]
+    verification: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003]
+    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003]
     dependencies: [TASK-1]
     ownership: {files: [backend/shared/providers/hi3d/client.py, backend/shared/providers/hi3d/models.py, backend/apps/models3d/app.yml, backend/apps/models3d/skills/generate_skill.py, backend/apps/models3d/tasks/generate_task.py], shared_files: [backend/shared/python_utils/generated_assets/service.py]}
-    blockers: [A-2, A-3]
+    blockers: [A-2]
     follow_up_tasks: [TASK-3, TASK-4]
     independently_deployable: false
   - id: TASK-3
@@ -920,8 +926,8 @@ tasks:
     phase: blocked
     covers: {scenarios: [S-1, S-2, S-3, S-11], acceptance_criteria: [AC-1, AC-2, AC-3, AC-14]}
     expected_files: [frontend/packages/openmates-cli/src/generated/appSkills.ts, frontend/packages/openmates-cli/src/embedRenderers.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/sdk.test.ts, packages/openmates-python/openmates/generated/app_skills.py, packages/openmates-python/tests/test_sdk.py]
-    verification: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-ORDER-001]
-    verification_ids: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-ORDER-001]
+    verification: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-BENCH-001, T-ORDER-001]
+    verification_ids: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-BENCH-001, T-ORDER-001]
     dependencies: [TASK-2, TASK-4]
     ownership: {files: [frontend/packages/openmates-cli/src/embedRenderers.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/sdk.test.ts, packages/openmates-python/tests/test_sdk.py], shared_files: [frontend/packages/openmates-cli/src/generated/appSkills.ts, packages/openmates-python/openmates/generated/app_skills.py]}
     blockers: []

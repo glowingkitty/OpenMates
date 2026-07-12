@@ -13,11 +13,15 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any, Dict, Optional
+
+from .chunked_encryption import decrypt_chunked_stream
 
 logger = logging.getLogger(__name__)
 
 TOKEN_TTL_SECONDS = 900
+CHUNKED_MODEL_ENCRYPTION = "chunked-aes-256-gcm-v1"
 
 
 @dataclass(frozen=True)
@@ -48,12 +52,27 @@ class GeneratedAssetVariant:
         return data
 
 
+async def decrypt_generated_asset_variant(
+    variant_metadata: Dict[str, Any],
+    encrypted_source: AsyncIterable[bytes],
+    *,
+    aes_key: bytes,
+) -> AsyncIterator[bytes]:
+    """Stream-decrypt a versioned generated asset variant without buffering it."""
+    encryption = str(variant_metadata.get("encryption") or "")
+    if encryption != CHUNKED_MODEL_ENCRYPTION:
+        raise ValueError("Unsupported generated asset encryption")
+    async for plaintext_chunk in decrypt_chunked_stream(encrypted_source, key=aes_key):
+        yield plaintext_chunk
+
+
 def _token_secret() -> bytes:
     secret = os.getenv("GENERATED_ASSET_TOKEN_SECRET") or os.getenv("INTERNAL_API_SHARED_TOKEN")
-    if not secret:
-        # Development/test fallback only. Production should always set a stable secret.
-        secret = "openmates-generated-assets-dev-token-secret"
-    return secret.encode("utf-8")
+    if secret:
+        return secret.encode("utf-8")
+    if os.getenv("SERVER_ENVIRONMENT", "development") in {"development", "test"}:
+        return b"openmates-generated-assets-dev-token-secret"
+    raise RuntimeError("Generated asset token secret is required outside development")
 
 
 def _b64url_encode(data: bytes) -> str:

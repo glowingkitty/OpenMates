@@ -5,6 +5,7 @@ import asyncio
 import boto3
 import logging
 import os
+from collections.abc import AsyncIterator
 from io import BytesIO
 from fastapi import HTTPException
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
@@ -554,3 +555,46 @@ class S3UploadService:
                 status_code=500,
                 detail=f"Unexpected error downloading file from S3: {str(e)}"
             )
+
+    async def get_file_stream(
+        self,
+        bucket_name: str,
+        object_key: str,
+        *,
+        chunk_size: int = 1024 * 1024,
+    ) -> AsyncIterator[bytes]:
+        """Read an S3 object incrementally without materializing it in memory."""
+        if not self.client:
+            raise HTTPException(status_code=503, detail="S3 service unavailable")
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+
+        body = None
+        try:
+            response = await asyncio.to_thread(
+                self.client.get_object,
+                Bucket=bucket_name,
+                Key=object_key,
+            )
+            body = response["Body"]
+            while chunk := await asyncio.to_thread(body.read, chunk_size):
+                yield chunk
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code")
+            if error_code in {"NoSuchKey", "404"}:
+                raise HTTPException(status_code=404, detail="Generated asset file missing") from exc
+            raise HTTPException(status_code=500, detail="Failed to stream generated asset") from exc
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error(
+                "Failed to stream S3 file: bucket=%s key=%s error=%s",
+                bucket_name,
+                object_key,
+                type(exc).__name__,
+                exc_info=True,
+            )
+            raise HTTPException(status_code=500, detail="Failed to stream generated asset") from exc
+        finally:
+            if body is not None:
+                await asyncio.to_thread(body.close)
