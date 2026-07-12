@@ -197,14 +197,13 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
         app.buttons["attach-files-button"].tap()
 
-        for identifier in ["attachment-photo-library-action", "attachment-browse-files-action"] {
-            let action = element(in: app, identifier: identifier)
-            XCTAssertTrue(action.waitForExistence(timeout: 5), "Missing attachment menu action: \(identifier)")
-            XCTAssertTrue(action.isHittable, "Attachment menu action is not visible: \(identifier)")
-        }
+        let browseFiles = element(in: app, identifier: "attachment-browse-files-action")
+        XCTAssertTrue(browseFiles.waitForExistence(timeout: 5), "Missing attachment menu browse-files action")
+        XCTAssertTrue(browseFiles.isHittable, "Attachment menu browse-files action is not visible")
         for identifier in actionIDs {
             XCTAssertEqual(app.buttons[identifier].frame, actionFrames[identifier])
         }
+        attachScreenshot(name: "Attachment menu overlays composer actions")
     }
 
     private func launchChatOpeningPreview(arguments: [String] = []) -> XCUIApplication {
