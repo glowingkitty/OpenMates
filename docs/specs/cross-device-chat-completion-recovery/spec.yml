@@ -292,14 +292,14 @@ attempts:
     evidence: Runs 29178941080 through 29182774273 exposed and fixed stale dev API routing, missing commitment-key provisioning, malformed pre-migration cutover state, PostgreSQL JSON serialization, and fixture assertion errors. The final run proved ordered LEGACY acknowledgement and one secondary-client response, then failed after IndexedDB deletion because epoch zero intentionally creates no sealed recovery job; durable web recovery requires the later controlled epoch-one verification gate.
 
 handoff:
-  current_task_id: TASK-7
-  next_action: Add failing Apple app-level preflight, inactive-chat recovery, and revoked-device claim tests before implementing the native WebSocket recovery lifecycle.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests
-  expected_outcome: Shared vectors pass while the new Apple app-level lifecycle tests fail before native implementation.
+  current_task_id: TASK-8
+  next_action: Create and run the deterministic cross-client takeover and preflight-latency scripts, then complete the released-legacy CLI and controlled epoch-one activation gates.
+  command: python3 scripts/test_cross_client_chat_recovery.py --env dev
+  expected_outcome: The script provides repeatable owner/device recovery evidence without exposing plaintext or recovery secrets.
   blocker:
     reason: T-WEB-RECOVERY green verification requires the controlled epoch-one cutover because epoch zero intentionally acknowledges LEGACY mode without creating sealed recovery jobs.
-    recheck_condition: Complete Apple, released-legacy CLI, performance, and privacy gates, then activate epoch one and rerun the web recovery spec.
-  last_verified_commit: 2efb46d
+    recheck_condition: Complete released-legacy CLI, cross-client, performance, and privacy gates, then activate epoch one and rerun the web recovery spec.
+  last_verified_commit: c2875a1
 
 scenarios:
   - id: S-1
@@ -1247,16 +1247,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: missing_test
+        status: failed_as_expected
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests
-        run_id: apple-remote-9ba0ae126-chat-recovery-suite-1
-        subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
-        timestamp: "2026-07-12T03:12:51Z"
-        reason: The selected suite executed only shared-vector and tamper tests; no Apple preflight, inactive-job persistence, old-chat registration, or revoked-device claim test exists.
+        run_id: apple-remote-379db70-chat-recovery-red-1
+        subject_commit: 379db70
+        timestamp: "2026-07-12T08:48:06Z"
+        reason: "The synchronized Mac executed 9 targeted tests: shared crypto vectors passed and all 7 new app-level lifecycle contracts failed for the intended missing coordinator, sender, claim, and persistence seams."
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests
+        run_id: apple-remote-c2875a1-chat-recovery-green-1
+        subject_commit: c2875a1
+        timestamp: "2026-07-12T10:26:02Z"
+        summary: Remote iPhone 17 XCTest compiled the native recovery coordinator and passed all 14 targeted contracts, including preflight ordering/payload identity, new and existing chat metadata, queued availability, terminal routing, lease-fenced persistence, idempotence, revoked and locked-key gating, LEGACY mode, and shared crypto vectors.
 
   - id: T-CROSS-CLIENT-TAKEOVER
     type: manual
@@ -1600,7 +1606,7 @@ tasks:
     independently_deployable: false
   - id: TASK-7
     title: Implement Apple preflight and app-level recovery
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
