@@ -170,10 +170,12 @@ function createStepScreenshotter(
 	logStep: (message: string, metadata?: Record<string, unknown>) => void,
 	{
 		filenamePrefix = '',
-		artifactsDirname = ARTIFACTS_DIRNAME
+		artifactsDirname = ARTIFACTS_DIRNAME,
+		fullPage = true
 	}: {
 		filenamePrefix?: string;
 		artifactsDirname?: string;
+		fullPage?: boolean;
 	} = {}
 ): (page: any, label: string, options?: { fullPage?: boolean }) => Promise<void> {
 	_ensureStepLogInit(artifactsDirname);
@@ -191,7 +193,7 @@ function createStepScreenshotter(
 		try {
 			await page.screenshot({
 				path: `${artifactsDirname}/${filename}`,
-				fullPage: options?.fullPage ?? true,
+				fullPage: options?.fullPage ?? fullPage,
 				timeout: STEP_SCREENSHOT_TIMEOUT_MS
 			});
 		} catch (error) {

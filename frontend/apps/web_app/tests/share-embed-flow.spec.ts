@@ -56,7 +56,8 @@ test('shares a web search embed via fullscreen share button', async ({
 
 	const logCheckpoint = createSignupLogger('SHARE_EMBED');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
-		filenamePrefix: 'share-embed'
+		filenamePrefix: 'share-embed',
+		fullPage: false
 	});
 
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -91,7 +92,7 @@ test('shares a web search embed via fullscreen share button', async ({
 	logCheckpoint('Waiting for web search embed to reach finished state...');
 	await expect(finishedPreview.first()).toBeVisible({ timeout: 90000 });
 	logCheckpoint('Web search embed reached finished state.');
-	await takeStepScreenshot(page, 'embed-finished', { fullPage: false });
+	await takeStepScreenshot(page, 'embed-finished');
 
 	saveWarnErrorLogs('share-embed', 'after_search_finished');
 
