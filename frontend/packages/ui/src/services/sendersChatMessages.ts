@@ -142,6 +142,10 @@ export function shouldSkipClientCodeBlockExtraction(language: string, content: s
 	return false;
 }
 
+export function preflightExpectedMessagesVersion(localMessagesVersion: number | undefined): number {
+	return Math.max(0, (localMessagesVersion ?? 1) - 1);
+}
+
 export async function sendNewMessageImpl(
 	serviceInstance: ChatSynchronizationService,
 	message: Message,
@@ -1288,7 +1292,7 @@ export async function sendNewMessageImpl(
 			recovery_public_key: recoveryKeypair.publicKey,
 			// The local user row is saved before this sender runs, so messages_v is
 			// already one ahead of the server version the atomic preflight expects.
-			expected_messages_v: Math.max(0, (chat?.messages_v ?? 1) - 1),
+			expected_messages_v: preflightExpectedMessagesVersion(chat?.messages_v),
 			encrypted_user_message: {
 				client_message_id: message.message_id,
 				chat_id: message.chat_id,

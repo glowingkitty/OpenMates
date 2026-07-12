@@ -6,7 +6,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { shouldSkipClientCodeBlockExtraction } from "../sendersChatMessages";
+import {
+  preflightExpectedMessagesVersion,
+  shouldSkipClientCodeBlockExtraction,
+} from "../sendersChatMessages";
 
 describe("sendersChatMessages protocol fences", () => {
   it("does not extract interactive question protocol blocks as code embeds", () => {
@@ -19,5 +22,11 @@ describe("sendersChatMessages protocol fences", () => {
   it("continues extracting regular code fences", () => {
     expect(shouldSkipClientCodeBlockExtraction("typescript", "const answer = 42;"))
       .toBe(false);
+  });
+
+  it("uses the server version before the locally saved user message", () => {
+    expect(preflightExpectedMessagesVersion(undefined)).toBe(0);
+    expect(preflightExpectedMessagesVersion(1)).toBe(0);
+    expect(preflightExpectedMessagesVersion(7)).toBe(6);
   });
 });
