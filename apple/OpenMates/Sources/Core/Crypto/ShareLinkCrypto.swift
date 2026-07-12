@@ -46,6 +46,7 @@ enum ShareLinkCrypto {
             let passwordKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
                 password: password,
                 salt: Data("\(passwordSaltPrefix)\(identifier)".utf8)
+            )
             keyForBlob = try encryptURLSafe(Data(keyBase64.utf8), using: passwordKey)
         } else {
             keyForBlob = keyBase64
@@ -70,6 +71,7 @@ enum ShareLinkCrypto {
         let encryptionKey = await CryptoManager.shared.deriveWrappingKeyFromPassword(
             password: shortKey,
             salt: Data("\(shortURLSaltPrefix)\(token)".utf8)
+        )
         return (token, shortKey, try encryptURLSafe(Data(longURL.absoluteString.utf8), using: encryptionKey))
     }
 
