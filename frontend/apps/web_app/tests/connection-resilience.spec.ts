@@ -618,12 +618,22 @@ test('secondary client recovers exactly one saved assistant message after origin
 	let secondary = await context.newPage();
 	let chatId = '';
 	const logCheckpoint = createSignupLogger('SAVED_CHAT_RECOVERY');
-	const protocolEvents: Array<{ direction: 'sent' | 'received'; type: string }> = [];
+	const protocolEvents: Array<{
+		direction: 'sent' | 'received';
+		type: string;
+		state?: string;
+	}> = [];
 	origin.on('websocket', (websocket: any) => {
 		const capture = (direction: 'sent' | 'received') => (frame: any) => {
 			try {
 				const message = JSON.parse(String(frame.payload));
-				if (typeof message.type === 'string') protocolEvents.push({ direction, type: message.type });
+				if (typeof message.type === 'string') {
+					protocolEvents.push({
+						direction,
+						type: message.type,
+						state: typeof message.payload?.state === 'string' ? message.payload.state : undefined
+					});
+				}
 			} catch {
 				// WebSocket control frames are not JSON protocol messages.
 			}
@@ -671,6 +681,7 @@ test('secondary client recovers exactly one saved assistant message after origin
 		);
 		expect(preflightSentIndex).toBeLessThan(preflightAckIndex);
 		expect(preflightAckIndex).toBeLessThan(inferenceSentIndex);
+		expect(protocolEvents[preflightAckIndex]?.state).toMatch(/^(LEGACY|PREPARED)$/);
 
 		await origin.close();
 		logCheckpoint('Closed origin before the deterministic slow response reached terminal persistence.', {
