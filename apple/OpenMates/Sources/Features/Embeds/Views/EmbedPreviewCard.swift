@@ -28,6 +28,7 @@ struct EmbedPreviewCard: View {
         static let minimumProcessingDuration: TimeInterval = 0.5
         static let storedEncryptedHintDuration: UInt64 = 2_000_000_000
         static let openDetailsHintDuration: UInt64 = 2_000_000_000
+        static let recordingOpenAreaHeight: CGFloat = 64
         static let standardHoverScale: CGFloat = 0.985
         static let largeHoverScale: CGFloat = 0.995
     }
@@ -68,18 +69,28 @@ struct EmbedPreviewCard: View {
     var body: some View {
         Group {
             if embedType == .recording {
-                cardSurface
-                    .contentShape(Rectangle())
-                    .onTapGesture {
+                ZStack(alignment: .top) {
+                    cardSurface
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if embed.status != .processing { onTap() }
+                        }
+
+                    Button {
                         if embed.status != .processing { onTap() }
+                    } label: {
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                            .frame(height: Constants.recordingOpenAreaHeight)
+                            .contentShape(Rectangle())
                     }
-                    .accessibilityElement(children: .contain)
+                    .buttonStyle(.plain)
+                    .disabled(embed.status == .processing)
                     .accessibilityIdentifier("embed-preview")
                     .accessibilityLabel(embedType?.displayName ?? embed.type)
                     .accessibilityValue(statusAccessibilityValue)
-                    .accessibilityAction {
-                        if embed.status != .processing { onTap() }
-                    }
+                }
+                .accessibilityElement(children: .contain)
             } else {
                 Button(action: onTap) {
                     cardSurface
