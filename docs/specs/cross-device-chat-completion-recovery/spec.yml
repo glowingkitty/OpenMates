@@ -122,7 +122,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 6ca62928a
+  subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
 
 approvals:
   product_contract:
@@ -261,14 +261,20 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-12T01:15:47Z"
     evidence: The remote Xcode invocation succeeded but executed zero tests because ChatCompletionRecoveryTests.swift was not included in the OpenMatesTests target Sources phase.
+  - id: ATTEMPT-7
+    task_id: TASK-2
+    approach: Sync the remote Apple checkout to the deployed target-membership commit and rerun the exact shared-vector selector.
+    outcome: succeeded
+    recorded_at: "2026-07-12T01:51:14Z"
+    evidence: Remote checkout 33932be5f compiled ChatCompletionRecoveryTests.swift in OpenMatesTests and executed one selected test with zero failures.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Deploy the missing ChatCompletionRecoveryTests target membership, then rerun the targeted XCTest and refresh all TASK-2 vector evidence on one subject commit.
-  command: python3 scripts/sessions.py prepare-deploy --session 7d2b
-  expected_outcome: The targeted Apple shared recovery-vector XCTest executes one test instead of zero and passes.
+  current_task_id: TASK-3
+  next_action: Run the focused transactional recovery persistence tests, reconcile their results with T-BACKEND-PREFLIGHT, T-BACKEND-RECOVERY-JOBS, T-BACKEND-RECOVERY-AUTH, and T-BACKEND-RECOVERY-RETENTION, then fix the smallest failing contract.
+  command: python3 -m pytest backend/tests/test_chat_turn_preflight_handler.py backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_chat_recovery_service.py backend/tests/test_chat_recovery_websocket_handlers.py backend/tests/test_chat_recovery_unique_indexes.py backend/tests/test_chat_recovery_directus_deployment.py
+  expected_outcome: Focused persistence tests identify the first remaining TASK-3 contract gap without involving client lifecycle work.
   blocker: null
-  last_verified_commit: 6ca62928a
+  last_verified_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
 
 scenarios:
   - id: S-1
@@ -730,9 +736,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest backend/tests/test_chat_completion_recovery_crypto.py
-        run_id: local-3e62-backend-crypto-green-1
-        subject_commit: 47b5faf18fb33d73d29b792f472505b5bd33bb37
-        timestamp: "2026-07-12T00:31:57Z"
+        run_id: local-33932be5-backend-crypto-green-2
+        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
+        timestamp: "2026-07-12T01:46:00Z"
         summary: All six exact-vector, domain-separation, and tamper checks passed.
 
   - id: T-CLI-CRYPTO-VECTORS
@@ -759,9 +765,9 @@ tests:
       evidence:
         status: passed
         command: npm --prefix frontend/packages/openmates-cli run test:unit:crypto -- --test-name-pattern chat-completion-recovery
-        run_id: local-3e62-cli-crypto-green-1
-        subject_commit: 47b5faf18fb33d73d29b792f472505b5bd33bb37
-        timestamp: "2026-07-12T00:31:57Z"
+        run_id: local-33932be5-cli-crypto-green-2
+        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
+        timestamp: "2026-07-12T01:46:00Z"
         summary: All five CLI recovery-vector checks passed; the complete crypto file reported 29 passing tests.
 
   - id: T-PIP-CRYPTO-VECTORS
@@ -788,9 +794,9 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest packages/openmates-python/tests/test_chat_completion_recovery_crypto.py
-        run_id: local-3e62-pip-crypto-green-1
-        subject_commit: 47b5faf18fb33d73d29b792f472505b5bd33bb37
-        timestamp: "2026-07-12T00:31:57Z"
+        run_id: local-33932be5-pip-crypto-green-2
+        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
+        timestamp: "2026-07-12T01:46:00Z"
         summary: All four pip SDK exact-vector and tamper checks passed.
 
   - id: T-WEB-CRYPTO-VECTORS
@@ -818,10 +824,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/tests.py run -- --suite vitest
-        run_id: gha-29174864948
-        subject_commit: 6ca62928a
-        timestamp: "2026-07-12T01:11:38Z"
-        summary: All browser recovery exact-vector, tamper, malformed-envelope, all-zero shared-secret, and payload-limit checks passed; two unrelated pre-existing Vitest failures remained.
+        run_id: gha-29175790114
+        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
+        timestamp: "2026-07-12T01:48:56Z"
+        summary: The dispatched Vitest workflow succeeded and the browser recovery vector checks passed; the orchestrator separately reported two unrelated pre-existing assertions among 541 tests.
 
   - id: T-APPLE-CRYPTO-VECTORS
     type: unit
@@ -846,7 +852,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatCompletionRecoveryTests/testSharedCryptoVectors
+        run_id: apple-remote-33932be5-chat-recovery-vectors-1
+        subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
+        timestamp: "2026-07-12T01:51:02Z"
+        summary: Remote OpenMatesTests compiled ChatCompletionRecoveryTests.swift and executed the one selected shared-vector XCTest with zero failures.
 
   - id: T-BACKEND-PREFLIGHT
     type: pytest
@@ -1272,7 +1284,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Implement shared recovery cryptography and deterministic vectors
-    status: needs_fix
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-3, S-6]
