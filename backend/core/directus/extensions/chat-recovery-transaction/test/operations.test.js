@@ -20,6 +20,7 @@ const SEALED_PAYLOAD = JSON.stringify({ v: 1, epk: b64(32, 1), nonce: b64(12, 2)
 function fakeDatabase(seed, injectedFailure = null) {
   const rows = structuredClone(seed);
   let transactions = 0;
+  let transactionTail = Promise.resolve();
   const failureCounts = new Map();
   const compare = (left, operator, right) => {
     const a = left instanceof Date ? left.getTime() : left;
@@ -105,11 +106,15 @@ function fakeDatabase(seed, injectedFailure = null) {
   database.rows = rows;
   Object.defineProperty(database, 'transactions', { get: () => transactions });
   database.transaction = async (callback) => {
-    transactions += 1;
-    const working = structuredClone(rows);
-    const result = await callback(makeClient(working));
-    for (const key of new Set([...Object.keys(rows), ...Object.keys(working)])) rows[key] = working[key] ?? [];
-    return result;
+    const run = transactionTail.then(async () => {
+      transactions += 1;
+      const working = structuredClone(rows);
+      const result = await callback(makeClient(working));
+      for (const key of new Set([...Object.keys(rows), ...Object.keys(working)])) rows[key] = working[key] ?? [];
+      return result;
+    });
+    transactionTail = run.catch(() => undefined);
+    return run;
   };
   return database;
 }
@@ -253,6 +258,59 @@ test('worker lifecycle operations are explicitly registered', () => {
   for (const operation of ['claim_inference', 'mark_outbox_dispatched', 'mark_inference_failed', 'list_available_jobs']) {
     assert.equal(typeof operations[operation], 'function');
   }
+});
+
+test('legacy admission is serialized, durable, and released exactly once', async () => {
+  const database = fakeDatabase({ chat_recovery_protocol_state: [] });
+  const body = (taskIdentity) => ({ protocol_version: 1, task_identity: taskIdentity });
+
+  const [first, second] = await Promise.all([
+    executeOperation(database, 'admit_legacy_inference', body('message-a')),
+    executeOperation(database, 'admit_legacy_inference', body('message-b')),
+  ]);
+  const duplicate = await executeOperation(database, 'admit_legacy_inference', body('message-a'));
+  const released = await executeOperation(database, 'release_legacy_inference', body('message-a'));
+  const duplicateRelease = await executeOperation(database, 'release_legacy_inference', body('message-a'));
+
+  assert.equal(first.admitted, true);
+  assert.equal(second.admitted, true);
+  assert.equal(duplicate.idempotent, true);
+  assert.equal(released.released, true);
+  assert.equal(duplicateRelease.idempotent, true);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 1);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, ['message-b']);
+});
+
+test('pause and activation are atomic and epoch monotonic', async () => {
+  const database = fakeDatabase({ chat_recovery_protocol_state: [] });
+  await executeOperation(database, 'set_sends_paused', { protocol_version: 1, sends_paused: true });
+  await assert.rejects(
+    executeOperation(database, 'admit_legacy_inference', { protocol_version: 1, task_identity: 'message-a' }),
+    (error) => error instanceof ProtocolError && error.code === 'inference_temporarily_paused',
+  );
+  const activated = await executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  });
+  assert.equal(activated.protocol_epoch, 1);
+  await assert.rejects(
+    executeOperation(database, 'activate_protocol_epoch', { protocol_version: 1, target_epoch: 0 }),
+    (error) => error instanceof ProtocolError && error.code === 'protocol_epoch_rollback',
+  );
+  assert.equal(database.rows.chat_recovery_protocol_state[0].protocol_epoch, 1);
+});
+
+test('activation rollback preserves epoch zero when its durable update fails', async () => {
+  const database = fakeDatabase({
+    chat_recovery_protocol_state: [{
+      id: 'chat-recovery', protocol_epoch: 0, sends_paused: true,
+      legacy_in_flight: 0, active_legacy_tasks: [],
+    }],
+  }, { operation: 'update', table: 'chat_recovery_protocol_state' });
+  await assert.rejects(
+    executeOperation(database, 'activate_protocol_epoch', { protocol_version: 1, target_epoch: 1 }),
+    /injected update:chat_recovery_protocol_state failure/,
+  );
+  assert.equal(database.rows.chat_recovery_protocol_state[0].protocol_epoch, 0);
 });
 
 test('available-job projection never discloses sealed payload or lease secrets', () => {

@@ -9,6 +9,8 @@ const JOBS = 'chat_completion_recovery_jobs';
 const OUTBOX = 'chat_inference_outbox';
 const CHATS = 'chats';
 const MESSAGES = 'messages';
+const PROTOCOL_STATE = 'chat_recovery_protocol_state';
+const PROTOCOL_STATE_ID = 'chat-recovery';
 const PROTOCOL_VERSION = 1;
 const LEASE_MS = 60_000;
 const MAX_TENURE_MS = 5 * 60_000;
@@ -63,6 +65,11 @@ const OPERATION_FIELDS = Object.freeze({
   ]),
   invalidate_deletion: new Set(['protocol_version', 'hashed_user_id', 'scope', 'chat_id', 'device_hash']),
   cleanup_expired: new Set(['protocol_version']),
+  get_cutover_state: new Set(['protocol_version']),
+  set_sends_paused: new Set(['protocol_version', 'sends_paused']),
+  admit_legacy_inference: new Set(['protocol_version', 'task_identity']),
+  release_legacy_inference: new Set(['protocol_version', 'task_identity']),
+  activate_protocol_epoch: new Set(['protocol_version', 'target_epoch']),
 });
 
 export class ProtocolError extends Error {
@@ -201,6 +208,104 @@ function validateEnvelope(raw) {
 
 async function lockIdentity(trx, value) {
   await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [value]);
+}
+
+const cutoverResponse = (row) => ({
+  protocol_epoch: row.protocol_epoch,
+  sends_paused: row.sends_paused,
+  legacy_in_flight: row.legacy_in_flight,
+});
+
+async function lockedProtocolState(trx) {
+  await lockIdentity(trx, PROTOCOL_STATE_ID);
+  let row = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).forUpdate().first();
+  if (!row) {
+    row = {
+      id: PROTOCOL_STATE_ID,
+      protocol_epoch: 0,
+      sends_paused: false,
+      legacy_in_flight: 0,
+      active_legacy_tasks: [],
+    };
+    await trx(PROTOCOL_STATE).insert(row);
+  }
+  if (!Array.isArray(row.active_legacy_tasks)
+    || row.legacy_in_flight !== row.active_legacy_tasks.length) fail(500, 'cutover_state_corrupt');
+  return row;
+}
+
+async function getCutoverState(database, raw) {
+  operationBody(raw, 'get_cutover_state');
+  return database.transaction(async (trx) => cutoverResponse(await lockedProtocolState(trx)));
+}
+
+async function setSendsPaused(database, raw) {
+  const body = operationBody(raw, 'set_sends_paused');
+  if (typeof body.sends_paused !== 'boolean') fail(400, 'invalid_pause_state');
+  return database.transaction(async (trx) => {
+    const row = await lockedProtocolState(trx);
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({ sends_paused: body.sends_paused });
+    return cutoverResponse({ ...row, sends_paused: body.sends_paused });
+  });
+}
+
+async function admitLegacyInference(database, raw) {
+  const body = operationBody(raw, 'admit_legacy_inference');
+  const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
+  return database.transaction(async (trx) => {
+    const row = await lockedProtocolState(trx);
+    if (row.protocol_epoch !== 0) fail(426, 'client_update_required');
+    if (row.sends_paused) fail(503, 'inference_temporarily_paused');
+    if (row.active_legacy_tasks.includes(taskIdentity)) {
+      return { ...cutoverResponse(row), admitted: false, idempotent: true };
+    }
+    const activeTasks = [...row.active_legacy_tasks, taskIdentity];
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({
+      active_legacy_tasks: activeTasks,
+      legacy_in_flight: activeTasks.length,
+    });
+    return {
+      ...cutoverResponse({ ...row, legacy_in_flight: activeTasks.length }),
+      admitted: true,
+      idempotent: false,
+    };
+  });
+}
+
+async function releaseLegacyInference(database, raw) {
+  const body = operationBody(raw, 'release_legacy_inference');
+  const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
+  return database.transaction(async (trx) => {
+    const row = await lockedProtocolState(trx);
+    if (!row.active_legacy_tasks.includes(taskIdentity)) {
+      return { ...cutoverResponse(row), released: false, idempotent: true };
+    }
+    const activeTasks = row.active_legacy_tasks.filter((identity) => identity !== taskIdentity);
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({
+      active_legacy_tasks: activeTasks,
+      legacy_in_flight: activeTasks.length,
+    });
+    return {
+      ...cutoverResponse({ ...row, legacy_in_flight: activeTasks.length }),
+      released: true,
+      idempotent: false,
+    };
+  });
+}
+
+async function activateProtocolEpoch(database, raw) {
+  const body = operationBody(raw, 'activate_protocol_epoch');
+  const targetEpoch = integer(body.target_epoch, 'invalid_protocol_epoch');
+  return database.transaction(async (trx) => {
+    const row = await lockedProtocolState(trx);
+    if (targetEpoch < row.protocol_epoch) fail(409, 'protocol_epoch_rollback');
+    if (targetEpoch === row.protocol_epoch) return { ...cutoverResponse(row), activated: false };
+    if (targetEpoch !== 1) fail(400, 'invalid_protocol_epoch');
+    if (!row.sends_paused) fail(409, 'sends_not_paused');
+    if (row.legacy_in_flight !== 0) fail(409, 'legacy_in_flight');
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({ protocol_epoch: targetEpoch });
+    return { ...cutoverResponse({ ...row, protocol_epoch: targetEpoch }), activated: true };
+  });
 }
 async function ownedChat(trx, chatId, ownerHash) {
   const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
@@ -630,6 +735,9 @@ export const operations = Object.freeze({
   lease_job: leaseJob, renew_lease: renewLease,
   persist_terminal: persistTerminal, invalidate_deletion: invalidateDeletion,
   cleanup_expired: cleanupExpired,
+  get_cutover_state: getCutoverState, set_sends_paused: setSendsPaused,
+  admit_legacy_inference: admitLegacyInference, release_legacy_inference: releaseLegacyInference,
+  activate_protocol_epoch: activateProtocolEpoch,
 });
 export async function executeOperation(database, operation, body, now = new Date()) {
   const handler = operations[operation];

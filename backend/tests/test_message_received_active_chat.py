@@ -61,6 +61,11 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
 
     manager = FakeManager()
+    cutover = SimpleNamespace(
+        get_epoch=AsyncMock(return_value=0),
+        admit_legacy_inference=AsyncMock(return_value={"admitted": True}),
+        release_legacy_inference=AsyncMock(return_value={"released": True}),
+    )
     cache_service = SimpleNamespace(
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
         save_chat_message_and_update_versions=AsyncMock(
@@ -105,6 +110,11 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         "backend.core.api.app.services.skill_registry",
         SimpleNamespace(get_global_registry=lambda: FakeSkillRegistry(manager)),
     )
+    monkeypatch.setattr(
+        message_received_handler,
+        "ChatRecoveryCutoverController",
+        lambda cache, directus: cutover,
+    )
 
     asyncio.run(
         message_received_handler.handle_message_received(
@@ -132,8 +142,12 @@ def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch
         get_active_ai_task=AsyncMock(return_value="active-task-123"),
     )
     enqueue = AsyncMock()
-    monkeypatch.setenv("CHAT_RECOVERY_PROTOCOL_EPOCH", "1")
     monkeypatch.setattr(message_received_handler, "enqueue_chat_turn", enqueue)
+    monkeypatch.setattr(
+        message_received_handler,
+        "ChatRecoveryCutoverController",
+        lambda cache, directus: SimpleNamespace(get_epoch=AsyncMock(return_value=1)),
+    )
 
     asyncio.run(
         message_received_handler.handle_message_received(

@@ -504,6 +504,20 @@ async def _mark_recovery_inference_failed(
         await directus_service.close()
 
 
+async def _release_legacy_cutover_admission(request_data: AskSkillRequest) -> None:
+    task_identity = request_data.legacy_cutover_task_id
+    if not task_identity:
+        return
+    directus_service = DirectusService()
+    try:
+        await ChatRecoveryService(directus_service).execute(
+            "release_legacy_inference",
+            {"protocol_version": 1, "task_identity": task_identity},
+        )
+    finally:
+        await directus_service.close()
+
+
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
@@ -2574,6 +2588,22 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             })
         raise Ignore()
     finally:
+        if (
+            "request_data" in locals()
+            and not request_data.is_incognito
+            and not request_data.is_external
+            and not request_data.recovery_task_id
+            and request_data.legacy_cutover_task_id
+        ):
+            try:
+                loop.run_until_complete(_release_legacy_cutover_admission(request_data))
+            except Exception as release_err:
+                logger.error(
+                    "[Task ID: %s] Failed to release durable legacy cutover admission: %s",
+                    task_id,
+                    release_err,
+                    exc_info=True,
+                )
         # Clean up live mock context vars (no-op if not activated)
         if os.getenv("MOCK_EXTERNAL_APIS") == "true":
             try:

@@ -1,0 +1,27 @@
+# Singleton durable state for the saved-chat recovery protocol cutover.
+# Active task identities are opaque IDs only; this collection stores no chat content.
+# The internal Directus transaction extension is the only writer.
+chat_recovery_protocol_state:
+  type: collection
+  note: "Internal monotonic chat recovery protocol cutover state"
+  fields:
+    id:
+      type: string
+      length: 64
+      primary: true
+    protocol_epoch:
+      type: integer
+      required: true
+      default: 0
+    sends_paused:
+      type: boolean
+      required: true
+      default: false
+    legacy_in_flight:
+      type: integer
+      required: true
+      default: 0
+    active_legacy_tasks:
+      type: json
+      required: true
+      note: "Opaque stable task identities used for idempotent admission release"

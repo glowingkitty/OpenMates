@@ -122,7 +122,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
+  subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
 
 approvals:
   product_contract:
@@ -273,14 +273,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-12T01:59:54Z"
     evidence: The focused backend run advanced from 11 passing and 9 failing tests to 20 passing tests; the adjacent WebSocket suite reached 22 passing tests, the Directus extension suite passed 12 tests, and deployment/index/service checks passed 12 tests. Full green evidence remains pending because transactional rollback failpoints and complete state-machine assertions are not yet represented in the named pytest contracts.
+  - id: ATTEMPT-9
+    task_id: TASK-3
+    approach: Exercise the Directus state machine with rollback-capable transaction tests for preflight, enqueue, lease fencing, terminal persistence, cleanup, and deletion races.
+    outcome: succeeded
+    recorded_at: "2026-07-12T02:16:52Z"
+    evidence: Subject 287af0d passed 30 focused Python recovery tests and 21 Directus transaction tests; the strengthened suite also found and fixed an identical new-chat preflight retry mismatch caused by mutable updated_at.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Deploy the inactive backend recovery foundation, rerun the focused persistence suite on that subject commit, and add transaction rollback/fencing coverage before marking TASK-3 done.
+  current_task_id: TASK-4
+  next_action: Deploy the durable Directus-backed cutover controller while epoch 0 remains authoritative, then rerun T-CUTOVER-EPOCH on the committed subject.
   command: python3 scripts/sessions.py prepare-deploy --session a152
-  expected_outcome: Epoch 0 remains authoritative while the committed subject contains the recovery schemas, extension, handlers, lifecycle invalidation, cleanup schedule, and focused tests.
+  expected_outcome: Durable pause, legacy admission ownership, zero-in-flight activation, socket closure ordering, cache-loss fallback, and epoch monotonicity are committed without activating epoch 1.
   blocker: null
-  last_verified_commit: 33932be5f4db6e72541b7671afd11cd64899e08c
+  last_verified_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
 
 scenarios:
   - id: S-1
@@ -869,7 +875,7 @@ tests:
   - id: T-BACKEND-PREFLIGHT
     type: pytest
     file: backend/tests/test_chat_turn_preflight.py
-    command: python3 -m pytest backend/tests/test_chat_turn_preflight.py
+    command: python3 -m pytest backend/tests/test_chat_turn_preflight.py backend/tests/test_chat_turn_preflight_handler.py && npm --prefix backend/core/directus/extensions/chat-recovery-transaction test
     covers: [AC-1, AC-2, AC-13]
     assertions:
       - inference is rejected until durable preflight succeeds
@@ -894,12 +900,18 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_chat_turn_preflight.py backend/tests/test_chat_turn_preflight_handler.py && npm --prefix backend/core/directus/extensions/chat-recovery-transaction test
+        run_id: local-287af0d-backend-preflight-green-1
+        subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
+        timestamp: "2026-07-12T02:16:52Z"
+        summary: Python boundary tests and rollback-capable Directus tests passed preflight atomicity, exact duplicate idempotency, immutable key rejection, enqueue/outbox atomicity, and rollback failpoints.
 
   - id: T-BACKEND-RECOVERY-JOBS
     type: pytest
     file: backend/tests/test_chat_completion_recovery_jobs.py
-    command: python3 -m pytest backend/tests/test_chat_completion_recovery_jobs.py
+    command: python3 -m pytest backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_chat_recovery_websocket_handlers.py && npm --prefix backend/core/directus/extensions/chat-recovery-transaction test
     covers: [AC-4, AC-5, AC-6, AC-7, AC-13]
     assertions:
       - completion stores a sealed job before terminally notifying any connected client
@@ -923,7 +935,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_chat_completion_recovery_jobs.py backend/tests/test_chat_recovery_websocket_handlers.py && npm --prefix backend/core/directus/extensions/chat-recovery-transaction test
+        run_id: local-287af0d-backend-jobs-green-1
+        subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
+        timestamp: "2026-07-12T02:16:52Z"
+        summary: Stable sealed-job construction, authenticated claim/persist boundaries, lease takeover, monotonic fencing, atomic terminal persistence, rollback, payload erasure, and idempotent retry passed.
 
   - id: T-BACKEND-RECOVERY-AUTH
     type: pytest
@@ -948,7 +966,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_chat_completion_recovery_authorization.py backend/tests/test_chat_recovery_lifecycle_wiring.py backend/tests/test_chat_recovery_websocket_handlers.py
+        run_id: local-287af0d-backend-auth-green-1
+        subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
+        timestamp: "2026-07-12T02:16:52Z"
+        summary: Authenticated owner/device binding, sanitized rejection, lease renewal, immediate revocation invalidation, and deletion/revocation hook ordering passed.
 
   - id: T-BACKEND-RECOVERY-RETENTION
     type: pytest
@@ -976,7 +1000,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_chat_completion_recovery_retention.py backend/tests/test_chat_recovery_lifecycle_wiring.py && npm --prefix backend/core/directus/extensions/chat-recovery-transaction test
+        run_id: local-287af0d-backend-retention-green-1
+        subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
+        timestamp: "2026-07-12T02:16:52Z"
+        summary: Seven-day expiry, 24-hour tombstone deletion, immediate terminal material erasure, chat/account/device invalidation, late sealed-job rejection, and hourly cleanup registration passed.
 
   - id: T-CLI-RECOVERY
     type: unit
@@ -1084,7 +1114,14 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: missing_test
+        command: python3 -m pytest backend/tests/test_chat_recovery_protocol_cutover.py
+        run_id: local-038c-cutover-red-1
+        subject_commit: 287af0d4bb382d7a65123d28003d42c461f17ff4
+        timestamp: "2026-07-12T02:17:22Z"
+        reason: The committed subject has environment-gated epoch-1 request behavior but no cutover test or authoritative activation controller.
+        summary: Pytest exited because backend/tests/test_chat_recovery_protocol_cutover.py does not exist; no tests were collected.
     green_phase:
       required: true
       expected: pass
@@ -1341,7 +1378,7 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Implement transactional recovery persistence primitives
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-7, S-10]
@@ -1365,7 +1402,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Wire backend inference, authorization, retention, and cutover
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-4, S-5, S-6, S-7, S-8, S-10, S-11]

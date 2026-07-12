@@ -4,12 +4,12 @@ import json
 import asyncio # Added asyncio
 import time
 import uuid
-import os
 from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
@@ -2027,7 +2027,14 @@ async def websocket_endpoint(
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
 
-    if int(os.getenv("CHAT_RECOVERY_PROTOCOL_EPOCH", "0")) >= 1:
+    try:
+        recovery_epoch = await ChatRecoveryCutoverController(
+            cache_service, directus_service
+        ).get_epoch(authoritative=True)
+    except Exception as exc:
+        logger.error("Authoritative recovery discovery epoch read failed", exc_info=exc)
+        recovery_epoch = 0
+    if recovery_epoch >= 1:
         asyncio.create_task(
             send_available_recovery_jobs(
                 manager=manager,

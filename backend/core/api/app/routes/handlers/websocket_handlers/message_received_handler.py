@@ -10,7 +10,6 @@ import json
 import hashlib # Import hashlib for hashing user_id
 import uuid
 import time # Import time for performance timing
-import os
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 
@@ -25,6 +24,7 @@ from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as Ask
 from backend.shared.python_utils.learning_mode import build_learning_mode_context
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import enqueue_chat_turn
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -184,8 +184,24 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
+        cutover_controller = ChatRecoveryCutoverController(cache_service, directus_service)
         recovery_enqueue_result: dict[str, Any] | None = None
-        protocol_epoch = int(os.getenv("CHAT_RECOVERY_PROTOCOL_EPOCH", "0"))
+        try:
+            protocol_epoch = await cutover_controller.get_epoch()
+        except Exception as exc:
+            logger.error("Authoritative chat recovery cutover read failed", exc_info=exc)
+            await manager.send_personal_message(
+                {
+                    "type": "error",
+                    "payload": {
+                        "code": "inference_temporarily_unavailable",
+                        "message": "Saved-chat sending is temporarily unavailable. Please retry shortly.",
+                    },
+                },
+                user_id,
+                device_fingerprint_hash,
+            )
+            return
         if not is_incognito and protocol_epoch >= 1:
             if payload.get("protocol_version") != 1 or not payload.get("preflight_id"):
                 await manager.send_personal_message(
@@ -1728,6 +1744,55 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return  # Exit early - message is queued, don't start new task
         
         # No active task - proceed with normal processing
+        legacy_admitted = False
+        if not is_incognito and protocol_epoch == 0:
+            legacy_task_identity = hashlib.sha256(
+                f"{user_id}:{chat_id}:{message_id}".encode()
+            ).hexdigest()
+            try:
+                admission = await cutover_controller.admit_legacy_inference(
+                    legacy_task_identity
+                )
+                legacy_admitted = bool(admission.get("admitted"))
+                if admission.get("idempotent"):
+                    await manager.send_personal_message(
+                        {
+                            "type": "ai_task_initiated",
+                            "payload": {
+                                "chat_id": chat_id,
+                                "user_message_id": message_id,
+                                "ai_task_id": legacy_task_identity,
+                                "status": "processing_started",
+                            },
+                        },
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
+                ai_request_payload.legacy_cutover_task_id = legacy_task_identity
+            except ChatRecoveryProtocolError as exc:
+                error_code = (
+                    "client_update_required"
+                    if exc.code == "client_update_required"
+                    else "inference_temporarily_paused"
+                )
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": error_code,
+                            "message": (
+                                ChatRecoveryCutoverController.UPDATE_REQUIRED_MESSAGE
+                                if error_code == "client_update_required"
+                                else "Saved-chat sending is temporarily paused. Please retry shortly."
+                            ),
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+
         # 5. Dispatch the AI ask skill in-process via the SkillRegistry (OPE-342).
         # AskSkill validates the AskSkillRequest, enqueues a Celery task on the
         # app_ai queue, and returns {task_id, ...} immediately. The api process
@@ -1788,6 +1853,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
             except Exception as e_send_err:
                 logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
+        finally:
+            if legacy_admitted and not ai_task_id:
+                try:
+                    await cutover_controller.release_legacy_inference(
+                        legacy_task_identity
+                    )
+                except Exception as release_error:
+                    logger.error(
+                        "Failed to release undispatched legacy cutover admission",
+                        exc_info=release_error,
+                    )
         # --- END AI SKILL INVOCATION ---
         
         handler_total_time = time.time() - handler_start_time

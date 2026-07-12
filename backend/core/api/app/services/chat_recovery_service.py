@@ -29,6 +29,11 @@ RECOVERY_OPERATIONS = {
     "persist_terminal",
     "invalidate_deletion",
     "cleanup_expired",
+    "get_cutover_state",
+    "set_sends_paused",
+    "admit_legacy_inference",
+    "release_legacy_inference",
+    "activate_protocol_epoch",
 }
 
 
