@@ -107,6 +107,11 @@ decisions:
     decision: Treat only a confirmed invalid or revoked session as destructive; connectivity failures preserve local data.
     reason: App updates and temporary outages must not force pairing or erase offline history.
     decided_at: "2026-07-11T21:45:00Z"
+  - id: D-4
+    status: active
+    decision: Distribute the Watch companion through the iOS TestFlight archive rather than as a standalone Watch archive.
+    reason: App Store Connect has one iOS app record and the iOS archive embeds, signs, and validates the Watch companion; the standalone Watch exporter has no distribution method for this companion target.
+    decided_at: "2026-07-12T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -115,15 +120,21 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-11T21:40:00Z"
     reason: The production backend has no matching session-authenticated route, so physical Watch displays offline with an empty cache.
+  - id: ATTEMPT-2
+    task_id: TASK-5
+    approach: Export the companion target with upload-testflight-watch.
+    outcome: rejected
+    recorded_at: "2026-07-12T00:00:00Z"
+    reason: Xcode reported no valid distribution method for the standalone companion archive; upload-testflight-ios successfully embedded and uploaded the Watch companion instead.
 
 handoff:
   current_task_id: TASK-5
-  next_action: Promote the backend route to the environment used by the physical Watch, then upload and validate the TestFlight candidate.
-  command: python3 scripts/apple_remote.py upload-testflight-watch
-  expected_outcome: A physical Watch preserves login, loads recent chats, and opens an owned chat against the matching backend deployment.
+  next_action: Install TestFlight build 54 on the paired iPhone and Watch, then confirm login preservation, initial chat loading, chat opening, and offline relaunch.
+  command: python3 scripts/apple_remote.py app-store-builds --bundle-id org.openmates.app --limit 3 --require-changelogs
+  expected_outcome: The user confirms build 54 preserves Watch login, loads recent eligible chats, opens an owned chat, and preserves cached chats during an offline relaunch.
   blocker:
-    reason: The physical Watch is paired to production, while the new session-authenticated chat route is currently deployed only from dev.
-    next_action: Release the backend route to production or pair a test Watch to the dev server before hardware validation.
+    reason: Automated checks, production promotion, and TestFlight processing are complete; final acceptance requires the user's paired physical Watch.
+    next_action: User installs build 54 and reports the V-HARDWARE-001 results.
   last_verified_commit: e270cb7f0
 
 scenarios:
@@ -387,6 +398,32 @@ verifications:
       summary: Build, install, launch, 5-second and 30-second screenshots, and log capture passed without startup crash.
       reason: The deterministic startup verifier produced simulator screenshots and a sanitized log artifact for review.
       timestamp: "2026-07-11T22:45:00Z"
+  - id: V-TESTFLIGHT-001
+    kind: artifact_review
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/apple_remote.py app-store-builds --bundle-id org.openmates.app --limit 3 --require-changelogs
+      run_id: app-store-build-54-valid
+      subject_commit: e270cb7f0
+      summary: Build 54 is VALID on the iOS TestFlight train, embeds the signed Watch companion, and has six lines of en-US testing notes.
+      timestamp: "2026-07-12T00:00:00Z"
+  - id: V-PRODUCTION-001
+    kind: artifact_review
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-2]
+    status: passed
+    evidence:
+      status: passed
+      command: gh run watch 29172056366 --repo glowingkitty/OpenMates --exit-status
+      run_id: github-actions-29172056366
+      subject_commit: 1f6bb717c3cf8941b0235ea2202ebbcbe9e147ce
+      summary: Production hotfix PR 487 was squash-merged to main and the complete main self-host image pipeline, including the API image, passed.
+      timestamp: "2026-07-12T00:00:00Z"
   - id: V-HARDWARE-001
     kind: user_confirmation
     phase: final
@@ -578,13 +615,13 @@ tasks:
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
     expected_files:
       - docs/specs/apple-watch-chat-loading/spec.yml
-    verification: [T-PYTEST-001, T-APPLE-001, T-APPLE-002, V-HARDWARE-001]
-    verification_ids: [T-PYTEST-001, T-APPLE-001, T-APPLE-002, V-HARDWARE-001]
+    verification: [T-PYTEST-001, T-APPLE-001, T-APPLE-002, V-PRODUCTION-001, V-TESTFLIGHT-001, V-HARDWARE-001]
+    verification_ids: [T-PYTEST-001, T-APPLE-001, T-APPLE-002, V-PRODUCTION-001, V-TESTFLIGHT-001, V-HARDWARE-001]
     dependencies: [TASK-2, TASK-3, TASK-4]
     ownership:
       files: [docs/specs/apple-watch-chat-loading/spec.yml]
       shared_files: []
     blockers:
-      - Physical Watch uses production, but the required backend route is currently available only from dev deployment.
+      - User confirmation on the paired physical Watch is required for V-HARDWARE-001.
     follow_up_tasks: []
     independently_deployable: false
