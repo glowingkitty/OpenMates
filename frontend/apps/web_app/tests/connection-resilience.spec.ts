@@ -45,7 +45,9 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	assertNoMissingTranslations,
-	getTestAccount
+	getE2EDebugUrl,
+	getTestAccount,
+	withMockMarker
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
@@ -131,6 +133,67 @@ async function deleteActiveChat(
 		await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
 		logCheckpoint('Deleted active chat.');
 	}
+}
+
+async function ensureSidebarClosed(page: any): Promise<void> {
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	if (await sidebar.isVisible().catch(() => false)) {
+		await page.getByTestId('sidebar-toggle').click();
+		await expect(sidebar).not.toBeVisible();
+	}
+}
+
+async function deleteChatById(page: any, chatId: string): Promise<void> {
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	if (!(await sidebar.isVisible().catch(() => false))) {
+		await page.getByTestId('sidebar-toggle').click();
+		await expect(sidebar).toBeVisible();
+	}
+
+	const chatItems = page.getByTestId('chat-item-wrapper');
+	const itemCount = await chatItems.count();
+	for (let index = 0; index < itemCount; index += 1) {
+		const item = chatItems.nth(index);
+		if ((await item.getAttribute('data-chat-id')) !== chatId) continue;
+		await item.click({ button: 'right' });
+		const deleteButton = page.getByTestId('chat-context-delete');
+		await expect(deleteButton).toBeVisible();
+		await deleteButton.click();
+		await deleteButton.click();
+		await expect(item).not.toBeVisible({ timeout: 15000 });
+		return;
+	}
+
+	throw new Error(`Chat ${chatId} was not available for exact cleanup`);
+}
+
+async function coldBootAuthenticatedPage(context: any, baseURL: string): Promise<any> {
+	const page = await context.newPage();
+	const resetUrl = `${new URL(baseURL).origin}/e2e-connection-resilience-cold-boot`;
+	await page.route(resetUrl, (route: any) =>
+		route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Cold boot</title>' })
+	);
+	await page.goto(resetUrl);
+	await page.evaluate(async () => {
+		localStorage.clear();
+		const databases = await indexedDB.databases();
+		await Promise.all(
+			databases
+				.map((database) => database.name)
+				.filter((name): name is string => Boolean(name))
+				.map(
+					(name) =>
+						new Promise<void>((resolve, reject) => {
+							const request = indexedDB.deleteDatabase(name);
+							request.onerror = () => reject(request.error ?? new Error(`Failed to delete ${name}`));
+							request.onblocked = () => reject(new Error(`Deleting ${name} was blocked`));
+							request.onsuccess = () => resolve();
+						})
+				)
+		);
+	});
+	await page.unroute(resetUrl);
+	return page;
 }
 
 // ---------------------------------------------------------------------------
@@ -536,4 +599,71 @@ test('pending embed operations are flushed from IndexedDB on reconnect', async (
 	const flushed = countAfter < countBefore || flushAttempted;
 	expect(flushed).toBe(true);
 	logCheckpoint('Verified: pending embed operations flush was triggered on reconnect.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 6: A second tab recovers and durably retains one completed response
+// ---------------------------------------------------------------------------
+test('secondary client recovers exactly one saved assistant message after origin disconnect and cold boot', async ({
+	browser
+}: {
+	browser: any;
+}) => {
+	test.slow();
+	test.setTimeout(300000);
+
+	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+	const context = await browser.newContext({ baseURL });
+	const origin = await context.newPage();
+	let secondary = await context.newPage();
+	let chatId = '';
+	const logCheckpoint = createSignupLogger('SAVED_CHAT_RECOVERY');
+
+	try {
+		await origin.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginAndNavigateToChat(origin, test, 'SAVED_CHAT_RECOVERY_ORIGIN');
+		await ensureSidebarClosed(origin);
+
+		await secondary.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await expect(secondary.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+		await ensureSidebarClosed(secondary);
+
+		const uniquePrompt = `Recover this saved response ${Date.now()}-${test.info().workerIndex}`;
+		const messageEditor = origin.getByTestId('message-editor');
+		await messageEditor.fill(withMockMarker(uniquePrompt, 'chat_flow_capital', 'slow'));
+		await origin.locator('[data-action="send-message"]').click();
+		await expect(origin).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+		chatId = origin.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
+		expect(chatId).toBeTruthy();
+
+		await origin.close();
+		logCheckpoint('Closed origin before the deterministic slow response reached terminal persistence.', {
+			chatId
+		});
+
+		await secondary.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`), {
+			waitUntil: 'domcontentloaded'
+		});
+		await ensureSidebarClosed(secondary);
+		const recoveredAssistantMessages = secondary.getByTestId('message-assistant');
+		await expect(recoveredAssistantMessages).toHaveCount(1, { timeout: 120000 });
+		await expect(recoveredAssistantMessages.first()).toContainText('Paris', { timeout: 120000 });
+		await expect(recoveredAssistantMessages).toHaveCount(1);
+
+		await secondary.close();
+		secondary = await coldBootAuthenticatedPage(context, baseURL);
+		await secondary.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`), {
+			waitUntil: 'domcontentloaded'
+		});
+		await ensureSidebarClosed(secondary);
+		const coldBootAssistantMessages = secondary.getByTestId('message-assistant');
+		await expect(coldBootAssistantMessages).toHaveCount(1, { timeout: 60000 });
+		await expect(coldBootAssistantMessages.first()).toContainText('Paris');
+		await expect(coldBootAssistantMessages).toHaveCount(1);
+	} finally {
+		if (!secondary.isClosed() && chatId) {
+			await deleteChatById(secondary, chatId);
+		}
+		await context.close();
+	}
 });

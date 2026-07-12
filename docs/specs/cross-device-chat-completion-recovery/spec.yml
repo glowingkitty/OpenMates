@@ -122,7 +122,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+  subject_commit: 531a0ec
 
 approvals:
   product_contract:
@@ -286,12 +286,12 @@ attempts:
     evidence: Subject 287af0d passed 30 focused Python recovery tests and 21 Directus transaction tests; the strengthened suite also found and fixed an identical new-chat preflight retry mismatch caused by mutable updated_at.
 
 handoff:
-  current_task_id: TASK-5B
-  next_action: Obtain permission to commit the already-green npm/pip SDK recovery files and restored legacy-cutover script, then rerun their contracts on the resulting committed subject before Apple and performance implementation.
-  command: python3 scripts/spec_verify.py docs/specs/cross-device-chat-completion-recovery/spec.yml --phase green
-  expected_outcome: Once the remaining green work is committed, SDK and legacy evidence can reference a real subject commit instead of the 9ba0ae126 worktree.
-  blocker: The original TASK-5 instruction explicitly prohibited commits, but durable completion now requires committing the green SDK recovery files and scripts/test_legacy_cli_cutover.py so their evidence can reference an actual subject revision. User approval is required to lift that restriction.
-  last_verified_commit: 9ba0ae126510c44505b3bce109524d1c2cd7da37
+  current_task_id: TASK-6
+  next_action: Add web preflight and recovery lifecycle coverage to connection-resilience.spec.ts, then implement the Svelte sender/sync path against the committed backend protocol.
+  command: python3 scripts/tests.py run --spec connection-resilience.spec.ts
+  expected_outcome: The deployed dev web app fails the new recovery assertions before the web implementation is deployed.
+  blocker: null
+  last_verified_commit: 531a0ec
 
 scenarios:
   - id: S-1
@@ -1100,10 +1100,10 @@ tests:
       evidence:
         status: passed
         command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/sdk.test.ts
-        run_id: local-22fe-npm-sdk-recovery-green-1
-        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
-        timestamp: "2026-07-12T02:57:55Z"
-        summary: All 15 npm SDK contracts passed, including epoch-1 encrypted preflight, API-key recovery identity, unavailable-job timeout, key-material fail-closed behavior, and non-persistent new-chat behavior.
+        run_id: local-531a0ec-npm-sdk-recovery-green-1
+        subject_commit: 531a0ec
+        timestamp: "2026-07-12T03:15:57Z"
+        summary: All 18 npm SDK contracts passed, including committed-payload binding, stable per-install device identity, revocation reauthorization, bounded polling, encrypted preflight/recovery, and incognito non-persistence.
 
   - id: T-PIP-SDK-RECOVERY
     type: pytest
@@ -1131,10 +1131,10 @@ tests:
       evidence:
         status: passed
         command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
-        run_id: local-22fe-pip-sdk-recovery-green-1
-        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
-        timestamp: "2026-07-12T02:57:55Z"
-        summary: All 15 pip SDK contracts passed, including saved-chat preflight, stable recovery identity, fail-closed missing key material, bounded recovery polling, and non-persistent new-chat behavior.
+        run_id: local-531a0ec-pip-sdk-recovery-green-1
+        subject_commit: 531a0ec
+        timestamp: "2026-07-12T03:15:57Z"
+        summary: All 19 pip SDK contracts and six backend route contracts passed committed-payload binding, stable per-install identity, revocation/scope enforcement, bounded polling, and ciphertext-only persistence.
 
   - id: T-LEGACY-CLI-CUTOVER
     type: manual
@@ -1158,14 +1158,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence:
-        status: passed
-        command: python3 scripts/test_legacy_cli_cutover.py --cli-version 0.14.0 --env dev
-        run_id: local-22fe-legacy-cli-cutover-green-1
-        subject_commit: 6444e2fce6d92d3fcacd5e039bd2e996bf6b251d
-        timestamp: "2026-07-12T02:55:52Z"
-        reason: A deterministic released-protocol fixture must verify the cutover boundary without reading or mutating live server-authoritative epoch state.
-        summary: The pinned 0.14.0 legacy frame was rejected with client_update_required at an in-memory boundary before inference, while local read-only history remained usable; no live epoch state was read or changed.
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
 
   - id: T-CUTOVER-EPOCH
     type: pytest
@@ -1533,7 +1526,7 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Implement CLI preflight, recovery worker, and clean-cutover error
-    status: done
+    status: needs_fix
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-8]
@@ -1577,7 +1570,7 @@ tasks:
     independently_deployable: false
   - id: TASK-6
     title: Implement web preflight and app-level recovery
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5]
