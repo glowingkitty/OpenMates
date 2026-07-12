@@ -111,6 +111,8 @@ def test_malformed_or_oversized_view_inputs_fail_before_copying() -> None:
             file_path_index={},
         )
 
+
+
     with pytest.raises(ValueError, match="object"):
         build_generation_plan(
             prompt=None,

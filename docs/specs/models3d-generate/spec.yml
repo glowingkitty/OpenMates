@@ -83,7 +83,7 @@ context_discovery:
     - "Hi3D create-task docs support one image or up to four ordered views and GLB output; the documented API has no text prompt input."
     - "A live smoke test authenticated through Vault, started with 200 trial credits, generated a 25.3 MB v2.1-fast PBR GLB, validated the download, and posted temporary result links to Discord."
     - "Hi3D privacy policy URL https://docs.hi3d.ai/en/api/resources/privacy-policy returned HTTP 200 and title Privacy Policy on 2026-07-11."
-    - "Hi3D terms grant a model-improvement license over inputs and outputs; public API docs do not verify per-task deletion or exact retention, so V1 requires explicit disclosure and consent."
+    - "Hi3D terms grant a model-improvement license over inputs and outputs; public API docs do not verify per-task deletion or exact retention, so V1 requires explicit privacy-policy disclosure."
     - "Khronos glTF/GLB, EXT_meshopt_compression, and KHR_texture_basisu support the proposed single-file optimized web preview contract."
     - "Google model-viewer supports GLB, poster images, lazy reveal, progress events, and camera controls."
     - "3MF Consortium and slicer documentation support 3MF for units, color/material, and multi-part printing; STL remains geometry-only."
@@ -173,9 +173,9 @@ decisions:
     reason: This avoids unnecessary conversion/storage while providing monochrome and color/material print workflows.
     decided_at: "2026-07-11T22:19:04Z"
   - id: D-6
-    status: active
-    decision: Require the configured image-provider consent and explicit Hi3D processing/training disclosure before each applicable stage.
-    reason: Text generation invokes the image provider before Hi3D, and Hi3D model-improvement use plus deletion/retention limitations must be disclosed.
+    status: superseded
+    decision: Require a separate current-version Hi3D processing-consent gate.
+    reason: "Superseded by the user on 2026-07-12: the clear, versioned privacy-policy disclosure is sufficient and no separate consent screen or record should exist."
     decided_at: "2026-07-11T22:19:04Z"
   - id: D-7
     status: active
@@ -300,15 +300,14 @@ scenarios:
       - 3MF preserves validated units, parts, and supported color/material data with a warning that PBR appearance is not guaranteed in slicers.
       - Failed non-manifold conversion returns diagnostics and no fake print-ready file.
   - id: S-10
-    title: First provider use requires informed confirmation
+    title: Provider processing is disclosed in privacy policy
     given:
-      - Alice has not previously accepted current Hi3D processing terms.
+      - Alice reviews the current OpenMates privacy policy.
     when:
-      - A text or image generation would send content to Hi3D.
+      - Alice considers using 3D model generation.
     then:
-      - Text requests first satisfy the configured image-provider disclosure/consent contract.
-      - OpenMates identifies Hi3D, the data sent, model-improvement use, unverified per-task deletion/retention, estimated cost, and privacy-policy link.
-      - Alice can cancel without provider invocation or charge.
+      - The privacy policy identifies Hi3D, the data sent, model-improvement use, unverified per-task deletion/retention, and privacy-policy link.
+      - No separate Hi3D consent screen or stored consent record is required.
   - id: S-11
     title: CLI and SDK contracts precede web
     given:
@@ -347,7 +346,6 @@ acceptance_criteria:
   - {id: AC-8, scenario: S-8, text: "Large master downloads use versioned chunked authenticated encryption and streaming decryption with byte-for-byte integrity.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-003, T-BENCH-001]}
   - {id: AC-9, scenario: S-9, text: "On-demand binary STL is geometry-only, carries declared units in embed/download metadata, and only passes when printability checks succeed.", required: true, status: pending, coverage_status: covered, verification_scope: full_ci, verification_ids: [T-PYTEST-004, V-PRINT-ARTIFACTS]}
   - {id: AC-10, scenario: S-9, text: "On-demand 3MF preserves supported units/parts/color metadata and is clearly labeled as the preferred multicolor export without promising PBR fidelity.", required: true, status: pending, coverage_status: covered, verification_scope: full_ci, verification_ids: [T-PYTEST-004, V-PRINT-ARTIFACTS]}
-  - {id: AC-11, scenario: S-10, text: "Text generation satisfies configured image-provider consent, and first Hi3D use requires current-version disclosure acceptance before content leaves OpenMates.", required: true, status: pending, coverage_status: covered, verification_scope: full_ci, verification_ids: [T-PYTEST-005, T-E2E-002]}
   - {id: AC-12, scenario: S-10, text: "Privacy policy, provider training policy, legal links, and verified Hi3D privacy URL are updated together.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-AUDIT-001]}
   - {id: AC-13, scenario: S-1, text: "Billing preflights configured combined cost and charges successful image and 3D stages without charging failed/refunded stages.", required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [T-PYTEST-002]}
   - {id: AC-14, scenario: S-11, text: "CLI text/image generation and download contracts pass before npm and pip SDK contracts, and all pass before web work starts.", required: true, status: pending, coverage_status: covered, verification_scope: full_ci, verification_ids: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-ORDER-001]}
@@ -466,7 +464,6 @@ contracts:
       - validation_summary
       - cost_summary
   ui_states:
-    - awaiting_provider_consent
     - generating_reference_image
     - queued
     - generating_geometry
@@ -478,7 +475,6 @@ contracts:
   privacy_security:
     - User images, generated references, provider outputs, credentials, tokens, signed provider URLs, and decrypted model bytes never enter logs, traces, analytics, or persistent plaintext storage.
     - Provider output URLs are downloaded promptly, validated, encrypted into OpenMates S3, and not persisted as durable client URLs.
-    - Consent is versioned to the disclosed Hi3D privacy/terms version and can be withdrawn for future calls.
     - Large-file parser and converter processes run with CPU, memory, time, file-count, extension, and output-size limits.
     - GLB and 3MF container entries are validated against path traversal, oversized expansion, unsupported extensions, and malformed metadata.
 
@@ -498,7 +494,7 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py
         run_id: local-pytest-models3d-red-20260711T231222Z
         subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
         timestamp: "2026-07-11T23:12:22Z"
@@ -508,11 +504,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py
         run_id: local-pytest-models3d-foundations-20260711T233339Z
         subject_commit: 0e72d2dc6
         timestamp: "2026-07-11T23:33:39Z"
-        summary: All 27 provider, GLB safety, chunked AEAD, print validation, and consent tests passed.
+        summary: Provider, GLB safety, chunked AEAD, and print validation foundations passed.
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_models3d_generate_task.py
@@ -540,7 +536,7 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py
         run_id: local-pytest-models3d-red-20260711T231222Z
         subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
         timestamp: "2026-07-11T23:12:22Z"
@@ -550,7 +546,7 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py
         run_id: local-pytest-models3d-foundations-20260711T233339Z
         subject_commit: 0e72d2dc6
         timestamp: "2026-07-11T23:33:39Z"
@@ -569,7 +565,7 @@ tests:
       expected: fail
       evidence:
         status: failed_as_expected
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py
         run_id: local-pytest-models3d-red-20260711T231222Z
         subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
         timestamp: "2026-07-11T23:12:22Z"
@@ -579,40 +575,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py
         run_id: local-pytest-models3d-foundations-20260711T233339Z
         subject_commit: 0e72d2dc6
         timestamp: "2026-07-11T23:33:39Z"
         summary: STL/3MF structure, manifoldness, units metadata, material metadata, and archive limit tests passed.
-  - id: T-PYTEST-005
-    type: pytest
-    file: backend/tests/test_models3d_provider_consent.py
-    command: python3 -m pytest backend/tests/test_models3d_provider_consent.py
-    covers: [AC-11]
-    assertions:
-      - provider call is blocked before current consent
-      - cancellation sends no content and charges nothing
-      - accepted consent is versioned and future withdrawal blocks new calls
-    red_phase:
-      required: true
-      expected: fail
-      evidence:
-        status: failed_as_expected
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
-        run_id: local-pytest-models3d-red-20260711T231222Z
-        subject_commit: 897aa44bcf3cbf5ccd30ba1c696aa15fc20afccc
-        timestamp: "2026-07-11T23:12:22Z"
-        summary: Collection failed because the models3d provider-consent gate does not exist.
-    green_phase:
-      required: true
-      expected: pass
-      evidence:
-        status: passed
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py backend/tests/test_models3d_provider_consent.py
-        run_id: local-pytest-models3d-foundations-20260711T233339Z
-        subject_commit: 0e72d2dc6
-        timestamp: "2026-07-11T23:33:39Z"
-        summary: Missing, stale, current, and withdrawn Hi3D disclosure versions passed fail-closed tests.
   - id: T-AUDIT-001
     type: lint
     file: scripts/audit_app_provider_contracts.py
@@ -703,18 +670,6 @@ tests:
       - oversized/failed preview falls back without chat failure
     red_phase: {required: true, expected: fail, evidence: {status: pending}}
     green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
-  - id: T-E2E-002
-    type: playwright
-    file: frontend/apps/web_app/tests/skill-models3d-generate.spec.ts
-    command: python3 scripts/tests.py run --spec skill-models3d-generate.spec.ts
-    target: app.dev.openmates.org
-    covers: [AC-11]
-    assertions:
-      - text input satisfies configured image-provider consent before reference generation
-      - first Hi3D use shows complete disclosure and cancel sends no request
-      - acceptance permits generation and is not requested again for the same version
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
   - id: T-APPLE-001
     type: build
     file: apple/OpenMatesTests/SkillApplicationParityTests.swift
@@ -801,14 +756,14 @@ implementation_plan:
   phases:
     - id: P1-provider-storage-red
       dependencies: []
-      covers: [AC-4, AC-5, AC-8, AC-11, AC-12, AC-17, AC-18]
-      outcome: Add red provider, consent, storage, security, optimization, and print contracts; resolve privacy deletion blocker and conversion tooling before provider implementation.
-      verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001]
+      covers: [AC-4, AC-5, AC-8, AC-12, AC-17, AC-18]
+      outcome: Add red provider, privacy, storage, security, optimization, and print contracts; resolve privacy deletion blocker and conversion tooling before provider implementation.
+      verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-AUDIT-001]
     - id: P2-backend-generate
       dependencies: [P1-provider-storage-red]
       covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8, AC-13, AC-17, AC-18]
       outcome: Implement Hi3D wrapper, shared image-default seam, async models3d task, encrypted artifacts, billing, and master downloads. Print exports remain P3/TASK-3.
-      verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-PYTEST-005]
+      verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003]
     - id: P3-cli-sdk
       dependencies: [P2-backend-generate]
       covers: [AC-1, AC-2, AC-3, AC-14]
@@ -816,9 +771,9 @@ implementation_plan:
       verification_ids: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-BENCH-001, T-ORDER-001]
     - id: P4-web
       dependencies: [P3-cli-sdk]
-      covers: [AC-6, AC-7, AC-9, AC-10, AC-11, AC-12]
+      covers: [AC-6, AC-7, AC-9, AC-10, AC-12]
       outcome: Implement poster-only preview and lazy fullscreen viewer/export UI, deploy, wait for Ready, run Playwright, and present real artifacts for user confirmation.
-      verification_ids: [T-E2E-001, T-E2E-002, T-ORDER-001, V-PRINT-ARTIFACTS, V-WEB-USER-APPROVAL]
+      verification_ids: [T-E2E-001, T-ORDER-001, V-PRINT-ARTIFACTS, V-WEB-USER-APPROVAL]
     - id: P5-apple
       dependencies: [P4-web]
       covers: [AC-15, AC-16]
@@ -860,7 +815,7 @@ implementation_plan:
     - Hi3D lacks a verified per-task deletion API and exact API retention period; resolve A-5 before implementation.
     - Select and validate the GLB-to-3MF toolchain before promising color/material export.
   risks:
-    - Hi3D training terms may be unacceptable for sensitive reference images; consent and provider deletion limitations must be explicit.
+    - Hi3D training terms may be unacceptable for sensitive reference images; privacy-policy disclosure and provider deletion limitations must remain explicit.
     - AI-generated geometry may look correct but be non-manifold or dimensionally unsuitable for printing.
     - KTX2/Meshopt optimization can alter appearance or unsupported glTF extensions; preserve master and compare renders.
     - Chunked encryption is security-sensitive and must use independent nonces/authentication with deterministic corruption tests.
@@ -872,12 +827,12 @@ tasks:
     title: Add red provider, privacy, storage, optimization, and print contracts
     status: done
     phase: working_tasks
-    covers: {scenarios: [S-1, S-4, S-5, S-8, S-9, S-10, S-13], acceptance_criteria: [AC-4, AC-5, AC-8, AC-9, AC-10, AC-11, AC-12, AC-17, AC-18, AC-19]}
-    expected_files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py, backend/tests/test_models3d_provider_consent.py, scripts/api_tests/benchmark_models3d_assets.py]
-    verification: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001]
-    verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-AUDIT-001]
+    covers: {scenarios: [S-1, S-4, S-5, S-8, S-9, S-10, S-13], acceptance_criteria: [AC-4, AC-5, AC-8, AC-9, AC-10, AC-12, AC-17, AC-18, AC-19]}
+    expected_files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py, scripts/api_tests/benchmark_models3d_assets.py]
+    verification: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-AUDIT-001]
+    verification_ids: [T-PYTEST-001, T-PYTEST-003, T-PYTEST-004, T-AUDIT-001]
     dependencies: []
-    ownership: {files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py, backend/tests/test_models3d_provider_consent.py], shared_files: [scripts/audit_app_provider_contracts.py]}
+    ownership: {files: [backend/tests/test_hi3d_provider.py, backend/tests/test_generated_model_storage.py, backend/tests/test_models3d_print_exports.py], shared_files: [scripts/audit_app_provider_contracts.py]}
     blockers: []
     follow_up_tasks: [TASK-2]
     independently_deployable: false
@@ -908,13 +863,13 @@ tasks:
     follow_up_tasks: [TASK-6]
     independently_deployable: false
   - id: TASK-4
-    title: Update Hi3D privacy, consent, provider metadata, and docs
+    title: Update Hi3D privacy, provider metadata, and docs
     status: in_progress
     phase: working_tasks
-    covers: {scenarios: [S-10], acceptance_criteria: [AC-11, AC-12]}
+    covers: {scenarios: [S-10], acceptance_criteria: [AC-12]}
     expected_files: [shared/docs/privacy_policy.yml, shared/docs/provider_training_policies.yml, frontend/packages/ui/src/i18n/sources/legal/privacy.yml, frontend/packages/ui/src/legal/buildLegalContent.ts, frontend/packages/ui/src/legal/documents/privacy-policy.ts, frontend/packages/ui/src/config/links.ts, backend/providers/hi3d.yml]
-    verification: [T-PYTEST-005, T-AUDIT-001]
-    verification_ids: [T-PYTEST-005, T-AUDIT-001]
+    verification: [T-AUDIT-001]
+    verification_ids: [T-AUDIT-001]
     dependencies: [TASK-1]
     ownership: {files: [backend/providers/hi3d.yml, shared/docs/provider_training_policies.yml], shared_files: [shared/docs/privacy_policy.yml, frontend/packages/ui/src/i18n/sources/legal/privacy.yml, frontend/packages/ui/src/legal/buildLegalContent.ts, frontend/packages/ui/src/legal/documents/privacy-policy.ts, frontend/packages/ui/src/config/links.ts]}
     blockers: []
@@ -937,10 +892,10 @@ tasks:
     title: Implement deployed web poster preview and fullscreen viewer
     status: pending
     phase: blocked
-    covers: {scenarios: [S-6, S-7, S-9, S-10], acceptance_criteria: [AC-6, AC-7, AC-9, AC-10, AC-11]}
+    covers: {scenarios: [S-6, S-7, S-9, S-10], acceptance_criteria: [AC-6, AC-7, AC-9, AC-10, AC-12]}
     expected_files: [frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte, frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte, frontend/apps/web_app/tests/skill-models3d-generate.spec.ts]
-    verification: [T-E2E-001, T-E2E-002, T-ORDER-001, V-PRINT-ARTIFACTS, V-WEB-USER-APPROVAL]
-    verification_ids: [T-E2E-001, T-E2E-002, T-ORDER-001, V-PRINT-ARTIFACTS, V-WEB-USER-APPROVAL]
+    verification: [T-E2E-001, T-ORDER-001, V-PRINT-ARTIFACTS, V-WEB-USER-APPROVAL]
+    verification_ids: [T-E2E-001, T-ORDER-001, V-PRINT-ARTIFACTS, V-WEB-USER-APPROVAL]
     dependencies: [TASK-3, TASK-5]
     ownership: {files: [frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedPreview.svelte, frontend/packages/ui/src/components/embeds/models3d/Model3DGenerateEmbedFullscreen.svelte, frontend/apps/web_app/tests/skill-models3d-generate.spec.ts], shared_files: [frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts, frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts, frontend/packages/ui/src/services/embedPreviewRegistry.ts]}
     blockers: [CLI, npm SDK, and pip SDK evidence must all be green before source work begins.]

@@ -3,6 +3,7 @@
 # Contract tests for versioned streamed master-model decryption. A model master
 # must not be converted back into a whole-object plaintext buffer at download.
 
+import asyncio
 import sys
 import types
 
@@ -114,6 +115,87 @@ async def test_s3_stream_reads_fixed_chunks_and_closes_body() -> None:
 
     assert chunks == [b"abcdefgh", b"ijklmnop", b"qrstuvwx", b"yz"]
     assert body.closed is True
+
+
+class _FakeMultipartUploadClient:
+    def __init__(self) -> None:
+        self.parts = []
+        self.completed = None
+        self.aborted = False
+
+    def create_multipart_upload(self, **_kwargs):
+        return {"UploadId": "upload-1"}
+
+    def upload_part(self, **kwargs):
+        self.parts.append(kwargs["Body"])
+        return {"ETag": f"etag-{kwargs['PartNumber']}"}
+
+    def complete_multipart_upload(self, **kwargs):
+        self.completed = kwargs
+
+    def abort_multipart_upload(self, **_kwargs):
+        self.aborted = True
+
+
+class _FakeS3MetadataClient:
+    def generate_presigned_url(self, *_args, **_kwargs):
+        return "https://s3.example.test/signed"
+
+
+@pytest.mark.asyncio
+async def test_s3_stream_upload_uses_bounded_multipart_parts() -> None:
+    part_size = 5 * 1024 * 1024
+    upload_client = _FakeMultipartUploadClient()
+    service = S3UploadService(secrets_manager=None)
+    service.client = _FakeS3MetadataClient()
+    service.upload_client = upload_client
+    service.base_domain = "s3.example.test"
+    service.environment = "development"
+
+    async def source():
+        yield b"a" * (2 * 1024 * 1024)
+        yield b"b" * (3 * 1024 * 1024)
+        yield b"c" * (1024 * 1024)
+
+    result = await service.upload_file_stream(
+        bucket_key="chatfiles",
+        file_key="models/master.glb",
+        source=source(),
+        content_type="application/octet-stream",
+        part_size=part_size,
+    )
+
+    assert [len(part) for part in upload_client.parts] == [part_size, 1024 * 1024]
+    assert upload_client.completed["MultipartUpload"]["Parts"] == [
+        {"PartNumber": 1, "ETag": "etag-1"},
+        {"PartNumber": 2, "ETag": "etag-2"},
+    ]
+    assert result["url"].endswith("models/master.glb")
+    assert upload_client.aborted is False
+
+
+@pytest.mark.asyncio
+async def test_s3_stream_upload_aborts_on_cancellation() -> None:
+    upload_client = _FakeMultipartUploadClient()
+    service = S3UploadService(secrets_manager=None)
+    service.client = _FakeS3MetadataClient()
+    service.upload_client = upload_client
+    service.base_domain = "s3.example.test"
+    service.environment = "development"
+
+    async def source():
+        yield b"a" * 1024
+        raise asyncio.CancelledError()
+
+    with pytest.raises(asyncio.CancelledError):
+        await service.upload_file_stream(
+            bucket_key="chatfiles",
+            file_key="models/master.glb",
+            source=source(),
+            content_type="application/octet-stream",
+        )
+
+    assert upload_client.aborted is True
 
 
 @pytest.mark.asyncio

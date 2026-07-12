@@ -5,7 +5,7 @@ import asyncio
 import boto3
 import logging
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterable, AsyncIterator
 from io import BytesIO
 from fastapi import HTTPException
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
@@ -13,7 +13,7 @@ from botocore.config import Config
 # Import ClientError and timeout exceptions for exception handling
 from botocore.exceptions import ClientError, ReadTimeoutError, ConnectTimeoutError, EndpointConnectionError
 from urllib.parse import urlparse
-from typing import Optional, Dict
+from typing import Any, Optional, Dict
 
 # Import necessary config functions and the single-bucket lifecycle function
 from .config import BUCKETS, get_bucket_config, get_bucket_by_name, get_bucket_name 
@@ -451,6 +451,117 @@ class S3UploadService:
         except Exception as e:
             logger.error(f"Failed to upload to S3: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to upload file")
+
+    async def upload_file_stream(
+        self,
+        *,
+        bucket_key: str,
+        file_key: str,
+        source: AsyncIterable[bytes],
+        content_type: str,
+        part_size: int = 5 * 1024 * 1024,
+        metadata: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, str]:
+        """Upload an async byte stream using bounded S3 multipart buffers."""
+        minimum_part_size = 5 * 1024 * 1024
+        if not self.client or not self.upload_client:
+            raise HTTPException(status_code=503, detail="S3 service unavailable")
+        if part_size < minimum_part_size:
+            raise ValueError(f"part_size must be at least {minimum_part_size} bytes")
+
+        bucket_config = self.get_bucket_config(bucket_key)
+        if bucket_config["allowed_types"] != ["*/*"] and content_type not in bucket_config["allowed_types"]:
+            raise HTTPException(status_code=400, detail="Content type not allowed for this bucket")
+        bucket_name = get_bucket_name(bucket_key, self.environment)
+        cache_control = bucket_config.get("cache_control") or "no-cache, no-store, must-revalidate"
+        upload_parameters: Dict[str, Any] = {
+            "Bucket": bucket_name,
+            "Key": file_key,
+            "ContentType": content_type,
+            "CacheControl": cache_control,
+            "ACL": "private" if bucket_config["access"] == "private" else "public-read",
+        }
+        combined_metadata: Dict[str, str] = {}
+        if bucket_config.get("lifecycle_policy"):
+            combined_metadata["lifecycle-policy"] = f"expire-after-{bucket_config['lifecycle_policy']}-days"
+        if metadata:
+            combined_metadata.update(metadata)
+        if combined_metadata:
+            upload_parameters["Metadata"] = combined_metadata
+
+        upload_id: Optional[str] = None
+        try:
+            created = await asyncio.to_thread(self.upload_client.create_multipart_upload, **upload_parameters)
+            upload_id = str(created["UploadId"])
+            buffer = bytearray()
+            uploaded_parts: list[Dict[str, Any]] = []
+            total_size = 0
+            part_number = 1
+
+            async def upload_part(content: bytes) -> None:
+                nonlocal part_number
+                response = await asyncio.to_thread(
+                    self.upload_client.upload_part,
+                    Bucket=bucket_name,
+                    Key=file_key,
+                    UploadId=upload_id,
+                    PartNumber=part_number,
+                    Body=content,
+                )
+                uploaded_parts.append({"PartNumber": part_number, "ETag": response["ETag"]})
+                part_number += 1
+
+            async for incoming in source:
+                if not incoming:
+                    continue
+                total_size += len(incoming)
+                if total_size > bucket_config["max_size"]:
+                    raise HTTPException(status_code=400, detail="File size exceeds bucket limit")
+                view = memoryview(incoming)
+                while view:
+                    take = min(part_size - len(buffer), len(view))
+                    buffer.extend(view[:take])
+                    view = view[take:]
+                    if len(buffer) == part_size:
+                        await upload_part(bytes(buffer))
+                        buffer.clear()
+            if not uploaded_parts and not buffer:
+                raise ValueError("Cannot upload an empty stream")
+            if buffer:
+                await upload_part(bytes(buffer))
+            await asyncio.to_thread(
+                self.upload_client.complete_multipart_upload,
+                Bucket=bucket_name,
+                Key=file_key,
+                UploadId=upload_id,
+                MultipartUpload={"Parts": uploaded_parts},
+            )
+        except asyncio.CancelledError:
+            if upload_id:
+                await asyncio.to_thread(
+                    self.upload_client.abort_multipart_upload,
+                    Bucket=bucket_name,
+                    Key=file_key,
+                    UploadId=upload_id,
+                )
+            raise
+        except Exception:
+            if upload_id:
+                try:
+                    await asyncio.to_thread(
+                        self.upload_client.abort_multipart_upload,
+                        Bucket=bucket_name,
+                        Key=file_key,
+                        UploadId=upload_id,
+                    )
+                except Exception as abort_exc:
+                    logger.error("Failed to abort S3 multipart upload: %s", type(abort_exc).__name__)
+            raise
+
+        result = {"url": self.get_s3_url(bucket_name, file_key)}
+        if bucket_config["access"] == "private":
+            result["presigned_url"] = self.generate_presigned_url(bucket_name, file_key)
+        return result
 
     async def delete_file(self, bucket_key: str, file_key: str):
         """
