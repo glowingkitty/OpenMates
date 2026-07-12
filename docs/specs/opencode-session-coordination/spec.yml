@@ -84,7 +84,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+  subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
 
 approvals:
   product_contract:
@@ -130,7 +130,7 @@ handoff:
   command: python3 scripts/spec_verify.py docs/specs/opencode-session-coordination/spec.yml --json
   expected_outcome: All required acceptance criteria and verification evidence pass.
   blocker: null
-  last_verified_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+  last_verified_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
 
 scenarios:
   - id: S-1
@@ -249,7 +249,7 @@ tests:
         status: passed_unexpectedly
         command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs
         run_id: local-red-2026-07-12-idle
-        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
         timestamp: "2026-07-12T19:29:12Z"
         reason: The legacy idle continuation implementation was already absent from the verified revision, so the newly added no-idle-prompt contract passed during the red-phase check.
     green_phase:
@@ -259,7 +259,7 @@ tests:
         status: passed
         command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs
         run_id: local-green-2026-07-12-node
-        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
         timestamp: "2026-07-12T19:29:12Z"
   - id: T-PYTEST-LEASES
     type: pytest
@@ -282,7 +282,7 @@ tests:
         status: failed_as_expected
         command: python3 -m pytest scripts/tests/test_opencode_file_leases.py
         run_id: local-red-2026-07-12-lease-races
-        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
         timestamp: "2026-07-12T19:29:12Z"
         reason: The new waiter-expiry, notification-claim, and concurrent-registration contracts failed before their implementations were added.
     green_phase:
@@ -292,7 +292,7 @@ tests:
         status: passed
         command: python3 -m pytest scripts/tests/test_opencode_file_leases.py scripts/tests/test_opencode_spec_workflow_audit.py
         run_id: local-green-2026-07-12-python
-        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
         timestamp: "2026-07-12T19:29:12Z"
   - id: T-NODE-LEASE-HOOK
     type: unit
@@ -316,7 +316,7 @@ tests:
         status: failed_as_expected
         command: node --test scripts/tests/test_opencode_file_lease_hook.mjs
         run_id: local-red-2026-07-12-hook-races
-        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
         timestamp: "2026-07-12T19:29:12Z"
         reason: Pre-execution Bash guarding, in-flight generation protection, and cross-coordinator notification deduplication contracts failed before the hook was corrected.
     green_phase:
@@ -326,7 +326,7 @@ tests:
         status: passed
         command: node --test scripts/tests/test_opencode_spec_autocontinue.mjs scripts/tests/test_opencode_file_lease_hook.mjs scripts/tests/test_opencode_hooks_contract.mjs
         run_id: local-green-2026-07-12-node
-        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
         timestamp: "2026-07-12T19:29:12Z"
   - id: T-AUDIT-WORKFLOW
     type: pytest
@@ -346,7 +346,7 @@ tests:
         status: passed_unexpectedly
         command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py
         run_id: local-red-2026-07-12-workflow
-        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
         timestamp: "2026-07-12T19:29:12Z"
         reason: The risk-tier and continuation instruction changes were already present when the focused audit contract was first run.
     green_phase:
@@ -356,7 +356,7 @@ tests:
         status: passed
         command: python3 scripts/audit_opencode_spec_workflow.py
         run_id: local-green-2026-07-12-workflow
-        subject_commit: 83f90016b7f482ec0418e7bdadbdf41e42a73222
+        subject_commit: 90e098e18c572d5976578e2ea237bbb3aeffd16c
         timestamp: "2026-07-12T19:29:12Z"
 
 implementation_plan:
