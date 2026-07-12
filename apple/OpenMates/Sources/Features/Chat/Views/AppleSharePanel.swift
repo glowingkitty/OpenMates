@@ -209,6 +209,8 @@ struct AppleSharePanel: View {
             Spacer(minLength: .spacing2)
             OMToggle(isOn: isOn, accessibilityIdentifier: identifier)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(identifier)
     }
 
     private func generatedLinkView(_ url: URL) -> some View {
