@@ -232,9 +232,9 @@ attempts:
 
 handoff:
   current_task_id: TASK-21
-  next_action: Inspect the PencilKit sketch save path and existing visual contract for the remaining S-17 stroke visibility and image-preview clipping gap.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
-  expected_outcome: Existing drawing coverage identifies the smallest remaining TASK-21 behavior gap.
+  next_action: Inspect the native recording completion and transcript-preview path against the remaining TASK-21 audio lifecycle contracts.
+  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+  expected_outcome: Existing audio UI evidence identifies the smallest remaining TASK-21 behavior gap.
   blocker: null
   last_verified_commit: bd4a58b
 
@@ -1195,10 +1195,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
-        run_id: "apple-remote-b8a51a9-visual-parity"
-        subject_commit: "b8a51a981"
-        timestamp: "2026-07-11T10:20:49Z"
-        summary: ComposerVisualParityUITests passed 8/8 with screenshot artifacts, type-specific image/audio/location previews, left alignment through rotation, viewport-bounded welcome and production-chat fullscreen geometry, and landscape drawing controls exercised after a real stroke. The production-chat regression also passed alone at e8391d76a after the DEBUG-only accessibility-anchor review fix.
+        run_id: "apple-remote-bd4a58b-visual-parity"
+        subject_commit: "bd4a58b"
+        timestamp: "2026-07-12T19:02:11Z"
+        summary: ComposerVisualParityUITests passed 8/8 with retained screenshots, type-specific image/audio/location previews, rotation-safe alignment/fullscreen geometry, and a real landscape PencilKit stroke that enabled undo and save controls.
 
   - id: T-APPLE-COMPOSER-TOOLS-UI
     type: unit
@@ -1225,10 +1225,10 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
-        run_id: "apple-remote-b8a51a9-composer-tools"
-        subject_commit: "b8a51a981"
-        timestamp: "2026-07-11T10:20:49Z"
-        summary: The 8/8 suite proved map insertion without coordinate text, image/audio cards across rotation, reversible welcome and production-chat fullscreen sizing, and a landscape sketch stroke that enables Undo/Save while trailing controls remain reachable through the web-equivalent horizontal toolbar. The production-chat regression also passed alone at e8391d76a after the DEBUG-only accessibility-anchor review fix.
+        run_id: "apple-remote-bd4a58b-composer-tools"
+        subject_commit: "bd4a58b"
+        timestamp: "2026-07-12T19:02:11Z"
+        summary: The 8/8 suite proved map insertion without coordinate text, image/audio cards across rotation, reversible fullscreen sizing, and a landscape sketch stroke that leaves the toolbar, undo, and save controls enabled and reachable.
 
   - id: T-APPLE-COMPOSER-FOCUS-HEIGHT
     type: unit
