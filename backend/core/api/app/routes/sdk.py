@@ -26,6 +26,9 @@ from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryProtocolError,
     ChatRecoveryService,
 )
+from backend.core.api.app.services.chat_recovery_cutover import (
+    ChatRecoveryCutoverController,
+)
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import (
     COMMITMENT_VERSION,
     build_inference_commitment,
@@ -859,6 +862,12 @@ async def create_sdk_chat(
         return {"persistent": request_body.save_to_account, "chat_id": None}
 
     if request_body.save_to_account:
+        cutover_state = await ChatRecoveryCutoverController(
+            request.app.state.cache_service,
+            request.app.state.directus_service,
+        ).get_state(authoritative=True)
+        if cutover_state.get("protocol_epoch") != 1 or cutover_state.get("sends_paused"):
+            raise HTTPException(status_code=426, detail={"error": "client_update_required"})
         required_fields = {
             "chat_id": request_body.chat_id,
             "turn_id": request_body.turn_id,

@@ -22,7 +22,7 @@ TASK_ID = "77777777-7777-4777-8777-777777777777"
 def _request() -> SimpleNamespace:
     return SimpleNamespace(
         headers={"Authorization": "Bearer test-key"},
-        app=SimpleNamespace(state=SimpleNamespace(directus_service=object())),
+        app=SimpleNamespace(state=SimpleNamespace(cache_service=object(), directus_service=object())),
     )
 
 
@@ -33,6 +33,19 @@ def _auth() -> dict:
         "api_key_hash": "key-hash",
         "api_key_metadata": {"full_access": True},
     }
+
+
+@pytest.fixture(autouse=True)
+def epoch_one_cutover(monkeypatch):
+    class EpochOneCutover:
+        def __init__(self, _cache_service, _directus_service):
+            pass
+
+        async def get_state(self, *, authoritative: bool = False):
+            assert authoritative is True
+            return {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}
+
+    monkeypatch.setattr(sdk, "ChatRecoveryCutoverController", EpochOneCutover)
 
 
 @pytest.mark.asyncio
@@ -124,6 +137,45 @@ async def test_create_rejects_encrypted_row_and_inference_identity_mismatch(monk
     with pytest.raises(HTTPException) as exc:
         await sdk.create_sdk_chat(_request(), body)
     assert exc.value.detail["error"] == "encrypted_user_message_identity_mismatch"
+
+
+@pytest.mark.asyncio
+async def test_create_saved_chat_requires_authoritative_epoch_one_before_preflight(monkeypatch):
+    class EpochZeroCutover:
+        def __init__(self, _cache_service, _directus_service):
+            pass
+
+        async def get_state(self, *, authoritative: bool = False):
+            assert authoritative is True
+            return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+
+    monkeypatch.setattr(sdk, "ChatRecoveryCutoverController", EpochZeroCutover)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    execute = AsyncMock()
+    monkeypatch.setattr(sdk.ChatRecoveryService, "execute", execute)
+
+    with pytest.raises(HTTPException) as exc:
+        await sdk.create_sdk_chat(
+            _request(),
+            sdk.SdkChatCreateRequest(
+                message="canonical",
+                save_to_account=True,
+                protocol_version=1,
+                chat_id="chat-id",
+                turn_id="turn-id",
+                message_id="message-id",
+                chat_key_version=1,
+                encrypted_chat_key="wrapped-key",
+                recovery_public_key="public-key",
+                expected_messages_v=0,
+                encrypted_user_message={"chat_id": "chat-id", "client_message_id": "message-id", "encrypted_content": "ciphertext"},
+                inference_request={"messages": [{"role": "user", "content": "canonical"}]},
+            ),
+        )
+
+    assert exc.value.status_code == 426
+    assert exc.value.detail["error"] == "client_update_required"
+    execute.assert_not_awaited()
 
 
 @pytest.mark.asyncio
