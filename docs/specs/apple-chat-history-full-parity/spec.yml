@@ -249,16 +249,22 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-12T00:12:18Z"
     evidence: The recording fullscreen, playback, seek, semantic-order, cold-boot, processing, and error assertions passed on iPhone and iPad.
+  - id: ATTEMPT-9
+    task_id: TASK-10
+    approach: Archive and upload unified TestFlight build 55 from evidence commit 543c9f848 with five-line release notes.
+    outcome: succeeded
+    recorded_at: "2026-07-12T01:33:00Z"
+    evidence: iOS and macOS release archive preflights passed, both uploads succeeded, App Store Connect reports both build 55 packages VALID, and both en-US changelogs contain five lines.
 
 handoff:
   current_task_id: TASK-10
-  next_action: Upload the latest dev revision to TestFlight, then leave the macOS-only execution and visual review for the user's provisioned Mac.
-  command: python3 scripts/apple_remote.py deploy-latest-testflight --branch dev --whats-new-file <FILE>
-  expected_outcome: The latest iOS build uploads successfully and starts App Store Connect processing.
+  next_action: Run the remaining macOS-only history suite and paired narrow/wide visual review on the user's provisioned Mac.
+  command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/ChatHistoryMacParityUITests
+  expected_outcome: The unchanged macOS target passes and supplies the final narrow/wide light/dark artifact pairs.
   blocker:
     reason: Only macOS-specific execution and final macOS visual pairs remain; the user accepted handling those separately because remote development provisioning profiles are unavailable.
     next_action: On a provisioned Mac, run ChatHistoryMacParityUITests and review the narrow/wide light/dark artifacts.
-  last_verified_commit: 0c43a10c0
+  last_verified_commit: 543c9f848
 
 scenarios:
   - id: S-1
