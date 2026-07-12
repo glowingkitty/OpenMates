@@ -31,6 +31,8 @@ class FakeRecoveryService:
 
     async def execute(self, operation: str, data: dict) -> dict:
         self.calls.append((operation, data))
+        if operation == "get_cutover_state":
+            return {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}
         return {
             "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
             "state": "PREPARED",
@@ -88,7 +90,7 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
         payload=payload,
     )
 
-    operation, transaction_data = FakeRecoveryService.calls[0]
+    operation, transaction_data = FakeRecoveryService.calls[1]
     assert operation == "prepare_preflight"
     assert transaction_data["hashed_user_id"] == "owner-hash"
     assert transaction_data["encrypted_user_message"]["hashed_user_id"] == "owner-hash"
@@ -100,6 +102,43 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     ).hexdigest()
     assert manager.messages[0][0]["type"] == "chat_turn_preflight_ack"
     assert manager.messages[0][0]["payload"]["preflight_id"] == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+
+
+@pytest.mark.asyncio
+async def test_epoch_zero_acknowledges_without_persisting_recovery_state(monkeypatch) -> None:
+    class EpochZeroRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            assert operation == "get_cutover_state"
+            return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+
+    monkeypatch.setattr(
+        chat_turn_preflight_handler,
+        "ChatRecoveryService",
+        EpochZeroRecoveryService,
+    )
+    EpochZeroRecoveryService.calls = []
+    manager = FakeManager()
+    payload = _payload()
+
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager,
+        directus_service=object(),
+        user_id="user-1",
+        user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash",
+        payload=payload,
+    )
+
+    assert [call[0] for call in EpochZeroRecoveryService.calls] == ["get_cutover_state"]
+    assert manager.messages[0][0] == {
+        "type": "chat_turn_preflight_ack",
+        "payload": {
+            "preflight_id": "2e500b1c-a0e0-5b44-b2d5-820c6eb56697",
+            "state": "LEGACY",
+            "turn_id": payload["turn_id"],
+        },
+    }
 
 
 @pytest.mark.asyncio

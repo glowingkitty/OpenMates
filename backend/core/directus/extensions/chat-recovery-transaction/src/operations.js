@@ -229,7 +229,12 @@ async function lockedProtocolState(trx) {
     };
     await trx(PROTOCOL_STATE).insert(row);
   }
-  if (row.active_legacy_tasks == null && row.protocol_epoch === 0 && row.legacy_in_flight === 0) {
+  const hasLegacyTaskMapPlaceholder = row.active_legacy_tasks
+    && typeof row.active_legacy_tasks === 'object'
+    && !Array.isArray(row.active_legacy_tasks)
+    && Object.keys(row.active_legacy_tasks).length === 0;
+  if ((row.active_legacy_tasks == null || hasLegacyTaskMapPlaceholder)
+    && row.protocol_epoch === 0 && row.legacy_in_flight === 0) {
     row.active_legacy_tasks = [];
     await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({ active_legacy_tasks: [] });
   }

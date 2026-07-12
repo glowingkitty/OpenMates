@@ -281,18 +281,20 @@ test('legacy admission is serialized, durable, and released exactly once', async
   assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, ['message-b']);
 });
 
-test('epoch-zero cutover state repairs a missing empty legacy task list', async () => {
-  const database = fakeDatabase({
-    chat_recovery_protocol_state: [{
-      id: 'chat-recovery', protocol_epoch: 0, sends_paused: false,
-      legacy_in_flight: 0, active_legacy_tasks: null,
-    }],
-  });
+test('epoch-zero cutover state repairs missing empty legacy task placeholders', async () => {
+  for (const placeholder of [null, {}]) {
+    const database = fakeDatabase({
+      chat_recovery_protocol_state: [{
+        id: 'chat-recovery', protocol_epoch: 0, sends_paused: false,
+        legacy_in_flight: 0, active_legacy_tasks: placeholder,
+      }],
+    });
 
-  const state = await executeOperation(database, 'get_cutover_state', { protocol_version: 1 });
+    const state = await executeOperation(database, 'get_cutover_state', { protocol_version: 1 });
 
-  assert.equal(state.protocol_epoch, 0);
-  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, []);
+    assert.equal(state.protocol_epoch, 0);
+    assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, []);
+  }
 });
 
 test('cutover state keeps unsafe missing legacy task lists fail-closed', async () => {

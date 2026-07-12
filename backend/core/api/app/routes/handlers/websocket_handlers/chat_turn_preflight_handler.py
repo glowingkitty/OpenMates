@@ -99,6 +99,28 @@ async def handle_chat_turn_preflight(
     payload: dict[str, Any],
 ) -> None:
     try:
+        recovery_service = ChatRecoveryService(directus_service)
+        cutover_state = await recovery_service.execute(
+            "get_cutover_state",
+            {"protocol_version": 1},
+        )
+        if cutover_state.get("protocol_epoch") == 0:
+            legacy_preflight_id = str(
+                uuid.uuid5(uuid.UUID(payload["turn_id"]), "legacy-preflight")
+            )
+            await manager.send_personal_message(
+                {
+                    "type": "chat_turn_preflight_ack",
+                    "payload": {
+                        "preflight_id": legacy_preflight_id,
+                        "state": "LEGACY",
+                        "turn_id": payload["turn_id"],
+                    },
+                },
+                user_id,
+                device_fingerprint_hash,
+            )
+            return
         encrypted_user_message = dict(payload["encrypted_user_message"])
         encrypted_user_message["hashed_user_id"] = user_id_hash
         transaction_data = {
@@ -118,7 +140,7 @@ async def handle_chat_turn_preflight(
         }
         if payload.get("encrypted_chat_metadata") is not None:
             transaction_data["encrypted_chat_metadata"] = payload["encrypted_chat_metadata"]
-        result = await ChatRecoveryService(directus_service).execute(
+        result = await recovery_service.execute(
             "prepare_preflight",
             transaction_data,
         )
