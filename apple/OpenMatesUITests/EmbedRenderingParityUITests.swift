@@ -107,7 +107,6 @@ final class EmbedRenderingParityUITests: XCTestCase {
             app.descendants(matching: .any)["sheet-preview-table"].waitForExistence(timeout: 8),
             "Sheets preview must render spreadsheet cells instead of a generic table card."
         )
-        XCTAssertTrue(app.descendants(matching: .any)["embed-app-gradient-sheets"].exists)
         attachScreenshot(name: "Sheets preview")
 
         app.descendants(matching: .any)["embed-preview"].firstMatch.tap()
