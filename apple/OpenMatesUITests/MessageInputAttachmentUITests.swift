@@ -197,8 +197,11 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
         app.buttons["attach-files-button"].tap()
 
-        XCTAssertTrue(app.buttons["Photo Library"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Browse Files"].waitForExistence(timeout: 5))
+        for identifier in ["attachment-photo-library-action", "attachment-browse-files-action"] {
+            let action = element(in: app, identifier: identifier)
+            XCTAssertTrue(action.waitForExistence(timeout: 5), "Missing attachment menu action: \(identifier)")
+            XCTAssertTrue(action.isHittable, "Attachment menu action is not visible: \(identifier)")
+        }
         for identifier in actionIDs {
             XCTAssertEqual(app.buttons[identifier].frame, actionFrames[identifier])
         }

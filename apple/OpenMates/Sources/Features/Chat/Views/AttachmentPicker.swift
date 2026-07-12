@@ -45,6 +45,7 @@ struct AttachmentPicker: View {
                     PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                         AttachmentMenuRow(icon: "image", title: "Photo Library")
                     }
+                    .accessibilityIdentifier("attachment-photo-library-action")
 
                     Button {
                         isPresented = false
@@ -53,6 +54,7 @@ struct AttachmentPicker: View {
                         AttachmentMenuRow(icon: "files", title: "Browse Files")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("attachment-browse-files-action")
                 }
                 .padding(.spacing2)
                 .background(Color.grey0)
