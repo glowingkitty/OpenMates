@@ -209,7 +209,10 @@ final class ChatManagementSharingParityTests: XCTestCase {
         )
         let encryptedKey = try XCTUnwrap(values["embed_encryption_key"])
 
-        XCTAssertEqual(try decryptURLSafe(encryptedKey, using: passwordKey), rawData(key))
+        XCTAssertEqual(
+            try XCTUnwrap(String(data: decryptURLSafe(encryptedKey, using: passwordKey), encoding: .utf8)),
+            rawData(key).base64EncodedString()
+        )
         XCTAssertEqual(values["duration_seconds"], String(ShareDuration.sevenDays.rawValue))
         XCTAssertEqual(values["pwd"], "1")
     }
