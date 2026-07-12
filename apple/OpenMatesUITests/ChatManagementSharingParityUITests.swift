@@ -121,6 +121,23 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Embed share configuration")
     }
 
+    func testChatShareSettingsOpenAsNestedSettingsDestination() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-share-settings-chat",
+        ]
+        app.launchEnvironment["UI_TEST_CHAT_SHARE_URL"] = fixtureShareURL
+        app.launch()
+
+        XCTAssertTrue(
+            accessibilityElement(in: app, identifier: "settings-shared-share-settings").waitForExistence(timeout: 15),
+            "Sharing a chat must open the nested Shared settings destination, not an app overlay."
+        )
+        XCTAssertTrue(accessibilityElement(in: app, identifier: "settings-destination-back").exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Share settings must not render default List/table chrome")
+    }
+
     func testSafariShareSheetSendsURLThroughOpenMatesExtension() throws {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
