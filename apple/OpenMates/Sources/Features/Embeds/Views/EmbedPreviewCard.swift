@@ -90,7 +90,6 @@ struct EmbedPreviewCard: View {
                     .accessibilityLabel(embedType?.displayName ?? embed.type)
                     .accessibilityValue(statusAccessibilityValue)
                 }
-                .accessibilityElement(children: .contain)
             } else {
                 Button(action: onTap) {
                     cardSurface
