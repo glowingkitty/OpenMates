@@ -14,9 +14,15 @@ import SwiftUI
 
 struct SettingsSharedView: View {
     @EnvironmentObject private var chatStore: ChatStore
+    private let initialChatId: String?
     @State private var selectedChatId: String?
     @State private var errorMessage: String?
     @State private var showsTip = false
+
+    init(initialChatId: String? = nil) {
+        self.initialChatId = initialChatId
+        _selectedChatId = State(initialValue: initialChatId)
+    }
 
     private var sharedChats: [Chat] {
         chatStore.chats.filter { $0.isPrivate == false }
@@ -31,6 +37,7 @@ struct SettingsSharedView: View {
                     }
                     ChatShareView(chatId: selectedChatId)
                 }
+                .accessibilityIdentifier("settings-shared-share-settings")
             } else if showsTip {
                 SettingsTipView()
             } else {

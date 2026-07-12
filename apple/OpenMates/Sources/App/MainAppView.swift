@@ -83,7 +83,7 @@ struct MainAppView: View {
     @State private var showNewChat = false
     @State private var showExplore = false
     @State private var showSearch = false
-    @State private var showShareChat = false
+    @State private var settingsShareChatId: String?
     @State private var showHiddenChats = false
     @State private var hiddenChatsUnlocked = false
     @State private var showPairAuthorize = false
@@ -751,7 +751,7 @@ struct MainAppView: View {
         showAuthSheet = false
         showSearch = false
         showExplore = false
-        showShareChat = false
+        settingsShareChatId = nil
         showHiddenChats = false
         searchSelection = nil
         actionChat = nil
@@ -777,7 +777,7 @@ struct MainAppView: View {
         showAuthSheet = false
         showSearch = false
         showExplore = false
-        showShareChat = false
+        settingsShareChatId = nil
         showHiddenChats = false
         actionChat = nil
         incognitoManager.isEnabled = false
@@ -799,7 +799,7 @@ struct MainAppView: View {
         showAuthSheet = false
         showSearch = false
         showExplore = false
-        showShareChat = false
+        settingsShareChatId = nil
         showHiddenChats = false
         actionChat = nil
         incognitoManager.isEnabled = true
@@ -835,7 +835,7 @@ struct MainAppView: View {
         showAuthSheet = false
         showSearch = false
         showExplore = false
-        showShareChat = false
+        settingsShareChatId = nil
         showHiddenChats = false
         actionChat = nil
         if workspace == .workflows {
@@ -867,7 +867,7 @@ struct MainAppView: View {
         showNewChat = false
         showAuthSheet = false
         showExplore = false
-        showShareChat = false
+        settingsShareChatId = nil
         showHiddenChats = false
         actionChat = nil
         if isCompactShell {
@@ -923,6 +923,12 @@ struct MainAppView: View {
         if launchCommand?.action == .newChat || shouldStartNewChatForUITest {
             openNewChatScreen()
         }
+
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-share-settings-chat") {
+            openShareSettings(for: "ui-test-share-settings-chat")
+        }
+        #endif
     }
 
     private func runStartupTask() async {
@@ -1092,7 +1098,11 @@ struct MainAppView: View {
                 onSelectWorkspace: selectWorkspace,
                 onNewChat: openNewChatScreen,
                 showWorkspaceSwitcher: shouldShowWorkspaceSwitcher,
-                onShareChat: { showShareChat = true },
+                onShareChat: {
+                    if let selectedChatId {
+                        openShareSettings(for: selectedChatId)
+                    }
+                },
                 canShareChat: selectedChatId != nil,
                 onOpenSettings: {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -1163,12 +1173,6 @@ struct MainAppView: View {
             }
         }
 
-        if showShareChat, let chatId = selectedChatId {
-            appOverlay(title: AppStrings.share, isPresented: $showShareChat) {
-                ChatShareView(chatId: chatId, chat: chatStore.chat(for: chatId))
-            }
-        }
-
         if showHiddenChats {
             appOverlay(title: AppStrings.hiddenChats, isPresented: $showHiddenChats) {
                 if hiddenChatsUnlocked {
@@ -1211,7 +1215,11 @@ struct MainAppView: View {
     // MARK: - Settings slide panel (web: slides from right, 323px wide, shadow)
 
     private func settingsPanel(width: CGFloat, closesOnExampleChatOpen: Bool) -> some View {
-        SettingsView(reportIssuePrefill: reportIssuePrefill, referralCodeRequest: referralCodeRequest) {
+        SettingsView(
+            reportIssuePrefill: reportIssuePrefill,
+            referralCodeRequest: referralCodeRequest,
+            shareChatId: settingsShareChatId
+        ) {
             withAnimation(.easeInOut(duration: 0.3)) {
                 showSettings = false
             }
@@ -1243,6 +1251,15 @@ struct MainAppView: View {
 
     private func openReferralCodeSettings() {
         referralCodeRequest += 1
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showSettings = true
+        }
+    }
+
+    private func openShareSettings(for chatId: String) {
+        selectedChatId = chatId
+        settingsShareChatId = chatId
+        actionChat = nil
         withAnimation(.easeInOut(duration: 0.3)) {
             showSettings = true
         }
@@ -1519,7 +1536,7 @@ struct MainAppView: View {
                 cameraCaptureRequest: chatCameraCaptureRequest,
                 searchTarget: searchSelection?.chatId == chatId ? searchSelection : nil,
                 isSettingsOpen: !isCompactShell && showSettings,
-                onShareChat: { showShareChat = true },
+                onShareChat: { openShareSettings(for: chatId) },
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
@@ -1843,8 +1860,7 @@ struct MainAppView: View {
 
                 chatActionRow(icon: "share", title: AppStrings.share) {
                     selectedChatId = chat.id
-                    showShareChat = true
-                    actionChat = nil
+                    openShareSettings(for: chat.id)
                 }
 
                 chatActionRow(icon: "copy", title: AppStrings.rename) {

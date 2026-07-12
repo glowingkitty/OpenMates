@@ -225,6 +225,7 @@ struct SettingsView: View {
     var onOpenExampleChat: ((String) -> Void)?
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
+    var shareChatId: String?
     @State private var showIncognitoInfo = false
     @ObservedObject private var incognitoSession = IncognitoSettingsSession.shared
     @ObservedObject private var guestLearningMode = LearningModeGuestSession.shared
@@ -239,14 +240,16 @@ struct SettingsView: View {
     init(
         reportIssuePrefill: ReportIssuePrefill? = nil,
         referralCodeRequest: Int = 0,
+        shareChatId: String? = nil,
         onClose: (() -> Void)? = nil,
         onOpenExampleChat: ((String) -> Void)? = nil
     ) {
         self.reportIssuePrefill = reportIssuePrefill
         self.referralCodeRequest = referralCodeRequest
+        self.shareChatId = shareChatId
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
-        _destination = State(initialValue: reportIssuePrefill == nil ? (referralCodeRequest > 0 ? .billing : nil) : .reportIssue)
+        _destination = State(initialValue: reportIssuePrefill == nil ? (shareChatId == nil ? (referralCodeRequest > 0 ? .billing : nil) : .shared) : .reportIssue)
         _activeReportIssuePrefill = State(initialValue: reportIssuePrefill)
         _activeReferralCodeRequest = State(initialValue: referralCodeRequest)
     }
@@ -620,6 +623,8 @@ struct SettingsView: View {
                 guestSession: guestLearningMode,
                 controller: accountLearningMode
             )
+        case .shared:
+            SettingsSharedView(initialChatId: shareChatId)
         default:
             destination.view(
                 reportIssuePrefill: activeReportIssuePrefill,
