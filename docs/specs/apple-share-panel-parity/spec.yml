@@ -81,7 +81,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 270b3a9d0
+  subject_commit: cce9bf7dd
 
 approvals:
   product_contract:
@@ -127,18 +127,40 @@ attempts:
     recorded_at: "2026-07-12"
     notes: >
       The remote iOS test build stopped before the share assertion because
-      ChatCompletionRecoveryCoordinator.swift from commit 7ac45d7d7 has Swift 6
-      Sendable errors involving Task<[String: Any], Error>. That file is not
-      owned or modified by this session.
+       ChatCompletionRecoveryCoordinator.swift from commit 7ac45d7d7 has Swift 6
+       Sendable errors involving Task<[String: Any], Error>. That file is not
+       owned or modified by this session.
+  - id: ATTEMPT-3
+    task_id: TASK-5
+    approach: Verify the completed native share panel against the remote iOS simulator and deployed web regressions.
+    outcome: succeeded
+    recorded_at: "2026-07-12"
+    notes: >
+      The iOS share crypto class, chat configuration, embed configuration, and
+      generated-link system-share UI tests passed. The deployed web embed-share
+      flow passed with persisted encrypted fixture content and no console errors.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Run the equivalent macOS UI test target and compile the macOS application.
+    outcome: blocked
+    recorded_at: "2026-07-12"
+    notes: >
+      The macOS scheme has no compatible UI-test target for
+      ChatManagementSharingParityUITests (remote wrapper exit 70). The unsigned
+      macOS application build passed, but does not provide interaction or visual evidence.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Re-run the focused iOS share configuration test after the recovery coordinator compile errors are fixed on dev.
-  command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/SharePanelParityUITests"
-  expected_outcome: The test reaches the custom share configuration assertion and fails because the web parity controls do not exist yet.
+  current_task_id: TASK-5
+  next_action: Add a macOS-compatible UI-test target or obtain an explicit waiver for the missing macOS interaction and visual evidence.
+  command: python3 scripts/apple_remote.py test-macos --only-testing "OpenMatesUITests/ChatManagementSharingParityUITests/testChatShareConfigurationMatchesWebContract"
+  expected_outcome: The macOS test target runs the custom share configuration contract and captures a simulator artifact.
   blocker:
-    reason: "Remote iOS build is blocked by Swift 6 Sendable errors in ChatCompletionRecoveryCoordinator.swift from 7ac45d7d7."
-  last_verified_commit: b4fbf24
+    task_id: TASK-5
+    requires_user_input: true
+    reason: "The macOS scheme has no compatible UI-test target, leaving required macOS interaction and visual parity evidence unavailable."
+    question: "Should we add a macOS UI-test target for the shared share-panel contract, or waive the macOS visual evidence for this release?"
+    next_action: "Implement the selected macOS verification path and rerun spec verification."
+  last_verified_commit: cce9bf7dd
 
 scenarios:
   - id: S-1
@@ -269,7 +291,7 @@ assumptions:
     text: The existing short-link backend API accepts the web payload from Apple clients.
     category: api
     required_before: task_execution
-    status: checking
+    status: confirmed
     evidence:
       - source: docs/specs/share-short-links-og-images/spec.yml
         summary: The shared API contract is POST /v1/share/short-url with an opaque encrypted URL and content metadata.
@@ -306,8 +328,8 @@ contracts:
 tests:
   - id: T-APPLE-UNIT-001
     type: unit
-    file: apple/OpenMatesTests/ShareLinkCryptoTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ShareLinkCryptoTests"
+    file: apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatManagementSharingParityTests"
     covers: [AC-2, AC-6]
     assertions:
       - Deterministic fixture inputs produce decryptable web-format chat and embed key blobs.
@@ -321,7 +343,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence: { status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing \"OpenMatesTests/ChatManagementSharingParityTests\"", run_id: remote-macos-peer-exit-0, subject_commit: cce9bf7dd, timestamp: "2026-07-12" }
   - id: T-APPLE-UI-001
     type: unit
     file: apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
@@ -339,7 +361,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence: { status: passed, command: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing \"OpenMatesUITests/ChatManagementSharingParityUITests/testChatShareConfigurationMatchesWebContract\" && python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing \"OpenMatesUITests/ChatManagementSharingParityUITests/testEmbedShareConfigurationMatchesWebContract\"", run_id: remote-macos-peer-exit-0, subject_commit: cce9bf7dd, timestamp: "2026-07-12" }
   - id: T-APPLE-UI-002
     type: unit
     file: apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
@@ -355,7 +377,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence: { status: blocked, command: "python3 scripts/apple_remote.py test-macos --only-testing \"OpenMatesUITests/ChatManagementSharingParityUITests/testChatShareConfigurationMatchesWebContract\"", run_id: remote-macos-peer-exit-70, subject_commit: cce9bf7dd, timestamp: "2026-07-12", actor: OpenCode, reason: "OpenMates_macOS has no compatible UI-test target. Unsigned macOS build passed separately.", next_action: "Add a macOS UI-test target or obtain an explicit waiver." }
   - id: T-WEB-E2E-001
     type: playwright
     file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
@@ -371,7 +393,7 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence: { status: blocked, command: "python3 scripts/tests.py run -- --spec share-chat-flow.spec.ts", run_id: "", subject_commit: cce9bf7dd, timestamp: "2026-07-12", actor: OpenCode, reason: "A newer concurrent dev deployment was canceled before Playwright dispatch, so no current chat-flow result exists.", next_action: "Rerun after the current dev deployment is Ready.", target: app.dev.openmates.org, deployment_reference: dpl_GWPTGMihZg87iA2qowfLpBAethwX }
   - id: T-WEB-E2E-002
     type: playwright
     file: frontend/apps/web_app/tests/share-embed-flow.spec.ts
@@ -387,7 +409,7 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: "", command: "", run_id: "", subject_commit: "", timestamp: "" }
+      evidence: { status: passed, command: "python3 scripts/tests.py run -- --spec share-embed-flow.spec.ts", run_id: "29202787203", subject_commit: cce9bf7dd, timestamp: "2026-07-12", target: app.dev.openmates.org, deployment_reference: dpl_E8aK5qzQh82fKn77GTVDs4AkdbFP }
 
 verifications:
   - id: V-APPLE-VISUAL-001
@@ -395,11 +417,14 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-1, AC-4, AC-5]
-    status: pending
+    status: blocked
     evidence:
-      status: ""
-      summary: Compare iPhone and macOS simulator screenshots for configuration, generated-link, and QR-fullscreen states to the equivalent rendered web panel states.
-      timestamp: ""
+      status: blocked
+      summary: iOS UI tests captured chat, embed, and system-share artifacts. macOS interaction and simulator artifact capture are blocked because OpenMates_macOS has no compatible UI-test target.
+      timestamp: "2026-07-12"
+      actor: OpenCode
+      reason: OpenMates_macOS does not include a compatible UI-test target.
+      next_action: Add a macOS UI-test target or obtain an explicit waiver.
 
 implementation_plan:
   spec_path: docs/specs/apple-share-panel-parity/spec.yml
@@ -476,8 +501,8 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Add red native share crypto and panel parity tests
-    status: blocked
-    phase: blocked
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
@@ -492,14 +517,13 @@ tasks:
         - apple/OpenMatesTests/ShareLinkCryptoTests.swift
         - apple/OpenMatesUITests/SharePanelParityUITests.swift
       shared_files: []
-    blockers:
-      - "Remote iOS test build cannot compile ChatCompletionRecoveryCoordinator.swift from 7ac45d7d7."
+    blockers: []
     follow_up_tasks: [TASK-3, TASK-4]
     independently_deployable: false
   - id: TASK-3
     title: Implement web-compatible Apple share crypto and persistence
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-2, S-3, S-6]
       acceptance_criteria: [AC-2, AC-3, AC-6]
@@ -519,8 +543,8 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Implement shared custom chat and embed share panel
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-3, S-4, S-5, S-6]
       acceptance_criteria: [AC-1, AC-3, AC-4, AC-5, AC-6]
@@ -544,7 +568,7 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Verify cross-client and visual parity
-    status: pending
+    status: blocked
     phase: running_checks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
@@ -558,7 +582,8 @@ tasks:
       files:
         - docs/specs/apple-share-panel-parity/spec.yml
       shared_files: []
-    blockers: []
+    blockers:
+      - "OpenMates_macOS has no compatible UI-test target for the required macOS share-panel interaction and visual parity evidence."
     follow_up_tasks: []
     independently_deployable: false
 
