@@ -147,6 +147,50 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertTrue(model.websiteResults.first?.faviconURL?.contains("news.example") == true)
     }
 
+    func testPersistedWebSearchResolvesReferencedChildrenAndFaviconMetadata() throws {
+        let parent = EmbedRecord(
+            id: "persisted-web-search",
+            type: EmbedType.webSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "query": AnyCodable("native embed parity"),
+                "result_count": AnyCodable(2),
+                "embed_ids": AnyCodable(["persisted-web-child-1", "persisted-web-child-2"]),
+            ]),
+            appId: "web",
+            skillId: "search",
+            embedIds: "persisted-web-child-1|persisted-web-child-2"
+        )
+        let firstChild = EmbedRecord(
+            id: "persisted-web-child-1",
+            type: EmbedType.webWebsite.rawValue,
+            status: .finished,
+            data: .raw([
+                "url": AnyCodable("https://example.com/one"),
+                "favicon": AnyCodable("https://example.com/favicon.ico"),
+            ]),
+            parentEmbedId: parent.id,
+            appId: "web"
+        )
+        let secondChild = EmbedRecord(
+            id: "persisted-web-child-2",
+            type: EmbedType.webWebsite.rawValue,
+            status: .finished,
+            data: .raw(["url": AnyCodable("https://example.org/two")]),
+            parentEmbedId: parent.id,
+            appId: "web"
+        )
+
+        let model = SearchSkillPreviewModel(
+            embed: parent,
+            allEmbedRecords: [parent.id: parent, firstChild.id: firstChild, secondChild.id: secondChild]
+        )
+
+        XCTAssertEqual(model.websiteResults.map(\.embed.id), [firstChild.id, secondChild.id])
+        XCTAssertEqual(model.previewResultCount, 2)
+        XCTAssertTrue(model.websiteResults.first?.faviconURL?.contains("example.com") == true)
+    }
+
     func testFileMediaFixturesUseSyntheticPublicPayloads() throws {
         let imageUpload = try XCTUnwrap(
             DevEmbedPreviewFixtures.skills(for: .images).first { $0.id == "images-upload" }?.primaryEmbed
