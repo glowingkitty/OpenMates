@@ -191,6 +191,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
 struct OMToggle: View {
     @Binding var isOn: Bool
     var disabled = false
+    var accessibilityIdentifier = ""
 
     private let trackWidth: CGFloat = 52
     private let trackHeight: CGFloat = 32
@@ -240,6 +241,7 @@ struct OMToggle: View {
         .allowsHitTesting(!disabled)
         .accessibilityAddTraits(.isToggle)
         .accessibilityValue(isOn ? "On" : "Off")
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
 
