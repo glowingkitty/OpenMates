@@ -12,10 +12,38 @@ function fakeDatabase(seed) {
   let tail = Promise.resolve();
   const client = (store) => (table) => {
     const predicates = [];
-    const match = () => (store[table] ?? []).filter((row) => predicates.every((predicate) => predicate(row)));
+    const orderings = [];
+    let rowLimit = null;
+    const match = () => {
+      let rows = (store[table] ?? []).filter((row) => predicates.every((predicate) => predicate(row)));
+      for (const { field, direction } of orderings.slice().reverse()) {
+        rows = rows.slice().sort((left, right) => {
+          if (left[field] === right[field]) return 0;
+          const comparison = left[field] < right[field] ? -1 : 1;
+          return direction === 'desc' ? -comparison : comparison;
+        });
+      }
+      return rowLimit === null ? rows : rows.slice(0, rowLimit);
+    };
     const addWhere = (args) => {
-      const values = typeof args[0] === 'object' ? args[0] : { [args[0]]: args.length === 2 ? args[1] : args[2] };
-      predicates.push((row) => Object.entries(values).every(([key, value]) => row[key] === value));
+      if (typeof args[0] === 'object') {
+        const values = args[0];
+        predicates.push((row) => Object.entries(values).every(([key, value]) => row[key] === value));
+        return;
+      }
+      if (args.length === 3) {
+        const [field, op, value] = args;
+        predicates.push((row) => {
+          if (op === '<=') return row[field] <= value;
+          if (op === '<') return row[field] < value;
+          if (op === '>=') return row[field] >= value;
+          if (op === '>') return row[field] > value;
+          return row[field] === value;
+        });
+        return;
+      }
+      const [field, value] = args;
+      predicates.push((row) => row[field] === value);
     };
     const query = {
       where(...args) { addWhere(args); return query; },
@@ -23,6 +51,9 @@ function fakeDatabase(seed) {
       async first() { return match()[0]; },
       async insert(value) { (store[table] ??= []).push(structuredClone(value)); return 1; },
       async update(values) { const found = match(); found.forEach((row) => Object.assign(row, structuredClone(values))); return found.length; },
+      orderBy(field, direction = 'asc') { orderings.push({ field, direction }); return query; },
+      limit(value) { rowLimit = value; return query; },
+      then(resolve, reject) { return Promise.resolve(match()).then(resolve, reject); },
     };
     return query;
   };
@@ -44,6 +75,7 @@ function fakeDatabase(seed) {
 function scheduleTrigger() {
   return {
     trigger_id: 'trigger-1', workflow_id: 'workflow-1', version_id: 'version-1', hashed_user_id: OWNER,
+    owner_user_id: 'owner-user-1',
     trigger_type: 'schedule', enabled: true, next_run_at: 1_783_843_100,
     encrypted_schedule_config_ref: 'blob-schedule-1', claim_generation: 0,
   };
@@ -66,8 +98,11 @@ test('two concurrent due claims create one run and lease recovery reuses it', as
   assert.equal(database.rows.workflow_runs.length, 1);
   const accepted = first.accepted ? first : second;
   assert.equal(accepted.hashed_user_id, OWNER);
+  assert.equal(accepted.owner_user_id, 'owner-user-1');
+  assert.equal(database.rows.workflow_runs[0].owner_user_id, undefined);
   const recovered = await executeOperation(database, 'claim_due_trigger', body, new Date(NOW.getTime() + 121_000));
-  assert.equal(recovered.accepted, false);
+  assert.equal(recovered.accepted, true);
+  assert.equal(recovered.recovered, true);
   assert.equal(recovered.hashed_user_id, OWNER);
   assert.notEqual(recovered.claim_generation, accepted.claim_generation);
   await assert.rejects(
@@ -89,6 +124,158 @@ test('two concurrent due claims create one run and lease recovery reuses it', as
     protocol_version: 1, trigger_id: 'trigger-1', claim_generation: recovered.claim_generation,
     claim_token: recovered.claim_token, next_run_at: 1_783_929_600,
   }, new Date(NOW.getTime() + 121_000));
+  assert.equal(advanced.next_run_at, 1_783_929_600);
+});
+
+test('due trigger listing returns enabled due schedule trigger ids only', async () => {
+  const activeClaim = { ...scheduleTrigger(), trigger_id: 'trigger-active', claim_status: 'claimed', claim_expires_at: 1_783_843_260 };
+  const dueSecond = { ...scheduleTrigger(), trigger_id: 'trigger-2', next_run_at: 1_783_843_150 };
+  const future = { ...scheduleTrigger(), trigger_id: 'trigger-future', next_run_at: 1_783_843_500 };
+  const disabled = { ...scheduleTrigger(), trigger_id: 'trigger-disabled', enabled: false };
+  const event = { ...scheduleTrigger(), trigger_id: 'trigger-event', trigger_type: 'event' };
+  const database = fakeDatabase({ workflow_triggers: [future, dueSecond, activeClaim, disabled, event, scheduleTrigger()], workflow_runs: [], workflow_event_receipts: [] });
+
+  const result = await executeOperation(database, 'list_due_triggers', { protocol_version: 1, now: 1_783_843_200, limit: 10 }, NOW);
+
+  assert.deepEqual(result, { trigger_ids: ['trigger-1', 'trigger-2'] });
+});
+
+test('due claim fails closed when the scheduler-only raw owner reference is missing', async () => {
+  const trigger = scheduleTrigger();
+  delete trigger.owner_user_id;
+  const database = fakeDatabase({ workflow_triggers: [trigger], workflow_runs: [], workflow_event_receipts: [] });
+
+  await assert.rejects(
+    executeOperation(database, 'claim_due_trigger', { protocol_version: 1, trigger_id: 'trigger-1' }, NOW),
+    (error) => error instanceof WorkflowRuntimeError && error.code === 'owner_reference_required',
+  );
+  assert.equal(database.rows.workflow_runs.length, 0);
+  assert.equal(database.rows.workflow_triggers[0].claim_status, undefined);
+});
+
+test('manual acceptance creates one queued run pinned to the locked current immutable version', async () => {
+  const database = fakeDatabase({
+    workflows: [{ workflow_id: 'workflow-1', hashed_user_id: OWNER, current_version_id: 'version-1', status: 'active' }],
+    workflow_versions: [{ version_id: 'version-1', workflow_id: 'workflow-1', hashed_user_id: OWNER }],
+    workflow_triggers: [], workflow_runs: [], workflow_event_receipts: [],
+  });
+  const body = {
+    protocol_version: 1, workflow_id: 'workflow-1', hashed_user_id: OWNER,
+    trigger_type: 'manual', idempotency_key: 'manual-request-1',
+  };
+  const [first, second] = await Promise.all([
+    executeOperation(database, 'accept_manual_run', body, NOW),
+    executeOperation(database, 'accept_manual_run', body, NOW),
+  ]);
+
+  const accepted = first.accepted ? first : second;
+  assert.equal([first, second].filter((result) => result.accepted).length, 1);
+  assert.equal(database.rows.workflow_runs.length, 1);
+  assert.equal(accepted.version_id, 'version-1');
+  assert.equal(accepted.status, 'queued');
+  assert.equal(database.rows.workflow_runs[0].version_id, 'version-1');
+  assert.equal(database.rows.workflow_runs[0].trigger_id, null);
+  assert.equal(database.rows.workflow_runs[0].acceptance_idempotency_key.startsWith('sha256:'), true);
+  assert.equal(database.rows.workflow_runs[0].acceptance_idempotency_key.includes('manual-request-1'), false);
+  assert.equal(database.rows.workflow_runs[0].owner_user_id, undefined);
+
+  database.rows.workflows[0].current_version_id = 'version-2';
+  database.rows.workflow_versions.push({ version_id: 'version-2', workflow_id: 'workflow-1', hashed_user_id: OWNER });
+  const replay = await executeOperation(database, 'accept_manual_run', body, NOW);
+  assert.deepEqual(replay, {
+    accepted: false, run_id: accepted.run_id, workflow_id: 'workflow-1', version_id: 'version-1', status: 'queued',
+  });
+  assert.equal(database.rows.workflow_runs.length, 1);
+});
+
+test('manual acceptance rejects a missing immutable version without creating a run', async () => {
+  const database = fakeDatabase({
+    workflows: [{ workflow_id: 'workflow-1', hashed_user_id: OWNER, current_version_id: 'version-missing', status: 'active' }],
+    workflow_versions: [], workflow_triggers: [], workflow_runs: [], workflow_event_receipts: [],
+  });
+
+  await assert.rejects(
+    executeOperation(database, 'accept_manual_run', {
+      protocol_version: 1, workflow_id: 'workflow-1', hashed_user_id: OWNER,
+      trigger_type: 'test', idempotency_key: 'test-request-1',
+    }, NOW),
+    (error) => error instanceof WorkflowRuntimeError && error.code === 'workflow_version_not_found',
+  );
+  assert.equal(database.rows.workflow_runs.length, 0);
+});
+
+test('only one worker can start an accepted manual run', async () => {
+  const database = fakeDatabase({
+    workflow_triggers: [], workflow_event_receipts: [],
+    workflow_runs: [{
+      run_id: 'run-manual-1', workflow_id: 'workflow-1', version_id: 'version-1',
+      hashed_user_id: OWNER, trigger_type: 'manual', status: 'queued',
+    }],
+  });
+  const body = {
+    protocol_version: 1, workflow_id: 'workflow-1', run_id: 'run-manual-1', hashed_user_id: OWNER,
+  };
+
+  const [first, second] = await Promise.all([
+    executeOperation(database, 'start_accepted_run', body, NOW),
+    executeOperation(database, 'start_accepted_run', body, NOW),
+  ]);
+
+  assert.equal([first, second].filter((result) => result.started).length, 1);
+  assert.equal(database.rows.workflow_runs[0].status, 'running');
+  assert.equal(database.rows.workflow_runs[0].started_at, 1_783_843_200);
+});
+
+test('owner cancellation is durable and rejects terminal or cross-owner runs', async () => {
+  const database = fakeDatabase({
+    workflow_triggers: [], workflow_event_receipts: [],
+    workflow_runs: [{ run_id: 'run-1', workflow_id: 'workflow-1', hashed_user_id: OWNER, status: 'running' }],
+  });
+  const body = { protocol_version: 1, workflow_id: 'workflow-1', run_id: 'run-1', hashed_user_id: OWNER };
+
+  const cancelled = await executeOperation(database, 'request_run_cancellation', body, NOW);
+
+  assert.deepEqual(cancelled, { run_id: 'run-1', status: 'cancellation_requested' });
+  assert.equal(database.rows.workflow_runs[0].status, 'cancellation_requested');
+  assert.equal(database.rows.workflow_runs[0].cancellation_requested_at, 1_783_843_200);
+  assert.deepEqual(await executeOperation(database, 'request_run_cancellation', body, NOW), cancelled);
+  database.rows.workflow_runs[0].status = 'completed';
+  await assert.rejects(
+    executeOperation(database, 'request_run_cancellation', body, NOW),
+    (error) => error instanceof WorkflowRuntimeError && error.code === 'run_not_cancellable',
+  );
+  await assert.rejects(
+    executeOperation(database, 'request_run_cancellation', { ...body, hashed_user_id: 'b'.repeat(64) }, NOW),
+    (error) => error instanceof WorkflowRuntimeError && error.code === 'run_not_found',
+  );
+});
+
+test('cancelling a queued scheduled run releases its lease and advances the occurrence without execution', async () => {
+  const database = fakeDatabase({ workflow_triggers: [scheduleTrigger()], workflow_runs: [], workflow_event_receipts: [] });
+  const claim = await executeOperation(database, 'claim_due_trigger', { protocol_version: 1, trigger_id: 'trigger-1' }, NOW);
+  const cancelled = await executeOperation(database, 'request_run_cancellation', {
+    protocol_version: 1, workflow_id: 'workflow-1', run_id: claim.run_id, hashed_user_id: OWNER,
+  }, NOW);
+
+  assert.deepEqual(cancelled, {
+    run_id: claim.run_id, status: 'cancelled', trigger_id: 'trigger-1', requeue_scheduled_trigger: true,
+  });
+  assert.equal(database.rows.workflow_triggers[0].claim_status, null);
+
+  const recovered = await executeOperation(database, 'claim_due_trigger', { protocol_version: 1, trigger_id: 'trigger-1' }, NOW);
+  assert.equal(recovered.accepted, true);
+  assert.equal(recovered.recovered, true);
+  const started = await executeOperation(database, 'start_claimed_run', {
+    protocol_version: 1, trigger_id: 'trigger-1', run_id: claim.run_id,
+    claim_generation: recovered.claim_generation, claim_token: recovered.claim_token,
+  }, NOW);
+  assert.deepEqual(started, {
+    started: false, run_id: claim.run_id, workflow_id: 'workflow-1', version_id: 'version-1', status: 'cancelled',
+  });
+  const advanced = await executeOperation(database, 'advance_claimed_trigger', {
+    protocol_version: 1, trigger_id: 'trigger-1', claim_generation: recovered.claim_generation,
+    claim_token: recovered.claim_token, next_run_at: 1_783_929_600,
+  }, NOW);
   assert.equal(advanced.next_run_at, 1_783_929_600);
 });
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -39,44 +40,77 @@ def cleanup_expired_temporary_workflows(user_id: str | None = None, now: int | N
 async def run_workflow_now(
     workflow_id: str,
     user_id: str,
-    trigger_type: str = "schedule",
-    input_payload: dict[str, Any] | None = None,
+    run_id: str,
+    version_id: str,
+    trigger_type: str,
+    input_payload: dict[str, Any],
+    *,
+    workflow_service: WorkflowService | None = None,
+    runtime_service: WorkflowRuntimeService | None = None,
 ) -> dict[str, Any]:
-    service = get_workflow_service()
+    """Execute a run only after its API or scheduler acceptance pinned a version."""
+    if trigger_type not in {"manual", "test"}:
+        raise ValueError("Manual worker task only accepts manual or test runs")
+    if runtime_service is None:
+        raise RuntimeError("Workflow runtime service is required to claim accepted runs")
+    service = workflow_service or get_workflow_service()
+    started = await runtime_service.execute(
+        "start_accepted_run",
+        {
+            "workflow_id": workflow_id,
+            "run_id": run_id,
+            "hashed_user_id": service.repository.workflow_owner_hash(user_id),
+        },
+    )
+    claimed_run_id = started.get("run_id")
+    claimed_workflow_id = started.get("workflow_id")
+    claimed_version_id = started.get("version_id")
+    status = started.get("status")
+    started_flag = started.get("started")
+    if not all(isinstance(value, str) and value for value in (claimed_run_id, claimed_workflow_id, claimed_version_id, status)):
+        raise RuntimeError("Workflow runtime start returned invalid run metadata")
+    if not isinstance(started_flag, bool):
+        raise RuntimeError("Workflow runtime start returned invalid started state")
+    if (claimed_run_id, claimed_workflow_id, claimed_version_id) != (run_id, workflow_id, version_id):
+        raise RuntimeError("Workflow runtime start did not match the accepted run")
+    if not started_flag:
+        return {"id": run_id, "workflow_id": workflow_id, "version_id": version_id, "status": status}
     vault_key_id = service.resolve_user_vault_key_id(user_id)
-    workflow = await asyncio.to_thread(service.get_workflow, workflow_id, user_id, vault_key_id)
+    workflow = await asyncio.to_thread(service.get_workflow_version, workflow_id, user_id, version_id, vault_key_id)
     run = await WorkflowRunner(service).run_workflow(
         workflow,
         user_id,
         vault_key_id=vault_key_id,
         trigger_type=trigger_type,
-        input_payload=input_payload or {},
+        input_payload=input_payload,
+        run_id=run_id,
+        version_id=version_id,
     )
     return run.model_dump(mode="json")
 
 
 async def run_scheduled_workflow_trigger_now(
     trigger_id: str,
-    user_id: str,
     *,
     runtime_service: WorkflowRuntimeService,
-    decrypt_and_schedule: Callable[[str], Awaitable[int]] | None = None,
+    decrypt_and_schedule: Callable[[str, str], Awaitable[int]] | None = None,
     workflow_service: WorkflowService | None = None,
 ) -> dict[str, Any]:
     """Execute a Directus-accepted schedule occurrence with its existing run id."""
     service = workflow_service or get_workflow_service()
-    vault_key_id = service.resolve_user_vault_key_id(user_id)
 
     if decrypt_and_schedule is None:
-        async def decrypt_and_schedule(config_ref: str) -> int:
-            config = await asyncio.to_thread(service.decrypt_schedule_config, user_id, config_ref, vault_key_id)
+        async def decrypt_and_schedule(owner_user_id: str, config_ref: str) -> int:
+            vault_key_id = await asyncio.to_thread(service.resolve_user_vault_key_id, owner_user_id)
+            config = await asyncio.to_thread(service.decrypt_schedule_config, owner_user_id, config_ref, vault_key_id)
             return WorkflowSchedulerService.next_run_at_from_schedule(config)
 
-    async def execute_accepted_run(run_id: str, workflow_id: str, version_id: str) -> None:
-        workflow = await asyncio.to_thread(service.get_workflow_version, workflow_id, user_id, version_id, vault_key_id)
+    async def execute_accepted_run(run_id: str, workflow_id: str, version_id: str, owner_user_id: str) -> None:
+        vault_key_id = await asyncio.to_thread(service.resolve_user_vault_key_id, owner_user_id)
+        workflow = await asyncio.to_thread(service.get_workflow_version, workflow_id, owner_user_id, version_id, vault_key_id)
         await WorkflowRunner(service).run_workflow(
             workflow,
-            user_id,
+            owner_user_id,
             vault_key_id=vault_key_id,
             trigger_type="schedule",
             run_id=run_id,
@@ -87,7 +121,22 @@ async def run_scheduled_workflow_trigger_now(
         trigger_id,
         decrypt_and_schedule,
         execute_accepted_run,
-        expected_owner_hash=service.repository.workflow_owner_hash(user_id),
+    )
+
+
+async def scan_due_workflow_triggers_now(
+    *,
+    now: int | None = None,
+    limit: int = 100,
+    runtime_service: WorkflowRuntimeService,
+) -> dict[str, Any]:
+    async def dispatch_trigger(trigger_id: str) -> None:
+        run_scheduled_workflow_trigger_task.delay(trigger_id)
+
+    return await WorkflowSchedulerService(runtime_service).scan_due_triggers(
+        now=now if now is not None else int(time.time()),
+        limit=limit,
+        dispatch_trigger=dispatch_trigger,
     )
 
 
@@ -211,30 +260,60 @@ def run_workflow_task(
     self: BaseServiceTask,
     workflow_id: str,
     user_id: str,
-    trigger_type: str = "schedule",
-    input_payload: dict[str, Any] | None = None,
+    run_id: str,
+    version_id: str,
+    trigger_type: str,
+    input_payload: dict[str, Any],
 ) -> dict[str, Any]:
     try:
-        return asyncio.run(run_workflow_now(workflow_id, user_id, trigger_type=trigger_type, input_payload=input_payload))
+        async def run() -> dict[str, Any]:
+            await self.initialize_services()
+            return await run_workflow_now(
+                workflow_id,
+                user_id,
+                run_id,
+                version_id,
+                trigger_type,
+                input_payload,
+                runtime_service=WorkflowRuntimeService(self.directus_service),
+            )
+
+        return asyncio.run(run())
     except Exception as exc:
         logger.error("Workflow run task failed: %s", exc, exc_info=True)
         raise
 
 
 @app.task(name="workflows.run_scheduled_trigger", base=BaseServiceTask, bind=True)
-def run_scheduled_workflow_trigger_task(self: BaseServiceTask, trigger_id: str, user_id: str) -> dict[str, Any]:
+def run_scheduled_workflow_trigger_task(self: BaseServiceTask, trigger_id: str) -> dict[str, Any]:
     try:
         async def run() -> dict[str, Any]:
             await self.initialize_services()
             return await run_scheduled_workflow_trigger_now(
                 trigger_id,
-                user_id,
                 runtime_service=WorkflowRuntimeService(self.directus_service),
             )
 
         return asyncio.run(run())
     except Exception as exc:
         logger.error("Workflow scheduled trigger task failed: %s", exc, exc_info=True)
+        raise
+
+
+@app.task(name="workflows.scan_due_triggers", base=BaseServiceTask, bind=True)
+def scan_due_workflow_triggers_task(self: BaseServiceTask, now: int | None = None, limit: int = 100) -> dict[str, Any]:
+    try:
+        async def run() -> dict[str, Any]:
+            await self.initialize_services()
+            return await scan_due_workflow_triggers_now(
+                now=now,
+                limit=limit,
+                runtime_service=WorkflowRuntimeService(self.directus_service),
+            )
+
+        return asyncio.run(run())
+    except Exception as exc:
+        logger.error("Workflow due-trigger scanner task failed: %s", exc, exc_info=True)
         raise
 
 

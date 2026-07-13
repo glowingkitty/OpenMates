@@ -19,7 +19,11 @@ from typing import Any
 logger = logging.getLogger(__name__)
 WORKFLOW_RUNTIME_OPERATIONS = frozenset(
     {
+        "list_due_triggers",
         "claim_due_trigger",
+        "accept_manual_run",
+        "start_accepted_run",
+        "request_run_cancellation",
         "start_claimed_run",
         "advance_claimed_trigger",
         "accept_event_trigger",
