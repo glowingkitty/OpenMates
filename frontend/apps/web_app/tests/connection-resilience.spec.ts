@@ -207,11 +207,16 @@ async function sendMessageUntilChatIdAssigned(
 	logCheckpoint(`Typed recovery message: "${message}"`);
 
 	const sendButton = messageField.locator('[data-action="send-message"]');
+	const sentToChatSyncService = page.waitForEvent('console', {
+		predicate: (msg: any) => msg.text().includes('[handleSend] Message sent to chatSyncService:'),
+		timeout: 30000
+	});
 	await expect(sendButton).toBeVisible({ timeout: 5000 });
 	await sendButton.click({ timeout: 5000 });
-	logCheckpoint('Clicked recovery send button; waiting only for new chat URL before closing origin.');
+	logCheckpoint('Clicked recovery send button; waiting for backend send dispatch before closing origin.');
 
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30000 });
+	await sentToChatSyncService;
 	const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
 	expect(chatId).toBeTruthy();
 	return chatId;
