@@ -8710,12 +8710,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             followUpSuggestions = [];
         }
 
-        if (!isPublicChat(currentChat.chat_id) && currentChat.encrypted_quick_tip_slugs) {
+        let quickTipCiphertext = currentChat.encrypted_quick_tip_slugs;
+        if (!isPublicChat(currentChat.chat_id) && !quickTipCiphertext) {
+            const freshChat = await chatDB.getChat(currentChat.chat_id).catch(() => null);
+            quickTipCiphertext = freshChat?.encrypted_quick_tip_slugs ?? null;
+        }
+
+        if (!isPublicChat(currentChat.chat_id) && quickTipCiphertext) {
             try {
                 const chatKey = chatKeyManager.getKeySync(currentChat.chat_id);
                 if (chatKey) {
                     const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                    quickTipSlugs = await decryptArrayWithChatKey(currentChat.encrypted_quick_tip_slugs, chatKey) || [];
+                    quickTipSlugs = await decryptArrayWithChatKey(quickTipCiphertext, chatKey) || [];
                 } else {
                     quickTipSlugs = [];
                 }
