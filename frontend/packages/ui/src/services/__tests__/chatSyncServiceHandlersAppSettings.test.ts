@@ -230,6 +230,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     const service = {
       dispatchEvent: vi.fn(),
       hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
     } as unknown as ChatSynchronizationService;
 
     const recovery = handleRecoveryJobsAvailableImpl(service, {
@@ -338,6 +339,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     const service = {
       dispatchEvent: vi.fn(),
       hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
     } as unknown as ChatSynchronizationService;
 
     const recovery = handleRecoveryJobsAvailableImpl(service, {
@@ -350,6 +352,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       }],
     });
     await vi.advanceTimersByTimeAsync(0);
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledWith(["chat-1"]);
     expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith(
       "recovery_job_claim",
       expect.anything(),
@@ -447,6 +450,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     const service = {
       dispatchEvent: vi.fn(),
       hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
     } as unknown as ChatSynchronizationService;
 
     const recovery = handleRecoveryJobsAvailableImpl(service, {
@@ -596,6 +600,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     const service = {
       dispatchEvent: vi.fn(),
       hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
     } as unknown as ChatSynchronizationService;
 
     let recoverySettled = false;

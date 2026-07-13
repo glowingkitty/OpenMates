@@ -171,6 +171,7 @@ export async function handleRecoveryJobsAvailableImpl(
       // A local synced/delivered row can still be browser-only if the user logs out
       // before sealed recovery reaches terminal persistence. The server job is the
       // durable idempotency boundary, so do not skip an available job based on IDB.
+      await serviceInstance.requestChatContentBatch_FOR_HANDLERS_ONLY([job.chat_id]);
       const prerequisites = await waitForRecoveryPrerequisites(job);
       if (!prerequisites) {
         console.warn(
