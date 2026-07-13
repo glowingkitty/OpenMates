@@ -139,6 +139,7 @@ describe("recovery job request correlation", () => {
     const service = {
       dispatchEvent: vi.fn(),
       hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+      requestChatContentBatch_FOR_HANDLERS_ONLY: vi.fn().mockResolvedValue(undefined),
     };
 
     let recoverySettled = false;
