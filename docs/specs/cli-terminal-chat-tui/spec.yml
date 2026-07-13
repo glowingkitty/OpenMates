@@ -606,7 +606,7 @@ tests:
   - id: T-CLI-TUI-WORKFLOWS-E2E
     type: playwright
     file: frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
-    command: python3 scripts/tests.py run --spec cli-tui-workflows.spec.ts
+    command: python3 scripts/tests.py run -- --spec cli-tui-workflows.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-20
@@ -627,6 +627,33 @@ tests:
         status: ""
         run_id: ""
         timestamp: ""
+
+  - id: T-CLI-TUI-WORKFLOWS-LOCAL
+    type: manual
+    file: frontend/packages/openmates-cli/src/tui.ts
+    command: expect -c 'spawn env OPENMATES_API_URL=http://localhost:8000 TERM=xterm node dist/cli.js --api-url http://localhost:8000; send "/workflows\r"; send "\r"; send "r"; send "g"; send "\r"; send "\003"'
+    covers:
+      - AC-20
+    assertions:
+      - The built CLI TUI launches in a real pseudo-terminal against the local dev API at `http://localhost:8000` with an authenticated CLI session.
+      - The TUI lists a real locally-created workflow, opens workflow detail, and switches Graph/Runs tabs before any additional GitHub Actions dispatch.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        reason: Manual local pseudo-terminal proof added for the post-implementation gate.
+        timestamp: "2026-07-13T23:24:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-dev-tui-20260713T232205Z
+        command: node dist/cli.js --api-url http://localhost:8000 via expect pseudo-terminal
+        artifact: /tmp/opencode/workflow-tui-local-dev.expect.log
+        subject_commit: ac09a48c8
+        timestamp: "2026-07-13T23:24:00Z"
 
   - id: T-CLI-EMBED-PREVIEWS
     type: unit
