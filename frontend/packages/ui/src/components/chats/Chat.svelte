@@ -443,16 +443,24 @@
   // Store cached metadata at component level
   let cachedMetadata: DecryptedChatMetadata | null = $state(null);
 
+  function normalizePlaintextChatTitle(title: string | null | undefined): string | null {
+    const trimmed = title?.trim();
+    if (!trimmed || trimmed.toLowerCase() === 'untitled chat') return null;
+    return trimmed;
+  }
+
   // Active focus mode badge: derived from cachedMetadata.activeFocusId.
   // Shows a small circle in the bottom-right of the category circle when a focus mode is active.
   // Format of activeFocusId: "{app_id}-{focus_mode_id}" e.g. "jobs-career_insights"
   let liveActiveFocusId = $derived(chat ? ($activeChatFocusStore[chat.chat_id] ?? null) : null);
   let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? liveActiveFocusId);
   let activeFocusBadgeAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
+  let plaintextChatTitle = $derived(normalizePlaintextChatTitle(chat?.title));
+  let displayChatTitle = $derived(cachedMetadata?.title ?? plaintextChatTitle);
   
   // CRITICAL: Track if we're waiting for title (reactive variable for template)
   // This ensures we keep showing "Processing..." until title is ready
-  let isWaitingForTitle = $derived(!cachedMetadata?.title && !chat.title && 
+  let isWaitingForTitle = $derived(!displayChatTitle && 
                                     (chat.waiting_for_metadata === true || 
                                      (lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))));
 
@@ -835,7 +843,7 @@
         : extractTextFromTiptap(lastMessage.content);
     } else if (draftTextContent) {
       // If there's a draft, display draft information
-      if (cachedMetadata?.title) {
+      if (displayChatTitle) {
         // For titled chats with draft, use specific translation that includes the beginning
         displayLabel = $text('enter_message.draft_with_beginning').replace('{draft_beginning}', truncateText(draftTextContent, 30));
         displayText = ''; // The label itself contains the preview for this case
@@ -1130,14 +1138,14 @@
     !!chat?.encrypted_draft_preview ||
     !!chat?.encrypted_draft_md
   );
-  let isDraftOnly = $derived(chat && hasDraftIndicator && !cachedMetadata?.title && !chat.title && (!lastMessage || lastMessage === null));
+  let isDraftOnly = $derived(chat && hasDraftIndicator && !displayChatTitle && (!lastMessage || lastMessage === null));
   
   // Detect if this is a chat waiting for metadata (new chat that just sent first message)
   // These chats should show message content with status indicator, similar to draft-only but with message
   // CRITICAL: Also check if title is missing even if waiting_for_metadata was cleared (cache might not be updated yet)
   let isWaitingForMetadata = $derived(chat && 
     ((chat.waiting_for_metadata === true) || 
-     (!cachedMetadata?.title && !chat.title && lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))) 
+     (!displayChatTitle && lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))) 
     && lastMessage);
 
   // Context menu handlers
@@ -2065,9 +2073,9 @@
             <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
           {/if}
         </div>
-      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo && !cachedMetadata?.title && !chat.title}
+      {:else if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo && !displayChatTitle}
         <!-- Status-only layout: only shown when we genuinely have no title yet.
-             Once title/category/icon arrive (cachedMetadata.title or chat.title is set),
+             Once title/category/icon arrive, 
              we fall through to the chat-with-profile layout so the title is shown immediately
              even while the AI is still processing the response. -->
         <div class="status-only-preview">
@@ -2259,9 +2267,9 @@
                 <!-- Search result mode: use pre-highlighted HTML title (has <mark> tags for matched text) -->
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <span class="chat-title" data-testid="chat-title">{@html highlightedTitle}</span>
-              {:else if chat.title || cachedMetadata?.title}
+              {:else if displayChatTitle}
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                <span class="chat-title" data-testid="chat-title">{@html chat.title || cachedMetadata?.title}</span>
+                <span class="chat-title" data-testid="chat-title">{@html displayChatTitle}</span>
               {:else if isWaitingForTitle}
                 <!-- Show "Processing..." as title when waiting for metadata -->
                 <span class="chat-title processing-title" data-testid="chat-title">{$text('common.processing')}</span>
