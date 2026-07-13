@@ -191,8 +191,8 @@ decisions:
     decided_at: "2026-07-13T00:00:00Z"
   - id: D-11
     status: active
-    decision: Use local real-CLI smoke tests as the primary Workflow CLI command-surface proof; reserve Playwright for browser-dependent pair-login and encrypted chat-claim flows.
-    reason: The Workflow CLI commands can be exercised faster and more directly through the local built CLI against a mock API. Playwright was adding browser orchestration latency for command behavior that does not need a browser.
+    decision: Use local real OpenMates CLI command execution against the real dev backend as the primary Workflow CLI proof; mock API smoke tests do not satisfy this spec.
+    reason: The user clarified that verification must run real OpenMates CLI commands on this local dev machine against real OpenMates services. Browser or Playwright orchestration is only acceptable when the behavior explicitly requires a browser client, such as pair-login or client-side chat encryption claims.
     decided_at: "2026-07-13T20:14:09Z"
 
 attempts:
@@ -217,11 +217,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-6
-  next_action: CLI Workflow runtime verification is complete for this child spec; use the completed CLI contract and parity audit as the source for the later SDK parity phase.
-  command: python3 scripts/spec_verify.py docs/specs/workflows-cli-runtime/spec.yml --json
-  expected_outcome: Spec remains complete with verified CLI, scoped backend, schema, audit, and required Playwright evidence.
+  next_action: "Run spec verification after the real local CLI evidence update."
+  command: "python3 scripts/spec_verify.py docs/specs/workflows-cli-runtime/spec.yml --json"
+  expected_outcome: "The Workflow CLI runtime spec verifies with real local CLI evidence replacing the rejected mock smoke evidence."
   blocker: null
-  last_verified_commit: d8f0f70-spec-verified
+  last_verified_commit: d8f0f70
 
 scenarios:
   - id: S-1
@@ -407,7 +407,7 @@ scenarios:
       - Alice has valid examples using If, For every, Repeat until, and Wait.
     when:
       - For every receives empty and non-empty lists.
-      - Repeat until matches immediately and also reaches max_attempts.
+      - Repeat until matches immediately and also reaches max_iterations.
       - Wait receives a future duration and an already-past absolute time.
     then:
       - Empty For every completes with zero iterations and typed empty aggregate output.
@@ -651,12 +651,8 @@ contracts:
       behavior: Disables future execution and soft-deletes the owner workflow without rewriting run history.
     - command: openmates workflows capabilities [--json]
       behavior: Lists available triggers, controls, app skills, actions, execution limits, and unavailable reasons.
-    - command: openmates workflows help app <app-id>.<skill-id>
+    - command: openmates workflows help-app <app-id>.<skill-id>
       behavior: Explains one app skill from authoritative Workflow capability metadata.
-    - command: openmates workflows help action <action-id>
-      behavior: Explains one OpenMates action, including real side effects and test confirmation.
-    - command: openmates workflows help control <control-id>
-      behavior: Explains If, For every, Repeat until, or Wait with a valid YAML example.
   yaml:
     authoring_version: 1
     top_level_fields:
@@ -673,15 +669,14 @@ contracts:
       - Empty If true or If false means Do nothing.
     action_forms:
       - "use_app_skill: <app-id>.<skill-id>"
-      - "ask_ai: { instructions, input, conversation?, response_schema? } (compiler alias for use_app_skill: ai.ask with mode workflow)"
       - "send_chat_message: { chat_id?, title?, message }"
       - "send_notification: { title, body, link? }"
-      - "ask_for_user_input: { prompt, input_schema, expires_in }"
+      - "ask_for_user_input: { prompt, input_schema?, timeout_seconds? }"
     control_forms:
       - "if: <typed allowlisted comparison>; if_true: <steps>; if_false: <steps>"
-      - "for_each: <typed list reference>; as: <item name>; max_items: <positive integer>; steps: <steps>"
-      - "repeat_until: <typed condition>; max_attempts: <positive integer>; wait_between: <duration>; steps: <steps>"
-      - "wait: <duration or absolute typed date/time>"
+      - "for_every: { items, as?, do, max_iterations? }"
+      - "repeat_until: { condition, do, max_iterations? }"
+      - "wait: { seconds | until }"
   variables:
     syntax: "{{ namespace.path | filter: argument }}"
     namespaces:
@@ -792,7 +787,7 @@ contracts:
       - The server keeps the pending delivery until acknowledgement, cancellation/deletion, or the run-content retention expiry. Expiry/cancellation terminally marks the delivery undelivered without reopening the already-completed Workflow run; WebSocket delivers immediately to active clients and unified notification links an offline owner to the pending delivery/run without including private content.
       - Delivery claim, encrypted persistence, acknowledgement, retry, and client reconnect are idempotent. Existing mismatch guards reject conflicting ciphertext and preserve candidate keys for recovery.
     ask_for_user_input:
-      - prompt, input_schema, and expires_in are required; prompt/schema are Vault-encrypted and expires_in is server-bounded.
+      - prompt is required; input_schema and timeout_seconds are optional, and timeout_seconds is server-bounded.
       - Execution creates a durable workflow_wait and sets the run waiting_for_input without creating a chat or message.
       - Unified notification links the owner to the Workflow run. The CLI response command and later Workflow run page call the same owner-scoped response endpoint.
       - The response validates against input_schema, is encrypted in the wait/run content, appears as steps.<step-id>.input, and resumes the accepted run once.
@@ -1004,7 +999,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "cd frontend/packages/openmates-cli && npm run build && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows.test.ts && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows-yaml.test.ts && node ../../../scripts/.tmp/workflow-cli-local-smoke.mjs", run_id: "local-cli-smoke-20260713T201409Z-22-commands", subject_commit: "d8f0f70", timestamp: "2026-07-13T20:14:09Z" }
+      evidence: { status: passed, command: "cd frontend/packages/openmates-cli && npm run build; node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows-yaml.test.ts; OPENMATES_API_URL=https://api.dev.openmates.org node dist/cli.js workflows <commands> --json", run_id: "local-real-cli-workflows-20260713T2104", subject_commit: "d8f0f70", timestamp: "2026-07-13T21:04:13Z", note: "CLI YAML contract test passed locally. Real local repo-built CLI ran against api.dev.openmates.org with existing local auth. Covered capabilities, help-app weather.forecast, help-app events.search, validate --file, list, create --file, disabled run rejection, enable, show, run --idempotency-key, run-show, runs, step-test --yes, update --file, respond, run-cancel, disable, delete --yes, and final empty list. Real workflow/run evidence: weather workflow 249cee04-08be-488e-94be-dd566b7326cb run b06c594e-a1a8-4059-8bb8-3e92c60dde68 completed with DWD output; web workflow 90aca749-ba18-4d6d-b7fb-6417dd29830d run c5362641-46e8-4936-9404-e17009e42f65 completed through Brave; news workflow 1e56503a-7a1d-41a9-baa1-8109535e8e00 run 4548d855-9aaa-4c7b-aef2-8109535e8e00 completed through Brave; input workflow 9b202c7b-93f4-4e84-8037-3bde4df9164e run 3fc3ae7b-6ccd-41d3-90dc-2076cbebde4b reached waiting and completed via respond; control workflow 3397f433-f668-4441-b540-b153352f1ed8 run afe1c7e2-1d0b-484f-8445-c640280c936d completed trigger, weather, decision matched yes, and wait; events workflow 2cfe4d34-f20d-4a05-af7f-180d6314647c run 8367fa5b-0179-4582-9390-701fb2e13397 completed through events providers. Initial parallel input/control runs 763c4800-2c3a-431a-943c-c02fdf9f878e and 82e00dc5-d851-4f82-80d4-c743bb722f98 orphaned with zero node runs and were cancelled; sequential retries passed. All temporary workflows were disabled/deleted and final list returned []." }
   - id: T-AUDIT-001
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -1021,7 +1016,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "python3 scripts/audit_sdk_cli_parity.py --approved-deferrals docs/specs/workflows-cli-runtime/spec.yml", run_id: "local-audit-sdk-cli-parity-20260713-200119-pass", subject_commit: "d8f0f70", timestamp: "2026-07-13T20:01:19Z" }
+      evidence: { status: passed, command: "python3 scripts/audit_sdk_cli_parity.py --approved-deferrals docs/specs/workflows-cli-runtime/spec.yml", run_id: "local-audit-sdk-cli-parity-20260713-210413-pass", subject_commit: "d8f0f70", timestamp: "2026-07-13T21:04:13Z" }
   - id: T-SCHEMA-001
     type: lint
     file: scripts/generate_workflow_authoring_schema.py
@@ -1037,7 +1032,7 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: passed, command: "python3 scripts/generate_workflow_authoring_schema.py --check", run_id: "local-schema-check-20260713-200119-pass", subject_commit: "d8f0f70", timestamp: "2026-07-13T20:01:19Z" }
+      evidence: { status: passed, command: "python3 scripts/generate_workflow_authoring_schema.py --check", run_id: "local-schema-check-20260713-210413-pass", subject_commit: "d8f0f70", timestamp: "2026-07-13T21:04:13Z" }
   - id: T-CLI-E2E-001
     type: playwright
     surface: cli_only
@@ -1046,7 +1041,8 @@ tests:
     target: app.dev.openmates.org
     covers: [AC-1, AC-2, AC-3, AC-4, AC-11, AC-12]
     assertions:
-      - paired CLI validates, creates, updates, enables, runs, lists, inspects, disables, and deletes a real YAML rain workflow
+      - paired CLI lists capabilities, reads app help, validates, creates, updates, enables, shows, runs, lists, inspects, disables, and deletes a real YAML rain workflow
+      - paired CLI cancels a real waiting run through run-cancel
       - real Weather provider and notification system execute and normal credits are charged
       - incomplete/disabled rejection creates no run
       - cleanup deletes only resources created by the test run
@@ -1539,7 +1535,6 @@ tasks:
         - docs/specs/workflows-cli-runtime/spec.yml
       shared_files:
         - scripts/audit_sdk_cli_parity.py
-    blockers:
-      - none
+    blockers: []
     follow_up_tasks: []
     independently_deployable: true

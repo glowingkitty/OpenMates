@@ -35,8 +35,19 @@ test.describe('CLI Workflows rain YAML lifecycle', () => {
 		const apiUrl = workflowApiUrl();
 		const homeDir = createWorkflowCliHome('workflow-rain');
 		let workflowId: string | undefined;
+		let cancelWorkflowId: string | undefined;
 		try {
 			await loginWorkflowCliViaPair(page, apiUrl, homeDir, 'CLI_WORKFLOW_RAIN');
+			const capabilities = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'capabilities'], 'workflow capabilities');
+			expect(capabilities.map((capability: any) => capability.id)).toEqual(expect.arrayContaining(['manual_trigger', 'schedule_trigger', 'app_skill_action', 'decision', 'weather.forecast']));
+
+			const weatherHelp = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'help-app', 'weather.forecast'], 'weather help');
+			expect(weatherHelp.id).toBe('weather.forecast');
+			expect(weatherHelp.enabled).toBe(true);
+
+			const initialList = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'list'], 'initial workflow list');
+			expect(Array.isArray(initialList)).toBe(true);
+
 			const title = uniqueWorkflowName('E2E rain workflow');
 			const incompleteYaml = writeWorkflowYaml(homeDir, 'rain-incomplete.yml', `
 title: ${title}
@@ -102,6 +113,9 @@ steps:
 
 			const enabled = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'enable', workflowId], 'enable workflow');
 			expect(enabled.enabled).toBe(true);
+			const shown = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'show', workflowId], 'show workflow');
+			expect(shown.id).toBe(workflowId);
+			expect(shown.enabled).toBe(true);
 
 			const acceptedRun = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'run', workflowId, '--idempotency-key', `${workflowId}-manual`], 'run workflow');
 			expect(acceptedRun.status).toMatch(/queued|running|completed/);
@@ -123,8 +137,40 @@ steps:
 			const deleted = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'delete', workflowId, '--yes'], 'delete workflow');
 			expect(deleted.deleted).toBe(true);
 			workflowId = undefined;
+
+			const cancelYaml = writeWorkflowYaml(homeDir, 'cancel-wait.yml', `
+title: ${uniqueWorkflowName('E2E cancel workflow')}
+description: Waiting Workflow used to verify run-cancel.
+start_when:
+  manual: {}
+steps:
+  - id: ask
+    ask_for_user_input:
+      prompt: "Should this run be cancelled?"
+      input_schema:
+        type: object
+        properties:
+          answer:
+            type: string
+        required:
+          - answer
+      timeout_seconds: 600
+`);
+			const cancelCreated = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'create', '--file', cancelYaml], 'create cancel workflow');
+			cancelWorkflowId = cancelCreated.workflow.id;
+			expect(cancelCreated.validation.enable_ready).toBe(true);
+			await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'enable', cancelWorkflowId], 'enable cancel workflow');
+			const cancelAcceptedRun = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'run', cancelWorkflowId, '--idempotency-key', `${cancelWorkflowId}-cancel`], 'run cancel workflow');
+			await waitForWorkflowRunStatus(apiUrl, homeDir, cancelWorkflowId, cancelAcceptedRun.id, ['waiting'], 'cancel workflow');
+			const cancelled = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'run-cancel', cancelWorkflowId, cancelAcceptedRun.id], 'cancel workflow run');
+			expect(cancelled.run_id).toBe(cancelAcceptedRun.id);
+			expect(cancelled.status).toBe('cancellation_requested');
+			const deletedCancel = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'delete', cancelWorkflowId, '--yes'], 'delete cancel workflow');
+			expect(deletedCancel.deleted).toBe(true);
+			cancelWorkflowId = undefined;
 		} finally {
 			await deleteWorkflowQuietly(apiUrl, homeDir, workflowId);
+			await deleteWorkflowQuietly(apiUrl, homeDir, cancelWorkflowId);
 			removeWorkflowCliHome(homeDir);
 		}
 	});
