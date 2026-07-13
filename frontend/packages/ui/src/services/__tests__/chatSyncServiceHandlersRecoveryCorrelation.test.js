@@ -49,6 +49,10 @@ describe("recovery job request correlation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    let requestCounter = 0;
+    vi.spyOn(globalThis.crypto, "randomUUID").mockImplementation(
+      () => `recovery-request-${requestCounter += 1}`,
+    );
     globalThis.window = globalThis;
     mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
     mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
@@ -60,7 +64,10 @@ describe("recovery job request correlation", () => {
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it("ignores delayed claim and persist frames from an earlier attempt", async () => {
     const handlers = new Map();

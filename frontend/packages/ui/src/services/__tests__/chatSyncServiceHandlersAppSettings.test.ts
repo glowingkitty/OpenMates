@@ -181,6 +181,10 @@ describe("handlePendingAIResponseImpl", () => {
 describe("handleRecoveryJobsAvailableImpl", () => {
   it("ignores delayed claim and persist frames from an earlier recovery attempt", async () => {
     vi.useFakeTimers();
+    let requestCounter = 0;
+    vi.spyOn(crypto, "randomUUID").mockImplementation(
+      () => `recovery-request-${requestCounter += 1}` as `${string}-${string}-${string}-${string}-${string}`,
+    );
     const handlers = new Map<string, (payload: unknown) => void>();
     let claimAttempts = 0;
     let persistAttempts = 0;
