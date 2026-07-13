@@ -626,6 +626,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
         return
     
     cache_service: CacheService = app.state.cache_service
+    directus_service: DirectusService | None = getattr(app.state, "directus_service", None)
     logger.debug("Starting Redis Pub/Sub listener for AI chat stream events (channel: chat_stream::*)...")
 
     await cache_service.client # Ensure connection
@@ -835,7 +836,21 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     device_fingerprint_hash=device_hash
                                 )
                                 logger.debug(f"AI Stream Listener: Sent 'ai_background_response_completed' to inactive chat device {user_id_uuid}/{device_hash}.")
-                                
+                                if (
+                                    directus_service is not None
+                                    and redis_payload.get("recovery_protocol_version") == 1
+                                    and redis_payload.get("recovery_job_id")
+                                ):
+                                    asyncio.create_task(
+                                        send_available_recovery_jobs(
+                                            manager=manager,
+                                            directus_service=directus_service,
+                                            user_id=user_id_uuid,
+                                            user_id_hash=redis_payload.get("user_id_hash"),
+                                            device_fingerprint_hash=device_hash,
+                                        )
+                                    )
+
                                 # Also send typing ended event for UI cleanup
                                 typing_ended_payload = {
                                     "chat_id": chat_id_from_payload,

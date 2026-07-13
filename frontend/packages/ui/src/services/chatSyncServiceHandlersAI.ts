@@ -790,6 +790,31 @@ export async function handleAIBackgroundResponseCompletedImpl(
   );
 
   try {
+    if (payload.recovery_protocol_version === 1 && payload.recovery_job_id) {
+      console.info(
+        `[ChatSyncService:AI] Deferring epoch-1 background completion ${payload.message_id} to sealed recovery job ${payload.recovery_job_id}`,
+      );
+      const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
+      if (taskInfo && taskInfo.taskId === payload.task_id) {
+        serviceInstance.activeAITasks.delete(payload.chat_id);
+      }
+      aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+      serviceInstance.dispatchEvent(
+        new CustomEvent("aiTaskEnded", {
+          detail: {
+            chatId: payload.chat_id,
+            taskId: payload.task_id,
+            status: payload.interrupted_by_revocation
+              ? "cancelled"
+              : payload.interrupted_by_soft_limit
+                ? "timed_out"
+                : "completed",
+          },
+        }),
+      );
+      return;
+    }
+
     // Get chat from DB or incognito service to update messages_v
     let chat: Chat | null = null;
     let isIncognitoChat = false;

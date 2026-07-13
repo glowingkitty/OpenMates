@@ -1219,7 +1219,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run -- --suite vitest
+        run_id: gha-29260630896
+        subject_commit: 10ba14f64
+        timestamp: "2026-07-13T15:05:04Z"
+        summary: The full Vitest suite passed 545/545 tests, including the recovery claim and persist correlation regression that requires late attempt-A responses for the same job to be ignored while attempt B remains pending until its matching request_id arrives.
 
   - id: T-CUTOVER-EPOCH
     type: pytest

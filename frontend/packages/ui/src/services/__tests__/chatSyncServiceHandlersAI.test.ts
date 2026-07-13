@@ -6,7 +6,10 @@
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
-import { handleEmbedUpdateImpl } from "../chatSyncServiceHandlersAI";
+import {
+  handleAIBackgroundResponseCompletedImpl,
+  handleEmbedUpdateImpl,
+} from "../chatSyncServiceHandlersAI";
 
 const mockEmbedStore = vi.hoisted(() => ({
   get: vi.fn(),
@@ -14,9 +17,52 @@ const mockEmbedStore = vi.hoisted(() => ({
   removeFromMemoryCache: vi.fn(),
 }));
 
+const mockAiTypingStore = vi.hoisted(() => ({
+  clearTyping: vi.fn(),
+}));
+
 vi.mock("../embedStore", () => ({
   embedStore: mockEmbedStore,
 }));
+
+vi.mock("../../stores/aiTypingStore", () => ({
+  aiTypingStore: mockAiTypingStore,
+}));
+
+describe("handleAIBackgroundResponseCompletedImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("does not send legacy persistence for epoch-one recovery completions", async () => {
+    const activeAITasks = new Map([["chat-1", { taskId: "task-1" }]]);
+    const service = {
+      activeAITasks,
+      dispatchEvent: vi.fn(),
+      sendCompletedAIResponse: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleAIBackgroundResponseCompletedImpl(service, {
+      chat_id: "chat-1",
+      message_id: "assistant-1",
+      user_message_id: "user-message-1",
+      task_id: "task-1",
+      full_content: "Recovered content",
+      recovery_job_id: "job-1",
+      recovery_protocol_version: 1,
+    });
+
+    expect(service.sendCompletedAIResponse).not.toHaveBeenCalled();
+    expect(activeAITasks.has("chat-1")).toBe(false);
+    expect(mockAiTypingStore.clearTyping).toHaveBeenCalledWith(
+      "chat-1",
+      "assistant-1",
+    );
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "aiTaskEnded" }),
+    );
+  });
+});
 
 describe("handleEmbedUpdateImpl", () => {
   beforeEach(() => {

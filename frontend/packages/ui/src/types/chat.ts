@@ -558,6 +558,8 @@ export interface AIMessageUpdatePayload {
   interrupted_by_soft_limit?: boolean;
   interrupted_by_revocation?: boolean;
   rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
+  recovery_job_id?: string | null;
+  recovery_protocol_version?: number | null;
 }
 
 export interface AITypingStartedPayload {
@@ -600,6 +602,8 @@ export interface AIBackgroundResponseCompletedPayload {
   interrupted_by_soft_limit?: boolean;
   interrupted_by_revocation?: boolean;
   rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
+  recovery_job_id?: string | null;
+  recovery_protocol_version?: number | null;
 }
 
 // --- Thinking/Reasoning Payloads (Server to Client) ---
