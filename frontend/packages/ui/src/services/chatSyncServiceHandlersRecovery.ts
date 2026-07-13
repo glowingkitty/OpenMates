@@ -150,9 +150,9 @@ export async function handleRecoveryJobsAvailableImpl(
     if (!job.job_id || recoveryJobsInProgress.has(job.job_id)) return;
     recoveryJobsInProgress.add(job.job_id);
     try {
-      const existingMessage = await chatDB.getMessage(job.assistant_message_id);
-      if (existingMessage?.status === "synced" || existingMessage?.status === "delivered") return;
-
+      // A local synced/delivered row can still be browser-only if the user logs out
+      // before sealed recovery reaches terminal persistence. The server job is the
+      // durable idempotency boundary, so do not skip an available job based on IDB.
       const chat = await chatDB.getChat(job.chat_id);
       const chatKey = await chatKeyManager.getKey(job.chat_id);
       if (!chat?.user_id || !chatKey) return;
