@@ -364,27 +364,38 @@ async function ensureSidebarClosed(
 async function assertChatDecryptedCorrectly(
 	page: any,
 	logCheckpoint: (...args: any[]) => void,
-	phase: string
+	phase: string,
+	chatId?: string
 ): Promise<void> {
 	logCheckpoint(`[${phase}] Asserting chat decryption health...`);
 
 	// ── Open sidebar explicitly ─────────────────────────────────────────────
 	await ensureSidebarOpen(page, logCheckpoint);
 
-	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+	const activeChatItem = chatId
+		? page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`)
+		: page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 
 	// Title must be real — not a placeholder and not empty
 	const chatTitle = activeChatItem.getByTestId('chat-title');
 	await expect(chatTitle).toBeVisible({ timeout: 15000 });
-	// Must not still be in "processing" loading state
-	await expect(chatTitle).not.toHaveClass(/processing-title/, { timeout: 5000 });
+	await expect(async () => {
+		// Must not still be in "processing" loading state
+		await expect(chatTitle).not.toHaveClass(/processing-title/, { timeout: 1000 });
+		const currentTitleText = (await chatTitle.textContent())?.trim() || '';
+		expect(currentTitleText).toBeTruthy();
+		expect(currentTitleText.toLowerCase()).not.toContain('untitled chat');
+		expect(currentTitleText.toLowerCase()).not.toContain('processing');
+
+		const missingCategoryVisible = await activeChatItem
+			.locator('[data-testid="category-circle"].missing-category')
+			.isVisible({ timeout: 1000 })
+			.catch(() => false);
+		expect(missingCategoryVisible).toBe(false);
+	}).toPass({ timeout: 45000 });
 	const titleText = await chatTitle.textContent();
 	logCheckpoint(`[${phase}] Chat title: "${titleText}"`);
-	expect(titleText).toBeTruthy();
-	expect(titleText!.trim()).not.toBe('');
-	expect(titleText!.toLowerCase()).not.toContain('untitled chat');
-	expect(titleText!.toLowerCase()).not.toContain('processing');
 
 	// Category circle must exist and must NOT be the grey "missing-category" fallback
 	const categoryCircle = activeChatItem.getByTestId('category-circle');
@@ -792,7 +803,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// PHASE 4: Sidebar + message health check (initial state)
 	// =========================================================================
 	// NOTE: assertChatDecryptedCorrectly opens the sidebar, checks it, then closes it.
-	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'initial');
+	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'initial', chatId);
 
 	// Verify ChatHeader is fully loaded with title, summary, and icon.
 	// These are populated by the AI after processing the first message.
@@ -957,7 +968,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	logChatCheckpoint('Verifying chat after tab reload...');
 	// Re-assert full decryption health
-	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_reload');
+	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_reload', chatId);
 	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_reload');
 	await takeStepScreenshot(page, '06-after-reload');
 
@@ -1074,7 +1085,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await takeStepScreenshot(page, '09-after-relogin');
 
 	logChatCheckpoint('Verifying chat after re-login...');
-	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_relogin');
+	await assertChatDecryptedCorrectly(page, logChatCheckpoint, 'after_relogin', chatId);
 	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_relogin');
 
 	// Run inspectChat a third time to confirm data is intact after full logout/login cycle

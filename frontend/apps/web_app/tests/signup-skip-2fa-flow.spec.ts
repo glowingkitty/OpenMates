@@ -45,6 +45,7 @@ const {
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
+const E2E_SIGNUP_INVITE_CODE = process.env.E2E_SIGNUP_INVITE_CODE;
 
 function deriveApiUrl(baseUrl: string): string {
 	if (process.env.PLAYWRIGHT_TEST_API_URL) return process.env.PLAYWRIGHT_TEST_API_URL;
@@ -180,9 +181,24 @@ test('completes password signup, login with password, and delete account via ema
 	await page.getByRole('button', { name: /continue/i }).click();
 	await takeStepScreenshot(page, 'basics-step');
 
+	const inviteCodeInput = page.getByTestId('signup-invite-code-input');
+	if (await inviteCodeInput.isVisible().catch(() => false)) {
+		if (!E2E_SIGNUP_INVITE_CODE) {
+			throw new Error('E2E_SIGNUP_INVITE_CODE is required when dev signup requires an invite code.');
+		}
+		// Keep the secret unreadable in automatic failure screenshots and videos.
+		await inviteCodeInput.evaluate((input: HTMLInputElement) => {
+			input.type = 'password';
+		});
+		await inviteCodeInput.fill(E2E_SIGNUP_INVITE_CODE);
+		await expect(page.locator('input[autocomplete="username"]')).toBeVisible({ timeout: 10000 });
+		logSignupCheckpoint('Validated the configured invite code.');
+	}
+
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 	const usernameInput = page.locator('input[autocomplete="username"]');
 	await expect(emailInput).toBeVisible({ timeout: 10000 });
+	await expect(usernameInput).toBeVisible({ timeout: 10000 });
 	await emailInput.fill(signupEmail);
 	await usernameInput.fill(signupUsername);
 
