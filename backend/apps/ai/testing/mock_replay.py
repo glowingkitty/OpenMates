@@ -22,6 +22,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 logger = logging.getLogger(__name__)
 
@@ -329,8 +331,8 @@ async def replay_fixture(
     is_application_preview = "application_preview" in fixture_id
     if is_application_preview:
         logger.info(
-            f"[MOCK] Application preview fixture detected — waiting 30s for "
-            f"frontend to process send_embed_data before streaming begins"
+            "[MOCK] Application preview fixture detected — waiting 30s for "
+            "frontend to process send_embed_data before streaming begins"
         )
         await asyncio.sleep(30)
 
@@ -371,6 +373,16 @@ async def replay_fixture(
 
     usage = fixture_data.get("usage", {})
     total_chunks = len(cumulative_chunks)
+    model_name = usage.get("model_name") or preprocessing_result.selected_main_llm_model_name
+    category = preprocessing_result.category
+    recovery_job = await _persist_mock_replay_recovery_job(
+        directus_service=directus_service,
+        request_data=request_data,
+        task_id=task_id,
+        content=full_response,
+        category=category or "general_knowledge",
+        model_name=model_name,
+    )
 
     for i, content_so_far in enumerate(cumulative_chunks):
         sequence = i + 1
@@ -400,18 +412,22 @@ async def replay_fixture(
         }
 
         # Add model info
-        model_name = usage.get("model_name") or preprocessing_result.selected_main_llm_model_name
         if model_name:
             payload["model_name"] = model_name
 
-        category = preprocessing_result.category
         if category:
             payload["category"] = category
+
+        if request_data.recovery_task_id:
+            payload["recovery_provisional"] = not is_final
 
         # Add usage data on final chunk
         if is_final:
             payload["interrupted_by_soft_limit"] = False
             payload["interrupted_by_revocation"] = False
+            if recovery_job:
+                payload["recovery_job_id"] = recovery_job["job_id"]
+                payload["recovery_protocol_version"] = 1
             if usage.get("prompt_tokens") is not None:
                 payload["prompt_tokens"] = usage["prompt_tokens"]
             if usage.get("completion_tokens") is not None:
@@ -465,6 +481,43 @@ async def replay_fixture(
         "revoked_in_consumer": False,
         "soft_limited_in_consumer": False,
     }
+
+
+async def _persist_mock_replay_recovery_job(
+    *,
+    directus_service: Optional[Any],
+    request_data: AskSkillRequest,
+    task_id: str,
+    content: str,
+    category: Optional[str],
+    model_name: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    if not request_data.recovery_task_id:
+        return None
+    if directus_service is None:
+        raise RuntimeError("Epoch-1 mock replay requires Directus service")
+    required = {
+        "recovery_preflight_id": request_data.recovery_preflight_id,
+        "recovery_turn_id": request_data.recovery_turn_id,
+        "recovery_public_key": request_data.recovery_public_key,
+        "chat_key_version": request_data.chat_key_version,
+    }
+    if any(value is None for value in required.values()):
+        raise RuntimeError("Epoch-1 task is missing sealed recovery context")
+    data = build_sealed_recovery_job_data(
+        owner_id=request_data.user_id,
+        owner_hash=request_data.user_id_hash,
+        chat_id=request_data.chat_id,
+        turn_id=request_data.recovery_turn_id,
+        preflight_id=request_data.recovery_preflight_id,
+        task_id=task_id,
+        recovery_public_key=request_data.recovery_public_key,
+        chat_key_version=request_data.chat_key_version,
+        content=content,
+        category=category,
+        model_name=model_name,
+    )
+    return await ChatRecoveryService(directus_service).execute("create_sealed_job", data)
 
 
 # --- Embed recreation for fixtures ---
