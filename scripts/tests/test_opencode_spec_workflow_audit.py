@@ -109,15 +109,35 @@ def test_opencode_spec_workflow_audit_requires_coordination_plugin(tmp_path):
     assert failures == ["missing OpenCode session coordination plugin"]
 
 
+def test_opencode_spec_workflow_audit_rejects_blocking_lease_coordinator(tmp_path):
+    audit = load_audit_module()
+    plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
+    plugin.parent.mkdir(parents=True)
+    plugin.write_text('OPENCODE_SESSION_ID runBridge("PreToolUse"', encoding="utf-8")
+    warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
+    warning_guard.parent.mkdir(parents=True)
+    warning_guard.write_text("additionalContext WARNING: File exit 0", encoding="utf-8")
+    lease_script = tmp_path / "scripts" / "opencode_file_leases.py"
+    lease_script.parent.mkdir(parents=True)
+    lease_script.write_text("blocking lease coordinator", encoding="utf-8")
+
+    failures = audit.audit_opencode_coordination(tmp_path)
+
+    assert "blocking OpenCode file lease coordinator must remain removed" in failures
+
+
 def test_opencode_spec_workflow_audit_rejects_idle_spec_continuation(tmp_path):
     audit = load_audit_module()
     plugin = tmp_path / ".opencode" / "plugins" / "openmates-hooks.js"
     plugin.parent.mkdir(parents=True)
     plugin.write_text(
-        "createFileLeaseCoordinator OPENCODE_SESSION_ID opencode_file_leases.py session.idle",
+        'OPENCODE_SESSION_ID runBridge("PreToolUse" session.idle',
         encoding="utf-8",
     )
+    warning_guard = tmp_path / ".claude" / "hooks" / "pre-edit-guard.sh"
+    warning_guard.parent.mkdir(parents=True)
+    warning_guard.write_text("additionalContext WARNING: File exit 0", encoding="utf-8")
 
     failures = audit.audit_opencode_coordination(tmp_path)
 
-    assert any("forbidden idle continuation" in failure for failure in failures)
+    assert any("forbidden blocking term" in failure for failure in failures)

@@ -18,6 +18,8 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OPENCODE_CONFIG = REPO_ROOT / "opencode.json"
 OPENCODE_COORDINATION_PLUGIN = Path(".opencode/plugins/openmates-hooks.js")
+OPENCODE_BLOCKING_LEASE_SCRIPT = Path("scripts/opencode_file_leases.py")
+OPENCODE_WARNING_GUARD = Path(".claude/hooks/pre-edit-guard.sh")
 REQUIRED_INSTRUCTIONS = {
     ".claude/rules/planning.md",
     ".claude/rules/testing.md",
@@ -86,11 +88,17 @@ INSTRUCTION_TERMS = {
     "docs/contributing/guides/spec-driven-development.md": {"Risk Tiers", "Tier 1", "Tier 2"},
 }
 OPENCODE_COORDINATION_TERMS = {
-    "createFileLeaseCoordinator",
     "OPENCODE_SESSION_ID",
-    "opencode_file_leases.py",
+    'runBridge("PreToolUse"',
 }
-FORBIDDEN_COORDINATION_TERMS = {"session.idle", "createSpecAutoContinue"}
+OPENCODE_WARNING_TERMS = {"additionalContext", "WARNING: File", "exit 0"}
+FORBIDDEN_COORDINATION_TERMS = {
+    "Waiting for file lease",
+    "createFileLeaseCoordinator",
+    "createSpecAutoContinue",
+    "opencode_file_leases.py",
+    "session.idle",
+}
 
 
 def _load_opencode_config(path: Path = OPENCODE_CONFIG) -> dict[str, Any]:
@@ -168,9 +176,13 @@ def audit_instructions(root: Path = REPO_ROOT) -> list[str]:
 
 def audit_opencode_coordination(root: Path = REPO_ROOT) -> list[str]:
     failures: list[str] = []
+    if (root / OPENCODE_BLOCKING_LEASE_SCRIPT).exists():
+        failures.append("blocking OpenCode file lease coordinator must remain removed")
+
     path = root / OPENCODE_COORDINATION_PLUGIN
     if not path.exists():
-        return ["missing OpenCode session coordination plugin"]
+        failures.append("missing OpenCode session coordination plugin")
+        return failures
 
     source = path.read_text(encoding="utf-8")
     for term in sorted(OPENCODE_COORDINATION_TERMS):
@@ -178,7 +190,16 @@ def audit_opencode_coordination(root: Path = REPO_ROOT) -> list[str]:
             failures.append(f"OpenCode coordination plugin missing required term: {term}")
     for term in sorted(FORBIDDEN_COORDINATION_TERMS):
         if term in source:
-            failures.append(f"OpenCode coordination plugin contains forbidden idle continuation term: {term}")
+            failures.append(f"OpenCode coordination plugin contains forbidden blocking term: {term}")
+
+    warning_guard = root / OPENCODE_WARNING_GUARD
+    if not warning_guard.exists():
+        failures.append("missing OpenCode non-blocking edit warning guard")
+        return failures
+    warning_source = warning_guard.read_text(encoding="utf-8")
+    for term in sorted(OPENCODE_WARNING_TERMS):
+        if term not in warning_source:
+            failures.append(f"OpenCode edit warning guard missing required term: {term}")
     return failures
 
 

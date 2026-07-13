@@ -8,22 +8,26 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import * as pluginModule from "../../.opencode/plugins/openmates-hooks.js";
+
 const source = readFileSync(new URL("../../.opencode/plugins/openmates-hooks.js", import.meta.url), "utf8");
 const preEditGuard = readFileSync(new URL("../../.claude/hooks/pre-edit-guard.sh", import.meta.url), "utf8");
 
-test("stale-read check uses pre-execution input arguments", () => {
-  assert.match(source, /editedFiles\(input\?\.args \|\| output\?\.args\)/);
+test("plugin module exports one valid OpenCode plugin factory", async () => {
+  assert.deepEqual(Object.keys(pluginModule), ["OpenMatesHooks"]);
+  assert.equal(typeof await pluginModule.OpenMatesHooks({}), "object");
 });
 
-test("Apple audit exit code two remains blocking", () => {
-  assert.match(source, /commandArgs\[0\]\?\.endsWith\("audit_ui_control_visibility\.py"\)/);
-  assert.doesNotMatch(source, /allowHookWarning = true/);
+test("concurrent edit coordination is warning-only", () => {
+  assert.match(preEditGuard, /additionalContext/);
+  assert.match(preEditGuard, /WARNING: File/);
+  assert.match(preEditGuard, /exit 0/);
+  assert.doesNotMatch(source, /createFileLeaseCoordinator|opencode_file_leases\.py|Waiting for file lease/);
 });
 
-test("loaded hook uses chat-scoped file leases without idle spec continuation", () => {
-  assert.match(source, /createFileLeaseCoordinator/);
+test("loaded hook preserves chat identity without blocking file leases", () => {
   assert.match(source, /env: sessionID \? \{ \.\.\.process\.env, OPENCODE_SESSION_ID: sessionID \}/);
-  assert.doesNotMatch(source, /createSpecAutoContinue|session\.idle|opencode-spec-continuation/);
+  assert.doesNotMatch(source, /createSpecAutoContinue|session\.idle|opencode-spec-continuation|createFileLeaseCoordinator/);
 });
 
 test("canonical pre-edit guard prefers exact OpenCode identity", () => {
