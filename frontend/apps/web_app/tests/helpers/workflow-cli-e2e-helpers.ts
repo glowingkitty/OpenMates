@@ -29,6 +29,11 @@ function removeWorkflowCliHome(homeDir: string): void {
 	fs.rmSync(homeDir, { recursive: true, force: true });
 }
 
+function clearWorkflowCliSyncCache(homeDir: string): void {
+	if (!homeDir || !homeDir.startsWith(os.tmpdir())) return;
+	fs.rmSync(path.join(homeDir, '.openmates', 'sync_cache.json'), { force: true });
+}
+
 function writeWorkflowYaml(homeDir: string, fileName: string, source: string): string {
 	const filePath = path.join(homeDir, fileName);
 	fs.writeFileSync(filePath, source.trimStart(), 'utf8');
@@ -225,6 +230,7 @@ async function waitForChatTitle(apiUrl: string, homeDir: string, title: string, 
 	const started = Date.now();
 	let lastResult: any = null;
 	while (Date.now() - started < timeoutMs) {
+		clearWorkflowCliSyncCache(homeDir);
 		lastResult = await runWorkflowCliJson(apiUrl, homeDir, ['chats', 'list', '--limit', '30'], 'chats list', 90_000);
 		const chats = Array.isArray(lastResult?.chats) ? lastResult.chats : [];
 		const chat = chats.find((item: any) => item.title === title || item.encrypted_title === title);
