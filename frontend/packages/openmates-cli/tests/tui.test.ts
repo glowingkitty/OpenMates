@@ -181,7 +181,27 @@ describe("CLI TUI renderer", () => {
     assert.match(listFrame, /Enter open/);
 
     state.screen = "workflow";
-    state.activeWorkflow = state.workflows[0] ?? null;
+    state.activeWorkflow = {
+      ...(state.workflows[0] ?? {
+        id: "wf-rain",
+        title: "Daily rain check",
+        status: "active" as const,
+        enabled: true,
+        current_version_id: "v1",
+        created_at: 1,
+        updated_at: 2,
+      }),
+      graph: {
+        version: 1,
+        trigger_node_id: "trigger",
+        nodes: [
+          { id: "trigger", type: "manual_trigger", title: "Manual start", config: {} },
+          { id: "forecast", type: "app_skill_action", title: "Weather forecast", config: { app: "weather", skill: "forecast", input: { location: "Berlin" } } },
+          { id: "notify", type: "send_notification", title: "Notify me", config: { title: "Rain check" } },
+        ],
+        edges: [],
+      },
+    };
     state.workflowRuns = [
       {
         id: "run-1",
@@ -210,9 +230,20 @@ describe("CLI TUI renderer", () => {
     const detailFrame = renderTuiFrame(state, 100, 28);
 
     assert.match(detailFrame, /Workflow: Daily rain check/);
-    assert.match(detailFrame, /Recent runs/);
-    assert.match(detailFrame, /run-1 {2}completed/);
-    assert.match(detailFrame, /forecast: completed output: provider=DWD, rainy=false/);
-    assert.match(detailFrame, /r run {3}u refresh runs {3}c cancel latest/);
+    assert.match(detailFrame, /\[Graph\] {2}Runs/);
+    assert.match(detailFrame, /> \[manual trigger\] Manual start/);
+    assert.match(detailFrame, /\[app skill\] Weather forecast/);
+    assert.match(detailFrame, /g graph {3}r runs/);
+
+    state.workflowTab = "runs";
+    state.selectedWorkflowNodeIndex = 1;
+
+    const runsFrame = renderTuiFrame(state, 100, 32);
+
+    assert.match(runsFrame, /Graph {2}\[Runs\]/);
+    assert.match(runsFrame, /> run-1 {2}completed/);
+    assert.match(runsFrame, /Run graph: run-1 \(completed\)/);
+    assert.match(runsFrame, /> \[app skill\] Weather forecast \[completed\]/);
+    assert.match(runsFrame, /output: provider=DWD, rainy=false/);
   });
 });

@@ -9,7 +9,7 @@
  */
 
 import type { ExampleChatConversation, ExampleChatListItem } from "./exampleChats.js";
-import type { WorkflowRunDetail, WorkflowSummary } from "./client.js";
+import type { WorkflowDetail, WorkflowNode, WorkflowNodeRun, WorkflowRunDetail, WorkflowSummary } from "./client.js";
 import { openMatesAsciiLogo } from "./branding.js";
 
 export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chat" | "embed" | "workflows" | "workflow" | "status";
@@ -18,6 +18,12 @@ export type TuiMessage = {
   role: "user" | "assistant" | "system";
   content: string;
   title?: string | null;
+};
+
+export type TuiWorkflowEdit = {
+  nodeId: string;
+  field: "title" | "config";
+  value: string;
 };
 
 export type TuiState = {
@@ -29,8 +35,14 @@ export type TuiState = {
   examples: ExampleChatListItem[];
   activeExample: ExampleChatConversation | null;
   workflows: WorkflowSummary[];
-  activeWorkflow: WorkflowSummary | null;
+  activeWorkflow: WorkflowDetail | null;
   workflowRuns: WorkflowRunDetail[];
+  workflowTab: "graph" | "runs";
+  selectedWorkflowNodeIndex: number;
+  selectedWorkflowRunIndex: number;
+  expandedWorkflowNodeId: string | null;
+  expandedWorkflowRunNodeId: string | null;
+  workflowEdit: TuiWorkflowEdit | null;
   messages: TuiMessage[];
   status: string | null;
   isBusy: boolean;
@@ -66,6 +78,12 @@ export function createInitialTuiState(): TuiState {
     workflows: [],
     activeWorkflow: null,
     workflowRuns: [],
+    workflowTab: "graph",
+    selectedWorkflowNodeIndex: 0,
+    selectedWorkflowRunIndex: 0,
+    expandedWorkflowNodeId: null,
+    expandedWorkflowRunNodeId: null,
+    workflowEdit: null,
     messages: [],
     status: null,
     isBusy: false,
@@ -245,6 +263,8 @@ function renderWorkflows(state: TuiState, width: number): string[] {
 function renderWorkflowDetail(state: TuiState, width: number): string[] {
   const workflow = state.activeWorkflow;
   if (!workflow) return renderWorkflows(state, width);
+  const graphNodes = workflow.graph?.nodes ?? [];
+  const selectedRun = state.workflowRuns[state.selectedWorkflowRunIndex] ?? null;
   const lines = [
     `Workflow: ${workflow.title}`,
     `ID: ${workflow.id}`,
@@ -253,22 +273,83 @@ function renderWorkflowDetail(state: TuiState, width: number): string[] {
     workflow.next_run_at ? `Next run: ${formatTimestamp(workflow.next_run_at)}` : null,
     workflow.last_run_status ? `Last run: ${workflow.last_run_status}` : null,
     "",
-    "Recent runs",
+    state.workflowTab === "graph" ? "[Graph]  Runs" : "Graph  [Runs]",
+    "",
   ].filter((line): line is string => line !== null);
-  if (state.workflowRuns.length === 0) {
-    lines.push("No runs yet.");
-  }
-  for (const run of state.workflowRuns.slice(0, 6)) {
-    lines.push(`- ${run.id}  ${run.status}  ${formatTimestamp(run.started_at)}`);
-    if (run.error_summary) lines.push(`  error: ${run.error_summary}`);
-    for (const nodeRun of (run.node_runs ?? []).slice(0, 4)) {
-      const output = nodeRun.output_summary ? ` output: ${summarizeObject(nodeRun.output_summary)}` : "";
-      const error = nodeRun.error_summary ? ` error: ${nodeRun.error_summary}` : "";
-      lines.push(`  ${nodeRun.node_id}: ${nodeRun.status}${output}${error}`);
+  if (state.workflowTab === "runs") {
+    lines.push(...renderRunSelector(state, width), "");
+    if (selectedRun) {
+      lines.push(`Run graph: ${selectedRun.id} (${selectedRun.status})`);
+      lines.push(...renderWorkflowGraph({ nodes: graphNodes, state, width, run: selectedRun }));
+    } else {
+      lines.push("No runs yet.");
     }
+  } else {
+    lines.push("Graph");
+    lines.push(...renderWorkflowGraph({ nodes: graphNodes, state, width, run: null }));
+    if (state.workflowEdit) lines.push("", `Editing ${state.workflowEdit.field}: ${state.workflowEdit.value}`);
   }
   if (state.status) lines.push("", state.status);
   return lines.flatMap((line) => wrap(line, width));
+}
+
+function renderRunSelector(state: TuiState, width: number): string[] {
+  if (state.workflowRuns.length === 0) return ["Runs", "No runs yet."];
+  const lines = ["Runs"];
+  const visibleRuns = state.workflowRuns.slice(0, 5);
+  for (let index = 0; index < visibleRuns.length; index += 1) {
+    const run = visibleRuns[index];
+    const cursor = index === state.selectedWorkflowRunIndex ? ">" : " ";
+    lines.push(`${cursor} ${run.id}  ${run.status}  ${formatTimestamp(run.started_at)}`);
+  }
+  return lines.map((line) => truncateVisible(line, width));
+}
+
+function renderWorkflowGraph(params: {
+  nodes: WorkflowNode[];
+  state: TuiState;
+  width: number;
+  run: WorkflowRunDetail | null;
+}): string[] {
+  const { nodes, state, run } = params;
+  if (nodes.length === 0) return ["No graph nodes available."];
+  const lines: string[] = [];
+  const selectedIndex = state.workflowTab === "runs" ? selectedRunGraphNodeIndex(nodes, state) : state.selectedWorkflowNodeIndex;
+  const expandedId = state.workflowTab === "runs" ? state.expandedWorkflowRunNodeId : state.expandedWorkflowNodeId;
+  const nodeRunsById = new Map((run?.node_runs ?? []).map((nodeRun) => [nodeRun.node_id, nodeRun]));
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    const nodeRun = nodeRunsById.get(node.id) ?? null;
+    const cursor = index === selectedIndex ? ">" : " ";
+    const status = nodeRun ? ` [${nodeRun.status}]` : "";
+    lines.push(`${cursor} [${nodeTypeLabel(node.type)}] ${node.title ?? cardSummary(node)}${status}`);
+    if (nodeRun?.output_summary) lines.push(`    output: ${summarizeObject(nodeRun.output_summary)}`);
+    if (nodeRun?.error_summary) lines.push(`    error: ${nodeRun.error_summary}`);
+    if (expandedId === node.id) {
+      lines.push(...renderExpandedNode(node, nodeRun));
+    }
+    if (index < nodes.length - 1) lines.push("    |");
+  }
+  return lines;
+}
+
+function selectedRunGraphNodeIndex(nodes: WorkflowNode[], state: TuiState): number {
+  const run = state.workflowRuns[state.selectedWorkflowRunIndex];
+  const nodeRun = run?.node_runs?.find((candidate) => candidate.node_id === state.expandedWorkflowRunNodeId);
+  if (!nodeRun) return Math.min(state.selectedWorkflowNodeIndex, Math.max(0, nodes.length - 1));
+  return Math.max(0, nodes.findIndex((node) => node.id === nodeRun.node_id));
+}
+
+function renderExpandedNode(node: WorkflowNode, nodeRun: WorkflowNodeRun | null): string[] {
+  const lines = [
+    `    id: ${node.id}`,
+    `    type: ${node.type}`,
+  ];
+  if (node.config && Object.keys(node.config).length > 0) lines.push(`    config: ${summarizeObject(node.config)}`);
+  if (node.input_mapping && Object.keys(node.input_mapping).length > 0) lines.push(`    input: ${summarizeObject(node.input_mapping)}`);
+  if (nodeRun?.input_summary) lines.push(`    run input: ${summarizeObject(nodeRun.input_summary)}`);
+  if (nodeRun?.output_summary) lines.push(`    run output: ${summarizeObject(nodeRun.output_summary)}`);
+  return lines;
 }
 
 function renderInterests(state: TuiState, width: number): string[] {
@@ -373,7 +454,8 @@ export function renderMessageContent(content: string, width: number): string[] {
 function renderHintLine(state: TuiState, width: number): string {
   if (state.screen === "interests") return truncateVisible("↑/↓ move   Space select   Enter continue   Esc back", width);
   if (state.screen === "workflows") return truncateVisible("↑/↓ choose   Enter open   Esc back", width);
-  if (state.screen === "workflow") return truncateVisible("r run   u refresh runs   c cancel latest   Esc back", width);
+  if (state.screen === "workflow" && state.workflowEdit) return truncateVisible("Enter save title   Esc cancel edit", width);
+  if (state.screen === "workflow") return truncateVisible("g graph   r runs   ↑/↓ select   Enter expand   e title   E config   x run   u refresh   c cancel", width);
   return truncateVisible("↑/↓ choose   Enter open   /search filter   Esc back", width);
 }
 
@@ -382,6 +464,30 @@ function inputPlaceholder(state: TuiState): string {
   if (state.screen === "chat") return "Ask a follow-up, use @file, or type /help";
   if (state.screen === "workflow" || state.screen === "workflows") return "Use shortcuts below, or type /help";
   return "Ask anything...";
+}
+
+function nodeTypeLabel(type: string): string {
+  switch (type) {
+    case "manual_trigger": return "manual trigger";
+    case "schedule_trigger": return "schedule";
+    case "app_skill_action": return "app skill";
+    case "send_notification": return "notification";
+    case "ask_user": return "ask user";
+    default: return type.replaceAll("_", " ");
+  }
+}
+
+function cardSummary(node: WorkflowNode): string {
+  const config = node.config ?? {};
+  if (node.type === "app_skill_action") {
+    const app = typeof config.app === "string" ? config.app : "app";
+    const skill = typeof config.skill === "string" ? config.skill : "skill";
+    return `${app}.${skill}`;
+  }
+  if (node.type === "decision") return "If condition";
+  if (node.type === "send_notification") return "Send notification";
+  if (node.type === "ask_user") return "Ask for user input";
+  return node.id;
 }
 
 function formatTimestamp(value?: number | null): string {

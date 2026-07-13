@@ -25,7 +25,7 @@ scope:
     - Typing `/` in the TUI input shows command autocomplete suggestions; users can move through suggestions with Up/Down, complete the highlighted suggestion with Tab, or ignore suggestions and manually type/enter any command.
     - The TUI keeps the active authenticated chat ID after the first send so follow-up messages in the same TUI session continue the persisted account chat instead of creating unrelated chats.
     - The TUI provides a `/chats` command that lists recent account chats inside the terminal UI, reusing the existing encrypted chat sync/list contract.
-    - The TUI provides `/workflows` and `/workflow <id>` screens that list saved workflows, show recent run history with retained step output summaries, run enabled workflows, refresh runs, and cancel the latest active run through existing Workflow client methods.
+    - The TUI provides `/workflows` and `/workflow <id>` screens that list saved workflows, open a tabbed Workflow workspace, render graph nodes with minimal default data, render run output as graph annotations in a separate Runs tab, allow node expansion and lightweight node detail edits, run enabled workflows, refresh runs, and cancel the latest active run through existing Workflow client methods.
     - Embed previews render as compact cards. Text-heavy embeds such as code, docs, PDFs, transcripts, and generated applications show only a capped excerpt plus a command to open the full embed.
     - Inline app-skill/embed JSON blocks in TUI chat messages are replaced with terminal-native embed preview cards instead of rendering raw fenced JSON.
     - Full embed detail opens inside a dedicated scrollable TUI detail view and remains available through the existing `openmates embeds show <id>` command outside the TUI.
@@ -377,11 +377,14 @@ scenarios:
       - The user enters `/workflows` or `/workflow <id>` in the TUI.
     then:
       - The TUI shows a keyboard-navigable workflow list with enabled state, trigger summary, ID, and last run status.
-      - Opening a workflow shows recent runs and retained node output summaries when the server returns them.
-      - Pressing `r` starts an enabled workflow run through the existing manual-run API.
+      - Opening a workflow shows separate Graph and Runs tabs similar to the web app's editor/run-history split.
+      - The Graph tab shows a minimal node stack by default and allows expanding a selected node for details.
+      - The Graph tab allows lightweight node title and config JSON edits from inside the TUI.
+      - The Runs tab shows run selection separately from the graph and renders the selected run's retained node outputs as graph annotations, not as a separate flat output list.
+      - Pressing `x` starts an enabled workflow run through the existing manual-run API.
       - Pressing `u` refreshes the run list.
       - Pressing `c` cancels the latest queued, running, or waiting run.
-      - YAML authoring and editing remain outside the TUI in the normal `openmates workflows ... --file` commands.
+      - YAML file authoring remains outside the TUI in the normal `openmates workflows ... --file` commands.
 
 acceptance_criteria:
   - id: AC-1
@@ -443,7 +446,7 @@ acceptance_criteria:
     text: "`openmates version` and `openmates --version` print the installed version, check latest npm availability, and show `openmates upgrade` when an update exists."
   - id: AC-20
     scenario: S-20
-    text: TUI `/workflows` and `/workflow <id>` list workflows, show recent run output summaries, run enabled workflows, refresh runs, and cancel active runs through existing Workflow APIs without adding TUI YAML editing.
+    text: TUI `/workflows` and `/workflow <id>` list workflows, show Graph/Runs tabs, render run outputs as graph annotations, allow node expansion and lightweight title/config edits, run enabled workflows, refresh runs, and cancel active runs through existing Workflow APIs.
 
 contracts:
   cli_entrypoint:
@@ -556,7 +559,7 @@ tests:
       - Tab completes the highlighted command while Enter keeps executing the manually typed input
       - activeChatId from a send result is reused on the next authenticated TUI send
       - "`/chats` renders recent account chat rows and logged-out login guidance"
-      - "`/workflows` renders workflow rows, workflow details, recent runs, and retained node output summaries"
+      - "`/workflows` renders workflow rows, Graph/Runs tabs, expandable graph nodes, and selected-run output annotations on graph nodes"
     red_phase:
       required: true
       expected: fail
@@ -763,7 +766,7 @@ implementation_plan:
     - The first authenticated TUI send stores the returned `chatId` in memory; follow-up sends pass that `chatId` back to `OpenMatesClient.sendMessage()`.
     - Slash-prefixed input derives suggestions from the TUI command registry and Tab copies the highlighted command into the input.
     - "`/chats` calls `OpenMatesClient.listChats()` for signed-in users and renders decrypted chat metadata as terminal rows."
-    - "`/workflows` calls existing Workflow client methods to list workflows, open details, render recent runs, start enabled workflows, refresh runs, and cancel active runs."
+    - "`/workflows` calls existing Workflow client methods to list workflows, open details, render Graph/Runs tabs, annotate graph nodes with selected-run output summaries, start enabled workflows, refresh runs, cancel active runs, and save lightweight node title/config edits."
     - "`version`, `--version`, `update`, and `upgrade` resolve npm target metadata, compare it with the package version, and only run the package-manager command when needed."
     - Exiting always runs terminal cleanup in a `finally` path.
   affected_files:

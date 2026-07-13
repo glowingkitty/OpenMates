@@ -12,7 +12,7 @@
 import { createInterface } from "node:readline/promises";
 import { stdin as nodeStdin, stdout as nodeStdout } from "node:process";
 
-import type { OpenMatesClient, WorkflowSummary } from "./client.js";
+import type { OpenMatesClient, WorkflowDetail, WorkflowSummary } from "./client.js";
 import type { StreamEvent } from "./ws.js";
 import { getExampleChatConversation, listExampleChats } from "./exampleChats.js";
 import { buildExampleContinuationHistory } from "./tuiExampleContinuation.js";
@@ -88,13 +88,44 @@ async function handleKey(params: {
     return;
   }
   if (key.name === "escape") {
+    if (state.workflowEdit) {
+      state.workflowEdit = null;
+      render();
+      return;
+    }
     state.screen = state.screen === "workflow" ? "workflows" : "start";
     state.input = "";
     render();
     return;
   }
+  if (state.screen === "workflow" && state.workflowEdit) {
+    if (key.name === "return") {
+      await saveWorkflowNodeTitle({ state, client, render });
+      return;
+    }
+    if (key.name === "backspace") {
+      state.workflowEdit.value = state.workflowEdit.value.slice(0, -1);
+      render();
+      return;
+    }
+    if (!key.ctrl && !key.meta && chunk && chunk >= " ") {
+      state.workflowEdit.value += chunk;
+      render();
+    }
+    return;
+  }
   if (state.screen === "workflow" && !state.input && !key.ctrl && !key.meta) {
+    if (chunk === "g") {
+      state.workflowTab = "graph";
+      render();
+      return;
+    }
     if (chunk === "r") {
+      state.workflowTab = "runs";
+      render();
+      return;
+    }
+    if (chunk === "x") {
       await runActiveWorkflow({ state, client, render });
       return;
     }
@@ -104,6 +135,16 @@ async function handleKey(params: {
     }
     if (chunk === "c") {
       await cancelLatestWorkflowRun({ state, client, render });
+      return;
+    }
+    if (chunk === "e") {
+      startWorkflowNodeEdit(state, "title");
+      render();
+      return;
+    }
+    if (chunk === "E") {
+      startWorkflowNodeEdit(state, "config");
+      render();
       return;
     }
   }
@@ -182,6 +223,11 @@ async function handleEnter(params: {
   if (state.screen === "workflows") {
     const selected = state.workflows[state.selectedIndex];
     if (selected) await openWorkflowDetail({ state, client, workflow: selected, render });
+    render();
+    return;
+  }
+  if (state.screen === "workflow") {
+    toggleSelectedWorkflowNode(state);
     render();
     return;
   }
@@ -351,7 +397,37 @@ function moveSelectionOrScroll(state: TuiState, direction: number): void {
     state.selectedIndex = clamp(state.selectedIndex + direction, 0, Math.max(0, state.workflows.length - 1));
     return;
   }
+  if (state.screen === "workflow") {
+    if (state.workflowTab === "runs") {
+      state.selectedWorkflowRunIndex = clamp(state.selectedWorkflowRunIndex + direction, 0, Math.max(0, state.workflowRuns.length - 1));
+      const selectedRun = state.workflowRuns[state.selectedWorkflowRunIndex];
+      state.selectedWorkflowNodeIndex = firstRunNodeIndex(state, selectedRun);
+      return;
+    }
+    const nodeCount = state.activeWorkflow?.graph.nodes.length ?? 0;
+    state.selectedWorkflowNodeIndex = clamp(state.selectedWorkflowNodeIndex + direction, 0, Math.max(0, nodeCount - 1));
+    return;
+  }
   state.scrollOffset = Math.max(0, state.scrollOffset - direction);
+}
+
+function toggleSelectedWorkflowNode(state: TuiState): void {
+  const workflow = state.activeWorkflow;
+  if (!workflow) return;
+  const node = workflow.graph.nodes[state.selectedWorkflowNodeIndex];
+  if (!node) return;
+  if (state.workflowTab === "runs") {
+    state.expandedWorkflowRunNodeId = state.expandedWorkflowRunNodeId === node.id ? null : node.id;
+  } else {
+    state.expandedWorkflowNodeId = state.expandedWorkflowNodeId === node.id ? null : node.id;
+  }
+}
+
+function firstRunNodeIndex(state: TuiState, run: { node_runs?: Array<{ node_id: string }> } | undefined): number {
+  const workflow = state.activeWorkflow;
+  const firstNodeRun = run?.node_runs?.[0];
+  if (!workflow || !firstNodeRun) return 0;
+  return Math.max(0, workflow.graph.nodes.findIndex((node) => node.id === firstNodeRun.node_id));
 }
 
 async function openWorkflowList(params: {
@@ -403,10 +479,28 @@ async function openWorkflowDetail(params: {
   render: () => void;
 }): Promise<void> {
   const { state, client, workflow, render } = params;
-  state.activeWorkflow = workflow;
+  state.status = `Loading workflow ${workflow.id}...`;
+  render();
+  let detail: WorkflowDetail;
+  try {
+    detail = await client.getWorkflow(workflow.id);
+  } catch (error) {
+    state.status = workflowError(error, `Could not load workflow ${workflow.id}.`);
+    state.screen = "status";
+    render();
+    return;
+  }
+  state.activeWorkflow = detail;
   state.workflowRuns = [];
+  state.workflowTab = "graph";
+  state.selectedWorkflowNodeIndex = 0;
+  state.selectedWorkflowRunIndex = 0;
+  state.expandedWorkflowNodeId = null;
+  state.expandedWorkflowRunNodeId = null;
+  state.workflowEdit = null;
   state.screen = "workflow";
   state.scrollOffset = 0;
+  state.status = null;
   render();
   await refreshActiveWorkflowRuns({ state, client, render });
 }
@@ -423,12 +517,71 @@ async function refreshActiveWorkflowRuns(params: {
   render();
   try {
     state.workflowRuns = await client.listWorkflowRuns(workflow.id);
+    state.selectedWorkflowRunIndex = clamp(state.selectedWorkflowRunIndex, 0, Math.max(0, state.workflowRuns.length - 1));
     state.status = null;
     state.screen = "workflow";
   } catch (error) {
     state.status = workflowError(error, "Could not refresh workflow runs.");
   }
   render();
+}
+
+async function saveWorkflowNodeTitle(params: {
+  state: TuiState;
+  client: OpenMatesClient;
+  render: () => void;
+}): Promise<void> {
+  const { state, client, render } = params;
+  const workflow = state.activeWorkflow;
+  const edit = state.workflowEdit;
+  if (!workflow || !edit) return;
+  let parsedConfig: Record<string, unknown> | null = null;
+  if (edit.field === "config") {
+    try {
+      const parsed = JSON.parse(edit.value || "{}");
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Config must be a JSON object");
+      parsedConfig = parsed as Record<string, unknown>;
+    } catch (error) {
+      state.status = workflowError(error, "Invalid config JSON.");
+      render();
+      return;
+    }
+  }
+  const graph = {
+    ...workflow.graph,
+    nodes: workflow.graph.nodes.map((node) => {
+      if (node.id !== edit.nodeId) return node;
+      if (edit.field === "config") return { ...node, config: parsedConfig ?? {} };
+      return { ...node, title: edit.value.trim() || null };
+    }),
+  };
+  state.status = `Saving node ${edit.field}...`;
+  render();
+  try {
+    state.activeWorkflow = await client.updateWorkflow(workflow.id, { graph });
+    state.workflowEdit = null;
+    state.status = `Saved node ${edit.field}.`;
+  } catch (error) {
+    state.status = workflowError(error, "Could not save node title.");
+  }
+  render();
+}
+
+function startWorkflowNodeEdit(state: TuiState, field: "title" | "config"): void {
+  const workflow = state.activeWorkflow;
+  if (!workflow || state.workflowTab !== "graph") {
+    state.status = "Switch to the Graph tab before editing node details.";
+    return;
+  }
+  const node = workflow.graph.nodes[state.selectedWorkflowNodeIndex];
+  if (!node) return;
+  state.workflowEdit = {
+    nodeId: node.id,
+    field,
+    value: field === "config" ? JSON.stringify(node.config ?? {}) : node.title ?? "",
+  };
+  state.expandedWorkflowNodeId = node.id;
+  state.status = `Editing ${field} for ${node.id}.`;
 }
 
 async function runActiveWorkflow(params: {
