@@ -603,6 +603,31 @@ tests:
         run_id: ""
         timestamp: ""
 
+  - id: T-CLI-TUI-WORKFLOWS-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/cli-tui-workflows.spec.ts
+    command: python3 scripts/tests.py run --spec cli-tui-workflows.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-20
+    assertions:
+      - GitHub Actions runs the Workflow TUI interaction harness through the Playwright control plane.
+      - The TUI opens `/workflows`, opens a workflow, switches Graph/Runs tabs, expands graph nodes, runs, cancels, and edits node details through the real TUI controller.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: "Added after the Workflow TUI slice already existed; green GitHub Actions evidence gates this follow-up."
+        timestamp: "2026-07-13T23:30:00Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
   - id: T-CLI-EMBED-PREVIEWS
     type: unit
     file: frontend/packages/openmates-cli/tests/embedRenderers.test.ts
