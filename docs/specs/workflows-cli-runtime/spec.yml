@@ -1053,7 +1053,7 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: { status: passed, command: "python3 scripts/tests.py run -- --spec cli-workflows-rain-real.spec.ts", run_id: "29280959152", subject_commit: "d8f0f70", deployment_reference: "dpl_H6CRy5cfUnZwVQhaEmPHwJGrhE4v", target: app.dev.openmates.org, timestamp: "2026-07-13T20:06:58Z" }
+      evidence: { status: passed, command: "python3 scripts/tests.py run -- --spec cli-workflows-rain-real.spec.ts", run_id: "29287114206", subject_commit: "d8f0f70", deployment_reference: "dpl_3MamPo9yGQ1etydvw94T4uLe2dJQ", target: app.dev.openmates.org, timestamp: "2026-07-13T21:41:09Z", note: "Post-deploy regression ran at git d072788ef after the spec/test-only evidence update; product runtime subject remains d8f0f70." }
     notes:
       - Playwright is only the authenticated remote process runner; this test invokes the CLI and performs no web UI interaction.
   - id: T-CLI-E2E-002
