@@ -10003,13 +10003,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // ─── Progressive AI Status Indicator: Clear on task end (safety fallback) ─────
                 clearProcessingPhase();
                 
-                // ─── Finalize streaming messages on cancellation ─────
-                // When the user cancels an AI task, any assistant message with status='streaming'
-                // must be transitioned to 'synced' immediately. Without this, the message stays
-                // in 'streaming' state in memory and in IndexedDB, causing the chat history to
-                // show an endless loading indicator and the sidebar to show stale state.
-                // We do this for ALL task endings (not just cancellation) as a safety fallback
-                // in case the final-chunk handler missed transitioning the message.
+                // ─── Finalize streaming messages on interruption ─────
+                // When the user interrupts an AI task, any assistant message with status='streaming'
+                // must be transitioned to 'synced' immediately. Normal completions must wait for
+                // the final chunk/recovery handler; otherwise sealed recovery sees a local synced
+                // placeholder and skips durable assistant persistence.
                 //
                 // PERSISTENCE ON INTERRUPT: If the interrupted message has content (partial response),
                 // persist it to the server via sendCompletedAIResponse. Normal completions must wait
@@ -10022,7 +10020,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const messagesToPersist: ChatMessageModel[] = [];
                 for (let i = 0; i < currentMessages.length; i++) {
                     const msg = currentMessages[i];
-                    if (msg.role === 'assistant' && msg.status === 'streaming') {
+                    if (shouldPersistInterruptedPartial && msg.role === 'assistant' && msg.status === 'streaming') {
                         const finalized = { ...msg, status: 'synced' as const };
                         currentMessages[i] = finalized;
                         needsUpdate = true;
@@ -10033,12 +10031,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         // Queue for server persistence if there is actual content
                         if (shouldPersistInterruptedPartial && finalized.content && finalized.content.trim().length > 0) {
                             messagesToPersist.push(finalized);
-                        } else if (!shouldPersistInterruptedPartial) {
-                            console.info(`[ActiveChat] aiTaskEndedHandler: Skipping server persistence for normal task end ${msg.message_id} (status: ${taskEndStatus})`);
                         } else {
                             console.info(`[ActiveChat] aiTaskEndedHandler: Skipping server persistence for empty message ${msg.message_id} (interrupted before any text streamed)`);
                         }
                     }
+                }
+                if (!shouldPersistInterruptedPartial) {
+                    console.info(`[ActiveChat] aiTaskEndedHandler: Leaving streaming messages to final chunk/recovery handler (task status: ${taskEndStatus})`);
                 }
                 if (needsUpdate) {
                     currentMessages = [...currentMessages];
