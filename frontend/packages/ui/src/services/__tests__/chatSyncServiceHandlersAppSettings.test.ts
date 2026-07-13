@@ -284,6 +284,113 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     );
   });
 
+  it("waits for the chat shell and key before claiming an early recovery job", async () => {
+    vi.useFakeTimers();
+    const handlers = new Map<string, (payload: unknown) => void>();
+    let hydrated = false;
+    let claimRequestId: string | undefined;
+    let persistRequestId: string | undefined;
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.set(type, handler);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string) => {
+      handlers.delete(type);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (
+      type: string,
+      payload: Record<string, unknown>,
+    ) => {
+      if (type === "recovery_job_claim") {
+        claimRequestId = payload.request_id as string;
+      }
+      if (type === "recovery_job_persist") {
+        persistRequestId = payload.request_id as string;
+      }
+    });
+    mocks.chatDB.getChat.mockImplementation(async () => (hydrated ? {
+      chat_id: "chat-1",
+      user_id: "user-1",
+      messages_v: 2,
+    } : undefined));
+    mocks.chatKeyManager.getKey.mockImplementation(async () => (
+      hydrated ? new Uint8Array([1, 2, 3]) : null
+    ));
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
+    mocks.openChatCompletionRecoveryEnvelope.mockResolvedValue(
+      new TextEncoder().encode(JSON.stringify({
+        assistant_message_id: "assistant-1",
+        category: "general",
+        chat_id: "chat-1",
+        content: "Recovered response",
+        job_id: "job-1",
+        key_version: 1,
+        model_name: "model-1",
+        turn_id: "turn-1",
+      })),
+    );
+    mocks.chatDB.getEncryptedFields.mockResolvedValue({
+      encrypted_content: "encrypted-content",
+      encrypted_sender_name: "encrypted-sender",
+      encrypted_category: "encrypted-category",
+      encrypted_model_name: "encrypted-model",
+    });
+    const service = {
+      dispatchEvent: vi.fn(),
+      hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+    } as unknown as ChatSynchronizationService;
+
+    const recovery = handleRecoveryJobsAvailableImpl(service, {
+      jobs: [{
+        job_id: "job-1",
+        chat_id: "chat-1",
+        turn_id: "turn-1",
+        assistant_message_id: "assistant-1",
+        chat_key_version: 1,
+      }],
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith(
+      "recovery_job_claim",
+      expect.anything(),
+    );
+
+    hydrated = true;
+    await vi.advanceTimersByTimeAsync(250);
+    await vi.waitFor(() => {
+      expect(claimRequestId).toEqual(expect.any(String));
+    });
+    handlers.get("recovery_job_claimed")?.({
+      job_id: "job-1",
+      request_id: claimRequestId,
+      state: "LEASED",
+      lease_token: "lease-token",
+      lease_generation: 2,
+      sealed_payload: '{"v":1}',
+      chat_id: "chat-1",
+      turn_id: "turn-1",
+      assistant_message_id: "assistant-1",
+      chat_key_version: 1,
+    });
+    await vi.waitFor(() => {
+      expect(persistRequestId).toEqual(expect.any(String));
+    });
+    handlers.get("recovery_job_persisted")?.({
+      job_id: "job-1",
+      request_id: persistRequestId,
+      state: "TERMINAL",
+      committed_messages_v: 3,
+    });
+    await recovery;
+
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ message_id: "assistant-1", status: "synced" }),
+    );
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "chatUpdated" }),
+    );
+  });
+
   it("does not let one pending recovery job block another available job", async () => {
     const handlers = new Map<string, Set<(payload: unknown) => void>>();
     const emit = (type: string, payload: unknown) => {

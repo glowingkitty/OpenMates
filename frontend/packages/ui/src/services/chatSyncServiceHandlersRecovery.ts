@@ -6,7 +6,7 @@
  * transient in browser memory and never crosses the durable server boundary.
  */
 import type { ChatSynchronizationService } from "./chatSyncService";
-import type { Message } from "../types/chat";
+import type { Chat, Message } from "../types/chat";
 import {
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
@@ -23,6 +23,8 @@ const CHAT_RECOVERY_EVENT_MAX_RETRIES = 3;
 const CHAT_RECOVERY_LEASE_EXPIRY_MS = 60_000;
 const CHAT_RECOVERY_RETRY_DELAY_MS = CHAT_RECOVERY_LEASE_EXPIRY_MS + 1_000;
 const INITIAL_SYNC_POLL_MS = 100;
+const RECOVERY_PREREQUISITE_POLL_MS = 250;
+const RECOVERY_PREREQUISITE_TIMEOUT_MS = 120_000;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const recoveryJobsInProgress = new Set<string>();
 
@@ -34,6 +36,11 @@ interface AvailableRecoveryJob {
   turn_id: string;
   assistant_message_id: string;
   chat_key_version: number;
+}
+
+interface RecoveryPrerequisites {
+  chat: Chat;
+  chatKey: Uint8Array;
 }
 
 function encodeRecoveryChatKey(bytes: Uint8Array): string {
@@ -50,6 +57,17 @@ async function waitForInitialSync(serviceInstance: ChatSynchronizationService): 
     }
     await new Promise((resolve) => window.setTimeout(resolve, INITIAL_SYNC_POLL_MS));
   }
+}
+
+async function waitForRecoveryPrerequisites(job: AvailableRecoveryJob): Promise<RecoveryPrerequisites | null> {
+  const deadline = Date.now() + RECOVERY_PREREQUISITE_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const chat = await chatDB.getChat(job.chat_id);
+    const chatKey = chat?.user_id ? await chatKeyManager.getKey(job.chat_id) : null;
+    if (chat?.user_id && chatKey) return { chat, chatKey };
+    await new Promise((resolve) => window.setTimeout(resolve, RECOVERY_PREREQUISITE_POLL_MS));
+  }
+  return null;
 }
 
 function waitForRecoveryEvent(
@@ -153,9 +171,14 @@ export async function handleRecoveryJobsAvailableImpl(
       // A local synced/delivered row can still be browser-only if the user logs out
       // before sealed recovery reaches terminal persistence. The server job is the
       // durable idempotency boundary, so do not skip an available job based on IDB.
-      const chat = await chatDB.getChat(job.chat_id);
-      const chatKey = await chatKeyManager.getKey(job.chat_id);
-      if (!chat?.user_id || !chatKey) return;
+      const prerequisites = await waitForRecoveryPrerequisites(job);
+      if (!prerequisites) {
+        console.warn(
+          `[ChatSyncService:Recovery] Recovery job ${job.job_id} prerequisites did not hydrate in time.`,
+        );
+        return;
+      }
+      const { chat, chatKey } = prerequisites;
       if (!(await ensureChatKeySafeForWrite(job.chat_id, chatKey, "completion recovery"))) return;
 
       const claim = await requestRecoveryEvent(
