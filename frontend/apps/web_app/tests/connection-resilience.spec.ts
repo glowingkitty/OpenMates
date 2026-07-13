@@ -175,22 +175,29 @@ async function coldBootAuthenticatedPage(context: any, baseURL: string): Promise
 	);
 	await page.goto(resetUrl);
 	await page.evaluate(async () => {
-		localStorage.clear();
-		const databases = await indexedDB.databases();
-		await Promise.all(
-			databases
-				.map((database) => database.name)
-				.filter((name): name is string => Boolean(name))
-				.map(
-					(name) =>
-						new Promise<void>((resolve, reject) => {
-							const request = indexedDB.deleteDatabase(name);
-							request.onerror = () => reject(request.error ?? new Error(`Failed to delete ${name}`));
-							request.onblocked = () => reject(new Error(`Deleting ${name} was blocked`));
-							request.onsuccess = () => resolve();
-						})
-				)
-		);
+		await new Promise<void>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => reject(request.error ?? new Error('Failed to open chats_db'));
+			request.onsuccess = () => {
+				const db = request.result;
+				const storesToClear = Array.from(db.objectStoreNames);
+				if (storesToClear.length === 0) {
+					db.close();
+					resolve();
+					return;
+				}
+				const transaction = db.transaction(storesToClear, 'readwrite');
+				transaction.onerror = () => {
+					db.close();
+					reject(transaction.error ?? new Error('Failed to clear local chat stores'));
+				};
+				transaction.oncomplete = () => {
+					db.close();
+					resolve();
+				};
+				for (const storeName of storesToClear) transaction.objectStore(storeName).clear();
+			};
+		});
 	});
 	await page.unroute(resetUrl);
 	return page;
@@ -691,6 +698,7 @@ test('secondary client recovers exactly one saved assistant message after origin
 		await secondary.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`), {
 			waitUntil: 'domcontentloaded'
 		});
+		await expect(secondary.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
 		await ensureSidebarClosed(secondary);
 		const recoveredAssistantMessages = secondary.getByTestId('message-assistant');
 		await expect(recoveredAssistantMessages).toHaveCount(1, { timeout: 120000 });
@@ -702,6 +710,7 @@ test('secondary client recovers exactly one saved assistant message after origin
 		await secondary.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`), {
 			waitUntil: 'domcontentloaded'
 		});
+		await expect(secondary.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
 		await ensureSidebarClosed(secondary);
 		const coldBootAssistantMessages = secondary.getByTestId('message-assistant');
 		await expect(coldBootAssistantMessages).toHaveCount(1, { timeout: 60000 });

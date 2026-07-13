@@ -206,7 +206,13 @@ describe("handleRecoveryJobsAvailableImpl", () => {
               assistant_message_id: "assistant-1",
               chat_key_version: 1,
             });
-          }, 20_100);
+          }, 22_100);
+        } else {
+          handlers.get("error")?.({
+            code: "lease_conflict",
+            job_id: "job-1",
+            message: "Another claim is still active.",
+          });
         }
       }
       if (type === "recovery_job_persist") {
@@ -218,7 +224,13 @@ describe("handleRecoveryJobsAvailableImpl", () => {
               state: "TERMINAL",
               committed_messages_v: 3,
             });
-          }, 20_100);
+          }, 22_100);
+        } else {
+          handlers.get("error")?.({
+            code: "lease_conflict",
+            job_id: "job-1",
+            message: "Another persistence request is still active.",
+          });
         }
       }
     });
@@ -255,8 +267,8 @@ describe("handleRecoveryJobsAvailableImpl", () => {
         chat_key_version: 1,
       }],
     });
-    await vi.advanceTimersByTimeAsync(20_100);
-    await vi.advanceTimersByTimeAsync(20_100);
+    await vi.advanceTimersByTimeAsync(22_100);
+    await vi.advanceTimersByTimeAsync(22_100);
     await recovery;
 
     mocks.chatDB.getMessage.mockResolvedValue({ status: "synced" });

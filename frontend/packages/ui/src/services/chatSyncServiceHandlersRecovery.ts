@@ -20,7 +20,9 @@ import { webSocketService } from "./websocketService";
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_EVENT_TIMEOUT_MS = 20_000;
 const CHAT_RECOVERY_EVENT_MAX_RETRIES = 3;
+const CHAT_RECOVERY_LATE_ACK_GRACE_MS = 2_000;
 const INITIAL_SYNC_POLL_MS = 100;
+const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const recoveryJobsInProgress = new Set<string>();
 
 class RecoveryEventTimeoutError extends Error {}
@@ -71,6 +73,7 @@ function waitForRecoveryEvent(type: string, jobId: string): {
         event.job_id !== jobId ||
         typeof event.code !== "string"
       ) return;
+      if (RECOVERY_RETRYABLE_ERROR_CODES.has(event.code)) return;
       cleanup();
       reject(new Error(typeof event.message === "string" ? event.message : `${type} was rejected.`));
     };
@@ -98,6 +101,15 @@ async function requestRecoveryEvent(
   let lastTimeout: RecoveryEventTimeoutError | null = null;
   for (let retry = 0; retry <= CHAT_RECOVERY_EVENT_MAX_RETRIES; retry += 1) {
     const waiter = waitForRecoveryEvent(responseType, jobId);
+    if (retry > 0) {
+      const lateResponse = await Promise.race([
+        waiter.promise,
+        new Promise<null>((resolve) => {
+          window.setTimeout(() => resolve(null), CHAT_RECOVERY_LATE_ACK_GRACE_MS);
+        }),
+      ]);
+      if (lateResponse !== null) return lateResponse;
+    }
     try {
       await webSocketService.sendMessage(requestType, payload);
     } catch (error) {
