@@ -987,6 +987,8 @@ task_routes = {
     "demo.*": {'queue': 'demo'},
     # Reminder tasks use custom names like "reminder.*"
     "reminder.*": {'queue': 'reminder'},
+    # Workflow tasks use custom names like "workflows.run" instead of module paths.
+    "workflows.*": {'queue': 'persistence'},
     # Add other explicitly named tasks here as needed
 }
 

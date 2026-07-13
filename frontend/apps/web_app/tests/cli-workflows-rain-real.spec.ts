@@ -107,7 +107,12 @@ steps:
 			expect(acceptedRun.status).toMatch(/queued|running|completed/);
 			const completedRun = await waitForWorkflowRunStatus(apiUrl, homeDir, workflowId, acceptedRun.id, ['completed'], 'rain workflow');
 			expect(completedRun.node_runs.map((node: any) => node.node_id)).toContain('forecast');
-			expect(completedRun.node_runs.some((node: any) => node.node_id === 'notify' && node.status === 'completed')).toBe(true);
+			const notifyRun = completedRun.node_runs.find((node: any) => node.node_id === 'notify');
+			expect(notifyRun, `notification branch was not recorded: ${JSON.stringify(completedRun.node_runs)}`).toBeTruthy();
+			expect(
+				notifyRun.status === 'completed' ||
+					(notifyRun.status === 'skipped' && ['push_notifications_not_enabled', 'push_subscription_not_configured'].includes(notifyRun.skipped_reason))
+			).toBe(true);
 			expect(completedRun.cost_summary || {}).toBeTruthy();
 
 			const runs = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'runs', workflowId], 'list workflow runs');

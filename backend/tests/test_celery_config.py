@@ -20,3 +20,14 @@ def test_warm_translation_cache_preloads_english(monkeypatch):
     celery_config.warm_translation_cache()
 
     assert calls == ["en"]
+
+
+def test_custom_workflow_task_names_route_to_persistence_queue():
+    from backend.core.api.app.tasks import celery_config
+
+    assert celery_config.get_expected_queue_for_task("workflows.cleanup_expired_temporary") == "persistence"
+    assert celery_config.get_expected_queue_for_task("workflows.run") == "persistence"
+    assert celery_config.get_expected_queue_for_task("workflows.run_scheduled_trigger") == "persistence"
+    assert celery_config.get_expected_queue_for_task("workflows.dispatch_event") == "persistence"
+    assert celery_config.get_expected_queue_for_task("workflows.expire_assistant_proposals") == "persistence"
+    assert celery_config.get_expected_queue_for_task("workflows.execute_assistant_countdown") == "persistence"
