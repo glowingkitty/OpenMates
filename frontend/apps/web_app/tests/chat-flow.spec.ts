@@ -451,9 +451,10 @@ async function performLogin(
 	page: any,
 	logCheckpoint: (...args: any[]) => void,
 	takeStepScreenshot: (...args: any[]) => Promise<void>,
-	screenshotPrefix: string
+	screenshotPrefix: string,
+	startRoute = '/'
 ): Promise<void> {
-	await page.goto(getE2EDebugUrl('/'));
+	await page.goto(getE2EDebugUrl(startRoute));
 	await takeStepScreenshot(page, `${screenshotPrefix}-home`);
 
 	await openSignupInterface(page);
@@ -1040,29 +1041,30 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	logChatCheckpoint('Phase 7: Logging in again...');
 	// Capture log offset — encryption assertions should only check logs from THIS phase
 	const phase7LogStart = consoleLogs.length;
-	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '08');
 
-	// Wait for phased sync to complete before navigating to the test chat.
+	// Start listening before auth completes. performLogin waits after the editor is
+	// visible, so subscribing after it returns can miss the phased-sync console signal.
+	const syncCompletedPromise = page
+		.waitForEvent('console', {
+			predicate: (msg: any) =>
+				msg.text().includes('Phase 1 complete') ||
+				msg.text().includes('phasedSyncComplete') ||
+				msg.text().includes('Phase 1a: decrypted'),
+			timeout: 30000
+		})
+		.then(() => true)
+		.catch(() => false);
+	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '08', `/#chat-id=${chatId}`);
+
+	// Wait for phased sync to complete after auth.
 	// After a fresh login, phased sync re-downloads all chat data via WebSocket.
 	// The deep-link handler in +page.svelte waits for phasedSyncComplete before
-	// loading a user chat from IndexedDB. If we navigate too early (before sync),
+	// loading a user chat from IndexedDB. If we mutate the hash too late,
 	// the chat isn't in IDB yet and the deep-link handler either gives up or
 	// gets blocked by canAutoNavigate() after Phase 1a loads a different chat.
 	logChatCheckpoint('Waiting for phased sync to complete after re-login...');
-	const syncCompleted = await page.waitForEvent('console', {
-		predicate: (msg: any) =>
-			msg.text().includes('Phase 1 complete') ||
-			msg.text().includes('phasedSyncComplete') ||
-			msg.text().includes('Phase 1a: decrypted'),
-		timeout: 30000
-	}).then(() => true).catch(() => false);
+	const syncCompleted = await syncCompletedPromise;
 	logChatCheckpoint(`Phased sync signal detected: ${syncCompleted}`);
-
-	// Navigate to the test chat via hash change (no reload — preserves sync state)
-	logChatCheckpoint(`Navigating to chat ${chatId} after re-login...`);
-	await page.evaluate((cid: string) => {
-		window.location.hash = `chat-id=${cid}`;
-	}, chatId);
 	// Give the hashchange handler time to process and load the chat
 	await page.waitForTimeout(3000);
 
