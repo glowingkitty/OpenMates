@@ -4,12 +4,20 @@
 // was preserved from a different local key. That mixed state caused regular
 // content decryption errors after reload, before candidate fallback could help.
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Chat } from "../../types/chat";
 import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "../chatSyncMerge";
+
+const mocks = vi.hoisted(() => ({
+  decryptChatKeyWithMasterKey: vi.fn(),
+}));
+
+vi.mock("../encryption/MetadataEncryptor", () => ({
+  decryptChatKeyWithMasterKey: mocks.decryptChatKeyWithMasterKey,
+}));
 
 type VersionedChat = Chat & { metadata_v?: number };
 
@@ -36,6 +44,10 @@ function makeChat(overrides: Partial<VersionedChat> = {}): VersionedChat {
 }
 
 describe("chat sync merge", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("reproduces and prevents mixed-key merge when server key differs", async () => {
     const localChat = makeChat({
       candidate_encrypted_keys: ["local-candidate-k0"],
@@ -58,7 +70,9 @@ describe("chat sync merge", () => {
       last_edited_overall_timestamp: 300,
     };
 
-    expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).toBe(true);
+    await expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).resolves.toBe(
+      true,
+    );
 
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
 
@@ -92,7 +106,9 @@ describe("chat sync merge", () => {
       draft_v: 0,
     };
 
-    expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).toBe(false);
+    await expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).resolves.toBe(
+      false,
+    );
 
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
 
@@ -119,6 +135,32 @@ describe("chat sync merge", () => {
     expect(merged.encrypted_chat_key).toBe("local-key-k1");
     expect(merged.encrypted_title).toBe("local-title-k1");
     expect(merged.encrypted_draft_md).toBe("local-draft-k1");
+    expect(merged.messages_v).toBe(6);
+  });
+
+  it("does not treat different encrypted key blobs as a mismatch when raw keys match", async () => {
+    const rawKey = new Uint8Array([7, 8, 9]);
+    mocks.decryptChatKeyWithMasterKey.mockResolvedValue(rawKey);
+    const localChat = makeChat({
+      encrypted_chat_key: "local-wrapper-with-random-iv",
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "server-wrapper-with-random-iv",
+      encrypted_title: "server-title-same-key",
+      messages_v: 6,
+      title_v: 10,
+      draft_v: 0,
+    };
+
+    await expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).resolves.toBe(
+      false,
+    );
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.encrypted_chat_key).toBe("server-wrapper-with-random-iv");
+    expect(merged.candidate_encrypted_keys).toBeNull();
     expect(merged.messages_v).toBe(6);
   });
 

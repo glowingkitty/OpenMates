@@ -6,22 +6,32 @@
 // server-provided encrypted_chat_key.
 
 import type { Chat } from "../types/chat";
+import { chatKeysEqual } from "./chatKeyConsistency";
+import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 
 const MAX_CANDIDATE_KEYS = 5;
 
-export function hasEncryptedChatKeyMismatch(
+export async function hasEncryptedChatKeyMismatch(
   serverChat: Partial<Chat> & { id: string },
   localChat: Chat | null,
-): boolean {
+): Promise<boolean> {
   if (serverChat.key_fingerprint && localChat?.key_fingerprint) {
     return serverChat.key_fingerprint !== localChat.key_fingerprint;
   }
 
-  return Boolean(
-    serverChat.encrypted_chat_key &&
-      localChat?.encrypted_chat_key &&
-      serverChat.encrypted_chat_key !== localChat.encrypted_chat_key,
+  const serverEncryptedKey = serverChat.encrypted_chat_key;
+  const localEncryptedKey = localChat?.encrypted_chat_key;
+  if (!serverEncryptedKey || !localEncryptedKey) return false;
+  if (serverEncryptedKey === localEncryptedKey) return false;
+
+  const [serverRawKey, localRawKey] = await Promise.all(
+    [serverEncryptedKey, localEncryptedKey].map((encryptedKey) =>
+      decryptChatKeyWithMasterKey(encryptedKey),
+    ),
   );
+  if (!serverRawKey || !localRawKey) return true;
+
+  return !chatKeysEqual(serverRawKey, localRawKey);
 }
 
 function appendCandidateKey(
@@ -104,7 +114,7 @@ export async function mergeServerChatWithLocal(
     };
   }
 
-  const keyMismatch = hasEncryptedChatKeyMismatch(serverChat, localChat);
+  const keyMismatch = await hasEncryptedChatKeyMismatch(serverChat, localChat);
   const serverHasDraftMarkdown = Object.prototype.hasOwnProperty.call(
     serverChat,
     "encrypted_draft_md",

@@ -318,7 +318,7 @@ export async function handlePhase1LastChatImpl(
       details: Partial<Chat> & { id: string },
     ): Promise<Chat> => {
       const existingChat = await chatDB.getChat(details.id);
-      const keyMismatch = hasEncryptedChatKeyMismatch(details, existingChat);
+      const keyMismatch = await hasEncryptedChatKeyMismatch(details, existingChat);
 
       if (keyMismatch) {
         console.warn(

@@ -627,7 +627,7 @@ async function storeRecentChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      const keyMismatch = hasEncryptedChatKeyMismatch(
+      const keyMismatch = await hasEncryptedChatKeyMismatch(
         chat_details,
         existingChat,
       );
@@ -845,7 +845,7 @@ async function storeAllChats(
 
       // Get existing local chat to compare versions
       const existingChat = await chatDB.getChat(chatId);
-      const keyMismatch = hasEncryptedChatKeyMismatch(
+      const keyMismatch = await hasEncryptedChatKeyMismatch(
         chat_details,
         existingChat,
       );
