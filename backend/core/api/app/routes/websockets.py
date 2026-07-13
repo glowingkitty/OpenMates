@@ -794,6 +794,21 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 device_fingerprint_hash=device_hash
                             )
                             logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash} (seq: {redis_payload.get('sequence', 'unknown')}).")
+                            if (
+                                directus_service is not None
+                                and redis_payload.get("is_final_chunk", False)
+                                and redis_payload.get("recovery_protocol_version") == 1
+                                and redis_payload.get("recovery_job_id")
+                            ):
+                                asyncio.create_task(
+                                    send_available_recovery_jobs(
+                                        manager=manager,
+                                        directus_service=directus_service,
+                                        user_id=user_id_uuid,
+                                        user_id_hash=redis_payload.get("user_id_hash"),
+                                        device_fingerprint_hash=device_hash,
+                                    )
+                                )
                         else:
                             # Chat is not active on this device.
                             # For background processing: only send completed response when final marker arrives

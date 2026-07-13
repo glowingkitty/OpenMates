@@ -124,3 +124,19 @@ def test_epoch_zero_admission_identity_chain_and_acknowledgment_retry_are_wired(
     assert '"message_id": task_id' in stream_source
     assert '"acknowledge_legacy_persistence"' in persistence_source
     assert "self.retry" in persistence_wrapper_source
+
+
+def test_active_final_chunk_announces_available_recovery_jobs() -> None:
+    source = _function_source(
+        "backend/core/api/app/routes/websockets.py",
+        "listen_for_ai_chat_streams",
+    )
+    active_branch = source[
+        source.index('message={"type": "ai_message_update", "payload": redis_payload}'):
+        source.index('message={"type": "ai_background_response_completed", "payload": background_completion_payload}')
+    ]
+
+    assert 'redis_payload.get("is_final_chunk", False)' in active_branch
+    assert 'redis_payload.get("recovery_protocol_version") == 1' in active_branch
+    assert 'redis_payload.get("recovery_job_id")' in active_branch
+    assert "send_available_recovery_jobs" in active_branch
