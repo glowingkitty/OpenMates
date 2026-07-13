@@ -8,6 +8,7 @@
 import pytest
 
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
+from backend.core.api.app.services.workflow_models import WorkflowRunDetail, WorkflowRunStatus
 from backend.core.api.app.services.workflow_runner import WorkflowRunner
 from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository
 from backend.tests.workflow_test_utils import workflow_service
@@ -54,6 +55,7 @@ async def test_scheduler_fences_claim_before_side_effects_then_advances_recurren
             "run_id": "run-1",
             "workflow_id": "workflow-1",
             "version_id": "version-1",
+            "owner_user_id": "alice",
             "encrypted_schedule_config_ref": "blob-schedule-1",
             "claim_token": "claim-token",
             "claim_generation": 2,
@@ -62,19 +64,20 @@ async def test_scheduler_fences_claim_before_side_effects_then_advances_recurren
     )
     effects: list[tuple[str, str, str]] = []
 
-    async def decrypt_and_schedule(blob_ref: str) -> int:
+    async def decrypt_and_schedule(owner_user_id: str, blob_ref: str) -> int:
+        assert owner_user_id == "alice"
         assert blob_ref == "blob-schedule-1"
         return 1_800_000_000
 
-    async def execute_run(run_id: str, workflow_id: str, version_id: str) -> None:
-        effects.append((run_id, workflow_id, version_id))
+    async def execute_run(run_id: str, workflow_id: str, version_id: str, owner_user_id: str) -> None:
+        effects.append((run_id, workflow_id, version_id, owner_user_id))
 
     result = await WorkflowSchedulerService(runtime).execute_due_trigger(
         "trigger-1", decrypt_and_schedule, execute_run
     )
 
     assert result == {"accepted": True, "run_id": "run-1", "next_run_at": 1_800_000_000}
-    assert effects == [("run-1", "workflow-1", "version-1")]
+    assert effects == [("run-1", "workflow-1", "version-1", "alice")]
     assert [operation for operation, _ in runtime.calls] == [
         "claim_due_trigger",
         "start_claimed_run",
@@ -98,46 +101,92 @@ async def test_scheduler_does_not_decrypt_or_execute_when_another_worker_owns_cl
 
 
 @pytest.mark.asyncio
-async def test_scheduler_rejects_a_claim_from_another_owner_before_decryption() -> None:
+async def test_scheduler_runs_a_reclaimed_queued_occurrence() -> None:
     runtime = FakeRuntime(
         {
             "accepted": True,
+            "recovered": True,
             "run_id": "run-1",
             "workflow_id": "workflow-1",
             "version_id": "version-1",
-            "hashed_user_id": "user_sha256:other-owner",
+            "owner_user_id": "alice",
             "encrypted_schedule_config_ref": "blob-schedule-1",
             "claim_token": "claim-token",
             "claim_generation": 2,
         },
-        {"started": True},
+        {"started": True, "run_id": "run-1", "workflow_id": "workflow-1", "version_id": "version-1"},
     )
 
-    async def should_not_run(*_args: object) -> object:
-        raise AssertionError("must not run")
+    effects: list[str] = []
 
-    with pytest.raises(PermissionError, match="owner"):
-        await WorkflowSchedulerService(runtime).execute_due_trigger(
-            "trigger-1",
-            should_not_run,
-            should_not_run,
-            expected_owner_hash="user_sha256:expected-owner",
-        )
+    async def decrypt_and_schedule(owner_user_id: str, blob_ref: str) -> int:
+        assert (owner_user_id, blob_ref) == ("alice", "blob-schedule-1")
+        return 1_800_000_000
 
-    assert runtime.calls == [("claim_due_trigger", {"trigger_id": "trigger-1"})]
+    async def execute_run(run_id: str, *_args: object) -> None:
+        effects.append(run_id)
+
+    result = await WorkflowSchedulerService(runtime).execute_due_trigger("trigger-1", decrypt_and_schedule, execute_run)
+
+    assert result == {"accepted": True, "run_id": "run-1", "next_run_at": 1_800_000_000}
+    assert effects == ["run-1"]
+
+
+@pytest.mark.asyncio
+async def test_scheduler_advances_a_cancelled_occurrence_without_executing_nodes() -> None:
+    runtime = FakeRuntime(
+        {
+            "accepted": True,
+            "recovered": True,
+            "run_id": "run-1",
+            "workflow_id": "workflow-1",
+            "version_id": "version-1",
+            "owner_user_id": "alice",
+            "encrypted_schedule_config_ref": "blob-schedule-1",
+            "claim_token": "claim-token",
+            "claim_generation": 2,
+        },
+        {"started": False, "run_id": "run-1", "workflow_id": "workflow-1", "version_id": "version-1", "status": "cancelled"},
+    )
+
+    async def decrypt_and_schedule(owner_user_id: str, blob_ref: str) -> int:
+        assert (owner_user_id, blob_ref) == ("alice", "blob-schedule-1")
+        return 1_800_000_000
+
+    async def should_not_execute(*_args: object) -> None:
+        raise AssertionError("cancelled runs must not execute nodes")
+
+    result = await WorkflowSchedulerService(runtime).execute_due_trigger("trigger-1", decrypt_and_schedule, should_not_execute)
+
+    assert result == {"accepted": True, "run_id": "run-1", "status": "cancelled", "next_run_at": 1_800_000_000}
+    assert [operation for operation, _ in runtime.calls] == [
+        "claim_due_trigger",
+        "start_claimed_run",
+        "advance_claimed_trigger",
+    ]
 
 
 @pytest.mark.asyncio
 async def test_scheduler_executes_the_claimed_run_id_without_creating_another_run() -> None:
     service = workflow_service(repository=InMemoryWorkflowRepository())
     workflow = service.create_workflow("alice", "Scheduled", scheduled_graph(), enabled=True)
+    service.save_run(
+        "alice",
+        WorkflowRunDetail(
+            id="run-accepted",
+            workflow_id=workflow.id,
+            version_id=workflow.current_version_id,
+            trigger_type="schedule",
+            status=WorkflowRunStatus.QUEUED,
+        ),
+    )
     runtime = FakeRuntime(
         {
             "accepted": True,
             "run_id": "run-accepted",
             "workflow_id": workflow.id,
             "version_id": workflow.current_version_id,
-            "hashed_user_id": service.repository.workflow_owner_hash("alice"),
+            "owner_user_id": "alice",
             "encrypted_schedule_config_ref": "blob-schedule-1",
             "claim_token": "claim-token",
             "claim_generation": 2,
@@ -145,11 +194,13 @@ async def test_scheduler_executes_the_claimed_run_id_without_creating_another_ru
         {"started": True, "run_id": "run-accepted", "workflow_id": workflow.id, "version_id": workflow.current_version_id},
     )
 
-    async def decrypt_and_schedule(blob_ref: str) -> int:
+    async def decrypt_and_schedule(owner_user_id: str, blob_ref: str) -> int:
+        assert owner_user_id == "alice"
         assert blob_ref == "blob-schedule-1"
         return 1_800_000_000
 
-    async def execute_run(run_id: str, workflow_id: str, version_id: str) -> None:
+    async def execute_run(run_id: str, workflow_id: str, version_id: str, owner_user_id: str) -> None:
+        assert owner_user_id == "alice"
         detail = service.get_workflow_version(workflow_id, "alice", version_id)
         await WorkflowRunner(service).run_workflow(
             detail,

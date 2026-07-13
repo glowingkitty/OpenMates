@@ -98,7 +98,10 @@ class WorkflowCapabilityRegistry:
         try:
             from backend.core.api.app.services.skill_registry import get_global_registry
 
-            return get_global_registry()
+            registry = get_global_registry()
+            if registry.all_metadata():
+                return registry
+            return _FilesystemWorkflowMetadataRegistry()
         except ModuleNotFoundError as exc:
             if exc.name != "celery":
                 raise

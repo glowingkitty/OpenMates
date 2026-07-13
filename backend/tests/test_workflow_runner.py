@@ -18,7 +18,8 @@ class FakeAppSkillAdapter:
     def __init__(self) -> None:
         self.calls = []
 
-    async def execute(self, app_id, skill_id, request):
+    async def execute(self, app_id, skill_id, request, *, user_id=None):
+        del user_id
         self.calls.append({"app_id": app_id, "skill_id": skill_id, "request": request})
         if app_id == "weather":
             return {
@@ -40,15 +41,18 @@ class FakeActionAdapter:
     def __init__(self) -> None:
         self.calls = []
 
-    async def create_chat_report(self, config, context):
+    async def create_chat_report(self, config, context, user_id):
+        del user_id
         self.calls.append({"type": "create_chat_report", "config": config})
         return {"report_id": "report-1", "summary": config.get("summary") or "Workflow report created"}
 
-    async def start_new_chat(self, config, context):
+    async def start_new_chat(self, config, context, user_id):
+        del user_id
         self.calls.append({"type": "start_new_chat", "config": config})
         return {"chat_id": "chat-1", "title": config.get("title")}
 
-    async def send_notification(self, config, channel):
+    async def send_notification(self, config, channel, user_id):
+        del user_id
         self.calls.append({"type": channel, "config": config})
         return {"queued": True, "channel": channel, "title": config.get("title"), "body": config.get("body")}
 
@@ -157,7 +161,7 @@ async def test_decision_node_records_unmatched_branch_without_silent_failure() -
     service = workflow_service()
     workflow = service.create_workflow("alice", "Dry day", rain_graph(rain_probability=10), enabled=True)
 
-    run = await WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter(), action_adapter=FakeActionAdapter()).run_workflow(workflow, "alice", trigger_type="manual")
+    run = await WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter(), action_adapter=FakeActionAdapter()).run_workflow(workflow, "alice", trigger_type="schedule")
 
     decision = next(node for node in run.node_runs if node.node_id == "decision")
     assert [node.node_id for node in run.node_runs] == ["trigger", "weather", "decision"]
@@ -181,6 +185,25 @@ async def test_ai_news_brief_runs_news_action_report_and_notifications() -> None
     assert app_adapter.calls[0]["skill_id"] == "search"
     assert [call["type"] for call in action_adapter.calls] == ["create_chat_report", "send_notification", "send_email_notification"]
     assert service.list_runs(workflow.id, "alice")[0].id == run.id
+
+
+@pytest.mark.asyncio
+async def test_real_adapter_records_a_typed_visible_error_for_an_unavailable_chat_report_action() -> None:
+    service = workflow_service()
+    workflow = service.create_workflow("alice", "AI news brief", news_graph(), enabled=True)
+
+    run = await WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter()).run_workflow(
+        workflow,
+        "alice",
+        trigger_type="schedule",
+    )
+
+    assert run.status == "failed"
+    assert run.node_runs[-1].node_id == "report"
+    assert run.node_runs[-1].error_code == "WORKFLOW_ACTION_UNAVAILABLE"
+    assert run.node_runs[-1].error_summary == (
+        "Create chat report cannot run because no safe server-side chat/report service is available."
+    )
 
 
 @pytest.mark.asyncio
@@ -256,7 +279,7 @@ async def test_temporary_workflow_remains_after_run_until_cleanup() -> None:
     workflow = service.create_workflow("alice", "Temporary rain", rain_graph(), lifecycle="temporary", enabled=True)
     assert workflow.auto_delete_at is not None
 
-    await WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter(), action_adapter=FakeActionAdapter()).run_workflow(workflow, "alice")
+    await WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter(), action_adapter=FakeActionAdapter()).run_workflow(workflow, "alice", trigger_type="schedule")
 
     assert service.get_workflow(workflow.id, "alice").id == workflow.id
     assert service.cleanup_expired_temporary_workflows("alice", now=workflow.auto_delete_at + 1) == 1
