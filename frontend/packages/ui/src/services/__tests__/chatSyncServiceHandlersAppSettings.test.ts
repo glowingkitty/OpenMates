@@ -183,6 +183,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     vi.useFakeTimers();
     const handlers = new Map<string, (payload: unknown) => void>();
     let claimAttempts = 0;
+    let persistAttempts = 0;
     mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
       handlers.set(type, handler);
     });
@@ -209,11 +210,16 @@ describe("handleRecoveryJobsAvailableImpl", () => {
         }
       }
       if (type === "recovery_job_persist") {
-        handlers.get("recovery_job_persisted")?.({
-          job_id: "job-1",
-          state: "TERMINAL",
-          committed_messages_v: 3,
-        });
+        persistAttempts += 1;
+        if (persistAttempts === 1) {
+          window.setTimeout(() => {
+            handlers.get("recovery_job_persisted")?.({
+              job_id: "job-1",
+              state: "TERMINAL",
+              committed_messages_v: 3,
+            });
+          }, 20_100);
+        }
       }
     });
     mocks.chatDB.getMessage.mockResolvedValue(undefined);
@@ -250,6 +256,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       }],
     });
     await vi.advanceTimersByTimeAsync(20_100);
+    await vi.advanceTimersByTimeAsync(20_100);
     await recovery;
 
     mocks.chatDB.getMessage.mockResolvedValue({ status: "synced" });
@@ -265,7 +272,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
 
     expect(mocks.chatDB.getEncryptedFields).toHaveBeenCalledOnce();
     expect(mocks.webSocketService.sendMessage).toHaveBeenNthCalledWith(
-      3,
+      4,
       "recovery_job_persist",
       expect.objectContaining({
         job_id: "job-1",
@@ -276,6 +283,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     );
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(1);
     expect(claimAttempts).toBe(2);
+    expect(persistAttempts).toBe(2);
     expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
       expect.objectContaining({ messages_v: 3 }),
     );

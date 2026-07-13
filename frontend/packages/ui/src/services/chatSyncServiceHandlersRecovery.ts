@@ -19,17 +19,11 @@ import { webSocketService } from "./websocketService";
 
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_EVENT_TIMEOUT_MS = 20_000;
+const CHAT_RECOVERY_EVENT_MAX_RETRIES = 3;
 const INITIAL_SYNC_POLL_MS = 100;
-const RECOVERY_ERROR_CODES = new Set([
-  "lease_conflict",
-  "lease_tenure_exhausted",
-  "recovery_job_expired",
-  "recovery_job_not_found",
-  "stale_lease",
-  "terminal_identity_mismatch",
-  "version_conflict",
-]);
 const recoveryJobsInProgress = new Set<string>();
+
+class RecoveryEventTimeoutError extends Error {}
 
 interface AvailableRecoveryJob {
   job_id: string;
@@ -55,11 +49,15 @@ async function waitForInitialSync(serviceInstance: ChatSynchronizationService): 
   }
 }
 
-function waitForRecoveryEvent(type: string, jobId: string): Promise<Record<string, unknown>> {
-  return new Promise((resolve, reject) => {
+function waitForRecoveryEvent(type: string, jobId: string): {
+  promise: Promise<Record<string, unknown>>;
+  cancel: (error: unknown) => void;
+} {
+  let cancel = (_error: unknown): void => {};
+  const promise = new Promise<Record<string, unknown>>((resolve, reject) => {
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error(`${type} timed out for recovery job ${jobId}`));
+      reject(new RecoveryEventTimeoutError(`${type} timed out for recovery job ${jobId}`));
     }, CHAT_RECOVERY_EVENT_TIMEOUT_MS);
     const handleEvent = (payload: unknown) => {
       const event = payload as Record<string, unknown>;
@@ -69,7 +67,10 @@ function waitForRecoveryEvent(type: string, jobId: string): Promise<Record<strin
     };
     const handleError = (payload: unknown) => {
       const event = payload as Record<string, unknown>;
-      if (typeof event.code !== "string" || !RECOVERY_ERROR_CODES.has(event.code)) return;
+      if (
+        event.job_id !== jobId ||
+        typeof event.code !== "string"
+      ) return;
       cleanup();
       reject(new Error(typeof event.message === "string" ? event.message : `${type} was rejected.`));
     };
@@ -78,9 +79,39 @@ function waitForRecoveryEvent(type: string, jobId: string): Promise<Record<strin
       webSocketService.off(type, handleEvent);
       webSocketService.off("error", handleError);
     };
+    cancel = (error: unknown) => {
+      cleanup();
+      reject(error);
+    };
     webSocketService.on(type, handleEvent);
     webSocketService.on("error", handleError);
   });
+  return { promise, cancel };
+}
+
+async function requestRecoveryEvent(
+  responseType: string,
+  requestType: string,
+  jobId: string,
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  let lastTimeout: RecoveryEventTimeoutError | null = null;
+  for (let retry = 0; retry <= CHAT_RECOVERY_EVENT_MAX_RETRIES; retry += 1) {
+    const waiter = waitForRecoveryEvent(responseType, jobId);
+    try {
+      await webSocketService.sendMessage(requestType, payload);
+    } catch (error) {
+      waiter.cancel(error);
+    }
+    try {
+      return await waiter.promise;
+    } catch (error) {
+      if (!(error instanceof RecoveryEventTimeoutError)) throw error;
+      lastTimeout = error;
+      if (retry === CHAT_RECOVERY_EVENT_MAX_RETRIES) throw error;
+    }
+  }
+  throw lastTimeout ?? new Error(`Recovery request failed for job ${jobId}`);
 }
 
 export async function handleRecoveryJobsAvailableImpl(
@@ -100,12 +131,15 @@ export async function handleRecoveryJobsAvailableImpl(
       if (!chat?.user_id || !chatKey) continue;
       if (!(await ensureChatKeySafeForWrite(job.chat_id, chatKey, "completion recovery"))) continue;
 
-      const claimed = waitForRecoveryEvent("recovery_job_claimed", job.job_id);
-      await webSocketService.sendMessage("recovery_job_claim", {
-        protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION,
-        job_id: job.job_id,
-      });
-      const claim = await claimed;
+      const claim = await requestRecoveryEvent(
+        "recovery_job_claimed",
+        "recovery_job_claim",
+        job.job_id,
+        {
+          protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION,
+          job_id: job.job_id,
+        },
+      );
       if (
         claim.state !== "LEASED" ||
         typeof claim.lease_token !== "string" ||
@@ -164,26 +198,29 @@ export async function handleRecoveryJobsAvailableImpl(
         created_at: now,
       } as Message;
       const encryptedFields = await chatDB.getEncryptedFields(aiMessage, job.chat_id);
-      const persisted = waitForRecoveryEvent("recovery_job_persisted", job.job_id);
-      await webSocketService.sendMessage("recovery_job_persist", {
-        protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION,
-        job_id: job.job_id,
-        lease_token: claim.lease_token,
-        lease_generation: claim.lease_generation,
-        expected_messages_v: chat.messages_v,
-        encrypted_assistant_message: {
-          client_message_id: job.assistant_message_id,
-          chat_id: job.chat_id,
-          role: "assistant",
-          encrypted_content: encryptedFields.encrypted_content,
-          encrypted_sender_name: encryptedFields.encrypted_sender_name,
-          encrypted_category: encryptedFields.encrypted_category,
-          encrypted_model_name: encryptedFields.encrypted_model_name,
-          created_at: now,
-          updated_at: now,
+      const persistedResult = await requestRecoveryEvent(
+        "recovery_job_persisted",
+        "recovery_job_persist",
+        job.job_id,
+        {
+          protocol_version: CHAT_RECOVERY_PROTOCOL_VERSION,
+          job_id: job.job_id,
+          lease_token: claim.lease_token,
+          lease_generation: claim.lease_generation,
+          expected_messages_v: chat.messages_v,
+          encrypted_assistant_message: {
+            client_message_id: job.assistant_message_id,
+            chat_id: job.chat_id,
+            role: "assistant",
+            encrypted_content: encryptedFields.encrypted_content,
+            encrypted_sender_name: encryptedFields.encrypted_sender_name,
+            encrypted_category: encryptedFields.encrypted_category,
+            encrypted_model_name: encryptedFields.encrypted_model_name,
+            created_at: now,
+            updated_at: now,
+          },
         },
-      });
-      const persistedResult = await persisted;
+      );
       if (
         persistedResult.state !== "TERMINAL" ||
         (persistedResult.committed_messages_v !== undefined &&
