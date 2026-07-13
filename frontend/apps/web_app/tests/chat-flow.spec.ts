@@ -1066,12 +1066,20 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Give the hashchange handler time to process and load the chat
 	await page.waitForTimeout(3000);
 
-	// If the chat didn't load via hashchange (e.g., activeChatStore already had a
-	// different chat), fall back to a full page load with the hash
+	// If the chat didn't load fully via hashchange (e.g., activeChatStore already
+	// had a different chat or metadata/messages are still partially hydrated), fall
+	// back to a full page load with the hash. A visible user message alone is not
+	// enough because the sidebar metadata and assistant message can still be stale.
 	let userMsgAfterRelogin = page.getByTestId('message-user').first();
-	const chatLoaded = await userMsgAfterRelogin.isVisible({ timeout: 5000 }).catch(() => false);
+	const assistantMsgAfterRelogin = page.getByTestId('message-assistant').last();
+	const userMessageLoaded = await userMsgAfterRelogin.isVisible({ timeout: 5000 }).catch(() => false);
+	const assistantMessageLoaded = await assistantMsgAfterRelogin
+		.textContent({ timeout: 15000 })
+		.then((text: string | null) => (text || '').includes(QUICK_TIP_CHAT_RESPONSE_MARKER))
+		.catch(() => false);
+	const chatLoaded = userMessageLoaded && assistantMessageLoaded;
 	if (!chatLoaded) {
-		logChatCheckpoint('Chat not loaded via hashchange, falling back to page.goto + reload...');
+		logChatCheckpoint('Chat not fully loaded via hashchange, falling back to page.goto + reload...');
 		await page.goto(`${baseUrl}/#chat-id=${chatId}`);
 		await page.reload({ waitUntil: 'networkidle' });
 		logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
@@ -1081,6 +1089,10 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// This can take longer after a fresh login (key derivation + phased sync).
 	userMsgAfterRelogin = page.getByTestId('message-user').first();
 	await expect(userMsgAfterRelogin).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('message-assistant').last()).toContainText(
+		QUICK_TIP_CHAT_RESPONSE_MARKER,
+		{ timeout: 60000 }
+	);
 
 	await takeStepScreenshot(page, '09-after-relogin');
 
