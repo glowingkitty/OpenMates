@@ -50,7 +50,7 @@ function encodeRecoveryChatKey(bytes: Uint8Array): string {
 }
 
 async function waitForInitialSync(serviceInstance: ChatSynchronizationService): Promise<void> {
-  const deadline = Date.now() + CHAT_RECOVERY_EVENT_TIMEOUT_MS;
+  const deadline = Date.now() + RECOVERY_PREREQUISITE_TIMEOUT_MS;
   while (!serviceInstance.hasCompletedInitialSync_FOR_HANDLERS_ONLY) {
     if (Date.now() >= deadline) {
       throw new Error("Recovery job processing timed out waiting for initial chat sync.");
