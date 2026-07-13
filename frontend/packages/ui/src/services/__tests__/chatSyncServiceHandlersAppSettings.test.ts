@@ -179,58 +179,61 @@ describe("handlePendingAIResponseImpl", () => {
 
 
 describe("handleRecoveryJobsAvailableImpl", () => {
-  it("claims, locally encrypts, persists, and fences exactly one sealed assistant completion", async () => {
+  it("ignores delayed claim and persist frames from an earlier recovery attempt", async () => {
     vi.useFakeTimers();
     const handlers = new Map<string, (payload: unknown) => void>();
     let claimAttempts = 0;
     let persistAttempts = 0;
+    let firstClaimRequestId: string | undefined;
+    let secondClaimRequestId: string | undefined;
+    let firstPersistRequestId: string | undefined;
+    let secondPersistRequestId: string | undefined;
+    const sendClaimed = (requestId: string) => {
+      handlers.get("recovery_job_claimed")?.({
+        job_id: "job-1",
+        request_id: requestId,
+        state: "LEASED",
+        lease_token: "lease-token",
+        lease_generation: 2,
+        sealed_payload: '{"v":1}',
+        chat_id: "chat-1",
+        turn_id: "turn-1",
+        assistant_message_id: "assistant-1",
+        chat_key_version: 1,
+      });
+    };
+    const sendPersisted = (requestId: string) => {
+      handlers.get("recovery_job_persisted")?.({
+        job_id: "job-1",
+        request_id: requestId,
+        state: "TERMINAL",
+        committed_messages_v: 3,
+      });
+    };
     mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
       handlers.set(type, handler);
     });
     mocks.webSocketService.off.mockImplementation((type: string) => {
       handlers.delete(type);
     });
-    mocks.webSocketService.sendMessage.mockImplementation(async (type: string) => {
+    mocks.webSocketService.sendMessage.mockImplementation(async (
+      type: string,
+      payload: Record<string, unknown>,
+    ) => {
       if (type === "recovery_job_claim") {
         claimAttempts += 1;
         if (claimAttempts === 1) {
-          window.setTimeout(() => {
-            handlers.get("recovery_job_claimed")?.({
-              job_id: "job-1",
-              state: "LEASED",
-              lease_token: "lease-token",
-              lease_generation: 2,
-              sealed_payload: '{"v":1}',
-              chat_id: "chat-1",
-              turn_id: "turn-1",
-              assistant_message_id: "assistant-1",
-              chat_key_version: 1,
-            });
-          }, 22_100);
+          firstClaimRequestId = payload.request_id as string;
         } else {
-          handlers.get("error")?.({
-            code: "lease_conflict",
-            job_id: "job-1",
-            message: "Another claim is still active.",
-          });
+          secondClaimRequestId = payload.request_id as string;
         }
       }
       if (type === "recovery_job_persist") {
         persistAttempts += 1;
         if (persistAttempts === 1) {
-          window.setTimeout(() => {
-            handlers.get("recovery_job_persisted")?.({
-              job_id: "job-1",
-              state: "TERMINAL",
-              committed_messages_v: 3,
-            });
-          }, 22_100);
+          firstPersistRequestId = payload.request_id as string;
         } else {
-          handlers.get("error")?.({
-            code: "lease_conflict",
-            job_id: "job-1",
-            message: "Another persistence request is still active.",
-          });
+          secondPersistRequestId = payload.request_id as string;
         }
       }
     });
@@ -258,6 +261,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
     } as unknown as ChatSynchronizationService;
 
+    let recoverySettled = false;
     const recovery = handleRecoveryJobsAvailableImpl(service, {
       jobs: [{
         job_id: "job-1",
@@ -266,9 +270,44 @@ describe("handleRecoveryJobsAvailableImpl", () => {
         assistant_message_id: "assistant-1",
         chat_key_version: 1,
       }],
+    }).then(() => {
+      recoverySettled = true;
     });
-    await vi.advanceTimersByTimeAsync(22_100);
-    await vi.advanceTimersByTimeAsync(22_100);
+
+    await vi.advanceTimersByTimeAsync(20_000);
+    sendClaimed(firstClaimRequestId!);
+    handlers.get("error")?.({
+      code: "recovery_job_expired",
+      job_id: "job-1",
+      request_id: firstClaimRequestId,
+      message: "Late error for the original claim.",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(persistAttempts).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(61_000);
+    expect(secondClaimRequestId).toEqual(expect.any(String));
+    expect(secondClaimRequestId).not.toBe(firstClaimRequestId);
+    expect(recoverySettled).toBe(false);
+    sendClaimed(secondClaimRequestId!);
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(20_000);
+    sendPersisted(firstPersistRequestId!);
+    handlers.get("error")?.({
+      code: "stale_lease",
+      job_id: "job-1",
+      request_id: firstPersistRequestId,
+      message: "Late error for the original persistence request.",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(61_000);
+    expect(secondPersistRequestId).toEqual(expect.any(String));
+    expect(secondPersistRequestId).not.toBe(firstPersistRequestId);
+    expect(recoverySettled).toBe(false);
+    sendPersisted(secondPersistRequestId!);
     await recovery;
 
     mocks.chatDB.getMessage.mockResolvedValue({ status: "synced" });

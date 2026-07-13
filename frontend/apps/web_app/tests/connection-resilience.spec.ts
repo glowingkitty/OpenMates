@@ -609,7 +609,7 @@ test('pending embed operations are flushed from IndexedDB on reconnect', async (
 });
 
 // ---------------------------------------------------------------------------
-// Test 6: A second tab recovers and durably retains one completed response
+// Test 6: An independent browser context recovers and durably retains one response
 // ---------------------------------------------------------------------------
 test('secondary client recovers exactly one saved assistant message after origin disconnect and cold boot', async ({
 	browser
@@ -620,25 +620,34 @@ test('secondary client recovers exactly one saved assistant message after origin
 	test.setTimeout(300000);
 
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
-	const context = await browser.newContext({ baseURL });
-	const origin = await context.newPage();
-	let secondary = await context.newPage();
+	const originContext = await browser.newContext({ baseURL });
+	const recoveryContext = await browser.newContext({ baseURL });
+	const origin = await originContext.newPage();
+	let secondary = await recoveryContext.newPage();
 	let chatId = '';
 	const logCheckpoint = createSignupLogger('SAVED_CHAT_RECOVERY');
 	const protocolEvents: Array<{
 		direction: 'sent' | 'received';
 		type: string;
 		state?: string;
+		jobId?: string;
+		requestId?: string;
+		chatId?: string;
 	}> = [];
-	origin.on('websocket', (websocket: any) => {
+	const recoveryProtocolEvents: typeof protocolEvents = [];
+	const captureProtocolEvents = (page: any, events: typeof protocolEvents) => page.on('websocket', (websocket: any) => {
 		const capture = (direction: 'sent' | 'received') => (frame: any) => {
 			try {
 				const message = JSON.parse(String(frame.payload));
 				if (typeof message.type === 'string') {
-					protocolEvents.push({
+					// Keep failure diagnostics privacy-safe: protocol order needs only routing metadata.
+					events.push({
 						direction,
 						type: message.type,
-						state: typeof message.payload?.state === 'string' ? message.payload.state : undefined
+						state: typeof message.payload?.state === 'string' ? message.payload.state : undefined,
+						jobId: typeof message.payload?.job_id === 'string' ? message.payload.job_id : undefined,
+						requestId: typeof message.payload?.request_id === 'string' ? message.payload.request_id : undefined,
+						chatId: typeof message.payload?.chat_id === 'string' ? message.payload.chat_id : undefined
 					});
 				}
 			} catch {
@@ -648,6 +657,8 @@ test('secondary client recovers exactly one saved assistant message after origin
 		websocket.on('framesent', capture('sent'));
 		websocket.on('framereceived', capture('received'));
 	});
+	captureProtocolEvents(origin, protocolEvents);
+	captureProtocolEvents(secondary, recoveryProtocolEvents);
 
 	try {
 		await origin.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -655,6 +666,8 @@ test('secondary client recovers exactly one saved assistant message after origin
 		await ensureSidebarClosed(origin);
 
 		await secondary.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await loginAndNavigateToChat(secondary, test, 'SAVED_CHAT_RECOVERY_SECONDARY');
+		expect(origin.context()).not.toBe(secondary.context());
 		await expect(secondary.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 		await ensureSidebarClosed(secondary);
 
@@ -704,9 +717,52 @@ test('secondary client recovers exactly one saved assistant message after origin
 		await expect(recoveredAssistantMessages).toHaveCount(1, { timeout: 120000 });
 		await expect(recoveredAssistantMessages.first()).toContainText('Berlin', { timeout: 120000 });
 		await expect(recoveredAssistantMessages).toHaveCount(1);
+		const claimSent = recoveryProtocolEvents.find(
+			(event) => event.direction === 'sent' && event.type === 'recovery_job_claim' && event.jobId && event.requestId
+		);
+		expect(claimSent).toBeDefined();
+		const claimReceived = recoveryProtocolEvents.find(
+			(event) => event.direction === 'received' &&
+				event.type === 'recovery_job_claimed' &&
+				event.chatId === chatId &&
+				event.jobId === claimSent?.jobId &&
+				event.requestId === claimSent?.requestId
+		);
+		expect(claimReceived).toBeDefined();
+		const persistSent = recoveryProtocolEvents.find(
+			(event) => event.direction === 'sent' && event.type === 'recovery_job_persist' && event.requestId &&
+				event.jobId === claimReceived?.jobId
+		);
+		expect(persistSent).toBeDefined();
+		const persistReceived = recoveryProtocolEvents.find(
+			(event) => event.direction === 'received' &&
+				event.type === 'recovery_job_persisted' &&
+				event.jobId === persistSent?.jobId &&
+				event.requestId === persistSent?.requestId
+		);
+		expect(persistReceived).toBeDefined();
+		const availableIndex = recoveryProtocolEvents.findIndex(
+			(event) => event.direction === 'received' && event.type === 'recovery_jobs_available'
+		);
+		const claimSentIndex = recoveryProtocolEvents.indexOf(claimSent!);
+		const claimReceivedIndex = recoveryProtocolEvents.indexOf(claimReceived!);
+		const persistSentIndex = recoveryProtocolEvents.indexOf(persistSent!);
+		const persistReceivedIndex = recoveryProtocolEvents.indexOf(persistReceived!);
+		expect(availableIndex).toBeGreaterThanOrEqual(0);
+		expect(availableIndex).toBeLessThan(claimSentIndex);
+		expect(claimSentIndex).toBeLessThan(claimReceivedIndex);
+		expect(claimReceivedIndex).toBeLessThan(persistSentIndex);
+		expect(persistSentIndex).toBeLessThan(persistReceivedIndex);
+		expect(claimSent?.jobId).toBe(claimReceived?.jobId);
+		expect(claimSent?.requestId).toBe(claimReceived?.requestId);
+		expect(persistSent?.jobId).toBe(persistReceived?.jobId);
+		expect(persistSent?.requestId).toBe(persistReceived?.requestId);
+		// Focused backend/Directus contracts cover sealing, atomic terminal persistence,
+		// and recovery-job deletion; this test proves the live browser protocol sequence.
 
 		await secondary.close();
-		secondary = await coldBootAuthenticatedPage(context, baseURL);
+		secondary = await coldBootAuthenticatedPage(recoveryContext, baseURL);
+		captureProtocolEvents(secondary, recoveryProtocolEvents);
 		await secondary.goto(getE2EDebugUrl(`/#chat-id=${encodeURIComponent(chatId)}`), {
 			waitUntil: 'domcontentloaded'
 		});
@@ -726,7 +782,7 @@ test('secondary client recovers exactly one saved assistant message after origin
 				error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
 			});
 		} finally {
-			await context.close();
+			await Promise.all([originContext.close(), recoveryContext.close()]);
 		}
 	}
 });
