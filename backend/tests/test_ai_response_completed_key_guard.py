@@ -9,6 +9,7 @@ first-writer race and make only the follow-up assistant message undecryptable.
 
 import asyncio
 import base64
+import hashlib
 from types import SimpleNamespace
 
 from backend.core.api.app.routes.handlers.websocket_handlers import (
@@ -41,6 +42,7 @@ class FakeCutoverController:
     authorization_result = {"authorized": False}
     authorization_error: Exception | None = None
     authorization_calls: list[str] = []
+    authorized_identities: set[str] | None = None
     events: list[str] = []
 
     def __init__(self, *_args) -> None:
@@ -55,6 +57,8 @@ class FakeCutoverController:
         self.events.append("authorize")
         if self.authorization_error:
             raise self.authorization_error
+        if self.authorized_identities is not None:
+            return {"authorized": task_identity in self.authorized_identities}
         return self.authorization_result
 
 
@@ -66,6 +70,7 @@ def reset_cutover_controller(*, epoch: int, authorized: bool = False) -> None:
     }
     FakeCutoverController.authorization_error = None
     FakeCutoverController.authorization_calls = []
+    FakeCutoverController.authorized_identities = None
     FakeCutoverController.events = []
 
 
@@ -105,18 +110,21 @@ def make_ciphertext(fingerprint: str) -> str:
     return base64.b64encode(raw).decode("ascii")
 
 
-def make_payload(fingerprint: str) -> dict:
+def make_payload(fingerprint: str, user_message_id: str | None = None) -> dict:
+    message = {
+        "message_id": "assistant-123",
+        "chat_id": "chat-123",
+        "role": "assistant",
+        "encrypted_content": make_ciphertext(fingerprint),
+        "encrypted_category": make_ciphertext(fingerprint),
+        "encrypted_model_name": make_ciphertext(fingerprint),
+        "created_at": 1_779_399_620,
+    }
+    if user_message_id:
+        message["user_message_id"] = user_message_id
     return {
         "chat_id": "chat-123",
-        "message": {
-            "message_id": "assistant-123",
-            "chat_id": "chat-123",
-            "role": "assistant",
-            "encrypted_content": make_ciphertext(fingerprint),
-            "encrypted_category": make_ciphertext(fingerprint),
-            "encrypted_model_name": make_ciphertext(fingerprint),
-            "created_at": 1_779_399_620,
-        },
+        "message": message,
         "versions": {"messages_v": 4},
     }
 
@@ -269,6 +277,50 @@ async def _run_epoch_one_authorized_legacy_completion(monkeypatch):
     assert FakeCutoverController.authorization_calls == ["assistant-123"]
     assert FakeCutoverController.events == ["authorize", "dispatch"]
     assert FakeCutoverController.authoritative_calls == [True]
+
+
+def test_epoch_one_legacy_completion_uses_user_message_identity(monkeypatch):
+    asyncio.run(_run_epoch_one_legacy_completion_uses_user_message_identity(monkeypatch))
+
+
+async def _run_epoch_one_legacy_completion_uses_user_message_identity(monkeypatch):
+    queued_tasks: list[tuple[str, list, str | None]] = []
+    user_message_id = "user-message-123"
+    legacy_task_identity = hashlib.sha256(
+        f"user-123:chat-123:{user_message_id}".encode()
+    ).hexdigest()
+
+    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
+        FakeCutoverController.events.append("dispatch")
+        queued_tasks.append((name, args or [], queue))
+        return SimpleNamespace(id="task-123")
+
+    monkeypatch.setattr(ai_response_completed_handler.celery_app, "send_task", fake_send_task)
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "ChatRecoveryCutoverController",
+        FakeCutoverController,
+    )
+    reset_cutover_controller(epoch=1)
+    FakeCutoverController.authorized_identities = {legacy_task_identity}
+    manager = FakeManager()
+
+    await handle_ai_response_completed(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCacheService(),
+        directus_service=FakeDirectusService("1a5b3b7c"),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload=make_payload("1a5b3b7c", user_message_id=user_message_id),
+    )
+
+    assert len(queued_tasks) == 1
+    assert FakeCutoverController.authorization_calls == ["assistant-123", legacy_task_identity]
+    assert FakeCutoverController.events == ["authorize", "authorize", "dispatch"]
+    assert manager.personal_messages[0][0]["type"] == "ai_response_storage_confirmed"
 
 
 def test_epoch_one_unauthorized_legacy_completion_is_rejected(monkeypatch):

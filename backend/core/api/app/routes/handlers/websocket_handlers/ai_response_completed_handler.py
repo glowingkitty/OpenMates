@@ -1,6 +1,7 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+import hashlib
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
 
@@ -23,6 +24,19 @@ LEGACY_COMPLETION_REJECTION_CODES = {
     "legacy_completion_not_found",
     "legacy_completion_not_ready",
 }
+
+
+def _legacy_completion_task_identities(
+    *,
+    user_id: str,
+    chat_id: str,
+    assistant_message_id: str,
+    user_message_id: Optional[str],
+) -> list[str]:
+    identities = [assistant_message_id]
+    if user_message_id:
+        identities.append(hashlib.sha256(f"{user_id}:{chat_id}:{user_message_id}".encode()).hexdigest())
+    return list(dict.fromkeys(identities))
 
 
 async def handle_ai_response_completed(
@@ -217,14 +231,23 @@ async def handle_ai_response_completed(
                 cache_service, directus_service
             )
             if await cutover_controller.get_epoch(authoritative=True) >= 1:
-                try:
-                    authorization = await cutover_controller.authorize_legacy_completion(
-                        message_id
-                    )
-                except ChatRecoveryProtocolError as exc:
-                    if exc.code not in LEGACY_COMPLETION_REJECTION_CODES:
-                        raise
-                    authorization = {"authorized": False}
+                authorization = {"authorized": False}
+                for task_identity in _legacy_completion_task_identities(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    assistant_message_id=message_id,
+                    user_message_id=user_message_id,
+                ):
+                    try:
+                        authorization = await cutover_controller.authorize_legacy_completion(
+                            task_identity
+                        )
+                    except ChatRecoveryProtocolError as exc:
+                        if exc.code not in LEGACY_COMPLETION_REJECTION_CODES:
+                            raise
+                        authorization = {"authorized": False}
+                    if authorization.get("authorized") is True:
+                        break
                 if authorization.get("authorized") is not True:
                     await manager.send_personal_message(
                         {
