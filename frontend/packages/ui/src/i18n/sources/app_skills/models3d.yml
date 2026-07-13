@@ -1,0 +1,24 @@
+generate:
+  context: Skill name for generating a 3D model
+  en: Generate 3D model
+  de: 3D-Modell generieren
+  zh: Generate 3D model
+  es: Generate 3D model
+  fr: Generate 3D model
+  pt: Generate 3D model
+  ru: Generate 3D model
+  ja: Generate 3D model
+  ko: Generate 3D model
+  it: Generate 3D model
+  tr: Generate 3D model
+  vi: Generate 3D model
+  id: Generate 3D model
+  pl: Generate 3D model
+  nl: Generate 3D model
+  ar: Generate 3D model
+  hi: Generate 3D model
+  th: Generate 3D model
+  cs: Generate 3D model
+  sv: Generate 3D model
+  he: Generate 3D model
+  verified_by_human: [en, de]
