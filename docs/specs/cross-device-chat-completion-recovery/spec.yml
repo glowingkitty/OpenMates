@@ -1290,8 +1290,8 @@ tests:
 
   - id: T-WEB-RECOVERY-CORRELATION
     type: vitest
-    file: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
-    command: python3 scripts/tests.py run --suite vitest
+    file: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersRecoveryCorrelation.test.js
+    command: python3 scripts/tests.py run -- --suite vitest
     covers: [AC-6]
     assertions:
       - every recovery claim and persist attempt sends a fresh request_id
