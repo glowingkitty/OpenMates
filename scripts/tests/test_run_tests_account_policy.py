@@ -149,6 +149,75 @@ def test_full_git_sha_expands_short_display_ref(monkeypatch):
     assert commands == [["git", "-C", str(PROJECT_ROOT), "rev-parse", "abc123"]]
 
 
+def test_canceled_vercel_deployment_retries_once_before_ready(monkeypatch):
+    run_tests = load_run_tests_module()
+    deployments = iter([
+        {"id": "dpl-canceled", "state": "CANCELED", "errorMessage": "transient cancellation"},
+        {"id": "dpl-canceled", "state": "CANCELED", "errorMessage": "transient cancellation"},
+        {"id": "dpl-ready", "state": "READY"},
+    ])
+    redeployed: list[str] = []
+
+    monkeypatch.setattr(run_tests, "_vercel_project_config", lambda: ("team", "project"))
+    monkeypatch.setattr(run_tests, "_latest_vercel_deployment_for_sha", lambda *_args: next(deployments))
+    monkeypatch.setattr(
+        run_tests,
+        "_redeploy_vercel_deployment",
+        lambda _token, _team, deployment_id: redeployed.append(deployment_id),
+        raising=False,
+    )
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    ready, reason = run_tests._wait_for_vercel_deployment("abc123", {"VERCEL_TOKEN": "test-token"})
+
+    assert ready is True
+    assert reason == ""
+    assert redeployed == ["dpl-canceled"]
+
+
+def test_undispatched_specs_are_recorded_as_not_started():
+    run_tests = load_run_tests_module()
+
+    tests = run_tests._not_started_playwright_specs(
+        ["signup-flow-passkey.spec.ts", "settings-buy-credits-stripe-eu.spec.ts", "chat-flow.spec.ts"],
+        "Vercel deployment dpl-canceled was canceled",
+    )
+
+    assert [test["name"] for test in tests] == [
+        "signup-flow-passkey.spec.ts",
+        "settings-buy-credits-stripe-eu.spec.ts",
+        "chat-flow.spec.ts",
+    ]
+    assert {test["status"] for test in tests} == {"not_started"}
+    assert {test["error"] for test in tests} == {"Vercel deployment dpl-canceled was canceled"}
+
+
+def test_playwright_gate_reports_every_undispatched_spec(monkeypatch):
+    run_tests = load_run_tests_module()
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 1
+    orchestrator.dry_run = False
+    orchestrator.environment = "development"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator._discover_specs = lambda: ["signup-flow-passkey.spec.ts", "chat-flow.spec.ts"]
+    monkeypatch.setattr(
+        run_tests,
+        "_wait_for_vercel_deployment",
+        lambda _git_sha, _dot_env: (False, "Vercel deployment dpl-canceled was canceled"),
+    )
+
+    result = orchestrator._run_playwright()
+
+    assert result.status == "failed"
+    assert result.tests[0]["name"] == "vercel-deployment-gate"
+    assert [test["status"] for test in result.tests[1:]] == ["not_started", "not_started"]
+    assert [test["name"] for test in result.tests[1:]] == [
+        "signup-flow-passkey.spec.ts",
+        "chat-flow.spec.ts",
+    ]
+
+
 def test_dispatch_passes_full_checkout_ref_to_workflow(monkeypatch):
     run_tests = load_run_tests_module()
     commands: list[list[str]] = []

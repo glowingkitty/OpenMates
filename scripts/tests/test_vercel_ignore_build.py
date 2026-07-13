@@ -150,6 +150,34 @@ def test_cli_returns_continue_exit_code_for_dev_build(tmp_path, monkeypatch):
     assert guard.main() == guard.BUILD_CONTINUE
 
 
+def test_dev_branch_builds_after_apple_only_change(tmp_path, monkeypatch):
+    guard = load_vercel_ignore_module()
+    lockfile = tmp_path / "pnpm-lock.yaml"
+    lockfile.write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
+    monkeypatch.setattr(
+        guard,
+        "_vercel_changed_paths",
+        lambda _previous_sha, _commit_sha: ("apple/OpenMates/Sources/App/OpenMatesApp.swift",),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "vercel_ignore_build.py",
+            "--branch",
+            "dev",
+            "--previous-sha",
+            "previous",
+            "--commit-sha",
+            "current",
+            "--lockfile",
+            str(lockfile),
+        ],
+    )
+
+    assert guard.main() == guard.BUILD_CONTINUE
+
+
 def test_web_app_vercel_config_runs_ignore_command_from_repo_root():
     vercel_config = json.loads((PROJECT_ROOT / "frontend" / "apps" / "web_app" / "vercel.json").read_text())
 

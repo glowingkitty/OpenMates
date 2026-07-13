@@ -160,10 +160,12 @@ def main() -> int:
     lockfile_text = args.lockfile.read_text(encoding="utf-8")
     ignore, incompatible = should_ignore_build(args.branch, lockfile_text, args.node_major)
     if not ignore:
-        changed_paths = _vercel_changed_paths(args.previous_sha, args.commit_sha)
-        if changed_paths is not None and should_ignore_for_changed_paths(changed_paths):
-            print("[vercel-ignore] skipping build: changed paths do not affect the web deployment")
-            return BUILD_IGNORE
+        # Nightly Playwright runs are pinned to the current dev commit.
+        if args.branch != "dev":
+            changed_paths = _vercel_changed_paths(args.previous_sha, args.commit_sha)
+            if changed_paths is not None and should_ignore_for_changed_paths(changed_paths):
+                print("[vercel-ignore] skipping build: changed paths do not affect the web deployment")
+                return BUILD_IGNORE
         print(f"[vercel-ignore] continuing build for branch {args.branch or '<unknown>'}")
         return BUILD_CONTINUE
 
