@@ -98,19 +98,17 @@ export async function handleInitialSyncResponseImpl(
             );
             if (!cleartextTitle) {
               titleDecryptFail++;
-              cleartextTitle = serverChat.encrypted_title;
             }
           } else {
             keyDecryptFail++;
-            cleartextTitle = serverChat.encrypted_title;
           }
         } else if (serverChat.encrypted_title) {
           missingKey++;
-          cleartextTitle = serverChat.encrypted_title;
         }
 
         const chat: Chat = {
           chat_id: serverChat.chat_id,
+          title: cleartextTitle,
           encrypted_title: serverChat.encrypted_title,
           encrypted_chat_summary: serverChat.encrypted_chat_summary,
           messages_v: serverChat.versions.messages_v,
