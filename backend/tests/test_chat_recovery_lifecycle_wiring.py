@@ -148,7 +148,7 @@ def test_final_chunk_orders_recovery_discovery_before_completion_frames() -> Non
 
     assert 'redis_payload.get("is_final_chunk", False)' in ai_chunk_branch
     assert 'redis_payload.get("recovery_protocol_version") == 1' in ai_chunk_branch
-    assert 'redis_payload.get("recovery_job_id")' in ai_chunk_branch
+    assert 'redis_payload.get("recovery_provisional") is False' in ai_chunk_branch
     assert "send_available_recovery_jobs" in active_branch
     assert "asyncio.create_task(\n                                    send_available_recovery_jobs" not in active_branch
     assert active_branch.index("send_available_recovery_jobs") < active_branch.index(

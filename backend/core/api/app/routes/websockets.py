@@ -764,8 +764,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     should_announce_final_recovery_job = (
                         directus_service is not None
                         and redis_payload.get("is_final_chunk", False)
-                        and redis_payload.get("recovery_protocol_version") == 1
-                        and redis_payload.get("recovery_job_id")
+                        and (
+                            redis_payload.get("recovery_protocol_version") == 1
+                            or redis_payload.get("recovery_provisional") is False
+                        )
                     )
 
                     for device_hash, websocket_conn in user_connections.items():
