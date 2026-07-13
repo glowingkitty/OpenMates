@@ -20,7 +20,8 @@ import { webSocketService } from "./websocketService";
 const CHAT_RECOVERY_PROTOCOL_VERSION = 1;
 const CHAT_RECOVERY_EVENT_TIMEOUT_MS = 20_000;
 const CHAT_RECOVERY_EVENT_MAX_RETRIES = 3;
-const CHAT_RECOVERY_LATE_ACK_GRACE_MS = 2_000;
+const CHAT_RECOVERY_LEASE_EXPIRY_MS = 60_000;
+const CHAT_RECOVERY_RETRY_DELAY_MS = CHAT_RECOVERY_LEASE_EXPIRY_MS + 1_000;
 const INITIAL_SYNC_POLL_MS = 100;
 const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const recoveryJobsInProgress = new Set<string>();
@@ -51,7 +52,12 @@ async function waitForInitialSync(serviceInstance: ChatSynchronizationService): 
   }
 }
 
-function waitForRecoveryEvent(type: string, jobId: string): {
+function waitForRecoveryEvent(
+  type: string,
+  jobId: string,
+  requestId: string,
+  timeoutMs: number,
+): {
   promise: Promise<Record<string, unknown>>;
   cancel: (error: unknown) => void;
 } {
@@ -60,10 +66,13 @@ function waitForRecoveryEvent(type: string, jobId: string): {
     const timeout = window.setTimeout(() => {
       cleanup();
       reject(new RecoveryEventTimeoutError(`${type} timed out for recovery job ${jobId}`));
-    }, CHAT_RECOVERY_EVENT_TIMEOUT_MS);
+    }, timeoutMs);
     const handleEvent = (payload: unknown) => {
       const event = payload as Record<string, unknown>;
-      if (event.job_id !== jobId) return;
+      if (
+        event.job_id !== jobId ||
+        event.request_id !== requestId
+      ) return;
       cleanup();
       resolve(event);
     };
@@ -71,6 +80,7 @@ function waitForRecoveryEvent(type: string, jobId: string): {
       const event = payload as Record<string, unknown>;
       if (
         event.job_id !== jobId ||
+        event.request_id !== requestId ||
         typeof event.code !== "string"
       ) return;
       if (RECOVERY_RETRYABLE_ERROR_CODES.has(event.code)) return;
@@ -100,18 +110,23 @@ async function requestRecoveryEvent(
 ): Promise<Record<string, unknown>> {
   let lastTimeout: RecoveryEventTimeoutError | null = null;
   for (let retry = 0; retry <= CHAT_RECOVERY_EVENT_MAX_RETRIES; retry += 1) {
-    const waiter = waitForRecoveryEvent(responseType, jobId);
+    const requestId = crypto.randomUUID();
+    const waiter = waitForRecoveryEvent(
+      responseType,
+      jobId,
+      requestId,
+      CHAT_RECOVERY_EVENT_TIMEOUT_MS + (retry * CHAT_RECOVERY_RETRY_DELAY_MS),
+    );
     if (retry > 0) {
-      const lateResponse = await Promise.race([
-        waiter.promise,
-        new Promise<null>((resolve) => {
-          window.setTimeout(() => resolve(null), CHAT_RECOVERY_LATE_ACK_GRACE_MS);
-        }),
-      ]);
-      if (lateResponse !== null) return lateResponse;
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, CHAT_RECOVERY_RETRY_DELAY_MS);
+      });
     }
     try {
-      await webSocketService.sendMessage(requestType, payload);
+      await webSocketService.sendMessage(requestType, {
+        ...payload,
+        request_id: requestId,
+      });
     } catch (error) {
       waiter.cancel(error);
     }

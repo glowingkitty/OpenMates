@@ -38,6 +38,7 @@ async def test_rejected_job_request_discloses_no_payload_or_chat_metadata(monkey
     payload = {
         "protocol_version": 1,
         "job_id": "11111111-1111-4111-8111-111111111111",
+        "request_id": "rejected-request-1",
         "chat_id": "sensitive-chat-id",
         "sealed_payload": "sensitive-sealed-payload",
         "lease_generation": 1,
@@ -59,6 +60,7 @@ async def test_rejected_job_request_discloses_no_payload_or_chat_metadata(monkey
         "code": "recovery_job_not_found",
         "message": "Encrypted completion recovery was rejected.",
         "job_id": "11111111-1111-4111-8111-111111111111",
+        "request_id": "rejected-request-1",
     }}]
     assert "sensitive" not in repr(manager.messages)
 
@@ -86,6 +88,7 @@ async def test_lease_renewal_uses_authenticated_owner_and_device(monkeypatch) ->
         payload={
             "protocol_version": 1,
             "job_id": "11111111-1111-4111-8111-111111111111",
+            "request_id": "renew-request-1",
             "hashed_user_id": "attacker-owner",
             "device_hash": "attacker-device",
             "lease_generation": 3,
@@ -102,6 +105,7 @@ async def test_lease_renewal_uses_authenticated_owner_and_device(monkeypatch) ->
         "lease_token": "lease-token",
     })]
     assert manager.messages[0]["type"] == "recovery_job_renewed"
+    assert manager.messages[0]["payload"]["request_id"] == "renew-request-1"
 
 
 @pytest.mark.parametrize(

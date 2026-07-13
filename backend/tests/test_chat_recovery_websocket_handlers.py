@@ -44,7 +44,11 @@ async def test_claim_binds_authenticated_owner_and_device(monkeypatch) -> None:
         user_id="user-1",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
-        payload={"protocol_version": 1, "job_id": "11111111-1111-4111-8111-111111111111"},
+        payload={
+            "protocol_version": 1,
+            "job_id": "11111111-1111-4111-8111-111111111111",
+            "request_id": "claim-request-1",
+        },
     )
 
     assert FakeRecoveryService.calls == [("lease_job", {
@@ -54,6 +58,7 @@ async def test_claim_binds_authenticated_owner_and_device(monkeypatch) -> None:
         "device_hash": "device-hash",
     })]
     assert manager.messages[0]["type"] == "recovery_job_claimed"
+    assert manager.messages[0]["payload"]["request_id"] == "claim-request-1"
 
 
 @pytest.mark.asyncio
@@ -80,6 +85,7 @@ async def test_terminal_persistence_overrides_encrypted_message_owner(monkeypatc
         payload={
             "protocol_version": 1,
             "job_id": "11111111-1111-4111-8111-111111111111",
+            "request_id": "persist-request-1",
             "lease_generation": 2,
             "lease_token": "lease-token",
             "expected_messages_v": 4,
@@ -93,3 +99,4 @@ async def test_terminal_persistence_overrides_encrypted_message_owner(monkeypatc
     assert data["device_hash"] == "device-hash"
     assert data["encrypted_assistant_message"]["hashed_user_id"] == "owner-hash"
     assert manager.messages[0]["type"] == "recovery_job_persisted"
+    assert manager.messages[0]["payload"]["request_id"] == "persist-request-1"

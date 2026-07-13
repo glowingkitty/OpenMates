@@ -320,9 +320,9 @@ attempts:
 
 handoff:
   current_task_id: TASK-6
-  next_action: Deploy the focused browser recovery-correlation test before its request-id implementation, then record the expected red Vitest evidence.
-  command: python3 scripts/tests.py run --suite vitest
-  expected_outcome: The focused test fails until claim and persist waiters match both job_id and request_id.
+  next_action: Deploy request-id matched recovery waiters and backend request-id echoes, then rerun the Vitest suite for green evidence.
+  command: python3 scripts/tests.py run -- --suite vitest
+  expected_outcome: The focused recovery correlation test passes and late attempt-A frames cannot advance attempt B.
   blocker: null
   last_verified_commit: fe0d08762
 
@@ -1300,7 +1300,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run -- --suite vitest
+        run_id: gha-29260150282
+        subject_commit: 009189f7d
+        timestamp: "2026-07-13T14:58:13Z"
+        summary: The CI-discovered JS correlation regression failed because the pre-correlation browser waiter accepted a delayed attempt-A claim response for the same job, causing persistAttempts to become 1 before attempt B's matching claim response.
     green_phase:
       required: true
       expected: pass

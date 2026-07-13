@@ -20,6 +20,13 @@ from backend.core.api.app.services.chat_recovery_service import (
 logger = logging.getLogger(__name__)
 
 
+def _request_id(payload: dict[str, Any]) -> str | None:
+    request_id = payload.get("request_id")
+    if isinstance(request_id, str) and request_id and len(request_id) <= 128:
+        return request_id
+    return None
+
+
 async def invalidate_recovery_leases_for_device(
     *,
     directus_service: Any,
@@ -116,6 +123,7 @@ async def _send_protocol_error(
     device_hash: str,
     exc: ChatRecoveryProtocolError,
     job_id: str | None,
+    request_id: str | None,
 ) -> None:
     await manager.send_personal_message(
         {
@@ -124,6 +132,7 @@ async def _send_protocol_error(
                 "code": exc.code,
                 "message": "Encrypted completion recovery was rejected.",
                 "job_id": job_id,
+                "request_id": request_id,
             },
         },
         user_id,
@@ -140,6 +149,7 @@ async def handle_recovery_job_claim(
     device_fingerprint_hash: str,
     payload: dict[str, Any],
 ) -> None:
+    request_id = _request_id(payload)
     try:
         result = await ChatRecoveryService(directus_service).execute(
             "lease_job",
@@ -151,13 +161,21 @@ async def handle_recovery_job_claim(
             },
         )
         await manager.send_personal_message(
-            {"type": "recovery_job_claimed", "payload": result},
+            {
+                "type": "recovery_job_claimed",
+                "payload": {**result, "request_id": request_id},
+            },
             user_id,
             device_fingerprint_hash,
         )
     except ChatRecoveryProtocolError as exc:
         await _send_protocol_error(
-            manager, user_id, device_fingerprint_hash, exc, payload.get("job_id")
+            manager,
+            user_id,
+            device_fingerprint_hash,
+            exc,
+            payload.get("job_id"),
+            request_id,
         )
 
 
@@ -170,6 +188,7 @@ async def handle_recovery_job_renew(
     device_fingerprint_hash: str,
     payload: dict[str, Any],
 ) -> None:
+    request_id = _request_id(payload)
     try:
         result = await ChatRecoveryService(directus_service).execute(
             "renew_lease",
@@ -183,13 +202,21 @@ async def handle_recovery_job_renew(
             },
         )
         await manager.send_personal_message(
-            {"type": "recovery_job_renewed", "payload": result},
+            {
+                "type": "recovery_job_renewed",
+                "payload": {**result, "request_id": request_id},
+            },
             user_id,
             device_fingerprint_hash,
         )
     except ChatRecoveryProtocolError as exc:
         await _send_protocol_error(
-            manager, user_id, device_fingerprint_hash, exc, payload.get("job_id")
+            manager,
+            user_id,
+            device_fingerprint_hash,
+            exc,
+            payload.get("job_id"),
+            request_id,
         )
 
 
@@ -202,6 +229,7 @@ async def handle_recovery_job_persist(
     device_fingerprint_hash: str,
     payload: dict[str, Any],
 ) -> None:
+    request_id = _request_id(payload)
     try:
         encrypted_message = dict(payload.get("encrypted_assistant_message") or {})
         encrypted_message["hashed_user_id"] = user_id_hash
@@ -219,11 +247,19 @@ async def handle_recovery_job_persist(
             },
         )
         await manager.send_personal_message(
-            {"type": "recovery_job_persisted", "payload": result},
+            {
+                "type": "recovery_job_persisted",
+                "payload": {**result, "request_id": request_id},
+            },
             user_id,
             device_fingerprint_hash,
         )
     except ChatRecoveryProtocolError as exc:
         await _send_protocol_error(
-            manager, user_id, device_fingerprint_hash, exc, payload.get("job_id")
+            manager,
+            user_id,
+            device_fingerprint_hash,
+            exc,
+            payload.get("job_id"),
+            request_id,
         )
