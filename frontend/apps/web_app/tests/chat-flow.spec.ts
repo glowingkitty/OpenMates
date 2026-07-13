@@ -1066,9 +1066,9 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await page.waitForTimeout(3000);
 
 	// If the chat didn't load fully via hashchange (e.g., activeChatStore already
-	// had a different chat or metadata/messages are still partially hydrated), fall
-	// back to a full page load with the hash. A visible user message alone is not
-	// enough because the sidebar metadata and assistant message can still be stale.
+	// had a different chat), use the same user path as recovery: open the sidebar
+	// and click the target chat row. Avoid a full reload here because it restarts
+	// sync/key restoration and can observe metadata-only state again.
 	let userMsgAfterRelogin = page.getByTestId('message-user').first();
 	const assistantMsgAfterRelogin = page.getByTestId('message-assistant').last();
 	const userMessageLoaded = await userMsgAfterRelogin.isVisible({ timeout: 5000 }).catch(() => false);
@@ -1078,10 +1078,13 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 		.catch(() => false);
 	const chatLoaded = userMessageLoaded && assistantMessageLoaded;
 	if (!chatLoaded) {
-		logChatCheckpoint('Chat not fully loaded via hashchange, falling back to page.goto + reload...');
-		await page.goto(`${baseUrl}/#chat-id=${chatId}`);
-		await page.reload({ waitUntil: 'networkidle' });
-		logChatCheckpoint('Page reloaded with chat hash. Waiting for messages...');
+		logChatCheckpoint('Chat not fully loaded via hashchange, opening target chat from sidebar...');
+		await ensureSidebarOpen(page, logChatCheckpoint);
+		const targetChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`).first();
+		await expect(targetChatRow).toBeVisible({ timeout: 30000 });
+		await targetChatRow.click();
+		logChatCheckpoint('Clicked target chat row after re-login. Waiting for messages...');
+		await ensureSidebarClosed(page, logChatCheckpoint);
 	}
 
 	// Wait for the chat to actually load — the user message must be visible.
