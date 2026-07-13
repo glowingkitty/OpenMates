@@ -12,6 +12,11 @@ from __future__ import annotations
 from typing import Any
 
 
+AI_APP_ID = "ai"
+AI_ASK_SKILL_ID = "ask"
+OPENAI_USER_ROLE = "user"
+
+
 class WorkflowAppSkillAdapter:
     """Dispatch workflow app-skill nodes and normalize their workflow outputs."""
 
@@ -29,18 +34,36 @@ class WorkflowAppSkillAdapter:
         if approved is not True:
             raise PermissionError("Workflow provider binding is no longer authorized")
 
-    async def execute(self, app_id: str, skill_id: str, request: dict[str, Any]) -> dict[str, Any]:
+    async def execute(self, app_id: str, skill_id: str, request: dict[str, Any], *, user_id: str | None = None) -> dict[str, Any]:
         registry = self.registry
         if registry is None:
             from backend.core.api.app.services.skill_registry import get_global_registry
 
             registry = get_global_registry()
-        raw_output = await registry.dispatch_skill(app_id, skill_id, request)
+        skill_request = _prepare_workflow_skill_request(app_id, skill_id, request, user_id)
+        raw_output = await registry.dispatch_skill(app_id, skill_id, skill_request)
         if hasattr(raw_output, "model_dump"):
             raw_output = raw_output.model_dump(mode="json")
         if not isinstance(raw_output, dict):
             raw_output = {"result": raw_output}
-        return _normalize_skill_output(app_id, skill_id, request, raw_output)
+        return _normalize_skill_output(app_id, skill_id, skill_request, raw_output)
+
+
+def _prepare_workflow_skill_request(app_id: str, skill_id: str, request: dict[str, Any], user_id: str | None) -> dict[str, Any]:
+    if app_id != AI_APP_ID or skill_id != AI_ASK_SKILL_ID:
+        return request
+    if "messages" in request:
+        skill_request = dict(request)
+    else:
+        prompt = request.get("prompt")
+        if not isinstance(prompt, str) or not prompt.strip():
+            return request
+        skill_request = {key: value for key, value in request.items() if key != "prompt"}
+        skill_request["messages"] = [{"role": OPENAI_USER_ROLE, "content": prompt}]
+    if user_id:
+        skill_request["_user_id"] = user_id
+    skill_request["_external_request"] = True
+    return skill_request
 
 
 def _normalize_skill_output(

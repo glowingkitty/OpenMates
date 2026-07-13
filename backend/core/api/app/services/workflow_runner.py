@@ -297,7 +297,7 @@ class WorkflowRunner:
             await revalidate_binding(binding_ref, user_id, app_id, skill_id)
         request = _resolve_template(node.config.get("input") or {}, context)
         request.update(_resolve_template(node.input_mapping, context))
-        return await self.app_skill_adapter.execute(app_id, skill_id, request)
+        return await self.app_skill_adapter.execute(app_id, skill_id, request, user_id=user_id)
 
 
 def _evaluate_predicate(predicate: dict[str, Any], context: dict[str, Any]) -> bool:
