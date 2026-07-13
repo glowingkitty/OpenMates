@@ -55,6 +55,11 @@ def test_deletion_and_revocation_hooks_precede_access_removal() -> None:
         "invalidate_recovery_leases_for_device",
         'delete(f"session:{target_hash}")',
     )
+    _assert_call_precedes(
+        _function_source("backend/core/api/app/routes/auth_routes/auth_logout.py", "logout"),
+        "invalidate_recovery_leases_for_device",
+        "delete(cache_key)",
+    )
 
 
 def test_cleanup_preserves_epoch_zero_and_reraises_real_failures() -> None:
