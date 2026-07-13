@@ -343,11 +343,10 @@ async function ensureSidebarClosed(
 		return;
 	}
 
-	// Click the menu toggle button to close the sidebar
-	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
-	await expect(menuToggle).toBeVisible({ timeout: 5000 });
-	await menuToggle.click();
-	logCheckpoint('[Sidebar] Clicked menu toggle to close sidebar.');
+	const closeButton = activityHistory.getByRole('button', { name: /close/i });
+	await expect(closeButton).toBeVisible({ timeout: 5000 });
+	await closeButton.click();
+	logCheckpoint('[Sidebar] Clicked sidebar close button.');
 	await expect(activityHistory).not.toBeVisible({ timeout: 10000 });
 }
 

@@ -200,7 +200,7 @@ test('completes passkey signup flow with email', async ({
 		await takeStepScreenshot(page, 'basics-step');
 		logSignupCheckpoint('Reached basics step.');
 
-		const inviteCodeInput = page.getByPlaceholder(/personal invite code/i);
+		const inviteCodeInput = page.getByTestId('signup-invite-code-input');
 		if (await inviteCodeInput.isVisible().catch(() => false)) {
 			if (!E2E_SIGNUP_INVITE_CODE) {
 				throw new Error('E2E_SIGNUP_INVITE_CODE is required when dev signup requires an invite code.');

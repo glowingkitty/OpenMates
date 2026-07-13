@@ -943,6 +943,7 @@
                         <span class="clickable-icon icon_secret"></span>
                         <input 
                             bind:this={inviteCodeInput}
+                            data-testid="signup-invite-code-input"
                             type="text" 
                             bind:value={inviteCode}
                             oninput={handleInviteCodeInput}
