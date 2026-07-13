@@ -27,6 +27,9 @@ from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService # Assuming this is the correct path
 from backend.core.api.app.services.skill_registry import build_skill_registry
+from backend.core.api.app.services.chat_recovery_cutover import (
+    legacy_completion_requires_persistence as completion_requires_persistence,
+)
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -504,14 +507,22 @@ async def _mark_recovery_inference_failed(
         await directus_service.close()
 
 
-async def _release_legacy_cutover_admission(request_data: AskSkillRequest) -> None:
+async def _finalize_legacy_cutover_admission(
+    request_data: AskSkillRequest,
+    inference_completed: bool,
+) -> None:
     task_identity = request_data.legacy_cutover_task_id
     if not task_identity:
         return
+    operation = (
+        "mark_legacy_inference_completed"
+        if inference_completed
+        else "release_legacy_inference"
+    )
     directus_service = DirectusService()
     try:
         await ChatRecoveryService(directus_service).execute(
-            "release_legacy_inference",
+            operation,
             {"protocol_version": 1, "task_identity": task_identity},
         )
     finally:
@@ -2407,12 +2418,16 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     asyncio.set_event_loop(loop)
     
     task_result_dict: Optional[Dict[str, Any]] = None
+    legacy_completion_requires_persistence = False
     try:
         # Update progress before calling async helper
         self.update_state(state='PROGRESS', meta={'step': 'preprocessing', 'status': 'started'})
 
         task_result_dict = loop.run_until_complete(
             _async_process_ai_skill_ask_task(task_id, request_data, skill_config) # 'self' is not passed
+        )
+        legacy_completion_requires_persistence = completion_requires_persistence(
+            task_result_dict
         )
         
         # Update progress after preprocessing if successful and before main processing (if applicable)
@@ -2596,12 +2611,15 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             and request_data.legacy_cutover_task_id
         ):
             try:
-                loop.run_until_complete(_release_legacy_cutover_admission(request_data))
-            except Exception as release_err:
+                loop.run_until_complete(
+                    _finalize_legacy_cutover_admission(
+                        request_data,
+                        legacy_completion_requires_persistence,
+                    )
+                )
+            except Exception:
                 logger.error(
-                    "[Task ID: %s] Failed to release durable legacy cutover admission: %s",
-                    task_id,
-                    release_err,
+                    "Failed to finalize durable legacy cutover admission",
                     exc_info=True,
                 )
         # Clean up live mock context vars (no-op if not activated)

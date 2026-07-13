@@ -17,11 +17,17 @@ const MAX_TENURE_MS = 5 * 60_000;
 const PREFLIGHT_TTL_MS = 24 * 60 * 60_000;
 const JOB_TTL_MS = 7 * 24 * 60 * 60_000;
 const TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
+const LEGACY_RUNNING_TTL_MS = 15 * 60_000;
+const LEGACY_TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
 const MAX_CONTENT_BYTES = 16 * 1024 * 1024;
 const MAX_AVAILABLE_JOBS = 100;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const HEX_64_RE = /^[0-9a-f]{64}$/;
 const BASE64URL_RE = /^[A-Za-z0-9_-]+$/;
+const LEGACY_LIFECYCLE_STATES = new Set(['RUNNING', 'AWAITING_PERSISTENCE', 'PERSISTED']);
+const LEGACY_LIFECYCLE_FIELDS = new Set([
+  'task_identity', 'state', 'expires_at', 'persistence_observed',
+]);
 const MESSAGE_FIELDS = new Set([
   'client_message_id', 'chat_id', 'hashed_user_id', 'encrypted_content', 'role',
   'encrypted_sender_name', 'encrypted_category', 'encrypted_model_name',
@@ -68,6 +74,9 @@ const OPERATION_FIELDS = Object.freeze({
   get_cutover_state: new Set(['protocol_version']),
   set_sends_paused: new Set(['protocol_version', 'sends_paused']),
   admit_legacy_inference: new Set(['protocol_version', 'task_identity']),
+  mark_legacy_inference_completed: new Set(['protocol_version', 'task_identity']),
+  acknowledge_legacy_persistence: new Set(['protocol_version', 'task_identity']),
+  authorize_legacy_completion: new Set(['protocol_version', 'task_identity']),
   release_legacy_inference: new Set(['protocol_version', 'task_identity']),
   activate_protocol_epoch: new Set(['protocol_version', 'target_epoch']),
 });
@@ -216,6 +225,68 @@ const cutoverResponse = (row) => ({
   legacy_in_flight: row.legacy_in_flight,
 });
 
+function validateLegacyState(row) {
+  if (!Array.isArray(row.active_legacy_tasks) || !Array.isArray(row.legacy_task_lifecycle)) {
+    fail(500, 'cutover_state_corrupt');
+  }
+  const active = new Set();
+  for (const identity of row.active_legacy_tasks) {
+    if (typeof identity !== 'string' || !identity || Buffer.byteLength(identity, 'utf8') > 255
+      || active.has(identity)) fail(500, 'cutover_state_corrupt');
+    active.add(identity);
+  }
+  if (row.legacy_in_flight !== row.active_legacy_tasks.length) fail(500, 'cutover_state_corrupt');
+
+  const lifecycleIdentities = new Set();
+  const running = new Set();
+  for (const record of row.legacy_task_lifecycle) {
+    if (record === null || typeof record !== 'object' || Array.isArray(record)
+      || Object.keys(record).some((key) => !LEGACY_LIFECYCLE_FIELDS.has(key))
+      || !['task_identity', 'state', 'expires_at'].every((key) => key in record)
+      || typeof record.task_identity !== 'string' || !record.task_identity
+      || Buffer.byteLength(record.task_identity, 'utf8') > 255
+      || lifecycleIdentities.has(record.task_identity)
+      || !LEGACY_LIFECYCLE_STATES.has(record.state)
+      || typeof record.expires_at !== 'string'
+      || Number.isNaN(Date.parse(record.expires_at))
+      || ('persistence_observed' in record && typeof record.persistence_observed !== 'boolean')) {
+      fail(500, 'cutover_state_corrupt');
+    }
+    lifecycleIdentities.add(record.task_identity);
+    if (record.state === 'RUNNING') running.add(record.task_identity);
+  }
+  if (running.size !== active.size || [...running].some((identity) => !active.has(identity))) {
+    fail(500, 'cutover_state_corrupt');
+  }
+}
+
+const legacyStateUpdate = (activeTasks, lifecycle) => ({
+  active_legacy_tasks: JSON.stringify(activeTasks),
+  legacy_in_flight: activeTasks.length,
+  legacy_task_lifecycle: JSON.stringify(lifecycle),
+});
+
+function pruneExpiredLegacyState(row, now) {
+  const expired = row.legacy_task_lifecycle.filter(
+    (record) => new Date(record.expires_at) <= now,
+  );
+  const expiredRunning = new Set(
+    expired.filter((record) => record.state === 'RUNNING').map((record) => record.task_identity),
+  );
+  return {
+    activeTasks: row.active_legacy_tasks.filter((identity) => !expiredRunning.has(identity)),
+    lifecycle: row.legacy_task_lifecycle.filter((record) => !expired.includes(record)),
+    counts: {
+      expired_legacy_running: expiredRunning.size,
+      expired_legacy_awaiting_persistence: expired.filter(
+        (record) => record.state === 'AWAITING_PERSISTENCE',
+      ).length,
+      expired_legacy_persisted: expired.filter((record) => record.state === 'PERSISTED').length,
+    },
+    changed: expired.length > 0,
+  };
+}
+
 async function lockedProtocolState(trx) {
   await lockIdentity(trx, PROTOCOL_STATE_ID);
   let row = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).forUpdate().first();
@@ -226,8 +297,13 @@ async function lockedProtocolState(trx) {
       sends_paused: false,
       legacy_in_flight: 0,
       active_legacy_tasks: [],
+      legacy_task_lifecycle: [],
     };
-    await trx(PROTOCOL_STATE).insert({ ...row, active_legacy_tasks: JSON.stringify([]) });
+    await trx(PROTOCOL_STATE).insert({
+      ...row,
+      active_legacy_tasks: JSON.stringify([]),
+      legacy_task_lifecycle: JSON.stringify([]),
+    });
   }
   const hasLegacyTaskMapPlaceholder = row.active_legacy_tasks
     && typeof row.active_legacy_tasks === 'object'
@@ -240,8 +316,15 @@ async function lockedProtocolState(trx) {
       active_legacy_tasks: JSON.stringify([]),
     });
   }
-  if (!Array.isArray(row.active_legacy_tasks)
-    || row.legacy_in_flight !== row.active_legacy_tasks.length) fail(500, 'cutover_state_corrupt');
+  if (row.legacy_task_lifecycle == null
+    && Array.isArray(row.active_legacy_tasks) && row.active_legacy_tasks.length === 0
+    && row.legacy_in_flight === 0) {
+    row.legacy_task_lifecycle = [];
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({
+      legacy_task_lifecycle: JSON.stringify([]),
+    });
+  }
+  validateLegacyState(row);
   return row;
 }
 
@@ -260,26 +343,113 @@ async function setSendsPaused(database, raw) {
   });
 }
 
-async function admitLegacyInference(database, raw) {
+async function admitLegacyInference(database, raw, now) {
   const body = operationBody(raw, 'admit_legacy_inference');
   const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
   return database.transaction(async (trx) => {
-    const row = await lockedProtocolState(trx);
+    let row = await lockedProtocolState(trx);
     if (row.protocol_epoch !== 0) fail(426, 'client_update_required');
     if (row.sends_paused) fail(503, 'inference_temporarily_paused');
-    if (row.active_legacy_tasks.includes(taskIdentity)) {
-      return { ...cutoverResponse(row), admitted: false, idempotent: true };
+    const pruned = pruneExpiredLegacyState(row, now);
+    if (pruned.changed) {
+      await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+        legacyStateUpdate(pruned.activeTasks, pruned.lifecycle),
+      );
+      row = {
+        ...row,
+        active_legacy_tasks: pruned.activeTasks,
+        legacy_in_flight: pruned.activeTasks.length,
+        legacy_task_lifecycle: pruned.lifecycle,
+      };
+    }
+    const existing = row.legacy_task_lifecycle.find((record) => record.task_identity === taskIdentity);
+    if (existing) {
+      return { ...cutoverResponse(row), admitted: false, idempotent: true, state: existing.state };
     }
     const activeTasks = [...row.active_legacy_tasks, taskIdentity];
-    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({
-      active_legacy_tasks: JSON.stringify(activeTasks),
-      legacy_in_flight: activeTasks.length,
-    });
+    const lifecycle = [...row.legacy_task_lifecycle, {
+      task_identity: taskIdentity,
+      state: 'RUNNING',
+      expires_at: new Date(now.getTime() + LEGACY_RUNNING_TTL_MS).toISOString(),
+    }];
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+      legacyStateUpdate(activeTasks, lifecycle),
+    );
     return {
       ...cutoverResponse({ ...row, legacy_in_flight: activeTasks.length }),
       admitted: true,
       idempotent: false,
+      state: 'RUNNING',
     };
+  });
+}
+
+async function markLegacyInferenceCompleted(database, raw, now) {
+  const body = operationBody(raw, 'mark_legacy_inference_completed');
+  const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
+  return database.transaction(async (trx) => {
+    const row = await lockedProtocolState(trx);
+    const record = row.legacy_task_lifecycle.find((item) => item.task_identity === taskIdentity);
+    if (!record) {
+      return { ...cutoverResponse(row), completed: false, idempotent: true, state: null };
+    }
+    if (record.state !== 'RUNNING') {
+      return { ...cutoverResponse(row), completed: false, idempotent: true, state: record.state };
+    }
+    const state = record.persistence_observed ? 'PERSISTED' : 'AWAITING_PERSISTENCE';
+    const activeTasks = row.active_legacy_tasks.filter((identity) => identity !== taskIdentity);
+    const lifecycle = row.legacy_task_lifecycle.map((item) => item === record ? {
+      ...item,
+      state,
+      expires_at: new Date(now.getTime() + LEGACY_TOMBSTONE_TTL_MS).toISOString(),
+    } : item);
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+      legacyStateUpdate(activeTasks, lifecycle),
+    );
+    return {
+      ...cutoverResponse({ ...row, legacy_in_flight: activeTasks.length }),
+      completed: true,
+      idempotent: false,
+      state,
+    };
+  });
+}
+
+async function acknowledgeLegacyPersistence(database, raw) {
+  const body = operationBody(raw, 'acknowledge_legacy_persistence');
+  const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
+  return database.transaction(async (trx) => {
+    const row = await lockedProtocolState(trx);
+    const record = row.legacy_task_lifecycle.find((item) => item.task_identity === taskIdentity);
+    if (!record) {
+      return { ...cutoverResponse(row), acknowledged: false, idempotent: true, state: null };
+    }
+    if (record.state === 'PERSISTED') {
+      return { ...cutoverResponse(row), acknowledged: false, idempotent: true, state: record.state };
+    }
+    const state = record.state === 'AWAITING_PERSISTENCE' ? 'PERSISTED' : 'RUNNING';
+    const lifecycle = row.legacy_task_lifecycle.map((item) => item === record ? {
+      ...item,
+      state,
+      persistence_observed: true,
+    } : item);
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+      legacyStateUpdate(row.active_legacy_tasks, lifecycle),
+    );
+    return { ...cutoverResponse(row), acknowledged: true, idempotent: false, state };
+  });
+}
+
+async function authorizeLegacyCompletion(database, raw, now) {
+  const body = operationBody(raw, 'authorize_legacy_completion');
+  const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
+  return database.transaction(async (trx) => {
+    const row = await lockedProtocolState(trx);
+    const record = row.legacy_task_lifecycle.find((item) => item.task_identity === taskIdentity);
+    if (!record) fail(404, 'legacy_completion_not_found');
+    if (new Date(record.expires_at) <= now) fail(410, 'legacy_completion_expired');
+    if (record.state === 'RUNNING') fail(409, 'legacy_completion_not_ready');
+    return { authorized: true, task_identity: taskIdentity, state: record.state };
   });
 }
 
@@ -288,14 +458,20 @@ async function releaseLegacyInference(database, raw) {
   const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
   return database.transaction(async (trx) => {
     const row = await lockedProtocolState(trx);
-    if (!row.active_legacy_tasks.includes(taskIdentity)) {
+    const hasActive = row.active_legacy_tasks.includes(taskIdentity);
+    const hasLifecycle = row.legacy_task_lifecycle.some(
+      (record) => record.task_identity === taskIdentity,
+    );
+    if (!hasActive && !hasLifecycle) {
       return { ...cutoverResponse(row), released: false, idempotent: true };
     }
     const activeTasks = row.active_legacy_tasks.filter((identity) => identity !== taskIdentity);
-    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({
-      active_legacy_tasks: JSON.stringify(activeTasks),
-      legacy_in_flight: activeTasks.length,
-    });
+    const lifecycle = row.legacy_task_lifecycle.filter(
+      (record) => record.task_identity !== taskIdentity,
+    );
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+      legacyStateUpdate(activeTasks, lifecycle),
+    );
     return {
       ...cutoverResponse({ ...row, legacy_in_flight: activeTasks.length }),
       released: true,
@@ -304,11 +480,23 @@ async function releaseLegacyInference(database, raw) {
   });
 }
 
-async function activateProtocolEpoch(database, raw) {
+async function activateProtocolEpoch(database, raw, now) {
   const body = operationBody(raw, 'activate_protocol_epoch');
   const targetEpoch = integer(body.target_epoch, 'invalid_protocol_epoch');
   return database.transaction(async (trx) => {
-    const row = await lockedProtocolState(trx);
+    let row = await lockedProtocolState(trx);
+    const pruned = pruneExpiredLegacyState(row, now);
+    if (pruned.changed) {
+      await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+        legacyStateUpdate(pruned.activeTasks, pruned.lifecycle),
+      );
+      row = {
+        ...row,
+        active_legacy_tasks: pruned.activeTasks,
+        legacy_in_flight: pruned.activeTasks.length,
+        legacy_task_lifecycle: pruned.lifecycle,
+      };
+    }
     if (targetEpoch < row.protocol_epoch) fail(409, 'protocol_epoch_rollback');
     if (targetEpoch === row.protocol_epoch) return { ...cutoverResponse(row), activated: false };
     if (targetEpoch !== 1) fail(400, 'invalid_protocol_epoch');
@@ -719,6 +907,13 @@ async function invalidateDeletion(database, raw, now) {
 async function cleanupExpired(database, raw, now) {
   const body = operationBody(raw, 'cleanup_expired');
   return database.transaction(async (trx) => {
+    const protocolState = await lockedProtocolState(trx);
+    const prunedLegacy = pruneExpiredLegacyState(protocolState, now);
+    if (prunedLegacy.changed) {
+      await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+        legacyStateUpdate(prunedLegacy.activeTasks, prunedLegacy.lifecycle),
+      );
+    }
     const abandonedIds = await trx(PREFLIGHTS).whereIn('state', ['PREPARED', 'ENQUEUED'])
       .andWhere('expires_at', '<=', now).pluck('id');
     const runningIds = await trx(PREFLIGHTS).where({ state: 'RUNNING' }).andWhere('expires_at', '<=', now).pluck('id');
@@ -745,6 +940,7 @@ async function cleanupExpired(database, raw, now) {
       failed_inferences: failedInferences,
       expired_outbox: await trx(OUTBOX).whereIn('state', ['DISPATCHED', 'FAILED'])
         .andWhere('created_at', '<=', new Date(now.getTime() - PREFLIGHT_TTL_MS)).delete(),
+      ...prunedLegacy.counts,
     };
   });
 }
@@ -758,7 +954,11 @@ export const operations = Object.freeze({
   persist_terminal: persistTerminal, invalidate_deletion: invalidateDeletion,
   cleanup_expired: cleanupExpired,
   get_cutover_state: getCutoverState, set_sends_paused: setSendsPaused,
-  admit_legacy_inference: admitLegacyInference, release_legacy_inference: releaseLegacyInference,
+  admit_legacy_inference: admitLegacyInference,
+  mark_legacy_inference_completed: markLegacyInferenceCompleted,
+  acknowledge_legacy_persistence: acknowledgeLegacyPersistence,
+  authorize_legacy_completion: authorizeLegacyCompletion,
+  release_legacy_inference: releaseLegacyInference,
   activate_protocol_epoch: activateProtocolEpoch,
 });
 export async function executeOperation(database, operation, body, now = new Date()) {
@@ -769,5 +969,5 @@ export async function executeOperation(database, operation, body, now = new Date
 export const testing = Object.freeze({
   digest, validateEnvelope, validateMessage, validateNewChatMetadata, inferenceClaimDecision,
   unsealedPreflightIds, availableJobMetadata,
-  PROTOCOL_VERSION, LEASE_MS, MAX_TENURE_MS,
+  PROTOCOL_VERSION, LEASE_MS, MAX_TENURE_MS, LEGACY_RUNNING_TTL_MS, LEGACY_TOMBSTONE_TTL_MS,
 });

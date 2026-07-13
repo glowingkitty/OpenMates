@@ -184,25 +184,28 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
-        cutover_controller = ChatRecoveryCutoverController(cache_service, directus_service)
         recovery_enqueue_result: dict[str, Any] | None = None
-        try:
-            protocol_epoch = await cutover_controller.get_epoch()
-        except Exception as exc:
-            logger.error("Authoritative chat recovery cutover read failed", exc_info=exc)
-            await manager.send_personal_message(
-                {
-                    "type": "error",
-                    "payload": {
-                        "code": "inference_temporarily_unavailable",
-                        "message": "Saved-chat sending is temporarily unavailable. Please retry shortly.",
+        protocol_epoch = 0
+        if not is_incognito:
+            cutover_controller = ChatRecoveryCutoverController(cache_service, directus_service)
+            try:
+                # Admission cannot trust Redis because a stale epoch zero would bypass cutover.
+                protocol_epoch = await cutover_controller.get_epoch(authoritative=True)
+            except Exception as exc:
+                logger.error("Authoritative chat recovery cutover read failed", exc_info=exc)
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "code": "inference_temporarily_unavailable",
+                            "message": "Saved-chat sending is temporarily unavailable. Please retry shortly.",
+                        },
                     },
-                },
-                user_id,
-                device_fingerprint_hash,
-            )
-            return
-        if not is_incognito and protocol_epoch >= 1:
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+        if protocol_epoch >= 1:
             if payload.get("protocol_version") != 1 or not payload.get("preflight_id"):
                 await manager.send_personal_message(
                     {

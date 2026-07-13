@@ -1982,6 +1982,7 @@ def _register_models3d_custom_routes(app: FastAPI, app_name: str) -> None:
 
     async def generate_handler(
         body: Model3DGenerateRequest,
+        request: Request,
         user_info: Dict[str, Any] = SessionOrApiKeyAuth,
         cache_service: CacheService = Depends(get_cache_service),
         directus_service: DirectusService = Depends(get_directus_service),

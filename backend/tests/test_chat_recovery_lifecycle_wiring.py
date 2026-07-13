@@ -72,3 +72,55 @@ def test_periodic_cleanup_is_registered_on_persistence_queue() -> None:
     assert "'cleanup-expired-chat-recovery-jobs'" in source
     assert "'task': 'app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs'" in source
     assert "'options': {'queue': 'persistence'}" in source
+
+
+def test_legacy_worker_marks_success_and_releases_non_persistable_results() -> None:
+    source = _function_source(
+        "backend/apps/ai/tasks/ask_skill_task.py",
+        "process_ai_skill_ask_task",
+    )
+    assert "legacy_completion_requires_persistence" in source
+    assert "_finalize_legacy_cutover_admission" in source
+    assert "legacy_completion_requires_persistence" in source
+
+    helper_source = _function_source(
+        "backend/apps/ai/tasks/ask_skill_task.py",
+        "_finalize_legacy_cutover_admission",
+    )
+    assert '"mark_legacy_inference_completed"' in helper_source
+    assert '"release_legacy_inference"' in helper_source
+    assert "logger.error" in source
+
+
+def test_encrypted_persistence_acknowledges_legacy_admission_after_directus_write() -> None:
+    source = _function_source(
+        "backend/core/api/app/tasks/persistence_tasks.py",
+        "_async_persist_ai_response_to_directus",
+    )
+    assert "acknowledge_legacy_persistence" in source
+    assert source.index("create_message_in_directus") < source.rindex(
+        "acknowledge_legacy_persistence"
+    )
+
+
+def test_epoch_zero_admission_identity_chain_and_acknowledgment_retry_are_wired() -> None:
+    ask_skill_source = (
+        REPO_ROOT / "backend/apps/ai/skills/ask_skill.py"
+    ).read_text(encoding="utf-8")
+    stream_source = _function_source(
+        "backend/apps/ai/tasks/stream_consumer.py",
+        "_create_redis_payload",
+    )
+    persistence_source = _function_source(
+        "backend/core/api/app/tasks/persistence_tasks.py",
+        "_async_persist_ai_response_to_directus",
+    )
+    persistence_wrapper_source = _function_source(
+        "backend/core/api/app/tasks/persistence_tasks.py",
+        "persist_ai_response_to_directus",
+    )
+
+    assert "task_id=request.recovery_task_id or request.legacy_cutover_task_id" in ask_skill_source
+    assert '"message_id": task_id' in stream_source
+    assert '"acknowledge_legacy_persistence"' in persistence_source
+    assert "self.retry" in persistence_wrapper_source

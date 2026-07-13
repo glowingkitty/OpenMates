@@ -48,6 +48,9 @@ def test_directus_image_bakes_extension_and_fails_closed() -> None:
     assert protocol_schema["fields"]["protocol_epoch"]["default"] == 0
     assert protocol_schema["fields"]["sends_paused"]["default"] is False
     assert protocol_schema["fields"]["legacy_in_flight"]["default"] == 0
+    lifecycle = protocol_schema["fields"]["legacy_task_lifecycle"]
+    assert lifecycle["type"] == "json"
+    assert lifecycle["nullable"] is True
 
 
 def test_all_cms_services_use_custom_image_and_do_not_mask_extensions() -> None:

@@ -131,6 +131,7 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
 
     assert manager.calls[0] == ("set_active_chat", "user-123", "device-123", "chat-123")
     assert ("dispatch_skill", "ai", "ask", "chat-123") in manager.calls
+    cutover.get_epoch.assert_awaited_once_with(authoritative=True)
     cache_service.set_active_ai_task.assert_awaited_once_with("chat-123", "task-123")
 
 
@@ -142,11 +143,12 @@ def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch
         get_active_ai_task=AsyncMock(return_value="active-task-123"),
     )
     enqueue = AsyncMock()
+    cutover = SimpleNamespace(get_epoch=AsyncMock(return_value=1))
     monkeypatch.setattr(message_received_handler, "enqueue_chat_turn", enqueue)
     monkeypatch.setattr(
         message_received_handler,
         "ChatRecoveryCutoverController",
-        lambda cache, directus: SimpleNamespace(get_epoch=AsyncMock(return_value=1)),
+        lambda cache, directus: cutover,
     )
 
     asyncio.run(
@@ -168,6 +170,83 @@ def test_recovery_send_does_not_enqueue_while_another_task_is_active(monkeypatch
     )
 
     enqueue.assert_not_awaited()
+    cutover.get_epoch.assert_awaited_once_with(authoritative=True)
     assert manager.calls == [
         ("send_personal_message", "error", "user-123", "device-123")
     ]
+
+
+def test_incognito_send_skips_durable_cutover_lookup(monkeypatch):
+    from backend.core.api.app.routes.handlers.websocket_handlers import message_received_handler
+
+    controller_calls = []
+    manager = FakeManager()
+    cache_service = SimpleNamespace(
+        get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
+        delete_chat_messages_history=AsyncMock(),
+        add_message_to_chat_history=AsyncMock(),
+        get_ai_messages_history=AsyncMock(return_value=[]),
+        get_user_by_id=AsyncMock(return_value={"language": "en"}),
+        get_chat_list_item_data=AsyncMock(return_value={}),
+        get_active_ai_task=AsyncMock(return_value=None),
+        set_active_ai_task=AsyncMock(),
+        update_user=AsyncMock(),
+    )
+    directus_service = SimpleNamespace(
+        chat=SimpleNamespace(
+            get_chat_metadata=AsyncMock(),
+            check_chat_ownership=AsyncMock(),
+        ),
+        get_user_profile=AsyncMock(),
+        get_user_fields_direct=AsyncMock(return_value={}),
+    )
+    monkeypatch.setattr(
+        message_received_handler,
+        "ChatRecoveryCutoverController",
+        lambda *args: controller_calls.append(args),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.embed_service",
+        SimpleNamespace(EmbedService=FakeEmbedService),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.services.skill_registry",
+        SimpleNamespace(get_global_registry=lambda: FakeSkillRegistry(manager)),
+    )
+
+    asyncio.run(
+        message_received_handler.handle_message_received(
+            websocket=SimpleNamespace(),
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("encrypted", 1))),
+            user_id="user-123",
+            device_fingerprint_hash="device-123",
+            payload={
+                "chat_id": "incognito-chat-123",
+                "is_incognito": True,
+                "message": {
+                    "message_id": "msg-123",
+                    "role": "user",
+                    "content": "private",
+                    "created_at": 1_700_000_000,
+                    "chat_has_title": False,
+                },
+                "message_history": [
+                    {
+                        "message_id": "msg-123",
+                        "role": "user",
+                        "content": "private",
+                        "created_at": 1_700_000_000,
+                    }
+                ],
+            },
+        )
+    )
+
+    assert controller_calls == []
+    assert ("dispatch_skill", "ai", "ask", "incognito-chat-123") in manager.calls
+    directus_service.chat.get_chat_metadata.assert_not_awaited()

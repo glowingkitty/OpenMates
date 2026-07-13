@@ -17,6 +17,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers import (
 from backend.core.api.app.routes.handlers.websocket_handlers.ai_response_completed_handler import (
     handle_ai_response_completed,
 )
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 
 
 class FakeManager:
@@ -36,12 +37,36 @@ class FakeCacheService:
 
 class FakeCutoverController:
     epoch = 0
+    authoritative_calls: list[bool] = []
+    authorization_result = {"authorized": False}
+    authorization_error: Exception | None = None
+    authorization_calls: list[str] = []
+    events: list[str] = []
 
     def __init__(self, *_args) -> None:
         pass
 
-    async def get_epoch(self) -> int:
+    async def get_epoch(self, *, authoritative: bool = False) -> int:
+        self.authoritative_calls.append(authoritative)
         return self.epoch
+
+    async def authorize_legacy_completion(self, task_identity: str) -> dict:
+        self.authorization_calls.append(task_identity)
+        self.events.append("authorize")
+        if self.authorization_error:
+            raise self.authorization_error
+        return self.authorization_result
+
+
+def reset_cutover_controller(*, epoch: int, authorized: bool = False) -> None:
+    FakeCutoverController.epoch = epoch
+    FakeCutoverController.authoritative_calls = []
+    FakeCutoverController.authorization_result = {
+        "authorized": authorized,
+    }
+    FakeCutoverController.authorization_error = None
+    FakeCutoverController.authorization_calls = []
+    FakeCutoverController.events = []
 
 
 class FakeChatService:
@@ -117,7 +142,7 @@ async def _run_rejects_mismatched_ciphertext_fingerprint(monkeypatch):
         "ChatRecoveryCutoverController",
         FakeCutoverController,
     )
-    FakeCutoverController.epoch = 0
+    reset_cutover_controller(epoch=0)
 
     manager = FakeManager()
     await handle_ai_response_completed(
@@ -133,6 +158,7 @@ async def _run_rejects_mismatched_ciphertext_fingerprint(monkeypatch):
     )
 
     assert queued_tasks == []
+    assert FakeCutoverController.authoritative_calls == []
     assert manager.personal_messages == [
         (
             {
@@ -171,7 +197,7 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
         "ChatRecoveryCutoverController",
         FakeCutoverController,
     )
-    FakeCutoverController.epoch = 0
+    reset_cutover_controller(epoch=0)
 
     manager = FakeManager()
     await handle_ai_response_completed(
@@ -187,6 +213,7 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
     )
 
     assert len(queued_tasks) == 1
+    assert FakeCutoverController.authoritative_calls == [True]
     assert queued_tasks[0][0] == "app.tasks.persistence_tasks.persist_ai_response_to_directus"
     assert queued_tasks[0][2] == "persistence"
     assert manager.personal_messages == [
@@ -205,17 +232,25 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
     ]
 
 
-def test_ai_response_completed_is_rejected_after_recovery_cutover(monkeypatch):
-    asyncio.run(_run_rejects_legacy_completion_after_recovery_cutover(monkeypatch))
+def test_epoch_one_authorized_legacy_completion_queues_persistence(monkeypatch):
+    asyncio.run(_run_epoch_one_authorized_legacy_completion(monkeypatch))
 
 
-async def _run_rejects_legacy_completion_after_recovery_cutover(monkeypatch):
+async def _run_epoch_one_authorized_legacy_completion(monkeypatch):
+    queued_tasks: list[tuple[str, list, str | None]] = []
+
+    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
+        FakeCutoverController.events.append("dispatch")
+        queued_tasks.append((name, args or [], queue))
+        return SimpleNamespace(id="task-123")
+
+    monkeypatch.setattr(ai_response_completed_handler.celery_app, "send_task", fake_send_task)
     monkeypatch.setattr(
         ai_response_completed_handler,
         "ChatRecoveryCutoverController",
         FakeCutoverController,
     )
-    FakeCutoverController.epoch = 1
+    reset_cutover_controller(epoch=1, authorized=True)
     manager = FakeManager()
 
     await handle_ai_response_completed(
@@ -230,4 +265,80 @@ async def _run_rejects_legacy_completion_after_recovery_cutover(monkeypatch):
         payload=make_payload("1a5b3b7c"),
     )
 
+    assert len(queued_tasks) == 1
+    assert FakeCutoverController.authorization_calls == ["assistant-123"]
+    assert FakeCutoverController.events == ["authorize", "dispatch"]
+    assert FakeCutoverController.authoritative_calls == [True]
+
+
+def test_epoch_one_unauthorized_legacy_completion_is_rejected(monkeypatch):
+    asyncio.run(_run_epoch_one_unauthorized_legacy_completion(monkeypatch))
+
+
+async def _run_epoch_one_unauthorized_legacy_completion(monkeypatch):
+    queued_tasks: list[object] = []
+    monkeypatch.setattr(
+        ai_response_completed_handler.celery_app,
+        "send_task",
+        lambda *args, **kwargs: queued_tasks.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "ChatRecoveryCutoverController",
+        FakeCutoverController,
+    )
+    reset_cutover_controller(epoch=1)
+    FakeCutoverController.authorization_error = ChatRecoveryProtocolError(
+        410, "legacy_completion_expired"
+    )
+    manager = FakeManager()
+
+    await handle_ai_response_completed(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCacheService(),
+        directus_service=FakeDirectusService("1a5b3b7c"),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload=make_payload("1a5b3b7c"),
+    )
+
+    assert queued_tasks == []
+    assert FakeCutoverController.authorization_calls == ["assistant-123"]
     assert manager.personal_messages[0][0]["payload"]["code"] == "recovery_persistence_required"
+
+
+def test_malformed_or_invalid_completion_never_authorizes(monkeypatch):
+    asyncio.run(_run_malformed_or_invalid_completion_never_authorizes(monkeypatch))
+
+
+async def _run_malformed_or_invalid_completion_never_authorizes(monkeypatch):
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "ChatRecoveryCutoverController",
+        FakeCutoverController,
+    )
+    reset_cutover_controller(epoch=1, authorized=True)
+    manager = FakeManager()
+    malformed = make_payload("1a5b3b7c")
+    del malformed["message"]["message_id"]
+    invalid = make_payload("1a5b3b7c")
+    invalid["message"]["role"] = "user"
+
+    for payload in (None, malformed, invalid):
+        await handle_ai_response_completed(
+            websocket=None,
+            manager=manager,
+            cache_service=FakeCacheService(),
+            directus_service=FakeDirectusService("1a5b3b7c"),
+            encryption_service=None,
+            user_id="user-123",
+            user_id_hash="user-hash-123",
+            device_fingerprint_hash="device-123",
+            payload=payload,
+        )
+
+    assert FakeCutoverController.authorization_calls == []
+    assert FakeCutoverController.authoritative_calls == []

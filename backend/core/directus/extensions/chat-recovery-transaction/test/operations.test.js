@@ -79,8 +79,10 @@ function fakeDatabase(seed, injectedFailure = null) {
           store[table] ??= [];
           for (const row of Array.isArray(value) ? value : [value]) {
             const stored = structuredClone(row);
-            if (table === 'chat_recovery_protocol_state' && typeof stored.active_legacy_tasks === 'string') {
-              stored.active_legacy_tasks = JSON.parse(stored.active_legacy_tasks);
+            if (table === 'chat_recovery_protocol_state') {
+              for (const field of ['active_legacy_tasks', 'legacy_task_lifecycle']) {
+                if (typeof stored[field] === 'string') stored[field] = JSON.parse(stored[field]);
+              }
             }
             store[table].push(stored);
           }
@@ -92,7 +94,8 @@ function fakeDatabase(seed, injectedFailure = null) {
           for (const row of found) {
             for (const [field, value] of Object.entries(values)) {
               if (table === 'chat_recovery_protocol_state'
-                && field === 'active_legacy_tasks' && typeof value === 'string') {
+                && ['active_legacy_tasks', 'legacy_task_lifecycle'].includes(field)
+                && typeof value === 'string') {
                 row[field] = JSON.parse(value);
               } else {
                 row[field] = value?.rawExpression === `${field} + 1` ? row[field] + 1 : structuredClone(value);
@@ -173,6 +176,25 @@ const leasedSeed = (now = new Date('2029-01-01T00:00:00Z')) => ({
     lease_generation: 0, created_at: now, expires_at: new Date(now.getTime() + 7 * 24 * 60 * 60_000),
   }],
 });
+const lifecycleRecord = (taskIdentity, state, expiresAt, persistenceObserved) => ({
+  task_identity: taskIdentity,
+  state,
+  expires_at: expiresAt,
+  ...(persistenceObserved === undefined ? {} : { persistence_observed: persistenceObserved }),
+});
+const protocolSeed = ({
+  epoch = 0,
+  paused = false,
+  active = [],
+  lifecycle = [],
+} = {}) => ({
+  chat_recovery_protocol_state: [{
+    id: 'chat-recovery', protocol_epoch: epoch, sends_paused: paused,
+    legacy_in_flight: active.length, active_legacy_tasks: active,
+    legacy_task_lifecycle: lifecycle,
+  }],
+});
+const legacyBody = (taskIdentity) => ({ protocol_version: 1, task_identity: taskIdentity });
 
 test('internal authentication fails closed', () => {
   assert.equal(isAuthorized({}, undefined), false);
@@ -266,22 +288,25 @@ test('cleanup fails only RUNNING preflights that have no sealed job', () => {
 });
 
 test('worker lifecycle operations are explicitly registered', () => {
-  for (const operation of ['claim_inference', 'mark_outbox_dispatched', 'mark_inference_failed', 'list_available_jobs']) {
+  for (const operation of [
+    'claim_inference', 'mark_outbox_dispatched', 'mark_inference_failed', 'list_available_jobs',
+    'mark_legacy_inference_completed', 'acknowledge_legacy_persistence', 'authorize_legacy_completion',
+  ]) {
     assert.equal(typeof operations[operation], 'function');
   }
 });
 
 test('legacy admission is serialized, durable, and released exactly once', async () => {
   const database = fakeDatabase({ chat_recovery_protocol_state: [] });
-  const body = (taskIdentity) => ({ protocol_version: 1, task_identity: taskIdentity });
+  const now = new Date('2029-01-01T00:00:00.000Z');
 
   const [first, second] = await Promise.all([
-    executeOperation(database, 'admit_legacy_inference', body('message-a')),
-    executeOperation(database, 'admit_legacy_inference', body('message-b')),
+    executeOperation(database, 'admit_legacy_inference', legacyBody('message-a'), now),
+    executeOperation(database, 'admit_legacy_inference', legacyBody('message-b'), now),
   ]);
-  const duplicate = await executeOperation(database, 'admit_legacy_inference', body('message-a'));
-  const released = await executeOperation(database, 'release_legacy_inference', body('message-a'));
-  const duplicateRelease = await executeOperation(database, 'release_legacy_inference', body('message-a'));
+  const duplicate = await executeOperation(database, 'admit_legacy_inference', legacyBody('message-a'), now);
+  const released = await executeOperation(database, 'release_legacy_inference', legacyBody('message-a'), now);
+  const duplicateRelease = await executeOperation(database, 'release_legacy_inference', legacyBody('message-a'), now);
 
   assert.equal(first.admitted, true);
   assert.equal(second.admitted, true);
@@ -290,6 +315,192 @@ test('legacy admission is serialized, durable, and released exactly once', async
   assert.equal(duplicateRelease.idempotent, true);
   assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 1);
   assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, ['message-b']);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle, [
+    lifecycleRecord('message-b', 'RUNNING', '2029-01-01T00:15:00.000Z'),
+  ]);
+});
+
+test('legacy admission prunes an expired running retry before admitting it once', async () => {
+  const now = new Date('2029-01-01T00:15:00.000Z');
+  const database = fakeDatabase(protocolSeed({
+    active: ['message-a'],
+    lifecycle: [lifecycleRecord('message-a', 'RUNNING', now.toISOString())],
+  }));
+
+  const result = await executeOperation(
+    database, 'admit_legacy_inference', legacyBody('message-a'), now,
+  );
+
+  assert.equal(result.admitted, true);
+  assert.equal(result.idempotent, false);
+  assert.equal(result.legacy_in_flight, 1);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, ['message-a']);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle, [
+    lifecycleRecord('message-a', 'RUNNING', '2029-01-01T00:30:00.000Z'),
+  ]);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 1);
+});
+
+test('early persistence does not decrement until completion, which records a persisted tombstone', async () => {
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const database = fakeDatabase(protocolSeed());
+  await executeOperation(database, 'admit_legacy_inference', legacyBody('message-a'), now);
+
+  const acknowledged = await executeOperation(
+    database, 'acknowledge_legacy_persistence', legacyBody('message-a'), new Date(now.getTime() + 1000),
+  );
+  assert.equal(acknowledged.state, 'RUNNING');
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 1);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, ['message-a']);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle[0].persistence_observed, true);
+
+  const completed = await executeOperation(
+    database, 'mark_legacy_inference_completed', legacyBody('message-a'), new Date(now.getTime() + 2000),
+  );
+  assert.equal(completed.state, 'PERSISTED');
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 0);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, []);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle, [
+    lifecycleRecord('message-a', 'PERSISTED', '2029-01-02T00:00:02.000Z', true),
+  ]);
+});
+
+test('completion awaits persistence, authorizes terminal work, and pending state does not block activation', async () => {
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const database = fakeDatabase(protocolSeed({ active: ['message-a'], lifecycle: [
+    lifecycleRecord('message-a', 'RUNNING', '2029-01-01T00:15:00.000Z'),
+  ] }));
+  const completed = await executeOperation(database, 'mark_legacy_inference_completed', legacyBody('message-a'), now);
+  assert.equal(completed.state, 'AWAITING_PERSISTENCE');
+  assert.equal((await executeOperation(database, 'authorize_legacy_completion', legacyBody('message-a'), now)).authorized, true);
+  await executeOperation(database, 'set_sends_paused', { protocol_version: 1, sends_paused: true }, now);
+  const activated = await executeOperation(
+    database, 'activate_protocol_epoch', { protocol_version: 1, target_epoch: 1 }, now,
+  );
+  assert.equal(activated.activated, true);
+
+  const persisted = await executeOperation(
+    database, 'acknowledge_legacy_persistence', legacyBody('message-a'), new Date(now.getTime() + 1000),
+  );
+  const retry = await executeOperation(
+    database, 'acknowledge_legacy_persistence', legacyBody('message-a'), new Date(now.getTime() + 2000),
+  );
+  const duplicateCompletion = await executeOperation(
+    database, 'mark_legacy_inference_completed', legacyBody('message-a'), new Date(now.getTime() + 3000),
+  );
+  assert.equal(persisted.state, 'PERSISTED');
+  assert.equal((await executeOperation(
+    database, 'authorize_legacy_completion', legacyBody('message-a'), new Date(now.getTime() + 3000),
+  )).authorized, true);
+  assert.equal(retry.idempotent, true);
+  assert.equal(duplicateCompletion.idempotent, true);
+});
+
+test('legacy completion authorization rejects running, absent, and expired identities explicitly', async () => {
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const running = fakeDatabase(protocolSeed({ active: ['running'], lifecycle: [
+    lifecycleRecord('running', 'RUNNING', '2029-01-01T00:15:00.000Z'),
+  ] }));
+  await assert.rejects(
+    executeOperation(running, 'authorize_legacy_completion', legacyBody('running'), now),
+    (error) => error instanceof ProtocolError && error.code === 'legacy_completion_not_ready',
+  );
+  await assert.rejects(
+    executeOperation(running, 'authorize_legacy_completion', legacyBody('absent'), now),
+    (error) => error instanceof ProtocolError && error.code === 'legacy_completion_not_found',
+  );
+  const expired = fakeDatabase(protocolSeed({ lifecycle: [
+    lifecycleRecord('expired', 'AWAITING_PERSISTENCE', now.toISOString()),
+  ] }));
+  await assert.rejects(
+    executeOperation(expired, 'authorize_legacy_completion', legacyBody('expired'), now),
+    (error) => error instanceof ProtocolError && error.code === 'legacy_completion_expired',
+  );
+});
+
+test('absent lifecycle updates never recreate records and release removes running state', async () => {
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const database = fakeDatabase(protocolSeed({ active: ['message-a'], lifecycle: [
+    lifecycleRecord('message-a', 'RUNNING', '2029-01-01T00:15:00.000Z'),
+  ] }));
+  const absentCompletion = await executeOperation(database, 'mark_legacy_inference_completed', legacyBody('absent'), now);
+  const absentPersistence = await executeOperation(database, 'acknowledge_legacy_persistence', legacyBody('absent'), now);
+  assert.equal(absentCompletion.state, null);
+  assert.equal(absentPersistence.state, null);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle.length, 1);
+
+  const released = await executeOperation(database, 'release_legacy_inference', legacyBody('message-a'), now);
+  assert.equal(released.released, true);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 0);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, []);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle, []);
+});
+
+test('legacy lifecycle cleanup prunes all expired states and active running identities', async () => {
+  const now = new Date('2029-01-02T00:00:00.000Z');
+  const database = fakeDatabase({
+    ...protocolSeed({
+      active: ['expired-running', 'live-running'],
+      lifecycle: [
+        lifecycleRecord('expired-running', 'RUNNING', now.toISOString()),
+        lifecycleRecord('live-running', 'RUNNING', '2029-01-02T00:01:00.000Z'),
+        lifecycleRecord('awaiting', 'AWAITING_PERSISTENCE', now.toISOString()),
+        lifecycleRecord('persisted', 'PERSISTED', now.toISOString()),
+      ],
+    }),
+    chat_turn_preflights: [], chat_completion_recovery_jobs: [], chat_inference_outbox: [],
+  });
+  const result = await executeOperation(database, 'cleanup_expired', { protocol_version: 1 }, now);
+  assert.deepEqual({
+    expired_legacy_running: result.expired_legacy_running,
+    expired_legacy_awaiting_persistence: result.expired_legacy_awaiting_persistence,
+    expired_legacy_persisted: result.expired_legacy_persisted,
+  }, {
+    expired_legacy_running: 1,
+    expired_legacy_awaiting_persistence: 1,
+    expired_legacy_persisted: 1,
+  });
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, ['live-running']);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 1);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle, [
+    lifecycleRecord('live-running', 'RUNNING', '2029-01-02T00:01:00.000Z'),
+  ]);
+});
+
+test('activation prunes expired running identities before enforcing the active drain', async () => {
+  const now = new Date('2029-01-01T00:15:00.000Z');
+  const database = fakeDatabase(protocolSeed({
+    paused: true,
+    active: ['expired-running'],
+    lifecycle: [lifecycleRecord('expired-running', 'RUNNING', now.toISOString())],
+  }));
+  const result = await executeOperation(
+    database, 'activate_protocol_epoch', { protocol_version: 1, target_epoch: 1 }, now,
+  );
+  assert.equal(result.activated, true);
+  assert.equal(result.legacy_in_flight, 0);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle, []);
+});
+
+test('legacy lifecycle state fails closed on malformed, duplicate, or mismatched records', async () => {
+  const corruptStates = [
+    protocolSeed({ lifecycle: {} }),
+    protocolSeed({ lifecycle: [lifecycleRecord('duplicate', 'PERSISTED', '2029-01-02T00:00:00.000Z'), lifecycleRecord('duplicate', 'PERSISTED', '2029-01-02T00:00:00.000Z')] }),
+    { chat_recovery_protocol_state: [{
+      id: 'chat-recovery', protocol_epoch: 0, sends_paused: false,
+      legacy_in_flight: 2, active_legacy_tasks: ['running'],
+      legacy_task_lifecycle: [lifecycleRecord('running', 'RUNNING', '2029-01-02T00:00:00.000Z')],
+    }] },
+    protocolSeed({ active: ['running'], lifecycle: [lifecycleRecord('other', 'RUNNING', '2029-01-02T00:00:00.000Z')] }),
+    protocolSeed({ active: ['running'], lifecycle: [lifecycleRecord('running', 'PERSISTED', '2029-01-02T00:00:00.000Z')] }),
+    protocolSeed({ lifecycle: [{ ...lifecycleRecord('extra', 'PERSISTED', '2029-01-02T00:00:00.000Z'), chat_id: 'forbidden' }] }),
+  ];
+  for (const seed of corruptStates) {
+    await assert.rejects(
+      executeOperation(fakeDatabase(seed), 'get_cutover_state', { protocol_version: 1 }),
+      (error) => error instanceof ProtocolError && error.code === 'cutover_state_corrupt',
+    );
+  }
 });
 
 test('epoch-zero cutover state repairs missing empty legacy task placeholders', async () => {
@@ -297,7 +508,7 @@ test('epoch-zero cutover state repairs missing empty legacy task placeholders', 
     const database = fakeDatabase({
       chat_recovery_protocol_state: [{
         id: 'chat-recovery', protocol_epoch: 0, sends_paused: false,
-        legacy_in_flight: 0, active_legacy_tasks: placeholder,
+        legacy_in_flight: 0, active_legacy_tasks: placeholder, legacy_task_lifecycle: null,
       }],
     });
 
@@ -305,6 +516,7 @@ test('epoch-zero cutover state repairs missing empty legacy task placeholders', 
 
     assert.equal(state.protocol_epoch, 0);
     assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, []);
+    assert.deepEqual(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle, []);
   }
 });
 
@@ -315,7 +527,8 @@ test('cutover state keeps unsafe missing legacy task lists fail-closed', async (
   ]) {
     const database = fakeDatabase({
       chat_recovery_protocol_state: [{
-        id: 'chat-recovery', sends_paused: false, active_legacy_tasks: null, ...state,
+        id: 'chat-recovery', sends_paused: false, active_legacy_tasks: null,
+        legacy_task_lifecycle: null, ...state,
       }],
     });
     await assert.rejects(
@@ -347,7 +560,7 @@ test('activation rollback preserves epoch zero when its durable update fails', a
   const database = fakeDatabase({
     chat_recovery_protocol_state: [{
       id: 'chat-recovery', protocol_epoch: 0, sends_paused: true,
-      legacy_in_flight: 0, active_legacy_tasks: [],
+      legacy_in_flight: 0, active_legacy_tasks: [], legacy_task_lifecycle: [],
     }],
   }, { operation: 'update', table: 'chat_recovery_protocol_state' });
   await assert.rejects(

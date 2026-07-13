@@ -10,12 +10,19 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app as celery_app
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.shared.python_utils.chat_ciphertext_fingerprint import (
     authoritative_chat_fingerprint,
     validate_message_matches_authoritative_fingerprint,
 )
 
 logger = logging.getLogger(__name__)
+
+LEGACY_COMPLETION_REJECTION_CODES = {
+    "legacy_completion_expired",
+    "legacy_completion_not_found",
+    "legacy_completion_not_ready",
+}
 
 
 async def handle_ai_response_completed(
@@ -45,16 +52,12 @@ async def handle_ai_response_completed(
         pass
     try:
         try:
-            # Epoch one persists assistant completions exclusively through the
-            # fenced recovery job. Legacy clients remain supported at epoch zero.
-            if await ChatRecoveryCutoverController(cache_service, directus_service).get_epoch() >= 1:
+            if not isinstance(payload, dict):
+                logger.error("Invalid AI response payload structure")
                 await manager.send_personal_message(
                     {
                         "type": "error",
-                        "payload": {
-                            "code": "recovery_persistence_required",
-                            "message": "This saved-chat completion must use encrypted recovery persistence.",
-                        },
+                        "payload": {"message": "Invalid AI response payload structure"},
                     },
                     user_id,
                     device_fingerprint_hash,
@@ -206,6 +209,35 @@ async def handle_ai_response_completed(
                     device_fingerprint_hash,
                 )
                 return
+
+            # Epoch one normally persists assistant completions through fenced
+            # recovery jobs. A bounded, authoritative legacy identity may finish
+            # the client-encrypted persistence it started before activation.
+            cutover_controller = ChatRecoveryCutoverController(
+                cache_service, directus_service
+            )
+            if await cutover_controller.get_epoch(authoritative=True) >= 1:
+                try:
+                    authorization = await cutover_controller.authorize_legacy_completion(
+                        message_id
+                    )
+                except ChatRecoveryProtocolError as exc:
+                    if exc.code not in LEGACY_COMPLETION_REJECTION_CODES:
+                        raise
+                    authorization = {"authorized": False}
+                if authorization.get("authorized") is not True:
+                    await manager.send_personal_message(
+                        {
+                            "type": "error",
+                            "payload": {
+                                "code": "recovery_persistence_required",
+                                "message": "This saved-chat completion must use encrypted recovery persistence.",
+                            },
+                        },
+                        user_id,
+                        device_fingerprint_hash,
+                    )
+                    return
 
             # CRITICAL: Check if this specific response ID was already processed or is being processed
             # This prevents duplicate confirmations and redundant Celery tasks

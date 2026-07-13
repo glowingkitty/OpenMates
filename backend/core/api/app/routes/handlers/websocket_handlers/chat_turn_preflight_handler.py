@@ -21,6 +21,10 @@ from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryProtocolError,
     ChatRecoveryService,
 )
+from backend.core.api.app.services.chat_recovery_telemetry import (
+    record_recovery_duration,
+    start_recovery_timing,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -74,19 +78,23 @@ async def enqueue_chat_turn(
     inference_request: dict[str, Any],
 ) -> dict[str, Any]:
     namespace = uuid.UUID(preflight_id)
-    return await ChatRecoveryService(directus_service).execute(
-        "enqueue_inference",
-        {
-            "protocol_version": 1,
-            "preflight_id": preflight_id,
-            "hashed_user_id": user_id_hash,
-            "device_hash": device_fingerprint_hash,
-            "inference_commitment": build_inference_commitment(inference_request),
-            "inference_task_id": str(uuid.uuid5(namespace, "inference-task")),
-            "billing_identity": str(uuid.uuid5(namespace, "billing-identity")),
-            "outbox_id": str(uuid.uuid5(namespace, "inference-outbox")),
-        },
-    )
+    started_at = start_recovery_timing()
+    try:
+        return await ChatRecoveryService(directus_service).execute(
+            "enqueue_inference",
+            {
+                "protocol_version": 1,
+                "preflight_id": preflight_id,
+                "hashed_user_id": user_id_hash,
+                "device_hash": device_fingerprint_hash,
+                "inference_commitment": build_inference_commitment(inference_request),
+                "inference_task_id": str(uuid.uuid5(namespace, "inference-task")),
+                "billing_identity": str(uuid.uuid5(namespace, "billing-identity")),
+                "outbox_id": str(uuid.uuid5(namespace, "inference-outbox")),
+            },
+        )
+    finally:
+        record_recovery_duration("enqueue_inference", started_at)
 
 
 async def handle_chat_turn_preflight(
@@ -140,10 +148,14 @@ async def handle_chat_turn_preflight(
         }
         if payload.get("encrypted_chat_metadata") is not None:
             transaction_data["encrypted_chat_metadata"] = payload["encrypted_chat_metadata"]
-        result = await recovery_service.execute(
-            "prepare_preflight",
-            transaction_data,
-        )
+        started_at = start_recovery_timing()
+        try:
+            result = await recovery_service.execute(
+                "prepare_preflight",
+                transaction_data,
+            )
+        finally:
+            record_recovery_duration("durable_preflight", started_at)
         result["turn_id"] = payload["turn_id"]
         await manager.send_personal_message(
             {"type": "chat_turn_preflight_ack", "payload": result},

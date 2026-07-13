@@ -16,6 +16,16 @@ from backend.core.api.app.services.chat_recovery_service import (
 logger = logging.getLogger(__name__)
 
 
+def legacy_completion_requires_persistence(task_result: Any) -> bool:
+    return (
+        isinstance(task_result, dict)
+        and task_result.get("_celery_task_state") == "SUCCESS"
+        and task_result.get("main_processing_output") is not None
+        and not task_result.get("interrupted_by_soft_time_limit", False)
+        and not task_result.get("interrupted_by_revocation", False)
+    )
+
+
 class CutoverBlockedError(RuntimeError):
     """Raised when protocol activation prerequisites are not satisfied."""
 
@@ -82,6 +92,24 @@ class ChatRecoveryCutoverController:
         await self._cache_state(result)
         return result
 
+    async def mark_legacy_inference_completed(
+        self, task_identity: str
+    ) -> dict[str, Any]:
+        result = await self.recovery_service.execute(
+            "mark_legacy_inference_completed",
+            {"protocol_version": 1, "task_identity": task_identity},
+        )
+        await self._cache_state(result)
+        return result
+
+    async def authorize_legacy_completion(
+        self, task_identity: str
+    ) -> dict[str, Any]:
+        return await self.recovery_service.execute(
+            "authorize_legacy_completion",
+            {"protocol_version": 1, "task_identity": task_identity},
+        )
+
     async def set_sends_paused(self, paused: bool) -> dict[str, Any]:
         result = await self.recovery_service.execute(
             "set_sends_paused", {"protocol_version": 1, "sends_paused": paused}
@@ -90,6 +118,9 @@ class ChatRecoveryCutoverController:
         return result
 
     async def activate_epoch_one(self, connection_manager: Any) -> None:
+        await self.recovery_service.execute(
+            "cleanup_expired", {"protocol_version": 1}
+        )
         state = await self.get_state(authoritative=True)
         if state["legacy_in_flight"] != 0:
             raise CutoverBlockedError(

@@ -77,6 +77,13 @@ def _payload() -> dict:
 async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatch) -> None:
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    telemetry = []
+    monkeypatch.setattr(chat_turn_preflight_handler, "start_recovery_timing", lambda: 1.0)
+    monkeypatch.setattr(
+        chat_turn_preflight_handler,
+        "record_recovery_duration",
+        lambda phase, started_at: telemetry.append((phase, started_at)),
+    )
     FakeRecoveryService.calls = []
     manager = FakeManager()
     payload = _payload()
@@ -103,6 +110,7 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     assert manager.messages[0][0]["type"] == "chat_turn_preflight_ack"
     assert manager.messages[0][0]["payload"]["preflight_id"] == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
     assert manager.messages[0][0]["payload"]["turn_id"] == payload["turn_id"]
+    assert telemetry == [("durable_preflight", 1.0)]
 
 
 @pytest.mark.asyncio
@@ -195,6 +203,13 @@ def test_preflight_derives_a_purpose_bound_commitment_key_from_internal_token(mo
 async def test_enqueue_uses_stable_identities_and_matching_commitment(monkeypatch) -> None:
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    telemetry = []
+    monkeypatch.setattr(chat_turn_preflight_handler, "start_recovery_timing", lambda: 2.0)
+    monkeypatch.setattr(
+        chat_turn_preflight_handler,
+        "record_recovery_duration",
+        lambda phase, started_at: telemetry.append((phase, started_at)),
+    )
     FakeRecoveryService.calls = []
     inference_request = _payload()["inference_request"]
 
@@ -220,3 +235,4 @@ async def test_enqueue_uses_stable_identities_and_matching_commitment(monkeypatc
     assert first_data == second_data
     assert first_data["inference_task_id"] != first_data["billing_identity"]
     assert first_data["billing_identity"] != first_data["outbox_id"]
+    assert telemetry == [("enqueue_inference", 2.0), ("enqueue_inference", 2.0)]

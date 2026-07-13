@@ -1438,6 +1438,16 @@ async def _async_persist_ai_response_to_directus(
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
 
+    async def acknowledge_legacy_persistence() -> None:
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        # AskSkill and the stream consumer make the assistant message_id the Celery
+        # task ID, so it is also the epoch-zero admission identity.
+        await ChatRecoveryService(directus_service).execute(
+            "acknowledge_legacy_persistence",
+            {"protocol_version": 1, "task_identity": message_id},
+        )
+
     try:
         # Validate that we have encrypted content (zero-knowledge requirement)
         if not message_data.get("encrypted_content"):
@@ -1461,20 +1471,23 @@ async def _async_persist_ai_response_to_directus(
         # This handles the case where multiple devices try to store the same AI response
         try:
             existing_message = await directus_service.chat.get_message_by_id(message_id)
-            if existing_message:
-                logger.info(
-                    f"AI response {message_id} already exists in Directus (multi-device scenario). "
-                    f"Skipping message creation. (task_id: {task_id})"
-                )
-                # Message already stored by another device - just update chat if needed
-                if versions:
-                    await _update_chat_versions_if_needed(
-                        directus_service, chat_id, versions, task_id
-                    )
-                return
         except Exception as check_error:
             # If check fails, continue with creation attempt (will fail gracefully if duplicate)
             logger.debug(f"Could not check for existing message {message_id}: {check_error}")
+            existing_message = None
+
+        if existing_message:
+            logger.info(
+                f"AI response {message_id} already exists in Directus (multi-device scenario). "
+                f"Skipping message creation. (task_id: {task_id})"
+            )
+            await acknowledge_legacy_persistence()
+            # Message already stored by another device - just update chat if needed
+            if versions:
+                await _update_chat_versions_if_needed(
+                    directus_service, chat_id, versions, task_id
+                )
+            return
 
         # CRITICAL FIX: Ensure message_data has 'id' field (not just 'message_id')
         # create_message_in_directus expects either 'id' or 'message_id', but we need 'id' for consistency
@@ -1520,7 +1533,8 @@ async def _async_persist_ai_response_to_directus(
                 f"✅ Successfully persisted CLIENT-ENCRYPTED AI response {message_id} "
                 f"to Directus for chat {chat_id} (task_id: {task_id})"
             )
-            
+            await acknowledge_legacy_persistence()
+
             # CRITICAL: Update sync cache with AI response (same as user messages)
             # This ensures the AI response is available for sync after logout/login
             try:
@@ -1578,9 +1592,8 @@ async def _async_persist_ai_response_to_directus(
                     directus_service, chat_id, versions, task_id
                 )
         else:
-            logger.error(
-                f"Failed to persist AI response {message_id} "
-                f"to Directus for chat {chat_id} (task_id: {task_id})"
+            raise RuntimeError(
+                "Directus did not confirm persistence of the AI response"
             )
 
     except Exception as e:
@@ -1591,6 +1604,7 @@ async def _async_persist_ai_response_to_directus(
                 f"AI response {message_id} already exists (multi-device race condition). "
                 f"This is expected. (task_id: {task_id})"
             )
+            await acknowledge_legacy_persistence()
             # Update chat versions if provided, even though message creation failed
             if versions:
                 try:
@@ -1715,7 +1729,7 @@ def persist_ai_response_to_directus(
             f"chat {message_data.get('chat_id')}, task_id: {task_id}: {e}",
             exc_info=True
         )
-        raise  # Re-raise to let Celery handle retries/failure
+        raise self.retry(exc=e, countdown=5, max_retries=5)
     finally:
         if loop:
             loop.close()

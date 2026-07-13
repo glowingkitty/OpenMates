@@ -5,6 +5,7 @@ The tests model Directus as the authority and Redis as a disposable snapshot;
 no content-bearing values cross this coordination boundary.
 """
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -12,6 +13,7 @@ import pytest
 from backend.core.api.app.services.chat_recovery_cutover import (
     ChatRecoveryCutoverController,
     CutoverBlockedError,
+    legacy_completion_requires_persistence,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 
@@ -34,11 +36,14 @@ class FakeRecoveryService:
         self.calls: list[tuple[str, dict[str, object]]] = []
         self.failure: Exception | None = None
         self.fail_operation: str | None = None
+        self.cleanup_legacy_in_flight: int | None = None
 
     async def execute(self, operation: str, data: dict[str, object]):
         self.calls.append((operation, data))
         if self.failure and (self.fail_operation is None or self.fail_operation == operation):
             raise self.failure
+        if operation == "cleanup_expired" and self.cleanup_legacy_in_flight is not None:
+            self.state["legacy_in_flight"] = self.cleanup_legacy_in_flight
         if operation == "get_cutover_state":
             return dict(self.state)
         if operation == "activate_protocol_epoch":
@@ -78,6 +83,97 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
+@pytest.mark.parametrize(
+    ("task_result", "expected"),
+    [
+        (
+            {
+                "_celery_task_state": "SUCCESS",
+                "main_processing_output": "completed",
+                "interrupted_by_soft_time_limit": False,
+                "interrupted_by_revocation": False,
+            },
+            True,
+        ),
+        (
+            {
+                "_celery_task_state": "SUCCESS",
+                "main_processing_output": "",
+                "interrupted_by_soft_time_limit": False,
+                "interrupted_by_revocation": False,
+            },
+            True,
+        ),
+        ({"_celery_task_state": "FAILURE", "main_processing_output": "partial"}, False),
+        (
+            {
+                "_celery_task_state": "SUCCESS",
+                "main_processing_output": "partial",
+                "interrupted_by_soft_time_limit": True,
+            },
+            False,
+        ),
+        (
+            {
+                "_celery_task_state": "SUCCESS",
+                "main_processing_output": "partial",
+                "interrupted_by_revocation": True,
+            },
+            False,
+        ),
+        ({"_celery_task_state": "SUCCESS"}, False),
+        ({"_celery_task_state": "SUCCESS", "main_processing_output": None}, False),
+    ],
+    ids=[
+        "successful-output",
+        "successful-empty-output",
+        "failure",
+        "soft-limit",
+        "revoked",
+        "missing-output",
+        "none-output",
+    ],
+)
+def test_legacy_completion_persistence_requirement(
+    task_result: object, expected: bool
+) -> None:
+    assert legacy_completion_requires_persistence(task_result) is expected
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("inference_completed", "expected_operation"),
+    [
+        (True, "mark_legacy_inference_completed"),
+        (False, "release_legacy_inference"),
+    ],
+)
+async def test_worker_finalizes_legacy_admission_by_output_classification(
+    monkeypatch, inference_completed: bool, expected_operation: str
+) -> None:
+    from backend.apps.ai.tasks import ask_skill_task
+
+    execute = AsyncMock(return_value={"accepted": True})
+    directus = SimpleNamespace(close=AsyncMock())
+    monkeypatch.setattr(ask_skill_task, "DirectusService", lambda: directus)
+    monkeypatch.setattr(
+        ask_skill_task,
+        "ChatRecoveryService",
+        lambda _directus: SimpleNamespace(execute=execute),
+    )
+
+    await ask_skill_task._finalize_legacy_cutover_admission(
+        SimpleNamespace(legacy_cutover_task_id="task-identity"),
+        inference_completed,
+    )
+
+    execute.assert_awaited_once_with(
+        expected_operation,
+        {"protocol_version": 1, "task_identity": "task-identity"},
+    )
+    directus.close.assert_awaited_once()
+
+
 @pytest.mark.anyio
 async def test_cache_loss_reads_durable_state_and_repopulates_snapshot() -> None:
     cache = FakeCache()
@@ -102,6 +198,39 @@ async def test_authoritative_read_failure_fails_closed() -> None:
 
 
 @pytest.mark.anyio
+async def test_mark_legacy_inference_completed_refreshes_cutover_cache() -> None:
+    cache = FakeCache({"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 1})
+    instance, service = controller(cache, {
+        "protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 1,
+    })
+
+    result = await instance.mark_legacy_inference_completed("task-identity")
+
+    assert result["protocol_epoch"] == 0
+    assert service.calls == [(
+        "mark_legacy_inference_completed",
+        {"protocol_version": 1, "task_identity": "task-identity"},
+    )]
+    assert cache.value == result
+
+
+@pytest.mark.anyio
+async def test_authorize_legacy_completion_does_not_pollute_cutover_cache() -> None:
+    cached_state = {"protocol_epoch": 1, "sends_paused": True, "legacy_in_flight": 0}
+    cache = FakeCache(cached_state)
+    instance, service = controller(cache, {"authorized": True, "status": "pending"})
+
+    result = await instance.authorize_legacy_completion("task-identity")
+
+    assert result == {"authorized": True, "status": "pending"}
+    assert service.calls == [(
+        "authorize_legacy_completion",
+        {"protocol_version": 1, "task_identity": "task-identity"},
+    )]
+    assert cache.value is cached_state
+
+
+@pytest.mark.anyio
 async def test_activation_refuses_nonzero_durable_legacy_count() -> None:
     instance, service = controller(FakeCache(), {
         "protocol_epoch": 0, "sends_paused": True, "legacy_in_flight": 2,
@@ -110,6 +239,26 @@ async def test_activation_refuses_nonzero_durable_legacy_count() -> None:
     with pytest.raises(CutoverBlockedError):
         await instance.activate_epoch_one(FakeConnectionManager([]))
     assert all(call[0] != "activate_protocol_epoch" for call in service.calls)
+
+
+@pytest.mark.anyio
+async def test_activation_cleans_expired_legacy_state_before_authoritative_precheck() -> None:
+    events: list[object] = []
+    instance, service = controller(FakeCache(), {
+        "protocol_epoch": 0, "sends_paused": True, "legacy_in_flight": 1,
+    })
+    service.cleanup_legacy_in_flight = 0
+
+    await instance.activate_epoch_one(FakeConnectionManager(events))
+
+    assert [operation for operation, _data in service.calls] == [
+        "cleanup_expired",
+        "get_cutover_state",
+        "activate_protocol_epoch",
+    ]
+    assert service.calls[0][1] == {"protocol_version": 1}
+    assert events[-1] == ("close", 1012, "Client update required")
+    assert service.state["protocol_epoch"] == 1
 
 
 @pytest.mark.anyio

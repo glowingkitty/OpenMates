@@ -23,14 +23,17 @@ class RecordingManager:
 class RecordingRecoveryService:
     calls: list[tuple[str, dict]] = []
     failure: Exception | None = None
+    failure_operation: str | None = None
 
     def __init__(self, _directus_service) -> None:
         pass
 
     async def execute(self, operation: str, data: dict) -> dict:
         self.calls.append((operation, data))
-        if self.failure:
+        if self.failure and operation == self.failure_operation:
             raise self.failure
+        if operation == "get_cutover_state":
+            return {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}
         return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED"}
 
 
@@ -63,6 +66,7 @@ async def test_preflight_ack_is_emitted_only_after_durable_commit(monkeypatch) -
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", RecordingRecoveryService)
     RecordingRecoveryService.calls = []
     RecordingRecoveryService.failure = ChatRecoveryProtocolError(409, "version_conflict")
+    RecordingRecoveryService.failure_operation = "prepare_preflight"
     manager = RecordingManager()
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
@@ -80,6 +84,10 @@ async def test_preflight_ack_is_emitted_only_after_durable_commit(monkeypatch) -
         "message": "Encrypted chat preflight was rejected.",
         "turn_id": "22222222-2222-4222-8222-222222222222",
     }
+    assert [operation for operation, _data in RecordingRecoveryService.calls] == [
+        "get_cutover_state",
+        "prepare_preflight",
+    ]
 
 
 @pytest.mark.asyncio
@@ -88,6 +96,7 @@ async def test_preflight_persists_canonical_server_identity_without_plaintext(mo
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", RecordingRecoveryService)
     RecordingRecoveryService.calls = []
     RecordingRecoveryService.failure = None
+    RecordingRecoveryService.failure_operation = None
     manager = RecordingManager()
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
@@ -99,7 +108,7 @@ async def test_preflight_persists_canonical_server_identity_without_plaintext(mo
         payload=preflight_payload(),
     )
 
-    operation, data = RecordingRecoveryService.calls[0]
+    operation, data = RecordingRecoveryService.calls[1]
     assert operation == "prepare_preflight"
     assert data["hashed_user_id"] == "owner-hash"
     assert data["encrypted_user_message"]["hashed_user_id"] == "owner-hash"
@@ -113,11 +122,12 @@ async def test_preflight_persists_canonical_server_identity_without_plaintext(mo
 
 
 @pytest.mark.asyncio
-async def test_lost_enqueue_ack_reuses_task_billing_and_outbox_identity(monkeypatch) -> None:
+async def test_enqueue_retries_reuse_task_billing_and_outbox_identity(monkeypatch) -> None:
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", RecordingRecoveryService)
     RecordingRecoveryService.calls = []
     RecordingRecoveryService.failure = None
+    RecordingRecoveryService.failure_operation = None
     kwargs = {
         "directus_service": object(),
         "user_id_hash": "owner-hash",

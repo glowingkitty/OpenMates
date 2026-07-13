@@ -35,7 +35,12 @@ class FakeDirectus:
         return self.response
 
 
-@pytest.mark.asyncio
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+@pytest.mark.anyio
 async def test_execute_posts_internal_operation_and_returns_committed_data(monkeypatch) -> None:
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-internal-token")
     directus = FakeDirectus(FakeResponse(200, {"data": {"state": "PREPARED"}}))
@@ -57,7 +62,34 @@ async def test_execute_posts_internal_operation_and_returns_committed_data(monke
     ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "mark_legacy_inference_completed",
+        "acknowledge_legacy_persistence",
+        "authorize_legacy_completion",
+    ],
+)
+async def test_execute_allows_bounded_legacy_completion_operations(
+    monkeypatch, operation: str
+) -> None:
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    directus = FakeDirectus(FakeResponse(200, {"data": {"accepted": True}}))
+
+    result = await ChatRecoveryService(directus).execute(
+        operation,
+        {"protocol_version": 1, "task_identity": "task-identity"},
+    )
+
+    assert result == {"accepted": True}
+    assert directus.calls[0]["json"] == {
+        "operation": operation,
+        "data": {"protocol_version": 1, "task_identity": "task-identity"},
+    }
+
+
+@pytest.mark.anyio
 async def test_execute_fails_closed_without_internal_token(monkeypatch) -> None:
     monkeypatch.delenv("INTERNAL_API_SHARED_TOKEN", raising=False)
     directus = FakeDirectus(FakeResponse(200, {"data": {}}))
@@ -68,7 +100,7 @@ async def test_execute_fails_closed_without_internal_token(monkeypatch) -> None:
     assert directus.calls == []
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_execute_raises_typed_sanitized_protocol_error(monkeypatch) -> None:
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-internal-token")
     directus = FakeDirectus(FakeResponse(409, {"error": {"code": "preflight_mismatch"}}))
@@ -84,7 +116,7 @@ async def test_execute_raises_typed_sanitized_protocol_error(monkeypatch) -> Non
     assert "private-ciphertext" not in str(raised.value)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_execute_rejects_malformed_success_response(monkeypatch) -> None:
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-internal-token")
     directus = FakeDirectus(FakeResponse(200, {"unexpected": True}))

@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import importlib
+import inspect
 import re
 import sys
 import types
@@ -405,6 +406,8 @@ def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypa
     monkeypatch.setattr(apps_api, "call_app_skill", fake_call_app_skill)
     monkeypatch.setattr(apps_api, "require_api_key_budget_for_charge", fake_require_api_key_budget_for_charge)
     apps_api._register_models3d_custom_routes(app, "models3d")
+    route = next(route for route in app.routes if route.path == "/v1/apps/models3d/skills/generate")
+    assert "request" in inspect.signature(route.endpoint).parameters
 
     response = TestClient(app).post(
         "/v1/apps/models3d/skills/generate",

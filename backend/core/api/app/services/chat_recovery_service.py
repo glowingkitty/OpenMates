@@ -33,6 +33,9 @@ RECOVERY_OPERATIONS = {
     "set_sends_paused",
     "admit_legacy_inference",
     "release_legacy_inference",
+    "mark_legacy_inference_completed",
+    "acknowledge_legacy_persistence",
+    "authorize_legacy_completion",
     "activate_protocol_epoch",
 }
 

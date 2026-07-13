@@ -25,3 +25,7 @@ chat_recovery_protocol_state:
       type: json
       required: true
       note: "Opaque stable task identities used for idempotent admission release"
+    legacy_task_lifecycle:
+      type: json
+      nullable: true
+      note: "Metadata-only bounded completion lifecycle for opaque legacy task identities"
