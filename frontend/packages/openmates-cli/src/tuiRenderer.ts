@@ -9,9 +9,10 @@
  */
 
 import type { ExampleChatConversation, ExampleChatListItem } from "./exampleChats.js";
+import type { WorkflowRunDetail, WorkflowSummary } from "./client.js";
 import { openMatesAsciiLogo } from "./branding.js";
 
-export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chat" | "embed" | "status";
+export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chat" | "embed" | "workflows" | "workflow" | "status";
 
 export type TuiMessage = {
   role: "user" | "assistant" | "system";
@@ -27,6 +28,9 @@ export type TuiState = {
   selectedInterests: string[];
   examples: ExampleChatListItem[];
   activeExample: ExampleChatConversation | null;
+  workflows: WorkflowSummary[];
+  activeWorkflow: WorkflowSummary | null;
+  workflowRuns: WorkflowRunDetail[];
   messages: TuiMessage[];
   status: string | null;
   isBusy: boolean;
@@ -59,6 +63,9 @@ export function createInitialTuiState(): TuiState {
     selectedInterests: [],
     examples: [],
     activeExample: null,
+    workflows: [],
+    activeWorkflow: null,
+    workflowRuns: [],
     messages: [],
     status: null,
     isBusy: false,
@@ -93,6 +100,7 @@ Files:
 
 More:
   openmates apps list
+  openmates workflows list
   openmates mentions list
   openmates embeds show <embed-id>
   openmates help
@@ -125,7 +133,7 @@ export function renderTuiFrame(state: TuiState, width: number, height: number): 
   const contentHeight = safeHeight - 4;
   const body = renderBody(state, innerWidth);
   const visible = sliceForScroll(body, contentHeight, state.scrollOffset, state.screen === "chat");
-  const inputLine = state.screen === "interests" || state.screen === "examples"
+  const inputLine = state.screen === "interests" || state.screen === "examples" || state.screen === "workflows" || state.screen === "workflow"
     ? renderHintLine(state, innerWidth)
     : `> ${state.input || inputPlaceholder(state)}`;
   const lines = [
@@ -154,6 +162,10 @@ function renderBody(state: TuiState, width: number): string[] {
       return renderStatus(state, width);
     case "embed":
       return renderStatus(state, width);
+    case "workflows":
+      return renderWorkflows(state, width);
+    case "workflow":
+      return renderWorkflowDetail(state, width);
     case "start":
     default:
       return renderStart(width);
@@ -197,6 +209,8 @@ function renderHelp(width: number): string[] {
     "",
     "Commands",
     "  /examples          Choose example chats",
+    "  /workflows         List and run saved workflows",
+    "  /workflow <id>     Open a workflow by ID",
     "  /login             Pair-auth login",
     "  /signup            Leave TUI and run guided signup",
     "  /embed <id>        Open an embed detail view",
@@ -204,6 +218,57 @@ function renderHelp(width: number): string[] {
     "",
     "Outside TUI: openmates --help, openmates chats --help, openmates apps --help",
   ].flatMap((line) => wrap(line, width));
+}
+
+function renderWorkflows(state: TuiState, width: number): string[] {
+  const lines = ["Workflows", ""];
+  if (state.workflows.length === 0) {
+    lines.push("No workflows found.", "Create one outside TUI with: openmates workflows create --file workflow.yml");
+    return lines.flatMap((line) => wrap(line, width));
+  }
+  const visibleCount = Math.max(1, CONTENT_PREVIEW_LINES);
+  const start = Math.max(0, Math.min(state.selectedIndex, state.workflows.length - visibleCount));
+  for (let i = 0; i < state.workflows.slice(start, start + visibleCount).length; i += 1) {
+    const absoluteIndex = start + i;
+    const workflow = state.workflows[absoluteIndex];
+    const cursor = absoluteIndex === state.selectedIndex ? ">" : " ";
+    const status = workflow.enabled ? "enabled" : "disabled";
+    const lastRun = workflow.last_run_status ? ` last: ${workflow.last_run_status}` : "";
+    lines.push(`${cursor} ${workflow.title} (${status})${lastRun}`);
+    lines.push(`    ${workflow.id}`);
+    if (workflow.trigger_summary) lines.push(`    ${workflow.trigger_summary}`);
+    lines.push("");
+  }
+  return lines.flatMap((line) => wrap(line, width));
+}
+
+function renderWorkflowDetail(state: TuiState, width: number): string[] {
+  const workflow = state.activeWorkflow;
+  if (!workflow) return renderWorkflows(state, width);
+  const lines = [
+    `Workflow: ${workflow.title}`,
+    `ID: ${workflow.id}`,
+    `Status: ${workflow.enabled ? "enabled" : "disabled"}`,
+    workflow.trigger_summary ? `Trigger: ${workflow.trigger_summary}` : null,
+    workflow.next_run_at ? `Next run: ${formatTimestamp(workflow.next_run_at)}` : null,
+    workflow.last_run_status ? `Last run: ${workflow.last_run_status}` : null,
+    "",
+    "Recent runs",
+  ].filter((line): line is string => line !== null);
+  if (state.workflowRuns.length === 0) {
+    lines.push("No runs yet.");
+  }
+  for (const run of state.workflowRuns.slice(0, 6)) {
+    lines.push(`- ${run.id}  ${run.status}  ${formatTimestamp(run.started_at)}`);
+    if (run.error_summary) lines.push(`  error: ${run.error_summary}`);
+    for (const nodeRun of (run.node_runs ?? []).slice(0, 4)) {
+      const output = nodeRun.output_summary ? ` output: ${summarizeObject(nodeRun.output_summary)}` : "";
+      const error = nodeRun.error_summary ? ` error: ${nodeRun.error_summary}` : "";
+      lines.push(`  ${nodeRun.node_id}: ${nodeRun.status}${output}${error}`);
+    }
+  }
+  if (state.status) lines.push("", state.status);
+  return lines.flatMap((line) => wrap(line, width));
 }
 
 function renderInterests(state: TuiState, width: number): string[] {
@@ -307,13 +372,26 @@ export function renderMessageContent(content: string, width: number): string[] {
 
 function renderHintLine(state: TuiState, width: number): string {
   if (state.screen === "interests") return truncateVisible("↑/↓ move   Space select   Enter continue   Esc back", width);
+  if (state.screen === "workflows") return truncateVisible("↑/↓ choose   Enter open   Esc back", width);
+  if (state.screen === "workflow") return truncateVisible("r run   u refresh runs   c cancel latest   Esc back", width);
   return truncateVisible("↑/↓ choose   Enter open   /search filter   Esc back", width);
 }
 
 function inputPlaceholder(state: TuiState): string {
   if (state.screen === "example") return "Continue from this example, or ask your own question...";
   if (state.screen === "chat") return "Ask a follow-up, use @file, or type /help";
+  if (state.screen === "workflow" || state.screen === "workflows") return "Use shortcuts below, or type /help";
   return "Ask anything...";
+}
+
+function formatTimestamp(value?: number | null): string {
+  if (!value) return "-";
+  return new Date(value * 1000).toISOString().replace("T", " ").slice(0, 16);
+}
+
+function summarizeObject(value: Record<string, unknown>): string {
+  const entries = Object.entries(value).slice(0, 3).map(([key, item]) => `${key}=${String(item)}`);
+  return entries.join(", ") || "object";
 }
 
 function interestScore(haystack: string, interest: string): number {

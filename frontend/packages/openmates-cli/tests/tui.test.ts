@@ -28,6 +28,7 @@ describe("CLI TUI defaults", () => {
     assert.match(output, /openmates chats new "Explain SQLite strict tables"/);
     assert.match(output, /openmates chats new "Review @\.\/src\/app\.ts"/);
     assert.match(output, /openmates embeds show <embed-id>/);
+    assert.match(output, /openmates workflows list/);
     assert.match(output, /openmates --help/);
   });
 });
@@ -152,5 +153,66 @@ describe("CLI TUI renderer", () => {
     const frame = renderTuiFrame(state, 80, 24);
 
     assert.match(frame, /> 16\. Example 15/);
+  });
+
+  it("renders workflow list and workflow run output summaries", () => {
+    const state = createInitialTuiState();
+    state.screen = "workflows";
+    state.workflows = [
+      {
+        id: "wf-rain",
+        title: "Daily rain check",
+        status: "active",
+        enabled: true,
+        trigger_summary: "Manual",
+        last_run_status: "completed",
+        run_content_retention: "last_5",
+        current_version_id: "v1",
+        created_at: 1,
+        updated_at: 2,
+      },
+    ];
+
+    const listFrame = renderTuiFrame(state, 96, 24);
+
+    assert.match(listFrame, /Workflows/);
+    assert.match(listFrame, /> Daily rain check \(enabled\) last: completed/);
+    assert.match(listFrame, /wf-rain/);
+    assert.match(listFrame, /Enter open/);
+
+    state.screen = "workflow";
+    state.activeWorkflow = state.workflows[0] ?? null;
+    state.workflowRuns = [
+      {
+        id: "run-1",
+        workflow_id: "wf-rain",
+        version_id: "v1",
+        trigger_type: "manual",
+        status: "completed",
+        started_at: 10,
+        content_retention_mode: "last_5",
+        content_available: true,
+        content_storage: "durable",
+        node_runs: [
+          {
+            id: "node-run-1",
+            run_id: "run-1",
+            workflow_id: "wf-rain",
+            node_id: "forecast",
+            node_type: "app_skill",
+            status: "completed",
+            output_summary: { provider: "DWD", rainy: "false" },
+          },
+        ],
+      },
+    ];
+
+    const detailFrame = renderTuiFrame(state, 100, 28);
+
+    assert.match(detailFrame, /Workflow: Daily rain check/);
+    assert.match(detailFrame, /Recent runs/);
+    assert.match(detailFrame, /run-1 {2}completed/);
+    assert.match(detailFrame, /forecast: completed output: provider=DWD, rainy=false/);
+    assert.match(detailFrame, /r run {3}u refresh runs {3}c cancel latest/);
   });
 });

@@ -12,7 +12,7 @@
 import { createInterface } from "node:readline/promises";
 import { stdin as nodeStdin, stdout as nodeStdout } from "node:process";
 
-import type { OpenMatesClient } from "./client.js";
+import type { OpenMatesClient, WorkflowSummary } from "./client.js";
 import type { StreamEvent } from "./ws.js";
 import { getExampleChatConversation, listExampleChats } from "./exampleChats.js";
 import { buildExampleContinuationHistory } from "./tuiExampleContinuation.js";
@@ -88,10 +88,24 @@ async function handleKey(params: {
     return;
   }
   if (key.name === "escape") {
-    state.screen = "start";
+    state.screen = state.screen === "workflow" ? "workflows" : "start";
     state.input = "";
     render();
     return;
+  }
+  if (state.screen === "workflow" && !state.input && !key.ctrl && !key.meta) {
+    if (chunk === "r") {
+      await runActiveWorkflow({ state, client, render });
+      return;
+    }
+    if (chunk === "u") {
+      await refreshActiveWorkflowRuns({ state, client, render });
+      return;
+    }
+    if (chunk === "c") {
+      await cancelLatestWorkflowRun({ state, client, render });
+      return;
+    }
   }
   if (key.name === "up") {
     moveSelectionOrScroll(state, -1);
@@ -137,6 +151,9 @@ async function handleKey(params: {
     await handleEnter({ state, client, terminal, render, finish });
     return;
   }
+  if (state.screen === "workflow" || state.screen === "workflows") {
+    return;
+  }
   if (!key.ctrl && !key.meta && chunk && chunk >= " ") {
     state.input += chunk;
     render();
@@ -159,6 +176,12 @@ async function handleEnter(params: {
   if (state.screen === "examples") {
     const selected = state.examples[state.selectedIndex];
     if (selected) openExample(state, selected.slug);
+    render();
+    return;
+  }
+  if (state.screen === "workflows") {
+    const selected = state.workflows[state.selectedIndex];
+    if (selected) await openWorkflowDetail({ state, client, workflow: selected, render });
     render();
     return;
   }
@@ -195,6 +218,18 @@ async function handleCommand(params: {
   if (name === "/examples") {
     state.screen = state.selectedInterests.length > 0 ? "examples" : "interests";
     render();
+    return;
+  }
+  if (name === "/workflows") {
+    await openWorkflowList({ state, client, render });
+    return;
+  }
+  if (name === "/workflow") {
+    if (!arg) {
+      await openWorkflowList({ state, client, render });
+      return;
+    }
+    await openWorkflowById({ state, client, workflowId: arg, render });
     return;
   }
   if (name === "/signup") {
@@ -312,7 +347,147 @@ function moveSelectionOrScroll(state: TuiState, direction: number): void {
     state.selectedIndex = clamp(state.selectedIndex + direction, 0, Math.max(0, state.examples.length - 1));
     return;
   }
+  if (state.screen === "workflows") {
+    state.selectedIndex = clamp(state.selectedIndex + direction, 0, Math.max(0, state.workflows.length - 1));
+    return;
+  }
   state.scrollOffset = Math.max(0, state.scrollOffset - direction);
+}
+
+async function openWorkflowList(params: {
+  state: TuiState;
+  client: OpenMatesClient;
+  render: () => void;
+}): Promise<void> {
+  const { state, client, render } = params;
+  state.screen = "status";
+  state.status = "Loading workflows...";
+  render();
+  try {
+    state.workflows = await client.listWorkflows();
+    state.selectedIndex = 0;
+    state.scrollOffset = 0;
+    state.status = null;
+    state.screen = "workflows";
+  } catch (error) {
+    state.status = workflowError(error, "Could not load workflows. Use /login first if you are not signed in.");
+    state.screen = "status";
+  }
+  render();
+}
+
+async function openWorkflowById(params: {
+  state: TuiState;
+  client: OpenMatesClient;
+  workflowId: string;
+  render: () => void;
+}): Promise<void> {
+  const { state, client, workflowId, render } = params;
+  state.screen = "status";
+  state.status = `Loading workflow ${workflowId}...`;
+  render();
+  try {
+    const workflow = await client.getWorkflow(workflowId);
+    await openWorkflowDetail({ state, client, workflow, render });
+  } catch (error) {
+    state.status = workflowError(error, `Could not load workflow ${workflowId}.`);
+    state.screen = "status";
+    render();
+  }
+}
+
+async function openWorkflowDetail(params: {
+  state: TuiState;
+  client: OpenMatesClient;
+  workflow: WorkflowSummary;
+  render: () => void;
+}): Promise<void> {
+  const { state, client, workflow, render } = params;
+  state.activeWorkflow = workflow;
+  state.workflowRuns = [];
+  state.screen = "workflow";
+  state.scrollOffset = 0;
+  render();
+  await refreshActiveWorkflowRuns({ state, client, render });
+}
+
+async function refreshActiveWorkflowRuns(params: {
+  state: TuiState;
+  client: OpenMatesClient;
+  render: () => void;
+}): Promise<void> {
+  const { state, client, render } = params;
+  const workflow = state.activeWorkflow;
+  if (!workflow) return;
+  state.status = "Refreshing workflow runs...";
+  render();
+  try {
+    state.workflowRuns = await client.listWorkflowRuns(workflow.id);
+    state.status = null;
+    state.screen = "workflow";
+  } catch (error) {
+    state.status = workflowError(error, "Could not refresh workflow runs.");
+  }
+  render();
+}
+
+async function runActiveWorkflow(params: {
+  state: TuiState;
+  client: OpenMatesClient;
+  render: () => void;
+}): Promise<void> {
+  const { state, client, render } = params;
+  const workflow = state.activeWorkflow;
+  if (!workflow) return;
+  if (!workflow.enabled) {
+    state.status = "Enable this workflow outside TUI before running it.";
+    render();
+    return;
+  }
+  state.status = "Starting workflow run...";
+  render();
+  try {
+    const run = await client.runWorkflow(workflow.id, {
+      idempotencyKey: `tui-${workflow.id}-${Date.now()}`,
+      mode: "manual",
+      input: {},
+    });
+    state.workflowRuns = [run, ...state.workflowRuns.filter((candidate) => candidate.id !== run.id)];
+    state.status = `Started run ${run.id}. Press u to refresh.`;
+  } catch (error) {
+    state.status = workflowError(error, "Could not start workflow run.");
+  }
+  render();
+}
+
+async function cancelLatestWorkflowRun(params: {
+  state: TuiState;
+  client: OpenMatesClient;
+  render: () => void;
+}): Promise<void> {
+  const { state, client, render } = params;
+  const workflow = state.activeWorkflow;
+  const run = state.workflowRuns.find((candidate) => ["queued", "running", "waiting"].includes(candidate.status));
+  if (!workflow || !run) {
+    state.status = "No active workflow run to cancel.";
+    render();
+    return;
+  }
+  state.status = `Cancelling run ${run.id}...`;
+  render();
+  try {
+    const result = await client.cancelWorkflowRun(workflow.id, run.id);
+    state.status = `Run ${result.run_id} ${result.status}.`;
+    await refreshActiveWorkflowRuns({ state, client, render });
+  } catch (error) {
+    state.status = workflowError(error, "Could not cancel workflow run.");
+    render();
+  }
+}
+
+function workflowError(error: unknown, fallback: string): string {
+  const details = error instanceof Error ? error.message : String(error);
+  return `${fallback} ${details}`;
 }
 
 function toggleInterest(state: TuiState): void {

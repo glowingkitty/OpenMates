@@ -1,0 +1,577 @@
+schema_version: 2
+id: workflows-sdk-runtime
+title: Workflows SDK Runtime
+status: draft
+
+parent_spec: docs/specs/workflows-cli-runtime/spec.yml
+
+goal: >
+  Let developers manage OpenMates Workflows from npm and pip with parity to the
+  verified CLI Workflow runtime: validate YAML, create and modify workflows,
+  enable or disable them, run them, inspect per-step run outputs, cancel runs,
+  and resume runs waiting for user input through API-key SDK clients.
+
+scope:
+  in:
+    - npm SDK Workflow methods for YAML validation, YAML create, YAML update, graph create/update, enable, disable, delete, run, run history, run detail, run cancel, and waiting-run response.
+    - pip SDK Workflow methods with idiomatic snake_case equivalents for the same lifecycle.
+    - SDK examples showing YAML and graph workflows, polling, output inspection, modification, rerun, cancellation, and ask_for_user_input response.
+    - API-key authentication and approved SDK-device behavior through existing Workflow API routes.
+    - Deterministic parity audit coverage so future Workflow CLI subcommands cannot drift from npm/pip SDKs.
+    - Unit/contract tests proving npm and pip call the existing Workflow routes with the same payload semantics as the CLI.
+  out:
+    - New backend Workflow routes; this phase uses the existing /v1/workflows routes.
+    - Web Workflow editor changes.
+    - Apple Workflow UI parity.
+    - Natural-language workflow authoring.
+    - Workflow template sharing/import changes beyond existing SDK methods.
+    - Connected-account app skills such as Mail or Calendar.
+    - Browser-only SDK-device approval UI.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP failed with 401 Bad credentials; gh issue list search for `workflow SDK YAML parity` returned no matching issues."
+  docs:
+    - docs/specs/workflows-cli-runtime/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/specs/sdk-packages-v1/spec.yml
+    - docs/user-guide/developers/sdk.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+  code_patterns:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - packages/openmates-python/openmates/sdk.py
+    - backend/core/api/app/routes/workflows.py
+    - backend/core/api/app/services/workflow_yaml_compiler.py
+    - scripts/audit_sdk_cli_parity.py
+  tests:
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - packages/openmates-python/tests/test_workflows.py
+    - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+    - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This spec changes npm and pip SDK facades plus docs/tests, not Apple UI.
+    - Existing backend Workflow routes and Apple session behavior are not changed.
+  verification:
+    - Apple not affected unless implementation unexpectedly changes shared backend Workflow runtime behavior.
+  intentional_native_differences:
+    - Apple remains a native app client, not an API-key SDK client.
+
+clarification:
+  rounds:
+    - question: Should Workflow SDK parity include only YAML authoring or also runtime management?
+      answer: The SDK must also be able to run or modify workflows and see run outputs.
+    - question: Are the proposed npm and pip examples for validate, create, update, run, output inspection, polling, and ask_for_user_input response acceptable?
+      answer: Ok sounds good.
+  vision_summary: >
+    Developers should be able to automate the complete Workflow lifecycle from
+    code. YAML is the ergonomic authoring path, graph APIs remain available for
+    structured callers, and run detail must expose step outputs so SDK users can
+    build automation around completed or waiting Workflow runs.
+  approved_by_user: false
+
+implementation_state:
+  subject_commit: 5cf1a5ae9f80e919fbfe899e2c531ce53e643c3a
+
+approvals:
+  product_contract:
+    status: pending
+    approved_at: ""
+    reason: "Draft spec written from the user's approved SDK examples; final spec approval is still required before implementation."
+  implementation_plan:
+    status: pending
+    approved_at: ""
+    reason: "Plan is included as the smallest known route but implementation waits for product-contract approval."
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Add YAML authoring as SDK facade methods instead of asking SDK users to compile YAML locally.
+    reason: backend/core/api/app/routes/workflows.py already makes the server the authoritative compiler for /v1/workflows/validate and /v1/workflows/yaml.
+    decided_at: "2026-07-13T22:15:00Z"
+  - id: D-2
+    status: active
+    decision: Keep graph create/update methods and add YAML methods alongside them.
+    reason: Existing SDK tests and sdk-cli-parity-v1 already cover graph-level Workflow APIs; YAML is the missing CLI authoring parity surface.
+    decided_at: "2026-07-13T22:15:00Z"
+  - id: D-3
+    status: active
+    decision: Expose waiting-run response through SDK methods.
+    reason: ask_for_user_input is part of the verified CLI Workflow runtime and programmatic clients need a way to resume waiting runs.
+    decided_at: "2026-07-13T22:15:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Scope SDK parity to YAML validate/create/update only.
+    outcome: rejected
+    recorded_at: "2026-07-13T22:10:00Z"
+    reason: The user clarified the SDK must also run, modify, and inspect Workflow run outputs.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Draft a focused child spec for npm/pip Workflow SDK parity using existing backend routes.
+    outcome: planned
+    recorded_at: "2026-07-13T22:15:00Z"
+
+handoff:
+  current_task_id: TASK-1
+  next_action: "Ask the user to approve the Workflow SDK runtime product contract, then implement npm/pip SDK facade methods and parity tests."
+  command: "python3 scripts/spec_validate.py docs/specs/workflows-sdk-runtime/spec.yml"
+  expected_outcome: "The draft spec validates structurally before implementation starts."
+  blocker:
+    task_id: TASK-1
+    requires_user_input: true
+    reason: "Full spec product-contract approval is required before implementation."
+    question: "Approve docs/specs/workflows-sdk-runtime/spec.yml for implementation?"
+    next_action: "If approved, mark the product contract approved and implement TASK-2 through TASK-5."
+  last_verified_commit: 5cf1a5ae9f80e919fbfe899e2c531ce53e643c3a
+
+scenarios:
+  - id: S-1
+    title: Developer validates and creates a Workflow from YAML
+    given:
+      - Alice has an approved SDK API key.
+      - The SDK caller has a YAML Workflow with a manual trigger, weather forecast step, and notification step.
+    when:
+      - The caller validates the YAML and creates the Workflow through npm or pip.
+    then:
+      - The SDK posts the YAML source to the authoritative server validation endpoint.
+      - Invalid drafts return diagnostics without persistence.
+      - Valid drafts create a disabled Workflow with validation metadata.
+      - npm uses validateYaml and createFromYaml.
+      - pip uses validate_yaml and create_from_yaml.
+
+  - id: S-2
+    title: Developer modifies an existing Workflow
+    given:
+      - Alice has an existing Workflow created through YAML or graph SDK APIs.
+    when:
+      - The caller changes the YAML source or graph and updates the Workflow.
+    then:
+      - YAML updates call the server YAML update route and return workflow plus validation.
+      - Graph updates keep existing SDK update semantics.
+      - Updating an enabled Workflow with incomplete YAML returns the server's enable-readiness conflict.
+
+  - id: S-3
+    title: Developer runs a Workflow and reads step outputs
+    given:
+      - Alice has an enabled Workflow with run_content_retention that preserves outputs.
+    when:
+      - The caller runs the Workflow with a stable idempotency key and polls run detail.
+    then:
+      - The SDK sends the same mode, input, and Idempotency-Key contract as the CLI.
+      - The caller can list runs and inspect a single run.
+      - Run detail exposes node_runs including node id, status, output, error, and credits when retained by the server.
+
+  - id: S-4
+    title: Developer cancels or resumes a waiting Workflow run
+    given:
+      - A Workflow run is waiting at an ask_for_user_input step.
+    when:
+      - The caller either cancels the run or responds to the waiting step through npm or pip.
+    then:
+      - Cancellation calls the existing run cancel route and returns cancellation_requested or cancelled.
+      - Response calls the existing run response route with step id and input.
+      - The run can complete after the SDK response is accepted.
+
+  - id: S-5
+    title: SDK parity stays aligned with CLI Workflow commands
+    given:
+      - The CLI exposes Workflow lifecycle and YAML commands.
+    when:
+      - The parity audit runs.
+    then:
+      - YAML validate/create/update, lifecycle, run, output inspection, cancellation, and response commands map to npm and pip SDK methods.
+      - Missing mappings fail the deterministic audit.
+      - Public SDK docs include examples for complete Workflow lifecycle automation.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: npm and pip SDKs expose YAML validation and create methods that call /v1/workflows/validate and /v1/workflows/yaml.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NPM-001, T-PIP-001, T-AUDIT-001]
+  - id: AC-2
+    scenario: S-2
+    text: npm and pip SDKs expose YAML update methods that call /v1/workflows/{workflow_id}/yaml and preserve existing graph update methods.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NPM-001, T-PIP-001, T-AUDIT-001]
+  - id: AC-3
+    scenario: S-3
+    text: npm and pip SDKs can enable, run, list runs, inspect run detail, and read retained per-step outputs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NPM-001, T-PIP-001]
+  - id: AC-4
+    scenario: S-4
+    text: npm and pip SDKs can cancel a run and respond to a waiting ask_for_user_input step.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NPM-001, T-PIP-001, T-AUDIT-001]
+  - id: AC-5
+    scenario: S-5
+    text: The deterministic SDK/CLI parity audit covers the new Workflow SDK mappings.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-AUDIT-001]
+  - id: AC-6
+    scenario: S-5
+    text: Public SDK docs show complete npm and pip Workflow lifecycle examples including YAML authoring, modification, run polling, output inspection, and waiting-run response.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DOCS-001]
+
+assumptions:
+  - id: A-1
+    text: Existing Workflow routes accept API-key auth through get_current_user_or_api_key.
+    category: auth
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/workflows.py
+        summary: list/create/validate/yaml/update/run routes depend on get_current_user_or_api_key.
+  - id: A-2
+    text: Existing SDK Workflow run detail returns node_runs with retained outputs when content retention allows it.
+    category: runtime
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/src/sdk.ts
+        summary: runDetail already returns WorkflowRunDetail from /v1/workflows/{workflow_id}/runs/{run_id}.
+      - source: docs/specs/workflows-cli-runtime/spec.yml
+        summary: real CLI evidence inspected run and node output for weather, search, input, control, and event Workflow runs.
+
+contracts:
+  api:
+    - route: POST /v1/workflows/validate
+      request: "{ source: string }"
+      response: "{ validation: { draft_valid: boolean, enable_ready: boolean, diagnostics: array } }"
+      sdk_methods: [workflows.validateYaml, workflows.validate_yaml]
+    - route: POST /v1/workflows/yaml
+      request: "{ source: string }"
+      response: "{ workflow: WorkflowDetail, validation: WorkflowYamlValidation }"
+      sdk_methods: [workflows.createFromYaml, workflows.create_from_yaml]
+    - route: POST /v1/workflows/{workflow_id}/yaml
+      request: "{ source: string }"
+      response: "{ workflow: WorkflowDetail, validation: WorkflowYamlValidation }"
+      sdk_methods: [workflows.updateFromYaml, workflows.update_from_yaml]
+    - route: POST /v1/workflows/{workflow_id}/run
+      request: "{ mode: manual|test, input: object } plus Idempotency-Key header"
+      response: "{ run: WorkflowRunDetail }"
+      sdk_methods: [workflows.run]
+    - route: GET /v1/workflows/{workflow_id}/runs/{run_id}
+      response: "{ run: WorkflowRunDetail with node_runs when retained }"
+      sdk_methods: [workflows.runDetail, workflows.run_detail]
+    - route: POST /v1/workflows/{workflow_id}/runs/{run_id}/cancel
+      response: "{ run_id: string, status: cancellation_requested|cancelled }"
+      sdk_methods: [workflows.cancelRun, workflows.cancel_run]
+    - route: POST /v1/workflows/{workflow_id}/runs/{run_id}/respond
+      request: "{ step_id: string, input: object }"
+      response: "{ run: WorkflowRunDetail } or server response from existing route"
+      sdk_methods: [workflows.respond, workflows.respond]
+  data:
+    - SDK methods pass opaque WorkflowDetail and WorkflowRunDetail objects through without client-side schema rewriting.
+    - YAML source is not persisted locally by the SDK unless caller stores it.
+  privacy_security:
+    - SDK methods use API keys and approved SDK devices; they must not use CLI pair-session cookies.
+    - SDK examples must not include secrets or real user identifiers.
+    - Run outputs are visible only when the existing server route returns content for the authorized owner and retention mode.
+
+tests:
+  - id: T-NPM-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workflows.test.ts
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    assertions:
+      - validateYaml posts source to /v1/workflows/validate and returns validation
+      - createFromYaml posts source to /v1/workflows/yaml and returns workflow plus validation
+      - updateFromYaml posts source to /v1/workflows/{workflow_id}/yaml and returns workflow plus validation
+      - run sends Idempotency-Key and input, runDetail exposes node_runs output, cancelRun returns cancellation status, and respond posts step_id plus input
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-PIP-001
+    type: pytest
+    file: packages/openmates-python/tests/test_workflows.py
+    command: python3 -m pytest packages/openmates-python/tests/test_workflows.py
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    assertions:
+      - validate_yaml posts source to /v1/workflows/validate and returns validation
+      - create_from_yaml posts source to /v1/workflows/yaml and returns workflow plus validation
+      - update_from_yaml posts source to /v1/workflows/{workflow_id}/yaml and returns workflow plus validation
+      - run sends Idempotency-Key and input_data, run_detail exposes node_runs output, cancel_run returns cancellation status, and respond posts step_id plus input
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-AUDIT-001
+    type: lint
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers: [AC-1, AC-2, AC-4, AC-5]
+    assertions:
+      - parity audit maps Workflow YAML validate/create/update, run detail, cancellation, and response CLI commands to npm and pip SDK methods
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+  - id: T-DOCS-001
+    type: lint
+    file: docs/user-guide/developers/sdk.md
+    command: python3 scripts/docs_claims_verify.py --changed docs/user-guide/developers/sdk.md
+    covers: [AC-6]
+    assertions:
+      - SDK guide includes npm and pip Workflow examples for YAML authoring, modification, run polling, output inspection, and waiting-run response
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: "Docs example coverage can be verified after implementation because it is additive documentation."
+        timestamp: "2026-07-13T22:15:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-USER-001
+    kind: user_confirmation
+    phase: final
+    required_for_done: false
+    covers: [AC-6]
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/workflows-sdk-runtime/spec.yml
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/sdk.ts OpenMatesWorkflows facade methods
+    - packages/openmates-python/openmates/sdk.py OpenMatesWorkflows facade methods
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts local HTTP SDK transport contract
+    - packages/openmates-python/tests/test_workflows.py monkeypatched requests SDK transport contract
+    - scripts/audit_sdk_cli_parity.py deterministic CLI-to-SDK mapping audit
+  architecture: >
+    Add thin SDK facade methods over the existing Workflow routes. Do not add
+    backend behavior or local YAML compilation; the server remains authoritative
+    for YAML diagnostics and graph compilation.
+  data_flow:
+    - SDK caller provides YAML or graph data.
+    - SDK sends the payload to the existing Workflow route with API-key auth.
+    - Backend validates ownership, feature availability, API-key/device auth, YAML readiness, and runtime permissions.
+    - SDK returns the existing WorkflowDetail or WorkflowRunDetail payload so callers can inspect run outputs.
+  affected_files:
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK Workflow methods
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK Workflow methods
+    - path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+      reason: npm SDK Workflow contract tests
+    - path: packages/openmates-python/tests/test_workflows.py
+      reason: pip SDK Workflow contract tests
+    - path: scripts/audit_sdk_cli_parity.py
+      reason: deterministic parity guard
+    - path: docs/user-guide/developers/sdk.md
+      reason: public SDK examples
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/workflows-sdk-runtime/spec.yml
+    - node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workflows.test.ts
+    - python3 -m pytest packages/openmates-python/tests/test_workflows.py
+    - python3 scripts/audit_sdk_cli_parity.py
+    - python3 scripts/spec_verify.py docs/specs/workflows-sdk-runtime/spec.yml
+  verification_order:
+    - Red npm SDK contract
+    - Red pip SDK contract
+    - Red parity audit
+    - Implement npm SDK methods and tests
+    - Implement pip SDK methods and tests
+    - Update docs/examples
+    - Run green npm, pip, audit, docs/static checks, and spec verification
+
+tasks:
+  - id: TASK-1
+    title: Approve Workflow SDK runtime product contract
+    status: in_progress
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - docs/specs/workflows-sdk-runtime/spec.yml
+    verification: [V-USER-001]
+    verification_ids: [V-USER-001]
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/workflows-sdk-runtime/spec.yml
+      shared_files: []
+    blockers:
+      - "User approval required before implementation."
+    follow_up_tasks: [TASK-2, TASK-3, TASK-4, TASK-5]
+    independently_deployable: true
+  - id: TASK-2
+    title: Add npm Workflow SDK parity methods and tests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+    expected_files:
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    verification: [T-NPM-001]
+    verification_ids: [T-NPM-001]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Add pip Workflow SDK parity methods and tests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+    expected_files:
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_workflows.py
+    verification: [T-PIP-001]
+    verification_ids: [T-PIP-001]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/tests/test_workflows.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Update parity audit and SDK docs
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-5, AC-6]
+    expected_files:
+      - scripts/audit_sdk_cli_parity.py
+      - docs/user-guide/developers/sdk.md
+    verification: [T-AUDIT-001, T-DOCS-001]
+    verification_ids: [T-AUDIT-001, T-DOCS-001]
+    dependencies: [TASK-2, TASK-3]
+    ownership:
+      files:
+        - scripts/audit_sdk_cli_parity.py
+        - docs/user-guide/developers/sdk.md
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Verify and deploy Workflow SDK parity
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - docs/specs/workflows-sdk-runtime/spec.yml
+    verification: [T-NPM-001, T-PIP-001, T-AUDIT-001, T-DOCS-001]
+    verification_ids: [T-NPM-001, T-PIP-001, T-AUDIT-001, T-DOCS-001]
+    dependencies: [TASK-2, TASK-3, TASK-4]
+    ownership:
+      files:
+        - docs/specs/workflows-sdk-runtime/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+risks:
+  - id: R-1
+    risk: API-key scope enforcement for Workflow routes may be broader than the SDK docs imply.
+    mitigation: Keep implementation on existing routes and add/extend tests only if an auth gap is discovered.
+  - id: R-2
+    risk: Run outputs may be unavailable when run_content_retention is none.
+    mitigation: Document that SDK callers can inspect outputs only when the server retains content.
+  - id: R-3
+    risk: Existing dirty SDK files from concurrent sessions could be overwritten.
+    mitigation: Re-read diffs before editing and make minimal patches around current code.
+
+open_questions:
+  - none

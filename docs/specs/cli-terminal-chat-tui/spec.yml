@@ -25,6 +25,7 @@ scope:
     - Typing `/` in the TUI input shows command autocomplete suggestions; users can move through suggestions with Up/Down, complete the highlighted suggestion with Tab, or ignore suggestions and manually type/enter any command.
     - The TUI keeps the active authenticated chat ID after the first send so follow-up messages in the same TUI session continue the persisted account chat instead of creating unrelated chats.
     - The TUI provides a `/chats` command that lists recent account chats inside the terminal UI, reusing the existing encrypted chat sync/list contract.
+    - The TUI provides `/workflows` and `/workflow <id>` screens that list saved workflows, show recent run history with retained step output summaries, run enabled workflows, refresh runs, and cancel the latest active run through existing Workflow client methods.
     - Embed previews render as compact cards. Text-heavy embeds such as code, docs, PDFs, transcripts, and generated applications show only a capped excerpt plus a command to open the full embed.
     - Inline app-skill/embed JSON blocks in TUI chat messages are replaced with terminal-native embed preview cards instead of rendering raw fenced JSON.
     - Full embed detail opens inside a dedicated scrollable TUI detail view and remains available through the existing `openmates embeds show <id>` command outside the TUI.
@@ -368,6 +369,20 @@ scenarios:
       - If no newer version exists, the command clearly says the CLI is up to date.
       - If the update check fails, the command still prints the installed version and an explicit non-fatal update-check warning.
 
+  - id: S-20
+    title: "`/workflows` lists and runs saved workflows inside the TUI"
+    given:
+      - A signed-in user has saved workflows available through the Workflow CLI API.
+    when:
+      - The user enters `/workflows` or `/workflow <id>` in the TUI.
+    then:
+      - The TUI shows a keyboard-navigable workflow list with enabled state, trigger summary, ID, and last run status.
+      - Opening a workflow shows recent runs and retained node output summaries when the server returns them.
+      - Pressing `r` starts an enabled workflow run through the existing manual-run API.
+      - Pressing `u` refreshes the run list.
+      - Pressing `c` cancels the latest queued, running, or waiting run.
+      - YAML authoring and editing remain outside the TUI in the normal `openmates workflows ... --file` commands.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -426,6 +441,9 @@ acceptance_criteria:
   - id: AC-19
     scenario: S-19
     text: "`openmates version` and `openmates --version` print the installed version, check latest npm availability, and show `openmates upgrade` when an update exists."
+  - id: AC-20
+    scenario: S-20
+    text: TUI `/workflows` and `/workflow <id>` list workflows, show recent run output summaries, run enabled workflows, refresh runs, and cancel active runs through existing Workflow APIs without adding TUI YAML editing.
 
 contracts:
   cli_entrypoint:
@@ -446,6 +464,10 @@ contracts:
       behavior: Open interest selection or ranked example list.
     - command: /chats
       behavior: Show recent signed-in account chats from the existing encrypted sync cache/list path, or a login prompt when signed out.
+    - command: /workflows
+      behavior: Show saved workflows from `OpenMatesClient.listWorkflows()` and allow Enter to open details.
+    - command: /workflow <id>
+      behavior: Open workflow details and recent runs from existing Workflow client methods.
     - command: /login
       behavior: Start pair-auth login using existing CLI login flow without exposing passwords.
     - command: /signup
@@ -520,6 +542,7 @@ tests:
       - AC-15
       - AC-16
       - AC-17
+      - AC-20
     assertions:
       - interactive no-arg launch chooses TUI mode
       - non-interactive no-arg launch chooses quickstart output and exit 0
@@ -533,6 +556,7 @@ tests:
       - Tab completes the highlighted command while Enter keeps executing the manually typed input
       - activeChatId from a send result is reused on the next authenticated TUI send
       - "`/chats` renders recent account chat rows and logged-out login guidance"
+      - "`/workflows` renders workflow rows, workflow details, recent runs, and retained node output summaries"
     red_phase:
       required: true
       expected: fail
@@ -739,17 +763,18 @@ implementation_plan:
     - The first authenticated TUI send stores the returned `chatId` in memory; follow-up sends pass that `chatId` back to `OpenMatesClient.sendMessage()`.
     - Slash-prefixed input derives suggestions from the TUI command registry and Tab copies the highlighted command into the input.
     - "`/chats` calls `OpenMatesClient.listChats()` for signed-in users and renders decrypted chat metadata as terminal rows."
+    - "`/workflows` calls existing Workflow client methods to list workflows, open details, render recent runs, start enabled workflows, refresh runs, and cancel active runs."
     - "`version`, `--version`, `update`, and `upgrade` resolve npm target metadata, compare it with the package version, and only run the package-manager command when needed."
     - Exiting always runs terminal cleanup in a `finally` path.
   affected_files:
     - path: frontend/packages/openmates-cli/src/cli.ts
       reason: no-arg dispatch, explicit help preservation, quickstart output
     - path: frontend/packages/openmates-cli/src/tui.ts
-      reason: new TUI event loop and command handling
+      reason: new TUI event loop and command handling, including Workflow list/detail/run shortcuts
     - path: frontend/packages/openmates-cli/src/tuiTerminal.ts
       reason: raw mode, alternate screen, cleanup, resize handling
     - path: frontend/packages/openmates-cli/src/tuiRenderer.ts
-      reason: pure frame rendering and scroll slicing
+      reason: pure frame rendering, scroll slicing, Workflow list/detail frames, and retained run output summaries
     - path: frontend/packages/openmates-cli/src/selfUpdate.ts
       reason: latest-version resolution, no-op detection, quiet/verbose package-manager output, and version availability checks
     - path: frontend/packages/openmates-cli/src/tuiExamples.ts
@@ -761,7 +786,7 @@ implementation_plan:
     - path: frontend/packages/openmates-cli/src/client.ts
       reason: expose any missing non-stdout hooks needed by TUI sends
     - path: frontend/packages/openmates-cli/tests/tui.test.ts
-      reason: unit coverage for logo text, slash suggestions, chat list rendering, and active chat continuation state
+      reason: unit coverage for logo text, slash suggestions, chat list rendering, Workflow rendering, and active chat continuation state
     - path: frontend/packages/openmates-cli/tests/cli.test.ts
       reason: unit coverage for branded update/upgrade/version output and JSON compatibility
     - path: frontend/packages/openmates-cli/tests/client.test.ts
