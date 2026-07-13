@@ -633,6 +633,7 @@ test('secondary client recovers exactly one saved assistant message after origin
 		jobId?: string;
 		requestId?: string;
 		chatId?: string;
+		availableJobs?: Array<{ jobId?: string; chatId?: string }>;
 	}> = [];
 	const recoveryProtocolEvents: typeof protocolEvents = [];
 	const captureProtocolEvents = (page: any, events: typeof protocolEvents) => page.on('websocket', (websocket: any) => {
@@ -640,6 +641,12 @@ test('secondary client recovers exactly one saved assistant message after origin
 			try {
 				const message = JSON.parse(String(frame.payload));
 				if (typeof message.type === 'string') {
+					const availableJobs = Array.isArray(message.payload?.jobs)
+						? message.payload.jobs.map((job: any) => ({
+								jobId: typeof job?.job_id === 'string' ? job.job_id : undefined,
+								chatId: typeof job?.chat_id === 'string' ? job.chat_id : undefined
+							}))
+						: undefined;
 					// Keep failure diagnostics privacy-safe: protocol order needs only routing metadata.
 					events.push({
 						direction,
@@ -647,7 +654,8 @@ test('secondary client recovers exactly one saved assistant message after origin
 						state: typeof message.payload?.state === 'string' ? message.payload.state : undefined,
 						jobId: typeof message.payload?.job_id === 'string' ? message.payload.job_id : undefined,
 						requestId: typeof message.payload?.request_id === 'string' ? message.payload.request_id : undefined,
-						chatId: typeof message.payload?.chat_id === 'string' ? message.payload.chat_id : undefined
+						chatId: typeof message.payload?.chat_id === 'string' ? message.payload.chat_id : undefined,
+						availableJobs
 					});
 				}
 			} catch {
@@ -717,32 +725,64 @@ test('secondary client recovers exactly one saved assistant message after origin
 		await expect(recoveredAssistantMessages).toHaveCount(1, { timeout: 120000 });
 		await expect(recoveredAssistantMessages.first()).toContainText('Berlin', { timeout: 120000 });
 		await expect(recoveredAssistantMessages).toHaveCount(1);
-		const claimSent = recoveryProtocolEvents.find(
-			(event) => event.direction === 'sent' && event.type === 'recovery_job_claim' && event.jobId && event.requestId
-		);
-		expect(claimSent).toBeDefined();
-		const claimReceived = recoveryProtocolEvents.find(
-			(event) => event.direction === 'received' &&
-				event.type === 'recovery_job_claimed' &&
-				event.chatId === chatId &&
-				event.jobId === claimSent?.jobId &&
-				event.requestId === claimSent?.requestId
-		);
-		expect(claimReceived).toBeDefined();
-		const persistSent = recoveryProtocolEvents.find(
-			(event) => event.direction === 'sent' && event.type === 'recovery_job_persist' && event.requestId &&
-				event.jobId === claimReceived?.jobId
-		);
-		expect(persistSent).toBeDefined();
-		const persistReceived = recoveryProtocolEvents.find(
-			(event) => event.direction === 'received' &&
-				event.type === 'recovery_job_persisted' &&
-				event.jobId === persistSent?.jobId &&
-				event.requestId === persistSent?.requestId
-		);
-		expect(persistReceived).toBeDefined();
+		const findTargetRecoveryJob = () =>
+			recoveryProtocolEvents
+				.flatMap((event) =>
+					event.direction === 'received' && event.type === 'recovery_jobs_available'
+						? event.availableJobs ?? []
+						: []
+				)
+				.find((job) => job.chatId === chatId && job.jobId);
+		await expect
+			.poll(() => findTargetRecoveryJob()?.jobId ?? '', { timeout: 120000 })
+			.not.toBe('');
+		const targetJobId = findTargetRecoveryJob()!.jobId!;
+		const findClaimSent = () =>
+			recoveryProtocolEvents.find(
+				(event) =>
+					event.direction === 'sent' &&
+					event.type === 'recovery_job_claim' &&
+					event.jobId === targetJobId &&
+					event.requestId
+			);
+		await expect.poll(() => findClaimSent()?.requestId ?? '', { timeout: 30000 }).not.toBe('');
+		const claimSent = findClaimSent()!;
+		const findClaimReceived = () =>
+			recoveryProtocolEvents.find(
+				(event) =>
+					event.direction === 'received' &&
+					event.type === 'recovery_job_claimed' &&
+					event.chatId === chatId &&
+					event.jobId === targetJobId &&
+					event.requestId === claimSent.requestId
+			);
+		await expect.poll(() => findClaimReceived()?.requestId ?? '', { timeout: 30000 }).not.toBe('');
+		const claimReceived = findClaimReceived()!;
+		const findPersistSent = () =>
+			recoveryProtocolEvents.find(
+				(event) =>
+					event.direction === 'sent' &&
+					event.type === 'recovery_job_persist' &&
+					event.jobId === targetJobId &&
+					event.requestId
+			);
+		await expect.poll(() => findPersistSent()?.requestId ?? '', { timeout: 30000 }).not.toBe('');
+		const persistSent = findPersistSent()!;
+		const findPersistReceived = () =>
+			recoveryProtocolEvents.find(
+				(event) =>
+					event.direction === 'received' &&
+					event.type === 'recovery_job_persisted' &&
+					event.jobId === targetJobId &&
+					event.requestId === persistSent.requestId
+			);
+		await expect.poll(() => findPersistReceived()?.requestId ?? '', { timeout: 30000 }).not.toBe('');
+		const persistReceived = findPersistReceived()!;
 		const availableIndex = recoveryProtocolEvents.findIndex(
-			(event) => event.direction === 'received' && event.type === 'recovery_jobs_available'
+			(event) =>
+				event.direction === 'received' &&
+				event.type === 'recovery_jobs_available' &&
+				event.availableJobs?.some((job) => job.jobId === targetJobId)
 		);
 		const claimSentIndex = recoveryProtocolEvents.indexOf(claimSent!);
 		const claimReceivedIndex = recoveryProtocolEvents.indexOf(claimReceived!);
