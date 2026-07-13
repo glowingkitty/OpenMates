@@ -10011,11 +10011,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // We do this for ALL task endings (not just cancellation) as a safety fallback
                 // in case the final-chunk handler missed transitioning the message.
                 //
-                // PERSISTENCE ON CANCEL: If the cancelled message has content (partial response),
-                // we also persist it to the server via sendCompletedAIResponse — exactly as if
-                // the response had finished naturally. This ensures cross-device sync works even
-                // when the user stops the response mid-stream.
-                // Empty messages (cancel before any text streamed) are NOT persisted.
+                // PERSISTENCE ON INTERRUPT: If the interrupted message has content (partial response),
+                // persist it to the server via sendCompletedAIResponse. Normal completions must wait
+                // for the final chunk/recovery handler so epoch-one saved chats do not send forbidden
+                // legacy persistence before sealed recovery persistence runs.
+                // Empty messages (interrupt before any text streamed) are NOT persisted.
+                const taskEndStatus = event.detail.status ?? 'unknown';
+                const shouldPersistInterruptedPartial = taskEndStatus === 'cancelled' || taskEndStatus === 'timed_out';
                 let needsUpdate = false;
                 const messagesToPersist: ChatMessageModel[] = [];
                 for (let i = 0; i < currentMessages.length; i++) {
@@ -10027,12 +10029,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         saveMessageToCurrentStorage(finalized).catch(err => {
                             console.error(`[ActiveChat] aiTaskEndedHandler: Failed to save finalized message ${msg.message_id}:`, err);
                         });
-                        console.info(`[ActiveChat] aiTaskEndedHandler: Finalized streaming message ${msg.message_id} → synced (task status: ${event.detail.status ?? 'unknown'})`);
+                        console.info(`[ActiveChat] aiTaskEndedHandler: Finalized streaming message ${msg.message_id} → synced (task status: ${taskEndStatus})`);
                         // Queue for server persistence if there is actual content
-                        if (finalized.content && finalized.content.trim().length > 0) {
+                        if (shouldPersistInterruptedPartial && finalized.content && finalized.content.trim().length > 0) {
                             messagesToPersist.push(finalized);
+                        } else if (!shouldPersistInterruptedPartial) {
+                            console.info(`[ActiveChat] aiTaskEndedHandler: Skipping server persistence for normal task end ${msg.message_id} (status: ${taskEndStatus})`);
                         } else {
-                            console.info(`[ActiveChat] aiTaskEndedHandler: Skipping server persistence for empty message ${msg.message_id} (cancelled before any text streamed)`);
+                            console.info(`[ActiveChat] aiTaskEndedHandler: Skipping server persistence for empty message ${msg.message_id} (interrupted before any text streamed)`);
                         }
                     }
                 }
