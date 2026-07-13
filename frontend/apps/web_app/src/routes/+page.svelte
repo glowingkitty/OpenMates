@@ -831,9 +831,19 @@
 				} else {
 					// Chat not found in IndexedDB
 					if ($authStore.isAuthenticated) {
-						// For authenticated users, wait for sync to complete
-						console.debug(
-							`[+page.svelte] Chat ${chatId} not found in IndexedDB, waiting for sync...`
+						// Sync can already be marked complete before a just-created cross-device
+						// chat reaches this tab. Keep the hash target alive briefly instead of
+						// leaving ActiveChat unloaded while later message events are ignored.
+						if (retries > 0) {
+							const delay = retries > 15 ? 50 : retries > 10 ? 100 : 200;
+							console.debug(
+								`[+page.svelte] Chat ${chatId} not found in IndexedDB (auth), retrying in ${delay}ms (${retries} retries left)`
+							);
+							await new Promise((resolve) => setTimeout(resolve, delay));
+							return loadChatFromIndexedDB(retries - 1);
+						}
+						console.warn(
+							`[+page.svelte] Chat ${chatId} not found in IndexedDB after retries (authenticated user)`
 						);
 					} else {
 						// For non-auth users, retry a few times before giving up
