@@ -50,7 +50,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -97,15 +97,7 @@ async function sendMessageAndGetChatId(
 	message: string,
 	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void
 ): Promise<string> {
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(message);
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
-	logCheckpoint(`Sent message: "${message}"`);
+	await sendMessage(page, message, logCheckpoint);
 
 	// Wait for chat ID to appear in URL
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
@@ -680,10 +672,11 @@ test('secondary client recovers exactly one saved assistant message after origin
 		await ensureSidebarClosed(secondary);
 
 		const uniquePrompt = `Recover this saved response ${Date.now()}-${test.info().workerIndex}`;
-		const messageEditor = origin.getByTestId('message-editor');
-		await messageEditor.click();
-		await origin.keyboard.type(withMockMarker(uniquePrompt, 'chat_flow_capital', 'slow'));
-		await origin.locator('[data-action="send-message"]').click();
+		await sendMessage(
+			origin,
+			withMockMarker(uniquePrompt, 'chat_flow_capital', 'slow'),
+			logCheckpoint
+		);
 		await expect(origin).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
 		chatId = origin.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
 		expect(chatId).toBeTruthy();
