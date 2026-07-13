@@ -146,17 +146,17 @@ export async function handleRecoveryJobsAvailableImpl(
   payload: { jobs?: AvailableRecoveryJob[] },
 ): Promise<void> {
   await waitForInitialSync(serviceInstance);
-  for (const job of payload.jobs ?? []) {
-    if (!job.job_id || recoveryJobsInProgress.has(job.job_id)) continue;
+  await Promise.allSettled((payload.jobs ?? []).map(async (job) => {
+    if (!job.job_id || recoveryJobsInProgress.has(job.job_id)) return;
     recoveryJobsInProgress.add(job.job_id);
     try {
       const existingMessage = await chatDB.getMessage(job.assistant_message_id);
-      if (existingMessage?.status === "synced" || existingMessage?.status === "delivered") continue;
+      if (existingMessage?.status === "synced" || existingMessage?.status === "delivered") return;
 
       const chat = await chatDB.getChat(job.chat_id);
       const chatKey = await chatKeyManager.getKey(job.chat_id);
-      if (!chat?.user_id || !chatKey) continue;
-      if (!(await ensureChatKeySafeForWrite(job.chat_id, chatKey, "completion recovery"))) continue;
+      if (!chat?.user_id || !chatKey) return;
+      if (!(await ensureChatKeySafeForWrite(job.chat_id, chatKey, "completion recovery"))) return;
 
       const claim = await requestRecoveryEvent(
         "recovery_job_claimed",
@@ -284,5 +284,5 @@ export async function handleRecoveryJobsAvailableImpl(
     } finally {
       recoveryJobsInProgress.delete(job.job_id);
     }
-  }
+  }));
 }

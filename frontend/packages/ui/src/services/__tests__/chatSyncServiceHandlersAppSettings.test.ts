@@ -179,6 +179,127 @@ describe("handlePendingAIResponseImpl", () => {
 
 
 describe("handleRecoveryJobsAvailableImpl", () => {
+  it("does not let one pending recovery job block another available job", async () => {
+    const handlers = new Map<string, Set<(payload: unknown) => void>>();
+    const emit = (type: string, payload: unknown) => {
+      for (const handler of Array.from(handlers.get(type) ?? [])) handler(payload);
+    };
+    const claimRequests: Record<string, string> = {};
+    const persistRequests: Record<string, string> = {};
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      const set = handlers.get(type) ?? new Set();
+      set.add(handler);
+      handlers.set(type, set);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.get(type)?.delete(handler);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (
+      type: string,
+      payload: Record<string, unknown>,
+    ) => {
+      if (type === "recovery_job_claim") {
+        claimRequests[payload.job_id as string] = payload.request_id as string;
+      }
+      if (type === "recovery_job_persist") {
+        persistRequests[payload.job_id as string] = payload.request_id as string;
+      }
+    });
+    mocks.chatDB.getMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getChat.mockImplementation(async (chatId: string) => ({
+      chat_id: chatId,
+      user_id: "user-1",
+      messages_v: 1,
+    }));
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
+    mocks.openChatCompletionRecoveryEnvelope.mockResolvedValue(
+      new TextEncoder().encode(JSON.stringify({
+        assistant_message_id: "assistant-2",
+        category: "general",
+        chat_id: "chat-2",
+        content: "Recovered response",
+        job_id: "job-2",
+        key_version: 1,
+        model_name: "model-1",
+        turn_id: "turn-2",
+      })),
+    );
+    mocks.chatDB.getEncryptedFields.mockResolvedValue({
+      encrypted_content: "encrypted-content",
+      encrypted_sender_name: "encrypted-sender",
+      encrypted_category: "encrypted-category",
+      encrypted_model_name: "encrypted-model",
+    });
+    const service = {
+      dispatchEvent: vi.fn(),
+      hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
+    } as unknown as ChatSynchronizationService;
+
+    const recovery = handleRecoveryJobsAvailableImpl(service, {
+      jobs: [
+        {
+          job_id: "job-1",
+          chat_id: "chat-1",
+          turn_id: "turn-1",
+          assistant_message_id: "assistant-1",
+          chat_key_version: 1,
+        },
+        {
+          job_id: "job-2",
+          chat_id: "chat-2",
+          turn_id: "turn-2",
+          assistant_message_id: "assistant-2",
+          chat_key_version: 1,
+        },
+      ],
+    });
+    await vi.waitFor(() => {
+      expect(claimRequests["job-1"]).toEqual(expect.any(String));
+      expect(claimRequests["job-2"]).toEqual(expect.any(String));
+    });
+
+    emit("recovery_job_claimed", {
+      job_id: "job-2",
+      request_id: claimRequests["job-2"],
+      state: "LEASED",
+      lease_token: "lease-token",
+      lease_generation: 1,
+      sealed_payload: '{"v":1}',
+      chat_id: "chat-2",
+      turn_id: "turn-2",
+      assistant_message_id: "assistant-2",
+      chat_key_version: 1,
+    });
+    await vi.waitFor(() => {
+      expect(persistRequests["job-2"]).toEqual(expect.any(String));
+    });
+    emit("recovery_job_persisted", {
+      job_id: "job-2",
+      request_id: persistRequests["job-2"],
+      state: "TERMINAL",
+      committed_messages_v: 2,
+    });
+    await vi.waitFor(() => {
+      expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ message_id: "assistant-2", chat_id: "chat-2" }),
+      );
+    });
+
+    emit("error", {
+      code: "recovery_job_not_found",
+      job_id: "job-1",
+      request_id: claimRequests["job-1"],
+      message: "Unrelated stale job failed after the target job persisted.",
+    });
+    await recovery;
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(1);
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "chatUpdated" }),
+    );
+  });
+
   it("ignores delayed claim and persist frames from an earlier recovery attempt", async () => {
     vi.useFakeTimers();
     let requestCounter = 0;
