@@ -57,6 +57,11 @@ class _CacheService:
 async def test_delete_chat_handler_forwards_remove_project_embeds(monkeypatch) -> None:
     queue_delete_chat_task = Mock()
     monkeypatch.setattr(delete_chat_handler, "_queue_delete_chat_task", queue_delete_chat_task)
+    monkeypatch.setattr(
+        delete_chat_handler,
+        "invalidate_recovery_jobs_for_chat_deletion",
+        AsyncMock(),
+    )
 
     directus_service = SimpleNamespace(
         chat=SimpleNamespace(

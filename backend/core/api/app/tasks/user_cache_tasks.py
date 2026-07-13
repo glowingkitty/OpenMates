@@ -54,8 +54,18 @@ def _cached_chat_versions_from_details(
             value = DEFAULT_CHAT_VERSION
         version_values[field] = value
 
-    version_values["metadata_v"] = chat_data.get("metadata_v")
-    if not version_values["metadata_v"] and version_values["title_v"] > 0:
+    metadata_v = chat_data.get("metadata_v")
+    if metadata_v is None:
+        logger.warning(
+            "[CACHE_WARMING_DATA_REPAIR] Chat %s for user %s has null metadata_v; "
+            "using %s so cache warming can complete.",
+            chat_id,
+            user_id,
+            DEFAULT_CHAT_VERSION,
+        )
+        metadata_v = DEFAULT_CHAT_VERSION
+    version_values["metadata_v"] = metadata_v
+    if not metadata_v and version_values["title_v"] > 0:
         version_values["metadata_v"] = version_values["title_v"]
 
     return CachedChatVersions(**version_values)

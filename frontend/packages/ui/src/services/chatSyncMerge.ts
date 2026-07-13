@@ -113,6 +113,9 @@ export async function mergeServerChatWithLocal(
     serverChat,
     "encrypted_draft_preview",
   );
+  const serverExplicitlyDeletesDraft =
+    serverChat.encrypted_draft_md === null ||
+    serverChat.encrypted_draft_preview === null;
   const merged: Chat = {
     chat_id: serverChat.id,
     user_id: localChat.user_id ?? currentUserId,
@@ -242,7 +245,7 @@ export async function mergeServerChatWithLocal(
 
   const localDraftV = localChat.draft_v || 0;
   const serverDraftV = serverChat.draft_v || 0;
-  if (localDraftV >= serverDraftV) {
+  if (!serverExplicitlyDeletesDraft && localDraftV >= serverDraftV) {
     if (localChat.encrypted_draft_md) {
       merged.encrypted_draft_md = localChat.encrypted_draft_md;
     }
