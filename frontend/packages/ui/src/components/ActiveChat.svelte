@@ -143,6 +143,7 @@
         getResumeCardGradientStyle,
         getResumeLargeCardStyle,
         isOgExampleSharedChatCuttlefish,
+        shouldSkipLegacyAIResponsePersistenceForRecovery,
     } from './activeChatUtils';
 
     import {
@@ -382,6 +383,8 @@
         category?: string;
         model_name?: string;
         rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates system message, not AI response
+        recovery_job_id?: string | null;
+        recovery_protocol_version?: number | null;
     };
 
     type ChatUpdatedDetail = {
@@ -5730,7 +5733,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
                 // Skip for incognito chats (they're not stored on the server)
                 // This uses a separate event type 'ai_response_completed' to avoid triggering AI processing
-                if (!currentChat?.is_incognito && !currentChat?.is_anonymous) {
+                const shouldSkipLegacyRecoveryPersistence = shouldSkipLegacyAIResponsePersistenceForRecovery(chunk);
+                if (!currentChat?.is_incognito && !currentChat?.is_anonymous && !shouldSkipLegacyRecoveryPersistence) {
                     try {
                         console.debug('[ActiveChat] Sending completed AI response to server for encrypted Directus storage:', {
                             messageId: updatedFinalMessage.message_id,
@@ -5741,6 +5745,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     } catch (error) {
                         console.error('[ActiveChat] Error sending completed AI response to server:', error);
                     }
+                } else if (shouldSkipLegacyRecoveryPersistence) {
+                    console.debug('[ActiveChat] Skipping legacy AI response persistence for recovery protocol v1 completion', {
+                        messageId: updatedFinalMessage.message_id,
+                        chatId: updatedFinalMessage.chat_id,
+                        recoveryJobId: chunk.recovery_job_id,
+                    });
                 } else {
                     console.debug('[ActiveChat] Skipping server storage for incognito chat - not persisted on server');
                 }
