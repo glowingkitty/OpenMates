@@ -1043,28 +1043,25 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const phase7LogStart = consoleLogs.length;
 
 	// Start listening before auth completes. performLogin waits after the editor is
-	// visible, so subscribing after it returns can miss the phased-sync console signal.
-	const syncCompletedPromise = page
+	// visible, so subscribing after it returns can miss the Phase 1b content signal.
+	const contentSyncCompletedPromise = page
 		.waitForEvent('console', {
 			predicate: (msg: any) =>
-				msg.text().includes('Phase 1 complete') ||
-				msg.text().includes('phasedSyncComplete') ||
-				msg.text().includes('Phase 1a: decrypted'),
-			timeout: 30000
+				msg.text().includes('phase_1b_chat_content_ready') ||
+				msg.text().includes('Phase 1b complete'),
+			timeout: 60000
 		})
 		.then(() => true)
 		.catch(() => false);
 	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '08', `/#chat-id=${chatId}`);
 
-	// Wait for phased sync to complete after auth.
+	// Wait for initial content sync to complete after auth.
 	// After a fresh login, phased sync re-downloads all chat data via WebSocket.
-	// The deep-link handler in +page.svelte waits for phasedSyncComplete before
-	// loading a user chat from IndexedDB. If we mutate the hash too late,
-	// the chat isn't in IDB yet and the deep-link handler either gives up or
-	// gets blocked by canAutoNavigate() after Phase 1a loads a different chat.
-	logChatCheckpoint('Waiting for phased sync to complete after re-login...');
-	const syncCompleted = await syncCompletedPromise;
-	logChatCheckpoint(`Phased sync signal detected: ${syncCompleted}`);
+	// Phase 1a is metadata-only; messages arrive in Phase 1b. Reloading/asserting
+	// before Phase 1b can produce a partial chat with only the user bubble.
+	logChatCheckpoint('Waiting for Phase 1b chat content sync after re-login...');
+	const contentSyncCompleted = await contentSyncCompletedPromise;
+	logChatCheckpoint(`Phase 1b content sync signal detected: ${contentSyncCompleted}`);
 	// Give the hashchange handler time to process and load the chat
 	await page.waitForTimeout(3000);
 
