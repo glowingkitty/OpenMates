@@ -3,7 +3,7 @@
 // These tests focus on pending AI response recovery after a browser leaves while
 // streaming, where reconnect delivery must replace stale local assistant rows.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 
 const mocks = vi.hoisted(() => ({
@@ -78,6 +78,8 @@ import {
   handlePendingAIResponseImpl,
 } from "../chatSyncServiceHandlersAppSettings";
 import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
+
+afterEach(() => vi.useRealTimers());
 
 describe("handlePendingAIResponseImpl", () => {
   beforeEach(() => {
@@ -178,7 +180,9 @@ describe("handlePendingAIResponseImpl", () => {
 
 describe("handleRecoveryJobsAvailableImpl", () => {
   it("claims, locally encrypts, persists, and fences exactly one sealed assistant completion", async () => {
+    vi.useFakeTimers();
     const handlers = new Map<string, (payload: unknown) => void>();
+    let claimAttempts = 0;
     mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
       handlers.set(type, handler);
     });
@@ -187,17 +191,22 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     });
     mocks.webSocketService.sendMessage.mockImplementation(async (type: string) => {
       if (type === "recovery_job_claim") {
-        handlers.get("recovery_job_claimed")?.({
-          job_id: "job-1",
-          state: "LEASED",
-          lease_token: "lease-token",
-          lease_generation: 2,
-          sealed_payload: '{"v":1}',
-          chat_id: "chat-1",
-          turn_id: "turn-1",
-          assistant_message_id: "assistant-1",
-          chat_key_version: 1,
-        });
+        claimAttempts += 1;
+        if (claimAttempts === 1) {
+          window.setTimeout(() => {
+            handlers.get("recovery_job_claimed")?.({
+              job_id: "job-1",
+              state: "LEASED",
+              lease_token: "lease-token",
+              lease_generation: 2,
+              sealed_payload: '{"v":1}',
+              chat_id: "chat-1",
+              turn_id: "turn-1",
+              assistant_message_id: "assistant-1",
+              chat_key_version: 1,
+            });
+          }, 20_100);
+        }
       }
       if (type === "recovery_job_persist") {
         handlers.get("recovery_job_persisted")?.({
@@ -231,7 +240,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       hasCompletedInitialSync_FOR_HANDLERS_ONLY: true,
     } as unknown as ChatSynchronizationService;
 
-    await handleRecoveryJobsAvailableImpl(service, {
+    const recovery = handleRecoveryJobsAvailableImpl(service, {
       jobs: [{
         job_id: "job-1",
         chat_id: "chat-1",
@@ -240,6 +249,8 @@ describe("handleRecoveryJobsAvailableImpl", () => {
         chat_key_version: 1,
       }],
     });
+    await vi.advanceTimersByTimeAsync(20_100);
+    await recovery;
 
     mocks.chatDB.getMessage.mockResolvedValue({ status: "synced" });
     await handleRecoveryJobsAvailableImpl(service, {
@@ -254,7 +265,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
 
     expect(mocks.chatDB.getEncryptedFields).toHaveBeenCalledOnce();
     expect(mocks.webSocketService.sendMessage).toHaveBeenNthCalledWith(
-      2,
+      3,
       "recovery_job_persist",
       expect.objectContaining({
         job_id: "job-1",
@@ -264,6 +275,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       }),
     );
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(1);
+    expect(claimAttempts).toBe(2);
     expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
       expect.objectContaining({ messages_v: 3 }),
     );
