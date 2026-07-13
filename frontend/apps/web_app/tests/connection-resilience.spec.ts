@@ -197,8 +197,10 @@ async function coldBootAuthenticatedPage(context: any, baseURL: string): Promise
 async function sendMessageUntilChatIdAssigned(
 	page: any,
 	message: string,
-	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void
+	logCheckpoint: (msg: string, meta?: Record<string, unknown>) => void,
+	protocolEvents: Array<{ direction: 'sent' | 'received'; type: string }> = []
 ): Promise<string> {
+	const eventStartIndex = protocolEvents.length;
 	const messageField = page.getByTestId('message-field').last();
 	const messageEditor = messageField.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible({ timeout: 30000 });
@@ -207,16 +209,20 @@ async function sendMessageUntilChatIdAssigned(
 	logCheckpoint(`Typed recovery message: "${message}"`);
 
 	const sendButton = messageField.locator('[data-action="send-message"]');
-	const sentToChatSyncService = page.waitForEvent('console', {
-		predicate: (msg: any) => msg.text().includes('[handleSend] Message sent to chatSyncService:'),
-		timeout: 30000
-	});
 	await expect(sendButton).toBeVisible({ timeout: 5000 });
 	await sendButton.click({ timeout: 5000 });
-	logCheckpoint('Clicked recovery send button; waiting for backend send dispatch before closing origin.');
+	logCheckpoint('Clicked recovery send button; waiting for chat_message_added dispatch before closing origin.');
 
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 30000 });
-	await sentToChatSyncService;
+	await expect
+		.poll(
+			() =>
+				protocolEvents
+					.slice(eventStartIndex)
+					.some((event) => event.direction === 'sent' && event.type === 'chat_message_added'),
+			{ timeout: 30000 }
+		)
+		.toBe(true);
 	const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
 	expect(chatId).toBeTruthy();
 	return chatId;
@@ -702,7 +708,8 @@ test('secondary client recovers exactly one saved assistant message after origin
 		chatId = await sendMessageUntilChatIdAssigned(
 			origin,
 			withMockMarker(uniquePrompt, 'chat_flow_capital', 'slow'),
-			logCheckpoint
+			logCheckpoint,
+			protocolEvents
 		);
 		const originEventTypes = protocolEvents.map((event) => `${event.direction}:${event.type}`);
 		logCheckpoint('Origin protocol events observed before disconnect.', {

@@ -5409,6 +5409,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 targetMessage.category = chunk.category;
                 console.debug(`[ActiveChat] Patched category on existing message ${targetMessage.message_id}: "${targetMessage.category}"`);
             }
+            if (chunk.user_message_id && !targetMessage.user_message_id) {
+                targetMessage.user_message_id = chunk.user_message_id;
+            }
             currentMessages[targetMessageIndex] = targetMessage;
             currentMessages = [...currentMessages]; // New array reference for Svelte reactivity
             messageToSave = targetMessage;
@@ -5589,6 +5592,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     ...finalMessageInArray,
                     content: finalContent,
                     status: finalStatus,
+                    user_message_id: finalMessageInArray.user_message_id || chunk.user_message_id || undefined,
                     // Preserve role as 'system' for rejection messages
                     role: isRejection ? 'system' as const : finalMessageInArray.role,
                     model_name: finalModelName, // Explicitly preserve/set model_name
