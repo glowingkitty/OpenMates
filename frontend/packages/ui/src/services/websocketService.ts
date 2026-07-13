@@ -163,6 +163,10 @@ const SERIALIZED_PHASED_SYNC_MESSAGE_TYPES = new Set<string>([
   "phased_sync_complete",
 ]);
 
+const REPLAYABLE_EARLY_MESSAGE_TYPES = new Set<string>([
+  "recovery_jobs_available",
+]);
+
 type NetworkInformationLike = {
   addEventListener?: (type: "change", listener: () => void) => void;
 };
@@ -185,6 +189,7 @@ class WebSocketService extends EventTarget {
   private periodicRetryIntervalId: ReturnType<typeof setInterval> | null = null;
   private readonly PERIODIC_RETRY_INTERVAL = 30000; // 30 seconds between periodic retries after max attempts exhausted
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
+  private earlyMessagesByType: Map<string, unknown[]> = new Map();
   private phasedSyncHandlerQueue: Promise<void> = Promise.resolve();
   private connectionPromise: Promise<void> | null = null;
   private resolveConnectionPromise: (() => void) | null = null;
@@ -858,6 +863,8 @@ class WebSocketService extends EventTarget {
                 } else {
                   void executeHandlers();
                 }
+              } else if (REPLAYABLE_EARLY_MESSAGE_TYPES.has(messageType)) {
+                this.bufferEarlyMessage(messageType, messagePayload);
               } else if (!this.allowedNoHandlerTypes.has(messageType)) {
                 if (messageType !== "ping" && messageType !== "pong") {
                   console.warn(
@@ -1449,6 +1456,7 @@ class WebSocketService extends EventTarget {
       console.debug(
         `[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers: ${currentHandlers.length}`,
       );
+      this.replayEarlyMessages(messageType, messageHandler);
     } else if (currentHandlers) {
       console.warn(
         `[WebSocketService] ⚠️ Handler already registered for "${messageType}"! Skipping duplicate registration.`,
@@ -1491,6 +1499,32 @@ class WebSocketService extends EventTarget {
       `[WebSocketService] Cleared all handlers (${handlerCount} total)`,
     );
     this.dispatchEvent(new CustomEvent("handlers_cleared"));
+  }
+
+  private bufferEarlyMessage(messageType: string, payload: unknown): void {
+    const buffered = this.earlyMessagesByType.get(messageType) ?? [];
+    buffered.push(payload);
+    this.earlyMessagesByType.set(messageType, buffered.slice(-20));
+    console.warn(
+      `[WebSocketService] Buffered early message for type "${messageType}" until a handler registers.`,
+    );
+  }
+
+  private replayEarlyMessages(messageType: string, handler: MessageHandler): void {
+    const buffered = this.earlyMessagesByType.get(messageType);
+    if (!buffered?.length) return;
+    this.earlyMessagesByType.delete(messageType);
+    console.warn(
+      `[WebSocketService] Replaying ${buffered.length} buffered message(s) for type "${messageType}".`,
+    );
+    for (const payload of buffered) {
+      void Promise.resolve(handler(payload)).catch((error) => {
+        console.error(
+          `[WebSocketService] Error replaying buffered message for type "${messageType}":`,
+          error,
+        );
+      });
+    }
   }
 }
 
