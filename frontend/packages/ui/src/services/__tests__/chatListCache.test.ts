@@ -8,7 +8,7 @@
 // Architecture: frontend/packages/ui/src/services/chatListCache.ts
 // These tests exercise the pure in-memory ChatListCache class with NO browser deps.
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 
 // We need to import the class, but the module exports only a singleton.
 // Re-import the module to get a fresh instance per test via the class constructor.
@@ -149,23 +149,21 @@ describe("ChatListCache", () => {
       chatListCache.setCache([makeChat("a")]);
       chatListCache.notifySidebarDestroyed();
 
-      // Normal getCache (not a remount) still returns cached data
-      expect(chatListCache.getCache(false, false)).not.toBeNull();
+      // Any cache read misses until a full DB snapshot reaches setCache().
+      expect(chatListCache.getCache(false, false)).toBeNull();
 
       // Remount getCache forces a miss
       expect(chatListCache.getCache(false, true)).toBeNull();
     });
 
-    it("subsequent getCache after remount miss returns cached data (flag reset)", () => {
+    it("keeps remount cache misses active until a full cache reset completes", () => {
       chatListCache.setCache([makeChat("a")]);
       chatListCache.notifySidebarDestroyed();
 
-      // First remount call → miss (resets the flag)
+      // Remount calls keep missing until a fresh DB snapshot reaches setCache().
+      expect(chatListCache.getCache(false, true)).toBeNull();
       expect(chatListCache.getCache(false, true)).toBeNull();
 
-      // Second call → hit (flag was reset by the first miss)
-      // Need to re-set cache since the data is still there but the test needs
-      // to validate the flag behavior. setCache resets sidebarDestroyed flag.
       chatListCache.setCache([makeChat("a")]);
       expect(chatListCache.getCache(false, true)).not.toBeNull();
     });

@@ -67,14 +67,15 @@ class ChatListCache {
       console.debug("[ChatListCache] Cache not ready");
       return null;
     }
-    // When the sidebar remounts after being destroyed, force a DB re-read.
-    // While unmounted, chatUpdated events were lost — the cache may have
-    // partial upserts but miss metadata/message updates.
-    if (isComponentRemount && this.sidebarDestroyedSinceLastSet) {
+    // When the sidebar was destroyed, force a DB re-read before serving cache
+    // again. While unmounted, chatUpdated events were lost — the cache may have
+    // partial upserts but miss metadata/message updates. Keep missing until the
+    // refresh path completes a full setCache(), otherwise a follow-up cache read
+    // in the same remount flow can reuse the stale snapshot and skip the DB read.
+    if (this.sidebarDestroyedSinceLastSet) {
       console.debug(
-        "[ChatListCache] Cache miss: sidebar was destroyed since last full set — forcing DB re-read",
+        `[ChatListCache] Cache miss: sidebar was destroyed since last full set — forcing DB re-read (remount=${isComponentRemount})`,
       );
-      this.sidebarDestroyedSinceLastSet = false; // Reset so subsequent getCache calls work normally
       return null;
     }
     if (
