@@ -1700,7 +1700,7 @@ async function handleWorkflows(
   if (subcommand === "run") {
     const workflowId = rest[0];
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows run <id>");
-    const idempotencyKey = typeof flags.idempotencyKey === "string" ? flags.idempotencyKey : "";
+    const idempotencyKey = typeof flags["idempotency-key"] === "string" ? flags["idempotency-key"] : "";
     if (!idempotencyKey) throw new Error("Missing --idempotency-key. Reuse this stable key when retrying the same workflow run.");
     const mode = flags.mode === "test" ? "test" : "manual";
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};

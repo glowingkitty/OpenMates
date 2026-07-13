@@ -517,6 +517,21 @@ describe("workflows command", () => {
     assert.match(output, /openmates workflows input-follow-up <session-id> <text>/);
     assert.match(output, /openmates workflows run <workflow-id>/);
   });
+
+  it("accepts documented idempotency-key flag for workflow runs", () => {
+    const result = runCliWithoutSessionResult([
+      "workflows",
+      "run",
+      "wf-test",
+      "--idempotency-key",
+      "stable-test-key",
+      "--json",
+    ]);
+
+    assert.notEqual(result.status, 0);
+    assert.doesNotMatch(result.stderr, /Missing --idempotency-key/);
+    assert.match(result.stderr, /Not logged in|login/i);
+  });
 });
 
 describe("account interest commands", () => {
