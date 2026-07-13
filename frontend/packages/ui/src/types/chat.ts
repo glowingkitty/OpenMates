@@ -821,6 +821,7 @@ export interface InitialSyncResponsePayload {
     encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption
     encrypted_icon?: string | null; // Encrypted icon name from Lucide library
     encrypted_category?: string | null; // Encrypted category name
+    encrypted_quick_tip_slugs?: string | null; // Encrypted quick-tip slugs selected during post-processing
     encrypted_shared_short_url?: string | null;
     unread_count?: number;
     messages?: Message[];
