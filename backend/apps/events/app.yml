@@ -289,6 +289,26 @@ skills:
                   Ignored by all other providers.
       required:
         - requests
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input:
+        requests:
+          - query: OpenMates meetup Berlin
+            location: Berlin
+            count: 3
+      output_schema:
+        type: object
+        properties:
+          summary:
+            type: string
+          result_count:
+            type: integer
 
 marketing_discovery:
   skills:

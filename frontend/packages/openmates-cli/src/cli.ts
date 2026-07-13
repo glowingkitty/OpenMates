@@ -38,7 +38,7 @@ import {
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
-import { realpathSync, writeFileSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -1515,7 +1515,38 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "validate") {
+    const file = typeof flags.file === "string" ? flags.file : "";
+    if (!file) throw new Error("Missing --file. Example: openmates workflows validate --file workflow.yml");
+    const validation = await client.validateWorkflowYaml(readFileSync(file, "utf8"));
+    if (flags.json === true) {
+      printJson(validation);
+    } else {
+      kv("Draft valid", validation.draft_valid ? "yes" : "no");
+      kv("Ready to enable", validation.enable_ready ? "yes" : "no");
+      for (const diagnostic of validation.diagnostics) {
+        console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "invalid")}`);
+      }
+    }
+    if (!validation.draft_valid) process.exitCode = 1;
+    return;
+  }
+
   if (subcommand === "create") {
+    const yamlFile = typeof flags.file === "string" ? flags.file : "";
+    if (yamlFile) {
+      const result = await client.createWorkflowYaml(readFileSync(yamlFile, "utf8"));
+      if (flags.json === true) {
+        printJson(result);
+      } else {
+        printWorkflowDetail(result.workflow);
+        kv("Ready to enable", result.validation.enable_ready ? "yes" : "no");
+        for (const diagnostic of result.validation.diagnostics) {
+          console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "input required")}`);
+        }
+      }
+      return;
+    }
     const title = typeof flags.title === "string" ? flags.title.trim() : "";
     const graphJson = typeof flags.graph === "string" ? flags.graph : "";
     if (!title) throw new Error("Missing --title for workflow create.");
@@ -1530,6 +1561,23 @@ async function handleWorkflows(
       printJson(workflow);
     } else {
       printWorkflowDetail(workflow);
+    }
+    return;
+  }
+
+  if (subcommand === "update") {
+    const workflowId = rest[0];
+    const yamlFile = typeof flags.file === "string" ? flags.file : "";
+    if (!workflowId || !yamlFile) throw new Error("Missing workflow ID or --file. Example: openmates workflows update <id> --file workflow.yml");
+    const result = await client.updateWorkflowYaml(workflowId, readFileSync(yamlFile, "utf8"));
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printWorkflowDetail(result.workflow);
+      kv("Ready to enable", result.validation.enable_ready ? "yes" : "no");
+      for (const diagnostic of result.validation.diagnostics) {
+        console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "input required")}`);
+      }
     }
     return;
   }
@@ -1652,9 +1700,11 @@ async function handleWorkflows(
   if (subcommand === "run") {
     const workflowId = rest[0];
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows run <id>");
+    const idempotencyKey = typeof flags.idempotencyKey === "string" ? flags.idempotencyKey : "";
+    if (!idempotencyKey) throw new Error("Missing --idempotency-key. Reuse this stable key when retrying the same workflow run.");
     const mode = flags.mode === "test" ? "test" : "manual";
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
-    const run = await client.runWorkflow(workflowId, { mode, input });
+    const run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input });
     if (flags.json === true) {
       printJson(run);
     } else {
@@ -1684,6 +1734,62 @@ async function handleWorkflows(
       printJson(run);
     } else {
       printWorkflowRun(run);
+    }
+    return;
+  }
+
+  if (subcommand === "run-cancel") {
+    const workflowId = rest[0];
+    const runId = rest[1];
+    if (!workflowId || !runId) throw new Error("Missing workflow/run ID. Example: openmates workflows run-cancel <workflow-id> <run-id>");
+    const result = await client.cancelWorkflowRun(workflowId, runId);
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      kv("Status", result.status);
+    }
+    return;
+  }
+
+  if (subcommand === "step-test") {
+    const workflowId = rest[0];
+    const stepId = rest[1];
+    if (!workflowId || !stepId) throw new Error("Missing workflow/step ID. Example: openmates workflows step-test <workflow-id> <step-id> --yes");
+    const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
+    const run = await client.testWorkflowStep(workflowId, stepId, { input, confirmed: flags.yes === true });
+    if (flags.json === true) {
+      printJson(run);
+    } else {
+      printWorkflowRun(run);
+    }
+    return;
+  }
+
+  if (subcommand === "respond") {
+    const workflowId = rest[0];
+    const runId = rest[1];
+    const stepId = rest[2];
+    if (!workflowId || !runId || !stepId) throw new Error("Missing workflow/run/step ID. Example: openmates workflows respond <workflow-id> <run-id> <step-id> --input '{\"answer\":\"Berlin\"}'");
+    const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
+    const run = await client.respondToWorkflowRun(workflowId, runId, stepId, input);
+    if (flags.json === true) {
+      printJson(run);
+    } else {
+      printWorkflowRun(run);
+    }
+    return;
+  }
+
+  if (subcommand === "help-app") {
+    const capabilityId = rest[0];
+    if (!capabilityId) throw new Error("Missing app skill. Example: openmates workflows help-app weather.forecast");
+    const capabilities = await client.listWorkflowCapabilities();
+    const capability = capabilities.find((item) => item.id === capabilityId || item.id === capabilityId.replace(":", "."));
+    if (!capability) throw new Error(`Workflow capability not found: ${capabilityId}`);
+    if (flags.json === true) {
+      printJson(capability);
+    } else {
+      printWorkflowCapabilityHelp(capability);
     }
     return;
   }
@@ -1756,6 +1862,30 @@ function printWorkflowCapabilities(capabilities: WorkflowCapability[]): void {
   for (const capability of capabilities) {
     const state = capability.enabled ? "enabled" : `disabled${capability.reason ? `: ${capability.reason}` : ""}`;
     kv(capability.id, `${capability.title} · ${state}`, 24);
+  }
+}
+
+function printWorkflowCapabilityHelp(capability: WorkflowCapability): void {
+  header(`${capability.title}\n`);
+  kv("ID", capability.id);
+  kv("Type", capability.type);
+  kv("Enabled", capability.enabled ? "yes" : "no");
+  if (capability.reason) kv("Reason", capability.reason);
+  const metadata = capability.metadata ?? {};
+  const workflow = metadata.workflow as Record<string, unknown> | undefined;
+  if (workflow) {
+    kv("Effect", String(workflow.effect ?? "unknown"));
+    kv("Execution", String(workflow.execution_mode ?? "unknown"));
+    kv("Approval", String(workflow.approval ?? "unknown"));
+    kv("Unattended", workflow.unattended === true ? "yes" : "no");
+  }
+  if (metadata.input_schema) {
+    console.log("\nInput schema:");
+    console.log(JSON.stringify(metadata.input_schema, null, 2));
+  }
+  if (workflow?.test_example_input) {
+    console.log("\nTest example:");
+    console.log(JSON.stringify(workflow.test_example_input, null, 2));
   }
 }
 
@@ -6965,6 +7095,9 @@ function printWorkflowsHelp(): void {
   console.log(`Workflows commands:
   openmates workflows list [--json]
   openmates workflows capabilities [--json]
+  openmates workflows validate --file workflow.yml [--json]
+  openmates workflows create --file workflow.yml [--json]
+  openmates workflows update <workflow-id> --file workflow.yml [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
   openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--json]
   openmates workflows input-show <session-id> [--json]
@@ -6975,9 +7108,13 @@ function printWorkflowsHelp(): void {
   openmates workflows show <workflow-id> [--json]
   openmates workflows enable <workflow-id> [--json]
   openmates workflows disable <workflow-id> [--json]
-  openmates workflows run <workflow-id> [--mode manual|test] [--input '<json>'] [--json]
+  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--json]
   openmates workflows runs <workflow-id> [--json]
   openmates workflows run-show <workflow-id> <run-id> [--json]
+  openmates workflows run-cancel <workflow-id> <run-id> [--json]
+  openmates workflows step-test <workflow-id> <step-id> [--input '<json>'] [--yes] [--json]
+  openmates workflows respond <workflow-id> <run-id> <step-id> --input '<json>' [--json]
+  openmates workflows help-app <app.skill> [--json]
   openmates workflows delete <workflow-id> --yes [--json]
 
 Workflows run on the OpenMates server, not in this terminal process. The CLI
@@ -6987,6 +7124,7 @@ and Apple clients.
 Examples:
   openmates workflows list
   openmates workflows capabilities --json
+  openmates workflows help-app weather.forecast
   openmates workflows input "alert me if it rains tomorrow"
   openmates workflows run wf_123 --mode test --json`);
 }

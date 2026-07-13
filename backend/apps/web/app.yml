@@ -320,6 +320,25 @@ skills:
               - query
       required:
         - requests
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input:
+        requests:
+          - query: OpenMates
+            count: 3
+      output_schema:
+        type: object
+        properties:
+          summary:
+            type: string
+          result_count:
+            type: integer
   - id: read
     name_translation_key: web.read
     description_translation_key: web.read.description

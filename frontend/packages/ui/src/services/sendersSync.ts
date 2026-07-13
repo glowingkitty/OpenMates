@@ -710,7 +710,8 @@ export async function sendSyncInspirationChatImpl(
 	encryptedChatKey: string,
 	createdAt: number,
 	encryptedFollowUpSuggestions?: string,
-	inspirationEmbed?: InspirationEmbedData
+	inspirationEmbed?: InspirationEmbedData,
+	workflowExistingChat = false
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
 		console.warn(
@@ -734,6 +735,10 @@ export async function sendSyncInspirationChatImpl(
 			encrypted_content: encryptedContent,
 			encrypted_chat_key: encryptedChatKey
 		};
+
+		if (workflowExistingChat) {
+			payload.workflow_existing_chat = true;
+		}
 
 		// Include encrypted follow-up suggestions if available so the backend
 		// can persist them to Directus (zero-knowledge — server never decrypts).

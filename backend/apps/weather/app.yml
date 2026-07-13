@@ -93,6 +93,26 @@ skills:
           default: "metric"
       required:
         - location
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [location]
+      test_allowed: true
+      test_example_input:
+        location: Berlin
+        days: 1
+      output_schema:
+        type: object
+        properties:
+          summary:
+            type: string
+          rain_probability:
+            type: number
+          max_temperature_c:
+            type: number
   - id: rain_radar
     name_translation_key: apps.weather.rain_radar
     description_translation_key: apps.weather.rain_radar.description

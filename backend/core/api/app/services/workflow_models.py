@@ -26,6 +26,7 @@ class WorkflowRunStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
     WAITING = "waiting"
+    CANCELLATION_REQUESTED = "cancellation_requested"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -55,6 +56,42 @@ class WorkflowLifecycle(str, Enum):
     TEMPORARY = "temporary"
 
 
+class WorkflowAssistantProposalAction(str, Enum):
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+    RUN = "run"
+
+
+class WorkflowAssistantProposalStatus(str, Enum):
+    PENDING = "pending"
+    EXECUTING = "executing"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+    FAILED = "failed"
+
+
+class WorkflowAssistantProposal(BaseModel):
+    """Safe proposal metadata surfaced to approval clients and assistant skills."""
+
+    proposal_id: str
+    action: WorkflowAssistantProposalAction
+    status: WorkflowAssistantProposalStatus
+    workflow_id: str | None = None
+    lifecycle: WorkflowLifecycle | None = None
+    title: str | None = None
+    required_input_summary: list[str] = Field(default_factory=list)
+    expected_actions: list[str] = Field(default_factory=list)
+    risk_level: str
+    requires_approval: bool = True
+    created_at: int
+    expires_at: int
+    resolved_at: int | None = None
+    result_id: str | None = None
+
+
 class WorkflowNodeType(str, Enum):
     SCHEDULE_TRIGGER = "schedule_trigger"
     MANUAL_TRIGGER = "manual_trigger"
@@ -68,6 +105,7 @@ class WorkflowNodeType(str, Enum):
     SEND_NOTIFICATION = "send_notification"
     SEND_EMAIL_NOTIFICATION = "send_email_notification"
     ASK_USER = "ask_user"
+    WAIT = "wait"
     CUSTOM_CODE = "custom_code"
     END = "end"
 
@@ -96,15 +134,15 @@ EXECUTABLE_NODE_TYPES = {
     WorkflowNodeType.START_NEW_CHAT,
     WorkflowNodeType.SEND_NOTIFICATION,
     WorkflowNodeType.SEND_EMAIL_NOTIFICATION,
+    WorkflowNodeType.ASK_USER,
+    WorkflowNodeType.WAIT,
     WorkflowNodeType.EVENT_TRIGGER,
     WorkflowNodeType.END,
 }
 DISABLED_FUTURE_NODE_TYPES = {
     WorkflowNodeType.WEBHOOK_TRIGGER,
-    WorkflowNodeType.ASK_USER,
     WorkflowNodeType.CUSTOM_CODE,
 }
-SUPPORTED_WORKFLOW_APP_SKILLS = {("weather", "forecast"), ("news", "search")}
 FORBIDDEN_WORKFLOW_TEMPLATE_KEYS = {
     "token",
     "refreshtoken",
@@ -196,6 +234,21 @@ class WorkflowDetail(WorkflowSummary):
     graph: WorkflowGraph
 
 
+class WorkflowVersionSummary(BaseModel):
+    version_id: str
+    version_number: int
+    created_at: int
+    created_by_client: str
+    graph_hash: str
+    restored_from_version_id: str | None = None
+    current: bool = False
+    change_summary: dict[str, Any] | None = None
+
+
+class WorkflowVersionDetail(WorkflowVersionSummary):
+    graph: WorkflowGraph
+
+
 class WorkflowNodeRun(BaseModel):
     id: str
     run_id: str
@@ -230,6 +283,8 @@ class WorkflowRunSummary(BaseModel):
     content_expires_at: int | None = None
     encrypted_content_ref: str | None = None
     encrypted_content_checksum: str | None = None
+    cancellation_requested_at: int | None = None
+    cancelled_at: int | None = None
 
 
 class WorkflowRunDetail(WorkflowRunSummary):
@@ -362,6 +417,10 @@ def _template_node_config(node: WorkflowNode) -> dict[str, Any]:
         return {key: config[key] for key in ("title", "prompt", "template", "initial_message") if key in config}
     if node.type in {WorkflowNodeType.SEND_NOTIFICATION, WorkflowNodeType.SEND_EMAIL_NOTIFICATION}:
         return {key: config[key] for key in ("title", "body") if key in config}
+    if node.type == WorkflowNodeType.ASK_USER:
+        return {key: config[key] for key in ("prompt", "input_schema", "timeout_seconds") if key in config}
+    if node.type == WorkflowNodeType.WAIT:
+        return {key: config[key] for key in ("seconds", "until") if key in config}
     return {}
 
 
@@ -422,8 +481,6 @@ def _validate_node_config(node: WorkflowNode) -> None:
         skill_id = str(node.config.get("skill_id") or "").strip()
         if not app_id or not skill_id:
             raise WorkflowValidationError("App skill action nodes require app_id and skill_id")
-        if (app_id, skill_id) not in SUPPORTED_WORKFLOW_APP_SKILLS:
-            raise WorkflowValidationError(f"Workflow app-skill action is not enabled for {app_id}:{skill_id} in V1")
     elif node.type == WorkflowNodeType.DECISION:
         predicate = node.config.get("predicate")
         if not isinstance(predicate, dict):
@@ -434,6 +491,17 @@ def _validate_node_config(node: WorkflowNode) -> None:
             value = node.config.get(key)
             if not isinstance(value, int) or value <= 0:
                 raise WorkflowValidationError(f"Repeat nodes require positive integer {key}")
+    elif node.type == WorkflowNodeType.WAIT:
+        seconds = node.config.get("seconds")
+        until = node.config.get("until")
+        if seconds is None and until is None:
+            raise WorkflowValidationError("Wait nodes require seconds or until")
+        if seconds is not None and (not isinstance(seconds, int) or seconds <= 0):
+            raise WorkflowValidationError("Wait nodes require positive integer seconds")
+    elif node.type == WorkflowNodeType.ASK_USER:
+        prompt = node.config.get("prompt")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise WorkflowValidationError("Ask user nodes require prompt")
     elif node.type == WorkflowNodeType.SCHEDULE_TRIGGER:
         schedule = node.config.get("schedule")
         if not isinstance(schedule, dict) or not schedule.get("type"):

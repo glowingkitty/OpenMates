@@ -409,7 +409,7 @@ export interface WorkflowRunDetail {
   workflow_id: string;
   version_id: string;
   trigger_type: string;
-  status: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled";
+  status: "queued" | "running" | "waiting" | "cancellation_requested" | "completed" | "failed" | "cancelled";
   started_at?: number | null;
   finished_at?: number | null;
   error_summary?: string | null;
@@ -422,6 +422,11 @@ export interface WorkflowRunDetail {
   encrypted_content_checksum?: string | null;
   node_runs?: WorkflowNodeRun[];
   output_summary?: Record<string, unknown>;
+}
+
+export interface WorkflowRunCancellationResult {
+  run_id: string;
+  status: "cancellation_requested" | "cancelled";
 }
 
 export type WorkflowInputType = "text" | "audio";
@@ -484,6 +489,29 @@ export interface WorkflowTemplateProjectionResult {
   template_id: string;
   source_version: number;
   updated_at: number;
+}
+
+export interface PublicWorkflowTemplateProjection {
+  template_id: string;
+  ciphertext: string;
+  ciphertext_checksum: string;
+  projection_schema_version: number;
+}
+
+export interface WorkflowTemplateProjectionRevocationResult {
+  template_id: string;
+  revoked_at: number | null;
+}
+
+export interface WorkflowTemplateBindingCompletionParams {
+  type: string;
+  nodeId: string;
+}
+
+export interface WorkflowTemplateBindingCompletionResult {
+  workflow_id: string;
+  binding_requirement: Record<string, unknown>;
+  completed: boolean;
 }
 
 export interface WorkflowTemplateImportPayload {
@@ -4837,6 +4865,53 @@ export class OpenMatesClient {
     return response.data.workflow;
   }
 
+  async validateWorkflowYaml(source: string): Promise<{
+    draft_valid: boolean;
+    enable_ready: boolean;
+    diagnostics: Array<Record<string, unknown>>;
+  }> {
+    this.requireSession();
+    const response = await this.http.post<{ validation?: {
+      draft_valid: boolean;
+      enable_ready: boolean;
+      diagnostics: Array<Record<string, unknown>>;
+    } }>("/v1/workflows/validate", { source }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.validation) {
+      throw new Error(`Workflow YAML validation failed with HTTP ${response.status}`);
+    }
+    return response.data.validation;
+  }
+
+  async createWorkflowYaml(source: string): Promise<{
+    workflow: WorkflowDetail;
+    validation: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+  }> {
+    this.requireSession();
+    const response = await this.http.post<{
+      workflow?: WorkflowDetail;
+      validation?: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+    }>("/v1/workflows/yaml", { source }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.workflow || !response.data.validation) {
+      throw new Error(`Workflow YAML create failed with HTTP ${response.status}`);
+    }
+    return { workflow: response.data.workflow, validation: response.data.validation };
+  }
+
+  async updateWorkflowYaml(workflowId: string, source: string): Promise<{
+    workflow: WorkflowDetail;
+    validation: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+  }> {
+    this.requireSession();
+    const createLike = await this.http.post<{
+      workflow?: WorkflowDetail;
+      validation?: { draft_valid: boolean; enable_ready: boolean; diagnostics: Array<Record<string, unknown>> };
+    }>(`/v1/workflows/${encodeURIComponent(workflowId)}/yaml`, { source }, this.getCliRequestHeaders());
+    if (!createLike.ok || !createLike.data.workflow || !createLike.data.validation) {
+      throw new Error(`Workflow YAML update failed with HTTP ${createLike.status}`);
+    }
+    return { workflow: createLike.data.workflow, validation: createLike.data.validation };
+  }
+
   async getWorkflow(workflowId: string): Promise<WorkflowDetail> {
     this.requireSession();
     const response = await this.http.get<{ workflow?: WorkflowDetail }>(
@@ -4906,13 +4981,16 @@ export class OpenMatesClient {
 
   async runWorkflow(
     workflowId: string,
-    params: { mode?: "manual" | "test"; input?: Record<string, unknown> } = {},
+    params: { idempotencyKey: string; mode?: "manual" | "test"; input?: Record<string, unknown> },
   ): Promise<WorkflowRunDetail> {
     this.requireSession();
+    if (!params.idempotencyKey.trim()) {
+      throw new Error("Workflow run requires a stable idempotencyKey");
+    }
     const response = await this.http.post<{ run?: WorkflowRunDetail }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}/run`,
       { mode: params.mode ?? "manual", input: params.input ?? {} },
-      this.getCliRequestHeaders(),
+      { ...this.getCliRequestHeaders(), "Idempotency-Key": params.idempotencyKey },
     );
     if (!response.ok || !response.data.run) {
       throw new Error(`Workflow run failed with HTTP ${response.status}`);
@@ -4940,6 +5018,54 @@ export class OpenMatesClient {
     );
     if (!response.ok || !response.data.run) {
       throw new Error(`Workflow run get failed with HTTP ${response.status}`);
+    }
+    return response.data.run;
+  }
+
+  async cancelWorkflowRun(workflowId: string, runId: string): Promise<WorkflowRunCancellationResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowRunCancellationResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/cancel`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data.status !== "cancellation_requested" && response.data.status !== "cancelled")) {
+      throw new Error(`Workflow run cancellation failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async testWorkflowStep(
+    workflowId: string,
+    stepId: string,
+    params: { input?: Record<string, unknown>; confirmed?: boolean } = {},
+  ): Promise<WorkflowRunDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(stepId)}/test`,
+      { input: params.input ?? {}, confirmed: params.confirmed === true },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.run) {
+      throw new Error(`Workflow step test failed with HTTP ${response.status}`);
+    }
+    return response.data.run;
+  }
+
+  async respondToWorkflowRun(
+    workflowId: string,
+    runId: string,
+    stepId: string,
+    input: Record<string, unknown>,
+  ): Promise<WorkflowRunDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/respond`,
+      { step_id: stepId, input },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.run) {
+      throw new Error(`Workflow response failed with HTTP ${response.status}`);
     }
     return response.data.run;
   }
@@ -4975,6 +5101,59 @@ export class OpenMatesClient {
     );
     if (!response.ok) {
       throw new Error(`Workflow template projection upsert failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async getPublicWorkflowTemplateProjection(templateId: string): Promise<PublicWorkflowTemplateProjection> {
+    const response = await this.http.get<PublicWorkflowTemplateProjection>(
+      `/v1/workflows/template-projections/${encodeURIComponent(templateId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template projection retrieval failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async revokeWorkflowTemplateProjection(workflowId: string): Promise<WorkflowTemplateProjectionRevocationResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowTemplateProjectionRevocationResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/revoke`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template projection revoke failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async unrevokeWorkflowTemplateProjection(workflowId: string): Promise<WorkflowTemplateProjectionRevocationResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowTemplateProjectionRevocationResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/unrevoke`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow template projection unrevoke failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async completeImportedWorkflowBinding(
+    workflowId: string,
+    params: WorkflowTemplateBindingCompletionParams,
+  ): Promise<WorkflowTemplateBindingCompletionResult> {
+    this.requireSession();
+    const response = await this.http.post<WorkflowTemplateBindingCompletionResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/binding-requirements/complete`,
+      { type: params.type, node_id: params.nodeId },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow imported binding completion failed with HTTP ${response.status}`);
     }
     return response.data;
   }

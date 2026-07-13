@@ -165,12 +165,13 @@ def test_decision_predicates_reject_arbitrary_code_operator() -> None:
         WorkflowGraph.model_validate(graph)
 
 
-def test_app_skill_actions_are_limited_to_v1_allowlist() -> None:
+def test_app_skill_action_graph_validation_defers_capability_availability_to_registry() -> None:
     graph = rain_graph()
     graph["nodes"][1]["config"] = {"app_id": "calendar", "skill_id": "list_events", "input": {}}
 
-    with pytest.raises(ValidationError, match="not enabled"):
-        WorkflowGraph.model_validate(graph)
+    parsed = WorkflowGraph.model_validate(graph)
+
+    assert parsed.nodes[1].config["app_id"] == "calendar"
 
 
 def test_repeat_nodes_require_safety_bounds() -> None:
@@ -304,6 +305,48 @@ def test_directus_workflow_repository_updates_accepted_run_by_public_run_id() ->
     assert list(rows) == ["directus-row"]
     assert rows["directus-row"]["run_id"] == "accepted-run"
     assert rows["directus-row"]["status"] == "completed"
+
+
+def test_directus_workflow_repository_lists_runtime_accepted_run_without_record_json() -> None:
+    repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
+    fake_client = FakeDirectusClient()
+    setattr(repository, "_client", fake_client)
+    fake_client.collections["workflow_runs"] = {
+        "directus-row": {
+            "id": "directus-row",
+            "run_id": "accepted-run",
+            "workflow_id": "workflow-1",
+            "version_id": "version-1",
+            "hashed_user_id": repository.workflow_owner_hash("alice"),
+            "trigger_type": "manual",
+            "status": "queued",
+            "content_retention_mode": "last_5",
+            "content_available": False,
+        }
+    }
+
+    assert repository.list_runs("workflow-1", "alice") == [
+        {
+            "id": "accepted-run",
+            "workflow_id": "workflow-1",
+            "version_id": "version-1",
+            "owner_hash": repository.workflow_owner_hash("alice"),
+            "trigger_type": "manual",
+            "status": "queued",
+            "started_at": None,
+            "finished_at": None,
+            "error_summary": None,
+            "cost_summary": {},
+            "content_retention_mode": "last_5",
+            "content_available": False,
+            "content_storage": None,
+            "content_expires_at": None,
+            "encrypted_content_ref": None,
+            "encrypted_content_checksum": None,
+            "cancellation_requested_at": None,
+            "cancelled_at": None,
+        }
+    ]
 
 
 def test_workflow_cipher_uses_existing_vault_encryption_service() -> None:
@@ -496,8 +539,11 @@ def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code() -> N
     service = workflow_service()
     capabilities = {item.id: item for item in service.capabilities()}
 
-    assert capabilities["weather:forecast"].enabled is True
-    assert capabilities["news:search"].enabled is True
+    assert capabilities["weather.forecast"].enabled is True
+    assert capabilities["news.search"].enabled is True
+    assert capabilities["web.search"].enabled is True
+    assert capabilities["events.search"].enabled is True
+    assert capabilities["ai.ask"].enabled is True
     assert capabilities["custom_code"].enabled is False
 
 

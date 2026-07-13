@@ -24,30 +24,49 @@ class WorkflowSchedulerService:
     def __init__(self, runtime_service: WorkflowRuntimeService) -> None:
         self._runtime_service = runtime_service
 
+    async def scan_due_triggers(
+        self,
+        *,
+        now: int,
+        dispatch_trigger: Callable[[str], Awaitable[Any]],
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Find indexed due trigger IDs and dispatch each to the fenced executor."""
+        if limit <= 0:
+            raise ValueError("Workflow due scanner limit must be positive")
+        result = await self._runtime_service.execute("list_due_triggers", {"now": now, "limit": limit})
+        trigger_ids = result.get("trigger_ids")
+        if not isinstance(trigger_ids, list):
+            raise RuntimeError("Workflow due scanner returned invalid trigger_ids")
+        dispatched: list[str] = []
+        for trigger_id in trigger_ids:
+            if not isinstance(trigger_id, str) or not trigger_id:
+                continue
+            await dispatch_trigger(trigger_id)
+            dispatched.append(trigger_id)
+        return {"checked": len(trigger_ids), "dispatched": len(dispatched), "trigger_ids": dispatched}
+
     async def execute_due_trigger(
         self,
         trigger_id: str,
-        decrypt_and_schedule: Callable[[str], Awaitable[int]],
-        execute_run: Callable[[str, str, str], Awaitable[Any]],
-        expected_owner_hash: str | None = None,
+        decrypt_and_schedule: Callable[[str, str], Awaitable[int]],
+        execute_run: Callable[[str, str, str, str], Awaitable[Any]],
     ) -> dict[str, Any]:
         claim = await self._runtime_service.execute("claim_due_trigger", {"trigger_id": trigger_id})
         run_id = claim.get("run_id")
         if not claim.get("accepted"):
             return {"accepted": False, "run_id": run_id}
 
-        if expected_owner_hash is not None and claim.get("hashed_user_id") != expected_owner_hash:
-            raise PermissionError("Workflow trigger owner does not match scheduled task owner")
-
         workflow_id = self._required_string(claim, "workflow_id")
         version_id = self._required_string(claim, "version_id")
+        owner_user_id = self._required_string(claim, "owner_user_id")
         claim_token = self._required_string(claim, "claim_token")
         blob_ref = self._required_string(claim, "encrypted_schedule_config_ref")
         claim_generation = self._required_integer(claim, "claim_generation")
         run_id = self._required_string(claim, "run_id")
 
         # Recurrence plaintext is accessed only after the durable claim succeeds.
-        next_run_at = await decrypt_and_schedule(blob_ref)
+        next_run_at = await decrypt_and_schedule(owner_user_id, blob_ref)
         if not isinstance(next_run_at, int) or next_run_at <= 0:
             raise ValueError("Decrypted workflow recurrence returned an invalid next_run_at")
 
@@ -61,9 +80,21 @@ class WorkflowSchedulerService:
             },
         )
         if not started.get("started"):
-            return {"accepted": False, "run_id": run_id}
+            status = started.get("status")
+            if status not in {"cancellation_requested", "cancelled"}:
+                return {"accepted": False, "run_id": run_id}
+            await self._runtime_service.execute(
+                "advance_claimed_trigger",
+                {
+                    "trigger_id": trigger_id,
+                    "claim_generation": claim_generation,
+                    "claim_token": claim_token,
+                    "next_run_at": next_run_at,
+                },
+            )
+            return {"accepted": True, "run_id": run_id, "status": status, "next_run_at": next_run_at}
 
-        await execute_run(run_id, workflow_id, version_id)
+        await execute_run(run_id, workflow_id, version_id, owner_user_id)
         await self._runtime_service.execute(
             "advance_claimed_trigger",
             {

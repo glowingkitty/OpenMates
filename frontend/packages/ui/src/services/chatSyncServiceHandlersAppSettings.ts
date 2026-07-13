@@ -2022,6 +2022,249 @@ interface PendingAIResponsePayload {
   category?: string; // Mate category of the response (for encryption and display)
 }
 
+interface WorkflowChatDeliverySummary {
+  delivery_id: string;
+  chat_id: string;
+  message_id: string;
+  status: string;
+  encrypted_payload: string;
+  created_at: number;
+  expires_at: number;
+  claim_generation: number;
+}
+
+interface WorkflowChatDeliveriesAvailablePayload {
+  deliveries?: WorkflowChatDeliverySummary[];
+}
+
+interface WorkflowChatDeliveryClaimedPayload extends WorkflowChatDeliverySummary {
+  title: string;
+  message: string;
+  claim_token: string;
+  claim_generation: number;
+  claim_issued_at: number;
+  claim_expires_at: number;
+  request_id?: string | null;
+}
+
+interface WorkflowChatDeliveryPersistedPayload {
+  delivery_id: string;
+  request_id?: string | null;
+}
+
+const WORKFLOW_DELIVERY_PERSIST_TIMEOUT_MS = 15_000;
+const pendingWorkflowDeliveryPersists = new Map<
+  string,
+  {
+    resolve: () => void;
+    reject: (error: Error) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+  }
+>();
+
+export async function handleWorkflowChatDeliveriesAvailableImpl(
+  payload: WorkflowChatDeliveriesAvailablePayload,
+): Promise<void> {
+  const deliveries = Array.isArray(payload.deliveries) ? payload.deliveries : [];
+  if (deliveries.length === 0) return;
+  const { webSocketService } = await import("./websocketService");
+  for (const delivery of deliveries) {
+    if (!delivery.delivery_id || delivery.status === "acknowledged") continue;
+    await webSocketService.sendMessage("workflow_chat_delivery_claim", {
+      delivery_id: delivery.delivery_id,
+      request_id: `workflow-delivery-${delivery.delivery_id}`,
+    });
+  }
+}
+
+export async function handleWorkflowChatDeliveryClaimedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: WorkflowChatDeliveryClaimedPayload,
+): Promise<void> {
+  const { delivery_id, chat_id, message_id, title, message } = payload;
+  if (!delivery_id || !chat_id || !message_id || !title || !message) {
+    console.warn("[ChatSyncService:WorkflowDelivery] Invalid claimed payload", payload);
+    return;
+  }
+
+  const existingMessage = await chatDB.getMessage(message_id);
+  if (existingMessage) {
+    console.debug(
+      `[ChatSyncService:WorkflowDelivery] Message ${message_id} already exists locally, acknowledging duplicate delivery`,
+    );
+    await sendWorkflowChatDeliveryAck(payload);
+    return;
+  }
+
+  const createdAt = payload.created_at || Math.floor(Date.now() / 1000);
+  const category = "openmates_official";
+  try {
+    const existingChat = await chatDB.getChat(chat_id);
+    const workflowExistingChat = existingChat !== null;
+    const { chatKey, encryptedChatKey } = await chatKeyManager.createAndPersistKeyLocked(chat_id);
+    const encryptedTitle = workflowExistingChat && existingChat!.encrypted_title ? existingChat!.encrypted_title : await encryptWithChatKey(title, chatKey);
+    const encryptedCategory = workflowExistingChat && existingChat!.encrypted_category ? existingChat!.encrypted_category : await encryptWithChatKey(category, chatKey);
+    const encryptedContent = await encryptWithChatKey(message, chatKey);
+    if (!encryptedTitle || !encryptedCategory || !encryptedContent || !encryptedChatKey) {
+      throw new Error("Workflow delivery encryption returned empty ciphertext");
+    }
+    const messagesVersion = workflowExistingChat
+      ? Math.max(Number(existingChat!.messages_v || 0) + 1, 1)
+      : 1;
+
+    const chat = workflowExistingChat
+      ? {
+          ...existingChat!,
+          updated_at: createdAt,
+          messages_v: messagesVersion,
+          last_edited_overall_timestamp: createdAt,
+          unread_count: Number(existingChat!.unread_count || 0) + 1,
+        }
+      : {
+          chat_id,
+          encrypted_title: encryptedTitle,
+          encrypted_category: encryptedCategory,
+          encrypted_chat_key: encryptedChatKey,
+          created_at: createdAt,
+          updated_at: createdAt,
+          messages_v: messagesVersion,
+          title_v: 1,
+          last_edited_overall_timestamp: createdAt,
+          unread_count: 1,
+          category,
+        };
+    await chatDB.updateChat(chat as import("../types/chat").Chat);
+
+    const workflowMessage = {
+      message_id,
+      chat_id,
+      role: "assistant" as const,
+      content: message,
+      created_at: createdAt,
+      status: "synced" as const,
+      encrypted_content: encryptedContent,
+      category,
+      encrypted_category: encryptedCategory,
+    };
+    await chatDB.saveMessage(workflowMessage);
+
+    const { sendSyncInspirationChatImpl } = await import("./sendersSync");
+    await sendSyncInspirationChatImpl(
+      serviceInstance,
+      chat_id,
+      message_id,
+      message,
+      category,
+      encryptedTitle,
+      encryptedCategory,
+      encryptedContent,
+      encryptedChatKey,
+      createdAt,
+      undefined,
+      undefined,
+      workflowExistingChat,
+    );
+
+    await sendWorkflowChatDeliveryPersist(payload, {
+      encrypted_title: encryptedTitle,
+      encrypted_category: encryptedCategory,
+      encrypted_chat_key: encryptedChatKey,
+      created_at: createdAt,
+      messages_v: messagesVersion,
+      title_v: workflowExistingChat ? existingChat!.title_v : 1,
+    }, {
+      role: "assistant",
+      encrypted_content: encryptedContent,
+      created_at: createdAt,
+    });
+    await sendWorkflowChatDeliveryAck(payload);
+
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatUpdated", {
+        detail: {
+          chat_id,
+          chat,
+          newMessage: workflowMessage,
+          type: "workflow_chat_delivery",
+          messagesUpdated: true,
+        },
+      }),
+    );
+  } catch (error) {
+    console.error("[ChatSyncService:WorkflowDelivery] Failed to process claimed delivery", error);
+  }
+}
+
+export function handleWorkflowChatDeliveryPersistedImpl(payload: WorkflowChatDeliveryPersistedPayload): void {
+  const deliveryId = payload.delivery_id;
+  if (!deliveryId) return;
+  const pending = pendingWorkflowDeliveryPersists.get(deliveryId);
+  if (!pending) return;
+  clearTimeout(pending.timeoutId);
+  pendingWorkflowDeliveryPersists.delete(deliveryId);
+  pending.resolve();
+}
+
+async function sendWorkflowChatDeliveryPersist(
+  claim: WorkflowChatDeliveryClaimedPayload,
+  encryptedChatMetadata: Record<string, unknown>,
+  encryptedMessage: Record<string, unknown>,
+): Promise<void> {
+  const { webSocketService } = await import("./websocketService");
+  const persisted = waitForWorkflowChatDeliveryPersisted(claim.delivery_id);
+  try {
+    await webSocketService.sendMessage("workflow_chat_delivery_persist", {
+      delivery_id: claim.delivery_id,
+      claim_token: claim.claim_token,
+      claim_generation: claim.claim_generation,
+      claim_issued_at: claim.claim_issued_at,
+      claim_expires_at: claim.claim_expires_at,
+      encrypted_chat_metadata: JSON.stringify(encryptedChatMetadata),
+      encrypted_message: JSON.stringify(encryptedMessage),
+      request_id: `workflow-delivery-persist-${claim.delivery_id}`,
+    });
+  } catch (error) {
+    clearWorkflowChatDeliveryPersistWaiter(claim.delivery_id);
+    throw error;
+  }
+  await persisted;
+}
+
+function clearWorkflowChatDeliveryPersistWaiter(deliveryId: string): void {
+  const pending = pendingWorkflowDeliveryPersists.get(deliveryId);
+  if (!pending) return;
+  clearTimeout(pending.timeoutId);
+  pendingWorkflowDeliveryPersists.delete(deliveryId);
+}
+
+function waitForWorkflowChatDeliveryPersisted(deliveryId: string): Promise<void> {
+  const existing = pendingWorkflowDeliveryPersists.get(deliveryId);
+  if (existing) {
+    clearTimeout(existing.timeoutId);
+    pendingWorkflowDeliveryPersists.delete(deliveryId);
+    existing.reject(new Error(`Superseded Workflow delivery persist waiter for ${deliveryId}`));
+  }
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      pendingWorkflowDeliveryPersists.delete(deliveryId);
+      reject(new Error(`Timed out waiting for Workflow delivery persistence: ${deliveryId}`));
+    }, WORKFLOW_DELIVERY_PERSIST_TIMEOUT_MS);
+    pendingWorkflowDeliveryPersists.set(deliveryId, { resolve, reject, timeoutId });
+  });
+}
+
+async function sendWorkflowChatDeliveryAck(claim: WorkflowChatDeliveryClaimedPayload): Promise<void> {
+  const { webSocketService } = await import("./websocketService");
+  await webSocketService.sendMessage("workflow_chat_delivery_ack", {
+    delivery_id: claim.delivery_id,
+    claim_token: claim.claim_token,
+    claim_generation: claim.claim_generation,
+    claim_issued_at: claim.claim_issued_at,
+    claim_expires_at: claim.claim_expires_at,
+    request_id: `workflow-delivery-ack-${claim.delivery_id}`,
+  });
+}
+
 /**
  * Handles the pending_ai_response WebSocket event when an AI response that completed
  * while the user was offline is delivered on reconnect.

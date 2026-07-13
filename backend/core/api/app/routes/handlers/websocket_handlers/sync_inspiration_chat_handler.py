@@ -84,7 +84,7 @@ async def handle_sync_inspiration_chat(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("sync_inspiration_chat", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -115,6 +115,7 @@ async def handle_sync_inspiration_chat(
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
             now_ts = int(time.time())
             created_at = payload.get("created_at", now_ts)
+            workflow_existing_chat = bool(payload.get("workflow_existing_chat"))
 
             # Extract encrypted fields from the payload (zero-knowledge — server never decrypts)
             encrypted_title = payload.get("encrypted_title")
@@ -124,51 +125,42 @@ async def handle_sync_inspiration_chat(
             messages_v = payload.get("messages_v", 1)
             title_v = payload.get("title_v", 1)
 
-            chat_cache_data = {
-                "chat_id": chat_id,
-                "encrypted_title": encrypted_title,
-                "encrypted_category": encrypted_category,
-                "encrypted_chat_key": encrypted_chat_key,
-                "messages_v": messages_v,
-                "title_v": title_v,
-                "created_at": created_at,
-                "updated_at": now_ts,
-                "last_edited_overall_timestamp": now_ts,
-            }
+            if not workflow_existing_chat:
+                chat_cache_data = {
+                    "chat_id": chat_id,
+                    "encrypted_title": encrypted_title,
+                    "encrypted_category": encrypted_category,
+                    "encrypted_chat_key": encrypted_chat_key,
+                    "messages_v": messages_v,
+                    "title_v": title_v,
+                    "created_at": created_at,
+                    "updated_at": now_ts,
+                    "last_edited_overall_timestamp": now_ts,
+                }
 
-            # Store in the per-user sync cache with a short TTL (matches phased sync cache)
-            cache_key = f"sync_inspiration_chat:{hashed_user_id}:{chat_id}"
-            client = await cache_service.client
-            if client:
-                await client.set(
-                    cache_key,
-                    json.dumps(chat_cache_data),
-                    ex=600,  # 10 min TTL — same as sync cache entries
-                )
-                logger.debug(
-                    "[SyncInspirationChat] Cached inspiration chat %s for user %s…",
+                # Store in the per-user sync cache with a short TTL (matches phased sync cache)
+                cache_key = f"sync_inspiration_chat:{hashed_user_id}:{chat_id}"
+                client = await cache_service.client
+                if client:
+                    await client.set(
+                        cache_key,
+                        json.dumps(chat_cache_data),
+                        ex=600,  # 10 min TTL — same as sync cache entries
+                    )
+                    logger.debug(
+                        "[SyncInspirationChat] Cached inspiration chat %s for user %s…",
+                        chat_id,
+                        user_id[:8],
+                    )
+
+                # CRITICAL: Add the chat to the user's chat_ids_versions sorted set so that
+                # check_chat_ownership() can find it when the user sends a follow-up message.
+                await cache_service.add_chat_to_ids_versions(user_id, chat_id, now_ts)
+                logger.info(
+                    "[SyncInspirationChat] Added chat %s to chat_ids_versions sorted set for user %s",
                     chat_id,
                     user_id[:8],
                 )
-
-            # CRITICAL: Add the chat to the user's chat_ids_versions sorted set so that
-            # check_chat_ownership() can find it when the user sends a follow-up message.
-            #
-            # Without this, the ownership check fails because:
-            #   1. check_chat_exists_for_user() → False (chat not in sorted set)
-            #   2. is_user_cache_primed() → True (user was already synced)
-            #   3. "primed + not found" → ownership returns False
-            #   → Server rejects the message with the misleading "shared chat" error.
-            #
-            # The sorted set is the source-of-truth for the ownership check (cache path).
-            # Adding the chat here makes follow-up messages work immediately, before
-            # Directus persistence (which happens asynchronously via Celery).
-            await cache_service.add_chat_to_ids_versions(user_id, chat_id, now_ts)
-            logger.info(
-                "[SyncInspirationChat] Added chat %s to chat_ids_versions sorted set for user %s",
-                chat_id,
-                user_id[:8],
-            )
 
             # ── 1b. Add the assistant message to the AI inference cache ───────────
             # The AI inference cache (vault-encrypted, 72h TTL) is what the LLM uses
@@ -309,37 +301,35 @@ async def handle_sync_inspiration_chat(
             # Pattern matches encrypted_chat_metadata_handler.py:
             #   persist_encrypted_chat_metadata → creates or updates the chat row
             #   persist_new_chat_message → creates the assistant message row
-            chat_metadata_fields: dict = {
-                "encrypted_title": encrypted_title,
-                "encrypted_category": encrypted_category,
-                "encrypted_chat_key": encrypted_chat_key,
-                "title_v": title_v,
-                "messages_v": messages_v,
-                "last_edited_overall_timestamp": now_ts,
-                "last_message_timestamp": now_ts,
-                "updated_at": now_ts,
-            }
+            if not workflow_existing_chat:
+                chat_metadata_fields: dict = {
+                    "encrypted_title": encrypted_title,
+                    "encrypted_category": encrypted_category,
+                    "encrypted_chat_key": encrypted_chat_key,
+                    "title_v": title_v,
+                    "messages_v": messages_v,
+                    "last_edited_overall_timestamp": now_ts,
+                    "last_message_timestamp": now_ts,
+                    "updated_at": now_ts,
+                }
 
-            # Persist LLM-generated follow-up suggestions if the client included them.
-            # Stored as encrypted_follow_up_request_suggestions in the Directus chats row —
-            # the same field used by the normal post-processing flow, so phased sync and
-            # load_more_chats will deliver them to other devices automatically.
-            if encrypted_follow_up_suggestions:
-                chat_metadata_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
-                logger.debug(
-                    "[SyncInspirationChat] Including encrypted follow-up suggestions in metadata for chat %s",
+                # Persist LLM-generated follow-up suggestions if the client included them.
+                if encrypted_follow_up_suggestions:
+                    chat_metadata_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
+                    logger.debug(
+                        "[SyncInspirationChat] Including encrypted follow-up suggestions in metadata for chat %s",
+                        chat_id,
+                    )
+
+                celery_app.send_task(
+                    "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
+                    args=[chat_id, chat_metadata_fields, user_id_hash, user_id],
+                    queue="persistence",
+                )
+                logger.info(
+                    "[SyncInspirationChat] Queued persist_encrypted_chat_metadata for chat %s",
                     chat_id,
                 )
-
-            celery_app.send_task(
-                "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
-                args=[chat_id, chat_metadata_fields, user_id_hash, user_id],
-                queue="persistence",
-            )
-            logger.info(
-                "[SyncInspirationChat] Queued persist_encrypted_chat_metadata for chat %s",
-                chat_id,
-            )
 
             # Persist the assistant message (the pre-built response shown in the chat).
             # Only queue if we have encrypted content — without it, nothing to store.

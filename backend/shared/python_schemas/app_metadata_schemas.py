@@ -33,6 +33,21 @@ class AppSkillApiConfig(BaseModel):
     expose_post: bool = Field(default=True, description="Whether to expose a POST endpoint for skill execution. Set to false for skills that require client-side encryption flows (e.g., image generation) and cannot be executed via a stateless REST API call. The GET metadata endpoint remains visible so developers know the skill exists.")
 
 
+class AppSkillWorkflowConfig(BaseModel):
+    """Workflow automation contract for a skill declared in app.yml."""
+
+    available: bool
+    execution_mode: Literal["sync", "workflow_ai"]
+    effect: Literal["read", "notify", "chat_write"]
+    unattended: bool
+    approval: Literal["never", "side_effect_confirmation", "always"]
+    binding_requirements: List[Literal["none", "location", "provider_account", "notification_preferences", "chat_owner"]] = Field(default_factory=list)
+    output_schema: Dict[str, Any]
+    test_allowed: bool
+    test_example_input: Optional[Dict[str, Any]] = None
+    unavailable_reason: Optional[str] = None
+
+
 class ProviderRef(BaseModel):
     """
     A provider reference in a skill definition.
@@ -104,6 +119,7 @@ class AppSkillDefinition(BaseModel):
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this skill (1-3 sentences).")
     # REST API configuration — controls how the skill is exposed in the public API docs
     api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
+    workflow: Optional[AppSkillWorkflowConfig] = Field(default=None, description="Workflow automation contract for this skill.")
     # Internal skills are used by the AI backend only and must NOT be shown to users
     # in Apps or settings UI. Set internal: true for skills that are invoked
     # automatically (e.g., images.view for uploaded images, audio.transcribe for

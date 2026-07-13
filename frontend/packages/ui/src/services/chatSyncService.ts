@@ -1062,6 +1062,22 @@ export class ChatSynchronizationService extends EventTarget {
           payload as Parameters<typeof module.handlePendingAIResponseImpl>[1],
         ),
       );
+      webSocketService.on("workflow_chat_deliveries_available", (payload) =>
+        module.handleWorkflowChatDeliveriesAvailableImpl(
+          payload as Parameters<typeof module.handleWorkflowChatDeliveriesAvailableImpl>[0],
+        ),
+      );
+      webSocketService.on("workflow_chat_delivery_claimed", (payload) =>
+        module.handleWorkflowChatDeliveryClaimedImpl(
+          this,
+          payload as Parameters<typeof module.handleWorkflowChatDeliveryClaimedImpl>[1],
+        ),
+      );
+      webSocketService.on("workflow_chat_delivery_persisted", (payload) =>
+        module.handleWorkflowChatDeliveryPersistedImpl(
+          payload as Parameters<typeof module.handleWorkflowChatDeliveryPersistedImpl>[0],
+        ),
+      );
     });
 
     // Handle focus mode activated events (sent after auto-confirm task fires)

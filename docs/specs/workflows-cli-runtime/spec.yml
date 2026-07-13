@@ -1,0 +1,1540 @@
+schema_version: 2
+id: workflows-cli-runtime
+title: Workflows CLI Runtime
+status: implementing
+
+parent_spec: docs/specs/workflows-v1/spec.yml
+
+goal: >
+  Make OpenMates workflows real and dependable from the CLI before expanding
+  parity to SDK, web, or Apple clients. A non-technical user can describe one
+  workflow in YAML, validate and save it as a disabled draft, enable only a
+  complete workflow, execute real app skills and OpenMates actions, test any
+  individual action with real billing and side effects, and inspect every run
+  and step output or plain-language failure reason.
+
+scope:
+  in:
+    - YAML-only workflow creation and update through the OpenMates CLI.
+    - Automatic deterministic validation before create, update, enable, full run, and individual action test execution.
+    - Disabled drafts that may be structurally valid while required runtime inputs are still incomplete.
+    - Create always saves a disabled workflow; enable is the only transition that starts accepting runs.
+    - Updating an enabled workflow preserves enabled state only when the new version is enable-ready; an incomplete update is rejected until the owner disables the workflow.
+    - Enablement only when every required action input is fixed, mapped from an earlier typed output, or guaranteed by the trigger.
+    - Disabled workflows cannot run through manual, schedule, or event execution.
+    - Individual action tests can run for enabled, disabled, or incomplete workflows when that action can resolve test inputs.
+    - Real individual action tests with normal credit charging, real provider calls, real chat messages, and real notifications.
+    - Test-only example inputs from capability metadata; examples never satisfy production readiness or enter normal workflow execution.
+    - A shared Workflow capability layer derived from app metadata and SkillRegistry rather than a hardcoded skill allowlist.
+    - Initial app-skill actions for web.search, weather.forecast, news.search, events.search, and ai.ask in Workflow mode.
+    - OpenMates actions for send_chat_message, send_notification, and Ask for user input.
+    - Client-encrypted pending chat delivery: a Workflow creates an encrypted delivery request, an eligible client claims new-chat encryption, and existing chat keys remain immutable.
+    - Durable Workflow input waits whose later web run-page response form and initial CLI response command use the same API.
+    - Control steps named If, For every, Repeat until, and Wait, with If true and If false branch labels.
+    - One trigger followed by any supported sequence or nesting of action and control steps.
+    - Typed Workflow variables and deterministic date/time calculations without arbitrary code evaluation.
+    - Real server-side execution while the user has no active device.
+    - Real one-time and recurring scheduled execution, including due-trigger scanning, atomic claim, immutable version pinning, and recurrence advancement.
+    - Durable immutable workflow versions, accepted runs, step runs, encrypted inputs/outputs, timing, costs, statuses, and plain-language failures.
+    - CLI help for each app skill, OpenMates action, and control step, including inputs, outputs, cost, examples, and test commands.
+  out:
+    - npm SDK and pip SDK parity; these follow only after the CLI phase is fully green.
+    - Web and Apple workflow parity; these follow after SDK parity. The later Workflow run page renders the existing Ask for user input API rather than defining a separate wait protocol.
+    - Interactive command-by-command workflow construction in the CLI.
+    - JSON as an authoring format in this phase.
+    - Natural-language workflow generation or modification.
+    - Workflow template sharing and import changes.
+    - Connected-account app skills such as Mail or Calendar.
+    - Async generation skills such as Images, Music, Video, or 3D generation.
+    - User memories, interests, or preferences as implicit AI context.
+    - Arbitrary code, arbitrary template expressions, unbounded loops, parallel branches, joins, or user-configured failure branches.
+    - SDK, web, or Apple UI implementation and verification.
+    - Event-trigger producer integration in this phase; event-trigger execution remains gated until a later contract.
+
+context_discovery:
+  github_issues:
+    - No dedicated public Workflow CLI implementation issue was found in the parent workflows-v1 discovery.
+  docs:
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/specs/unified-notifications/spec.yml
+    - docs/architecture/apps/app-skills.md
+    - docs/architecture/apps/function-calling.md
+    - docs/architecture/core/security.md
+    - docs/architecture/platforms/cli-package.md
+    - docs/contributing/guides/testing.md
+  code_patterns:
+    - backend/core/api/app/services/workflow_models.py currently hardcodes weather.forecast and news.search as the only valid Workflow app skills.
+    - backend/core/api/app/services/workflow_app_skill_adapter.py already dispatches through the shared in-process SkillRegistry.
+    - backend/core/api/app/services/workflow_runner.py currently walks one next node at a time and does not implement real foreach, repeat-until, wait/resume, or Workflow AI conversations.
+    - backend/core/api/app/services/workflow_action_adapter.py can enqueue push notifications but explicitly rejects chat creation and email notification actions.
+    - backend/apps/ai/skills/ask_skill.py supports non-persisted API requests by constructing a synthetic chat identity, but it has no explicit Workflow execution mode.
+    - backend/shared/python_schemas/app_metadata_schemas.py exposes class_path, tool_schema, pricing, provider, and LLM-exclusion metadata but no Workflow execution metadata.
+    - frontend/packages/openmates-cli/src/cli.ts currently accepts inline graph JSON and lacks YAML create/update, deterministic help, and individual real action-test commands.
+    - Existing CLI, npm, and pip Workflow tests use local mocked transport rather than real server-backed workflow execution.
+  tests:
+    - backend/tests/test_workflows_models.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_scheduler_contract.py
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - packages/openmates-python/tests/test_workflows.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - Apple Workflow parity is intentionally deferred until CLI and then SDK parity are complete.
+  verification:
+    - Not required for this CLI-only phase.
+  intentional_native_differences:
+    - Apple may continue to lack these Workflow capabilities during this phase.
+
+clarification:
+  rounds:
+    - question: What is the intended Workflow shape?
+      answer: A workflow always starts with one trigger, followed by one or more action or control steps connected sequentially or nested together.
+    - question: Which user-facing control-step names are required?
+      answer: Use If with If true and If false branches, For every, Repeat until, and Wait. Do not expose technical graph terminology to users.
+    - question: How should asking a user and sending chat output work?
+      answer: Send chat message only delivers output. Ask for user input is a separate Workflow action that pauses the run and later receives structured input from the Workflow run page; the CLI phase exposes the same API through a response command.
+    - question: How should a Workflow create a chat without backend-owned chat keys?
+      answer: The backend creates a Vault-encrypted pending delivery and alerts an online or later-reconnecting device. One client atomically claims first encryption for a new chat, generates and persists its key and ciphertext, then acknowledges delivery; existing chats use their persisted key. The backend never generates a regular chat key.
+    - question: How should individual action tests work?
+      answer: Every action can execute a real Test request regardless of workflow enabled state. It uses normal billing and real side effects, records a step-test run, and uses test-only example inputs only when configured or supplied test values are absent.
+    - question: May example inputs make a workflow runnable?
+      answer: No. Capability example inputs are test-only and never satisfy production readiness, enablement, or full-run input resolution.
+    - question: May incomplete workflows be saved?
+      answer: Structurally valid incomplete workflows may be saved and updated as disabled drafts, but cannot be enabled until all required runtime inputs resolve.
+    - question: May disabled workflows run manually?
+      answer: No. Disabled workflows cannot run manually, on schedule, or from events; individual action tests remain available.
+    - question: Which client is the first implementation target?
+      answer: CLI only. SDK parity follows after the CLI is fully implemented and tested; web and Apple follow later.
+    - question: Which app skills are required in the first real integration phase?
+      answer: Web Search, Weather Forecast, News Search, Events Search, and AI Ask in Workflow mode.
+    - question: How should Workflow AI history work?
+      answer: Each AI Ask starts with fresh context by default. An optional Workflow-local conversation name can retain earlier AI inputs/outputs within the same run, stored only in encrypted Workflow run content and never linked to real chat IDs or regular chat/message records.
+  vision_summary: >
+    The first complete Workflow product slice is CLI-first and YAML-authored.
+    It proves real app-skill, AI, chat, notification, control-flow, scheduling,
+    per-action testing, client-encrypted pending chat delivery, durable user input,
+    and run-inspection behavior before any SDK, web, or Apple parity work. The
+    later Workflow run page renders the same durable input wait that this phase
+    exposes through CLI. The product remains approachable to non-technical users
+    through plain-language help and validation while the backend keeps typed
+    graphs, immutable runs, encryption, billing, and idempotency deterministic.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: working-tree-after-pending-delivery-fix
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-13T00:00:00Z"
+    reason: The user explicitly confirmed the CLI-only scope, YAML authoring, draft and enablement semantics, real step tests, initial skills, deferred client-encrypted chat delivery, separate run input waits, and Workflow AI context model.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-13T00:00:00Z"
+    reason: The user explicitly instructed OpenCode to implement the complete approved CLI Workflow specification.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Implement and verify CLI before SDK, web, or Apple parity.
+    reason: The CLI is the cheapest deterministic proof of the backend Workflow contract.
+    decided_at: "2026-07-13T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use YAML as the only Workflow authoring format in this phase.
+    reason: One readable file is simpler for non-technical users than interactive graph-building commands or parallel JSON syntax.
+    decided_at: "2026-07-13T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Separate draft validity from enablement readiness.
+    reason: Users must be able to save incomplete work without allowing it to execute with missing inputs.
+    decided_at: "2026-07-13T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Capability example inputs are exclusively for individual action tests.
+    reason: Sample values must never silently affect a real workflow run.
+    decided_at: "2026-07-13T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Individual action tests execute real requests, billing, and side effects for enabled, disabled, and incomplete workflows.
+    reason: A Test request must prove the actual action path rather than a mock or preview.
+    decided_at: "2026-07-13T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: AI Ask gains an explicit Workflow mode with fresh context by default and optional run-local named conversations.
+    reason: Reusing synthetic or persisted chat history would couple Workflow execution to chat storage and make offline behavior ambiguous.
+    decided_at: "2026-07-13T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: Send chat message uses optional chat_id rather than a destination enum.
+    reason: A supplied owner-authorized chat receives a new standalone message; no chat_id creates a new chat, which keeps YAML simple.
+    decided_at: "2026-07-13T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Failures stop the run and remain inspectable rather than exposing user-authored failure branches in this phase.
+    reason: Saved per-step status and plain-language errors provide useful diagnosis without complicating the editor model.
+    decided_at: "2026-07-13T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: This child spec supersedes the parent spec only for the current CLI command and authoring contract.
+    reason: YAML create/update, step-test, and run-show are the canonical first-phase commands; existing inline JSON, edit, run --mode test, and run show behavior may remain as compatibility aliases but receives no new feature work in this phase.
+    decided_at: "2026-07-13T00:00:00Z"
+  - id: D-10
+    status: active
+    decision: Existing accepted runs remain pinned and may finish after disable; disable prevents only new run acceptance.
+    reason: Disabling must not mutate or strand already accepted running or waiting executions, while deletion requests cancellation before removing future execution state.
+    decided_at: "2026-07-13T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Extend the broad workflows-v1 spec in place while another active session modifies its web evidence ledger.
+    outcome: rejected
+    recorded_at: "2026-07-13T00:00:00Z"
+    reason: A focused linked child spec avoids overwriting concurrent work and keeps the CLI implementation contract executable.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Implement the approved CLI Workflow specification in documented task order, integrating concurrent parent Workflow runtime changes rather than overwriting them.
+    outcome: planned
+    recorded_at: "2026-07-13T00:00:00Z"
+    reason: The user explicitly approved full implementation and the parent workflows-v1 session concurrently owns shared runtime files.
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Tighten durable pending chat delivery by binding persist/ack to the claiming device, adding a cross-worker Redis claim lock, preserving configured existing chat ids, and waiting for delivery persistence before terminal ack.
+    outcome: succeeded
+    recorded_at: "2026-07-13T15:50:03Z"
+    reason: Review found race and existing-chat risks in pending Workflow chat delivery before deployed CLI E2E verification.
+
+handoff:
+  current_task_id: TASK-4
+  next_action: Run CLI unit/schema checks, then deploy and collect missing live CLI E2E evidence once frontend type-check environment dependencies are available.
+  command: python3 -m pytest backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_template_expressions.py backend/tests/test_workflow_due_scanner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_control_runtime.py backend/tests/test_workflow_ai_and_chat_actions.py backend/tests/test_workflow_step_test.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py backend/tests/test_workflows_models.py
+  expected_outcome: CLI unit/schema checks remain green before final deploy. Frontend npm run check-types currently blocks before source checks with TS2688 missing type definition file for node.
+  blocker: null
+  last_verified_commit: working-tree-after-pending-delivery-fix
+
+scenarios:
+  - id: S-1
+    title: User validates and saves an incomplete YAML draft
+    given:
+      - Alice is paired with the OpenMates CLI.
+      - daily-rain.yml contains one daily trigger, Weather Forecast, an If check, and Send notification.
+      - The Weather location input is empty.
+    when:
+      - Alice runs openmates workflows validate --file daily-rain.yml.
+      - Alice runs openmates workflows create --file daily-rain.yml.
+    then:
+      - Validation reports that the structure is valid but the workflow is not ready to enable.
+      - The missing Weather location is identified by step id, field, expected type, and a relevant help command.
+      - The workflow is saved as a disabled draft after server-side validation repeats the same structural checks.
+      - Test-only example values are not copied into the saved Workflow definition.
+
+  - id: S-2
+    title: User cannot enable or run an incomplete or disabled workflow
+    given:
+      - Alice owns the incomplete disabled Daily rain alert draft.
+    when:
+      - Alice tries to enable it.
+      - Alice tries to run it while disabled.
+    then:
+      - Enablement fails with the unresolved required input list.
+      - Full execution fails because disabled workflows cannot run.
+      - No workflow_run is created for either rejected request.
+      - Disabling an already running or waiting run does not mutate its pinned version or prevent its authorized completion.
+
+  - id: S-3
+    title: User enables and runs a real daily rain notification
+    given:
+      - Alice updates daily-rain.yml with location Berlin and a valid daily schedule.
+      - The graph uses Weather Forecast followed by a typed If condition.
+      - If true runs Send notification and If false is empty and displayed as Do nothing.
+    when:
+      - Alice updates, enables, and manually runs the workflow.
+    then:
+      - Weather Forecast calls the real existing app skill and charges its normal credits.
+      - The If condition evaluates typed Weather output deterministically.
+      - If true, Send notification submits one real notification through the unified notification system.
+      - If false, the run completes without sending a notification.
+      - Run and step history records actual inputs, outputs, provider, credits, timing, selected branch, and status.
+      - Integration verification uses one threshold below the output minimum and one above its maximum so both branches are deterministic while Weather remains a real provider request.
+
+  - id: S-4
+    title: Workflow AI creates a client-encrypted weather chat delivery
+    given:
+      - Alice creates a YAML workflow with Weather Forecast, AI Ask, and Send chat message.
+      - AI Ask has no conversation name.
+      - Send chat message has no chat_id and includes a title.
+    when:
+      - Alice enables and runs the workflow.
+    then:
+      - AI Ask runs in explicit Workflow mode with fresh context and receives only its configured instruction and mapped Weather data.
+      - AI Ask creates no regular chat or message record.
+      - Send chat message accepts one Vault-encrypted pending delivery with stable chat, message, and delivery ids.
+      - An online client or a later reconnecting client atomically claims the new-chat delivery, generates the regular chat key locally, encrypts/persists title and message, and acknowledges delivery.
+      - The backend never creates or persists a raw regular chat key.
+      - Other devices wait for the persisted encrypted chat metadata and use its immutable key instead of generating a competing key.
+      - The run records chat, message, delivery, claim, and acknowledgement state in encrypted step output.
+
+  - id: S-5
+    title: User searches events and supplies input through the Workflow run
+    given:
+      - Alice creates a weekly workflow with Events Search, AI Ask, and Ask for user input.
+      - The AI instruction explicitly contains the interests relevant to ranking; no memory data is loaded.
+    when:
+      - The workflow reaches Ask for user input with a structured response schema and expiry.
+      - Alice submits the response through openmates workflows respond <workflow-id> <run-id> <step-id> --input <json>.
+    then:
+      - The run enters waiting_for_input and exposes the waiting step in CLI run detail.
+      - The normal notification system links Alice to the Workflow run.
+      - The owner-authorized, schema-valid response resumes exactly that run once.
+      - A later AI Ask can consume the typed response through steps.<step-id>.input.
+      - Duplicate, expired, cross-owner, malformed, or cancelled responses are rejected without another continuation.
+      - The later web run page uses the same response API and schema to render its input form.
+
+  - id: S-6
+    title: User continues Workflow AI context without creating a chat history
+    given:
+      - Two AI Ask actions use conversation weekend-planning in one run.
+    when:
+      - The second AI Ask executes after the first.
+    then:
+      - The second action receives the earlier Workflow AI exchange plus its new explicit inputs.
+      - The conversation is scoped to that run and cannot reference a real chat id.
+      - Conversation inputs and outputs are retained only in encrypted Workflow run content and expire with run-content retention.
+
+  - id: S-7
+    title: User tests any individual action with real execution
+    given:
+      - Alice owns a disabled incomplete workflow.
+      - One Weather action has no configured location.
+      - Weather capability metadata contains a test-only example location.
+    when:
+      - Alice runs openmates workflows step-test <workflow-id> forecast.
+      - Alice later supplies --input with a different location.
+    then:
+      - The first test executes the real Weather skill using the capability example input.
+      - The second test executes with the supplied override.
+      - Both tests charge normal credits and create inspectable step_test run records pinned to the tested Workflow version and step id.
+      - The example and override never modify the Workflow definition or make it enable-ready.
+      - Testing a mapped input never executes upstream steps implicitly.
+
+  - id: S-8
+    title: User tests real side-effect actions
+    given:
+      - Alice owns a workflow containing Send notification and Send chat message.
+    when:
+      - Alice confirms each step test or supplies --yes.
+    then:
+      - Send notification sends a real notification through the unified system.
+      - Send chat message accepts a real pending delivery and an online paired client persists the encrypted message; an existing chat uses its persisted key.
+      - Each test is normally billed where applicable and records the actual result or failure.
+      - Without confirmation, non-interactive side-effect tests fail closed without execution.
+
+  - id: S-9
+    title: User reads help for every Workflow building block
+    given:
+      - Alice does not know the internal graph schema.
+    when:
+      - Alice requests help for events.search, send-chat-message, and If.
+    then:
+      - Help uses plain language and includes availability, real-test support, cost, required and optional inputs, typed outputs, defaults, YAML example, and test command.
+      - App-skill help is generated from the same metadata used by validation and execution.
+      - Unknown capabilities return nearby valid identifiers and the capabilities command.
+
+  - id: S-10
+    title: User uses deterministic date and time calculations
+    given:
+      - A schedule crosses a timezone or daylight-saving boundary.
+      - A YAML input references run.scheduled_at with date filters.
+    when:
+      - The workflow is validated and run.
+    then:
+      - Expressions use an allowlisted template grammar and typed date operations rather than arbitrary code.
+      - run.scheduled_at and run.started_at are immutable for the run.
+      - clock.now is resolved and saved each time it is explicitly used.
+      - Invalid operations fail validation with the expression location and supported alternatives.
+
+  - id: S-11
+    title: User inspects successful and failed runs from CLI
+    given:
+      - Alice has completed, failed, waiting, and step-test runs.
+    when:
+      - Alice runs workflows runs and workflows run-show.
+    then:
+      - Run lists distinguish manual, scheduled, event, and step_test runs.
+      - Run detail shows each executed step, skipped branch, waiting state, actual encrypted-content output, credits, duration, and provider where applicable.
+      - A failed action stops later actions and records one safe plain-language reason plus a stable technical error code.
+      - Missing or expired retained content is explicit and never replaced with fabricated output.
+
+  - id: S-12
+    title: Capability metadata enables the first five app skills
+    given:
+      - SkillRegistry has registered web.search, weather.forecast, news.search, events.search, and ai.ask.
+    when:
+      - Alice requests Workflow capabilities or validates YAML using those skills.
+    then:
+      - All five are available without adding skill-specific branches to Workflow graph validation.
+      - Their Workflow eligibility, execution mode, effect classification, test example, input schema, output schema, and cost are metadata-derived.
+      - Internal, connected-account, mutation, or async-generation skills remain unavailable with an explicit reason in this phase.
+
+  - id: S-13
+    title: Scheduler runs an enabled workflow while no client is connected
+    given:
+      - Alice has enabled a complete one-time Weather workflow due in the near future.
+      - Alice closes the CLI and has no connected browser or app.
+    when:
+      - The due-trigger scanner finds the indexed occurrence.
+      - Two workers contend for the same trigger claim.
+    then:
+      - Exactly one worker atomically accepts one run pinned to the trigger version.
+      - The real Weather action executes and is billed normally without an active client.
+      - A one-time trigger becomes complete and cannot be claimed again; recurring triggers advance next_run_at atomically.
+      - Future occurrences are trigger state and never pre-created run rows.
+
+  - id: S-14
+    title: User runs bounded control steps
+    given:
+      - Alice has valid examples using If, For every, Repeat until, and Wait.
+    when:
+      - For every receives empty and non-empty lists.
+      - Repeat until matches immediately and also reaches max_attempts.
+      - Wait receives a future duration and an already-past absolute time.
+    then:
+      - Empty For every completes with zero iterations and typed empty aggregate output.
+      - Each iteration has a stable item value, index, step history, and aggregate credit/time accounting.
+      - Repeat until checks after each iteration, records each attempt, and fails visibly with REPEAT_LIMIT_REACHED when the condition never matches.
+      - Wait resumes once at or after the requested instant, and cancellation prevents later continuation.
+      - Nested repetition remains within one aggregate workflow item/attempt/credit/duration ceiling.
+
+  - id: S-15
+    title: Feature gate blocks Workflow operations without hiding help
+    given:
+      - platform:workflows is disabled for Alice.
+    when:
+      - Alice requests help or local YAML syntax validation.
+      - Alice requests authoritative validation, create, update, enable, run, or step-test.
+    then:
+      - Static help and local syntax diagnostics remain available.
+      - Every authenticated server operation rejects with FEATURE_DISABLED and creates no workflow, run, charge, chat, or notification.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: CLI validates YAML locally for fast feedback and the server repeats authoritative validation before every create or update; structurally invalid workflows are never saved.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PYTEST-001, T-CLI-001, T-CLI-E2E-001]
+  - id: AC-2
+    scenario: S-1
+    text: Structurally valid workflows with unresolved required runtime inputs can be saved only as disabled drafts and report each unresolved field without copying test examples into runtime state.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-001, T-CLI-E2E-001]
+  - id: AC-3
+    scenario: S-2
+    text: Enablement rejects every unresolved required action input, and disabled workflows cannot create manual, scheduled, or event runs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-CLI-E2E-001]
+  - id: AC-4
+    scenario: S-3
+    text: A real Weather Forecast, typed If true/If false branch, and unified notification workflow runs server-side and records real per-step outputs, credits, timing, branch, and status.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PYTEST-002, T-CLI-E2E-001]
+  - id: AC-5
+    scenario: S-4
+    text: AI Ask Workflow mode uses fresh isolated context by default, creates no regular chat/message records, and can feed a real client-encrypted pending chat delivery through Send chat message.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PYTEST-003, T-CLI-E2E-002]
+  - id: AC-6
+    scenario: S-5
+    text: Ask for user input creates a durable schema-validated Workflow wait that the owner resumes exactly once through the shared CLI/run-page response API without using chat replies.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-003, T-CLI-E2E-002]
+  - id: AC-18
+    scenario: S-4
+    text: Send chat message uses optional owner-authorized chat_id and delivers only through a Vault-encrypted pending-delivery protocol; an atomic first-client claim prevents competing new-chat keys, existing chat keys remain immutable, and client acknowledgement persists the regular encrypted chat/message.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-008, T-CLI-E2E-002, T-CLI-E2E-003]
+  - id: AC-7
+    scenario: S-6
+    text: Named Workflow AI conversations are encrypted, run-local, disconnected from real chat ids, and retained only with Workflow run content.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-003, T-CLI-E2E-002]
+  - id: AC-8
+    scenario: S-7
+    text: Every initial action with test_allowed supports a real individual step test independent of workflow enabled/readiness state, with normal billing, tested version/step identity, actual input/output, and field-level test-only capability examples as the final fallback.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PYTEST-004, T-CLI-001, T-CLI-E2E-003]
+  - id: AC-9
+    scenario: S-8
+    text: Side-effect step tests require explicit confirmation and execute real notification/chat effects rather than mocks or previews.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PYTEST-004, T-CLI-001, T-CLI-E2E-003]
+  - id: AC-10
+    scenario: S-9
+    text: CLI help for app skills, actions, and controls is generated from authoritative capability metadata and explains plain-language purpose, availability, inputs, outputs, cost, examples, and testing.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PYTEST-005, T-CLI-001]
+  - id: AC-11
+    scenario: S-10
+    text: Workflow templates support typed run/step variables and allowlisted date/time filters with immutable run timestamps, explicit clock.now resolution, timezone correctness, and no arbitrary expression execution.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-006, T-CLI-E2E-001]
+  - id: AC-12
+    scenario: S-11
+    text: CLI run history and detail expose manual/scheduled/event/step-test types plus per-step status, actual retained output, credits, provider, duration, skipped/waiting state, stable error code, and plain-language failure reason.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PYTEST-002, T-CLI-001, T-CLI-E2E-001, T-CLI-E2E-002, T-CLI-E2E-003]
+  - id: AC-13
+    scenario: S-12
+    text: The shared Workflow capability layer derives app skills from SkillRegistry metadata and initially enables web.search, weather.forecast, news.search, events.search, and ai.ask without central per-skill validation branches.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-005, T-CLI-001, T-CLI-E2E-004]
+  - id: AC-14
+    scenario: S-14
+    text: If, For every, Repeat until, and Wait execute with deterministic typed semantics and mandatory server-enforced item, attempt, duration, credit, and timeout bounds where repetition occurs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-002, T-PYTEST-006, T-CLI-E2E-004]
+  - id: AC-15
+    scenario: S-4
+    text: Workflow AI enforces role-separated sanitized instructions/data, an empty tool configuration, no chat/memory/connected-account lookup interfaces, explicit size/credit/model/timeout limits, and a bounded response-schema subset before downstream execution.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-003]
+  - id: AC-16
+    scenario: S-13
+    text: The due-trigger scanner runs an enabled schedule without a connected client, atomically creates exactly one version-pinned run under contention, bills real actions, and advances or completes the trigger without planned run rows.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PYTEST-007, T-CLI-E2E-005]
+  - id: AC-17
+    scenario: S-15
+    text: platform:workflows leaves static help and local YAML syntax diagnostics available but blocks authoritative validation, persistence, enablement, full runs, and step tests without side effects or charges.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-PYTEST-001, T-CLI-001, T-CLI-E2E-001]
+
+assumptions:
+  - id: A-1
+    text: SkillRegistry and BaseApp.dispatch_skill remain the single app-skill execution boundary for API and worker processes.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/services/skill_registry.py
+        summary: SkillRegistry.dispatch_skill delegates registered skills to BaseApp.dispatch_skill in-process.
+  - id: A-2
+    text: Existing app metadata tool_schema and pricing are reusable but insufficient alone for Workflow output schemas, effect classification, unattended eligibility, and test examples.
+    category: metadata
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/shared/python_schemas/app_metadata_schemas.py
+        summary: AppSkillDefinition has input tool_schema and pricing but no Workflow-specific lifecycle or output contract.
+  - id: A-3
+    text: Existing client chat-key guards and immutable persisted key handling can be extended with an atomic pending-delivery claim so Workflow chat delivery never requires backend-generated regular chat keys.
+    category: chat
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/tasks/persistence_tasks.py
+        summary: Existing persistence keeps encrypted_chat_key immutable after first write and rejects ciphertext/metadata encrypted with a competing key.
+      - source: frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+        summary: Existing clients refuse writes with conflicting keys and preserve candidate keys for recovery.
+      - source: frontend/packages/ui/src/services/sendersChatMessages.ts
+        summary: Existing-chat send paths decrypt the persisted key and explicitly refuse to generate a new key for an existing chat.
+      - source: backend/core/api/app/routers/webhooks.py
+        summary: Webhook delivery already pre-creates minimal chat routing metadata, sends online WebSocket delivery, and retains Vault-encrypted offline pending content; Workflow delivery extends this pattern with an atomic new-chat claim and acknowledgement.
+  - id: A-4
+    text: AI Ask needs an explicit Workflow execution mode because the current non-chat API path still synthesizes chat and message identities around the chat-oriented processing request.
+    category: ai
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: backend/apps/ai/skills/ask_skill.py
+        summary: OpenAI-compatible requests are transformed into AskSkillRequest with synthetic chat_id, message_id, and message_history.
+  - id: A-5
+    text: platform:workflows remains the authoritative server feature gate while this CLI phase is tested through an explicit dev-account override.
+    category: rollout
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: docs/specs/workflows-v1/spec.yml
+        summary: The parent contract keeps platform:workflows disabled by default until controlled dev verification is green.
+
+contracts:
+  cli:
+    - command: openmates workflows validate --file <workflow.yml> [--json]
+      behavior: Performs free local structural/readiness validation and authoritative server capability/readiness validation without saving.
+    - command: openmates workflows create --file <workflow.yml> [--json]
+      behavior: Auto-validates, rejects structural errors, and always creates a disabled workflow; enable is a separate explicit command.
+    - command: openmates workflows update <workflow-id> --file <workflow.yml> [--json]
+      behavior: Auto-validates and creates a new immutable version without mutating prior runs. A complete update preserves current enabled state; an incomplete update to an enabled workflow is rejected until the workflow is disabled.
+    - command: openmates workflows enable <workflow-id> [--json]
+      behavior: Revalidates readiness and enables only a complete safe current version.
+    - command: openmates workflows disable <workflow-id> [--json]
+      behavior: Prevents every new manual, scheduled, or event execution while preserving definitions and history.
+    - command: openmates workflows run <workflow-id> [--input <json>] [--json]
+      behavior: Executes an enabled ready workflow with idempotent accepted-run semantics; examples are never used.
+    - command: openmates workflows step-test <workflow-id> <step-id> [--input <json>] [--yes] [--json]
+      behavior: Executes exactly one real action and records run_type step_test; no upstream action executes implicitly. Input is resolved per field from explicit override, configured literal, then capability example. Explicit null is retained only for nullable fields and otherwise fails validation.
+    - command: openmates workflows respond <workflow-id> <run-id> <step-id> --input <json> [--json]
+      behavior: Submits one owner-authorized schema-valid response to an active Ask for user input wait. It resumes the accepted run exactly once and rejects duplicate, expired, cancelled, or cross-owner responses.
+    - command: openmates workflows list [--json]
+      behavior: Lists owner workflows with enabled, disabled, incomplete, and last-run state.
+    - command: openmates workflows show <workflow-id> [--json]
+      behavior: Shows the current YAML-compatible definition and readiness diagnostics.
+    - command: openmates workflows runs <workflow-id> [--json]
+      behavior: Lists accepted full and step-test runs without representing future schedule occurrences as runs.
+    - command: openmates workflows run-show <workflow-id> <run-id> [--json]
+      behavior: Shows per-step inputs/outputs/status/cost/timing/error subject to run-content retention.
+    - command: openmates workflows delete <workflow-id> --yes [--json]
+      behavior: Disables future execution and soft-deletes the owner workflow without rewriting run history.
+    - command: openmates workflows capabilities [--json]
+      behavior: Lists available triggers, controls, app skills, actions, execution limits, and unavailable reasons.
+    - command: openmates workflows help app <app-id>.<skill-id>
+      behavior: Explains one app skill from authoritative Workflow capability metadata.
+    - command: openmates workflows help action <action-id>
+      behavior: Explains one OpenMates action, including real side effects and test confirmation.
+    - command: openmates workflows help control <control-id>
+      behavior: Explains If, For every, Repeat until, or Wait with a valid YAML example.
+  yaml:
+    authoring_version: 1
+    top_level_fields:
+      - title
+      - description
+      - start_when
+      - steps
+      - run_content_retention
+    principles:
+      - YAML is parsed with duplicate-key rejection, anchors/aliases disabled, safe scalar types, size/depth/list limits, and no executable tags.
+      - Every action and control has a stable user-authored id used by templates, help, tests, and run history.
+      - The YAML document compiles deterministically to the internal immutable WorkflowGraph; clients never submit arbitrary executable expressions.
+      - TypeScript local validation uses a generated schema and shared conformance fixtures from the authoritative Python compiler; server compilation remains authoritative and both surfaces return the same diagnostic codes and paths.
+      - Empty If true or If false means Do nothing.
+    action_forms:
+      - "use_app_skill: <app-id>.<skill-id>"
+      - "ask_ai: { instructions, input, conversation?, response_schema? } (compiler alias for use_app_skill: ai.ask with mode workflow)"
+      - "send_chat_message: { chat_id?, title?, message }"
+      - "send_notification: { title, body, link? }"
+      - "ask_for_user_input: { prompt, input_schema, expires_in }"
+    control_forms:
+      - "if: <typed allowlisted comparison>; if_true: <steps>; if_false: <steps>"
+      - "for_each: <typed list reference>; as: <item name>; max_items: <positive integer>; steps: <steps>"
+      - "repeat_until: <typed condition>; max_attempts: <positive integer>; wait_between: <duration>; steps: <steps>"
+      - "wait: <duration or absolute typed date/time>"
+  variables:
+    syntax: "{{ namespace.path | filter: argument }}"
+    namespaces:
+      - run.scheduled_at
+      - run.triggered_at
+      - run.started_at
+      - run.input
+      - clock.now
+      - steps.<step-id>.<typed-output-field>
+      - steps.<ask-for-user-input-step-id>.input after a resolved user-input wait
+      - item within For every
+    date_time_filters:
+      - add_minutes
+      - add_hours
+      - add_days
+      - start_of_day
+      - start_of_week
+      - start_of_weekend
+      - date
+      - time
+      - in_timezone
+    date_time_types:
+      - run.triggered_at is always an immutable timezone-aware instant set at acceptance.
+      - run.scheduled_at is available only for schedule-triggered runs and validation rejects it for other trigger contexts.
+      - run.started_at is the immutable first worker-start instant and does not change across waits/resumes.
+      - clock.now creates one timezone-aware snapshot per consuming step and the snapshot is retained in effective step input.
+      - Workflow timezone defaults to the schedule timezone, then the account timezone, then UTC.
+      - Durations use ISO-8601 forms such as PT30M, PT2H, and P1D.
+      - add_minutes and add_hours use elapsed-time arithmetic; add_days and P1D use calendar-day arithmetic preserving local wall time.
+      - A computed nonexistent DST local time shifts forward by the exact gap; a repeated local time uses the earlier offset unless in_timezone receives an explicit offset.
+      - start_of_day, start_of_week, and start_of_weekend use the effective Workflow timezone; week starts Monday and weekend starts Saturday 00:00.
+    rules:
+      - run.scheduled_at and run.started_at are fixed for the accepted run.
+      - clock.now is evaluated at the consuming step and its resolved value is retained in that step input.
+      - Filters are parsed and type-checked; no dynamic attribute access, function calls, arithmetic language, or arbitrary code is allowed.
+  validation:
+    draft_valid:
+      - YAML and graph structure are valid.
+      - Exactly one supported trigger exists.
+      - Step ids and references are unique and resolvable where declared.
+      - Actions, controls, conditions, templates, date filters, and branch shapes are supported and typed.
+      - Missing required runtime values are diagnostics but may remain in a disabled draft.
+    enable_ready:
+      - Every required action input is fixed, mapped from an earlier compatible output, or guaranteed by trigger/run input.
+      - Every repetition has configured server-safe bounds.
+      - Every action supports unattended execution for the configured trigger.
+      - Current feature availability and owner permissions pass.
+      - Test-only example inputs do not participate.
+  capability_metadata:
+    fields:
+      - workflow.available
+      - workflow.execution_mode
+      - workflow.effect
+      - workflow.unattended
+      - workflow.test_allowed
+      - workflow.test_example_input
+      - workflow.output_schema
+      - workflow.approval
+      - workflow.binding_requirements
+    schema:
+      - available and test_allowed are booleans.
+      - execution_mode is sync, async_callback, or workflow_ai; this phase allows sync and workflow_ai only.
+      - effect is read, notify, chat_write, or external_write; external_write remains unavailable in this phase.
+      - unattended is a boolean evaluated together with the trigger type.
+      - approval is never, side_effect_confirmation, or always; notify/chat_write step tests require side_effect_confirmation or always.
+      - binding_requirements is an array of none, location, provider_account, notification_preferences, or chat_owner; provider_account skills remain unavailable in this phase.
+      - available=true requires execution_mode, effect, unattended, output_schema, approval, and binding_requirements; test_allowed=true additionally requires a schema-valid safe test_example_input.
+    defaults:
+      - Implemented non-internal skills are discoverable; absent Workflow metadata deterministically yields available=false with reason WORKFLOW_CLASSIFICATION_REQUIRED.
+      - Initial classified skills are web.search, weather.forecast, news.search, events.search, and ai.ask.
+      - workflow.available expresses Workflow eligibility only and does not replace platform, app, skill, owner, binding, approval, or provider availability checks.
+      - Effective availability requires platform:workflows, registry presence, complete Workflow classification, enabled app/skill features, owner permissions/bindings, trigger-compatible unattended eligibility, and provider availability in that order.
+    test_example_rules:
+      - Every initial test_allowed action has a schema-valid per-field example.
+      - Examples cannot contain secrets, credentials, account ids, chat ids, private destinations, or side-effect recipients.
+      - Examples are absent from compiled graphs, normal run input/content, AI context, and persisted Workflow definitions.
+  workflow_ai:
+    mode: workflow
+    default_context: fresh
+    tools_enabled: false
+    persistence:
+      - No regular chats or messages are created by AI Ask itself.
+      - Named conversations are scoped to one run and reconstructed only from encrypted run content.
+      - Real chat ids are rejected as Workflow AI conversation identifiers.
+    system_contract:
+      - Execute one isolated Workflow AI action using only the product system instructions, user-configured instructions, and explicitly mapped inputs.
+      - Supply user-configured instructions and mapped previous-step data in separate typed roles/containers so provider data cannot become product system instructions.
+      - Do not access tools, memories, chats, connected accounts, or data not explicitly supplied to this action.
+      - Do not modify Workflow state or perform side effects.
+      - Return only the configured response shape.
+    security:
+      - Remove ASCII-smuggling Unicode tags, bidi controls, zero-width/disallowed controls, and annotation characters from instructions and mapped text.
+      - Enforce input/output size, model allowlist, credit budget, timeout, and provider safety limits.
+      - response_schema supports bounded JSON Schema object, array, string, number, integer, boolean, null, required, enum, min/max, and length/item constraints with maximum nesting and property counts.
+      - Named server constants WORKFLOW_AI_MAX_INPUT_BYTES, WORKFLOW_AI_MAX_OUTPUT_BYTES, WORKFLOW_AI_MAX_SCHEMA_DEPTH, WORKFLOW_AI_MAX_SCHEMA_PROPERTIES, WORKFLOW_AI_TIMEOUT_SECONDS, and WORKFLOW_AI_DEFAULT_CREDIT_LIMIT define enforceable defaults and may only be changed with matching boundary tests.
+      - Validate response_schema before downstream execution; invalid output performs no hidden retry, remains normally billed because inference occurred, and fails with WORKFLOW_AI_OUTPUT_INVALID.
+      - Never log prompt, mapped input, output, named conversation content, or provider raw response.
+  actions:
+    send_chat_message:
+      - chat_id is optional; when present it must be owner-authorized and receives a new standalone message without loading prior chat history.
+      - Without chat_id, the backend pre-creates minimal owner-scoped chat routing metadata and title applies only to the later client-encrypted new chat.
+      - The action stores title/message only in a Vault-encrypted pending delivery; it generates stable chat, message, and delivery ids but never a raw regular chat key or regular chat ciphertext.
+      - An existing-chat delivery is processed by any owner client that decrypts its persisted immutable chat key and encrypts the standalone message without loading history.
+      - A new-chat delivery requires an atomic owner-device claim before client encryption. The claim has an opaque token, issued/expiry timestamps, and fencing generation; encrypted persistence and acknowledgement require the current token/generation.
+      - A disconnected claimant expires and another owner device may reclaim the delivery. Late persistence or acknowledgement from an expired/superseded token is rejected before writing regular chat ciphertext.
+      - The winning client generates the chat key, encrypts/persists chat metadata and message with the stable ids, and acknowledges delivery; other clients wait for sync and never generate another key.
+      - A successful action means durable pending-delivery acceptance, so later Workflow steps may continue. Run detail exposes delivery_pending, claimed, acknowledged, expired, cancelled, or failed rather than falsely reporting a persisted chat message.
+      - The server keeps the pending delivery until acknowledgement, cancellation/deletion, or the run-content retention expiry. Expiry/cancellation terminally marks the delivery undelivered without reopening the already-completed Workflow run; WebSocket delivers immediately to active clients and unified notification links an offline owner to the pending delivery/run without including private content.
+      - Delivery claim, encrypted persistence, acknowledgement, retry, and client reconnect are idempotent. Existing mismatch guards reject conflicting ciphertext and preserve candidate keys for recovery.
+    ask_for_user_input:
+      - prompt, input_schema, and expires_in are required; prompt/schema are Vault-encrypted and expires_in is server-bounded.
+      - Execution creates a durable workflow_wait and sets the run waiting_for_input without creating a chat or message.
+      - Unified notification links the owner to the Workflow run. The CLI response command and later Workflow run page call the same owner-scoped response endpoint.
+      - The response validates against input_schema, is encrypted in the wait/run content, appears as steps.<step-id>.input, and resumes the accepted run once.
+      - A due-wait worker atomically transitions an unresolved expired wait, step, and run to timed_out/failed with WORKFLOW_INPUT_TIMEOUT. The response acceptance and expiry transition compare the same active wait state, so only one wins.
+      - Duplicate, expired, cancelled, malformed, or cross-owner responses fail visibly. Disabling does not cancel an accepted wait; run cancellation or Workflow deletion does.
+    send_notification:
+      - Submit one notification intent through the unified notification system rather than encoding delivery channels in Workflow YAML.
+      - The notification system chooses in-app, push, and email delivery according to presence, preferences, and existing product policy.
+      - The step records channel queued/skipped/failed results without exposing subscriptions or private delivery data.
+  execution:
+    - Every full run is accepted idempotently and pinned to one immutable Workflow version before execution.
+    - Every action resolves and stores its effective typed input before dispatch.
+    - Every executed action/control stores status, started/finished time, attempt, credits, provider, output shape, and encrypted retained content.
+    - A failed step stops later steps and finalizes the run failed with a stable code and safe plain-language reason.
+    - A branch not selected is visible as skipped without fabricating execution output.
+    - Step tests create accepted run_type step_test records pinned to the tested version and execute only the selected action.
+    - Side-effect step tests require a server-validated confirmation flag and idempotency key; retries, duplicate delivery, and worker recovery cannot create duplicate chat or notification effects.
+    - Insufficient credits or missing confirmation fail before external side effects.
+    - Create always starts disabled; update cannot make a Workflow enabled; enable is the only explicit transition to accepting runs.
+    - Disable prevents new acceptance but already accepted running/waiting runs remain pinned and may finish; delete requests cancellation of active runs/waits before removing future execution state.
+    - Future schedule occurrences remain trigger state and never appear as workflow_runs.
+  feature_gate:
+    - Static CLI help and local YAML syntax diagnostics do not require platform:workflows.
+    - Authoritative validation, create, update, enable, run, and step-test require platform:workflows and fail before persistence, billing, or side effects when disabled.
+  privacy_security:
+    - Workflow definitions, prompts, inputs, outputs, chat content, notification bodies, replies, and named AI conversations use Automation Vault encryption and are decrypted only for authorized validation/execution/detail rendering.
+    - Pending Workflow chat delivery stores content and title only as Automation Vault ciphertext until an owner client encrypts/persists the normal chat metadata/message. Push/email notifications contain no private delivery content.
+    - The server never creates a raw regular chat key. An atomic owner-device claim elects one client for new-chat key generation; existing immutable chat-key, mismatch, candidate-key recovery, and encrypted-payload guards remain authoritative.
+    - Ask for user input prompt, schema, response, and expiry are Automation Vault encrypted. The later web run page and CLI response command expose only owner-authorized wait metadata and input fields.
+    - Plaintext storage and logs contain only allowlisted owner hashes, ids, routing/claim fields, status, timing, counts, costs, output shape, and stable error codes.
+    - YAML, templates, prior step output, provider data, and AI output are untrusted inputs and cannot alter system policy or execute code.
+    - Test requests use the same owner, feature, billing, provider, and action authorization as full execution.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_workflow_yaml_validation.py
+    command: python3 -m pytest backend/tests/test_workflow_yaml_validation.py
+    covers: [AC-1, AC-2, AC-3]
+    assertions:
+      - safe YAML parsing rejects duplicate keys, aliases, executable tags, oversized/deep documents, and unknown fields
+      - draft validity and enable readiness return stable field/step diagnostics
+      - create/update repeat authoritative validation and never persist structurally invalid definitions
+      - examples are excluded from readiness and persisted runtime definitions
+      - normal full-run input resolution never reads examples; newly missing required input fails before dispatch/billing even if an already-enabled capability schema changes
+      - complete updates preserve enabled state, incomplete updates to enabled workflows are rejected, and create/update never auto-enable
+      - disabled workflow run acceptance creates no run
+      - feature-off authoritative operations create no records, charges, or side effects while static help/local syntax remain available
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 -m pytest backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_template_expressions.py backend/tests/test_workflow_due_scanner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_control_runtime.py backend/tests/test_workflow_ai_and_chat_actions.py backend/tests/test_workflow_step_test.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py backend/tests/test_workflows_models.py", run_id: "local-pytest-20260713-1551-workflow-backend-75-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:51:35Z" }
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_workflow_control_runtime.py
+    command: python3 -m pytest backend/tests/test_workflow_control_runtime.py
+    covers: [AC-3, AC-4, AC-12, AC-14]
+    assertions:
+      - enabled real runs execute typed If true/If false branches and save skipped branches
+      - disabled workflows cannot be accepted
+      - For every, Repeat until, and Wait enforce item/attempt/duration/credit/timeout bounds
+      - failure stops later actions and preserves actual prior step output and safe error details
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 -m pytest backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_template_expressions.py backend/tests/test_workflow_due_scanner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_control_runtime.py backend/tests/test_workflow_ai_and_chat_actions.py backend/tests/test_workflow_step_test.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py backend/tests/test_workflows_models.py", run_id: "local-pytest-20260713-1551-workflow-backend-75-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:51:35Z" }
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_workflow_ai_and_chat_actions.py
+    command: python3 -m pytest backend/tests/test_workflow_ai_and_chat_actions.py
+    covers: [AC-5, AC-6, AC-7, AC-15]
+    assertions:
+      - Workflow AI mode creates no normal chat/message rows and uses fresh context by default
+      - named AI conversations remain encrypted and run-local
+      - sanitization removes the specified control classes, mapped data is role-separated, tools/lookups are absent, limits are enforced, and invalid structured output fails with the stable billed error
+      - every named Workflow AI limit and supported response-schema boundary has an allowed and rejected fixture
+      - Ask for user input persists an encrypted prompt/schema/expiry, validates an owner response, resumes once, exposes typed step input, and rejects duplicate/expired/cancelled/cross-owner responses
+      - Ask for user input creates no chat or message and later run-page rendering uses its shared response endpoint
+      - expiry worker and response acceptance race atomically; exactly one wins and an expired wait terminally fails the step/run with WORKFLOW_INPUT_TIMEOUT
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 -m pytest backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_template_expressions.py backend/tests/test_workflow_due_scanner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_control_runtime.py backend/tests/test_workflow_ai_and_chat_actions.py backend/tests/test_workflow_step_test.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py backend/tests/test_workflows_models.py", run_id: "local-pytest-20260713-1551-workflow-backend-75-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:51:35Z" }
+  - id: T-PYTEST-004
+    type: pytest
+    file: backend/tests/test_workflow_step_test.py
+    command: python3 -m pytest backend/tests/test_workflow_step_test.py
+    covers: [AC-8, AC-9]
+    assertions:
+      - selected action can test regardless of workflow enabled/readiness state
+      - each field resolves explicit override, configured literal, then schema-valid example; nullability is enforced and upstream steps never execute implicitly
+      - step tests use real adapter/action boundaries and normal billing
+      - side-effect test authorization and idempotency fail closed without explicit confirmation and prevent duplicate effects under retries
+      - insufficient credits fail before any side effect
+      - test output never mutates definition or readiness
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 -m pytest backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_template_expressions.py backend/tests/test_workflow_due_scanner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_control_runtime.py backend/tests/test_workflow_ai_and_chat_actions.py backend/tests/test_workflow_step_test.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py backend/tests/test_workflows_models.py", run_id: "local-pytest-20260713-1551-workflow-backend-75-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:51:35Z" }
+  - id: T-PYTEST-005
+    type: pytest
+    file: backend/tests/test_workflow_capability_metadata.py
+    command: python3 -m pytest backend/tests/test_workflow_capability_metadata.py
+    covers: [AC-10, AC-13]
+    assertions:
+      - capability metadata is registry-derived rather than a hardcoded central skill set
+      - initial skills expose input/output/cost/execution/effect/test metadata
+      - missing classification deterministically produces unavailable with WORKFLOW_CLASSIFICATION_REQUIRED
+      - help payload and validator consume the same metadata
+      - metadata examples validate against input schemas and contain no secret/account/chat/destination fields
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 -m pytest backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_template_expressions.py backend/tests/test_workflow_due_scanner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_control_runtime.py backend/tests/test_workflow_ai_and_chat_actions.py backend/tests/test_workflow_step_test.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py backend/tests/test_workflows_models.py", run_id: "local-pytest-20260713-1551-workflow-backend-75-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:51:35Z" }
+  - id: T-PYTEST-006
+    type: pytest
+    file: backend/tests/test_workflow_template_expressions.py
+    command: python3 -m pytest backend/tests/test_workflow_template_expressions.py
+    covers: [AC-11, AC-14]
+    assertions:
+      - typed templates and date/time filters validate and resolve deterministically
+      - run timestamps stay fixed and explicit clock.now values are retained
+      - timezone and daylight-saving boundaries are correct
+      - arbitrary functions, attributes, code, or type-invalid filters are rejected
+      - default timezone, ISO-8601 durations, Monday week start, Saturday weekend start, manual triggered_at, schedule-only scheduled_at, and DST cases match the contract
+      - elapsed-hour versus calendar-day arithmetic, DST gap forward shift, and repeated-time earlier-offset behavior are deterministic
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 -m pytest backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_template_expressions.py backend/tests/test_workflow_due_scanner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_control_runtime.py backend/tests/test_workflow_ai_and_chat_actions.py backend/tests/test_workflow_step_test.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py backend/tests/test_workflows_models.py", run_id: "local-pytest-20260713-1551-workflow-backend-75-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:51:35Z" }
+  - id: T-PYTEST-007
+    type: pytest
+    file: backend/tests/test_workflow_due_scanner.py
+    command: python3 -m pytest backend/tests/test_workflow_due_scanner.py
+    covers: [AC-16]
+    assertions:
+      - due scanner finds indexed enabled triggers without decrypting recurrence before claim
+      - contending workers create and bill exactly one immutable-version-pinned run
+      - one-time triggers complete and recurring triggers advance atomically
+      - no active client or future workflow_run row is required
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 -m pytest backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_template_expressions.py backend/tests/test_workflow_due_scanner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_control_runtime.py backend/tests/test_workflow_ai_and_chat_actions.py backend/tests/test_workflow_step_test.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py backend/tests/test_workflows_models.py", run_id: "local-pytest-20260713-1551-workflow-backend-75-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:51:35Z" }
+  - id: T-PYTEST-008
+    type: pytest
+    file: backend/tests/test_workflow_chat_delivery.py
+    command: python3 -m pytest backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py
+    covers: [AC-18]
+    assertions:
+      - Send chat message stores plaintext/title only in a Vault-encrypted pending delivery and never creates a raw regular chat key
+      - online delivery, reconnect pickup, notification fallback, claim, encrypted persistence, acknowledgement, retry, cancellation, and expiry are idempotent
+      - two devices contending for a new chat delivery produce one winning fenced claim and one persisted immutable encrypted chat key
+      - expired claims are reclaimable; stale claim persistence/acknowledgement is rejected before ciphertext writes
+      - losing devices sync the winning key and never generate/write competing ciphertext
+      - existing-chat delivery requires owner authorization and uses the persisted key without loading message history
+      - accepted chat delivery completes its action as delivery_pending, while acknowledgement/expiry/cancellation remain explicit terminal delivery output without reopening the completed run
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 -m pytest backend/tests/test_workflow_yaml_validation.py backend/tests/test_workflow_capability_metadata.py backend/tests/test_workflow_template_expressions.py backend/tests/test_workflow_due_scanner.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflow_control_runtime.py backend/tests/test_workflow_ai_and_chat_actions.py backend/tests/test_workflow_step_test.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_chat_delivery.py backend/tests/test_workflow_chat_delivery_websocket_handlers.py backend/tests/test_workflows_models.py", run_id: "local-pytest-20260713-1551-workflow-backend-75-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:51:35Z" }
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows-yaml.test.ts
+    covers: [AC-1, AC-6, AC-8, AC-9, AC-10, AC-12, AC-13]
+    assertions:
+      - CLI exposes the approved YAML, lifecycle, run, response, step-test, capability, and help commands
+      - help examples for events.search, send-chat-message, and If match authoritative metadata
+      - side-effect step tests require interactive confirmation or --yes
+      - human and JSON output preserve stable validation/run/error fields
+      - platform feature-off state leaves static help/local syntax available and rejects server operations
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows.test.ts && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows-yaml.test.ts", run_id: "local-node-test-20260713-1552-workflows-8-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:52:17Z" }
+  - id: T-AUDIT-001
+    type: lint
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py --approved-deferrals docs/specs/workflows-cli-runtime/spec.yml
+    covers: [AC-10, AC-13]
+    assertions:
+      - the audit accepts only the exact user-approved Workflow npm/pip deferrals recorded in this spec
+      - no unrelated existing CLI/SDK parity contract regresses
+      - the report becomes the input contract for the later SDK parity phase
+    red_phase:
+      required: false
+      expected: report
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 scripts/audit_sdk_cli_parity.py --approved-deferrals docs/specs/workflows-cli-runtime/spec.yml", run_id: "local-audit-sdk-cli-parity-20260713-1552-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:52:53Z" }
+  - id: T-SCHEMA-001
+    type: lint
+    file: scripts/generate_workflow_authoring_schema.py
+    command: python3 scripts/generate_workflow_authoring_schema.py --check
+    covers: [AC-1, AC-10]
+    assertions:
+      - generated TypeScript authoring schema matches the authoritative Python schema
+      - shared valid and invalid conformance fixtures produce identical diagnostic codes and paths in Python and TypeScript
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass
+      evidence: { status: passed, command: "python3 scripts/generate_workflow_authoring_schema.py --check", run_id: "local-schema-check-20260713-1552-pass", subject_commit: "working-tree-after-pending-delivery-fix", timestamp: "2026-07-13T15:52:17Z" }
+  - id: T-CLI-E2E-001
+    type: playwright
+    surface: cli_only
+    file: frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+    command: python3 scripts/tests.py run --spec cli-workflows-rain-real.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-11, AC-12]
+    assertions:
+      - paired CLI validates, creates, updates, enables, runs, lists, inspects, disables, and deletes a real YAML rain workflow
+      - real Weather provider and notification system execute and normal credits are charged
+      - incomplete/disabled rejection creates no run
+      - cleanup deletes only resources created by the test run
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending, command: "", run_id: "", subject_commit: "", deployment_reference: "", target: app.dev.openmates.org, timestamp: "" }
+    notes:
+      - Playwright is only the authenticated remote process runner; this test invokes the CLI and performs no web UI interaction.
+  - id: T-CLI-E2E-002
+    type: playwright
+    surface: cli_only
+    file: frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
+    command: python3 scripts/tests.py run --spec cli-workflows-ai-chat-real.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-5, AC-6, AC-7, AC-12, AC-18]
+    assertions:
+      - real Workflow AI mode executes and charges without regular AI chat records
+      - optional named conversation is run-local
+      - Send chat message produces a real pending delivery that one paired client claims, encrypts, persists, and acknowledges without a backend regular chat key
+      - Ask for user input produces an inspectable waiting run and resumes once through openmates workflows respond; no web UI is used
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending, command: "", run_id: "", subject_commit: "", deployment_reference: "", target: app.dev.openmates.org, timestamp: "" }
+    notes:
+      - Playwright is only the authenticated remote process runner; this test invokes the CLI and performs no web UI interaction.
+  - id: T-CLI-E2E-003
+    type: playwright
+    surface: cli_only
+    file: frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+    command: python3 scripts/tests.py run --spec cli-workflows-step-test-real.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-8, AC-9, AC-12, AC-18]
+    assertions:
+      - disabled/incomplete action tests call real provider/action services and charge normally
+      - test examples and explicit overrides resolve in the approved order without mutating definitions
+      - real notification and chat side effects occur only after confirmation
+      - run history identifies step_test and retains actual output/failure
+      - web.search, weather.forecast, news.search, events.search, ai.ask, send_notification, and send_chat_message each execute an individual real action test
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending, command: "", run_id: "", subject_commit: "", deployment_reference: "", target: app.dev.openmates.org, timestamp: "" }
+    notes:
+      - Playwright is only the authenticated remote process runner; this test invokes the CLI and performs no web UI interaction.
+  - id: T-CLI-E2E-004
+    type: playwright
+    surface: cli_only
+    file: frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
+    command: python3 scripts/tests.py run --spec cli-workflows-search-controls-real.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-13, AC-14]
+    assertions:
+      - Web Search, News Search, and Events Search execute through the shared capability adapter with real providers
+      - If, For every, Repeat until, and Wait enforce bounds and persist inspectable step results
+      - no hardcoded Workflow skill branch is required for the initial search skills
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending, command: "", run_id: "", subject_commit: "", deployment_reference: "", target: app.dev.openmates.org, timestamp: "" }
+    notes:
+      - Playwright is only the authenticated remote process runner; this test invokes the CLI and performs no web UI interaction.
+  - id: T-CLI-E2E-005
+    type: playwright
+    surface: cli_only
+    file: frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+    command: python3 scripts/tests.py run --spec cli-workflows-schedule-real.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-16]
+    assertions:
+      - CLI creates and enables a near-future one-time Workflow, then disconnects
+      - due scanner accepts exactly one run and executes a real billed Weather request without a client
+      - CLI later inspects the completed run and one-time trigger state
+    red_phase:
+      required: true
+      expected: fail
+      evidence: { status: pending, run_id: "", timestamp: "" }
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: { status: pending, command: "", run_id: "", subject_commit: "", deployment_reference: "", target: app.dev.openmates.org, timestamp: "" }
+    notes:
+      - Playwright is only the authenticated remote process runner; this test invokes the CLI and performs no web UI interaction.
+
+verifications:
+  - id: V-PRODUCT-001
+    kind: user_confirmation
+    phase: final
+    required_for_done: false
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-18]
+    status: passed
+    evidence:
+      status: user_confirmed
+      summary: The user approved the CLI-only YAML Workflow product contract after the clarification rounds recorded above.
+      reason: Product approval authorizes planning but does not satisfy any automated implementation or runtime evidence.
+      actor: user
+      timestamp: "2026-07-13T00:00:00Z"
+  - id: V-NPM-SDK-DEFERRED
+    kind: user_confirmation
+    phase: not_applicable
+    required_for_done: true
+    covers: [AC-10, AC-13]
+    status: waived
+    evidence:
+      status: waived
+      summary: npm SDK implementation is deferred until the CLI phase is fully implemented and tested.
+      reason: The user explicitly chose CLI first, SDK parity second, then web and Apple parity.
+      actor: user
+      timestamp: "2026-07-13T00:00:00Z"
+      next_action: Use the completed CLI contract and parity audit as the npm SDK parity source.
+  - id: V-PIP-SDK-DEFERRED
+    kind: user_confirmation
+    phase: not_applicable
+    required_for_done: true
+    covers: [AC-10, AC-13]
+    status: waived
+    evidence:
+      status: waived
+      summary: pip SDK implementation is deferred until CLI and npm SDK parity are complete.
+      reason: The user explicitly chose CLI first, SDK parity second, then web and Apple parity.
+      actor: user
+      timestamp: "2026-07-13T00:00:00Z"
+      next_action: Implement pip SDK parity after the npm SDK phase using the same completed CLI contract.
+  - id: V-CHAT-DELIVERY-001
+    kind: user_confirmation
+    phase: final
+    required_for_done: false
+    covers: [AC-5, AC-6, AC-18]
+    status: passed
+    evidence:
+      status: user_confirmed
+      summary: The user approved deferred client encryption for Send chat message and a separate Workflow-run Ask for user input action.
+      reason: Product approval defines the implementation direction; automated delivery and wait tests remain required before completion.
+      actor: user
+      timestamp: "2026-07-13T00:00:00Z"
+
+implementation_plan:
+  spec_path: docs/specs/workflows-cli-runtime/spec.yml
+  existing_patterns:
+    - SkillRegistry and BaseApp.dispatch_skill for shared real app-skill execution.
+    - Existing Workflow encrypted definitions, immutable versions, accepted runs, scheduler claims, and run-content retention from workflows-v1.
+    - Existing CLI paired-session authentication and JSON output conventions.
+    - Unified notification system for channel selection rather than Workflow-specific delivery logic.
+    - Existing chat persistence/encryption services as the source to extract a server-side Send chat message command.
+  architecture: >
+    Add one authoritative Python YAML compiler/validator, generate its authoring
+    schema for TypeScript local checks, and keep shared conformance fixtures for
+    identical diagnostic codes and paths. Add one registry-derived Workflow
+    capability model and typed executors for action and control steps. Extend the
+    accepted-run engine with real step tests, bounded control flow, due-trigger
+    scanning, durable user-input waits, Workflow AI mode, and safe chat and
+    notification actions while preserving immutable version pinning, Automation
+    Vault encryption, normal billing, and per-step inspectability. Send chat
+    message creates a Vault-encrypted pending delivery, not server-encrypted chat
+    content: one owner device claims new-chat encryption, uses the existing client
+    key/persistence path, and acknowledges success. Ask for user input owns run
+    pauses and later web run-page input rendering uses its shared response API.
+  data_flow:
+    - CLI parses safe YAML and requests authoritative validation.
+    - Create/update compiles the YAML into an immutable typed graph and saves only structural-valid state.
+    - Enable repeats readiness, capability, permission, and unattended checks without using examples.
+    - Run acceptance rejects disabled workflows, pins a version, and dispatches the server worker.
+    - Each step resolves typed effective input, executes a real capability/action/control, records metadata and encrypted content, then selects the next step or wait.
+    - Step test accepts one selected action independently, resolves test input, performs real billing/effects, and writes an inspectable step_test run.
+    - Send chat message writes a durable encrypted delivery request and returns delivery_pending; active clients receive it over WebSocket, offline clients receive a content-free notification and claim it on reconnect.
+    - A new-chat delivery claim fences concurrent devices. The winner persists encrypted chat metadata/message with stable ids and acknowledges; existing-chat delivery encrypts with the persisted immutable key.
+    - Ask for user input creates one encrypted workflow_wait. CLI response and the later web run page submit the same owner-scoped schema-validated response and resume it once.
+    - A due-trigger scanner accepts scheduled runs independently of any client and completes or advances the claimed trigger atomically.
+  affected_files:
+    - path: backend/shared/python_schemas/app_metadata_schemas.py
+      reason: Sparse Workflow capability metadata contract.
+    - path: backend/apps/web/app.yml
+      reason: Initial Web Search Workflow classification and output/test schema.
+    - path: backend/apps/weather/app.yml
+      reason: Initial Weather Forecast Workflow classification and output/test schema.
+    - path: backend/apps/news/app.yml
+      reason: Initial News Search Workflow classification and output/test schema.
+    - path: backend/apps/events/app.yml
+      reason: Initial Events Search Workflow classification and output/test schema.
+    - path: backend/apps/ai/app.yml
+      reason: AI Ask Workflow-mode classification and limits.
+    - path: backend/core/api/app/services/workflow_models.py
+      reason: YAML-normalized graph, readiness diagnostics, controls, run types, and typed step output contracts.
+    - path: backend/core/api/app/services/workflow_yaml_compiler.py
+      reason: Authoritative safe YAML parsing, compilation, typed diagnostics, and readiness checks.
+    - path: frontend/packages/openmates-cli/src/generated/workflowAuthoringSchema.ts
+      reason: Generated local-validation schema paired with shared server conformance fixtures.
+    - path: scripts/generate_workflow_authoring_schema.py
+      reason: Deterministic generator/check for the CLI authoring schema and diagnostic parity.
+    - path: backend/tests/fixtures/workflow_yaml_conformance.yml
+      reason: Shared valid/invalid YAML and expected diagnostic code/path fixtures consumed by Python and TypeScript tests.
+    - path: backend/core/api/app/services/workflow_capability_registry.py
+      reason: Registry-derived app skills, actions, controls, examples, help, and unavailable reasons.
+    - path: backend/core/api/app/services/workflow_runner.py
+      reason: Bounded controls, effective input resolution, failure stop, waits, and step tests.
+    - path: backend/core/api/app/services/workflow_app_skill_adapter.py
+      reason: Owner-scoped real dispatch and generic output contract.
+    - path: backend/core/api/app/services/workflow_action_adapter.py
+      reason: Real pending chat delivery, durable user-input waits, and unified notification actions.
+    - path: backend/core/api/app/services/workflow_chat_delivery_service.py
+      reason: Durable pending delivery, atomic new-chat claim, acknowledgement, reconnect pickup, and cancellation lifecycle.
+    - path: backend/core/directus/schemas/workflow_chat_deliveries.yml
+      reason: Owner-scoped encrypted pending delivery metadata, claim fencing, acknowledgement, and expiry state.
+    - path: backend/core/api/app/routes/websockets.py
+      reason: Authenticated online pending-delivery event and reconnect pickup.
+    - path: frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+      reason: Client claim, first chat-key generation, encrypted persistence, and acknowledgement using existing chat key safeguards.
+    - path: backend/apps/ai/skills/ask_skill.py
+      reason: Explicit Workflow mode separated from normal and incognito chat lifecycle.
+    - path: backend/core/api/app/routes/workflows.py
+      reason: Validation, YAML create/update, enable readiness, disabled-run rejection, step test, help, and run detail APIs.
+    - path: backend/core/api/app/tasks/workflow_tasks.py
+      reason: Accepted full-run, wait/resume, and step-test worker entry points.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: YAML lifecycle, help, step-test, and inspectable run commands.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI transport models for validation, capabilities, response waits, pending-delivery pickup, claim, encrypted persistence, acknowledgement, and run detail.
+    - path: scripts/audit_sdk_cli_parity.py
+      reason: Deterministically accept only the exact spec-approved staged npm/pip deferrals while rejecting unrelated parity regressions.
+    - path: backend/tests/test_workflow_chat_delivery.py
+      reason: Atomic first-client claim, existing-key delivery, encrypted persistence, acknowledgement, retries, and multi-device safety contract.
+  verification_strategy:
+    - Write and run all listed pytest and CLI unit tests red before production implementation.
+    - Implement shared metadata/validation first, runtime/control/Workflow input second, pending chat delivery/AI/actions third, and CLI commands fourth.
+    - Deploy backend and CLI subject to dev before any real CLI E2E green run.
+    - Run real E2E in CLI order: rain, AI/chat, action tests, then search/control coverage.
+    - Run the scheduled CLI proof after the runtime scanner is deployed and no client remains connected.
+    - Record npm and pip implementation as explicitly deferred by product scope; the Playwright harness is only a remote CLI process runner and performs no web UI verification.
+    - Run python3 scripts/audit_sdk_cli_parity.py --approved-deferrals docs/specs/workflows-cli-runtime/spec.yml and accept only the recorded staged SDK deferrals.
+    - Run python3 scripts/spec_verify.py docs/specs/workflows-cli-runtime/spec.yml before declaring the CLI phase complete.
+  verification_order:
+    - Backend deterministic unit contracts.
+    - CLI parser/help/unit contracts.
+    - Deploy and wait for the dev subject to be ready.
+    - Real CLI rain workflow.
+    - Real CLI Workflow AI, pending-chat delivery, and user-input wait workflow.
+    - Real individual action tests.
+    - Real search skills and bounded controls.
+    - Real scheduled execution with the client disconnected.
+  required_assumptions: [A-1, A-2, A-3, A-4, A-5]
+  open_questions: []
+  risks:
+    - Real provider E2E can fail from external outages; retain provider/error evidence and distinguish product failures from external availability without substituting mocks.
+    - Real notification/chat action tests create user-visible side effects; use dedicated test identities, explicit confirmation, unique labels, and cleanup where deletion is safe.
+    - AI Ask currently assumes chat-oriented processing; partial reuse could accidentally persist synthetic chat state or enable tools.
+    - Existing Workflow persistence and scheduler work is concurrent in workflows-v1; implementation must rebase on its verified subject instead of duplicating or reverting it.
+    - A pending delivery that is never claimed must remain content-private and visible as delivery_pending, not be misreported as a persisted chat message.
+
+tasks:
+  - id: TASK-0
+    title: Confirm client-encrypted pending chat delivery and separate Workflow input direction
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-4, S-5, S-8]
+      acceptance_criteria: [AC-5, AC-6, AC-9, AC-18]
+    expected_files:
+      - docs/specs/workflows-cli-runtime/spec.yml
+    verification: [V-CHAT-DELIVERY-001]
+    verification_ids: [V-CHAT-DELIVERY-001]
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/workflows-cli-runtime/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-1]
+    independently_deployable: false
+  - id: TASK-1
+    title: Write red YAML, capability, runtime, AI/action, expression, and CLI contracts
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9, S-10, S-11, S-12, S-13, S-14, S-15]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17, AC-18]
+    expected_files:
+      - backend/tests/test_workflow_yaml_validation.py
+      - backend/tests/test_workflow_control_runtime.py
+      - backend/tests/test_workflow_ai_and_chat_actions.py
+      - backend/tests/test_workflow_step_test.py
+      - backend/tests/test_workflow_capability_metadata.py
+      - backend/tests/test_workflow_template_expressions.py
+      - backend/tests/test_workflow_due_scanner.py
+      - backend/tests/test_workflow_chat_delivery.py
+      - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+    verification: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-CLI-001]
+    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-003, T-PYTEST-004, T-PYTEST-005, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-CLI-001]
+    dependencies: [TASK-0]
+    ownership:
+      files:
+        - backend/tests/test_workflow_yaml_validation.py
+        - backend/tests/test_workflow_control_runtime.py
+        - backend/tests/test_workflow_ai_and_chat_actions.py
+        - backend/tests/test_workflow_step_test.py
+        - backend/tests/test_workflow_capability_metadata.py
+        - backend/tests/test_workflow_template_expressions.py
+        - backend/tests/test_workflow_due_scanner.py
+        - backend/tests/test_workflow_chat_delivery.py
+        - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement metadata-derived capabilities and deterministic YAML validation
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-9, S-10, S-12]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-10, AC-11, AC-13]
+    expected_files:
+      - backend/shared/python_schemas/app_metadata_schemas.py
+      - backend/apps/web/app.yml
+      - backend/apps/weather/app.yml
+      - backend/apps/news/app.yml
+      - backend/apps/events/app.yml
+      - backend/apps/ai/app.yml
+      - backend/core/api/app/services/workflow_models.py
+      - backend/core/api/app/services/workflow_yaml_compiler.py
+      - backend/core/api/app/services/workflow_capability_registry.py
+      - backend/core/api/app/routes/workflows.py
+      - scripts/generate_workflow_authoring_schema.py
+      - backend/tests/fixtures/workflow_yaml_conformance.yml
+      - frontend/packages/openmates-cli/src/generated/workflowAuthoringSchema.ts
+    verification: [T-PYTEST-001, T-PYTEST-005, T-PYTEST-006, T-SCHEMA-001]
+    verification_ids: [T-PYTEST-001, T-PYTEST-005, T-PYTEST-006, T-SCHEMA-001]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/core/api/app/services/workflow_capability_registry.py
+      shared_files:
+        - backend/shared/python_schemas/app_metadata_schemas.py
+        - backend/apps/web/app.yml
+        - backend/apps/weather/app.yml
+        - backend/apps/news/app.yml
+        - backend/apps/events/app.yml
+        - backend/apps/ai/app.yml
+        - backend/core/api/app/services/workflow_models.py
+        - backend/core/api/app/services/workflow_yaml_compiler.py
+        - backend/core/api/app/routes/workflows.py
+        - scripts/generate_workflow_authoring_schema.py
+        - backend/tests/fixtures/workflow_yaml_conformance.yml
+        - frontend/packages/openmates-cli/src/generated/workflowAuthoringSchema.ts
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement bounded controls, scheduling, step-test runtime, notification tests, and run inspection
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-10, S-11, S-13, S-14, S-15]
+      acceptance_criteria: [AC-3, AC-4, AC-11, AC-12, AC-14, AC-16, AC-17]
+    expected_files:
+      - backend/core/api/app/services/workflow_runner.py
+      - backend/core/api/app/services/workflow_app_skill_adapter.py
+      - backend/core/api/app/services/workflow_action_adapter.py
+      - backend/core/api/app/routes/workflows.py
+      - backend/core/api/app/tasks/workflow_tasks.py
+    verification: [T-PYTEST-002, T-PYTEST-006, T-PYTEST-007]
+    verification_ids: [T-PYTEST-002, T-PYTEST-006, T-PYTEST-007]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - backend/core/api/app/services/workflow_runner.py
+        - backend/core/api/app/services/workflow_app_skill_adapter.py
+        - backend/core/api/app/services/workflow_action_adapter.py
+      shared_files:
+        - backend/core/api/app/routes/workflows.py
+        - backend/core/api/app/tasks/workflow_tasks.py
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Implement Workflow AI, pending chat delivery, real side-effect tests, and durable user-input waits
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-4, S-5, S-6, S-7, S-8]
+      acceptance_criteria: [AC-5, AC-6, AC-7, AC-8, AC-9, AC-15, AC-18]
+    expected_files:
+      - backend/apps/ai/skills/ask_skill.py
+      - backend/core/api/app/services/workflow_runner.py
+      - backend/core/api/app/services/workflow_service.py
+      - backend/core/api/app/services/workflow_action_adapter.py
+      - backend/core/api/app/services/workflow_chat_delivery_service.py
+      - backend/core/directus/schemas/workflow_chat_deliveries.yml
+      - backend/core/api/app/routes/websockets.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/sync_inspiration_chat_handler.py
+      - frontend/packages/ui/src/services/chatSyncService.ts
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+      - frontend/packages/ui/src/services/sendersSync.ts
+      - backend/core/api/app/tasks/workflow_tasks.py
+      - backend/tests/test_workflow_ai_and_chat_actions.py
+      - backend/tests/test_workflow_chat_delivery.py
+      - backend/tests/test_workflow_chat_delivery_websocket_handlers.py
+    verification: [T-PYTEST-003, T-PYTEST-004, T-PYTEST-008]
+    verification_ids: [T-PYTEST-003, T-PYTEST-004, T-PYTEST-008]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - backend/apps/ai/skills/ask_skill.py
+        - backend/core/api/app/services/workflow_chat_delivery_service.py
+        - backend/core/directus/schemas/workflow_chat_deliveries.yml
+        - backend/core/api/app/routes/handlers/websocket_handlers/workflow_chat_delivery_handlers.py
+        - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+      shared_files:
+        - backend/core/api/app/services/workflow_runner.py
+        - backend/core/api/app/services/workflow_service.py
+        - backend/core/api/app/services/workflow_action_adapter.py
+        - backend/core/api/app/routes/handlers/websocket_handlers/sync_inspiration_chat_handler.py
+        - backend/core/api/app/tasks/workflow_tasks.py
+        - backend/core/api/app/routes/workflows.py
+        - frontend/packages/ui/src/services/chatSyncService.ts
+        - frontend/packages/ui/src/services/sendersSync.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - backend/tests/test_workflow_ai_and_chat_actions.py
+        - backend/tests/test_workflow_chat_delivery.py
+        - backend/tests/test_workflow_chat_delivery_websocket_handlers.py
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Implement complete YAML Workflow CLI lifecycle and help
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-5, S-7, S-8, S-9, S-11]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-6, AC-8, AC-9, AC-10, AC-12, AC-13, AC-18]
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+    verification: [T-CLI-001]
+    verification_ids: [T-CLI-001]
+    dependencies: [TASK-4]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+      shared_files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+  - id: TASK-6
+    title: Deploy and verify real CLI workflows end to end
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-10, S-11, S-12, S-13, S-14, S-15]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-11, AC-12, AC-13, AC-14, AC-16, AC-17, AC-18]
+    expected_files:
+      - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+      - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
+      - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+      - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
+      - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+      - docs/specs/workflows-cli-runtime/spec.yml
+      - scripts/audit_sdk_cli_parity.py
+    verification: [T-AUDIT-001, V-NPM-SDK-DEFERRED, V-PIP-SDK-DEFERRED, T-CLI-E2E-001, T-CLI-E2E-002, T-CLI-E2E-003, T-CLI-E2E-004, T-CLI-E2E-005]
+    verification_ids: [T-AUDIT-001, V-NPM-SDK-DEFERRED, V-PIP-SDK-DEFERRED, T-CLI-E2E-001, T-CLI-E2E-002, T-CLI-E2E-003, T-CLI-E2E-004, T-CLI-E2E-005]
+    dependencies: [TASK-5]
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
+        - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
+        - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+        - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
+        - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+        - docs/specs/workflows-cli-runtime/spec.yml
+      shared_files:
+        - scripts/audit_sdk_cli_parity.py
+    blockers:
+      - Green E2E requires deployment to dev and normal test-account credits/provider availability.
+    follow_up_tasks: []
+    independently_deployable: true

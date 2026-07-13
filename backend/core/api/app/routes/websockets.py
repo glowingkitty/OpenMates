@@ -55,6 +55,12 @@ from .handlers.websocket_handlers.chat_recovery_job_handlers import (
     handle_recovery_job_renew,
     send_available_recovery_jobs,
 )
+from .handlers.websocket_handlers.workflow_chat_delivery_handlers import (
+    handle_workflow_chat_delivery_ack,
+    handle_workflow_chat_delivery_claim,
+    handle_workflow_chat_delivery_persist,
+    send_available_workflow_chat_deliveries,
+)
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
@@ -2063,6 +2069,15 @@ async def websocket_endpoint(
             )
         )
 
+    asyncio.create_task(
+        send_available_workflow_chat_deliveries(
+            manager=manager,
+            directus_service=directus_service,
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+        )
+    )
+
     # Deliver any pending reminder notifications that fired while the user was offline.
     # This runs as a background task so it doesn't block the WebSocket message loop.
     asyncio.create_task(
@@ -2188,6 +2203,35 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "workflow_chat_delivery_claim":
+                await handle_workflow_chat_delivery_claim(
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "workflow_chat_delivery_persist":
+                await handle_workflow_chat_delivery_persist(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "workflow_chat_delivery_ack":
+                await handle_workflow_chat_delivery_ack(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                 )

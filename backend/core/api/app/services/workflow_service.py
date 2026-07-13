@@ -27,7 +27,6 @@ from backend.core.api.app.services.feature_availability_service import (
     FeatureDefinition,
 )
 from backend.core.api.app.services.workflow_models import (
-    SUPPORTED_WORKFLOW_APP_SKILLS,
     WorkflowCapability,
     WorkflowDetail,
     WorkflowGraph,
@@ -40,6 +39,8 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowStatus,
     WorkflowSummary,
     WorkflowValidationError,
+    WorkflowVersionDetail,
+    WorkflowVersionSummary,
 )
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -49,6 +50,7 @@ WORKFLOW_PLATFORM_FEATURE = "platform:workflows"
 WORKFLOW_EPHEMERAL_RUN_CONTENT_TTL_SECONDS = 7 * 24 * 60 * 60
 WORKFLOW_DURABLE_RUN_CONTENT_LIMIT = 5
 WORKFLOW_TEMPORARY_TTL_SECONDS = 7 * 24 * 60 * 60
+WORKFLOW_VERSION_HISTORY_LIMIT = 25
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +158,30 @@ class WorkflowFeatureDisabledError(PermissionError):
     """Raised when platform:workflows is disabled."""
 
 
+class WorkflowRunNotCancellableError(ValueError):
+    """Raised when an owner requests cancellation for a terminal workflow run."""
+
+
+class WorkflowVersionCurrentError(ValueError):
+    """Raised when an owner attempts to restore the version already in use."""
+
+
+class WorkflowBindingRequirementsUnresolvedError(ValueError):
+    """Raised when an imported workflow is enabled before its local bindings exist."""
+
+    def __init__(self, unresolved_binding_requirements: list[dict[str, Any]]) -> None:
+        self.unresolved_binding_requirements = unresolved_binding_requirements
+        super().__init__("Imported workflow has unresolved binding requirements")
+
+
+class WorkflowBindingRequirementUnresolvedError(ValueError):
+    """Raised when the server cannot verify one imported binding requirement."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
 class InMemoryWorkflowRepository:
     """Small repository used by tests and as a dev fallback before Directus setup."""
 
@@ -213,6 +239,23 @@ class InMemoryWorkflowRepository:
             return None
         return deepcopy(record)
 
+    def request_run_cancellation(self, workflow_id: str, run_id: str, user_id: str) -> dict[str, Any] | None:
+        record = self.get_run(workflow_id, run_id, user_id)
+        if not record:
+            return None
+        if record.get("status") not in {
+            WorkflowRunStatus.QUEUED.value,
+            WorkflowRunStatus.RUNNING.value,
+            WorkflowRunStatus.WAITING.value,
+            WorkflowRunStatus.CANCELLATION_REQUESTED.value,
+        }:
+            raise WorkflowRunNotCancellableError(run_id)
+        if record.get("status") != WorkflowRunStatus.CANCELLATION_REQUESTED.value:
+            record["status"] = WorkflowRunStatus.CANCELLATION_REQUESTED.value
+            record["cancellation_requested_at"] = int(time.time())
+            self.save_run(record)
+        return record
+
     def save_encrypted_blob(self, blob: dict[str, Any]) -> dict[str, Any]:
         self.encrypted_blobs[blob["ref"]] = deepcopy(blob)
         return deepcopy(blob)
@@ -229,12 +272,12 @@ class InMemoryWorkflowRepository:
         owner_hash = _hash_owner_id(user_id)
         for record in self.triggers.values():
             if record["workflow_id"] == workflow_id and record["owner_hash"] == owner_hash:
-                return deepcopy(record)
+                return self._trigger_for_service(record)
         return None
 
     def list_event_triggers(self, owner_hash: str, hashed_project_id: str, source: str, event_type: str) -> list[dict[str, Any]]:
         return [
-            deepcopy(record)
+            self._trigger_for_service(record)
             for record in self.triggers.values()
             if record.get("enabled")
             and record.get("owner_hash") == owner_hash
@@ -243,6 +286,13 @@ class InMemoryWorkflowRepository:
             and record.get("event_type") == event_type
             and record.get("trigger_type") == "event"
         ]
+
+    @staticmethod
+    def _trigger_for_service(record: dict[str, Any]) -> dict[str, Any]:
+        """Keep the scheduler-only raw owner reference out of service callers."""
+        trigger = deepcopy(record)
+        trigger.pop("owner_user_id", None)
+        return trigger
 
     def delete_trigger_for_workflow(self, workflow_id: str, user_id: str) -> dict[str, Any] | None:
         return self.delete_trigger_for_workflow_owner_hash(workflow_id, _hash_owner_id(user_id))
@@ -296,6 +346,10 @@ class InMemoryWorkflowRepository:
             return None
         return deepcopy(record)
 
+    def get_public_template_projection(self, template_id: str) -> dict[str, Any] | None:
+        record = self.template_projections.get(template_id)
+        return deepcopy(record) if record else None
+
 
 class DirectusWorkflowRepository:
     """Durable workflow repository backed by Directus custom collections."""
@@ -304,6 +358,7 @@ class DirectusWorkflowRepository:
     RUNS = "workflow_runs"
     BLOBS = "workflow_encrypted_blobs"
     TRIGGERS = "workflow_triggers"
+    VERSIONS = "workflow_versions"
     TEMPLATE_PROJECTIONS = "workflow_template_projections"
 
     def __init__(self, base_url: str | None = None, token: str | None = None) -> None:
@@ -315,6 +370,7 @@ class DirectusWorkflowRepository:
         self._client = httpx.Client(timeout=5.0)
 
     def save_workflow(self, record: dict[str, Any]) -> dict[str, Any]:
+        self._save_immutable_versions(record)
         payload = {
             "id": record["id"],
             "workflow_id": record["id"],
@@ -347,6 +403,38 @@ class DirectusWorkflowRepository:
         else:
             self._create_item(self.WORKFLOWS, payload)
         return deepcopy(record)
+
+    def _save_immutable_versions(self, record: dict[str, Any]) -> None:
+        """Create immutable rows before publishing a workflow's current version pointer."""
+        for version in record.get("versions") or []:
+            version_id = version.get("id")
+            if not isinstance(version_id, str) or not version_id:
+                raise ValueError("Workflow version requires an id")
+            existing = self._find_one(self.VERSIONS, {"version_id": {"_eq": version_id}}, fields="id")
+            if existing:
+                if version.get("pruned_at") is not None:
+                    self._patch_item(self.VERSIONS, existing["id"], {"pruned_at": version["pruned_at"]})
+                continue
+            graph_ref = version.get("encrypted_graph_ref")
+            graph_checksum = version.get("encrypted_graph_checksum")
+            if not isinstance(graph_ref, str) or not graph_ref or not isinstance(graph_checksum, str) or not graph_checksum:
+                raise ValueError("Workflow version requires an encrypted graph reference and checksum")
+            self._create_item(
+                self.VERSIONS,
+                {
+                    "version_id": version_id,
+                    "workflow_id": record["id"],
+                    "hashed_user_id": record["owner_hash"],
+                    "version_number": int(version.get("version_number") or 1),
+                    "graph_json": {"encrypted_graph_ref": graph_ref},
+                    "graph_hash": graph_checksum,
+                    "encrypted_graph_secrets": graph_ref,
+                    "created_by_client": version.get("created_by_client") or record.get("source") or "system",
+                    "restored_from_version_id": version.get("restored_from_version_id"),
+                    "pruned_at": version.get("pruned_at"),
+                    "created_at": version.get("created_at") or record["created_at"],
+                },
+            )
 
     def list_workflows(self, user_id: str) -> list[dict[str, Any]]:
         return self.list_all_workflow_records(user_id=user_id)
@@ -382,6 +470,9 @@ class DirectusWorkflowRepository:
             "status": record.get("status"),
             "started_at": record.get("started_at"),
             "finished_at": record.get("finished_at"),
+            "cancellation_requested_at": record.get("cancellation_requested_at"),
+            "cancelled_at": record.get("cancelled_at"),
+            "cancelled_by_hash": record["owner_hash"] if record.get("status") == WorkflowRunStatus.CANCELLED.value else None,
             "cost_summary": record.get("cost_summary"),
             "error_summary": record.get("error_summary"),
             "encrypted_input": None,
@@ -406,11 +497,17 @@ class DirectusWorkflowRepository:
             sort="-started_at",
             limit=-1,
         )
-        return [deepcopy(item["record_json"]) for item in items if isinstance(item.get("record_json"), dict)]
+        return [
+            deepcopy(item["record_json"]) if isinstance(item.get("record_json"), dict) else self._run_record_from_item(item)
+            for item in items
+        ]
 
     def list_run_records_for_workflow(self, workflow_id: str) -> list[dict[str, Any]]:
         items = self._get_items(self.RUNS, {"workflow_id": {"_eq": workflow_id}}, sort="-started_at", limit=-1)
-        return [deepcopy(item["record_json"]) for item in items if isinstance(item.get("record_json"), dict)]
+        return [
+            deepcopy(item["record_json"]) if isinstance(item.get("record_json"), dict) else self._run_record_from_item(item)
+            for item in items
+        ]
 
     def get_run(self, workflow_id: str, run_id: str, user_id: str) -> dict[str, Any] | None:
         item = self._find_one(
@@ -423,9 +520,68 @@ class DirectusWorkflowRepository:
                 ]
             },
         )
-        if not item or not isinstance(item.get("record_json"), dict):
+        if not item:
             return None
-        return deepcopy(item["record_json"])
+        if isinstance(item.get("record_json"), dict):
+            return deepcopy(item["record_json"])
+        return self._run_record_from_item(item)
+
+    def request_run_cancellation(self, workflow_id: str, run_id: str, user_id: str) -> dict[str, Any] | None:
+        item = self._find_one(
+            self.RUNS,
+            {
+                "_and": [
+                    {"run_id": {"_eq": run_id}},
+                    {"workflow_id": {"_eq": workflow_id}},
+                    {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}},
+                ]
+            },
+        )
+        if not item:
+            return None
+        status = item.get("status")
+        if status not in {
+            WorkflowRunStatus.QUEUED.value,
+            WorkflowRunStatus.RUNNING.value,
+            WorkflowRunStatus.WAITING.value,
+            WorkflowRunStatus.CANCELLATION_REQUESTED.value,
+        }:
+            raise WorkflowRunNotCancellableError(run_id)
+        if status != WorkflowRunStatus.CANCELLATION_REQUESTED.value:
+            self._patch_item(
+                self.RUNS,
+                item["id"],
+                {
+                    "status": WorkflowRunStatus.CANCELLATION_REQUESTED.value,
+                    "cancellation_requested_at": int(time.time()),
+                },
+            )
+            item["status"] = WorkflowRunStatus.CANCELLATION_REQUESTED.value
+        return self._run_record_from_item(item)
+
+    @staticmethod
+    def _run_record_from_item(item: dict[str, Any]) -> dict[str, Any]:
+        """Map an accepted runtime row before the runner writes encrypted content."""
+        return {
+            "id": item["run_id"],
+            "workflow_id": item["workflow_id"],
+            "version_id": item["version_id"],
+            "owner_hash": item["hashed_user_id"],
+            "trigger_type": item.get("trigger_type") or "manual",
+            "status": item.get("status") or WorkflowRunStatus.QUEUED.value,
+            "started_at": item.get("started_at"),
+            "finished_at": item.get("finished_at"),
+            "error_summary": item.get("error_summary"),
+            "cost_summary": item.get("cost_summary") or {},
+            "content_retention_mode": item.get("content_retention_mode") or WorkflowRunContentRetention.LAST_5.value,
+            "content_available": bool(item.get("content_available")),
+            "content_storage": item.get("content_storage"),
+            "content_expires_at": item.get("content_expires_at"),
+            "encrypted_content_ref": item.get("encrypted_output_summary"),
+            "encrypted_content_checksum": item.get("encrypted_content_checksum"),
+            "cancellation_requested_at": item.get("cancellation_requested_at"),
+            "cancelled_at": item.get("cancelled_at"),
+        }
 
     def save_encrypted_blob(self, blob: dict[str, Any]) -> dict[str, Any]:
         payload = {
@@ -468,6 +624,7 @@ class DirectusWorkflowRepository:
             "workflow_id": record["workflow_id"],
             "version_id": record["version_id"],
             "hashed_user_id": record["owner_hash"],
+            "owner_user_id": record["owner_user_id"],
             "hashed_project_id": record.get("hashed_project_id"),
             "trigger_type": record["trigger_type"],
             "source": record.get("source"),
@@ -641,6 +798,10 @@ class DirectusWorkflowRepository:
         )
         return self._template_projection_from_item(item) if item else None
 
+    def get_public_template_projection(self, template_id: str) -> dict[str, Any] | None:
+        item = self._find_one(self.TEMPLATE_PROJECTIONS, {"template_id": {"_eq": template_id}})
+        return self._template_projection_from_item(item) if item else None
+
     @staticmethod
     def _template_projection_from_item(item: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -795,12 +956,65 @@ class WorkflowService:
         if not record:
             raise WorkflowNotFoundError(workflow_id)
         version = next((item for item in record.get("versions") or [] if item.get("id") == version_id), None)
-        if not version:
+        if not version or version.get("pruned_at") is not None:
             raise WorkflowNotFoundError(version_id)
         pinned_record = deepcopy(record)
         pinned_record["encrypted_graph_ref"] = version["encrypted_graph_ref"]
         pinned_record["encrypted_graph_checksum"] = version["encrypted_graph_checksum"]
         return self._detail_from_record(pinned_record, vault_key_id)
+
+    def list_workflow_versions(
+        self,
+        workflow_id: str,
+        user_id: str,
+        vault_key_id: str | None = None,
+    ) -> list[WorkflowVersionSummary]:
+        self.ensure_enabled()
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
+        record = self.repository.get_workflow(workflow_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(workflow_id)
+        del vault_key_id
+        versions = [version for version in record.get("versions") or [] if version.get("pruned_at") is None]
+        return [self._version_summary(version, record["current_version_id"]) for version in sorted(versions, key=lambda item: int(item["version_number"]), reverse=True)]
+
+    def get_workflow_version_detail(
+        self,
+        workflow_id: str,
+        user_id: str,
+        version_id: str,
+        vault_key_id: str | None = None,
+    ) -> WorkflowVersionDetail:
+        workflow = self.get_workflow_version(workflow_id, user_id, version_id, vault_key_id)
+        record = self.repository.get_workflow(workflow_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(workflow_id)
+        version = next((item for item in record.get("versions") or [] if item.get("id") == version_id and item.get("pruned_at") is None), None)
+        if not version:
+            raise WorkflowNotFoundError(version_id)
+        return WorkflowVersionDetail(**self._version_summary(version, record["current_version_id"]).model_dump(), graph=workflow.graph)
+
+    def restore_workflow_version(
+        self,
+        workflow_id: str,
+        user_id: str,
+        version_id: str,
+        vault_key_id: str | None = None,
+    ) -> WorkflowDetail:
+        self.ensure_enabled()
+        record = self.repository.get_workflow(workflow_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(workflow_id)
+        if record["current_version_id"] == version_id:
+            raise WorkflowVersionCurrentError("Workflow version is already current")
+        historical = self.get_workflow_version(workflow_id, user_id, version_id, vault_key_id)
+        return self.update_workflow(
+            workflow_id,
+            user_id,
+            graph=historical.graph,
+            vault_key_id=vault_key_id,
+            restored_from_version_id=version_id,
+        )
 
     def decrypt_schedule_config(
         self,
@@ -902,6 +1116,10 @@ class WorkflowService:
                     "version_number": 1,
                     "encrypted_graph_ref": graph_blob["ref"],
                     "encrypted_graph_checksum": graph_blob["checksum"],
+                    "created_at": now,
+                    "created_by_client": source,
+                    "restored_from_version_id": None,
+                    "pruned_at": None,
                 }
             ],
             "created_at": now,
@@ -923,6 +1141,7 @@ class WorkflowService:
         run_content_retention: WorkflowRunContentRetention | None = None,
         vault_key_id: str | None = None,
         description: str | None = None,
+        restored_from_version_id: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
@@ -950,9 +1169,13 @@ class WorkflowService:
             versions.append(
                 {
                     "id": version_id,
-                    "version_number": len(versions) + 1,
+                    "version_number": max((int(version.get("version_number") or 0) for version in versions), default=0) + 1,
                     "encrypted_graph_ref": graph_blob["ref"],
                     "encrypted_graph_checksum": graph_blob["checksum"],
+                    "created_at": int(time.time()),
+                    "created_by_client": str(record.get("source") or "system"),
+                    "restored_from_version_id": restored_from_version_id,
+                    "pruned_at": None,
                 }
             )
             record["encrypted_graph_ref"] = graph_blob["ref"]
@@ -960,6 +1183,9 @@ class WorkflowService:
             record["current_version_id"] = version_id
             record["versions"] = versions
             record["trigger_summary"] = self._trigger_summary(workflow_graph)
+            self._apply_workflow_version_retention(record)
+        if enabled:
+            self._ensure_import_binding_requirements_resolved(record)
         if enabled is not None:
             record["enabled"] = enabled
             record["status"] = WorkflowStatus.ACTIVE.value if enabled else WorkflowStatus.DISABLED.value
@@ -980,6 +1206,122 @@ class WorkflowService:
         )
         saved_record = self.repository.save_workflow(saved_record)
         return self._detail_from_record(saved_record, vault_key_id)
+
+    def initialize_import_binding_requirements(
+        self,
+        workflow_id: str,
+        user_id: str,
+        binding_requirements: list[dict[str, Any]],
+    ) -> None:
+        """Persist the template-declared bindings that must be recreated by the recipient."""
+        self.ensure_enabled()
+        record = self.repository.get_workflow(workflow_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(workflow_id)
+        if record.get("source") != "import":
+            raise ValueError("Only imported workflows have template binding requirements")
+        record["binding_requirements"] = deepcopy(binding_requirements)
+        record["completed_binding_requirements"] = []
+        record["updated_at"] = int(time.time())
+        self.repository.save_workflow(record)
+
+    def get_import_binding_requirement(
+        self,
+        workflow_id: str,
+        user_id: str,
+        binding_type: str,
+        node_id: str,
+    ) -> dict[str, Any]:
+        """Return the exact imported binding requirement, never a client-provided substitute."""
+        self.ensure_enabled()
+        record = self.repository.get_workflow(workflow_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(workflow_id)
+        if record.get("source") != "import":
+            raise ValueError("Only imported workflows have template binding requirements")
+        requirement = next(
+            (
+                item
+                for item in record.get("binding_requirements") or []
+                if item.get("type") == binding_type and item.get("node_id") == node_id
+            ),
+            None,
+        )
+        if not isinstance(requirement, dict):
+            raise WorkflowBindingRequirementUnresolvedError("BINDING_REQUIREMENT_NOT_FOUND")
+        return deepcopy(requirement)
+
+    def validate_schedule_binding_requirement(
+        self,
+        workflow_id: str,
+        user_id: str,
+        node_id: str,
+        vault_key_id: str | None = None,
+    ) -> dict[str, Any]:
+        requirement = self.get_import_binding_requirement(workflow_id, user_id, "schedule", node_id)
+        workflow = self.get_workflow(workflow_id, user_id, vault_key_id)
+        node = next((item for item in workflow.graph.nodes if item.id == node_id), None)
+        schedule = node.config.get("schedule") if node is not None else None
+        try:
+            WorkflowSchedulerService.next_run_at_from_schedule({"schedule": schedule})
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise WorkflowBindingRequirementUnresolvedError("SCHEDULE_NOT_VALIDATED") from exc
+        return requirement
+
+    def validate_app_skill_binding_requirement(
+        self,
+        workflow_id: str,
+        user_id: str,
+        node_id: str,
+        registry: Any,
+    ) -> dict[str, Any]:
+        requirement = self.get_import_binding_requirement(workflow_id, user_id, "app_skill", node_id)
+        app_id = requirement.get("app_id")
+        skill_id = requirement.get("skill_id")
+        if not isinstance(app_id, str) or not isinstance(skill_id, str) or not registry.is_skill_available(app_id, skill_id):
+            raise WorkflowBindingRequirementUnresolvedError("APP_SKILL_UNAVAILABLE")
+        return requirement
+
+    def complete_import_binding_requirement(
+        self,
+        workflow_id: str,
+        user_id: str,
+        requirement: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Store a server-validated binding completion idempotently."""
+        expected = self.get_import_binding_requirement(
+            workflow_id,
+            user_id,
+            str(requirement.get("type") or ""),
+            str(requirement.get("node_id") or ""),
+        )
+        record = self.repository.get_workflow(workflow_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(workflow_id)
+        completed = list(record.get("completed_binding_requirements") or [])
+        key = (expected["type"], expected["node_id"])
+        if not any((item.get("type"), item.get("node_id")) == key for item in completed if isinstance(item, dict)):
+            completed.append(expected)
+            record["completed_binding_requirements"] = completed
+            record["updated_at"] = int(time.time())
+            self.repository.save_workflow(record)
+        return expected
+
+    @staticmethod
+    def _ensure_import_binding_requirements_resolved(record: dict[str, Any]) -> None:
+        if record.get("source") != "import":
+            return
+        completed = {
+            (str(item.get("type") or ""), str(item.get("node_id") or ""))
+            for item in record.get("completed_binding_requirements") or []
+        }
+        unresolved = [
+            deepcopy(item)
+            for item in record.get("binding_requirements") or []
+            if (str(item.get("type") or ""), str(item.get("node_id") or "")) not in completed
+        ]
+        if unresolved:
+            raise WorkflowBindingRequirementsUnresolvedError(unresolved)
 
     def keep_temporary_workflow(self, workflow_id: str, user_id: str, vault_key_id: str | None = None) -> WorkflowDetail:
         self.ensure_enabled()
@@ -1101,6 +1443,24 @@ class WorkflowService:
             raise WorkflowNotFoundError(run_id)
         return self._run_detail_from_record(record, vault_key_id)
 
+    def request_run_cancellation(self, workflow_id: str, run_id: str, user_id: str) -> WorkflowRunDetail:
+        """Record an owner cancellation request without altering the pinned run definition."""
+        self.ensure_enabled()
+        record = self.repository.request_run_cancellation(workflow_id, run_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(run_id)
+        return self._run_detail_from_record(record, vault_key_id=None)
+
+    def is_run_cancellation_requested(self, workflow_id: str, run_id: str, user_id: str) -> bool:
+        """Read only cancellation state so the runner can stop at safe boundaries."""
+        record = self.repository.get_run(workflow_id, run_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(run_id)
+        return record.get("status") in {
+            WorkflowRunStatus.CANCELLATION_REQUESTED.value,
+            WorkflowRunStatus.CANCELLED.value,
+        }
+
     def validate_manual_run_input(self, workflow: WorkflowDetail, input_payload: dict[str, Any] | None) -> None:
         from backend.core.api.app.services.workflow_models import validate_manual_run_input
 
@@ -1123,10 +1483,9 @@ class WorkflowService:
             WorkflowCapability(type="node", id="event_trigger", title="Event trigger", enabled=False, reason="Event triggers require scoped event matching before execution"),
             WorkflowCapability(type="node", id="custom_code", title="Run custom code", enabled=False, reason="Custom code nodes are planned for a later E2B-gated slice"),
         ]
-        app_skill_capabilities = [
-            WorkflowCapability(type="app_skill", id="weather:forecast", title="Weather forecast", metadata={"app_id": "weather", "skill_id": "forecast"}),
-            WorkflowCapability(type="app_skill", id="news:search", title="News search", metadata={"app_id": "news", "skill_id": "search"}),
-        ]
+        from backend.core.api.app.services.workflow_capability_registry import WorkflowCapabilityRegistry
+
+        app_skill_capabilities = WorkflowCapabilityRegistry().list_capabilities(user_id)
         workflow_capabilities: list[WorkflowCapability] = []
         if user_id is not None:
             vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
@@ -1177,6 +1536,35 @@ class WorkflowService:
     def _detail_from_record(self, record: dict[str, Any], vault_key_id: str | None) -> WorkflowDetail:
         graph_payload = self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id)
         return WorkflowDetail(**self._summary_from_record(record, vault_key_id).model_dump(), graph=WorkflowGraph.model_validate(graph_payload))
+
+    @staticmethod
+    def _version_summary(version: dict[str, Any], current_version_id: str) -> WorkflowVersionSummary:
+        return WorkflowVersionSummary(
+            version_id=version["id"],
+            version_number=int(version["version_number"]),
+            created_at=int(version.get("created_at") or 0),
+            created_by_client=str(version.get("created_by_client") or "system"),
+            graph_hash=str(version["encrypted_graph_checksum"]),
+            restored_from_version_id=version.get("restored_from_version_id"),
+            current=version["id"] == current_version_id,
+        )
+
+    def _apply_workflow_version_retention(self, record: dict[str, Any]) -> None:
+        """Prune only unreferenced historical definitions; retained runs keep their pins."""
+        versions = record.get("versions") or []
+        active = [version for version in versions if version.get("pruned_at") is None]
+        active.sort(key=lambda version: int(version.get("version_number") or 0), reverse=True)
+        protected = {record["current_version_id"]}
+        protected.update(
+            run.get("version_id")
+            for run in self.repository.list_run_records_for_workflow(record["id"])
+            if isinstance(run.get("version_id"), str)
+        )
+        retained = {version["id"] for version in active[:WORKFLOW_VERSION_HISTORY_LIMIT]} | protected
+        now = int(time.time())
+        for version in active:
+            if version["id"] not in retained:
+                version["pruned_at"] = now
 
     def _run_detail_from_record(self, record: dict[str, Any], vault_key_id: str | None) -> WorkflowRunDetail:
         hydrated = deepcopy(record)
@@ -1277,6 +1665,7 @@ class WorkflowService:
             "workflow_id": workflow_record["id"],
             "version_id": workflow_record["current_version_id"],
             "owner_hash": _hash_owner_id(user_id),
+            "owner_user_id": user_id,
             "hashed_project_id": None,
             "trigger_type": trigger_type,
             "source": None,
@@ -1419,8 +1808,3 @@ class WorkflowService:
             return bool(schema.get("required"))
         except Exception:
             return False
-
-
-def validate_app_skill_available(app_id: str, skill_id: str) -> None:
-    if (app_id, skill_id) not in SUPPORTED_WORKFLOW_APP_SKILLS:
-        raise WorkflowValidationError(f"Workflow app-skill action is not enabled for {app_id}:{skill_id} in V1")

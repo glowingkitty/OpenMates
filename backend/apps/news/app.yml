@@ -177,6 +177,25 @@ skills:
               - query
       required:
         - requests
+    workflow:
+      available: true
+      execution_mode: sync
+      effect: read
+      unattended: true
+      approval: never
+      binding_requirements: [none]
+      test_allowed: true
+      test_example_input:
+        requests:
+          - query: OpenMates news
+            count: 3
+      output_schema:
+        type: object
+        properties:
+          summary:
+            type: string
+          result_count:
+            type: integer
 focuses:
   - id: understand_the_news
     name_translation_key: news.understand_the_news
