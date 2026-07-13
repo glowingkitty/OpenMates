@@ -210,12 +210,14 @@ test('completes passkey signup flow with email', async ({
 				input.type = 'password';
 			});
 			await inviteCodeInput.fill(E2E_SIGNUP_INVITE_CODE);
+			await expect(page.locator('input[autocomplete="username"]')).toBeVisible({ timeout: 10000 });
 			logSignupCheckpoint('Validated the configured invite code.');
 		}
 
 		// Basics step: fill email/username and exercise key toggles.
-		const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 		const usernameInput = page.locator('input[autocomplete="username"]');
+		await expect(usernameInput).toBeVisible({ timeout: 10000 });
+		const emailInput = page.locator('input[type="email"][autocomplete="email"]');
 		await expect(emailInput).toBeVisible({ timeout: 10000 });
 		await emailInput.fill(signupEmail);
 		await usernameInput.fill(signupUsername);

@@ -338,18 +338,17 @@ async function ensureSidebarClosed(
 	const activityHistory = page.getByTestId('activity-history-wrapper');
 	const isSidebarVisible = await activityHistory.isVisible().catch(() => false);
 	if (!isSidebarVisible) {
+		await expect(activityHistory).not.toBeVisible();
 		logCheckpoint('[Sidebar] Already closed.');
 		return;
 	}
 
 	// Click the menu toggle button to close the sidebar
 	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
-	if (await menuToggle.isVisible().catch(() => false)) {
-		await menuToggle.click();
-		logCheckpoint('[Sidebar] Clicked menu toggle to close sidebar.');
-		// Wait for sidebar to close
-		await page.waitForTimeout(500);
-	}
+	await expect(menuToggle).toBeVisible({ timeout: 5000 });
+	await menuToggle.click();
+	logCheckpoint('[Sidebar] Clicked menu toggle to close sidebar.');
+	await expect(activityHistory).not.toBeVisible({ timeout: 10000 });
 }
 
 /**
