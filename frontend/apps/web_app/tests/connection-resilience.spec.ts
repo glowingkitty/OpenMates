@@ -50,7 +50,12 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	sendMessage,
+	startNewChat,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -78,13 +83,7 @@ async function loginAndNavigateToChat(
 	logCheckpoint('Logging in via loginToTestAccount (includes OTP retry with clock-drift compensation).');
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 
-	// Start a fresh chat if possible
-	const newChatButton = page.getByTestId('new-chat-button');
-	if (await newChatButton.isVisible()) {
-		logCheckpoint('Clicking New Chat button.');
-		await newChatButton.click();
-		await page.waitForTimeout(2000);
-	}
+	await startNewChat(page, logCheckpoint);
 
 	return { logCheckpoint, takeStepScreenshot };
 }
