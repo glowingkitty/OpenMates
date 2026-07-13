@@ -60,7 +60,7 @@ SUPPORTED_STEP_FORMS = {
 APP_SKILL_IDENTIFIER_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*\.[a-z][a-z0-9_-]*$")
 REQUIRED_RUNTIME_INPUTS = {
     ("weather", "forecast"): ("location",),
-    ("news", "search"): ("query",),
+    ("news", "search"): ("requests",),
 }
 
 
