@@ -131,17 +131,30 @@ def test_epoch_zero_admission_identity_chain_and_acknowledgment_retry_are_wired(
     assert "self.retry" in persistence_wrapper_source
 
 
-def test_active_final_chunk_announces_available_recovery_jobs() -> None:
+def test_final_chunk_orders_recovery_discovery_before_completion_frames() -> None:
     source = _function_source(
         "backend/core/api/app/routes/websockets.py",
         "listen_for_ai_chat_streams",
     )
+    ai_chunk_branch = source[source.index('elif event_type == "ai_message_chunk"'):]
     active_branch = source[
-        source.index('message={"type": "ai_message_update", "payload": redis_payload}'):
+        source.index("if chat_id_from_payload == active_chat_on_device:", source.index('elif event_type == "ai_message_chunk"')):
         source.index('message={"type": "ai_background_response_completed", "payload": background_completion_payload}')
     ]
+    background_branch = ai_chunk_branch[
+        ai_chunk_branch.index("# Chat is not active on this device."):
+        ai_chunk_branch.index('message={"type": "ai_typing_ended", "payload": typing_ended_payload}')
+    ]
 
-    assert 'redis_payload.get("is_final_chunk", False)' in active_branch
-    assert 'redis_payload.get("recovery_protocol_version") == 1' in active_branch
-    assert 'redis_payload.get("recovery_job_id")' in active_branch
+    assert 'redis_payload.get("is_final_chunk", False)' in ai_chunk_branch
+    assert 'redis_payload.get("recovery_protocol_version") == 1' in ai_chunk_branch
+    assert 'redis_payload.get("recovery_job_id")' in ai_chunk_branch
     assert "send_available_recovery_jobs" in active_branch
+    assert "asyncio.create_task(\n                                    send_available_recovery_jobs" not in active_branch
+    assert active_branch.index("send_available_recovery_jobs") < active_branch.index(
+        'message={"type": "ai_message_update", "payload": redis_payload}'
+    )
+    assert "send_available_recovery_jobs" in background_branch
+    assert background_branch.index("send_available_recovery_jobs") < background_branch.index(
+        'message={"type": "ai_background_response_completed", "payload": background_completion_payload}'
+    )

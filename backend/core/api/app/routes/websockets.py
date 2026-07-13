@@ -761,6 +761,13 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     # CRITICAL: Send messages immediately without blocking on completion
                     # WebSocket.send_json() is fast (just queues in buffer), so we can await it
                     # but we process all devices in parallel to avoid sequential delays
+                    should_announce_final_recovery_job = (
+                        directus_service is not None
+                        and redis_payload.get("is_final_chunk", False)
+                        and redis_payload.get("recovery_protocol_version") == 1
+                        and redis_payload.get("recovery_job_id")
+                    )
+
                     for device_hash, websocket_conn in user_connections.items():
                         if not manager.is_connection_completion_capable(user_id_uuid, device_hash):
                             logger.debug(
@@ -786,6 +793,17 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     logger.warning(f"AI Stream Listener: Detected standardized error in stream for chat {chat_id_from_payload}")
                                     redis_payload["full_content_so_far"] = "chat.an_error_occured"
 
+                            # The final frame lets the browser/test proceed to logout, so recovery
+                            # discovery must be ordered before it instead of racing in the background.
+                            if should_announce_final_recovery_job:
+                                await send_available_recovery_jobs(
+                                    manager=manager,
+                                    directus_service=directus_service,
+                                    user_id=user_id_uuid,
+                                    user_id_hash=redis_payload.get("user_id_hash"),
+                                    device_fingerprint_hash=device_hash,
+                                )
+
                             # CRITICAL: Send immediately - websocket.send_json() is fast (just queues message)
                             # This ensures chunks are forwarded as soon as they arrive from Redis
                             await manager.send_personal_message(
@@ -794,21 +812,6 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 device_fingerprint_hash=device_hash
                             )
                             logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash} (seq: {redis_payload.get('sequence', 'unknown')}).")
-                            if (
-                                directus_service is not None
-                                and redis_payload.get("is_final_chunk", False)
-                                and redis_payload.get("recovery_protocol_version") == 1
-                                and redis_payload.get("recovery_job_id")
-                            ):
-                                asyncio.create_task(
-                                    send_available_recovery_jobs(
-                                        manager=manager,
-                                        directus_service=directus_service,
-                                        user_id=user_id_uuid,
-                                        user_id_hash=redis_payload.get("user_id_hash"),
-                                        device_fingerprint_hash=device_hash,
-                                    )
-                                )
                         else:
                             # Chat is not active on this device.
                             # For background processing: only send completed response when final marker arrives
@@ -835,6 +838,18 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                         logger.warning(f"AI Stream Listener: Detected standardized error in background stream for chat {chat_id_from_payload}")
                                         full_content = "chat.an_error_occured"
                                 
+                                # The background final frame can also trigger logout/navigation, so
+                                # deliver recovery discovery first and let reconnects pick up any
+                                # lease released by logout.
+                                if should_announce_final_recovery_job:
+                                    await send_available_recovery_jobs(
+                                        manager=manager,
+                                        directus_service=directus_service,
+                                        user_id=user_id_uuid,
+                                        user_id_hash=redis_payload.get("user_id_hash"),
+                                        device_fingerprint_hash=device_hash,
+                                    )
+
                                 # Send background completion event with full response
                                 background_completion_payload = {
                                     "chat_id": chat_id_from_payload,
@@ -857,20 +872,6 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     device_fingerprint_hash=device_hash
                                 )
                                 logger.debug(f"AI Stream Listener: Sent 'ai_background_response_completed' to inactive chat device {user_id_uuid}/{device_hash}.")
-                                if (
-                                    directus_service is not None
-                                    and redis_payload.get("recovery_protocol_version") == 1
-                                    and redis_payload.get("recovery_job_id")
-                                ):
-                                    asyncio.create_task(
-                                        send_available_recovery_jobs(
-                                            manager=manager,
-                                            directus_service=directus_service,
-                                            user_id=user_id_uuid,
-                                            user_id_hash=redis_payload.get("user_id_hash"),
-                                            device_fingerprint_hash=device_hash,
-                                        )
-                                    )
 
                                 # Also send typing ended event for UI cleanup
                                 typing_ended_payload = {
