@@ -468,6 +468,60 @@ describe("chatNavigationStore — example chat navigation", () => {
       expect(dispatchedEvent?.detail.chat.chat_id).toBe(olderChat.chat_id);
       expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: false });
     });
+
+    it("skips unreadable hidden-candidate chats as header navigation targets", async () => {
+      const newestChat = makeChat("newest-chat", {
+        encrypted_title: "encrypted-title",
+        messages_v: 2,
+        last_edited_overall_timestamp: Date.now(),
+      });
+      const unreadableChat = makeChat("unreadable-chat", {
+        encrypted_title: "undecryptable-ciphertext",
+        messages_v: 1,
+        is_hidden_candidate: true,
+        last_edited_overall_timestamp: Date.now() - 100,
+      });
+      const olderChat = makeChat("older-chat", {
+        encrypted_title: "older-encrypted-title",
+        messages_v: 1,
+        last_edited_overall_timestamp: Date.now() - 200,
+      });
+
+      setChatNavigationList([newestChat, unreadableChat, olderChat], newestChat.chat_id);
+
+      await navigateNext();
+
+      const dispatchCalls = vi.mocked(window.dispatchEvent).mock.calls;
+      const dispatchedEvent = dispatchCalls[dispatchCalls.length - 1]?.[0] as
+        | CustomEvent<{ chat: Chat }>
+        | undefined;
+      expect(dispatchedEvent?.detail.chat.chat_id).toBe(olderChat.chat_id);
+    });
+
+    it("keeps encrypted metadata-only chats as header navigation targets", async () => {
+      const newestChat = makeChat("newest-chat", {
+        encrypted_title: "encrypted-title",
+        messages_v: 2,
+        last_edited_overall_timestamp: Date.now(),
+      });
+      const metadataOnlyChat = makeChat("metadata-only-chat", {
+        encrypted_title: "encrypted-title",
+        encrypted_chat_summary: "encrypted-summary",
+        is_metadata_only: true,
+        messages_v: 0,
+        last_edited_overall_timestamp: Date.now() - 100,
+      });
+
+      setChatNavigationList([newestChat, metadataOnlyChat], newestChat.chat_id);
+
+      await navigateNext();
+
+      const dispatchCalls = vi.mocked(window.dispatchEvent).mock.calls;
+      const dispatchedEvent = dispatchCalls[dispatchCalls.length - 1]?.[0] as
+        | CustomEvent<{ chat: Chat }>
+        | undefined;
+      expect(dispatchedEvent?.detail.chat.chat_id).toBe(metadataOnlyChat.chat_id);
+    });
   });
 
   describe("updateNavFromCache (cold boot, sidebar closed)", () => {

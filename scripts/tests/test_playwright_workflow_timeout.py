@@ -32,3 +32,12 @@ def test_workflow_guard_exceeds_longest_declared_spec_timeout() -> None:
     guard_seconds = int(guard_match.group(1))
     longest_spec_seconds = max(declared_timeouts) // 1000
     assert guard_seconds >= longest_spec_seconds + REPORTING_MARGIN_SECONDS
+
+
+def test_signup_invite_secret_is_scoped_to_the_passkey_spec() -> None:
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    assert (
+        "E2E_SIGNUP_INVITE_CODE: ${{ github.event.inputs.spec == 'signup-flow-passkey.spec.ts' "
+        "&& secrets.E2E_SIGNUP_INVITE_CODE || '' }}"
+    ) in workflow

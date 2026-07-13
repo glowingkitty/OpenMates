@@ -75,8 +75,9 @@ let currentChatId: string | null = null;
  */
 let chatListOwnedByChatsComponent = false;
 
-function isHeaderNavigableChat(chat: Chat): boolean {
+export function isHeaderNavigableChat(chat: Chat): boolean {
   if (chat.group_key || chat.is_incognito) return true;
+  if (chat.is_hidden_candidate) return false;
 
   const hasMetadata = Boolean(
     chat.title ||

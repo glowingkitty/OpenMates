@@ -58,6 +58,7 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
+const E2E_SIGNUP_INVITE_CODE = process.env.E2E_SIGNUP_INVITE_CODE;
 
 /**
  * Attach a virtual authenticator so WebAuthn prompts are satisfied automatically.
@@ -198,6 +199,19 @@ test('completes passkey signup flow with email', async ({
 		await page.getByRole('button', { name: /continue/i }).click();
 		await takeStepScreenshot(page, 'basics-step');
 		logSignupCheckpoint('Reached basics step.');
+
+		const inviteCodeInput = page.getByPlaceholder(/personal invite code/i);
+		if (await inviteCodeInput.isVisible().catch(() => false)) {
+			if (!E2E_SIGNUP_INVITE_CODE) {
+				throw new Error('E2E_SIGNUP_INVITE_CODE is required when dev signup requires an invite code.');
+			}
+			// Keep the secret unreadable in automatic failure screenshots and videos.
+			await inviteCodeInput.evaluate((input: HTMLInputElement) => {
+				input.type = 'password';
+			});
+			await inviteCodeInput.fill(E2E_SIGNUP_INVITE_CODE);
+			logSignupCheckpoint('Validated the configured invite code.');
+		}
 
 		// Basics step: fill email/username and exercise key toggles.
 		const emailInput = page.locator('input[type="email"][autocomplete="email"]');
