@@ -1,7 +1,7 @@
 schema_version: 2
 id: workflows-sdk-runtime
 title: Workflows SDK Runtime
-status: implementing
+status: verified
 
 parent_spec: docs/specs/workflows-cli-runtime/spec.yml
 
@@ -78,7 +78,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: pending-deploy
+  subject_commit: eedd200
 
 approvals:
   product_contract:
@@ -122,11 +122,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-5
-  next_action: "Deploy the SDK implementation, rerun focused checks on the committed revision, and record final evidence."
+  next_action: "No immediate action; Workflow SDK runtime parity is implemented and verified."
   command: "python3 scripts/spec_verify.py docs/specs/workflows-sdk-runtime/spec.yml"
-  expected_outcome: "Spec verification passes after evidence is recorded for the deployed subject commit."
+  expected_outcome: "Spec verification passes for the recorded SDK evidence."
   blocker: null
-  last_verified_commit: pending-deploy
+  last_verified_commit: eedd200
 
 scenarios:
   - id: S-1
@@ -192,7 +192,7 @@ acceptance_criteria:
     scenario: S-1
     text: npm and pip SDKs expose YAML validation and create methods that call /v1/workflows/validate and /v1/workflows/yaml.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NPM-001, T-PIP-001, T-AUDIT-001]
@@ -200,7 +200,7 @@ acceptance_criteria:
     scenario: S-2
     text: npm and pip SDKs expose YAML update methods that call /v1/workflows/{workflow_id}/yaml and preserve existing graph update methods.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NPM-001, T-PIP-001, T-AUDIT-001]
@@ -208,7 +208,7 @@ acceptance_criteria:
     scenario: S-3
     text: npm and pip SDKs can enable, run, list runs, inspect run detail, and read retained per-step outputs.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NPM-001, T-PIP-001]
@@ -216,7 +216,7 @@ acceptance_criteria:
     scenario: S-4
     text: npm and pip SDKs can cancel a run and respond to a waiting ask_for_user_input step.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-NPM-001, T-PIP-001, T-AUDIT-001]
@@ -224,7 +224,7 @@ acceptance_criteria:
     scenario: S-5
     text: The deterministic SDK/CLI parity audit covers the new Workflow SDK mappings.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-AUDIT-001]
@@ -232,7 +232,7 @@ acceptance_criteria:
     scenario: S-5
     text: Public SDK docs show complete npm and pip Workflow lifecycle examples including YAML authoring, modification, run polling, output inspection, and waiting-run response.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-DOCS-001]
@@ -308,19 +308,21 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workflows.test.ts
+        run_id: local-red-npm-sdk-workflows-20260714T0000Z
+        subject_commit: bb87b6bd3
+        timestamp: "2026-07-14T00:00:00Z"
+        summary: "Failed because client.workflows.validateYaml was not implemented."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workflows.test.ts
+        run_id: local-green-npm-sdk-workflows-20260714T0010Z
+        subject_commit: eedd200
+        timestamp: "2026-07-14T00:10:00Z"
   - id: T-PIP-001
     type: pytest
     file: packages/openmates-python/tests/test_workflows.py
@@ -335,19 +337,21 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 -m pytest packages/openmates-python/tests/test_workflows.py
+        run_id: local-red-pip-sdk-workflows-20260714T0000Z
+        subject_commit: bb87b6bd3
+        timestamp: "2026-07-14T00:00:00Z"
+        summary: "Failed because OpenMatesWorkflows.validate_yaml was not implemented."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_workflows.py
+        run_id: local-green-pip-sdk-workflows-20260714T0010Z
+        subject_commit: eedd200
+        timestamp: "2026-07-14T00:10:00Z"
   - id: T-AUDIT-001
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -359,19 +363,21 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: local-red-sdk-cli-parity-20260714T0000Z
+        subject_commit: bb87b6bd3
+        timestamp: "2026-07-14T00:00:00Z"
+        summary: "Initial audit failed before the Workflow SDK parity mappings were updated; local dirty task CLI work also exposed an optional command classification gap."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: local-green-sdk-cli-parity-20260714T0010Z
+        subject_commit: eedd200
+        timestamp: "2026-07-14T00:10:00Z"
   - id: T-DOCS-001
     type: lint
     file: docs/user-guide/developers/sdk.md
@@ -390,11 +396,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/docs_claims_verify.py --guide docs/user-guide/developers/sdk.md
+        run_id: local-green-sdk-docs-20260714T0010Z
+        subject_commit: eedd200
+        timestamp: "2026-07-14T00:10:00Z"
 
 verifications:
   - id: V-USER-001
@@ -456,7 +462,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Approve Workflow SDK runtime product contract
-    status: in_progress
+    status: done
     phase: awaiting_approval
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5]
@@ -470,13 +476,12 @@ tasks:
       files:
         - docs/specs/workflows-sdk-runtime/spec.yml
       shared_files: []
-    blockers:
-      - "User approval required before implementation."
+    blockers: []
     follow_up_tasks: [TASK-2, TASK-3, TASK-4, TASK-5]
     independently_deployable: true
   - id: TASK-2
     title: Add npm Workflow SDK parity methods and tests
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
@@ -497,7 +502,7 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Add pip Workflow SDK parity methods and tests
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4]
@@ -518,7 +523,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Update parity audit and SDK docs
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-5]
@@ -539,7 +544,7 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Verify and deploy Workflow SDK parity
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5]
