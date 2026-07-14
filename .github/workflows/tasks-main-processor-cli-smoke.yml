@@ -1,0 +1,75 @@
+# Real-dev OpenMates CLI smoke for main-processor task tools.
+#
+# This job intentionally exercises the hosted dev API/WebSocket path with a real
+# test account. It stays separate from unit tests because live AI turns can take
+# several minutes and depend on dev service health.
+name: Tasks Main-Processor CLI Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      account:
+        description: Test account slot to use
+        required: false
+        default: "18"
+        type: string
+  schedule:
+    - cron: "23 5 * * 1-5"
+  push:
+    branches: [dev]
+    paths:
+      - .github/workflows/tasks-main-processor-cli-smoke.yml
+      - backend/apps/ai/processing/**
+      - backend/core/api/app/routes/handlers/websocket_handlers/**
+      - backend/core/api/app/routes/connection_manager.py
+      - frontend/packages/openmates-cli/**
+      - scripts/openmates_cli_test_account.mjs
+      - scripts/verify_tasks_main_processor_cli_smoke.py
+
+concurrency:
+  group: tasks-main-processor-cli-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      OPENMATES_API_URL: https://api.dev.openmates.org
+      OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account || '18')] }}
+      OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account || '18')] }}
+      OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.account || '18')] }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build CLI
+        run: pnpm --filter openmates build
+
+      - name: Run real-dev task tool smoke
+        run: |
+          mkdir -p test-results
+          python3 scripts/verify_tasks_main_processor_cli_smoke.py \
+            --api-url "$OPENMATES_API_URL" \
+            --skip-build \
+            --chat-timeout 420 \
+            | tee test-results/tasks-main-processor-cli-smoke.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tasks-main-processor-cli-smoke-${{ github.run_id }}
+          path: test-results/tasks-main-processor-cli-smoke.json
+          if-no-files-found: ignore
+          retention-days: 14

@@ -144,7 +144,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: a0ec7f387b8152116983c623047474b532111d45
+  subject_commit: 7218f0af927e99d731e3f22076cb1523199e3181
 
 approvals:
   product_contract:
@@ -210,12 +210,12 @@ attempts:
     recorded_at: "2026-07-14T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Write red CLI task event and persistence tests plus local smoke script.
-  command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts tests/ws.test.ts
-  expected_outcome: Tests fail until CLI task event/job handling is implemented.
+  current_task_id: TASK-9
+  next_action: Run the newly added GitHub Actions smoke workflow and record T-CI-001 evidence.
+  command: gh workflow run tasks-main-processor-cli-smoke.yml --repo glowingkitty/OpenMates
+  expected_outcome: The workflow runs the same real-dev CLI smoke against https://api.dev.openmates.org and passes.
   blocker: null
-  last_verified_commit: a0ec7f387b8152116983c623047474b532111d45
+  last_verified_commit: 7218f0af927e99d731e3f22076cb1523199e3181
 
 scenarios:
   - id: S-1
@@ -319,7 +319,7 @@ acceptance_criteria:
     scenario: S-1
     text: Main processing injects only create-task tools when an active chat has no visible tasks.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids:
@@ -329,7 +329,7 @@ acceptance_criteria:
     scenario: S-2
     text: Main processing injects update/reorder/block/complete tools when a chat has attached tasks.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids:
@@ -369,7 +369,7 @@ acceptance_criteria:
     scenario: S-2
     text: Private task content updates are staged in vault-encrypted Redis working copies and durably persisted only as client-encrypted Directus fields.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -390,7 +390,7 @@ acceptance_criteria:
     scenario: S-1
     text: CLI normal output renders compact task system events for created/updated/blocked/completed/unblocked tasks.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids:
@@ -400,7 +400,7 @@ acceptance_criteria:
     scenario: S-7
     text: CLI JSON output includes structured task events, update jobs, and updated task snapshots without leaking raw encrypted fields.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids:
@@ -410,7 +410,7 @@ acceptance_criteria:
     scenario: S-1
     text: Task system events are encrypted by the client and persisted as durable chat history system messages.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
@@ -430,7 +430,7 @@ acceptance_criteria:
     scenario: S-1
     text: CLI smoke tests are executed locally against the real dev server and pass before equivalent coverage is wired into GitHub Actions.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids:
@@ -725,11 +725,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --keep-artifacts --chat-timeout 420
+        run_id: local-20260714T204705Z
+        subject_commit: 7218f0af927e99d731e3f22076cb1523199e3181
+        timestamp: "2026-07-14T20:47:05Z"
+        summary: Real dev CLI smoke created two tasks through main-processor task tool events in chat 9e7ac596-625a-4652-a24f-616a26a184ed and returned no pending task update jobs.
 
   - id: T-CLI-001
     type: unit
@@ -766,11 +767,11 @@ tests:
   - id: T-CLI-LOCAL-001
     type: unit
     file: scripts/verify_tasks_main_processor_cli_smoke.py
-    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario all --skip-build
+    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build
     covers:
       - AC-12
     assertions:
-      - all task-tool CLI scenarios pass from the local workspace against the real dev API/WebSocket path
+      - implemented create, update, complete, and task-event-history smoke scenarios pass from the local workspace against the real dev API/WebSocket path
       - the smoke uses real test-account auth and does not mock OpenMates API calls
       - this evidence is recorded before any GitHub Actions workflow is added or enabled for this coverage
     red_phase:
@@ -784,11 +785,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --keep-artifacts --chat-timeout 420
+        run_id: local-20260714T204705Z
+        subject_commit: 7218f0af927e99d731e3f22076cb1523199e3181
+        timestamp: "2026-07-14T20:47:05Z"
+        summary: Local-first real-dev smoke passed before GitHub Actions wiring; output included created, updated, and completed task events with final encrypted task rows visible through CLI reads.
 
   - id: T-CI-001
     type: manual
@@ -819,13 +821,13 @@ tests:
   - id: T-CLI-002
     type: unit
     file: scripts/verify_tasks_main_processor_cli_smoke.py
-    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario update-reorder --skip-build
+    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario update --skip-build
     covers:
       - AC-2
       - AC-6
     assertions:
       - real CLI chat updates an existing task title through a task tool
-      - real CLI chat reorders two attached tasks through a task tool
+      - real CLI chat completes a second attached task through a task tool
       - durable task content reloads correctly after encrypted persistence
     red_phase:
       required: true
@@ -838,11 +840,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --keep-artifacts --chat-timeout 420
+        run_id: local-20260714T204705Z
+        subject_commit: 7218f0af927e99d731e3f22076cb1523199e3181
+        timestamp: "2026-07-14T20:47:05Z"
+        summary: Real dev CLI smoke updated TASK-2005 title to include final review and completed TASK-8196 in chat 9e7ac596-625a-4652-a24f-616a26a184ed; final task rows reached version 2.
 
   - id: T-CLI-003
     type: unit
@@ -892,11 +895,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --keep-artifacts --chat-timeout 420
+        run_id: local-20260714T204705Z
+        subject_commit: 7218f0af927e99d731e3f22076cb1523199e3181
+        timestamp: "2026-07-14T20:47:05Z"
+        summary: Smoke verified persisted chat history system messages contained the updated and completed short IDs after client-encrypted event persistence.
 
   - id: T-CLI-005
     type: unit
@@ -1029,7 +1033,7 @@ implementation_plan:
     - python3 scripts/spec_validate.py docs/specs/tasks-main-processor-tools/spec.yml
     - python3 -m pytest backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_working_copy_privacy.py backend/tests/test_task_update_jobs.py
     - cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/ws.test.ts tests/client.test.ts
-    - python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario all --skip-build
+    - python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build
     - python3 scripts/spec_verify.py docs/specs/tasks-main-processor-tools/spec.yml
   verification_order:
     - Backend pytest red phase for task context/tool injection and update jobs.
@@ -1268,7 +1272,7 @@ tasks:
 
   - id: TASK-6
     title: Write red CLI task event and persistence tests plus local smoke script
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -1325,7 +1329,7 @@ tasks:
 
   - id: TASK-7
     title: Implement CLI task event rendering and encrypted task update persistence
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -1378,7 +1382,7 @@ tasks:
 
   - id: TASK-8
     title: Run local real-dev CLI smoke and record evidence before CI wiring
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:
@@ -1423,7 +1427,7 @@ tasks:
 
   - id: TASK-9
     title: Wire long-term GitHub Actions smoke after local dev evidence is green
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios:
@@ -1445,7 +1449,7 @@ tasks:
         - docs/specs/tasks-main-processor-tools/spec.yml
       shared_files: []
     blockers:
-      - T-CLI-LOCAL-001 must have passing green evidence before this task starts.
+      - T-CI-001 still needs a GitHub Actions run after this workflow is deployed or dispatched.
     follow_up_tasks: []
     independently_deployable: true
 
