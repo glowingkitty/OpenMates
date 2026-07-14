@@ -417,6 +417,7 @@ async def test_task_update_job_event_confirm_requires_system_message_confirmatio
     )
 
     assert manager.messages[-1]["type"] == "error"
+    assert manager.messages[-1]["payload"]["message"] == "Task event system message has not been confirmed"
     assert (await cache.get(f"{TASK_TOOL_JOB_CACHE_PREFIX}{job_id}"))["state"] == "TASK_PERSISTED"
 
     await cache.set(

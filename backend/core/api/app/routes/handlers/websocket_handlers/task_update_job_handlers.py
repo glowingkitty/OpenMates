@@ -425,13 +425,14 @@ def _validate_protocol_version(payload: dict[str, Any]) -> None:
 
 
 async def _send_error(manager: Any, user_id: str, device_hash: str, job_id: str | None, request_id: str | None, exc: Exception) -> None:
-    logger.warning("Task update job protocol rejected job=%s: %s: %s", job_id, exc.__class__.__name__, exc)
+    reason = str(exc) or "Encrypted task update was rejected."
+    logger.warning("Task update job protocol rejected job=%s: %s: %s", job_id, exc.__class__.__name__, reason)
     await manager.send_personal_message(
         {
             "type": "error",
             "payload": {
                 "code": exc.__class__.__name__,
-                "message": "Encrypted task update was rejected.",
+                "message": reason,
                 "job_id": job_id,
                 "request_id": request_id,
             },
