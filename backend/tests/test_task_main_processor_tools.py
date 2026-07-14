@@ -20,7 +20,11 @@ from backend.apps.ai.processing.task_runtime_tools import (
     build_task_runtime_tools,
     merge_task_runtime_tools,
 )
-from backend.apps.ai.processing.task_tool_executor import _check_expected_version
+from backend.apps.ai.processing.task_tool_executor import (
+    _check_expected_version,
+    is_task_tool_name,
+    task_tool_name_variants,
+)
 from backend.apps.ai.processing.task_tool_context import resolve_task_tool_context
 from backend.apps.ai.processing.task_tool_context import TaskToolContext
 from backend.core.api.app.services.user_task_service import UserTaskConflictError
@@ -152,3 +156,12 @@ def test_reorder_tool_is_not_advertised_until_atomic_persistence_exists() -> Non
 def test_task_tool_expected_version_is_required_before_mutation() -> None:
     with pytest.raises(UserTaskConflictError, match="version is required"):
         _check_expected_version({"task_id": "task-1", "version": 2}, None)
+
+
+def test_task_tool_allow_list_preserves_provider_emitted_name() -> None:
+    allowed_names = task_tool_name_variants(TASK_TOOL_CREATE)
+
+    assert TASK_TOOL_CREATE in allowed_names
+    assert "task-create" in allowed_names
+    assert is_task_tool_name(TASK_TOOL_CREATE)
+    assert is_task_tool_name("task-create")

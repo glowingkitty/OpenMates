@@ -45,6 +45,12 @@ def is_task_tool_name(tool_name: str) -> bool:
     return tool_name.replace("_", "-") in TASK_TOOL_CANONICAL_NAMES
 
 
+def task_tool_name_variants(tool_name: str) -> set[str]:
+    if not is_task_tool_name(tool_name):
+        return set()
+    return {tool_name, tool_name.replace("_", "-"), tool_name.replace("-", "_")}
+
+
 def task_tool_skill_id(tool_name: str) -> str:
     canonical = tool_name.replace("_", "-")
     if not canonical.startswith("task-"):

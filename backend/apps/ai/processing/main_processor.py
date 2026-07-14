@@ -71,6 +71,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     is_task_tool_name,
     publish_task_tool_result,
     task_tool_skill_id,
+    task_tool_name_variants,
 )
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
@@ -2700,7 +2701,10 @@ async def handle_main_processing(
     # "wrong" separator, we normalize every tool name to its hyphen form
     # before the allow-list check. The allow-list itself stays strict — a
     # non-preselected skill is still a hallucination regardless of separator.
-    allowed_tool_names: set[str] = {_canonicalize_tool_name(n) for n in tool_names}
+    allowed_tool_names: set[str] = set()
+    for name in tool_names:
+        allowed_tool_names.add(_canonicalize_tool_name(name))
+        allowed_tool_names.update(task_tool_name_variants(name))
     logger.info(f"{log_prefix} Available tools for main processing LLM: {len(available_tools_for_llm)} total")
     logger.debug(f"{log_prefix} Tool names: {', '.join(tool_names) if tool_names else 'None'}")
     if preselected_skills:
@@ -3257,7 +3261,7 @@ async def handle_main_processing(
                 # downstream code paths (placeholder creation, tool_resolver_map
                 # lookup, skill execution, dedup hashing) see a consistent hyphen
                 # form regardless of which separator the provider emitted.
-                if canonical_name != raw_function_name:
+                if canonical_name != raw_function_name and not _is_task_tool_like(raw_function_name):
                     logger.info(
                         f"{log_prefix} Normalized tool call name: "
                         f"'{raw_function_name}' -> '{canonical_name}'"
