@@ -869,6 +869,15 @@ export async function buildTaskEventSystemMessage(params: {
   return message;
 }
 
+export function taskUpdateJobBelongsToActiveTurn(
+  job: PendingTaskUpdateJobFrame,
+  activeChatId: string,
+  taskEvents: TaskEventFrame[],
+): boolean {
+  if (taskEvents.some((event) => event.task_update_job_id === job.job_id)) return true;
+  return !job.chat_id || job.chat_id === activeChatId;
+}
+
 export function buildTaskUpdateJobPersistPayload(params: {
   jobId: string;
   leaseToken: string;
@@ -4151,8 +4160,8 @@ export class OpenMatesClient {
     };
 
     const persistPendingTaskUpdateJobs = async (jobs: PendingTaskUpdateJobFrame[], events: TaskEventFrame[]): Promise<Set<string>> => {
-      const persistedJobIds = new Set<string>();
-      if (jobs.length === 0) return persistedJobIds;
+      const handledJobIds = new Set<string>();
+      if (jobs.length === 0) return handledJobIds;
       const masterKey = this.getMasterKeyBytes();
       let decryptedTasksCache: Awaited<ReturnType<typeof decryptUserTasks>> | null = null;
       const eventByJobId = new Map(events.map((event) => [event.task_update_job_id, event]));
@@ -4234,6 +4243,10 @@ export class OpenMatesClient {
       };
 
       for (const job of jobs) {
+        if (!taskUpdateJobBelongsToActiveTurn(job, chatId, events)) {
+          handledJobIds.add(job.job_id);
+          continue;
+        }
         const claimPromise = ws.waitForMessage(
           "task_update_job_claimed",
           (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
@@ -4281,7 +4294,7 @@ export class OpenMatesClient {
           await persistEncryptedSystemMessage(eventMessage, sourceChatId);
           persistedTaskEventIds.add(event.event_id);
           await confirmTaskEventPersisted();
-          persistedJobIds.add(job.job_id);
+          handledJobIds.add(job.job_id);
           continue;
         }
         if (!claim.lease_token || !Number.isSafeInteger(claim.lease_generation)) {
@@ -4317,6 +4330,7 @@ export class OpenMatesClient {
           });
           encryptedTaskPayload = {
             ...patch,
+            version: claim.expected_task_version,
             updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : patch.updated_at,
           };
           if (typeof safeMetadata.primary_chat_id === "string") {
@@ -4346,10 +4360,10 @@ export class OpenMatesClient {
         await persistEncryptedSystemMessage(eventMessage, sourceChatId);
         persistedTaskEventIds.add(event.event_id);
         await confirmTaskEventPersisted();
-        persistedJobIds.add(job.job_id);
+        handledJobIds.add(job.job_id);
       }
       clearSyncCache();
-      return persistedJobIds;
+      return handledJobIds;
     };
 
     const streamOpts = {

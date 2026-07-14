@@ -101,7 +101,7 @@ async def execute_task_tool_call(
 
     if skill_id == "update":
         task = _attached_task(context, str(args.get("task_id") or ""))
-        _check_expected_version(task, args.get("expected_version"))
+        _check_turn_expected_version(context, task, args.get("expected_version"))
         private_patch = {key: args[key] for key in ("title", "description") if key in args and args[key] is not None}
         safe_metadata: dict[str, Any] = {"updated_at": now}
         if args.get("status") is not None:
@@ -132,11 +132,28 @@ async def execute_task_tool_call(
         )
         if not updated:
             raise UserTaskConflictError("Task version changed before the tool call")
+        _apply_turn_task_update(context, updated)
         return _event_result("updated", updated, context.chat_id, message_id, now)
 
     if skill_id == "block":
         task = _attached_task(context, str(args.get("task_id") or ""))
-        _check_expected_version(task, args.get("expected_version"))
+        _check_turn_expected_version(context, task, args.get("expected_version"))
+        if _has_pending_client_persistence(context, str(task["task_id"])):
+            return await _stage_client_persisted_task_change(
+                operation="block",
+                event_type="blocked",
+                task_id=str(task["task_id"]),
+                args=args,
+                private_patch={},
+                safe_metadata={"status": "blocked", "blocked_reason_code": str(args.get("blocked_reason_code") or "needs_input"), "updated_at": now},
+                expected_version=_task_version(task),
+                context=context,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                message_id=message_id,
+                now=now,
+            )
         updated = await UserTaskQueueService(directus_service.user_task).block_task(
             str(task["task_id"]),
             context.user_id,
@@ -144,28 +161,63 @@ async def execute_task_tool_call(
             blocked_reason_code=str(args.get("blocked_reason_code") or "needs_input"),
             now=now,
         )
+        _apply_turn_task_update(context, updated)
         return _event_result("blocked", updated, context.chat_id, message_id, now, reason=updated.get("blocked_reason_code"))
 
     if skill_id == "complete":
         task = _attached_task(context, str(args.get("task_id") or ""))
-        _check_expected_version(task, args.get("expected_version"))
+        _check_turn_expected_version(context, task, args.get("expected_version"))
+        if _has_pending_client_persistence(context, str(task["task_id"])):
+            return await _stage_client_persisted_task_change(
+                operation="complete",
+                event_type="completed",
+                task_id=str(task["task_id"]),
+                args=args,
+                private_patch={},
+                safe_metadata={"status": "done", "updated_at": now},
+                expected_version=_task_version(task),
+                context=context,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                message_id=message_id,
+                now=now,
+            )
         updated = await UserTaskQueueService(directus_service.user_task).complete_task(
             str(task["task_id"]),
             context.user_id,
             version=_task_version(task),
             now=now,
         )
+        _apply_turn_task_update(context, updated)
         return _event_result("completed", updated, context.chat_id, message_id, now)
 
     if skill_id == "unblock":
         task = _attached_task(context, str(args.get("task_id") or ""))
-        _check_expected_version(task, args.get("expected_version"))
+        _check_turn_expected_version(context, task, args.get("expected_version"))
+        if _has_pending_client_persistence(context, str(task["task_id"])):
+            return await _stage_client_persisted_task_change(
+                operation="unblock",
+                event_type="unblocked",
+                task_id=str(task["task_id"]),
+                args=args,
+                private_patch={},
+                safe_metadata={"status": "todo", "blocked_reason_code": None, "updated_at": now},
+                expected_version=_task_version(task),
+                context=context,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                message_id=message_id,
+                now=now,
+            )
         updated = await UserTaskQueueService(directus_service.user_task).unblock_task(
             str(task["task_id"]),
             context.user_id,
             version=_task_version(task),
             now=now,
         )
+        _apply_turn_task_update(context, updated)
         return _event_result("unblocked", updated, context.chat_id, message_id, now)
 
     if skill_id == "reorder":
@@ -173,7 +225,7 @@ async def execute_task_tool_call(
 
     if skill_id == "move":
         task = _visible_task(context, str(args.get("task_id") or ""))
-        _check_expected_version(task, args.get("expected_version"))
+        _check_turn_expected_version(context, task, args.get("expected_version"))
         target_chat_id = str(args.get("target_chat_id") or "").strip()
         if not target_chat_id:
             raise ValueError("target_chat_id is required")
@@ -283,6 +335,7 @@ async def _stage_client_persisted_task_change(
         "message_id": message_id,
         "task_update_job_id": job["job_id"],
     }
+    _mark_client_persisted_turn_update(context, task_id, expected_version, private_patch, safe_metadata)
     return {"status": "pending_client_persistence", "event": event, "job": job}
 
 
@@ -307,11 +360,55 @@ def _check_expected_version(task: dict[str, Any], expected_version: Any) -> None
         raise UserTaskConflictError("Task version changed before the tool call")
 
 
+def _check_turn_expected_version(context: TaskToolContext, task: dict[str, Any], expected_version: Any) -> None:
+    try:
+        _check_expected_version(task, expected_version)
+        return
+    except UserTaskConflictError:
+        task_id = str(task.get("task_id") or "")
+        if (
+            task_id
+            and task_id in context.client_persisted_task_ids
+            and expected_version is not None
+            and int(expected_version) + 1 == _task_version(task)
+        ):
+            return
+        raise
+
+
 def _task_version(task: dict[str, Any]) -> int:
     version = task.get("version")
     if version is None:
         raise UserTaskConflictError("Task version is required before mutation")
     return int(version)
+
+
+def _has_pending_client_persistence(context: TaskToolContext, task_id: str) -> bool:
+    return task_id in context.client_persisted_task_ids
+
+
+def _mark_client_persisted_turn_update(
+    context: TaskToolContext,
+    task_id: str,
+    expected_version: int,
+    private_patch: dict[str, Any],
+    safe_metadata: dict[str, Any],
+) -> None:
+    context.client_persisted_task_ids.add(task_id)
+    patch = {**private_patch, **safe_metadata, "version": int(expected_version) + 1}
+    _apply_turn_task_patch(context, task_id, patch)
+
+
+def _apply_turn_task_update(context: TaskToolContext, updated_task: dict[str, Any]) -> None:
+    task_id = str(updated_task.get("task_id") or "")
+    if task_id:
+        _apply_turn_task_patch(context, task_id, updated_task)
+
+
+def _apply_turn_task_patch(context: TaskToolContext, task_id: str, patch: dict[str, Any]) -> None:
+    for task in [*context.attached_tasks, *context.referenced_tasks]:
+        if str(task.get("task_id") or "") == task_id:
+            task.update({key: value for key, value in patch.items() if value is not None})
 
 
 def _event_result(event_type: str, task: dict[str, Any], chat_id: str, message_id: str, now: int, reason: Any = None) -> dict[str, Any]:

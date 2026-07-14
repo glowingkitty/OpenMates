@@ -64,6 +64,7 @@ const {
   buildAppSettingsMemoryResponseSystemMessage,
   buildTaskEventSystemMessage,
   buildTaskUpdateJobPersistPayload,
+  taskUpdateJobBelongsToActiveTurn,
   buildConnectedAccountDirectoryPayload,
   buildSubChatConfirmationPayload,
   buildSubChatEncryptedMetadataPayloads,
@@ -729,6 +730,62 @@ describe("task update job helpers", () => {
       encrypted_description: "cipher-description",
       version: 1,
     });
+  });
+
+  it("keeps active-turn task update jobs while dropping unrelated passive jobs", () => {
+    assert.equal(
+      taskUpdateJobBelongsToActiveTurn(
+        {
+          job_id: "job-active-chat",
+          task_id: "TASK-1",
+          chat_id: "chat-active",
+          revision: 1,
+          task_key_version: 1,
+          expires_at: 1780000900,
+        },
+        "chat-active",
+        [],
+      ),
+      true,
+    );
+    assert.equal(
+      taskUpdateJobBelongsToActiveTurn(
+        {
+          job_id: "job-passive-reconnect",
+          task_id: "TASK-2",
+          chat_id: "chat-source",
+          revision: 1,
+          task_key_version: 1,
+          expires_at: 1780000900,
+        },
+        "chat-active",
+        [
+          {
+            event_id: "event-reconnect",
+            chat_id: "chat-source",
+            task_id: "TASK-2",
+            event_type: "created",
+            task_update_job_id: "job-passive-reconnect",
+          },
+        ],
+      ),
+      true,
+    );
+    assert.equal(
+      taskUpdateJobBelongsToActiveTurn(
+        {
+          job_id: "job-stale",
+          task_id: "TASK-STALE",
+          chat_id: "chat-old",
+          revision: 1,
+          task_key_version: 1,
+          expires_at: 1780000900,
+        },
+        "chat-active",
+        [],
+      ),
+      false,
+    );
   });
 });
 
