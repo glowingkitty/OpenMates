@@ -19,7 +19,13 @@ import { readable } from "svelte/store";
  */
 export const isOnline = readable<boolean>(true, (set) => {
   // SSR guard – window/navigator are not available on the server
-  if (typeof window === "undefined") return;
+  if (
+    typeof window === "undefined" ||
+    typeof window.addEventListener !== "function" ||
+    typeof window.removeEventListener !== "function"
+  ) {
+    return;
+  }
 
   // Seed with the current status
   set(navigator.onLine);

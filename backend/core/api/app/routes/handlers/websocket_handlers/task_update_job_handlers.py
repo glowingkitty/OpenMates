@@ -25,6 +25,12 @@ from backend.core.api.app.services.workflow_service import VaultWorkflowPayloadC
 
 
 logger = logging.getLogger(__name__)
+TASK_EVENT_CONFIRMATION_RECOVERY_TTL_SECONDS = 24 * 60 * 60
+SYSTEM_MESSAGE_CONFIRMATION_TTL_SECONDS = TASK_EVENT_CONFIRMATION_RECOVERY_TTL_SECONDS
+
+
+def system_message_confirmation_cache_key(user_id: str, chat_id: str, message_id: str) -> str:
+    return f"system_message_confirmed:{hash_id(user_id)}:{hash_id(chat_id)}:{hash_id(message_id)}"
 
 
 def _start_ws_span(event_type: str, user_id: str, payload: dict[str, Any] | None, user_otel_attrs: dict | None):
@@ -230,6 +236,15 @@ async def handle_task_update_job_persist(
         job["client_encrypted_payload"] = encrypted_payload
         job["encrypted_task_event_message"] = payload.get("encrypted_task_event_message")
         job["committed_at"] = int(time.time())
+        job["expires_at"] = int(time.time()) + TASK_EVENT_CONFIRMATION_RECOVERY_TTL_SECONDS
+        await UserTaskWorkingCopyService(
+            cache_service=cache_service,
+            payload_cipher=VaultWorkflowPayloadCipher(getattr(directus_service, "encryption_service", None)),
+        ).extend_private_update_ttl(
+            owner_id=user_id,
+            ref=str(job.get("working_copy_ref") or ""),
+            ttl_seconds=TASK_EVENT_CONFIRMATION_RECOVERY_TTL_SECONDS,
+        )
         await _save_job(cache_service, job)
         await manager.send_personal_message(
             {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": "TASK_PERSISTED", "task_id": task_id}},
@@ -267,9 +282,20 @@ async def handle_task_update_job_event_confirmed(
             return
         if job.get("state") != "TASK_PERSISTED":
             raise TaskUpdateJobConflictError("Task update job has no persisted task update to confirm")
+        event_system_message_id = payload.get("event_system_message_id")
+        if not isinstance(event_system_message_id, str) or not event_system_message_id or len(event_system_message_id) > 128:
+            raise ValueError("Missing task event system message confirmation id")
+        chat_id = job.get("chat_id")
+        if not isinstance(chat_id, str) or not chat_id:
+            raise TaskUpdateJobConflictError("Task update job has no source chat for event confirmation")
+        confirmation = await cache_service.get(system_message_confirmation_cache_key(user_id, chat_id, event_system_message_id))
+        if not isinstance(confirmation, dict):
+            raise TaskUpdateJobConflictError("Task event system message has not been confirmed")
+        if confirmation.get("user_message_id") != job.get("message_id") or confirmation.get("task_update_job_id") != job_id:
+            raise TaskUpdateJobConflictError("Task event system message confirmation does not match this job")
         job["state"] = "TERMINAL"
         job["event_persisted_at"] = int(time.time())
-        job["event_system_message_id"] = payload.get("event_system_message_id")
+        job["event_system_message_id"] = event_system_message_id
         await _save_job(cache_service, job)
         await manager.send_personal_message(
             {"type": "task_update_job_event_confirmed", "payload": {"request_id": request_id, "job_id": job_id, "state": "TERMINAL", "task_id": job.get("task_id")}},
