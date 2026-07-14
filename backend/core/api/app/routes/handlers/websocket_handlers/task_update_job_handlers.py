@@ -425,7 +425,7 @@ def _validate_protocol_version(payload: dict[str, Any]) -> None:
 
 
 async def _send_error(manager: Any, user_id: str, device_hash: str, job_id: str | None, request_id: str | None, exc: Exception) -> None:
-    logger.warning("Task update job protocol rejected job=%s: %s", job_id, exc.__class__.__name__)
+    logger.warning("Task update job protocol rejected job=%s: %s: %s", job_id, exc.__class__.__name__, exc)
     await manager.send_personal_message(
         {
             "type": "error",
