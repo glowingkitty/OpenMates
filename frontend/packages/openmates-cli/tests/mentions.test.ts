@@ -135,6 +135,19 @@ describe("parseMentions", () => {
     });
   });
 
+  describe("task references", () => {
+    it("passes @TASK short IDs through for backend task context resolution", () => {
+      const result = parseMentions(
+        "Use @TASK-1234, as context for this chat",
+        testContext,
+      );
+
+      assert.equal(result.unresolved.length, 0);
+      assert.equal(result.resolved.length, 0);
+      assert.equal(result.processedMessage, "Use @TASK-1234, as context for this chat");
+    });
+  });
+
   describe("models", () => {
     it("resolves model name to wire syntax", () => {
       const result = parseMentions(

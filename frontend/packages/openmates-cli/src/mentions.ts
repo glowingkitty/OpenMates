@@ -191,6 +191,10 @@ function isFilePath(token: string): boolean {
   );
 }
 
+function isTaskShortIdMention(token: string): boolean {
+  return /^TASK-[A-Za-z0-9_-]+[.,;:!?)]?$/.test(token);
+}
+
 /**
  * Normalize a display name for comparison.
  * "Claude Opus 4.6" → "claude-opus-4.6"
@@ -447,6 +451,10 @@ export function parseMentions(
     if (isFilePath(token)) {
       filePaths.push(token);
       continue; // Leave in message as-is — caller handles file processing
+    }
+
+    if (isTaskShortIdMention(token)) {
+      continue; // Backend task context resolution handles @TASK-* references.
     }
 
     // Try to resolve against known mentions

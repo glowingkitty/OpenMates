@@ -56,6 +56,18 @@ def task_events(result: dict[str, Any]) -> list[dict[str, Any]]:
     return [event for event in events if isinstance(event, dict)]
 
 
+def tasks_from_result(result: dict[str, Any]) -> list[dict[str, Any]]:
+    tasks = result.get("tasks")
+    require(isinstance(tasks, list), "task command result did not include tasks")
+    return [task for task in tasks if isinstance(task, dict)]
+
+
+def task_from_result(result: dict[str, Any]) -> dict[str, Any]:
+    task = result.get("task")
+    require(isinstance(task, dict), "task command result did not include task")
+    return task
+
+
 def pending_jobs(result: dict[str, Any]) -> list[dict[str, Any]]:
     jobs = result.get("pendingTaskUpdateJobs")
     require(isinstance(jobs, list), "chat result did not include pendingTaskUpdateJobs")
@@ -140,6 +152,49 @@ def _task_version(task: dict[str, Any]) -> int | None:
         return None
 
 
+def wait_for_task_status(chat_id: str, task_id: str, status: str, *, timeout: int) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    last_task: dict[str, Any] | None = None
+    while time.monotonic() < deadline:
+        listed = run_cli_json(["tasks", "list", "--chat", chat_id], timeout=60)
+        by_id = {str(task.get("task_id") or ""): task for task in tasks_from_result(listed)}
+        task = by_id.get(task_id)
+        if task:
+            last_task = task
+            if task.get("status") == status:
+                return task
+        time.sleep(2)
+    raise AssertionError(f"task {task_id} did not reach status {status}: got {last_task}")
+
+
+def wait_for_task_chat(task_id: str, chat_id: str, *, timeout: int) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    last_task: dict[str, Any] | None = None
+    while time.monotonic() < deadline:
+        listed = run_cli_json(["tasks", "list", "--chat", chat_id], timeout=60)
+        by_id = {str(task.get("task_id") or ""): task for task in tasks_from_result(listed)}
+        task = by_id.get(task_id)
+        last_task = task
+        if task and task.get("primary_chat_id") == chat_id:
+            return task
+        time.sleep(2)
+    raise AssertionError(f"task {task_id} did not move to chat {chat_id}: got {last_task}")
+
+
+def chat_has_text(chat_id: str, expected: str, *, timeout: int) -> bool:
+    deadline = time.monotonic() + timeout
+    needle = expected.lower()
+    while time.monotonic() < deadline:
+        shown = run_cli_json(["chats", "show", chat_id], timeout=60)
+        messages = shown.get("messages")
+        require(isinstance(messages, list), "chat show result did not include messages")
+        message_text = "\n".join(str(message.get("content") or "") for message in messages if isinstance(message, dict)).lower()
+        if needle in message_text:
+            return True
+        time.sleep(2)
+    return False
+
+
 def scenario_create(args: argparse.Namespace) -> dict[str, Any]:
     suffix = str(int(time.time()))
     prompt = (
@@ -210,6 +265,104 @@ def scenario_update(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str,
     return {"chat_id": chat_id, "task_events": events}
 
 
+def scenario_block_unblock(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str, Any]:
+    chat_id = seed.get("chat_id")
+    require(isinstance(chat_id, str) and chat_id, "create scenario did not return a chat id")
+    suffix = str(int(time.time()))
+    created = run_cli_json([
+        "tasks",
+        "create",
+        "--title",
+        f"MPT-{suffix}-C unblock smoke task",
+        "--chat",
+        chat_id,
+        "--status",
+        "blocked",
+    ], timeout=60)
+    task = task_from_result(created)
+    task_id = str(task.get("task_id") or "")
+    short_id = str(task.get("short_id") or "")
+    require(task_id and short_id, f"created blocked task did not include IDs: {task}")
+    wait_for_task_status(chat_id, task_id, "blocked", timeout=args.task_ready_timeout)
+    force_cli_sync_refresh()
+    result = run_cli_json([
+        "chats",
+        "send",
+        "--chat",
+        chat_id,
+        (
+            f"The blocker for existing visible task {short_id}, currently version 1, is resolved. "
+            "Mark that task as no longer blocked and ready to do. Do not create new tasks. Reply briefly after the task change finishes."
+        ),
+        "--no-pii-detection",
+        "--response-timeout-seconds",
+        str(args.chat_timeout),
+    ], timeout=args.chat_timeout + 30)
+    events = task_events(result)
+    require(any(event.get("event_type") == "unblocked" and event.get("task_id") == task_id for event in events), f"expected unblocked event for {task_id}, got {events}")
+    require(pending_jobs(result) == [], "CLI should finish unblock task update jobs before final JSON output")
+    wait_for_task_status(chat_id, task_id, "todo", timeout=args.task_ready_timeout)
+    return {"chat_id": chat_id, "task_events": events}
+
+
+def scenario_mention_move(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str, Any]:
+    target_chat_id = seed.get("chat_id")
+    require(isinstance(target_chat_id, str) and target_chat_id, "create scenario did not return a target chat id")
+    seed_events = seed.get("task_events")
+    require(isinstance(seed_events, list) and seed_events, "create scenario did not return target task events")
+    target_task_ids = {str(event.get("task_id") or "") for event in seed_events if isinstance(event, dict) and event.get("task_id")}
+    require(bool(target_task_ids), "create scenario did not return target task ids")
+    wait_for_visible_tasks(target_chat_id, target_task_ids, timeout=args.task_ready_timeout)
+    suffix = str(int(time.time()))
+    source_chat = run_cli_json([
+        "chats",
+        "new",
+        f"Tasks main-processor mention/move setup {suffix}: reply with exactly setup complete. Do not create tasks.",
+        "--no-pii-detection",
+        "--response-timeout-seconds",
+        str(args.chat_timeout),
+    ], timeout=args.chat_timeout + 30)
+    source_chat_id = source_chat.get("chatId")
+    require(isinstance(source_chat_id, str) and source_chat_id, "source chat setup did not return chatId")
+    created = run_cli_json([
+        "tasks",
+        "create",
+        "--title",
+        f"MPT-{suffix}-D referenced move smoke task",
+        "--chat",
+        source_chat_id,
+    ], timeout=60)
+    task = task_from_result(created)
+    task_id = str(task.get("task_id") or "")
+    short_id = str(task.get("short_id") or "")
+    require(task_id and short_id, f"created referenced task did not include IDs: {task}")
+    require(task.get("primary_chat_id") == source_chat_id, f"referenced task was not attached to source chat: {task}")
+    wait_for_task_chat(task_id, source_chat_id, timeout=args.task_ready_timeout)
+
+    unchanged = task_from_result(run_cli_json(["tasks", "show", short_id, "--chat", source_chat_id], timeout=60))
+    require(unchanged.get("primary_chat_id") == source_chat_id, f"context-only mention changed primary chat: {unchanged}")
+
+    force_cli_sync_refresh()
+    move_result = run_cli_json([
+        "chats",
+        "send",
+        "--chat",
+        target_chat_id,
+        (
+            f"Move existing task {short_id} currently version 1 from its current chat into destination chat ID {target_chat_id}. "
+            "Do not edit the task title and do not create new tasks. Reply briefly after the task move finishes."
+        ),
+        "--no-pii-detection",
+        "--response-timeout-seconds",
+        str(args.chat_timeout),
+    ], timeout=args.chat_timeout + 30)
+    events = task_events(move_result)
+    require(any(event.get("event_type") == "moved" and event.get("task_id") == task_id for event in events), f"expected moved event for {task_id}, got {events}")
+    require(pending_jobs(move_result) == [], "CLI should finish move task update jobs before final JSON output")
+    wait_for_task_chat(task_id, target_chat_id, timeout=args.task_ready_timeout)
+    return {"chat_id": target_chat_id, "source_chat_id": source_chat_id, "task_events": events}
+
+
 def delete_chat_quietly(chat_id: str | None) -> None:
     if chat_id:
         run_cli(["chats", "delete", chat_id, "--yes"], check=False, timeout=60)
@@ -219,7 +372,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify real CLI main-processor task-tool flows.")
     parser.add_argument("--api-url", default="https://api.dev.openmates.org", help="Real API URL to test against")
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the CLI first")
-    parser.add_argument("--scenario", choices=["all", "create", "update"], default="all")
+    parser.add_argument("--scenario", choices=["all", "create", "update", "block-unblock", "mention-move"], default="all")
     parser.add_argument("--chat-timeout", type=int, default=360, help="Seconds per real AI chat CLI call")
     parser.add_argument("--task-ready-timeout", type=int, default=90, help="Seconds to wait for created tasks to become visible before update")
     parser.add_argument("--keep-artifacts", action="store_true", help="Do not delete created chats")
@@ -237,6 +390,10 @@ def main() -> int:
         created_chat_id = seed.get("chat_id") if isinstance(seed.get("chat_id"), str) else None
         if args.scenario in {"all", "update"}:
             results["scenarios"]["update"] = scenario_update(args, seed)
+        if args.scenario in {"all", "block-unblock"}:
+            results["scenarios"]["block_unblock"] = scenario_block_unblock(args, seed)
+        if args.scenario in {"all", "mention-move"}:
+            results["scenarios"]["mention_move"] = scenario_mention_move(args, seed)
         print(json.dumps(results, indent=2))
         return 0
     finally:

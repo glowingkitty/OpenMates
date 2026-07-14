@@ -962,6 +962,7 @@ interface TaskUpdateJobClaimPayload {
   job_id: string;
   task_id: string;
   chat_id?: string | null;
+  source_task_chat_id?: string | null;
   message_id?: string | null;
   operation?: string | null;
   state?: string | null;
@@ -4237,6 +4238,24 @@ export class OpenMatesClient {
         return targetChatKey;
       };
 
+      const findTaskForUpdateJob = async (claim: TaskUpdateJobClaimPayload): Promise<Awaited<ReturnType<typeof decryptUserTasks>>[number]> => {
+        const chatIds = [claim.source_task_chat_id, claim.chat_id, claim.safe_metadata?.primary_chat_id]
+          .filter((value): value is string => typeof value === "string" && value.length > 0);
+        const uniqueChatIds = [...new Set(chatIds)];
+        for (const candidateChatId of uniqueChatIds) {
+          const scopedTasks = await decryptUserTasks(await this.listUserTasks({ chatId: candidateChatId }), masterKey);
+          try {
+            return findTask(scopedTasks, claim.task_id);
+          } catch (error) {
+            if (!(error instanceof Error) || !error.message.includes("was not found")) throw error;
+          }
+        }
+        if (!decryptedTasksCache) {
+          decryptedTasksCache = await decryptUserTasks(await this.listUserTasks({ limit: 1000 }), masterKey);
+        }
+        return findTask(decryptedTasksCache, claim.task_id);
+      };
+
       const taskEventTypeForOperation = (operation: string | null | undefined): string => {
         switch (operation) {
           case "create": return "created";
@@ -4321,10 +4340,7 @@ export class OpenMatesClient {
             updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : input.updated_at,
           };
         } else {
-          if (!decryptedTasksCache) {
-            decryptedTasksCache = await decryptUserTasks(await this.listUserTasks(), masterKey);
-          }
-          const task = findTask(decryptedTasksCache, claim.task_id);
+          const task = await findTaskForUpdateJob(claim);
           const patch = await buildUpdateUserTaskInput(task, masterKey, {
             title: typeof privatePatch.title === "string" ? privatePatch.title : undefined,
             description: typeof privatePatch.description === "string" ? privatePatch.description : undefined,
@@ -5800,12 +5816,14 @@ export class OpenMatesClient {
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string } = {}): Promise<UserTaskRecord[]> {
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; limit?: number } = {}): Promise<UserTaskRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.chatId) params.set("chat_id", filters.chatId);
     if (filters.projectId) params.set("project_id", filters.projectId);
+    const limit = filters.limit;
+    if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));
     const query = params.toString();
     const response = await this.http.get<{ tasks?: UserTaskRecord[] }>(
       `/v1/user-tasks${query ? `?${query}` : ""}`,

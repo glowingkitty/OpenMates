@@ -153,6 +153,58 @@ async def test_update_task_if_version_honors_committed_payload_version() -> None
 
 
 @pytest.mark.asyncio
+async def test_update_task_if_version_relinks_chat_with_replacement_key_wrappers() -> None:
+    existing = {
+        "id": "task-row",
+        **task_payload(),
+        "hashed_primary_chat_id": hash_id("chat-1"),
+        "linked_project_hashes": [hash_id("project-1")],
+    }
+    existing_wrappers = [
+        {"id": "wrapper-master-old", "key_type": "master", "encrypted_task_key": "old-master"},
+        {"id": "wrapper-chat-old", "key_type": "chat", "hashed_chat_id": hash_id("chat-1"), "encrypted_task_key": "old-chat"},
+        {"id": "wrapper-project-old", "key_type": "project", "hashed_project_id": hash_id("project-1"), "encrypted_task_key": "old-project"},
+    ]
+    replacement_wrappers = [
+        {"key_type": "master", "encrypted_task_key": "new-master", "created_at": 200},
+        {"key_type": "chat", "hashed_chat_id": hash_id("chat-2"), "encrypted_task_key": "new-chat", "created_at": 200},
+        {"key_type": "project", "hashed_project_id": hash_id("project-1"), "encrypted_task_key": "old-project", "created_at": 100, "expires_at": None},
+    ]
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(side_effect=[[existing], existing_wrappers])
+    directus.create_item = AsyncMock(side_effect=[
+        (True, {"id": "wrapper-master-new", **replacement_wrappers[0]}),
+        (True, {"id": "wrapper-chat-new", **replacement_wrappers[1]}),
+        (True, {"id": "wrapper-project-new", **replacement_wrappers[2]}),
+    ])
+    directus.delete_item = AsyncMock(return_value=True)
+    directus.update_item_if_version = AsyncMock(return_value={**existing, "primary_chat_id": "chat-2", "version": 2})
+
+    methods = UserTaskMethods(with_lock_cache(directus))
+    updated = await methods.update_task_if_version(
+        "task-1",
+        "user-1",
+        {
+            "version": 1,
+            "primary_chat_id": "chat-2",
+            "linked_project_ids": ["project-1"],
+            "encrypted_linked_project_ids": "cipher-linked-project-ids-v2",
+            "key_wrappers": replacement_wrappers,
+            "updated_at": 200,
+        },
+        1,
+    )
+
+    assert updated is not None
+    persisted_patch = directus.update_item_if_version.await_args.args[2]
+    assert persisted_patch["primary_chat_id"] == "chat-2"
+    assert persisted_patch["hashed_primary_chat_id"] == hash_id("chat-2")
+    assert persisted_patch["linked_project_hashes"] == [hash_id("project-1")]
+    assert persisted_patch["version"] == 2
+    assert directus.delete_item.await_count == len(existing_wrappers)
+
+
+@pytest.mark.asyncio
 async def test_create_task_persists_key_wrappers_separately() -> None:
     directus = SimpleNamespace()
     directus.create_item = AsyncMock(side_effect=lambda _collection, record, **_kwargs: (True, record))

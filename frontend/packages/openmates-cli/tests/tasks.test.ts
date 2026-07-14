@@ -85,7 +85,7 @@ describe("OpenMatesClient user tasks", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
-        assert.equal((await client.listUserTasks({ status: "todo", chatId: "chat-1", projectId: "project-1" }))[0]?.task_id, "task-1");
+        assert.equal((await client.listUserTasks({ status: "todo", chatId: "chat-1", projectId: "project-1", limit: 1000 }))[0]?.task_id, "task-1");
         assert.equal((await client.createUserTask(task)).encrypted_title, "cipher-title");
         assert.equal((await client.updateUserTask("task-1", { status: "done", version: 1 })).status, "done");
         assert.equal((await client.startUserTaskWithAI("task-1", {
@@ -95,7 +95,7 @@ describe("OpenMatesClient user tasks", () => {
         })).task_id, "task-1");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1"],
+          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=1000"],
           ["POST", "/v1/user-tasks"],
           ["PATCH", "/v1/user-tasks/task-1"],
           ["POST", "/v1/user-tasks/task-1/start-ai"],

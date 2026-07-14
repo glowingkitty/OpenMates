@@ -133,6 +133,7 @@ async def handle_task_update_job_claim(
                     "job_id": job["job_id"],
                     "task_id": job["task_id"],
                     "chat_id": job.get("chat_id"),
+                    "source_task_chat_id": job.get("source_task_chat_id"),
                     "message_id": job.get("message_id"),
                     "operation": job.get("operation"),
                     "state": job["state"],
