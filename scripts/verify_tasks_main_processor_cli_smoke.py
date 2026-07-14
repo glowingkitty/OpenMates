@@ -116,7 +116,12 @@ def scenario_update(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str,
     complete_task_id = seed_events[1].get("task_id") if isinstance(seed_events[1], dict) else None
     require(isinstance(update_task_id, str) and update_task_id, "first create event did not include task_id")
     require(isinstance(complete_task_id, str) and complete_task_id, "second create event did not include task_id")
-    wait_for_visible_tasks(chat_id, {update_task_id, complete_task_id}, timeout=args.task_ready_timeout)
+    visible_tasks = wait_for_visible_tasks(chat_id, {update_task_id, complete_task_id}, timeout=args.task_ready_timeout)
+    visible_by_id = {str(task.get("task_id") or ""): task for task in visible_tasks}
+    update_short_id = visible_by_id.get(update_task_id, {}).get("short_id")
+    complete_short_id = visible_by_id.get(complete_task_id, {}).get("short_id")
+    require(isinstance(update_short_id, str) and update_short_id, "first created task did not include short_id")
+    require(isinstance(complete_short_id, str) and complete_short_id, "second created task did not include short_id")
     result = run_cli_json(
         [
             "chats",
@@ -124,8 +129,8 @@ def scenario_update(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str,
             "--chat",
             chat_id,
             (
-                f"Update the existing task with id {update_task_id}, currently version 1, so its title mentions final review. "
-                f"Mark the existing task with id {complete_task_id}, currently version 1, as complete. "
+                f"Update existing visible task {update_short_id}, currently version 1, so its title mentions final review. "
+                f"Mark existing visible task {complete_short_id}, currently version 1, as complete. "
                 "Do not create any new tasks. Reply briefly after those two task changes finish."
             ),
             "--no-pii-detection",

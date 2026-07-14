@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from typing import Any
@@ -354,15 +355,17 @@ async def _stage_client_persisted_task_change(
 
 
 def _visible_task(context: TaskToolContext, task_id: str) -> dict[str, Any]:
+    lookup_id = _normalize_task_lookup_id(task_id)
     for task in context.visible_tasks:
-        if task_id in {str(task.get("task_id") or ""), str(task.get("short_id") or "")}:
+        if lookup_id in {_normalize_task_lookup_id(task.get("task_id")), _normalize_task_lookup_id(task.get("short_id"))}:
             return task
     raise ValueError("Task is not visible in this chat turn")
 
 
 def _attached_task(context: TaskToolContext, task_id: str) -> dict[str, Any]:
+    lookup_id = _normalize_task_lookup_id(task_id)
     for task in context.attached_tasks:
-        if task_id in {str(task.get("task_id") or ""), str(task.get("short_id") or "")}:
+        if lookup_id in {_normalize_task_lookup_id(task.get("task_id")), _normalize_task_lookup_id(task.get("short_id"))}:
             return task
     raise ValueError("Task changes are limited to tasks attached to the active chat")
 
@@ -370,7 +373,7 @@ def _attached_task(context: TaskToolContext, task_id: str) -> dict[str, Any]:
 def _check_expected_version(task: dict[str, Any], expected_version: Any) -> None:
     if expected_version is None:
         raise UserTaskConflictError("Task version is required before mutation")
-    if int(expected_version) != _task_version(task):
+    if _parse_version(expected_version) != _task_version(task):
         raise UserTaskConflictError("Task version changed before the tool call")
 
 
@@ -384,7 +387,7 @@ def _check_turn_expected_version(context: TaskToolContext, task: dict[str, Any],
             task_id
             and task_id in context.client_persisted_task_ids
             and expected_version is not None
-            and int(expected_version) + 1 == _task_version(task)
+            and _parse_version(expected_version) + 1 == _task_version(task)
         ):
             return
         raise
@@ -394,7 +397,20 @@ def _task_version(task: dict[str, Any]) -> int:
     version = task.get("version")
     if version is None:
         raise UserTaskConflictError("Task version is required before mutation")
-    return int(version)
+    return _parse_version(version)
+
+
+def _parse_version(value: Any) -> int:
+    if isinstance(value, str):
+        match = re.search(r"-?\d+", value)
+        if not match:
+            raise ValueError("Task version must include an integer")
+        return int(match.group(0))
+    return int(value)
+
+
+def _normalize_task_lookup_id(value: Any) -> str:
+    return str(value or "").strip().lstrip("@").strip("`'\".,:;()[]{}<>")
 
 
 def _has_pending_client_persistence(context: TaskToolContext, task_id: str) -> bool:
@@ -412,7 +428,7 @@ def _already_applied_client_persisted_change(
     if not task_id or task_id not in context.client_persisted_task_ids or expected_version is None:
         return False
     try:
-        if int(expected_version) > _task_version(task):
+        if _parse_version(expected_version) > _task_version(task):
             return False
     except (TypeError, ValueError):
         return False
