@@ -359,6 +359,20 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             full_content_so_far: "The active turn completed.",
           },
         }));
+        socket.send(JSON.stringify({
+          type: "recovery_jobs_available",
+          payload: {
+            jobs: [
+              {
+                job_id: "recovery-job-current",
+                chat_id: chatId,
+                turn_id: "turn-current",
+                assistant_message_id: "assistant-ignore-stale-preflight",
+                chat_key_version: 1,
+              },
+            ],
+          },
+        }));
       }, 5);
       setTimeout(() => {
         socket.send(JSON.stringify({
@@ -815,6 +829,77 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.recoveryJobId, "recovery-job-current");
       assert.equal(response.messageId, "assistant-message-current");
       assert.equal(response.content, "");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("waits for a matching recovery job after assistant and post-processing frames", async () => {
+    const chatId = "chat-recovery-late";
+    const userMessageId = "user-message-recovery-late";
+    const turnId = "turn-late-recovery";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-late-recovery-stream",
+              chat_id: chatId,
+              is_final_chunk: true,
+              full_content_so_far: "Task changes are done.",
+            },
+          }),
+        );
+      }, 5);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }),
+        );
+      }, 10);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [
+                {
+                  job_id: "recovery-job-late",
+                  chat_id: chatId,
+                  turn_id: turnId,
+                  assistant_message_id: "assistant-late-recovery",
+                  chat_key_version: 1,
+                },
+              ],
+            },
+          }),
+        );
+      }, 30);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-late-recovery",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: turnId,
+      });
+
+      assert.equal(response.status, "completed");
+      assert.equal(response.recoveryJobId, "recovery-job-late");
+      assert.equal(response.messageId, "assistant-late-recovery");
+      assert.equal(response.content, "Task changes are done.");
     } finally {
       client.close();
     }

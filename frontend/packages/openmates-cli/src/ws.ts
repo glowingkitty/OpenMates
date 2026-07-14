@@ -695,6 +695,7 @@ export class OpenMatesWsClient {
           return;
         }
         if (!aiResponseDone || !postProcessingDone) return;
+        if (options?.recoveryTurnId && !recoveryJobId) return;
         if (pendingSubChatHandlers.size > 0) return;
         if (pendingMemoryRequestHandlers.size > 0) return;
         if (processingEmbedIds.size > 0 && !asyncEmbedTimer) {
@@ -907,7 +908,8 @@ export class OpenMatesWsClient {
             if (!job) return;
             recoveryJobId = job.job_id;
             messageId = job.assistant_message_id;
-            scheduleResolve(latestContent);
+            if (aiResponseDone) maybeResolve();
+            else scheduleResolve(latestContent);
             return;
           }
 

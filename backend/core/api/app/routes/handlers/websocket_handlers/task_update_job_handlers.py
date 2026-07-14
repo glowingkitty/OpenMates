@@ -254,14 +254,21 @@ async def handle_task_update_job_persist(
         job["encrypted_task_event_message"] = payload.get("encrypted_task_event_message")
         job["committed_at"] = int(time.time())
         job["expires_at"] = int(time.time()) + TASK_EVENT_CONFIRMATION_RECOVERY_TTL_SECONDS
-        await UserTaskWorkingCopyService(
-            cache_service=cache_service,
-            payload_cipher=VaultWorkflowPayloadCipher(getattr(directus_service, "encryption_service", None)),
-        ).extend_private_update_ttl(
-            owner_id=user_id,
-            ref=str(job.get("working_copy_ref") or ""),
-            ttl_seconds=TASK_EVENT_CONFIRMATION_RECOVERY_TTL_SECONDS,
-        )
+        try:
+            await UserTaskWorkingCopyService(
+                cache_service=cache_service,
+                payload_cipher=VaultWorkflowPayloadCipher(getattr(directus_service, "encryption_service", None)),
+            ).extend_private_update_ttl(
+                owner_id=user_id,
+                ref=str(job.get("working_copy_ref") or ""),
+                ttl_seconds=TASK_EVENT_CONFIRMATION_RECOVERY_TTL_SECONDS,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Task update job persisted encrypted task but could not extend working copy ttl job=%s: %s",
+                job_id,
+                exc.__class__.__name__,
+            )
         await _save_job(cache_service, job)
         await manager.send_personal_message(
             {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": "TASK_PERSISTED", "task_id": task_id}},
