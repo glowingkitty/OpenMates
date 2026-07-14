@@ -1786,6 +1786,8 @@ def _create_redis_payload(
 
     if request_data.recovery_task_id:
         payload["recovery_provisional"] = not is_final
+        payload["recovery_turn_id"] = request_data.recovery_turn_id
+        payload["chat_key_version"] = request_data.chat_key_version
     
     # rejection_reason indicates this is a system message (e.g., "insufficient_credits"),
     # not an AI response. Frontend uses this to render as a system notice instead of an assistant bubble.

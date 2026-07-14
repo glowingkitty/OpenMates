@@ -127,8 +127,31 @@ def test_epoch_zero_admission_identity_chain_and_acknowledgment_retry_are_wired(
 
     assert "task_id=request.recovery_task_id or request.legacy_cutover_task_id" in ask_skill_source
     assert '"message_id": task_id' in stream_source
+    assert 'payload["recovery_turn_id"] = request_data.recovery_turn_id' in stream_source
+    assert 'payload["chat_key_version"] = request_data.chat_key_version' in stream_source
     assert '"acknowledge_legacy_persistence"' in persistence_source
     assert "self.retry" in persistence_wrapper_source
+
+
+def test_final_stream_recovery_discovery_sends_target_job_after_broad_batch() -> None:
+    helper_source = _function_source(
+        "backend/core/api/app/routes/websockets.py",
+        "_send_available_recovery_jobs_for_final_stream",
+    )
+    target_source = _function_source(
+        "backend/core/api/app/routes/websockets.py",
+        "_target_recovery_job_from_final_stream",
+    )
+
+    assert "await send_available_recovery_jobs" in helper_source
+    assert "_target_recovery_job_from_final_stream(redis_payload, chat_id)" in helper_source
+    assert '"type": "recovery_jobs_available"' in helper_source
+    assert helper_source.index("await send_available_recovery_jobs") < helper_source.index(
+        '"type": "recovery_jobs_available"'
+    )
+    assert 'redis_payload.get("recovery_job_id")' in target_source
+    assert 'redis_payload.get("recovery_turn_id")' in target_source
+    assert 'redis_payload.get("chat_key_version")' in target_source
 
 
 def test_final_chunk_orders_recovery_discovery_before_completion_frames() -> None:

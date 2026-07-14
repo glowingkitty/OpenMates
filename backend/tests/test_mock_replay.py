@@ -125,5 +125,7 @@ def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(monkey
 
     final_chunk = final_chunks[0]
     assert final_chunk["recovery_provisional"] is False
+    assert final_chunk["recovery_turn_id"] == "33333333-3333-4333-8333-333333333333"
+    assert final_chunk["chat_key_version"] == 7
     assert final_chunk["recovery_protocol_version"] == 1
     assert final_chunk["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]

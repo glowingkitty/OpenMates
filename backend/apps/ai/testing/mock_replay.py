@@ -420,6 +420,8 @@ async def replay_fixture(
 
         if request_data.recovery_task_id:
             payload["recovery_provisional"] = not is_final
+            payload["recovery_turn_id"] = request_data.recovery_turn_id
+            payload["chat_key_version"] = request_data.chat_key_version
 
         # Add usage data on final chunk
         if is_final:
