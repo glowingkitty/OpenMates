@@ -362,6 +362,63 @@ async def test_repeated_client_persisted_task_calls_are_same_turn_noops() -> Non
 
 
 @pytest.mark.asyncio
+async def test_repeated_direct_task_complete_returns_event_noop() -> None:
+    directus_service = AsyncMock()
+    directus_service.user_task.get_task = AsyncMock(return_value={"task_id": "task-1", "primary_chat_id": "chat-1"})
+    directus_service.user_task.list_tasks = AsyncMock(return_value=[])
+    directus_service.user_task.update_task_if_version = AsyncMock(
+        return_value={
+            "task_id": "task-1",
+            "short_id": "TASK-1",
+            "primary_chat_id": "chat-1",
+            "status": "done",
+            "version": 2,
+        }
+    )
+    context = TaskToolContext(
+        user_id="user-1",
+        chat_id="chat-1",
+        attached_tasks=[
+            {
+                "task_id": "task-1",
+                "short_id": "TASK-1",
+                "primary_chat_id": "chat-1",
+                "status": "todo",
+                "version": 1,
+            }
+        ],
+    )
+
+    first_complete = await execute_task_tool_call(
+        tool_name=TASK_TOOL_COMPLETE,
+        args={"task_id": "TASK-1", "expected_version": 1},
+        context=context,
+        cache_service=AsyncMock(),
+        directus_service=directus_service,
+        encryption_service=AsyncMock(),
+        user_vault_key_id="vault-key-1",
+        message_id="message-1",
+    )
+    repeated_complete = await execute_task_tool_call(
+        tool_name=TASK_TOOL_COMPLETE,
+        args={"task_id": "TASK-1", "expected_version": 1},
+        context=context,
+        cache_service=AsyncMock(),
+        directus_service=directus_service,
+        encryption_service=AsyncMock(),
+        user_vault_key_id="vault-key-1",
+        message_id="message-1",
+    )
+
+    assert first_complete["status"] == "ok"
+    assert first_complete["event"]["event_type"] == "completed"
+    assert repeated_complete["status"] == "ok"
+    assert repeated_complete["event"]["event_type"] == "completed"
+    assert repeated_complete["updated_task"]["version"] == 2
+    directus_service.user_task.update_task_if_version.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_task_tool_accepts_model_formatted_task_id_and_version() -> None:
     stored_jobs: list[dict] = []
 

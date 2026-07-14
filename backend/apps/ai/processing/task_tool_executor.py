@@ -141,6 +141,8 @@ async def execute_task_tool_call(
     if skill_id == "block":
         task = _attached_task(context, str(args.get("task_id") or ""))
         safe_metadata = {"status": "blocked", "blocked_reason_code": str(args.get("blocked_reason_code") or "needs_input"), "updated_at": now}
+        if _already_applied_direct_change(context, task, args.get("expected_version"), safe_metadata):
+            return _event_result("blocked", task, context.chat_id, message_id, now, reason=task.get("blocked_reason_code"))
         if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
             return _already_applied_result("block", task)
         _check_turn_expected_version(context, task, args.get("expected_version"))
@@ -173,6 +175,8 @@ async def execute_task_tool_call(
     if skill_id == "complete":
         task = _attached_task(context, str(args.get("task_id") or ""))
         safe_metadata = {"status": "done", "updated_at": now}
+        if _already_applied_direct_change(context, task, args.get("expected_version"), safe_metadata):
+            return _event_result("completed", task, context.chat_id, message_id, now)
         if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
             return _already_applied_result("complete", task)
         _check_turn_expected_version(context, task, args.get("expected_version"))
@@ -204,6 +208,8 @@ async def execute_task_tool_call(
     if skill_id == "unblock":
         task = _attached_task(context, str(args.get("task_id") or ""))
         safe_metadata = {"status": "todo", "blocked_reason_code": None, "updated_at": now}
+        if _already_applied_direct_change(context, task, args.get("expected_version"), safe_metadata):
+            return _event_result("unblocked", task, context.chat_id, message_id, now)
         if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
             return _already_applied_result("unblock", task)
         _check_turn_expected_version(context, task, args.get("expected_version"))
@@ -433,6 +439,23 @@ def _already_applied_client_persisted_change(
     except (TypeError, ValueError):
         return False
     return _task_matches_patch(task, private_patch) and _task_matches_patch(task, safe_metadata, ignored_keys={"updated_at"})
+
+
+def _already_applied_direct_change(
+    context: TaskToolContext,
+    task: dict[str, Any],
+    expected_version: Any,
+    safe_metadata: dict[str, Any],
+) -> bool:
+    task_id = str(task.get("task_id") or "")
+    if not task_id or task_id in context.client_persisted_task_ids or expected_version is None:
+        return False
+    try:
+        if _parse_version(expected_version) > _task_version(task):
+            return False
+    except (TypeError, ValueError):
+        return False
+    return _task_matches_patch(task, safe_metadata, ignored_keys={"updated_at"})
 
 
 def _task_matches_patch(task: dict[str, Any], patch: dict[str, Any], *, ignored_keys: set[str] | None = None) -> bool:

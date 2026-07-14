@@ -3862,7 +3862,10 @@ export class OpenMatesClient {
         };
       }
 
-      const preflightAck = ws.waitForMessage("chat_turn_preflight_ack");
+      const preflightAck = ws.waitForMessage(
+        "chat_turn_preflight_ack",
+        (payload) => (payload as Record<string, unknown>).turn_id === turnId,
+      );
       let ackPayload: Record<string, unknown>;
       try {
         await ws.sendAsync("chat_turn_preflight", preflightPayload);

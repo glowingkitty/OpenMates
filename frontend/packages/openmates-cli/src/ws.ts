@@ -216,6 +216,28 @@ function errorFrameBelongsToAiResponse(
   return !scoped || Boolean(errorChatId || errorMessageId || errorTurnId);
 }
 
+function scopedErrorMissesPredicate(
+  envelope: WsEnvelope,
+  predicate?: (payload: unknown) => boolean,
+): boolean {
+  if (envelope.type !== "error" || !predicate) return false;
+  const payload = envelope.payload && typeof envelope.payload === "object"
+    ? envelope.payload as Record<string, unknown>
+    : {};
+  const hasScope = typeof payload.turn_id === "string"
+    || typeof payload.chat_id === "string"
+    || typeof payload.message_id === "string"
+    || typeof payload.user_message_id === "string"
+    || typeof payload.userMessageId === "string"
+    || typeof payload.job_id === "string";
+  if (!hasScope) return false;
+  try {
+    return !predicate(payload);
+  } catch {
+    return false;
+  }
+}
+
 function parseTaskProposals(value: unknown): TaskProposalEvent[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item): TaskProposalEvent[] => {
@@ -437,6 +459,7 @@ export class OpenMatesWsClient {
           if (typeof parsed.type === "string") seenTypes.add(parsed.type);
           const protocolError = websocketProtocolError(parsed);
           if (protocolError) {
+            if (scopedErrorMissesPredicate(parsed, predicate)) return;
             cleanup();
             reject(protocolError);
             return;

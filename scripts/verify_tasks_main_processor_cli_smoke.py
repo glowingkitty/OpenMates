@@ -85,6 +85,56 @@ def wait_for_visible_tasks(chat_id: str, task_ids: set[str], *, timeout: int) ->
     raise AssertionError(f"created tasks were not visible before update: expected {sorted(task_ids)}, got {last_tasks}")
 
 
+def wait_for_updated_task_state(
+    chat_id: str,
+    *,
+    update_task_id: str,
+    complete_task_id: str,
+    update_short_id: str,
+    complete_short_id: str,
+    timeout: int,
+) -> list[dict[str, Any]]:
+    deadline = time.monotonic() + timeout
+    last_tasks: list[dict[str, Any]] = []
+    while time.monotonic() < deadline:
+        listed = run_cli_json(["tasks", "list", "--chat", chat_id], timeout=60)
+        tasks = listed.get("tasks")
+        require(isinstance(tasks, list), "tasks list result did not include tasks")
+        last_tasks = [task for task in tasks if isinstance(task, dict)]
+        by_id = {str(task.get("task_id") or ""): task for task in last_tasks}
+        update_task = by_id.get(update_task_id)
+        complete_task = by_id.get(complete_task_id)
+        if update_task and complete_task:
+            title_ready = "final review" in str(update_task.get("title") or "").lower()
+            update_version_ready = _task_version(update_task) == 2
+            complete_ready = complete_task.get("status") == "done" and _task_version(complete_task) == 2
+            messages_ready = _chat_has_task_system_messages(chat_id, update_short_id, complete_short_id)
+            if title_ready and update_version_ready and complete_ready and messages_ready:
+                return last_tasks
+        time.sleep(2)
+    raise AssertionError(f"updated tasks were not visible with expected final state: got {last_tasks}")
+
+
+def _chat_has_task_system_messages(chat_id: str, update_short_id: str, complete_short_id: str) -> bool:
+    shown = run_cli_json(["chats", "show", chat_id], timeout=60)
+    messages = shown.get("messages")
+    require(isinstance(messages, list), "chat show result did not include messages")
+    message_text = "\n".join(str(message.get("content") or "") for message in messages if isinstance(message, dict)).lower()
+    return (
+        update_short_id.lower() in message_text
+        and "updated" in message_text
+        and complete_short_id.lower() in message_text
+        and "completed" in message_text
+    )
+
+
+def _task_version(task: dict[str, Any]) -> int | None:
+    try:
+        return int(task.get("version"))
+    except (TypeError, ValueError):
+        return None
+
+
 def scenario_create(args: argparse.Namespace) -> dict[str, Any]:
     suffix = str(int(time.time()))
     prompt = (
@@ -141,8 +191,16 @@ def scenario_update(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str,
     )
     events = task_events(result)
     event_types = {event.get("event_type") for event in events}
-    require("updated" in event_types or "completed" in event_types, f"expected update or completed task event, got {events}")
+    require({"updated", "completed"}.issubset(event_types), f"expected updated and completed task events, got {events}")
     require(pending_jobs(result) == [], "CLI should finish task update jobs before final JSON output")
+    wait_for_updated_task_state(
+        chat_id,
+        update_task_id=update_task_id,
+        complete_task_id=complete_task_id,
+        update_short_id=update_short_id,
+        complete_short_id=complete_short_id,
+        timeout=args.task_ready_timeout,
+    )
     return {"chat_id": chat_id, "task_events": events}
 
 

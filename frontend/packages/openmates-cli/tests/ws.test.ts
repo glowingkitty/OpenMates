@@ -904,4 +904,83 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       client.close();
     }
   });
+
+  it("waitForMessage ignores scoped errors that miss the predicate", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "error",
+          payload: {
+            code: "durable_preflight_conflict",
+            message: "Encrypted chat preflight was rejected.",
+            turn_id: "turn-stale",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "chat_turn_preflight_ack",
+          payload: {
+            preflight_id: "preflight-current",
+            state: "COMMITTED",
+            turn_id: "turn-current",
+          },
+        }));
+      }, 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-wait-stale-error",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.waitForMessage(
+        "chat_turn_preflight_ack",
+        (payload) => (payload as Record<string, unknown>).turn_id === "turn-current",
+        1_000,
+      );
+
+      assert.equal((response.payload as Record<string, unknown>).preflight_id, "preflight-current");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("waitForMessage rejects scoped errors that match the predicate", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => socket.send(JSON.stringify({
+        type: "error",
+        payload: {
+          code: "durable_preflight_conflict",
+          message: "Encrypted chat preflight was rejected.",
+          turn_id: "turn-current",
+        },
+      })), 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-wait-active-error",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      await assert.rejects(
+        client.waitForMessage(
+          "chat_turn_preflight_ack",
+          (payload) => (payload as Record<string, unknown>).turn_id === "turn-current",
+          1_000,
+        ),
+        (error) => error instanceof WebSocketProtocolError
+          && error.code === "durable_preflight_conflict"
+          && /Encrypted chat preflight was rejected/.test(error.message),
+      );
+    } finally {
+      client.close();
+    }
+  });
 });
