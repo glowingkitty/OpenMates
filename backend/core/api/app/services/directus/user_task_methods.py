@@ -19,7 +19,7 @@ USER_TASK_FIELDS = (
     "primary_chat_id,hashed_primary_chat_id,linked_project_hashes,parent_task_id,"
     "plan_id,plan_step_id,task_type,verification_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
-    "completed_at,blocked_reason_code,ai_execution_state,encrypted_title,"
+    "completed_at,blocked_reason_code,queue_state,ai_execution_state,encrypted_title,"
     "encrypted_task_key,encrypted_description,encrypted_tags,encrypted_linked_project_ids,"
     "encrypted_activity_summary,encrypted_latest_instruction"
 )
@@ -237,7 +237,7 @@ class UserTaskMethods:
         for wrapper in wrappers:
             wrapper_id = wrapper.get("id")
             if wrapper_id:
-                await self.directus_service.delete_item("user_task_key_wrappers", wrapper_id)
+                await self.directus_service.delete_item("user_task_key_wrappers", wrapper_id, admin_required=True)
         row_id = task_row.get("id")
         if row_id:
             await self.directus_service.delete_item("user_tasks", row_id)
@@ -257,7 +257,7 @@ class UserTaskMethods:
             "created_at": wrapper.get("created_at"),
             "expires_at": wrapper.get("expires_at"),
         }
-        success, data = await self.directus_service.create_item("user_task_key_wrappers", record)
+        success, data = await self.directus_service.create_item("user_task_key_wrappers", record, admin_required=True)
         if not success:
             logger.error("Failed to create user task key wrapper: %s", data)
             return None
@@ -281,7 +281,7 @@ class UserTaskMethods:
                 for created in created_wrappers:
                     created_id = created.get("id")
                     if created_id:
-                        await self.directus_service.delete_item("user_task_key_wrappers", created_id)
+                        await self.directus_service.delete_item("user_task_key_wrappers", created_id, admin_required=True)
                 return None
             created_wrappers.append(created_wrapper)
         if not await self._delete_key_wrappers(existing_wrappers):
@@ -366,7 +366,7 @@ class UserTaskMethods:
         for wrapper in wrappers:
             wrapper_id = wrapper.get("id")
             if wrapper_id:
-                deleted = await self.directus_service.delete_item("user_task_key_wrappers", wrapper_id)
+                deleted = await self.directus_service.delete_item("user_task_key_wrappers", wrapper_id, admin_required=True)
                 if deleted is False:
                     logger.error("Failed to delete old user task key wrapper")
                     all_deleted = False

@@ -5,10 +5,12 @@
 #
 # Spec: docs/specs/tasks-v1/spec.yml
 
+import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
 from backend.core.api.app.models.user import User
@@ -20,6 +22,9 @@ from backend.core.api.app.services.user_task_service import (
     UserTaskNotFoundError,
     UserTaskService,
 )
+from backend.core.api.app.services.user_task_queue_service import UserTaskQueueService
+from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
+from backend.core.api.app.services.workflow_task_projection_service import WorkflowTaskProjectionService
 
 
 router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[Depends(ensure_tasks_enabled)])
@@ -106,6 +111,24 @@ class UserTaskStartAIRequest(BaseModel):
     version: int | None = None
 
 
+class UserTaskActionRequest(BaseModel):
+    version: int | None = None
+    blocked_reason_code: str | None = None
+
+
+class UserTaskReorderMoveRequest(BaseModel):
+    task_id: str = Field(min_length=1)
+    before_task_id: str | None = None
+    after_task_id: str | None = None
+    status: TaskStatus | None = None
+    position: int | None = None
+    version: int | None = None
+
+
+class UserTaskReorderRequest(BaseModel):
+    moves: list[UserTaskReorderMoveRequest] = Field(min_length=1)
+
+
 class UserTaskExtractRequest(BaseModel):
     corrected_text: str = Field(min_length=1, max_length=8000)
     mode: Literal["create", "update"] = "create"
@@ -119,6 +142,18 @@ class UserTaskKeyWrappersRequest(BaseModel):
 
 def get_user_task_service(request: Request) -> UserTaskService:
     return UserTaskService(request.app.state.directus_service.user_task, cache_service=request.app.state.cache_service)
+
+
+def get_user_task_queue_service(request: Request) -> UserTaskQueueService:
+    return UserTaskQueueService(request.app.state.directus_service.user_task)
+
+
+def get_workflow_task_projection_service(request: Request) -> WorkflowTaskProjectionService:
+    workflow_service = getattr(request.app.state, "workflow_service", None)
+    if workflow_service is None:
+        workflow_service = WorkflowService(repository=DirectusWorkflowRepository())
+        request.app.state.workflow_service = workflow_service
+    return WorkflowTaskProjectionService(workflow_service.repository)
 
 
 async def _current_user(request: Request, response: Response) -> User:
@@ -153,6 +188,7 @@ async def list_user_tasks(
     due_before: int | None = None,
     limit: int = 100,
     service: UserTaskService = Depends(get_user_task_service),
+    workflow_projection_service: WorkflowTaskProjectionService = Depends(get_workflow_task_projection_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     tasks = await service.list_tasks(
@@ -164,7 +200,12 @@ async def list_user_tasks(
         due_before=due_before,
         limit=limit,
     )
-    return {"tasks": tasks}
+    projections = []
+    if not any((chat_id, project_id, assignee_hash, due_before is not None)):
+        projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
+        if status is not None:
+            projections = [projection for projection in projections if projection.status == status]
+    return {"tasks": tasks + [projection.model_dump(mode="json") for projection in projections]}
 
 
 @router.post("")
@@ -227,6 +268,123 @@ async def start_user_task_ai(
         return {"task": task}
     except Exception as exc:
         _handle_task_error(exc)
+
+
+@router.delete("/{task_id}")
+@limiter.limit("30/minute")
+async def delete_user_task(
+    request: Request,
+    response: Response,
+    task_id: str,
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    deleted = await service.task_methods.delete_task(task_id, current_user.id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"deleted": True, "task_id": task_id}
+
+
+@router.post("/{task_id}/complete")
+@limiter.limit("30/minute")
+async def complete_user_task(
+    request: Request,
+    response: Response,
+    task_id: str,
+    body: UserTaskActionRequest,
+    queue_service: UserTaskQueueService = Depends(get_user_task_queue_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        task = await queue_service.complete_task(task_id, current_user.id, version=body.version)
+        return {"task": task}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/{task_id}/block")
+@limiter.limit("30/minute")
+async def block_user_task(
+    request: Request,
+    response: Response,
+    task_id: str,
+    body: UserTaskActionRequest,
+    queue_service: UserTaskQueueService = Depends(get_user_task_queue_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        task = await queue_service.block_task(
+            task_id,
+            current_user.id,
+            version=body.version,
+            blocked_reason_code=body.blocked_reason_code,
+        )
+        return {"task": task}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/{task_id}/unblock")
+@limiter.limit("30/minute")
+async def unblock_user_task(
+    request: Request,
+    response: Response,
+    task_id: str,
+    body: UserTaskActionRequest,
+    queue_service: UserTaskQueueService = Depends(get_user_task_queue_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        task = await queue_service.unblock_task(task_id, current_user.id, version=body.version)
+        return {"task": task}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/{task_id}/skip")
+@limiter.limit("30/minute")
+async def skip_user_task(
+    request: Request,
+    response: Response,
+    task_id: str,
+    body: UserTaskActionRequest,
+    queue_service: UserTaskQueueService = Depends(get_user_task_queue_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        task = await queue_service.skip_task(task_id, current_user.id, version=body.version)
+        return {"task": task}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/reorder")
+@limiter.limit("30/minute")
+async def reorder_user_tasks(
+    request: Request,
+    response: Response,
+    body: UserTaskReorderRequest,
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    now = int(time.time())
+    tasks: list[dict[str, Any]] = []
+    for move in body.moves:
+        patch = move.model_dump(exclude_unset=True, exclude={"task_id", "before_task_id", "after_task_id"})
+        patch["updated_at"] = now
+        if "position" not in patch:
+            if move.before_task_id:
+                before = await service.task_methods.get_task(move.before_task_id, current_user.id)
+                patch["position"] = int(before.get("position") or 0) - 1 if before else now
+            elif move.after_task_id:
+                after = await service.task_methods.get_task(move.after_task_id, current_user.id)
+                patch["position"] = int(after.get("position") or 0) + 1 if after else now
+        try:
+            task = await service.update_task(move.task_id, current_user.id, patch)
+            tasks.append(task)
+        except Exception as exc:
+            _handle_task_error(exc)
+    return {"tasks": tasks}
 
 
 @router.post("/{task_id}/key-wrappers")

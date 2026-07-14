@@ -298,10 +298,13 @@ export type ProjectSourceCreateInput = ProjectSourceRecord;
 
 export interface UserTaskRecord {
   task_id: string;
+  short_id?: string | null;
+  short_id_prefix?: string | null;
   encrypted_task_key?: string | null;
   encrypted_title: string;
   encrypted_description?: string | null;
   encrypted_tags?: string | null;
+  encrypted_linked_project_ids?: string | null;
   encrypted_activity_summary?: string | null;
   encrypted_latest_instruction?: string | null;
   status: UserTaskStatus;
@@ -310,9 +313,14 @@ export interface UserTaskRecord {
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
   parent_task_id?: string | null;
+  plan_id?: string | null;
+  plan_step_id?: string | null;
+  task_type?: "work" | "verification" | null;
+  verification_id?: string | null;
   due_at?: number | null;
   priority?: number;
   position?: number;
+  queue_state?: "none" | "waiting" | "active" | "skipped" | "waiting_for_user" | string | null;
   version?: number;
   created_at?: number;
   updated_at?: number;
@@ -5389,6 +5397,61 @@ export class OpenMatesClient {
     return response.data.task;
   }
 
+  async deleteUserTask(taskId: string): Promise<{ deleted?: boolean; task_id?: string }> {
+    this.requireSession();
+    const response = await this.http.delete<{ deleted?: boolean; task_id?: string }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}`,
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`User task delete failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async completeUserTask(taskId: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+    return this.postUserTaskAction(taskId, "complete", input);
+  }
+
+  async blockUserTask(taskId: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+    return this.postUserTaskAction(taskId, "block", input);
+  }
+
+  async unblockUserTask(taskId: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+    return this.postUserTaskAction(taskId, "unblock", input);
+  }
+
+  async skipUserTask(taskId: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+    return this.postUserTaskAction(taskId, "skip", input);
+  }
+
+  async reorderUserTasks(input: Record<string, unknown>): Promise<UserTaskRecord[]> {
+    this.requireSession();
+    const response = await this.http.post<{ tasks?: UserTaskRecord[] }>(
+      "/v1/user-tasks/reorder",
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`User task reorder failed with HTTP ${response.status}`);
+    }
+    return response.data.tasks ?? [];
+  }
+
+  async postUserTaskAction(taskId: string, action: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ task?: UserTaskRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/${encodeURIComponent(action)}`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.task) {
+      throw new Error(`User task ${action} failed with HTTP ${response.status}`);
+    }
+    return response.data.task;
+  }
+
   // -------------------------------------------------------------------------
   // User plans
   // -------------------------------------------------------------------------
@@ -6825,7 +6888,7 @@ export class OpenMatesClient {
     return this.session;
   }
 
-  private getMasterKeyBytes(): Uint8Array {
+  getMasterKeyBytes(): Uint8Array {
     const session = this.requireSession();
     return base64ToBytes(session.masterKeyExportedB64);
   }

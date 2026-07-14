@@ -11,8 +11,9 @@
 import type { ExampleChatConversation, ExampleChatListItem } from "./exampleChats.js";
 import type { WorkflowDetail, WorkflowNode, WorkflowNodeRun, WorkflowRunDetail, WorkflowSummary } from "./client.js";
 import { openMatesAsciiLogo } from "./branding.js";
+import type { DecryptedUserTask } from "./tasksCli.js";
 
-export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chat" | "embed" | "workflows" | "workflow" | "status";
+export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chat" | "embed" | "workflows" | "workflow" | "tasks" | "task" | "status";
 
 export type TuiMessage = {
   role: "user" | "assistant" | "system";
@@ -37,6 +38,8 @@ export type TuiState = {
   workflows: WorkflowSummary[];
   activeWorkflow: WorkflowDetail | null;
   workflowRuns: WorkflowRunDetail[];
+  tasks: DecryptedUserTask[];
+  activeTask: DecryptedUserTask | null;
   workflowTab: "graph" | "runs";
   selectedWorkflowNodeIndex: number;
   selectedWorkflowRunIndex: number;
@@ -78,6 +81,8 @@ export function createInitialTuiState(): TuiState {
     workflows: [],
     activeWorkflow: null,
     workflowRuns: [],
+    tasks: [],
+    activeTask: null,
     workflowTab: "graph",
     selectedWorkflowNodeIndex: 0,
     selectedWorkflowRunIndex: 0,
@@ -151,7 +156,7 @@ export function renderTuiFrame(state: TuiState, width: number, height: number): 
   const contentHeight = safeHeight - 4;
   const body = renderBody(state, innerWidth);
   const visible = sliceForScroll(body, contentHeight, state.scrollOffset, state.screen === "chat");
-  const inputLine = state.screen === "interests" || state.screen === "examples" || state.screen === "workflows" || state.screen === "workflow"
+  const inputLine = state.screen === "interests" || state.screen === "examples" || state.screen === "workflows" || state.screen === "workflow" || state.screen === "tasks" || state.screen === "task"
     ? renderHintLine(state, innerWidth)
     : `> ${state.input || inputPlaceholder(state)}`;
   const lines = [
@@ -184,6 +189,10 @@ function renderBody(state: TuiState, width: number): string[] {
       return renderWorkflows(state, width);
     case "workflow":
       return renderWorkflowDetail(state, width);
+    case "tasks":
+      return renderTasks(state, width);
+    case "task":
+      return renderTaskDetail(state, width);
     case "start":
     default:
       return renderStart(width);
@@ -206,7 +215,7 @@ function renderStart(width: number): string[] {
     "Type @./notes.md, @~/Downloads/report.pdf, or @src/app.ts in your message.",
     "Images, PDFs, audio, and code files are attached as encrypted embeds when you are signed in.",
     "",
-    "Shortcuts: /help  /login  /signup  /examples  /exit",
+    "Shortcuts: /help  /login  /signup  /examples  /tasks  /exit",
   ].flatMap((line) => wrap(line, width));
 }
 
@@ -229,6 +238,7 @@ function renderHelp(width: number): string[] {
     "  /examples          Choose example chats",
     "  /workflows         List and run saved workflows",
     "  /workflow <id>     Open a workflow by ID",
+    "  /tasks             Open your task workspace",
     "  /login             Pair-auth login",
     "  /signup            Leave TUI and run guided signup",
     "  /embed <id>        Open an embed detail view",
@@ -236,6 +246,49 @@ function renderHelp(width: number): string[] {
     "",
     "Outside TUI: openmates --help, openmates chats --help, openmates apps --help",
   ].flatMap((line) => wrap(line, width));
+}
+
+function renderTasks(state: TuiState, width: number): string[] {
+  const lines = ["Tasks", ""];
+  if (state.tasks.length === 0) {
+    lines.push("No tasks found.", "Create one outside TUI with: openmates tasks create --title <title>");
+    return lines.flatMap((line) => wrap(line, width));
+  }
+  const visibleCount = Math.max(1, CONTENT_PREVIEW_LINES);
+  const start = Math.max(0, Math.min(state.selectedIndex, state.tasks.length - visibleCount));
+  for (let i = 0; i < state.tasks.slice(start, start + visibleCount).length; i += 1) {
+    const absoluteIndex = start + i;
+    const task = state.tasks[absoluteIndex];
+    const cursor = absoluteIndex === state.selectedIndex ? ">" : " ";
+    const assignee = task.assigneeType === "ai" ? "OpenMates" : (task.assigneeHash ?? "user");
+    lines.push(`${cursor} ${task.shortId}  ${task.status}  ${assignee}  ${task.title}`);
+    if (task.queueState !== "none") lines.push(`    queue: ${task.queueState}`);
+    if (task.description) lines.push(`    ${task.description}`);
+    lines.push("");
+  }
+  return lines.flatMap((line) => wrap(line, width));
+}
+
+function renderTaskDetail(state: TuiState, width: number): string[] {
+  const task = state.activeTask;
+  if (!task) return renderTasks(state, width);
+  const assignee = task.assigneeType === "ai" ? "OpenMates" : (task.assigneeHash ?? "user");
+  const lines = [
+    `Task: ${task.shortId}`,
+    `Title: ${task.title}`,
+    `Status: ${task.status}`,
+    `Assignee: ${assignee}`,
+    `Queue: ${task.queueState}`,
+    `ID: ${task.taskId}`,
+    task.description ? `Description: ${task.description}` : null,
+    task.primaryChatId ? `Chat: ${task.primaryChatId}` : null,
+    task.linkedProjectIds.length > 0 ? `Projects: ${task.linkedProjectIds.join(", ")}` : null,
+    task.blockedReasonCode ? `Blocked reason: ${task.blockedReasonCode}` : null,
+    task.aiExecutionState ? `AI state: ${task.aiExecutionState}` : null,
+    "",
+    "Actions: c create, e edit, x delete, r reorder, s start, d done, b block, u unblock, k skip, Esc back",
+  ].filter((line): line is string => line !== null);
+  return lines.flatMap((line) => wrap(line, width));
 }
 
 function renderWorkflows(state: TuiState, width: number): string[] {
@@ -453,6 +506,8 @@ export function renderMessageContent(content: string, width: number): string[] {
 
 function renderHintLine(state: TuiState, width: number): string {
   if (state.screen === "interests") return truncateVisible("↑/↓ move   Space select   Enter continue   Esc back", width);
+  if (state.screen === "tasks") return truncateVisible("↑/↓ choose   Enter open   c create   Esc back", width);
+  if (state.screen === "task") return truncateVisible("c create   e edit   x delete   r reorder   s start   d done   b block   u unblock   k skip", width);
   if (state.screen === "workflows") return truncateVisible("↑/↓ choose   Enter open   Esc back", width);
   if (state.screen === "workflow" && state.workflowEdit) return truncateVisible("Enter save title   Esc cancel edit", width);
   if (state.screen === "workflow") return truncateVisible("g graph   r runs   ↑/↓ select   Enter expand   e title   E config   x run   u refresh   c cancel", width);
@@ -462,7 +517,7 @@ function renderHintLine(state: TuiState, width: number): string {
 function inputPlaceholder(state: TuiState): string {
   if (state.screen === "example") return "Continue from this example, or ask your own question...";
   if (state.screen === "chat") return "Ask a follow-up, use @file, or type /help";
-  if (state.screen === "workflow" || state.screen === "workflows") return "Use shortcuts below, or type /help";
+  if (state.screen === "workflow" || state.screen === "workflows" || state.screen === "tasks" || state.screen === "task") return "Use shortcuts below, or type /help";
   return "Ask anything...";
 }
 

@@ -61,7 +61,7 @@ async def test_create_task_hashes_owner_and_projects_without_plaintext_content()
 @pytest.mark.asyncio
 async def test_create_task_persists_key_wrappers_separately() -> None:
     directus = SimpleNamespace()
-    directus.create_item = AsyncMock(side_effect=lambda _collection, record: (True, record))
+    directus.create_item = AsyncMock(side_effect=lambda _collection, record, **_kwargs: (True, record))
 
     methods = UserTaskMethods(directus)
     await methods.create_task(
@@ -85,6 +85,7 @@ async def test_create_task_persists_key_wrappers_separately() -> None:
     assert task_collection == "user_tasks"
     assert "key_wrappers" not in task_record
     assert wrapper_collection == "user_task_key_wrappers"
+    assert directus.create_item.await_args_list[1].kwargs == {"admin_required": True}
     assert wrapper_record["hashed_task_id"] == hash_id("task-1")
     assert wrapper_record["hashed_user_id"] == hash_id("user-1")
     assert wrapper_record["key_type"] == "master"
@@ -155,7 +156,7 @@ async def test_replace_task_key_wrappers_creates_new_set_then_deletes_old_wrappe
     )
 
     assert created == [{"id": "new-wrapper", "key_type": "master"}]
-    directus.delete_item.assert_awaited_once_with("user_task_key_wrappers", "old-wrapper")
+    directus.delete_item.assert_awaited_once_with("user_task_key_wrappers", "old-wrapper", admin_required=True)
 
 
 @pytest.mark.asyncio
@@ -217,7 +218,7 @@ async def test_update_task_replaces_wrappers_with_project_hash_update() -> None:
     assert patch["encrypted_linked_project_ids"] == "cipher-linked-project-ids-v2"
     assert "linked_project_ids" not in patch
     assert "key_wrappers" not in patch
-    directus.delete_item.assert_awaited_once_with("user_task_key_wrappers", "old-wrapper")
+    directus.delete_item.assert_awaited_once_with("user_task_key_wrappers", "old-wrapper", admin_required=True)
 
 
 @pytest.mark.asyncio
@@ -246,7 +247,7 @@ async def test_update_task_fails_visibly_when_old_wrapper_delete_fails() -> None
         )
 
     directus.update_item.assert_awaited_once()
-    directus.delete_item.assert_awaited_once_with("user_task_key_wrappers", "old-wrapper")
+    directus.delete_item.assert_awaited_once_with("user_task_key_wrappers", "old-wrapper", admin_required=True)
 
 
 @pytest.mark.asyncio

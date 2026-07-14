@@ -18,9 +18,8 @@
 feature_overrides:
   enabled:
     - "platform:workflows"
+    - "platform:tasks"
   disabled:
-    # Empty / no implemented skills or focus modes declared
-    - "app:3d"
     # Placeholder app folders without implemented runtime behavior yet
     - "app:life_coaching"
     - "app:plants"

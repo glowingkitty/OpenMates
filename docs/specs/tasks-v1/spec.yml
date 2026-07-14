@@ -37,6 +37,11 @@ scope:
     - Due-date scheduling for AI-assigned tasks that survives server restarts.
     - Retention and cleanup policies for completed/archived tasks, key wrappers, and expired execution contexts so stale task data does not grow indefinitely.
     - CLI, npm SDK, and pip SDK task-management contracts before web E2E verification.
+    - Standalone tasks that can optionally attach to one chat, one or more projects, a plan, and either OpenMates/AI or a user assignee.
+    - CLI task management through both account-wide `openmates tasks ...` commands and chat-scoped `openmates chats ... tasks ...` commands.
+    - Terminal Kanban rendering and a Tasks workspace inside the CLI TUI with keyboard navigation and task-detail action parity.
+    - Human-readable task short IDs derived from project, plan, chat, or standalone scope while preserving globally unique task IDs for storage.
+    - Explicit AI/runtime task tools for create, update, delete, reorder, complete, block, unblock, skip, and continuation enforcement.
   out:
     - Replacing Celery /v1/tasks/{task_id} polling for long-running app skills.
     - Fully customizable Kanban columns in V1.
@@ -48,6 +53,8 @@ scope:
     - Server-side decryption of durable task title, description, tags, activity, or instruction fields.
     - Native Apple implementation in the first web/API slice, although the spec records expected parity.
     - Remote filesystem access, code mutation, or high-stakes agentic coding permissions.
+    - Complex dependency graphs between tasks in V1.
+    - A separate skipped Kanban column; skipped tasks use backlog plus queue metadata.
 
 context_discovery:
   github_issues:
@@ -145,6 +152,43 @@ clarification:
         projects, due date, priority, tags, and activity/history. If a due date
         is set and AI is assigned, AI should wait until due time using a
         reliable server-side scheduler that survives restarts.
+    - question: Should standalone tasks be supported in the CLI-ready slice?
+      answer: >
+        Standalone tasks must be supported. A task can optionally attach to a
+        chat, project, or plan, and can be assigned to OpenMates/AI or to a user
+        ID. If a standalone AI task starts, OpenMates automatically creates a
+        working chat so the user can inspect what was worked on and connected
+        devices can sync that context.
+    - question: How should blockers, skip, and queue continuation behave?
+      answer: >
+        A blocked task pauses the remaining queue in that chat by default until
+        the user or assistant explicitly resolves it. If the user sets the task
+        back to todo, marks it done, unblocks it, or runs skip, the next eligible
+        task can auto-start. Skip moves the task to backlog, keeps the chat link,
+        marks it clearly skipped through queue metadata, and starts the next
+        eligible todo task.
+    - question: How should task state be detected and enforced during AI work?
+      answer: >
+        Do not infer task completion, blockers, or unblock events from prose.
+        The AI runtime must expose explicit task tools/API actions for create,
+        update, delete, reorder, complete, block, unblock, skip, and continue.
+        Assistant task execution is not complete until all eligible tasks are
+        done/skipped/backlogged or a blocker requiring input is recorded.
+    - question: What task identifiers and CLI output should V1 use?
+      answer: >
+        Every task needs a globally unique storage ID plus a human-friendly short
+        ID usable in CLI commands. Short ID prefixes use fixed precedence:
+        project, then plan, then chat, then standalone. CLI output always
+        decrypts task content locally before displaying it; users should not need
+        a special flag to see plaintext on an authenticated device.
+    - question: Which CLI and TUI surfaces are required for V1?
+      answer: >
+        V1 must include account-wide `openmates tasks ...` commands and
+        chat-scoped `openmates chats ... tasks ...` commands for list, show,
+        create, edit, delete, start, status, block, unblock, skip, done, reorder,
+        and board. The CLI TUI must add a Tasks workspace with keyboard-navigable
+        Kanban, task detail pages, and full parity for those actions. Real
+        dev-server CLI/TUI smoke evidence is required before web work.
   vision_summary: >
     Tasks V1 is a separate privacy-preserving product model that sits beside
     chats, projects, and workflows. Tasks appear in chat task lists, project
@@ -325,6 +369,50 @@ scenarios:
       - Workflow run cards are read-only projections, not editable user_tasks rows, and cannot be dragged between task columns or assigned to AI.
       - Cancelling the active card requests workflow-run cancellation and stops future workflow steps when the runner reaches a cancellation checkpoint.
 
+  - id: S-16
+    title: CLI manages standalone and chat-scoped tasks
+    given:
+      - Alice is logged into the OpenMates CLI on a device with access to her master key.
+      - Alice has one existing chat, one project with short ID OM, and one active plan.
+    when:
+      - Alice creates a standalone task from `openmates tasks create` and assigns it to OpenMates.
+      - Alice creates a chat-scoped task from `openmates chats <chat> tasks create`.
+      - Alice lists, shows, edits, deletes, starts, blocks, unblocks, skips, marks done, and reorders tasks from both command groups.
+    then:
+      - CLI output shows locally decrypted task titles, descriptions, tags, status, assignee, short ID, linked chat/project/plan, queue state, and blocker state.
+      - The standalone OpenMates task automatically creates a working chat when started.
+      - Chat-scoped commands operate only on tasks for the selected chat unless the user explicitly changes scope.
+      - Commands accept human-readable short IDs such as OM-6 as well as full task IDs.
+
+  - id: S-17
+    title: Terminal board and TUI workspace manage tasks
+    given:
+      - Alice has tasks across backlog, todo, in_progress, blocked, and done.
+      - Alice opens the CLI in an interactive terminal.
+    when:
+      - Alice runs `openmates tasks board` with a project filter.
+      - Alice opens the CLI TUI and switches from Chats to Tasks.
+      - Alice navigates the Kanban board with the keyboard and opens a task detail page.
+    then:
+      - The non-interactive board groups tasks into fixed status columns, truncates long lists, and falls back to stacked columns on narrow terminals.
+      - The TUI Tasks workspace supports keyboard navigation across columns, cards, and task details.
+      - Task detail pages expose the same actions as CLI commands, including create, edit, delete, start, block, unblock, skip, done, and reorder.
+      - "`--json` remains available for script-friendly command output and is not replaced by the board renderer."
+
+  - id: S-18
+    title: Assistant task execution cannot stop before queue completion or blocker
+    given:
+      - A chat has three eligible todo tasks assigned to OpenMates.
+      - The AI runtime has task tools available for task state transitions.
+    when:
+      - OpenMates starts the first task.
+      - The assistant response ends after completing one task while eligible tasks remain.
+    then:
+      - The runtime records completion through a task tool, not inferred prose.
+      - If no blocker exists, the runtime injects an internal continuation instruction and starts the next eligible task.
+      - The user sees a system/activity entry that OpenMates continued to the next task, not a fake user-authored message.
+      - If a task blocks, the chat queue pauses until the user or assistant explicitly resolves, skips, marks done, or requeues the task.
+
   - id: S-12
     title: AI task queue resumes from Vault-encrypted execution context
     given:
@@ -417,6 +505,27 @@ acceptance_criteria:
   - id: AC-22
     scenario: S-15
     text: The default Done column shows only user tasks and workflow run projections completed in the last seven days; older completed items are hidden from the default board rather than auto-deleted at seven days.
+  - id: AC-23
+    scenario: S-16
+    text: The CLI exposes account-wide `openmates tasks ...` and chat-scoped `openmates chats ... tasks ...` commands for list, show, create, edit, delete, start, status, block, unblock, skip, done, reorder, and board.
+  - id: AC-24
+    scenario: S-16
+    text: Standalone OpenMates/AI tasks create a working chat when started, sync that chat to connected devices, and remain inspectable from both task and chat views.
+  - id: AC-25
+    scenario: S-17
+    text: CLI task output decrypts task content locally by default, supports JSON output for automation, and renders a terminal Kanban board for human review.
+  - id: AC-26
+    scenario: S-17
+    text: The CLI TUI includes a Tasks workspace with keyboard-navigable Kanban, task detail pages, and full action parity with task commands.
+  - id: AC-27
+    scenario: S-16
+    text: Every task has a globally unique task_id and a human-readable short_id whose prefix precedence is project, plan, chat, then standalone.
+  - id: AC-28
+    scenario: S-18
+    text: A skipped task keeps its chat link, moves to backlog, records queue_state skipped, and starts the next eligible todo task in the same chat queue.
+  - id: AC-29
+    scenario: S-18
+    text: AI task execution state transitions are explicit tool/API actions, and the assistant cannot stop task-mode execution while eligible tasks remain unless a blocker requiring user input is recorded.
 
 contracts:
   api:
@@ -470,6 +579,42 @@ contracts:
       notes:
         - Used only for AI-assigned active-chat tasks. This is not durable private task storage.
         - Missing or expired execution context blocks queue continuation with missing_execution_context.
+    - route: POST /v1/user-tasks/{task_id}/complete
+      auth: session_or_api_key
+      request: "{ version, encrypted_activity_message?, completed_at? }"
+      response: "{ task_id, status: done, queue_state, next_task_id? }"
+      notes:
+        - Used by users, CLI, and assistant task tools. Prose alone is not a completion signal.
+        - If the task belongs to an active queue and no blocker exists, completion may claim the next eligible todo task.
+    - route: POST /v1/user-tasks/{task_id}/block
+      auth: session_or_api_key
+      request: "{ version, blocked_reason_code, encrypted_activity_message? }"
+      response: "{ task_id, status: blocked, queue_state: waiting_for_user }"
+      notes:
+        - Blocks the remaining queue for the task's primary chat until explicit unblock, skip, done, or todo requeue.
+        - blocked_reason_code is safe metadata and must not include private task content.
+    - route: POST /v1/user-tasks/{task_id}/unblock
+      auth: session_or_api_key
+      request: "{ version, next_status?: todo|in_progress, encrypted_activity_message? }"
+      response: "{ task_id, status, queue_state, next_task_id? }"
+      notes:
+        - May be called by the user or assistant after the missing condition is resolved.
+        - If the task returns to todo or completes, the queue can start the next eligible task according to queue rules.
+    - route: POST /v1/user-tasks/{task_id}/skip
+      auth: session_or_api_key
+      request: "{ version, encrypted_activity_message? }"
+      response: "{ task_id, status: backlog, queue_state: skipped, next_task_id? }"
+      notes:
+        - Skip does not create a new skipped status or column.
+        - The task remains linked to its chat/project/plan and is visually marked as skipped through queue metadata/activity.
+        - If the skipped task was blocking a chat queue, the next eligible todo task auto-starts.
+    - route: POST /v1/user-tasks/reorder
+      auth: session_or_api_key
+      request: "{ moves: [{ task_id, status?, position, before_task_id?, after_task_id? }] }"
+      response: "{ tasks: [{ task_id, status, position, version }] }"
+      notes:
+        - Supports changing order within a status and moving across statuses from CLI, TUI, and web.
+        - Must enforce owner/chat/project permissions for every moved task.
     - route: GET /v1/user-tasks/view
       auth: session_or_api_key
       request: "query: status?, project_id?, chat_id?, include_workflow_runs=true, done_since?, limit?, cursor?"
@@ -508,14 +653,21 @@ contracts:
           - id
           - hashed_user_id
           - status
+          - short_id
+          - short_id_prefix
           - assignee_type: ai|user
           - assignee_hash
           - primary_chat_id
           - linked_project_hashes
           - parent_task_id
+          - plan_id
+          - plan_step_id
+          - task_type
+          - verification_id
           - due_at
           - priority
           - position
+          - queue_state: none|waiting|active|skipped|waiting_for_user
           - version
           - created_at
           - updated_at
@@ -600,6 +752,71 @@ contracts:
       manual_status: todo
       parked_status: backlog
       ai_immediate_status: in_progress
+      skipped_status: backlog
+    queue_states:
+      - none
+      - waiting
+      - active
+      - skipped
+      - waiting_for_user
+    short_ids:
+      - Every task has a globally unique task_id plus a human-readable short_id for CLI/TUI use.
+      - short_id prefix precedence is project, then plan, then chat, then standalone.
+      - Project-linked task IDs use the project short ID when present, for example OM-6.
+      - Plan-linked task IDs use the plan short ID only when no project short ID applies.
+      - Chat-linked task IDs use the chat short ID only when neither project nor plan short ID applies.
+      - Standalone task IDs use a stable standalone prefix chosen by the implementation.
+      - Project and plan short IDs must be introduced or verified before task short IDs depend on them.
+  cli:
+    commands:
+      - openmates tasks list [--status <status>] [--project <short-id|id>] [--plan <short-id|id>] [--chat <short-id|id>] [--json]
+      - openmates tasks board [--project <short-id|id>] [--plan <short-id|id>] [--chat <short-id|id>] [--page <n>] [--json]
+      - openmates tasks show <task-short-id|task-id> [--json]
+      - openmates tasks create --title <text> [--description <text>] [--assign openmates|<user-id>] [--project <id>] [--plan <id>] [--chat <id>] [--due <time>]
+      - openmates tasks edit <task-short-id|task-id> [--title <text>] [--description <text>] [--status <status>] [--assign <assignee>] [--project <id>] [--plan <id>] [--chat <id>]
+      - openmates tasks delete <task-short-id|task-id> --confirm
+      - openmates tasks start <task-short-id|task-id>
+      - openmates tasks status [<task-short-id|task-id>] [--chat <id>] [--json]
+      - openmates tasks block <task-short-id|task-id> --reason <code>
+      - openmates tasks unblock <task-short-id|task-id>
+      - openmates tasks skip <task-short-id|task-id>
+      - openmates tasks done <task-short-id|task-id>
+      - openmates tasks reorder <task-short-id|task-id> [--before <id>|--after <id>|--status <status>]
+      - openmates chats <chat-short-id|chat-id> tasks list|board|show|create|edit|delete|start|status|block|unblock|skip|done|reorder
+    behavior:
+      - CLI output always decrypts task content locally on authenticated devices before displaying titles, descriptions, tags, instructions, and activity summaries.
+      - CLI must never print ciphertext as the normal human-facing output.
+      - "`--json` returns structured decrypted fields plus safe metadata for local automation; sensitive output follows existing CLI redaction rules when logs are forwarded."
+      - Chat-scoped commands default to the specified chat and never mutate tasks outside that chat unless the user explicitly passes another scope-changing flag.
+      - Account-wide commands can manage standalone tasks and tasks attached to chats, projects, or plans.
+      - Starting a standalone OpenMates task creates a working chat, links the task to it, and emits sync events for connected or later-online devices.
+      - "`tasks board` renders a non-interactive Kanban board grouped by backlog, todo, in_progress, blocked, and done; narrow terminals stack columns vertically."
+  tui:
+    workspaces:
+      - Chats
+      - Tasks
+    tasks_workspace:
+      - Keyboard-navigable Kanban with columns for backlog, todo, in_progress, blocked, and done.
+      - Task cards show short ID, title, assignee, queue position/state, blocker reason, and linked chat/project/plan.
+      - Task detail pages expose create, edit, delete, start, block, unblock, skip, done, and reorder actions.
+      - Reorder supports moving within a column and across statuses.
+      - The TUI must remain usable when there are only a few tasks and when there are many tasks with pagination/truncation.
+  ai_runtime:
+    task_tools:
+      - task.create
+      - task.update
+      - task.delete
+      - task.reorder
+      - task.complete
+      - task.block
+      - task.unblock
+      - task.skip
+      - task.continue
+    enforcement:
+      - Completion, blocker, unblock, skip, and continuation decisions must be committed through task tools/API actions, not inferred from assistant prose.
+      - If an assistant response ends in task mode while eligible todo tasks remain and no blocker is recorded, the runtime injects an internal continuation instruction to keep working.
+      - Internal continuation renders to users as a system/activity entry such as OpenMates continued to the next task, not as a fake user-authored message.
+      - A blocked task pauses the chat queue until explicit user or assistant action resolves, skips, completes, or requeues it.
   websocket:
     - event: user_task_updated
       direction: server_to_client
@@ -778,23 +995,25 @@ tests:
       - AC-20
     assertions:
       - shared chat payloads include chat-primary task records as read-only encrypted bundle entries.
-      - each bundle entry wraps the existing task key with the share URL fragment key; no new task key and no durable share wrapper is created.
+      - each bundle entry includes existing chat-scoped task key wrappers; no new task key and no durable share wrapper is created.
       - backend storage/serving paths never receive the fragment key, optional password, raw existing task key, or decrypted task fields.
       - project-only tasks are excluded from default chat shares unless project context is explicitly included by a later share flow.
     red_phase:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: missing_test
+        run_id: "task-share-bundle-test-created-2026-07-14"
+        timestamp: "2026-07-14"
+        reason: "backend/tests/test_user_tasks_share_bundle.py did not exist before adding encrypted task bundle coverage."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "local-pytest-task-share-bundle-2026-07-14"
+        timestamp: "2026-07-14"
+        command: "python3 -m pytest backend/tests/test_user_tasks_share_bundle.py"
 
   - id: T-PYTEST-TASK-EXECUTION-CONTEXT-CLEANUP
     type: pytest
@@ -811,16 +1030,18 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: missing_test
+        run_id: "runtime-tools-test-created-2026-07-14"
+        timestamp: "2026-07-14"
+        reason: "backend/tests/test_user_task_runtime_tools.py did not exist before implementing the queue-service contract."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "local-pytest-runtime-tools-2026-07-14"
+        timestamp: "2026-07-14"
+        command: "python3 -m pytest backend/tests/test_user_task_runtime_tools.py"
 
   - id: T-PYTEST-PROPOSALS
     type: pytest
@@ -874,8 +1095,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "local-node-test-2026-06-26"
-        timestamp: "2026-06-26"
+        run_id: "local-node-test-tasks-2026-07-13"
+        timestamp: "2026-07-13"
+        command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts"
 
   - id: T-NPM-SDK-TASKS
     type: unit
@@ -995,7 +1217,7 @@ tests:
       - AC-21
       - AC-22
     assertions:
-      - task-view listing returns user-owned workflow run projections without creating user_tasks rows.
+      - task-view projection service returns user-owned workflow run projections without creating user_tasks rows.
       - workflow queued/running maps to in_progress, completed maps to done, and failed/cancelled/waiting maps to blocked.
       - default Done filtering includes only completed user tasks and workflow run projections completed in the last seven days.
       - older completed records remain available through their source history APIs and are not deleted by task-view filtering.
@@ -1003,16 +1225,145 @@ tests:
       required: true
       expected: fail_or_missing
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: missing_test
+        run_id: "task-view-workflow-runs-test-created-2026-07-14"
+        timestamp: "2026-07-14"
+        reason: "backend/tests/test_task_view_workflow_runs.py did not exist before adding projection-service coverage."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "local-pytest-task-view-workflow-runs-2026-07-14"
+        timestamp: "2026-07-14"
+        command: "python3 -m pytest backend/tests/test_task_view_workflow_runs.py"
+
+  - id: T-PYTEST-TASK-RUNTIME-TOOLS
+    type: pytest
+    file: backend/tests/test_user_task_runtime_tools.py
+    command: python3 -m pytest backend/tests/test_user_task_runtime_tools.py
+    covers:
+      - AC-24
+      - AC-28
+      - AC-29
+    assertions:
+      - standalone OpenMates tasks atomically create and link a working chat before dispatch.
+      - task.complete claims the next eligible todo task exactly once when no blocker exists.
+      - task.block pauses the chat queue and records a safe blocked_reason_code.
+      - task.unblock, task.done, task.skip, or setting status back to todo can resume the queue.
+      - task.skip moves the task to backlog, sets queue_state skipped, keeps chat/project/plan links, and starts the next eligible task.
+      - assistant task-mode responses that end while eligible tasks remain trigger an internal continuation rather than stopping silently.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: missing_test
+        run_id: "runtime-tools-test-created-2026-07-14"
+        timestamp: "2026-07-14"
+        reason: "backend/tests/test_user_task_runtime_tools.py did not exist before implementing the queue-service contract."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-pytest-runtime-tools-2026-07-14"
+        timestamp: "2026-07-14"
+        command: "python3 -m pytest backend/tests/test_user_task_runtime_tools.py"
+
+  - id: T-CLI-TASK-COMMANDS
+    type: pytest
+    file: scripts/verify_tasks_cli_smoke.py
+    command: python3 scripts/verify_tasks_cli_smoke.py --api-url http://127.0.0.1:8000
+    target: local API http://127.0.0.1:8000 with real CLI test-account login
+    covers:
+      - AC-23
+      - AC-25
+      - AC-27
+      - AC-28
+    assertions:
+      - "`openmates tasks ...` routes list, show, create, edit, delete, status, block, unblock, skip, done, reorder, and board commands to /v1/user-tasks against the real local API."
+      - "`openmates chats <chat> tasks ...` applies the selected chat scope for list and board against the real local API."
+      - command output shows decrypted titles/descriptions and never prints ciphertext as the normal human output.
+      - commands accept full task_id and short_id inputs.
+      - board output renders fixed Kanban columns and truncates many-task columns with counts.
+      - skip moves the task to backlog and records queue_state skipped.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: "mock-tests-rejected-by-user"
+        timestamp: "2026-07-13"
+        reason: "User required no mocked acceptance evidence for this CLI surface; real local API smoke was used instead."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-real-cli-smoke-2026-07-13"
+        timestamp: "2026-07-13"
+        command: "python3 scripts/verify_tasks_cli_smoke.py --api-url http://127.0.0.1:8000"
+
+  - id: T-CLI-TASK-TUI
+    type: unit
+    file: frontend/packages/openmates-cli/tests/tui.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tui.test.ts
+    covers:
+      - AC-25
+      - AC-26
+    assertions:
+      - the CLI TUI exposes a Tasks workspace alongside Chats.
+      - task list rendering shows selected tasks, queue state, and decrypted task title/description fields.
+      - task detail pages render create, edit, delete, reorder, start, done, block, unblock, and skip action shortcuts.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: skipped_with_reason
+        run_id: "not-captured-before-tui-action-implementation"
+        timestamp: "2026-07-14"
+        reason: "The TUI task renderer existed before this action-parity cleanup; no separate red run was captured."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-node-test-tui-2026-07-14"
+        timestamp: "2026-07-14"
+        command: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tui.test.ts"
+
+  - id: T-CLI-DEV-TASK-SMOKE
+    type: pytest
+    file: scripts/verify_tasks_cli_smoke.py
+    command: python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org
+    target: api.dev.openmates.org
+    covers:
+      - AC-23
+      - AC-25
+      - AC-27
+      - AC-28
+    assertions:
+      - real CLI creates and manages a standalone user-assigned task through account-wide task commands.
+      - real CLI renders `openmates tasks board` and `openmates chats <chat> tasks board`.
+      - blocked, skip, unblock, done, and reorder actions update server state and sync back to fresh CLI reads.
+      - command output shows decrypted plaintext and does not leak encrypted fields.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "api-dev-user-tasks-404-2026-07-13"
+        timestamp: "2026-07-13"
+        command: "node dist/cli.js tasks list --json against https://api.dev.openmates.org"
+        reason: "api.dev.openmates.org returned HTTP 404 for /v1/user-tasks before this local implementation is deployed/enabled."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "dev-real-cli-smoke-2026-07-14"
+        timestamp: "2026-07-14"
+        command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build"
 
   - id: T-MANUAL-APPLE
     type: manual
@@ -1046,6 +1397,9 @@ implementation_plan:
     - backend/core/directus/schemas/chats.yml for chat/sub-chat link metadata and encryption notes.
     - backend/core/directus/schemas/embeds.yml for hashed identifiers and encrypted durable content notes.
     - docs/specs/workflows-v1/spec.yml for restart-safe scheduler and run-history concepts.
+    - frontend/packages/openmates-cli/src/cli.ts for top-level command routing and chat-scoped command patterns.
+    - frontend/packages/openmates-cli/src/tui.ts and tuiRenderer.ts for the existing Chats TUI workspace and terminal renderer patterns.
+    - frontend/packages/openmates-cli/tests/cli.test.ts and tui.test.ts for command and terminal rendering tests.
     - frontend/packages/ui/src/components/Header.svelte for platform:tasks navigation gating.
     - frontend/packages/ui/src/components/projects/ProjectsPage.svelte for project page integration points.
     - frontend/packages/ui/src/services/chatSyncService.ts for realtime task/sub-chat event routing patterns.
@@ -1066,8 +1420,10 @@ implementation_plan:
     - Workflow run projection cards remain read-only in the Tasks UI and route cancel/open actions through Workflows APIs.
     - Active chat derives the current task preview from the linked chat task queue and opens ChatDetailsSettingsPage on click.
     - AI assignment without due_at creates or reuses a working chat and sends an execution instruction.
+    - CLI commands decrypt task content locally, render tables/boards/detail output, and call the same /v1/user-tasks APIs used by SDKs and web.
+    - The CLI TUI loads decrypted task view models, renders a keyboard-navigable Kanban workspace, and commits task actions through the same task command/service layer.
     - AI assignment with due_at is claimed by a restart-safe scheduler at due time.
-    - AI completion, blockage, or user edits update task status and append encrypted activity entries.
+    - AI completion, blockage, unblock, skip, continuation, or user edits update task status/queue_state through explicit task tools and append encrypted activity entries.
   affected_files:
     - path: backend/core/directus/schemas/user_tasks.yml
       reason: New durable task collection and activity collection.
@@ -1075,6 +1431,10 @@ implementation_plan:
       reason: Product task API under /v1/user-tasks.
     - path: backend/core/api/app/services/user_task_service.py
       reason: Authorization, metadata filtering, conflict checks, and AI start orchestration.
+    - path: backend/core/api/app/services/user_task_queue_service.py
+      reason: Atomic queue claims, blocker pauses, skip/unblock/done continuation, and standalone task working-chat creation.
+    - path: backend/apps/ai/processing/task_tools.py
+      reason: Explicit assistant task tools for task state transitions and continuation enforcement.
     - path: backend/core/api/app/services/task_view_service.py
       reason: Unified task-view item projection combining user tasks and workflow runs for the central Tasks surface.
     - path: backend/core/api/app/routes/workflows.py
@@ -1121,20 +1481,35 @@ implementation_plan:
       reason: /tasks route.
     - path: frontend/packages/openmates-cli/src/client.ts
       reason: CLI/npm SDK task methods.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Account-wide and chat-scoped task command routing.
+    - path: frontend/packages/openmates-cli/src/tui.ts
+      reason: Tasks workspace navigation and action dispatch in the CLI TUI.
+    - path: frontend/packages/openmates-cli/src/tuiRenderer.ts
+      reason: Terminal Kanban and task detail rendering.
     - path: packages/openmates-python/openmates/client.py
       reason: pip SDK task methods.
     - path: backend/tests/test_task_view_workflow_runs.py
       reason: Backend task-view projection and seven-day Done visibility coverage.
+    - path: backend/tests/test_user_task_runtime_tools.py
+      reason: Queue enforcement, task tools, blocker, skip, and standalone working-chat coverage.
+    - path: scripts/verify_tasks_cli_smoke.py
+      reason: Real CLI command surface coverage for task actions against a live API and dev-server smoke proof before web release work.
+    - path: frontend/packages/openmates-cli/tests/tui.test.ts
+      reason: CLI TUI Tasks workspace and keyboard navigation coverage.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/tasks-v1/spec.yml
     - python3 scripts/audit_sdk_cli_parity.py after CLI/SDK task methods are added.
     - Backend pytest red/green for data model, API, scheduler, and AI queue semantics.
-    - CLI, npm SDK, and pip SDK red/green before Playwright.
+    - CLI command, TUI, npm SDK, and pip SDK red/green before Playwright.
+    - Real dev-server CLI/TUI smoke evidence before web Playwright work.
     - Deploy before Playwright green because web specs run against app.dev.openmates.org.
     - Apple remote status/build attempt if shared API client or native task UI is touched.
   verification_order:
     - Backend pytest contracts.
     - CLI contract.
+    - CLI TUI contract.
+    - Real dev-server CLI/TUI smoke.
     - npm SDK contract.
     - pip SDK contract.
     - Web Playwright after deploy.
@@ -1152,13 +1527,16 @@ implementation_plan:
     - Scope creep into full workflows, recurring tasks, or agentic coding permissions.
     - Confusing read-only workflow run cards with editable user tasks; card actions and API contracts must make the distinction explicit.
     - Treating the seven-day Done visibility window as deletion; hiding default board items must remain separate from retention cleanup.
+    - Letting the assistant stop after a task-mode response without committing done, blocked, skipped, or continued state.
+    - Making terminal Kanban too dense for narrow terminals or large task sets.
+    - Short ID collisions when projects, plans, chats, and standalone tasks are mixed in account-wide CLI output.
   open_questions:
     - Should priority be server-visible metadata for sorting, or encrypted-only with client-side sorting after fetch?
     - Should tags be encrypted-only in V1, which limits server-side tag filters, or should there be optional hashed tag filters later?
     - Should blocked_reason_code use a fixed enum in V1 or be extensible per app/permission type?
     - Should task activity history be append-only forever, or follow a retention limit per task?
     - Should AI task execution use the parent chat key for linked chat instructions or create a task-specific key for task context payloads?
-    - Standalone tasks use encrypted_task_key wrapped with the user's master key; linked task execution still needs a final decision on when to reuse chat/project keys for generated chat instructions.
+    - Which stable standalone short ID prefix should be used when no project, plan, or chat prefix applies?
 
 tasks:
   - id: TASK-1
@@ -1193,6 +1571,7 @@ tasks:
         - S-5
         - S-6
         - S-7
+        - S-18
         - S-15
       acceptance_criteria:
         - AC-4
@@ -1200,13 +1579,20 @@ tasks:
         - AC-6
         - AC-7
         - AC-10
+        - AC-24
+        - AC-28
+        - AC-29
     expected_files:
       - backend/core/api/app/tasks/user_task_scheduler.py
       - backend/core/api/app/services/user_task_scheduler_service.py
+      - backend/core/api/app/services/user_task_queue_service.py
       - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/processing/task_tools.py
       - backend/tests/test_user_tasks_scheduler.py
+      - backend/tests/test_user_task_runtime_tools.py
     verification:
       - T-PYTEST-SCHED
+      - T-PYTEST-TASK-RUNTIME-TOOLS
     independently_deployable: false
 
   - id: TASK-3
@@ -1216,6 +1602,7 @@ tasks:
         - S-2
         - S-3
         - S-4
+        - S-16
       acceptance_criteria:
         - AC-2
         - AC-3
@@ -1223,15 +1610,21 @@ tasks:
         - AC-8
         - AC-9
         - AC-10
+        - AC-23
+        - AC-25
+        - AC-27
     expected_files:
       - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
       - frontend/packages/openmates-cli/src/sdk.ts
       - frontend/packages/openmates-cli/tests/tasks.test.ts
+      - scripts/verify_tasks_cli_smoke.py
       - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
       - packages/openmates-python/openmates/sdk.py
       - packages/openmates-python/tests/test_tasks.py
     verification:
       - T-CLI-TASKS
+      - T-CLI-TASK-COMMANDS
       - T-NPM-SDK-TASKS
       - T-PIP-SDK-TASKS
     independently_deployable: false
@@ -1284,4 +1677,31 @@ tasks:
     verification:
       - T-PLAYWRIGHT-TASKS
       - T-PYTEST-TASK-VIEW-WORKFLOW-RUNS
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add CLI terminal board, TUI Tasks workspace, and dev smoke proof
+    covers:
+      scenarios:
+        - S-16
+        - S-17
+        - S-18
+      acceptance_criteria:
+        - AC-23
+        - AC-24
+        - AC-25
+        - AC-26
+        - AC-28
+        - AC-29
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/tui.ts
+      - frontend/packages/openmates-cli/src/tuiRenderer.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - scripts/verify_tasks_cli_smoke.py
+      - frontend/packages/openmates-cli/tests/tui.test.ts
+    verification:
+      - T-CLI-TASK-COMMANDS
+      - T-CLI-TASK-TUI
+      - T-CLI-DEV-TASK-SMOKE
     independently_deployable: false

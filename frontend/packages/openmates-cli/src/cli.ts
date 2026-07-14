@@ -35,6 +35,7 @@ import {
   type WorkflowRunDetail,
   type WorkflowRunContentRetention,
   type WorkflowSummary,
+  type UserTaskStatus,
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
@@ -89,6 +90,20 @@ import {
 } from "./remoteAccess.js";
 import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
+import {
+  buildCreateUserTaskInput,
+  buildUpdateUserTaskInput,
+  decryptUserTask,
+  decryptUserTasks,
+  findTask,
+  normalizeTaskStatus,
+  parseDueAt,
+  renderTaskBoard,
+  renderTaskDetail,
+  renderTaskList,
+  splitCsvFlag,
+  type DecryptedUserTask,
+} from "./tasksCli.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -179,6 +194,10 @@ async function main(): Promise<void> {
     }
     if (command === "workflows") {
       printWorkflowsHelp();
+      return;
+    }
+    if (command === "tasks") {
+      printTasksHelp();
       return;
     }
     if (command === "connected-accounts") {
@@ -300,6 +319,11 @@ async function main(): Promise<void> {
 
   if (command === "chats") {
     await handleChats(client, subcommand, rest, parsed.flags, redactor);
+    return;
+  }
+
+  if (command === "tasks") {
+    await handleTasks(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -460,6 +484,222 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
     return;
   }
   console.log("OpenMates CLI is up to date.");
+}
+
+// ---------------------------------------------------------------------------
+// User tasks
+// ---------------------------------------------------------------------------
+
+async function handleTasks(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printTasksHelp();
+    return;
+  }
+
+  const masterKey = client.getMasterKeyBytes();
+  const scope = taskScopeFromFlags(flags);
+
+  if (subcommand === "list" || subcommand === "status") {
+    if (subcommand === "status" && rest[0]) {
+      const task = await resolveTask(client, masterKey, rest[0], scope);
+      printTaskOutput(task, flags);
+      return;
+    }
+    const tasks = await loadTasks(client, masterKey, scope);
+    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson) });
+    else console.log(renderTaskList(tasks));
+    return;
+  }
+
+  if (subcommand === "board") {
+    const tasks = await loadTasks(client, masterKey, scope);
+    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson) });
+    else console.log(renderTaskBoard(tasks));
+    return;
+  }
+
+  if (subcommand === "show") {
+    const id = rest[0];
+    if (!id) throw new Error("Missing task ID. Usage: openmates tasks show <task-id>");
+    const task = await resolveTask(client, masterKey, id, scope);
+    printTaskOutput(task, flags);
+    return;
+  }
+
+  if (subcommand === "create") {
+    const title = taskTitleFromFlagsOrRest(flags, rest);
+    const input = await buildCreateUserTaskInput(masterKey, {
+      title,
+      description: typeof flags.description === "string" ? flags.description : "",
+      status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
+      assign: taskAssignFlag(flags),
+      chatId: typeof flags.chat === "string" ? flags.chat : null,
+      projectIds: splitCsvFlag(flags.project ?? flags.projects),
+      planId: typeof flags.plan === "string" ? flags.plan : null,
+      dueAt: parseDueAt(flags.due),
+    });
+    const created = await client.createUserTask(input);
+    printTaskOutput(await decryptUserTask(created, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "edit") {
+    const id = rest[0];
+    if (!id) throw new Error("Missing task ID. Usage: openmates tasks edit <task-id> [--title ...]");
+    const task = await resolveTask(client, masterKey, id, scope);
+    const patch = await buildUpdateUserTaskInput(task, masterKey, {
+      title: typeof flags.title === "string" ? flags.title : undefined,
+      description: typeof flags.description === "string" ? flags.description : undefined,
+      status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
+      assign: taskAssignFlag(flags),
+      chatId: flags.chat === true ? null : typeof flags.chat === "string" ? flags.chat : undefined,
+      projectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
+      planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
+    });
+    const updated = await client.updateUserTask(task.taskId, patch);
+    printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "delete");
+    if (flags.confirm !== true) throw new Error("Deleting a task requires --confirm.");
+    const result = await client.deleteUserTask(task.taskId);
+    if (flags.json === true) printJson(result);
+    else console.log(`Task deleted: ${task.shortId}`);
+    return;
+  }
+
+  if (subcommand === "start") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "start");
+    const started = await client.startUserTaskWithAI(task.taskId, {
+      version: task.version,
+      primary_chat_id: task.primaryChatId ?? undefined,
+      linked_project_ids: task.linkedProjectIds,
+      plaintext_title: task.title,
+      plaintext_description: task.description,
+      plaintext_latest_instruction: task.latestInstruction,
+    });
+    printTaskOutput(await decryptUserTask(started, masterKey), flags);
+    return;
+  }
+
+  if (["block", "unblock", "skip", "done"].includes(subcommand)) {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, subcommand);
+    const payload: Record<string, unknown> = { version: task.version };
+    if (subcommand === "block") {
+      if (typeof flags.reason !== "string") throw new Error("Blocking a task requires --reason <code>.");
+      payload.blocked_reason_code = flags.reason;
+    }
+    const updated = subcommand === "block"
+      ? await client.blockUserTask(task.taskId, payload)
+      : subcommand === "unblock"
+        ? await client.unblockUserTask(task.taskId, payload)
+        : subcommand === "skip"
+          ? await client.skipUserTask(task.taskId, payload)
+          : await client.completeUserTask(task.taskId, payload);
+    printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "reorder") {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "reorder");
+    const move: Record<string, unknown> = { task_id: task.taskId };
+    if (typeof flags.before === "string") move.before_task_id = (await resolveTask(client, masterKey, flags.before, scope)).taskId;
+    if (typeof flags.after === "string") move.after_task_id = (await resolveTask(client, masterKey, flags.after, scope)).taskId;
+    if (typeof flags.status === "string") move.status = normalizeTaskStatus(flags.status);
+    if (typeof flags.position === "string") move.position = Number(flags.position);
+    const updated = await client.reorderUserTasks({ moves: [move] });
+    const decrypted = await decryptUserTasks(updated, masterKey);
+    if (flags.json === true) printJson({ tasks: decrypted.map(taskToJson) });
+    else console.log(`Task reordered: ${task.shortId}`);
+    return;
+  }
+
+  throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
+}
+
+function taskScopeFromFlags(flags: Record<string, string | boolean>): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string } {
+  return {
+    status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
+    chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+    projectId: typeof flags.project === "string" ? flags.project : undefined,
+    planId: typeof flags.plan === "string" ? flags.plan : undefined,
+  };
+}
+
+async function loadTasks(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string },
+): Promise<DecryptedUserTask[]> {
+  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId });
+  const tasks = await decryptUserTasks(records, masterKey);
+  return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
+}
+
+async function resolveTask(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  id: string,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string },
+): Promise<DecryptedUserTask> {
+  return findTask(await loadTasks(client, masterKey, { ...scope, status: undefined }), id);
+}
+
+async function requiredResolvedTask(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  id: string | undefined,
+  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string },
+  action: string,
+): Promise<DecryptedUserTask> {
+  if (!id) throw new Error(`Missing task ID. Usage: openmates tasks ${action} <task-id>`);
+  return resolveTask(client, masterKey, id, scope);
+}
+
+function printTaskOutput(task: DecryptedUserTask, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) printJson({ task: taskToJson(task) });
+  else console.log(renderTaskDetail(task));
+}
+
+function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
+  return {
+    task_id: task.taskId,
+    short_id: task.shortId,
+    title: task.title,
+    description: task.description,
+    tags: task.tags,
+    latest_instruction: task.latestInstruction,
+    status: task.status,
+    assignee_type: task.assigneeType,
+    assignee_hash: task.assigneeHash,
+    primary_chat_id: task.primaryChatId,
+    linked_project_ids: task.linkedProjectIds,
+    plan_id: task.planId,
+    due_at: task.dueAt,
+    priority: task.priority,
+    position: task.position,
+    queue_state: task.queueState,
+    blocked_reason_code: task.blockedReasonCode,
+    ai_execution_state: task.aiExecutionState,
+    version: task.version,
+  };
+}
+
+function taskTitleFromFlagsOrRest(flags: Record<string, string | boolean>, rest: string[]): string {
+  const title = typeof flags.title === "string" ? flags.title : rest.join(" ").trim();
+  if (!title) throw new Error("Missing task title. Usage: openmates tasks create --title <title>");
+  return title;
+}
+
+function taskAssignFlag(flags: Record<string, string | boolean>): string | undefined {
+  return typeof flags.assign === "string" ? flags.assign : typeof flags.assignee === "string" ? flags.assignee : undefined;
 }
 
 async function handleRemoteAccess(
@@ -670,6 +910,11 @@ async function handleChats(
 ): Promise<void> {
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printChatsHelp();
+    return;
+  }
+
+  if (rest[0] === "tasks") {
+    await handleTasks(client, rest[1], rest.slice(2), { ...flags, chat: subcommand });
     return;
   }
 
@@ -6784,6 +7029,7 @@ Commands:
   openmates logout                           Log out and clear session
   openmates whoami [--json]                  Show account info
   openmates chats [--help]                   Chat commands (list, search, show, ...)
+  openmates tasks [--help]                   Task commands (list, create, board, ...)
   openmates drafts [--help]                  Encrypted draft lifecycle commands
   openmates apps [--help]                    App skill commands (list, run, ...)
   openmates workflows [--help]               Server-side workflow commands
@@ -7045,6 +7291,35 @@ Examples:
   openmates chats share d262cb68
   openmates chats share last --expires 604800
   openmates chats share d262cb68 --password mypass`);
+}
+
+function printTasksHelp(): void {
+  console.log(`Tasks commands:
+  openmates tasks list [--status <status>] [--chat <id>] [--project <id>] [--json]
+  openmates tasks board [--chat <id>] [--project <id>] [--json]
+  openmates tasks show <task-id|short-id> [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>] [--project <id>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--assign user|ai] [--status <status>] [--json]
+  openmates tasks delete <task-id|short-id> --confirm [--json]
+  openmates tasks start <task-id|short-id> [--json]
+  openmates tasks status [<task-id|short-id>] [--json]
+  openmates tasks block <task-id|short-id> --reason <code> [--json]
+  openmates tasks unblock <task-id|short-id> [--json]
+  openmates tasks skip <task-id|short-id> [--json]
+  openmates tasks done <task-id|short-id> [--json]
+  openmates tasks reorder <task-id|short-id> [--before <task-id>] [--after <task-id>] [--position <n>] [--status <status>] [--json]
+
+Chat-scoped aliases:
+  openmates chats <chat-id> tasks list
+  openmates chats <chat-id> tasks board
+  openmates chats <chat-id> tasks create --title <title>
+
+Statuses:
+  backlog, todo, in_progress, blocked, done
+
+Notes:
+  Task IDs accept full task_id or human short IDs such as OM-6.
+  Normal output decrypts task title and description locally; use --json for machine-readable plaintext fields.`);
 }
 
 function printDraftsHelp(): void {

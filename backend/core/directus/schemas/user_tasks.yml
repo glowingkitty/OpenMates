@@ -116,6 +116,11 @@ user_tasks:
       nullable: true
       note: "Safe enum-style reason for blocked tasks, never plaintext private content."
 
+    queue_state:
+      type: string
+      nullable: true
+      note: "Safe queue state for continuation, e.g. none, waiting, active, skipped, waiting_for_user."
+
     ai_execution_state:
       type: string
       nullable: true

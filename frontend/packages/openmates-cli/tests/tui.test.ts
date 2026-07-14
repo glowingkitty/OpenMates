@@ -246,4 +246,53 @@ describe("CLI TUI renderer", () => {
     assert.match(runsFrame, /> \[app skill\] Weather forecast \[completed\]/);
     assert.match(runsFrame, /output: provider=DWD, rainy=false/);
   });
+
+  it("renders task workspace list and detail actions", () => {
+    const state = createInitialTuiState();
+    state.screen = "tasks";
+    state.tasks = [
+      {
+        taskId: "task-1",
+        shortId: "OM-6",
+        title: "Ship CLI tasks",
+        description: "Cover terminal commands",
+        tags: [],
+        latestInstruction: "",
+        status: "in_progress",
+        assigneeType: "ai",
+        assigneeHash: null,
+        primaryChatId: "chat-1",
+        linkedProjectIds: [],
+        planId: null,
+        dueAt: null,
+        priority: 0,
+        position: 1,
+        queueState: "active",
+        blockedReasonCode: null,
+        aiExecutionState: "running",
+        version: 1,
+        encrypted: {} as never,
+      },
+    ];
+
+    const listFrame = renderTuiFrame(state, 96, 24);
+    assert.match(listFrame, /Tasks/);
+    assert.match(listFrame, /> OM-6 {2}in_progress {2}OpenMates {2}Ship CLI tasks/);
+    assert.match(listFrame, /Enter open/);
+
+    state.screen = "task";
+    state.activeTask = state.tasks[0] ?? null;
+    const detailFrame = renderTuiFrame(state, 96, 24);
+    assert.match(detailFrame, /Task: OM-6/);
+    assert.match(detailFrame, /Description: Cover terminal commands/);
+    assert.match(detailFrame, /c create/);
+    assert.match(detailFrame, /e edit/);
+    assert.match(detailFrame, /x delete/);
+    assert.match(detailFrame, /r reorder/);
+    assert.match(detailFrame, /s start/);
+    assert.match(detailFrame, /d done/);
+    assert.match(detailFrame, /b block/);
+    assert.match(detailFrame, /u unblock/);
+    assert.match(detailFrame, /k skip/);
+  });
 });
