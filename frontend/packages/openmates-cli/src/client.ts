@@ -56,6 +56,8 @@ import {
   type AppSettingsMemoriesRequestEvent,
   type SendEmbedDataFrame,
   type SubChatEvent,
+  type TaskProposalEvent,
+  type TaskUpdateProposalEvent,
 } from "./ws.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
@@ -328,6 +330,13 @@ export interface UserTaskRecord {
   completed_at?: number | null;
   blocked_reason_code?: string | null;
   ai_execution_state?: string | null;
+}
+
+export interface UserTaskProposalRecord {
+  title: string;
+  description?: string | null;
+  status?: UserTaskStatus;
+  assignee_type?: UserTaskAssigneeType;
 }
 
 export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & {
@@ -1918,6 +1927,8 @@ export class OpenMatesClient {
     modelName: string | null;
     mateName: string | null;
     followUpSuggestions: string[];
+    taskProposals: TaskProposalEvent[];
+    taskUpdateProposals: TaskUpdateProposalEvent[];
     subChatEvents: SubChatEvent[];
     appSettingsMemoryRequests: Array<{
       requestId: string | null;
@@ -1986,6 +1997,8 @@ export class OpenMatesClient {
       modelName: response.data.modelName ?? null,
       mateName: null,
       followUpSuggestions: response.data.followUpSuggestions ?? [],
+      taskProposals: [],
+      taskUpdateProposals: [],
       subChatEvents: [],
       appSettingsMemoryRequests: [],
     };
@@ -3406,6 +3419,10 @@ export class OpenMatesClient {
     mateName: string | null;
     /** Follow-up suggestions from post-processing (may be empty for incognito chats). */
     followUpSuggestions: string[];
+    /** Review-only task proposals from post-processing. */
+    taskProposals: TaskProposalEvent[];
+    /** Review-only task update proposals from post-processing. */
+    taskUpdateProposals: TaskUpdateProposalEvent[];
     /** Sub-chat lifecycle frames observed while collecting the parent response. */
     subChatEvents: SubChatEvent[];
     /** Memory permission requests observed and optionally approved while collecting the response. */
@@ -3486,6 +3503,7 @@ export class OpenMatesClient {
     let chatKeyBytes: Uint8Array | null = null;
     let encryptedChatKey: string | null = null;
     let baselineMessagesV = 0;
+    let terminalExpectedMessagesV = 1;
     let savedTurnId: string | null = null;
 
     if (!params.incognito) {
@@ -3635,6 +3653,7 @@ export class OpenMatesClient {
       const chatKeyVersion = 1;
       const turnId = randomUUID();
       savedTurnId = turnId;
+      terminalExpectedMessagesV = baselineMessagesV + 1;
       const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
         Buffer.from(chatKeyBytes).toString("base64url"),
         chatId,
@@ -3703,6 +3722,9 @@ export class OpenMatesClient {
         protocol_version: protocolVersion,
         preflight_id: ackPayload.preflight_id,
       });
+      if (typeof ackPayload.committed_messages_v === "number" && Number.isSafeInteger(ackPayload.committed_messages_v)) {
+        terminalExpectedMessagesV = ackPayload.committed_messages_v;
+      }
     }
     if (params.precollectResponse && !params.incognito) {
       precollectedResponse = ws.collectAiResponse(messageId, chatId, {
@@ -3718,13 +3740,18 @@ export class OpenMatesClient {
       20_000,
     );
     await ws.sendAsync("chat_message_added", messagePayload);
-    await confirmed;
+    const confirmedPayload = (await confirmed).payload as Record<string, unknown>;
+    if (typeof confirmedPayload.new_messages_v === "number" && Number.isSafeInteger(confirmedPayload.new_messages_v)) {
+      terminalExpectedMessagesV = confirmedPayload.new_messages_v + 1;
+    }
 
     let assistant = "";
     let assistantMessageId: string | null = null;
     let category: string | null = null;
     let modelName: string | null = null;
     let followUpSuggestions: string[] = [];
+    let taskProposals: TaskProposalEvent[] = [];
+    let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
     let subChatEvents: SubChatEvent[] = [];
     const appSettingsMemoryRequests: Array<{
       requestId: string | null;
@@ -3964,6 +3991,8 @@ export class OpenMatesClient {
             modelName,
             mateName: category ? MATE_NAMES[category] ?? null : null,
             followUpSuggestions,
+            taskProposals,
+            taskUpdateProposals,
             subChatEvents,
             appSettingsMemoryRequests,
           };
@@ -3979,6 +4008,8 @@ export class OpenMatesClient {
         category = resp.category;
         modelName = resp.modelName;
         followUpSuggestions = resp.followUpSuggestions;
+        taskProposals = resp.taskProposals;
+        taskUpdateProposals = resp.taskUpdateProposals;
         subChatEvents = resp.subChatEvents;
 
         if (resp.status === "waiting_for_user") {
@@ -3991,6 +4022,8 @@ export class OpenMatesClient {
             modelName,
             mateName: category ? MATE_NAMES[category] ?? null : null,
             followUpSuggestions,
+            taskProposals,
+            taskUpdateProposals,
             subChatEvents,
             appSettingsMemoryRequests,
           };
@@ -4116,7 +4149,7 @@ export class OpenMatesClient {
             job_id: recoveryJobId,
             lease_token: leaseToken,
             lease_generation: leaseGeneration,
-            expected_messages_v: baselineMessagesV + 1,
+            expected_messages_v: terminalExpectedMessagesV,
             encrypted_assistant_message: {
               client_message_id: assistantId,
               chat_id: chatId,
@@ -4164,6 +4197,8 @@ export class OpenMatesClient {
       modelName,
       mateName,
       followUpSuggestions,
+      taskProposals,
+      taskUpdateProposals,
       subChatEvents,
       appSettingsMemoryRequests,
     };
@@ -5369,6 +5404,28 @@ export class OpenMatesClient {
       throw new Error(`User task create failed with HTTP ${response.status}`);
     }
     return response.data.task;
+  }
+
+  async extractUserTaskProposals(input: {
+    correctedText: string;
+    mode?: "create" | "update";
+    contextChatId?: string | null;
+    projectIds?: string[];
+  }): Promise<UserTaskProposalRecord[]> {
+    const response = await this.http.post<{ proposed_tasks?: UserTaskProposalRecord[] }>(
+      "/v1/user-tasks/extract",
+      {
+        corrected_text: input.correctedText,
+        mode: input.mode ?? "create",
+        context_chat_id: input.contextChatId ?? null,
+        project_ids: input.projectIds ?? [],
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.proposed_tasks)) {
+      throw new Error(`Failed to extract task proposals (HTTP ${response.status})`);
+    }
+    return response.data.proposed_tasks;
   }
 
   async updateUserTask(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {

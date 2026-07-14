@@ -83,6 +83,21 @@ export interface AppSettingsMemoriesRequestEvent {
   payload: Record<string, unknown>;
 }
 
+export interface TaskProposalEvent {
+  title: string;
+  description?: string | null;
+  status?: "backlog" | "todo" | "in_progress" | "blocked" | "done";
+  assignee_type?: "ai" | "user";
+}
+
+export interface TaskUpdateProposalEvent {
+  task_id: string;
+  title?: string | null;
+  description?: string | null;
+  status?: "backlog" | "todo" | "in_progress" | "blocked" | "done" | null;
+  assignee_type?: "ai" | "user" | null;
+}
+
 const SUB_CHAT_EVENT_TYPES = new Set<string>([
   "spawn_sub_chats",
   "sub_chat_progress",
@@ -98,6 +113,8 @@ const SUB_CHAT_PARENT_STATUS_MESSAGE =
 const SUB_CHAT_COMPLETION_TIMEOUT_MS = 10 * 60_000;
 const CLIENT_UPDATE_REQUIRED_GUIDANCE =
   "OpenMates CLI update required. Run `openmates upgrade` and retry.";
+const TASK_STATUSES = new Set(["backlog", "todo", "in_progress", "blocked", "done"]);
+const TASK_ASSIGNEES = new Set(["ai", "user"]);
 
 export class WebSocketProtocolError extends Error {
   readonly code: string;
@@ -128,6 +145,35 @@ function websocketProtocolError(envelope: WsEnvelope): Error | null {
     );
   }
   return null;
+}
+
+function parseTaskProposals(value: unknown): TaskProposalEvent[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): TaskProposalEvent[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (typeof raw.title !== "string" || raw.title.trim().length === 0) return [];
+    const proposal: TaskProposalEvent = { title: raw.title };
+    if (typeof raw.description === "string" || raw.description === null) proposal.description = raw.description;
+    if (typeof raw.status === "string" && TASK_STATUSES.has(raw.status)) proposal.status = raw.status as TaskProposalEvent["status"];
+    if (typeof raw.assignee_type === "string" && TASK_ASSIGNEES.has(raw.assignee_type)) proposal.assignee_type = raw.assignee_type as TaskProposalEvent["assignee_type"];
+    return [proposal];
+  });
+}
+
+function parseTaskUpdateProposals(value: unknown): TaskUpdateProposalEvent[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): TaskUpdateProposalEvent[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (typeof raw.task_id !== "string" || raw.task_id.trim().length === 0) return [];
+    const proposal: TaskUpdateProposalEvent = { task_id: raw.task_id };
+    if (typeof raw.title === "string" || raw.title === null) proposal.title = raw.title;
+    if (typeof raw.description === "string" || raw.description === null) proposal.description = raw.description;
+    if ((typeof raw.status === "string" && TASK_STATUSES.has(raw.status)) || raw.status === null) proposal.status = raw.status as TaskUpdateProposalEvent["status"];
+    if ((typeof raw.assignee_type === "string" && TASK_ASSIGNEES.has(raw.assignee_type)) || raw.assignee_type === null) proposal.assignee_type = raw.assignee_type as TaskUpdateProposalEvent["assignee_type"];
+    return [proposal];
+  });
 }
 
 export class OpenMatesWsClient {
@@ -374,6 +420,8 @@ export class OpenMatesWsClient {
     modelName: string | null;
     followUpSuggestions: string[];
     newChatSuggestions: string[];
+    taskProposals: TaskProposalEvent[];
+    taskUpdateProposals: TaskUpdateProposalEvent[];
     embeds: SendEmbedDataFrame[];
     subChatEvents: SubChatEvent[];
     recoveryJobId: string | null;
@@ -391,6 +439,8 @@ export class OpenMatesWsClient {
       let recoveryJobId: string | null = null;
       let followUpSuggestions: string[] = [];
       let newChatSuggestions: string[] = [];
+      let taskProposals: TaskProposalEvent[] = [];
+      let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
       const subChatEvents: SubChatEvent[] = [];
       const pendingSubChatHandlers = new Set<Promise<void>>();
       const pendingMemoryRequestHandlers = new Set<Promise<void>>();
@@ -467,6 +517,8 @@ export class OpenMatesWsClient {
             modelName,
             followUpSuggestions,
             newChatSuggestions,
+            taskProposals,
+            taskUpdateProposals,
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,
@@ -488,6 +540,8 @@ export class OpenMatesWsClient {
               modelName,
               followUpSuggestions,
               newChatSuggestions,
+              taskProposals,
+              taskUpdateProposals,
               embeds: [...embeds.values()],
               subChatEvents,
               recoveryJobId,
@@ -506,6 +560,8 @@ export class OpenMatesWsClient {
           modelName,
           followUpSuggestions,
           newChatSuggestions,
+          taskProposals,
+          taskUpdateProposals,
           embeds: [...embeds.values()],
           subChatEvents,
           recoveryJobId,
@@ -745,6 +801,8 @@ export class OpenMatesWsClient {
                 (s): s is string => typeof s === "string" && s.length > 0,
               );
             }
+            taskProposals = parseTaskProposals(p.task_proposals);
+            taskUpdateProposals = parseTaskUpdateProposals(p.task_update_proposals);
             // If AI response already done, resolve immediately with suggestions.
             if (aiResponseDone) {
               if (postProcessingTimer) {
@@ -777,6 +835,8 @@ export class OpenMatesWsClient {
             modelName,
             followUpSuggestions,
             newChatSuggestions,
+            taskProposals,
+            taskUpdateProposals,
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,

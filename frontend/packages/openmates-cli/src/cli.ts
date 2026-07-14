@@ -971,6 +971,7 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
         anonymousLearningMode: client.hasSession() ? undefined : parseAnonymousLearningModeFlags(flags),
       },
@@ -1065,6 +1066,7 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
       },
       redactor,
@@ -1096,6 +1098,7 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
       },
       redactor,
@@ -4803,6 +4806,7 @@ async function sendMessageStreaming(
     json?: boolean;
     autoApproveSubChats?: boolean;
     autoApproveMemories?: boolean;
+    acceptTaskProposals?: boolean;
     piiDetection?: boolean;
     anonymousLearningMode?: LearningModeContext;
   },
@@ -4823,6 +4827,7 @@ async function sendMessageStreaming(
     approvedKeys: string[];
     entryCount: number;
   }>;
+  acceptedTaskProposals: Array<Record<string, unknown>>;
 } | WaitingForUserResult | SignupRequiredResult> {
   let headerPrinted = false;
   let typingShown = false;
@@ -5211,7 +5216,7 @@ async function sendMessageStreaming(
       process.stdout.write(`${SEP}\n`);
       process.stdout.write(`${result.assistant}\n`);
     }
-    return result;
+    return { ...result, acceptedTaskProposals: [] };
   }
 
   const urlResult = prepareUrlEmbeds(finalMessage);
@@ -5239,6 +5244,10 @@ async function sendMessageStreaming(
 
   clearTyping();
 
+  const acceptedTaskProposals = params.acceptTaskProposals === true && result.status === "completed"
+    ? await acceptChatTaskProposals(client, result.chatId, result.taskProposals, `${finalMessage}\n\n${result.assistant}`)
+    : [];
+
   if (result.status === "waiting_for_user") {
     const question = parseInteractiveQuestionBlock(result.assistant);
     if (params.json && question) {
@@ -5256,7 +5265,7 @@ async function sendMessageStreaming(
           "Continue in the web app, or rerun with --json to inspect the structured waiting state.\n",
       );
     }
-    return result;
+    return { ...result, acceptedTaskProposals: [] };
   }
 
   if (!params.json) {
@@ -5337,7 +5346,60 @@ async function sendMessageStreaming(
     );
   }
 
-  return result;
+  return { ...result, acceptedTaskProposals };
+}
+
+async function acceptChatTaskProposals(
+  client: OpenMatesClient,
+  chatId: string,
+  proposals: Array<{
+    title: string;
+    description?: string | null;
+    status?: UserTaskStatus;
+    assignee_type?: "ai" | "user";
+  }>,
+  fallbackText: string,
+): Promise<Array<Record<string, unknown>>> {
+  let proposalsToAccept = proposals;
+  if (proposalsToAccept.length === 0 && fallbackText.trim()) {
+    const extractionText = buildTaskProposalFallbackText(fallbackText);
+    proposalsToAccept = await client.extractUserTaskProposals({
+      correctedText: extractionText,
+      contextChatId: chatId,
+    });
+  }
+  if (proposalsToAccept.length === 0) return [];
+  const masterKey = client.getMasterKeyBytes();
+  const accepted: Array<Record<string, unknown>> = [];
+  for (const proposal of proposalsToAccept) {
+    const input = await buildCreateUserTaskInput(masterKey, {
+      title: proposal.title,
+      description: proposal.description ?? "",
+      status: proposal.status,
+      assign: proposal.assignee_type ?? "user",
+      chatId,
+    });
+    const created = await client.createUserTask(input);
+    const decrypted = await decryptUserTask(created, masterKey);
+    accepted.push(taskToJson(decrypted));
+  }
+  return accepted;
+}
+
+function buildTaskProposalFallbackText(text: string): string {
+  const seen = new Set<string>();
+  const bulletLines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^[-*•]\s+/.test(line))
+    .map((line) => line.replace(/^([-*•]\s*)\[[ xX]\]\s*/, "$1"))
+    .filter((line) => {
+      const key = line.replace(/^[-*•]\s+/, "").trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  return bulletLines.length > 0 ? bulletLines.join("\n") : text;
 }
 
 function printIncognitoNoHistoryNotice(json: boolean): void {
@@ -7191,10 +7253,10 @@ function printChatsHelp(): void {
   openmates chats show <chat-id> [--raw] [--json]
   openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
-  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
+  openmates chats new <message> [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
+  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--accept-task-proposals] [--no-pii-detection]
   openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
-  openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json]
+  openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json] [--accept-task-proposals]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
@@ -7236,6 +7298,11 @@ Options for 'new', 'send', and 'incognito':
                             Use only for trusted non-interactive runs.
   --no-pii-detection       Send the message exactly as typed. By default, the CLI
                             replaces detected PII with placeholders before send.
+
+Saved-chat task options for 'new', 'send', and 'answer-interactive':
+  --accept-task-proposals  Explicitly save assistant task proposals as encrypted
+                            Tasks V1 records scoped to the chat. Without this,
+                            proposals remain review-only, like the web app card.
 
 Guest-only options for logged-out 'new':
   --learning-mode          Opt anonymous chat into request-scoped Learning Mode.

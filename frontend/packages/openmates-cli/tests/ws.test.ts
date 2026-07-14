@@ -88,6 +88,20 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             payload: {
               chat_id: chatId,
               follow_up_request_suggestions: ["Try another style"],
+              task_proposals: [
+                {
+                  title: "Book flights",
+                  description: "Compare morning flights first.",
+                  status: "todo",
+                  assignee_type: "ai",
+                },
+              ],
+              task_update_proposals: [
+                {
+                  task_id: "task-existing",
+                  status: "done",
+                },
+              ],
             },
           }),
         );
@@ -130,6 +144,20 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       );
       assert.equal(response.embeds[0]?.status, "finished");
       assert.deepEqual(response.followUpSuggestions, ["Try another style"]);
+      assert.deepEqual(response.taskProposals, [
+        {
+          title: "Book flights",
+          description: "Compare morning flights first.",
+          status: "todo",
+          assignee_type: "ai",
+        },
+      ]);
+      assert.deepEqual(response.taskUpdateProposals, [
+        {
+          task_id: "task-existing",
+          status: "done",
+        },
+      ]);
     } finally {
       client.close();
     }
