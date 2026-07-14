@@ -127,7 +127,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 531a0ec
+  subject_commit: 2b6099152
 
 approvals:
   product_contract:
@@ -319,12 +319,12 @@ attempts:
     evidence: Directus transaction tests passed 34 cases, focused Python cutover/lifecycle tests passed 43 cases, the live smoke proved early persistence retained legacy_in_flight=1 until worker completion, and dev reached protocol_epoch=1 with sends_paused=false and no active lifecycle records.
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Deploy request-id matched recovery waiters and backend request-id echoes, then rerun the Vitest suite for green evidence.
-  command: python3 scripts/tests.py run -- --suite vitest
-  expected_outcome: The focused recovery correlation test passes and late attempt-A frames cannot advance attempt B.
+  current_task_id: TASK-8
+  next_action: Add or run cross-client takeover and preflight-latency verification, then record the remaining green evidence.
+  command: python3 scripts/test_cross_client_chat_recovery.py --env dev
+  expected_outcome: A turn preflighted by one eligible client is durably completed and decryptable by another eligible client after the origin client disconnects.
   blocker: null
-  last_verified_commit: fe0d08762
+  last_verified_commit: 2b6099152
 
 scenarios:
   - id: S-1
@@ -1285,14 +1285,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: blocked
+        status: passed
         command: python3 scripts/tests.py run -- --spec connection-resilience.spec.ts
-        run_id: gha-29182774273
-        subject_commit: 2efb46de1
-        timestamp: "2026-07-12T06:38:03Z"
+        run_id: gha-29297546569
+        subject_commit: 2b6099152
+        timestamp: "2026-07-14T01:08:41Z"
         target: app.dev.openmates.org
-        deployment_reference: dpl_4KwKZQH6JYoWqrUemNEey8sgBNwW
-        reason: Durable sealed-job recovery cannot execute while the server-authoritative protocol epoch remains zero; activation is intentionally deferred until web, Apple, released-legacy CLI, performance, and privacy gates are ready.
+        deployment_reference: dpl_3Sfs4DeM6Gk2wbcL9928QV41ywNb
+        summary: The live deployed connection-resilience spec passed epoch-one recovery verification, including preflight ordering, targeted recovery availability, claim/persist, and exactly one deterministic assistant response after cold IndexedDB boot.
 
   - id: T-WEB-RECOVERY-CORRELATION
     type: vitest
@@ -1316,7 +1316,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run -- --suite vitest
+        run_id: gha-29297175711
+        subject_commit: 2b6099152
+        timestamp: "2026-07-14T00:55:23Z"
+        summary: The GitHub-hosted Vitest suite passed 548/548 tests, including request-id recovery correlation coverage and the synced new-chat shell owner regression needed for sealed recovery prerequisites.
 
   - id: T-APPLE-RECOVERY
     type: unit
@@ -1662,7 +1668,7 @@ tasks:
     independently_deployable: false
   - id: TASK-6
     title: Implement web preflight and app-level recovery
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5]
@@ -1672,16 +1678,17 @@ tasks:
       - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
       - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
       - frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAppSettings.test.ts
+      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
       - frontend/apps/web_app/tests/connection-resilience.spec.ts
     verification: [T-WEB-CRYPTO-VECTORS, T-WEB-RECOVERY-CORRELATION, T-WEB-RECOVERY]
     verification_ids: [T-WEB-CRYPTO-VECTORS, T-WEB-RECOVERY-CORRELATION, T-WEB-RECOVERY]
     dependencies: [TASK-4]
     ownership:
       files: [frontend/apps/web_app/tests/connection-resilience.spec.ts]
-      shared_files: [frontend/packages/ui/src/services/sendersChatMessages.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts]
-    blockers:
-      - T-WEB-RECOVERY green requires the dev deployment to be Ready before live epoch-one verification.
+      shared_files: [frontend/packages/ui/src/services/sendersChatMessages.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersRecovery.ts, frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts]
+    blockers: []
     follow_up_tasks: []
     independently_deployable: false
   - id: TASK-7
