@@ -7602,11 +7602,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const incomingMetadataVersion = Number(incomingChatMetadata?.metadata_v ?? incomingChatMetadata?.title_v ?? 0);
         const currentMetadataVersion = Number(currentChat?.metadata_v ?? currentChat?.title_v ?? 0);
         const incomingMetadataIsStale = incomingMetadataVersion > 0 && currentMetadataVersion > 0 && incomingMetadataVersion < currentMetadataVersion;
+        const isHeaderMetadataUpdate =
+            detail.type === 'post_processing_metadata' ||
+            detail.type === 'metadata_updated' ||
+            detail.type === 'title_updated';
+        if (incomingChatMetadata && !incomingMetadataIsStale && isHeaderMetadataUpdate) {
+            await refreshActiveChatHeaderFromStoredChat(incomingChatId, `handleChatUpdated ${detail.type}`);
+        }
         if (
             incomingChatMetadata &&
             !incomingMetadataIsStale &&
             (incomingChatMetadata.encrypted_chat_summary || incomingChatMetadata.encrypted_title) &&
-            (detail.type === 'post_processing_metadata' || detail.type === 'metadata_updated' || detail.type === 'title_updated')
+            isHeaderMetadataUpdate
         ) {
             try {
                 const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
