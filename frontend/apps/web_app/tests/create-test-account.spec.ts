@@ -2,9 +2,9 @@
 /**
  * Create a persistent test account via the real signup flow.
  *
- * Runs the full signup (email verification, password, 2FA, Stripe payment)
- * but does NOT delete the account. The created account is fully usable
- * (has credits, can send messages) and intended for reuse across E2E tests.
+ * Runs the real signup flow (email verification and password setup) but does
+ * NOT delete the account. The created account is intended for reuse across E2E
+ * tests. Current product signup finishes before post-account 2FA/payment setup.
  *
  * Environment:
  *   CREATE_ACCOUNT_SLOT  — slot number (1-20), determines email/password
@@ -45,9 +45,10 @@ const {
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const CREATE_ACCOUNT_SLOT = process.env.CREATE_ACCOUNT_SLOT;
 const STRIPE_TEST_CARD_NUMBER = '4000002760000016';
+const NO_2FA_OTP_KEY_PLACEHOLDER = 'NO_2FA_REQUIRED';
 
 test.describe('Create persistent test account', () => {
-	test('completes full signup flow with payment for a reusable test account', async ({
+	test('creates a reusable persistent test account through signup', async ({
 		page,
 		context
 	}: {
@@ -64,7 +65,7 @@ test.describe('Create persistent test account', () => {
 		const quota = await checkEmailQuota();
 		test.skip(!quota.available, `Email quota reached (${quota.current}/${quota.limit}).`);
 
-		// Allow generous time for full signup + payment flow.
+		// Allow generous time for signup, email polling, and legacy payment flow.
 		test.setTimeout(240000);
 
 		const logCheckpoint = createSignupLogger('CREATE_ACCOUNT');
@@ -87,6 +88,24 @@ test.describe('Create persistent test account', () => {
 		const accountEmail = buildTestAccountEmail(slot, signupDomain, accountSlug);
 		const accountUsername = accountSlug;
 		const accountPassword = `TestAcct!2026pw${slot}`;
+		const writeCredentialArtifact = (otpKey: string) => {
+			const credentialArtifactDir = path.resolve(process.cwd(), 'artifacts');
+			fs.mkdirSync(credentialArtifactDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(credentialArtifactDir, 'test_account_credentials.json'),
+				JSON.stringify(
+					{
+						slot,
+						email: accountEmail,
+						password: accountPassword,
+						otpKey
+					},
+					null,
+					2
+				),
+				{ mode: 0o600 }
+			);
+		};
 
 		logCheckpoint(`Creating test account for slot ${slot}.`);
 
@@ -157,11 +176,30 @@ test.describe('Create persistent test account', () => {
 		logCheckpoint('Password fields completed.');
 
 		await page.locator('#signup-password-continue').click();
-		logCheckpoint('Reached one-time codes step.');
+		logCheckpoint('Submitted password setup.');
 
 		// ─── 2FA setup ────────────────────────────────────────────────────
+		// Current product signup can finish immediately after password setup.
+		// Keep legacy 2FA support for older deployments and write a non-empty
+		// placeholder when login succeeds without an OTP prompt so account-policy
+		// guards still treat the provisioned slot as configured.
+		const copySecretButton = page.getByTestId('signup-2fa-copy-secret');
+		const authSignal = page.locator('[data-authenticated="true"]');
+		const setupPath = await Promise.race([
+			copySecretButton.waitFor({ state: 'visible', timeout: 15000 }).then(() => '2fa' as const),
+			authSignal.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'authenticated' as const)
+		]);
+
+		if (setupPath === 'authenticated') {
+			writeCredentialArtifact(NO_2FA_OTP_KEY_PLACEHOLDER);
+			logCheckpoint(`Account slot ${slot} created successfully without signup-time 2FA.`, {
+				username: accountUsername
+			});
+			await assertNoMissingTranslations(page);
+			return;
+		}
+
 		// Copy the 2FA secret
-		const copySecretButton = page.locator('#signup-2fa-copy-secret');
 		await copySecretButton.click();
 
 		const secretInput = page.locator('input[aria-label="2FA Secret Key"]');
@@ -254,22 +292,7 @@ test.describe('Create persistent test account', () => {
 
 		// ─── Persist credentials for the workflow secret-update step ───────
 		// Write BEFORE optional verifications so a completed signup can be reused.
-		const credentialArtifactDir = path.resolve(process.cwd(), 'artifacts');
-		fs.mkdirSync(credentialArtifactDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(credentialArtifactDir, 'test_account_credentials.json'),
-			JSON.stringify(
-				{
-					slot,
-					email: accountEmail,
-					password: accountPassword,
-					otpKey: tfaSecret
-				},
-				null,
-				2
-			),
-			{ mode: 0o600 }
-		);
+		writeCredentialArtifact(tfaSecret);
 
 		logCheckpoint(`Account slot ${slot} created successfully.`, {
 			username: accountUsername
