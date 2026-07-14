@@ -27,6 +27,7 @@ from backend.apps.ai.processing.task_tool_executor import (
 )
 from backend.apps.ai.processing.task_tool_context import resolve_task_tool_context
 from backend.apps.ai.processing.task_tool_context import TaskToolContext
+from backend.apps.ai.llm_providers.openai_shared import _sanitize_schema_for_llm_providers
 from backend.core.api.app.services.user_task_service import UserTaskConflictError
 
 
@@ -165,3 +166,11 @@ def test_task_tool_allow_list_preserves_provider_emitted_name() -> None:
     assert "task-create" in allowed_names
     assert is_task_tool_name(TASK_TOOL_CREATE)
     assert is_task_tool_name("task-create")
+
+
+def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_properties() -> None:
+    schema = build_task_runtime_tools(TaskToolContext(user_id="user-1", chat_id="chat-1"))[0]["function"]["parameters"]
+
+    sanitized = _sanitize_schema_for_llm_providers(schema)
+
+    assert "additionalProperties" not in sanitized
