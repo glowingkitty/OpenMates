@@ -62,6 +62,16 @@ from backend.core.api.app.services.translations import TranslationService
 
 # Import tool generator
 from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
+from backend.apps.ai.processing.task_runtime_tools import build_task_runtime_tools, merge_task_runtime_tools
+from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, resolve_task_tool_context
+from backend.apps.ai.processing.task_tool_executor import (
+    TASK_TOOL_CANONICAL_NAMES,
+    TASK_TOOL_RESOLVER_APP_ID,
+    execute_task_tool_call,
+    is_task_tool_name,
+    publish_task_tool_result,
+    task_tool_skill_id,
+)
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
@@ -563,14 +573,21 @@ def _canonicalize_tool_name(name: str) -> str:
     return out
 
 
+def _is_task_tool_like(name: str) -> bool:
+    canonical_name = _canonicalize_tool_name(name)
+    return is_task_tool_name(name) or is_task_tool_name(canonical_name) or str(canonical_name).startswith("task-")
+
+
 def _format_tool_call_for_history(tool_call: Any) -> Dict[str, Any]:
     """Return provider-compatible tool-call history without executing it."""
+    function_name = tool_call.function_name
+    arguments = "{}" if _is_task_tool_like(function_name) else tool_call.function_arguments_raw
     return {
         "id": tool_call.tool_call_id,
         "type": "function",
         "function": {
-            "name": tool_call.function_name,
-            "arguments": tool_call.function_arguments_raw,
+            "name": function_name,
+            "arguments": arguments,
         },
         **(
             {"thought_signature": tool_call.thought_signature}
@@ -2360,6 +2377,31 @@ async def handle_main_processing(
 
     prompt_parts.append(INTERACTIVE_QUESTIONS_INSTRUCTION)
 
+    task_tool_context = None
+    task_tools_enabled = "task_update_jobs" in (getattr(request_data, "client_capabilities", None) or [])
+    if task_tools_enabled and not request_data.is_incognito:
+        task_methods = getattr(directus_service, "user_task", None)
+        if task_methods is not None:
+            try:
+                task_tool_context = await resolve_task_tool_context(
+                    task_methods=task_methods,
+                    user_id=request_data.user_id,
+                    chat_id=request_data.chat_id,
+                    message_text=request_data.current_user_content,
+                )
+                task_context_prompt = build_task_context_prompt(task_tool_context)
+                if task_context_prompt:
+                    prompt_parts.append(task_context_prompt)
+                logger.info(
+                    "%s Resolved task tool context: %s attached, %s referenced, %s hidden/missing mentions",
+                    log_prefix,
+                    len(task_tool_context.attached_tasks),
+                    len(task_tool_context.referenced_tasks),
+                    len(task_tool_context.missing_reference_ids),
+                )
+            except Exception:
+                logger.error("%s Failed to resolve task tool context", log_prefix, exc_info=True)
+
     # --- Add sub-chats usage instructions for LLM ---
     enable_subchats_results = preprocessing_results.enable_subchats if hasattr(preprocessing_results, 'enable_subchats') else False
     if enable_subchats_results:
@@ -2399,6 +2441,15 @@ async def handle_main_processing(
         preselected_skills=preselected_skills,
         translation_service=translation_service
     )
+
+    if task_tools_enabled and task_tool_context is not None:
+        task_tools = build_task_runtime_tools(task_tool_context)
+        available_tools_for_llm = merge_task_runtime_tools(available_tools_for_llm, task_tools)
+        logger.info(
+            "%s Added %s task runtime tool(s) to main processing",
+            log_prefix,
+            len(task_tools),
+        )
 
     audio_transcribe_blocked_by_recording = has_transcribed_web_audio_recording(request_data.message_history)
     if audio_transcribe_blocked_by_recording:
@@ -2706,6 +2757,10 @@ async def handle_main_processing(
         tool_resolver_map[system_skill] = ("system", system_skill)
         # Post-canonicalize form (underscores → hyphens, what the dispatcher sees)
         tool_resolver_map[system_skill.replace("_", "-")] = ("system", system_skill)
+
+    for task_tool_name in TASK_TOOL_CANONICAL_NAMES:
+        tool_resolver_map[task_tool_name] = (TASK_TOOL_RESOLVER_APP_ID, task_tool_skill_id(task_tool_name))
+        tool_resolver_map[task_tool_name.replace("-", "_")] = (TASK_TOOL_RESOLVER_APP_ID, task_tool_skill_id(task_tool_name))
 
     current_message_history: List[Dict[str, Any]] = [msg.model_dump(exclude_none=True) for msg in request_data.message_history]
     
@@ -3167,13 +3222,14 @@ async def handle_main_processing(
                 is_sub_chat_violation = (canonical_name == "start-sub-chats" and chat_depth >= 2)
                 if canonical_name not in allowed_tool_names or is_sub_chat_violation:
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
+                    raw_arguments_log = "" if _is_task_tool_like(canonical_name) or _is_task_tool_like(raw_function_name) else f"Raw arguments: {chunk.function_arguments_raw[:500]}"
                     logger.warning(
                         f"{log_prefix} [HALLUCINATION/BLOCK] Rejecting tool call "
                         f"'{raw_function_name}' (canonical='{canonical_name}') "
                         f"from main LLM. tool_call_id={chunk.tool_call_id}. "
                         f"Nesting violation: {is_sub_chat_violation}. "
                         f"Allowed tools ({len(allowed_tool_names)}): {sorted(allowed_tool_names)}. "
-                        f"Raw arguments: {chunk.function_arguments_raw[:500]}"
+                        f"{raw_arguments_log}"
                     )
                     # Defer both the assistant tool_use block AND its rejection
                     # tool_result message. The assistant message is built after
@@ -3292,6 +3348,9 @@ async def handle_main_processing(
 
                     if app_id == "system" and skill_id == "activate_focus_mode":
                         focus_activation_seen_this_turn = True
+                    elif app_id == TASK_TOOL_RESOLVER_APP_ID:
+                        logger.debug(f"{log_prefix} INLINE: Task tool '{tool_name}' does not use app-skill placeholders.")
+                        continue
                     elif focus_activation_seen_this_turn and app_id != "system":
                         logger.info(
                             f"{log_prefix} [FOCUS_EXCLUSIVITY] Suppressing inline placeholder for "
@@ -3826,10 +3885,11 @@ async def handle_main_processing(
                 is_sub_chat_violation = (tool_name == "start-sub-chats" and chat_depth >= 2)
                 if tool_name not in allowed_tool_names or is_sub_chat_violation:
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else "Tool not available. Only preselected tools may be used. Do not retry this call."
+                    raw_arguments_log = "" if is_task_tool_name(tool_name) else f". Raw arguments: {tool_arguments_str[:500]}"
                     logger.warning(
                         f"{log_prefix} [HALLUCINATION/BLOCK] Refusing to execute tool '{tool_name}'. "
                         f"tool_call_id={tool_call_id}. Allowed tools ({len(allowed_tool_names)}): "
-                        f"{sorted(allowed_tool_names)}. Nesting violation: {is_sub_chat_violation}. Raw arguments: {tool_arguments_str[:500]}"
+                        f"{sorted(allowed_tool_names)}. Nesting violation: {is_sub_chat_violation}{raw_arguments_log}"
                     )
                     current_message_history.append({
                         "tool_call_id": tool_call_id,
@@ -3880,6 +3940,51 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
+
+                if app_id == TASK_TOOL_RESOLVER_APP_ID or is_task_tool_name(tool_name):
+                    if task_tool_context is None:
+                        tool_result_content_str = json.dumps({
+                            "status": "rejected",
+                            "reason": "Task tools are unavailable for this chat turn.",
+                        })
+                    elif not cache_service or not directus_service or not encryption_service:
+                        tool_result_content_str = json.dumps({
+                            "status": "rejected",
+                            "reason": "Task persistence services are unavailable.",
+                        })
+                    else:
+                        try:
+                            task_result = await execute_task_tool_call(
+                                tool_name=tool_name,
+                                args=parsed_args if isinstance(parsed_args, dict) else {},
+                                context=task_tool_context,
+                                cache_service=cache_service,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service,
+                                user_vault_key_id=user_vault_key_id,
+                                message_id=request_data.message_id,
+                            )
+                            await publish_task_tool_result(
+                                cache_service=cache_service,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                result=task_result,
+                            )
+                        except Exception as task_tool_error:
+                            logger.warning("%s Task tool execution failed for %s: %s", log_prefix, tool_name, task_tool_error.__class__.__name__)
+                            task_result = {
+                                "status": "rejected",
+                                "reason": "Task tool execution failed before encrypted persistence.",
+                            }
+                        tool_result_content_str = json.dumps(task_result, default=str)
+
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": tool_result_content_str,
+                    })
+                    continue
 
                 if learning_mode_active and is_learning_mode_blocked_skill(app_id, skill_id):
                     logger.info(
@@ -6249,6 +6354,20 @@ async def handle_main_processing(
                     images_search_executed = True
 
             except json.JSONDecodeError as e:
+                if _is_task_tool_like(tool_name):
+                    logger.warning("%s Invalid JSON in task tool arguments for %s", log_prefix, tool_name)
+                    tool_result_content_str = json.dumps({
+                        "status": "rejected",
+                        "reason": "Invalid JSON in task tool arguments.",
+                    })
+                    ignore_fields_for_inference = None
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": tool_result_content_str,
+                    })
+                    continue
                 logger.error(f"{log_prefix} Invalid JSON in tool arguments for '{tool_name}': {e}")
                 tool_result_content_str = json.dumps({"error": "Invalid JSON in function arguments.", "details": str(e)})
                 # Set ignore_fields_for_inference to None since JSON parsing failed
@@ -6386,6 +6505,18 @@ async def handle_main_processing(
                 except Exception:
                     pass  # Don't fail if status publish fails
             except Exception as e:
+                if _is_task_tool_like(tool_name):
+                    logger.warning("%s Task tool rejected before execution for %s: %s", log_prefix, tool_name, e.__class__.__name__)
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": "Task tool execution failed before encrypted persistence.",
+                        }),
+                    })
+                    continue
                 logger.error(f"{log_prefix} Error executing tool '{tool_name}': {e}", exc_info=True)
                 tool_result_content_str = json.dumps({"error": "Skill execution failed.", "details": str(e)})
                 # Set ignore_fields_for_inference to None since skill execution failed

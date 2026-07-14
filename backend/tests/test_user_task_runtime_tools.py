@@ -24,7 +24,7 @@ async def test_skip_marks_backlog_skipped_and_starts_next_ai_task() -> None:
     methods.list_tasks.return_value = [
         {"task_id": "task-2", "assignee_type": "ai", "version": 1, "started_at": None},
     ]
-    methods.update_task.side_effect = [
+    methods.update_task_if_version.side_effect = [
         {"task_id": "task-1", "status": "backlog", "queue_state": "skipped"},
         {"task_id": "task-2", "status": "in_progress", "queue_state": "active"},
     ]
@@ -34,11 +34,13 @@ async def test_skip_marks_backlog_skipped_and_starts_next_ai_task() -> None:
     assert result["status"] == "backlog"
     assert result["queue_state"] == "skipped"
     assert result["next_task_id"] == "task-2"
-    skipped_patch = methods.update_task.await_args_list[0].args[2]
+    skipped_patch = methods.update_task_if_version.await_args_list[0].args[2]
+    assert methods.update_task_if_version.await_args_list[0].args[3] == 2
     assert skipped_patch["status"] == "backlog"
     assert skipped_patch["queue_state"] == "skipped"
     assert skipped_patch["ai_execution_state"] == "skipped"
-    next_patch = methods.update_task.await_args_list[1].args[2]
+    next_patch = methods.update_task_if_version.await_args_list[1].args[2]
+    assert methods.update_task_if_version.await_args_list[1].args[3] == 1
     assert next_patch["status"] == "in_progress"
     assert next_patch["queue_state"] == "active"
     assert next_patch["ai_execution_state"] == "queued"
@@ -48,7 +50,7 @@ async def test_skip_marks_backlog_skipped_and_starts_next_ai_task() -> None:
 @pytest.mark.asyncio
 async def test_block_pauses_queue_with_safe_reason() -> None:
     methods = AsyncMock()
-    methods.update_task.return_value = {
+    methods.update_task_if_version.return_value = {
         "task_id": "task-1",
         "status": "blocked",
         "queue_state": "waiting_for_user",
@@ -65,7 +67,8 @@ async def test_block_pauses_queue_with_safe_reason() -> None:
 
     assert result["status"] == "blocked"
     assert result["queue_state"] == "waiting_for_user"
-    patch = methods.update_task.await_args.args[2]
+    patch = methods.update_task_if_version.await_args.args[2]
+    assert methods.update_task_if_version.await_args.args[3] == 4
     assert patch == {
         "version": 4,
         "status": "blocked",
@@ -84,7 +87,7 @@ async def test_complete_starts_next_eligible_ai_task() -> None:
         {"task_id": "task-user", "assignee_type": "user", "version": 1},
         {"task_id": "task-ai", "assignee_type": "ai", "version": 1},
     ]
-    methods.update_task.side_effect = [
+    methods.update_task_if_version.side_effect = [
         {"task_id": "task-1", "status": "done", "queue_state": "none"},
         {"task_id": "task-ai", "status": "in_progress", "queue_state": "active"},
     ]
@@ -93,9 +96,11 @@ async def test_complete_starts_next_eligible_ai_task() -> None:
 
     assert result["status"] == "done"
     assert result["next_task_id"] == "task-ai"
-    done_patch = methods.update_task.await_args_list[0].args[2]
+    done_patch = methods.update_task_if_version.await_args_list[0].args[2]
+    assert methods.update_task_if_version.await_args_list[0].args[3] == 3
     assert done_patch["status"] == "done"
     assert done_patch["queue_state"] == "none"
-    next_patch = methods.update_task.await_args_list[1].args[2]
+    next_patch = methods.update_task_if_version.await_args_list[1].args[2]
+    assert methods.update_task_if_version.await_args_list[1].args[3] == 1
     assert next_patch["status"] == "in_progress"
     assert next_patch["queue_state"] == "active"

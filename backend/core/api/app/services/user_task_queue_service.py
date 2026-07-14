@@ -9,14 +9,14 @@ import time
 from typing import Any
 
 from backend.core.api.app.services.directus.user_task_methods import UserTaskMethods
-from backend.core.api.app.services.user_task_service import UserTaskNotFoundError
+from backend.core.api.app.services.user_task_service import UserTaskConflictError, UserTaskNotFoundError
 
 
 class UserTaskQueueService:
     def __init__(self, task_methods: UserTaskMethods):
         self.task_methods = task_methods
 
-    async def complete_task(self, task_id: str, user_id: str, *, version: int | None = None, now: int | None = None) -> dict[str, Any]:
+    async def complete_task(self, task_id: str, user_id: str, *, version: int, now: int | None = None) -> dict[str, Any]:
         current_time = now or int(time.time())
         existing = await self._get_existing(task_id, user_id)
         task = await self._update(task_id, user_id, {
@@ -38,7 +38,7 @@ class UserTaskQueueService:
         task_id: str,
         user_id: str,
         *,
-        version: int | None = None,
+        version: int,
         blocked_reason_code: str | None = None,
         now: int | None = None,
     ) -> dict[str, Any]:
@@ -52,7 +52,7 @@ class UserTaskQueueService:
             "updated_at": current_time,
         })
 
-    async def unblock_task(self, task_id: str, user_id: str, *, version: int | None = None, now: int | None = None) -> dict[str, Any]:
+    async def unblock_task(self, task_id: str, user_id: str, *, version: int, now: int | None = None) -> dict[str, Any]:
         current_time = now or int(time.time())
         existing = await self._get_existing(task_id, user_id)
         task = await self._update(task_id, user_id, {
@@ -68,7 +68,7 @@ class UserTaskQueueService:
             task["next_task_id"] = next_task.get("task_id")
         return task
 
-    async def skip_task(self, task_id: str, user_id: str, *, version: int | None = None, now: int | None = None) -> dict[str, Any]:
+    async def skip_task(self, task_id: str, user_id: str, *, version: int, now: int | None = None) -> dict[str, Any]:
         current_time = now or int(time.time())
         existing = await self._get_existing(task_id, user_id)
         task = await self._update(task_id, user_id, {
@@ -91,9 +91,12 @@ class UserTaskQueueService:
         return existing
 
     async def _update(self, task_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any]:
-        updated = await self.task_methods.update_task(task_id, user_id, patch)
+        expected_version = patch.get("version")
+        if expected_version is None:
+            raise ValueError("Task update requires expected version")
+        updated = await self.task_methods.update_task_if_version(task_id, user_id, patch, int(expected_version))
         if not updated:
-            raise UserTaskNotFoundError("Task not found")
+            raise UserTaskConflictError("Task version changed before the action")
         return updated
 
     async def _start_next_eligible(
@@ -118,6 +121,7 @@ class UserTaskQueueService:
         if not next_task:
             return None
         return await self._update(str(next_task["task_id"]), user_id, {
+            "version": next_task.get("version"),
             "status": "in_progress",
             "queue_state": "active",
             "ai_execution_state": "queued",

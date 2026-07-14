@@ -7,6 +7,7 @@
 import hashlib
 import logging
 import re
+import secrets
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,17 @@ USER_TASK_KEY_WRAPPER_FIELDS = (
 
 def hash_id(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def derive_task_short_id(task: dict[str, Any]) -> str:
+    prefix = str(task.get("short_id_prefix") or "TASK")
+    source = str(task.get("task_id") or f"{task.get('created_at') or ''}-{task.get('position') or ''}")
+    digest = hashlib.sha256(source.encode()).hexdigest()[:4].upper()
+    return f"{prefix}-{int(digest, 16) % 10_000}"
+
+
+def _with_short_id(task: dict[str, Any]) -> dict[str, Any]:
+    return {**task, "short_id": task.get("short_id") or derive_task_short_id(task)}
 
 
 def is_sha256_hex(value: str | None) -> bool:
@@ -150,7 +162,7 @@ class UserTaskMethods:
             params["filter[due_at][_lte]"] = due_before
 
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
-        return response if isinstance(response, list) else []
+        return [_with_short_id(task) for task in response] if isinstance(response, list) else []
 
     async def get_task(self, task_id: str, user_id: str) -> dict[str, Any] | None:
         params = {
@@ -161,7 +173,18 @@ class UserTaskMethods:
         }
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
         if response and isinstance(response, list):
-            return response[0]
+            return _with_short_id(response[0])
+        return None
+
+    async def get_task_by_short_id(self, short_id: str, user_id: str) -> dict[str, Any] | None:
+        matches: list[dict[str, Any]] = []
+        for task in await self.list_tasks(user_id, limit=500):
+            if task.get("short_id") == short_id:
+                matches.append(task)
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            logger.error("Ambiguous task short ID %s for user hash %s", short_id, hash_id(user_id))
         return None
 
     async def list_due_ai_tasks(self, due_before: int, *, limit: int = 100) -> list[dict[str, Any]]:
@@ -203,6 +226,9 @@ class UserTaskMethods:
         linked_project_ids = payload.pop("linked_project_ids", []) or []
         now = payload.get("created_at") or payload.get("updated_at")
         primary_chat_id = payload.get("primary_chat_id")
+        version = payload.get("version")
+        if version is None:
+            raise ValueError("Task create requires version")
         record = {
             **payload,
             "hashed_user_id": hash_id(user_id),
@@ -210,7 +236,7 @@ class UserTaskMethods:
             "assignee_type": payload.get("assignee_type") or "user",
             "linked_project_hashes": [hash_id(project_id) for project_id in linked_project_ids if project_id],
             "hashed_primary_chat_id": hash_id(primary_chat_id) if primary_chat_id else None,
-            "version": payload.get("version", 1),
+            "version": int(version),
             "created_at": now,
             "updated_at": payload.get("updated_at", now),
         }
@@ -263,8 +289,41 @@ class UserTaskMethods:
             return None
         return data
 
-    async def replace_task_key_wrappers(self, user_id: str, task_id: str, wrappers: list[dict[str, Any]]) -> list[dict[str, Any]] | None:
-        task = await self.get_task(task_id, user_id)
+    async def replace_task_key_wrappers(self, user_id: str, task_id: str, wrappers: list[dict[str, Any]], expected_version: int) -> list[dict[str, Any]] | None:
+        lock_key = self._task_lock_key(user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            task = await self.get_task(task_id, user_id)
+            if not task:
+                return None
+            task_version = task.get("version")
+            if task_version is None:
+                return None
+            if int(task_version) != int(expected_version):
+                return None
+            replacement = await self._replace_task_key_wrappers_unlocked(user_id, task_id, wrappers, task=task)
+            if replacement is None:
+                return None
+            created_wrappers, previous_wrappers = replacement
+            version_touch = await self.directus_service.update_item_if_version(
+                "user_tasks",
+                task["id"],
+                {"version": int(expected_version) + 1},
+                int(expected_version),
+                owner_hash_field="hashed_user_id",
+                owner_hash=hash_id(user_id),
+            )
+            if not version_touch:
+                if not await self._delete_key_wrappers(created_wrappers):
+                    raise RuntimeError("Failed to clean up new user task key wrappers")
+                await self._restore_task_key_wrappers(user_id, task_id, previous_wrappers)
+                raise RuntimeError("Failed to advance task version after key wrapper replacement")
+            return created_wrappers
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def _replace_task_key_wrappers_unlocked(self, user_id: str, task_id: str, wrappers: list[dict[str, Any]], *, task: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+        task = task or await self.get_task(task_id, user_id)
         if not task:
             return None
         if not _validate_wrapper_set(
@@ -284,10 +343,13 @@ class UserTaskMethods:
                         await self.directus_service.delete_item("user_task_key_wrappers", created_id, admin_required=True)
                 return None
             created_wrappers.append(created_wrapper)
-        if not await self._delete_key_wrappers(existing_wrappers):
-            await self._delete_key_wrappers(created_wrappers)
+        deleted_existing, deleted_existing_wrappers = await self._delete_key_wrappers_tracking(existing_wrappers)
+        if not deleted_existing:
+            if not await self._delete_key_wrappers(created_wrappers):
+                raise RuntimeError("Failed to clean up new user task key wrappers")
+            await self._restore_task_key_wrappers(user_id, task_id, deleted_existing_wrappers)
             raise RuntimeError("Failed to delete old user task key wrappers")
-        return created_wrappers
+        return created_wrappers, existing_wrappers
 
     async def list_task_key_wrappers(self, user_id: str, task_id: str) -> list[dict[str, Any]]:
         params = {
@@ -300,7 +362,43 @@ class UserTaskMethods:
         return response if isinstance(response, list) else []
 
     async def update_task(self, task_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
-        existing = await self.get_task(task_id, user_id)
+        lock_key = self._task_lock_key(user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            if patch.get("version") is None:
+                raise ValueError("Task update requires expected version")
+            existing = await self.get_task(task_id, user_id)
+            if not existing:
+                return None
+            existing_version = existing.get("version")
+            if existing_version is None:
+                return None
+            if int(existing_version) != int(patch.get("version") or 0):
+                return None
+            return await self._update_task_unlocked(task_id, user_id, patch, existing=existing)
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def update_task_if_version(self, task_id: str, user_id: str, patch: dict[str, Any], expected_version: int) -> dict[str, Any] | None:
+        lock_key = self._task_lock_key(user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            existing = await self.get_task(task_id, user_id)
+            if not existing:
+                return None
+            existing_version = existing.get("version")
+            if existing_version is None:
+                return None
+            if int(existing_version) != int(expected_version):
+                return None
+            patch_version = patch.get("version")
+            committed_version = int(patch_version) if patch_version is not None and int(patch_version) != int(expected_version) else None
+            return await self._update_task_unlocked(task_id, user_id, patch, existing=existing, committed_version=committed_version)
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
+
+    async def _update_task_unlocked(self, task_id: str, user_id: str, patch: dict[str, Any], *, existing: dict[str, Any] | None = None, committed_version: int | None = None) -> dict[str, Any] | None:
+        existing = existing or await self.get_task(task_id, user_id)
         if not existing:
             return None
         update = dict(patch)
@@ -332,6 +430,7 @@ class UserTaskMethods:
             return None
         update.pop("task_id", None)
         update.pop("hashed_user_id", None)
+        update.pop("version", None)
         if "primary_chat_id" in update:
             primary_chat_id = update.get("primary_chat_id")
             update["hashed_primary_chat_id"] = hash_id(primary_chat_id) if primary_chat_id else None
@@ -352,17 +451,90 @@ class UserTaskMethods:
                     await self._delete_key_wrappers(created_wrappers)
                     return None
                 created_wrappers.append(created_wrapper)
-        update["version"] = int(existing.get("version") or 1) + 1
-        updated = await self.directus_service.update_item("user_tasks", existing["id"], update)
-        if not updated:
-            await self._delete_key_wrappers(created_wrappers)
+        existing_version = existing.get("version")
+        if existing_version is None:
             return None
-        if not await self._delete_key_wrappers(existing_wrappers):
-            raise RuntimeError("Failed to delete old user task key wrappers")
-        return updated
+        next_version = int(committed_version) if committed_version is not None else int(existing_version) + 1
+        if next_version <= int(existing_version):
+            return None
+        if key_wrappers is not None:
+            deleted_existing, deleted_existing_wrappers = await self._delete_key_wrappers_tracking(existing_wrappers)
+            if not deleted_existing:
+                if not await self._delete_key_wrappers(created_wrappers):
+                    raise RuntimeError("Failed to clean up new user task key wrappers")
+                await self._restore_task_key_wrappers(user_id, task_id, deleted_existing_wrappers)
+                raise RuntimeError("Failed to delete old user task key wrappers")
+            final_update = dict(update)
+            final_update["version"] = next_version
+            updated = await self.directus_service.update_item_if_version(
+                "user_tasks",
+                existing["id"],
+                final_update,
+                int(existing_version),
+                owner_hash_field="hashed_user_id",
+                owner_hash=hash_id(user_id),
+            )
+            if not updated:
+                if not await self._delete_key_wrappers(created_wrappers):
+                    raise RuntimeError("Failed to clean up new user task key wrappers")
+                await self._restore_task_key_wrappers(user_id, task_id, existing_wrappers)
+                return None
+            return updated
+
+        update["version"] = next_version
+        return await self.directus_service.update_item_if_version(
+            "user_tasks",
+            existing["id"],
+            update,
+            int(existing_version),
+            owner_hash_field="hashed_user_id",
+            owner_hash=hash_id(user_id),
+        )
+
+    def _task_lock_key(self, user_id: str, task_id: str) -> str:
+        return f"user_task_write_lock:{hash_id(user_id)}:{hash_id(task_id)}"
+
+    async def _acquire_task_lock(self, key: str) -> str | None:
+        cache = getattr(self.directus_service, "cache", None)
+        if cache is None:
+            raise RuntimeError("Task lock backend is unavailable")
+        client_ref = getattr(cache, "client", None)
+        if client_ref is None:
+            raise RuntimeError("Task lock backend is unavailable")
+        client = await client_ref
+        if not client:
+            raise RuntimeError("Task lock backend is unavailable")
+        token = secrets.token_urlsafe(16)
+        acquired = await client.set(key, token, nx=True, ex=30)
+        if not acquired:
+            raise RuntimeError("Task is already being updated")
+        return token
+
+    async def _release_task_lock(self, key: str, token: str | None) -> None:
+        if token is None:
+            return
+        cache = getattr(self.directus_service, "cache", None)
+        if cache is None:
+            return
+        client_ref = getattr(cache, "client", None)
+        if client_ref is None:
+            return
+        client = await client_ref
+        if not client:
+            return
+        current = await client.get(key)
+        if isinstance(current, bytes):
+            current = current.decode("utf-8")
+        if current == token:
+            await client.delete(key)
 
     async def _delete_key_wrappers(self, wrappers: list[dict[str, Any]]) -> bool:
+        all_deleted, _deleted_wrappers = await self._delete_key_wrappers_tracking(wrappers)
+        return all_deleted
+
+    async def _delete_key_wrappers_tracking(self, wrappers: list[dict[str, Any]]) -> tuple[bool, list[dict[str, Any]]]:
         all_deleted = True
+        deleted_wrappers: list[dict[str, Any]] = []
         for wrapper in wrappers:
             wrapper_id = wrapper.get("id")
             if wrapper_id:
@@ -370,23 +542,60 @@ class UserTaskMethods:
                 if deleted is False:
                     logger.error("Failed to delete old user task key wrapper")
                     all_deleted = False
-        return all_deleted
+                else:
+                    deleted_wrappers.append(wrapper)
+        return all_deleted, deleted_wrappers
+
+    async def _restore_task_key_wrappers(self, user_id: str, task_id: str, wrappers: list[dict[str, Any]]) -> None:
+        restored: list[dict[str, Any]] = []
+        for wrapper in wrappers:
+            created = await self.create_task_key_wrapper(user_id, task_id, wrapper)
+            if not created:
+                await self._delete_key_wrappers(restored)
+                raise RuntimeError("Failed to restore old user task key wrappers")
+            restored.append(created)
 
     async def start_due_ai_task(self, task: dict[str, Any], now: int) -> dict[str, Any] | None:
         row_id = task.get("id")
         if not row_id:
             return None
+        task_id = str(task.get("task_id") or "")
+        owner_hash = str(task.get("hashed_user_id") or "")
+        if not task_id or not owner_hash:
+            return None
+        lock_key = f"user_task_write_lock:{owner_hash}:{hash_id(task_id)}"
+        lock_token = await self._acquire_task_lock(lock_key)
         update = {
             "status": "in_progress",
             "ai_execution_state": "queued",
             "started_at": now,
             "updated_at": now,
-            "version": int(task.get("version") or 1) + 1,
+            "version": int(task["version"]) + 1,
         }
-        return await self.directus_service.update_item("user_tasks", row_id, update)
+        try:
+            return await self.directus_service.update_item_if_version(
+                "user_tasks",
+                row_id,
+                update,
+                int(task["version"]),
+                owner_hash_field="hashed_user_id",
+                owner_hash=owner_hash,
+            )
+        finally:
+            await self._release_task_lock(lock_key, lock_token)
 
-    async def delete_task(self, task_id: str, user_id: str) -> bool:
-        existing = await self.get_task(task_id, user_id)
-        if not existing:
-            return False
-        return await self.directus_service.delete_item("user_tasks", existing["id"])
+    async def delete_task(self, task_id: str, user_id: str, expected_version: int) -> bool:
+        lock_key = self._task_lock_key(user_id, task_id)
+        lock_token = await self._acquire_task_lock(lock_key)
+        try:
+            existing = await self.get_task(task_id, user_id)
+            if not existing:
+                return False
+            existing_version = existing.get("version")
+            if existing_version is None:
+                return False
+            if int(existing_version) != int(expected_version):
+                return False
+            return await self.directus_service.delete_item("user_tasks", existing["id"])
+        finally:
+            await self._release_task_lock(lock_key, lock_token)

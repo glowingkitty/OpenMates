@@ -98,6 +98,28 @@ export interface TaskUpdateProposalEvent {
   assignee_type?: "ai" | "user" | null;
 }
 
+export interface TaskEventFrame {
+  event_id: string;
+  chat_id: string;
+  task_id: string;
+  short_id?: string | null;
+  event_type: string;
+  title?: string | null;
+  status?: string | null;
+  reason?: string | null;
+  created_at?: number | null;
+  task_update_job_id?: string | null;
+}
+
+export interface PendingTaskUpdateJobFrame {
+  job_id: string;
+  task_id: string;
+  chat_id?: string | null;
+  revision: number;
+  task_key_version: number;
+  expires_at: number;
+}
+
 const SUB_CHAT_EVENT_TYPES = new Set<string>([
   "spawn_sub_chats",
   "sub_chat_progress",
@@ -176,8 +198,49 @@ function parseTaskUpdateProposals(value: unknown): TaskUpdateProposalEvent[] {
   });
 }
 
+function parseTaskEvent(value: unknown): TaskEventFrame | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.event_id !== "string" || typeof raw.chat_id !== "string") return null;
+  if (typeof raw.task_id !== "string" || typeof raw.event_type !== "string") return null;
+  const event: TaskEventFrame = {
+    event_id: raw.event_id,
+    chat_id: raw.chat_id,
+    task_id: raw.task_id,
+    event_type: raw.event_type,
+  };
+  if (typeof raw.short_id === "string" || raw.short_id === null) event.short_id = raw.short_id;
+  if (typeof raw.title === "string" || raw.title === null) event.title = raw.title;
+  if (typeof raw.status === "string" || raw.status === null) event.status = raw.status;
+  if (typeof raw.reason === "string" || raw.reason === null) event.reason = raw.reason;
+  if (typeof raw.created_at === "number" || raw.created_at === null) event.created_at = raw.created_at;
+  if (typeof raw.task_update_job_id === "string" || raw.task_update_job_id === null) event.task_update_job_id = raw.task_update_job_id;
+  return event;
+}
+
+function parsePendingTaskUpdateJobs(value: unknown): PendingTaskUpdateJobFrame[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): PendingTaskUpdateJobFrame[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (typeof raw.job_id !== "string" || typeof raw.task_id !== "string") return [];
+    if (typeof raw.revision !== "number" || typeof raw.task_key_version !== "number" || typeof raw.expires_at !== "number") return [];
+    const job: PendingTaskUpdateJobFrame = {
+      job_id: raw.job_id,
+      task_id: raw.task_id,
+      revision: raw.revision,
+      task_key_version: raw.task_key_version,
+      expires_at: raw.expires_at,
+    };
+    if (typeof raw.chat_id === "string" || raw.chat_id === null) job.chat_id = raw.chat_id;
+    return [job];
+  });
+}
+
 export class OpenMatesWsClient {
   private readonly socket: InstanceType<typeof WebSocket>;
+  private readonly passiveTaskUpdateJobs = new Map<string, PendingTaskUpdateJobFrame>();
+  private activeResponseCollectors = 0;
 
   constructor(options: {
     apiUrl: string;
@@ -194,6 +257,7 @@ export class OpenMatesWsClient {
     const query = new URLSearchParams({
       sessionId: options.sessionId,
       token,
+      client_capabilities: "task_update_jobs",
     });
     // Pass the same User-Agent as the HTTP login call so the device fingerprint
     // hash (SHA256(OS:Country:UserID)) matches the one registered at login time.
@@ -213,6 +277,10 @@ export class OpenMatesWsClient {
     }
     this.socket = new WebSocket(`${wsBase}/v1/ws?${query.toString()}`, {
       headers: wsHeaders,
+    });
+    this.socket.on("message", (rawData: RawData) => {
+      if (this.activeResponseCollectors > 0) return;
+      this.bufferPassiveTaskUpdateJobs(rawData);
     });
   }
 
@@ -265,6 +333,25 @@ export class OpenMatesWsClient {
         else resolve();
       });
     });
+  }
+
+  private bufferPassiveTaskUpdateJobs(rawData: RawData): void {
+    try {
+      const parsed = JSON.parse(rawData.toString()) as WsEnvelope<Record<string, unknown>>;
+      if (parsed.type !== "task_update_jobs_available") return;
+      const payload = (parsed.payload ?? {}) as Record<string, unknown>;
+      for (const job of parsePendingTaskUpdateJobs(payload.jobs)) {
+        this.passiveTaskUpdateJobs.set(job.job_id, job);
+      }
+    } catch {
+      // Ignore non-JSON frames.
+    }
+  }
+
+  private drainPassiveTaskUpdateJobs(): PendingTaskUpdateJobFrame[] {
+    const jobs = [...this.passiveTaskUpdateJobs.values()];
+    this.passiveTaskUpdateJobs.clear();
+    return jobs;
   }
 
   waitForMessage(
@@ -422,6 +509,8 @@ export class OpenMatesWsClient {
     newChatSuggestions: string[];
     taskProposals: TaskProposalEvent[];
     taskUpdateProposals: TaskUpdateProposalEvent[];
+    taskEvents: TaskEventFrame[];
+    pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[];
     embeds: SendEmbedDataFrame[];
     subChatEvents: SubChatEvent[];
     recoveryJobId: string | null;
@@ -441,6 +530,14 @@ export class OpenMatesWsClient {
       let newChatSuggestions: string[] = [];
       let taskProposals: TaskProposalEvent[] = [];
       let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
+      const taskEvents: TaskEventFrame[] = [];
+      this.activeResponseCollectors += 1;
+      let pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[] = this.drainPassiveTaskUpdateJobs();
+      const mergePendingTaskUpdateJobs = (jobs: PendingTaskUpdateJobFrame[]) => {
+        const byId = new Map(pendingTaskUpdateJobs.map((job) => [job.job_id, job]));
+        for (const job of jobs) byId.set(job.job_id, job);
+        pendingTaskUpdateJobs = [...byId.values()];
+      };
       const subChatEvents: SubChatEvent[] = [];
       const pendingSubChatHandlers = new Set<Promise<void>>();
       const pendingMemoryRequestHandlers = new Set<Promise<void>>();
@@ -519,6 +616,8 @@ export class OpenMatesWsClient {
             newChatSuggestions,
             taskProposals,
             taskUpdateProposals,
+            taskEvents,
+            pendingTaskUpdateJobs,
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,
@@ -542,6 +641,8 @@ export class OpenMatesWsClient {
               newChatSuggestions,
               taskProposals,
               taskUpdateProposals,
+              taskEvents,
+              pendingTaskUpdateJobs,
               embeds: [...embeds.values()],
               subChatEvents,
               recoveryJobId,
@@ -562,6 +663,8 @@ export class OpenMatesWsClient {
           newChatSuggestions,
           taskProposals,
           taskUpdateProposals,
+          taskEvents,
+          pendingTaskUpdateJobs,
           embeds: [...embeds.values()],
           subChatEvents,
           recoveryJobId,
@@ -708,6 +811,20 @@ export class OpenMatesWsClient {
             return;
           }
 
+          if (type === "task_event") {
+            const event = parseTaskEvent(p);
+            if (!event || event.chat_id !== chatId) return;
+            taskEvents.push(event);
+            maybeResolve();
+            return;
+          }
+
+          if (type === "task_update_jobs_available") {
+            mergePendingTaskUpdateJobs(parsePendingTaskUpdateJobs(p.jobs));
+            maybeResolve();
+            return;
+          }
+
           // Active-chat streaming: incremental chunks
           if (type === "ai_message_update") {
             const msgId = p.user_message_id ?? p.userMessageId;
@@ -837,6 +954,8 @@ export class OpenMatesWsClient {
             newChatSuggestions,
             taskProposals,
             taskUpdateProposals,
+            taskEvents,
+            pendingTaskUpdateJobs,
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,
@@ -860,6 +979,7 @@ export class OpenMatesWsClient {
         this.socket.off("message", onMessage);
         this.socket.off("error", onError);
         this.socket.off("close", onClose);
+        this.activeResponseCollectors = Math.max(0, this.activeResponseCollectors - 1);
       };
 
       this.socket.on("message", onMessage);

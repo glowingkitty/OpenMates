@@ -1160,6 +1160,50 @@ class DirectusService:
             logger.error(f"Error parsing update response for {collection}/{item_id}: {e}. Status: {response_obj.status_code}, Response: {response_obj.text[:200]}", exc_info=True)
             return None
 
+    async def update_item_if_version(
+        self,
+        collection: str,
+        item_id: str,
+        data: Dict[str, Any],
+        expected_version: int,
+        *,
+        owner_hash_field: str | None = None,
+        owner_hash: str | None = None,
+        admin_required: bool = False,
+    ) -> Optional[Dict]:
+        """Update one item only when its stored version still matches."""
+        url = f"{self.base_url}/items/{collection}"
+        params: Dict[str, Any] = {
+            "filter[id][_eq]": item_id,
+            "filter[version][_eq]": expected_version,
+            "limit": 1,
+        }
+        if owner_hash_field and owner_hash:
+            params[f"filter[{owner_hash_field}][_eq]"] = owner_hash
+
+        headers = {}
+        if admin_required:
+            admin_token = await self.ensure_auth_token(admin_required=True)
+            if not admin_token:
+                logger.error("Failed to get admin token for conditional update in collection: %s", collection)
+                return None
+            headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response_obj = await self._make_api_request("PATCH", url, headers=headers, json={"keys": [item_id], "data": data}, params=params)
+        if response_obj is None:
+            logger.error("Conditional update for %s/%s returned no response", collection, item_id)
+            return None
+        if not 200 <= response_obj.status_code < 300:
+            logger.warning("Conditional update for %s/%s failed with HTTP %s", collection, item_id, response_obj.status_code)
+            return None
+        response_json = response_obj.json()
+        data_value = response_json.get("data") if isinstance(response_json, dict) else None
+        if isinstance(data_value, list):
+            return data_value[0] if data_value else None
+        if isinstance(data_value, dict):
+            return data_value
+        return None
+
     # Assign the internal helper to the class
     update_item = _update_item
 

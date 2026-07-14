@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OpenMatesClient, type UserTaskCreateInput } from "../src/client.ts";
+import { findTask, type DecryptedUserTask } from "../src/tasksCli.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
@@ -40,6 +41,7 @@ function encryptedTaskInput(): UserTaskCreateInput {
     encrypted_tags: "cipher-tags",
     status: "todo",
     assignee_type: "user",
+    version: 1,
     linked_project_ids: ["project-1"],
     primary_chat_id: "chat-1",
     created_at: 100,
@@ -107,5 +109,15 @@ describe("OpenMatesClient user tasks", () => {
         });
       },
     );
+  });
+
+  it("rejects ambiguous short task IDs", () => {
+    const tasks = [
+      { taskId: "task-1", shortId: "TASK-1234" },
+      { taskId: "task-2", shortId: "TASK-1234" },
+    ] as DecryptedUserTask[];
+
+    assert.throws(() => findTask(tasks, "TASK-1234"), /ambiguous/);
+    assert.equal(findTask(tasks, "task-2").taskId, "task-2");
   });
 });

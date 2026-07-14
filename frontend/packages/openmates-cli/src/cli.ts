@@ -35,9 +35,11 @@ import {
   type WorkflowRunDetail,
   type WorkflowRunContentRetention,
   type WorkflowSummary,
+  type UserTaskActionInput,
+  type UserTaskReorderInput,
   type UserTaskStatus,
 } from "./client.js";
-import type { StreamEvent, SubChatEvent } from "./ws.js";
+import type { PendingTaskUpdateJobFrame, StreamEvent, SubChatEvent, TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -569,7 +571,7 @@ async function handleTasks(
   if (subcommand === "delete") {
     const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "delete");
     if (flags.confirm !== true) throw new Error("Deleting a task requires --confirm.");
-    const result = await client.deleteUserTask(task.taskId);
+    const result = await client.deleteUserTask(task.taskId, task.version);
     if (flags.json === true) printJson(result);
     else console.log(`Task deleted: ${task.shortId}`);
     return;
@@ -591,7 +593,7 @@ async function handleTasks(
 
   if (["block", "unblock", "skip", "done"].includes(subcommand)) {
     const task = await requiredResolvedTask(client, masterKey, rest[0], scope, subcommand);
-    const payload: Record<string, unknown> = { version: task.version };
+    const payload: UserTaskActionInput = { version: task.version };
     if (subcommand === "block") {
       if (typeof flags.reason !== "string") throw new Error("Blocking a task requires --reason <code>.");
       payload.blocked_reason_code = flags.reason;
@@ -609,7 +611,7 @@ async function handleTasks(
 
   if (subcommand === "reorder") {
     const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "reorder");
-    const move: Record<string, unknown> = { task_id: task.taskId };
+    const move: UserTaskReorderInput["moves"][number] = { task_id: task.taskId, version: task.version };
     if (typeof flags.before === "string") move.before_task_id = (await resolveTask(client, masterKey, flags.before, scope)).taskId;
     if (typeof flags.after === "string") move.after_task_id = (await resolveTask(client, masterKey, flags.after, scope)).taskId;
     if (typeof flags.status === "string") move.status = normalizeTaskStatus(flags.status);
@@ -4820,6 +4822,8 @@ async function sendMessageStreaming(
   modelName: string | null;
   mateName: string | null;
   followUpSuggestions: string[];
+  taskEvents: TaskEventFrame[];
+  pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[];
   subChatEvents: SubChatEvent[];
   appSettingsMemoryRequests: Array<{
     requestId: string | null;
@@ -5216,7 +5220,7 @@ async function sendMessageStreaming(
       process.stdout.write(`${SEP}\n`);
       process.stdout.write(`${result.assistant}\n`);
     }
-    return { ...result, acceptedTaskProposals: [] };
+    return { ...result, taskEvents: [], pendingTaskUpdateJobs: [], acceptedTaskProposals: [] };
   }
 
   const urlResult = prepareUrlEmbeds(finalMessage);
@@ -5340,6 +5344,22 @@ async function sendMessageStreaming(
       process.stdout.write(`${SEP}\n`);
     }
 
+    if (result.taskEvents.length > 0) {
+      process.stdout.write(`\x1b[2mTask updates:\x1b[0m\n`);
+      for (const event of result.taskEvents) {
+        process.stdout.write(`  \x1b[2m- ${formatTaskEvent(event)}\x1b[0m\n`);
+      }
+      process.stdout.write(`${SEP}\n`);
+    }
+
+    if (result.pendingTaskUpdateJobs.length > 0) {
+      const count = result.pendingTaskUpdateJobs.length;
+      process.stdout.write(
+        `\x1b[2mPending encrypted task update${count === 1 ? "" : "s"}: ${count}\x1b[0m\n` +
+          `${SEP}\n`,
+      );
+    }
+
     process.stdout.write(
       `\x1b[2mContinue: openmates chats send --chat ${shortId} "your message"\x1b[0m\n` +
         `\x1b[2mHistory:  openmates chats show ${shortId}\x1b[0m\n`,
@@ -5347,6 +5367,27 @@ async function sendMessageStreaming(
   }
 
   return { ...result, acceptedTaskProposals };
+}
+
+function formatTaskEvent(event: TaskEventFrame): string {
+  const taskLabel = event.short_id || event.task_id;
+  const title = event.title ? ` "${event.title}"` : "";
+  const status = event.status ? ` (${event.status})` : "";
+  const reason = event.reason ? `: ${event.reason}` : "";
+  switch (event.event_type) {
+    case "created":
+      return `${taskLabel} created${title}${status}`;
+    case "updated":
+      return `${taskLabel} updated${title}${status}`;
+    case "blocked":
+      return `${taskLabel} blocked${reason}`;
+    case "completed":
+      return `${taskLabel} completed${title}`;
+    case "unblocked":
+      return `${taskLabel} unblocked`;
+    default:
+      return `${taskLabel} ${event.event_type}${title}${status}${reason}`;
+  }
 }
 
 async function acceptChatTaskProposals(

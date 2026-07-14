@@ -25,6 +25,8 @@ class AskSkillRequest(BaseModel):
     connected_account_token_refs: Optional[List[Dict[str, Any]]] = Field(default=None, description="Short-lived turn-token refs created by the client token broker before send.")
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
     benchmark_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Sanitized CLI benchmark metadata for usage source tagging.")
+    client_type: Optional[str] = Field(default=None, description="Client surface that originated this request, when explicitly declared by trusted clients.")
+    client_capabilities: Optional[List[str]] = Field(default_factory=list, description="Explicit client capabilities available for this request.")
     # Filepath → embed_id index built during embed resolution.
     # Maps the human-readable embed_ref shown to the LLM (e.g. "my_photo.jpg" or
     # "src/components/Button.tsx") back to the internal UUID embed_id used for

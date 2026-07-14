@@ -79,6 +79,13 @@ def _sanitize_benchmark_metadata(value: Any) -> dict[str, str] | None:
     return sanitized
 
 
+def _sanitize_client_capabilities(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    allowed = {"task_update_jobs"}
+    return sorted({item for item in value if isinstance(item, str) and item in allowed})
+
+
 def _sanitize_connected_account_directory(value: Any) -> list[dict[str, Any]] | None:
     if value is None:
         return None
@@ -1659,6 +1666,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):
             mentioned_settings_memories_cleartext = None
             logger.warning("mentioned_settings_memories_cleartext is not a dict, ignoring")
+        client_capabilities = []
+        if manager.supports_task_update_jobs(user_id, device_fingerprint_hash):
+            client_capabilities.append("task_update_jobs")
 
         # OPE-265: Pass the current chat title (decrypted by client) to post-processing
         # so the LLM can decide if the title needs updating when the conversation drifts.
@@ -1695,6 +1705,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             connected_account_token_refs=connected_account_token_refs,
             mentioned_settings_memories_cleartext=mentioned_settings_memories_cleartext,  # Cleartext for @memory mentions so backend does not re-request
             benchmark_metadata=benchmark_metadata,
+            client_type="cli" if payload.get("client_type") == "cli" else None,
+            client_capabilities=client_capabilities,
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
             parent_id=db_parent_id,
             is_sub_chat=db_is_sub_chat,

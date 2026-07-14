@@ -523,7 +523,7 @@ async function handleActiveTaskAction(params: {
         render();
         return;
       }
-      await client.deleteUserTask(task.taskId);
+      await client.deleteUserTask(task.taskId, task.version);
       state.tasks = state.tasks.filter((candidate) => candidate.taskId !== task.taskId);
       state.activeTask = null;
       state.selectedIndex = Math.min(state.selectedIndex, Math.max(0, state.tasks.length - 1));
@@ -540,7 +540,7 @@ async function handleActiveTaskAction(params: {
         render();
         return;
       }
-      const updated = await client.reorderUserTasks({ moves: [{ task_id: task.taskId, position }] });
+      const updated = await client.reorderUserTasks({ moves: [{ task_id: task.taskId, version: task.version, position }] });
       const [decrypted] = await decryptUserTasks(updated, client.getMasterKeyBytes());
       if (decrypted) {
         replaceTask(state, decrypted);

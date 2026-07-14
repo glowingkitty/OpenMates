@@ -1249,7 +1249,7 @@ export class OpenMatesTasks {
     return response.task;
   }
 
-  async startAI(taskId: string, input: UserTaskStartAIInput = {}): Promise<UserTaskRecord> {
+  async startAI(taskId: string, input: UserTaskStartAIInput): Promise<UserTaskRecord> {
     const response = await this.client.request<{ task?: UserTaskRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/start-ai`, input);
     if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
     return response.task;

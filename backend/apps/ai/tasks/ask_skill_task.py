@@ -443,7 +443,23 @@ async def _update_user_task_execution_state(
         patch["completed_at"] = completed_at
 
     try:
-        await directus_service.user_task.update_task(user_task_id, request_data.user_id, patch)
+        current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id)
+        if not current_task:
+            logger.warning("User task %s was not found while updating execution state", user_task_id)
+            return
+        current_version = current_task.get("version")
+        if current_version is None:
+            logger.warning("User task %s has no version while updating execution state", user_task_id)
+            return
+        updated_task = await directus_service.user_task.update_task_if_version(
+            user_task_id,
+            request_data.user_id,
+            {**patch, "version": int(current_version)},
+            int(current_version),
+        )
+        if not updated_task:
+            logger.warning("User task %s changed before execution state update", user_task_id)
+            return
         logger.info(
             "[Task ID: %s] Updated user task %s execution state to %s",
             getattr(request_data, "message_id", "unknown"),

@@ -62,6 +62,8 @@ const {
   MEMORY_TYPE_REGISTRY,
   buildAppSettingsMemoryRequestSystemMessage,
   buildAppSettingsMemoryResponseSystemMessage,
+  buildTaskEventSystemMessage,
+  buildTaskUpdateJobPersistPayload,
   buildConnectedAccountDirectoryPayload,
   buildSubChatConfirmationPayload,
   buildSubChatEncryptedMetadataPayloads,
@@ -634,6 +636,75 @@ describe("memory request system messages", () => {
     assert.deepEqual(payload.categories, [
       { appId: "books", itemType: "currently_reading", entryCount: 2 },
     ]);
+  });
+});
+
+describe("task update job helpers", () => {
+  it("builds encrypted task event system messages without plaintext leakage", async () => {
+    const chatKey = new Uint8Array(32).fill(11);
+    const systemMessage = await buildTaskEventSystemMessage({
+      chatKey,
+      userMessageId: "user-message-1",
+      event: {
+        event_id: "task-event-1",
+        chat_id: "chat-1",
+        task_id: "TASK-123",
+        short_id: "TASK-123",
+        event_type: "created",
+        title: "Book flights",
+        status: "todo",
+        created_at: 1780000000,
+      },
+    });
+
+    assert.equal(systemMessage.role, "system");
+    assert.equal(systemMessage.message_id, "task-event-task-event-1");
+    assert.equal(systemMessage.user_message_id, "user-message-1");
+    assert.equal(systemMessage.created_at, 1780000000);
+    assert.equal(systemMessage.encrypted_content.includes("Book flights"), false);
+    const decrypted = await decryptWithAesGcmCombined(systemMessage.encrypted_content, chatKey);
+    assert.match(decrypted, /TASK-123 created/);
+    assert.match(decrypted, /Book flights/);
+  });
+
+  it("builds task update job persist payloads with only encrypted task content", () => {
+    const payload = buildTaskUpdateJobPersistPayload({
+      jobId: "task-update-job-1",
+      leaseToken: "lease-token",
+      leaseGeneration: 2,
+      expectedTaskVersion: 4,
+      encryptedTaskPayload: {
+        encrypted_title: "cipher-title",
+        encrypted_description: "cipher-description",
+        version: 5,
+      },
+      encryptedTaskEventMessage: "cipher-system-event",
+    });
+
+    assert.deepEqual(payload, {
+      protocol_version: 1,
+      job_id: "task-update-job-1",
+      lease_token: "lease-token",
+      lease_generation: 2,
+      expected_task_version: 4,
+      encrypted_task_payload: {
+        encrypted_title: "cipher-title",
+        encrypted_description: "cipher-description",
+        version: 5,
+      },
+      encrypted_task_event_message: "cipher-system-event",
+    });
+    assert.throws(
+      () => buildTaskUpdateJobPersistPayload({
+        jobId: "task-update-job-1",
+        leaseToken: "lease-token",
+        leaseGeneration: 2,
+        expectedTaskVersion: 4,
+        encryptedTaskPayload: { title: "Book flights" },
+        encryptedTaskEventMessage: "cipher-system-event",
+      }),
+      /plaintext/,
+    );
   });
 });
 

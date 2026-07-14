@@ -180,9 +180,15 @@ async def handle_task_update_job_persist(
         job = await _load_visible_job(cache_service, job_id, user_id)
         encrypted_payload = dict(payload.get("encrypted_task_payload") or {})
         _validate_encrypted_payload(encrypted_payload)
-        if job.get("state") == "TERMINAL":
+        if encrypted_payload.get("version") is None:
+            raise TaskUpdateJobConflictError("Task update job committed task version is required")
+        if job.get("state") in {"TASK_PERSISTED", "TERMINAL"}:
+            if job.get("client_encrypted_payload") and job.get("client_encrypted_payload") != encrypted_payload:
+                raise TaskUpdateJobConflictError("Task update job already persisted different encrypted payload")
+            if job.get("encrypted_task_event_message") and job.get("encrypted_task_event_message") != payload.get("encrypted_task_event_message"):
+                raise TaskUpdateJobConflictError("Task update job already persisted different event message")
             await manager.send_personal_message(
-                {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": "TERMINAL", "task_id": job.get("task_id")}},
+                {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": job.get("state"), "task_id": job.get("task_id")}},
                 user_id,
                 device_fingerprint_hash,
             )
@@ -193,9 +199,13 @@ async def handle_task_update_job_persist(
         if not lock_acquired:
             raise TaskUpdateJobConflictError("Task update job for this task is already being persisted")
         job = await _load_visible_job(cache_service, job_id, user_id)
-        if job.get("state") == "TERMINAL":
+        if job.get("state") in {"TASK_PERSISTED", "TERMINAL"}:
+            if job.get("client_encrypted_payload") and job.get("client_encrypted_payload") != encrypted_payload:
+                raise TaskUpdateJobConflictError("Task update job already persisted different encrypted payload")
+            if job.get("encrypted_task_event_message") and job.get("encrypted_task_event_message") != payload.get("encrypted_task_event_message"):
+                raise TaskUpdateJobConflictError("Task update job already persisted different event message")
             await manager.send_personal_message(
-                {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": "TERMINAL", "task_id": job.get("task_id")}},
+                {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": job.get("state"), "task_id": job.get("task_id")}},
                 user_id,
                 device_fingerprint_hash,
             )
@@ -208,7 +218,11 @@ async def handle_task_update_job_persist(
             raise TaskUpdateJobConflictError("Task update job lease belongs to another device")
         if job.get("lease_token") != payload.get("lease_token") or int(job.get("lease_generation") or 0) != int(payload.get("lease_generation") or 0):
             raise TaskUpdateJobConflictError("Task update job lease is stale")
-        if int(job.get("expected_task_version") or 0) != int(payload.get("expected_task_version") or -1):
+        expected_task_version = job.get("expected_task_version")
+        payload_expected_task_version = payload.get("expected_task_version")
+        if expected_task_version is None or payload_expected_task_version is None:
+            raise TaskUpdateJobConflictError("Task update job expected task version is required")
+        if int(expected_task_version) != int(payload_expected_task_version):
             raise TaskUpdateJobConflictError("Task update job expected task version is stale")
 
         operation = str(job.get("operation") or "update")
@@ -222,7 +236,7 @@ async def handle_task_update_job_persist(
                 task_id,
                 user_id,
                 encrypted_payload,
-                int(job.get("expected_task_version") or 0),
+                int(expected_task_version),
             )
             if not durable:
                 current = await directus_service.user_task.get_task(task_id, user_id)
@@ -375,7 +389,7 @@ def _validate_protocol_version(payload: dict[str, Any]) -> None:
 
 
 async def _send_error(manager: Any, user_id: str, device_hash: str, job_id: str | None, request_id: str | None, exc: Exception) -> None:
-    logger.warning("Task update job protocol rejected job=%s: %s", job_id, exc)
+    logger.warning("Task update job protocol rejected job=%s: %s", job_id, exc.__class__.__name__)
     await manager.send_personal_message(
         {
             "type": "error",

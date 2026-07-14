@@ -112,6 +112,7 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
   return {
     task_id: randomUUIDCompat(),
     short_id: undefined,
+    version: 1,
     encrypted_task_key: encryptedTaskKey,
     encrypted_title: await encryptWithAesGcmCombined(input.title, taskKey),
     encrypted_description: await encryptWithAesGcmCombined(input.description ?? "", taskKey),
@@ -152,6 +153,7 @@ export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKe
 }
 
 export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Array): Promise<DecryptedUserTask> {
+  if (typeof record.version !== "number") throw new Error(`Task ${record.task_id} is missing version.`);
   const taskKey = await taskKeyFromRecord(record, masterKey);
   const tags = parseStringArray(await decryptOptional(record.encrypted_tags, taskKey));
   const linkedProjectIds = parseStringArray(await decryptOptional(record.encrypted_linked_project_ids, taskKey));
@@ -174,7 +176,7 @@ export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Ar
     queueState: record.queue_state ?? "none",
     blockedReasonCode: record.blocked_reason_code ?? null,
     aiExecutionState: record.ai_execution_state ?? null,
-    version: record.version ?? 1,
+    version: record.version,
     encrypted: record,
   };
 }
@@ -186,7 +188,11 @@ export async function decryptUserTasks(records: UserTaskRecord[], masterKey: Uin
 }
 
 export function findTask(tasks: DecryptedUserTask[], id: string): DecryptedUserTask {
-  const task = tasks.find((candidate) => candidate.taskId === id || candidate.shortId === id);
+  const taskIdMatch = tasks.find((candidate) => candidate.taskId === id);
+  if (taskIdMatch) return taskIdMatch;
+  const shortIdMatches = tasks.filter((candidate) => candidate.shortId === id);
+  if (shortIdMatches.length > 1) throw new Error(`Task '${id}' is ambiguous in the current task list. Use the full task ID.`);
+  const task = shortIdMatches[0];
   if (!task) throw new Error(`Task '${id}' was not found in the current task list.`);
   return task;
 }

@@ -74,6 +74,21 @@ export interface EncryptedUserTaskRecord {
   key_wrappers?: UserTaskKeyWrapperRecord[];
 }
 
+export interface WorkflowRunTaskProjectionRecord {
+  task_id: string;
+  source: "workflow_run";
+  workflow_id: string;
+  workflow_run_id: string;
+  label: "Workflow run";
+  status: "in_progress" | "blocked" | "done";
+  run_status: string;
+  can_cancel: boolean;
+  read_only: true;
+  created_at: number;
+  updated_at: number;
+  position: number;
+}
+
 export interface UserTaskViewModel {
   task_id: string;
   title: string;
@@ -90,6 +105,29 @@ export interface UserTaskViewModel {
   version: number;
   encrypted: EncryptedUserTaskRecord;
 }
+
+export interface WorkflowRunTaskProjectionViewModel {
+  task_id: string;
+  source: "workflow_run";
+  workflowId: string;
+  workflowRunId: string;
+  title: string;
+  description: string;
+  tags: string[];
+  latestInstruction: string;
+  status: UserTaskStatus;
+  assigneeType: UserTaskAssigneeType;
+  primaryChatId: null;
+  linkedProjectIds: string[];
+  dueAt: null;
+  priority: number;
+  position: number;
+  version: 0;
+  canCancel: boolean;
+  readOnly: true;
+}
+
+export type TasksBoardItem = UserTaskViewModel | WorkflowRunTaskProjectionViewModel;
 
 export interface CreateUserTaskInput {
   title: string;
@@ -169,6 +207,7 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
   } catch {
     tags = [];
   }
+  if (typeof record.version !== "number") throw new Error(`Task ${record.task_id} is missing version.`);
   return {
     task_id: record.task_id,
     title: await decryptOptional(record.encrypted_title, taskKey),
@@ -182,8 +221,35 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
     dueAt: record.due_at ?? null,
     priority: record.priority ?? 0,
     position: record.position ?? 0,
-    version: record.version ?? 1,
+    version: record.version,
     encrypted: record,
+  };
+}
+
+function isWorkflowRunTaskProjection(record: EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord): record is WorkflowRunTaskProjectionRecord {
+  return "source" in record && record.source === "workflow_run";
+}
+
+function workflowRunTaskProjection(record: WorkflowRunTaskProjectionRecord): WorkflowRunTaskProjectionViewModel {
+  return {
+    task_id: record.task_id,
+    source: record.source,
+    workflowId: record.workflow_id,
+    workflowRunId: record.workflow_run_id,
+    title: record.label,
+    description: "",
+    tags: [],
+    latestInstruction: "",
+    status: record.status,
+    assigneeType: "ai",
+    primaryChatId: null,
+    linkedProjectIds: [],
+    dueAt: null,
+    priority: 0,
+    position: record.position,
+    version: 0,
+    canCancel: record.can_cancel,
+    readOnly: true,
   };
 }
 
@@ -227,10 +293,27 @@ async function buildTaskKeyWrappers(
   return wrappers;
 }
 
+export async function listTaskBoardItems(filters: ListUserTasksFilters = {}): Promise<TasksBoardItem[]> {
+  const data = await requestJson<{ tasks: Array<EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord> }>(`/v1/user-tasks${buildQuery(filters)}`);
+  const decrypted = await Promise.all(data.tasks.map(async (task) => {
+    if (isWorkflowRunTaskProjection(task)) return workflowRunTaskProjection(task);
+    return decryptTask(task);
+  }));
+  return decrypted.filter((task): task is TasksBoardItem => task !== null);
+}
+
 export async function listUserTasks(filters: ListUserTasksFilters = {}): Promise<UserTaskViewModel[]> {
-  const data = await requestJson<{ tasks: EncryptedUserTaskRecord[] }>(`/v1/user-tasks${buildQuery(filters)}`);
-  const decrypted = await Promise.all(data.tasks.map(decryptTask));
-  return decrypted.filter((task): task is UserTaskViewModel => task !== null);
+  return (await listTaskBoardItems(filters)).filter((task): task is UserTaskViewModel => !isWorkflowRunTaskProjectionViewModel(task));
+}
+
+export function isWorkflowRunTaskProjectionViewModel(task: TasksBoardItem): task is WorkflowRunTaskProjectionViewModel {
+  return "source" in task && task.source === "workflow_run";
+}
+
+export async function cancelWorkflowRunTaskProjection(task: WorkflowRunTaskProjectionViewModel): Promise<void> {
+  await requestJson(`/v1/workflows/${encodeURIComponent(task.workflowId)}/runs/${encodeURIComponent(task.workflowRunId)}/cancel`, {
+    method: "POST",
+  });
 }
 
 export async function createUserTask(input: CreateUserTaskInput): Promise<UserTaskViewModel> {
@@ -255,6 +338,7 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
     due_at: input.dueAt ?? null,
     priority: input.priority ?? 0,
     position: timestamp,
+    version: 1,
     created_at: timestamp,
     updated_at: timestamp,
     key_wrappers: await buildTaskKeyWrappers(taskKey, encryptedTaskKey, timestamp, primaryChatId, linkedProjectIds),
@@ -273,10 +357,10 @@ export async function listUserTaskKeyWrappers(taskId: string): Promise<UserTaskK
   return data.key_wrappers;
 }
 
-export async function addUserTaskKeyWrappers(taskId: string, keyWrappers: UserTaskKeyWrapperRecord[]): Promise<UserTaskKeyWrapperRecord[]> {
+export async function addUserTaskKeyWrappers(taskId: string, version: number, keyWrappers: UserTaskKeyWrapperRecord[]): Promise<UserTaskKeyWrapperRecord[]> {
   const data = await requestJson<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(`/v1/user-tasks/${taskId}/key-wrappers`, {
     method: "POST",
-    body: JSON.stringify({ key_wrappers: keyWrappers }),
+    body: JSON.stringify({ version, key_wrappers: keyWrappers }),
   });
   return data.key_wrappers;
 }

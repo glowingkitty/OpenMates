@@ -84,6 +84,58 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       setTimeout(() => {
         socket.send(
           JSON.stringify({
+            type: "task_event",
+            payload: {
+              event_id: "task-event-1",
+              chat_id: chatId,
+              task_id: "TASK-123",
+              short_id: "TASK-123",
+              event_type: "created",
+              title: "Book flights",
+              status: "todo",
+              created_at: 1780000000,
+              task_update_job_id: "task-update-job-1",
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "task_update_jobs_available",
+            payload: {
+              chat_id: chatId,
+              jobs: [
+                {
+                  job_id: "task-update-job-1",
+                  task_id: "TASK-123",
+                  chat_id: chatId,
+                  revision: 1,
+                  task_key_version: 1,
+                  expires_at: 1780000900,
+                },
+              ],
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "task_update_jobs_available",
+            payload: {
+              chat_id: chatId,
+              jobs: [
+                {
+                  job_id: "task-update-job-2",
+                  task_id: "TASK-456",
+                  chat_id: chatId,
+                  revision: 1,
+                  task_key_version: 1,
+                  expires_at: 1780000901,
+                },
+              ],
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
             type: "post_processing_metadata",
             payload: {
               chat_id: chatId,
@@ -156,6 +208,37 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
         {
           task_id: "task-existing",
           status: "done",
+        },
+      ]);
+      assert.deepEqual(response.taskEvents, [
+        {
+          event_id: "task-event-1",
+          chat_id: chatId,
+          task_id: "TASK-123",
+          short_id: "TASK-123",
+          event_type: "created",
+          title: "Book flights",
+          status: "todo",
+          created_at: 1780000000,
+          task_update_job_id: "task-update-job-1",
+        },
+      ]);
+      assert.deepEqual(response.pendingTaskUpdateJobs, [
+        {
+          job_id: "task-update-job-1",
+          task_id: "TASK-123",
+          chat_id: chatId,
+          revision: 1,
+          task_key_version: 1,
+          expires_at: 1780000900,
+        },
+        {
+          job_id: "task-update-job-2",
+          task_id: "TASK-456",
+          chat_id: chatId,
+          revision: 1,
+          task_key_version: 1,
+          expires_at: 1780000901,
         },
       ]);
     } finally {
@@ -312,6 +395,81 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.category, "general_knowledge");
       assert.equal(response.modelName, "Gemini 3 Flash");
       assert.deepEqual(response.followUpSuggestions, ["Show cheaper apartments"]);
+    } finally {
+      client.close();
+    }
+  });
+
+  it("buffers reconnect-advertised task update jobs before response collection starts", async () => {
+    const chatId = "chat-reconnect-jobs";
+    const userMessageId = "user-message-reconnect";
+
+    server.once("connection", (socket) => {
+      socket.send(
+        JSON.stringify({
+          type: "task_update_jobs_available",
+          payload: {
+            jobs: [
+              {
+                job_id: "task-update-job-reconnect",
+                task_id: "TASK-789",
+                chat_id: "chat-source",
+                revision: 4,
+                task_key_version: 1,
+                expires_at: 1780000999,
+              },
+            ],
+          },
+        }),
+      );
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-reconnect",
+              chat_id: chatId,
+              is_final_chunk: true,
+              full_content_so_far: "Recovered pending task jobs.",
+            },
+          }),
+        );
+      }, 15);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }),
+        );
+      }, 20);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-reconnect-jobs",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+      });
+
+      assert.deepEqual(response.pendingTaskUpdateJobs, [
+        {
+          job_id: "task-update-job-reconnect",
+          task_id: "TASK-789",
+          chat_id: "chat-source",
+          revision: 4,
+          task_key_version: 1,
+          expires_at: 1780000999,
+        },
+      ]);
     } finally {
       client.close();
     }

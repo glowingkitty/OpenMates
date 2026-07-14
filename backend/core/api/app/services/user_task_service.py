@@ -69,13 +69,18 @@ class UserTaskService:
         return created
 
     async def update_task(self, task_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any]:
-        existing = await self.task_methods.get_task(task_id, user_id)
-        if not existing:
-            raise UserTaskNotFoundError("Task not found")
         update = dict(patch)
-        update["version"] = int(existing.get("version") or 1) + 1
-        updated = await self.task_methods.update_task(task_id, user_id, update)
+        expected_version = update.get("version")
+        if expected_version is None:
+            raise ValueError("Task update requires expected version")
+        updated = await self.task_methods.update_task_if_version(task_id, user_id, update, int(expected_version))
         if not updated:
+            current = await self.task_methods.get_task(task_id, user_id)
+            if not current:
+                raise UserTaskNotFoundError("Task not found")
+            current_version = current.get("version")
+            if current_version is None or int(current_version) != int(expected_version):
+                raise UserTaskConflictError("Task was modified by another client")
             raise ValueError("Failed to update task")
         return updated
 
@@ -86,7 +91,12 @@ class UserTaskService:
 
         raw_patch = dict(patch or {})
         expected_version = raw_patch.get("version")
-        if expected_version is not None and int(expected_version) != int(existing.get("version") or 1):
+        if expected_version is None:
+            raise ValueError("Task update requires expected version")
+        existing_version = existing.get("version")
+        if existing_version is None:
+            raise UserTaskConflictError("Task version is required before mutation")
+        if int(expected_version) != int(existing_version):
             raise UserTaskConflictError("Task was modified by another client")
 
         now = int(raw_patch.get("updated_at") or time.time())
@@ -114,9 +124,9 @@ class UserTaskService:
                 "updated_at": now,
             }
         )
-        updated = await self.task_methods.update_task(task_id, user_id, update)
+        updated = await self.task_methods.update_task_if_version(task_id, user_id, update, int(existing_version))
         if not updated:
-            raise UserTaskNotFoundError("Task not found")
+            raise UserTaskConflictError("Task was modified by another client")
 
         if instruction and chat_id:
             try:
@@ -131,7 +141,7 @@ class UserTaskService:
                 if ai_task_id and self.cache_service:
                     await self.cache_service.set_active_ai_task(chat_id, ai_task_id)
             except Exception:
-                await self.task_methods.update_task(
+                await self.task_methods.update_task_if_version(
                     task_id,
                     user_id,
                     {
@@ -140,6 +150,7 @@ class UserTaskService:
                         "blocked_reason_code": "ai_dispatch_failed",
                         "updated_at": int(time.time()),
                     },
+                    int(updated["version"]),
                 )
                 raise
 

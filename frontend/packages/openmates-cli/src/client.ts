@@ -56,6 +56,8 @@ import {
   type AppSettingsMemoriesRequestEvent,
   type SendEmbedDataFrame,
   type SubChatEvent,
+  type TaskEventFrame,
+  type PendingTaskUpdateJobFrame,
   type TaskProposalEvent,
   type TaskUpdateProposalEvent,
 } from "./ws.js";
@@ -77,6 +79,12 @@ import {
   type ConnectedAccountCliTransferPayload,
   type EncryptedConnectedAccountImportRow,
 } from "./connectedAccountImport.js";
+import {
+  buildCreateUserTaskInput,
+  buildUpdateUserTaskInput,
+  decryptUserTasks,
+  findTask,
+} from "./tasksCli.js";
 
 function normalizeUnixSeconds(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
@@ -339,19 +347,27 @@ export interface UserTaskProposalRecord {
   assignee_type?: UserTaskAssigneeType;
 }
 
-export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & {
-  version?: number;
-};
+export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & { version: number };
 
-export type UserTaskUpdateInput = Partial<Omit<UserTaskRecord, "task_id" | "created_at">> & {
-  version?: number;
-};
+export type UserTaskUpdateInput = Partial<Omit<UserTaskRecord, "task_id" | "created_at" | "version">> & { version: number };
 
 export type UserTaskStartAIInput = UserTaskUpdateInput & {
   plaintext_title?: string;
   plaintext_description?: string;
   plaintext_latest_instruction?: string;
   plaintext_chat_title?: string;
+};
+
+export type UserTaskActionInput = { version: number; blocked_reason_code?: string | null };
+export type UserTaskReorderInput = {
+  moves: Array<{
+    task_id: string;
+    version: number;
+    before_task_id?: string | null;
+    after_task_id?: string | null;
+    status?: UserTaskStatus | null;
+    position?: number | null;
+  }>;
 };
 
 export type UserPlanStatus = "draft" | "awaiting_confirmation" | "active" | "executing" | "blocked" | "completed" | "archived";
@@ -820,6 +836,124 @@ export function buildAppSettingsMemoryResponseSystemMessage(params: {
     created_at: params.createdAt,
     user_message_id: params.userMessageId,
   };
+}
+
+export async function buildTaskEventSystemMessage(params: {
+  chatKey: Uint8Array;
+  userMessageId: string;
+  event: TaskEventFrame;
+}): Promise<{
+  message_id: string;
+  role: "system";
+  encrypted_content: string;
+  created_at: number;
+  user_message_id: string;
+  task_update_job_id?: string;
+}> {
+  const content = formatTaskEventSystemContent(params.event);
+  const message: {
+    message_id: string;
+    role: "system";
+    encrypted_content: string;
+    created_at: number;
+    user_message_id: string;
+    task_update_job_id?: string;
+  } = {
+    message_id: `task-event-${params.event.event_id}`,
+    role: "system",
+    encrypted_content: await encryptWithAesGcmCombined(content, params.chatKey),
+    created_at: params.event.created_at ?? Math.floor(Date.now() / 1000),
+    user_message_id: params.userMessageId,
+  };
+  if (params.event.task_update_job_id) message.task_update_job_id = params.event.task_update_job_id;
+  return message;
+}
+
+export function buildTaskUpdateJobPersistPayload(params: {
+  jobId: string;
+  leaseToken: string;
+  leaseGeneration: number;
+  expectedTaskVersion: number;
+  encryptedTaskPayload: Record<string, unknown>;
+  encryptedTaskEventMessage?: string | null;
+}): {
+  protocol_version: 1;
+  job_id: string;
+  lease_token?: string | null;
+  lease_generation?: number | null;
+  expected_task_version: number;
+  encrypted_task_payload: Record<string, unknown>;
+  encrypted_task_event_message?: string | null;
+} {
+  assertTaskPersistPayloadEncrypted(params.encryptedTaskPayload);
+  return {
+    protocol_version: 1,
+    job_id: params.jobId,
+    lease_token: params.leaseToken,
+    lease_generation: params.leaseGeneration,
+    expected_task_version: params.expectedTaskVersion,
+    encrypted_task_payload: { ...params.encryptedTaskPayload },
+    encrypted_task_event_message: params.encryptedTaskEventMessage ?? null,
+  };
+}
+
+function formatTaskEventSystemContent(event: TaskEventFrame): string {
+  const taskLabel = event.short_id || event.task_id;
+  const title = event.title ? ` "${event.title}"` : "";
+  const status = event.status ? ` (${event.status})` : "";
+  const reason = event.reason ? `: ${event.reason}` : "";
+  switch (event.event_type) {
+    case "created":
+      return `${taskLabel} created${title}${status}`;
+    case "updated":
+      return `${taskLabel} updated${title}${status}`;
+    case "blocked":
+      return `${taskLabel} blocked${reason}`;
+    case "completed":
+      return `${taskLabel} completed${title}`;
+    case "unblocked":
+      return `${taskLabel} unblocked`;
+    default:
+      return `${taskLabel} ${event.event_type}${title}${status}${reason}`;
+  }
+}
+
+function assertTaskPersistPayloadEncrypted(payload: Record<string, unknown>): void {
+  const allowedSafeKeys = new Set([
+    "assignee_hash",
+    "assignee_type",
+    "blocked_reason_code",
+    "created_at",
+    "key_wrappers",
+    "linked_project_ids",
+    "position",
+    "primary_chat_id",
+    "priority",
+    "status",
+    "task_id",
+    "updated_at",
+    "version",
+  ]);
+  for (const key of Object.keys(payload)) {
+    if (key.startsWith("encrypted_") || allowedSafeKeys.has(key)) {
+      continue;
+    }
+    throw new Error("Task update job payload contains plaintext or unsupported field");
+  }
+}
+
+interface TaskUpdateJobClaimPayload {
+  job_id: string;
+  task_id: string;
+  chat_id?: string | null;
+  message_id?: string | null;
+  operation?: string | null;
+  state?: string | null;
+  lease_token: string;
+  lease_generation: number;
+  expected_task_version: number;
+  private_patch?: Record<string, unknown>;
+  safe_metadata?: Record<string, unknown>;
 }
 
 export async function buildSubChatEncryptedMetadataPayloads(params: {
@@ -3423,6 +3557,10 @@ export class OpenMatesClient {
     taskProposals: TaskProposalEvent[];
     /** Review-only task update proposals from post-processing. */
     taskUpdateProposals: TaskUpdateProposalEvent[];
+    /** Main-processor task tool events observed during the turn. */
+    taskEvents: TaskEventFrame[];
+    /** Pending task update jobs awaiting client encryption/persistence. */
+    pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[];
     /** Sub-chat lifecycle frames observed while collecting the parent response. */
     subChatEvents: SubChatEvent[];
     /** Memory permission requests observed and optionally approved while collecting the response. */
@@ -3553,6 +3691,7 @@ export class OpenMatesClient {
 
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
+      client_capabilities: ["task_update_jobs"],
       is_incognito: Boolean(params.incognito),
       message: {
         message_id: messageId,
@@ -3752,6 +3891,8 @@ export class OpenMatesClient {
     let followUpSuggestions: string[] = [];
     let taskProposals: TaskProposalEvent[] = [];
     let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
+    let taskEvents: TaskEventFrame[] = [];
+    let pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[] = [];
     let subChatEvents: SubChatEvent[] = [];
     const appSettingsMemoryRequests: Array<{
       requestId: string | null;
@@ -3966,6 +4107,241 @@ export class OpenMatesClient {
       );
     };
 
+    const persistEncryptedSystemMessage = async (systemMessage: {
+      message_id: string;
+      role: "system";
+      encrypted_content: string;
+      created_at: number;
+      user_message_id: string;
+      task_update_job_id?: string;
+    }, targetChatId = chatId) => {
+      await ws.sendAsync("chat_system_message_added", {
+        chat_id: targetChatId,
+        message: systemMessage,
+      });
+      await ws.waitForMessage(
+        "system_message_confirmed",
+        (payload) => (payload as Record<string, unknown>).message_id === systemMessage.message_id,
+        20_000,
+      );
+    };
+
+    const persistedTaskEventIds = new Set<string>();
+    const persistTaskEventSystemMessages = async (events: TaskEventFrame[]) => {
+      if (!chatKeyBytes || events.length === 0) return;
+      for (const event of events) {
+        if (persistedTaskEventIds.has(event.event_id)) continue;
+        await persistEncryptedSystemMessage(await buildTaskEventSystemMessage({
+          chatKey: chatKeyBytes,
+          userMessageId: messageId,
+          event,
+        }));
+        persistedTaskEventIds.add(event.event_id);
+      }
+    };
+
+    const persistPendingTaskUpdateJobs = async (jobs: PendingTaskUpdateJobFrame[], events: TaskEventFrame[]): Promise<Set<string>> => {
+      const persistedJobIds = new Set<string>();
+      if (jobs.length === 0) return persistedJobIds;
+      const masterKey = this.getMasterKeyBytes();
+      let decryptedTasksCache: Awaited<ReturnType<typeof decryptUserTasks>> | null = null;
+      const eventByJobId = new Map(events.map((event) => [event.task_update_job_id, event]));
+
+      const buildTaskKeyWrappersForChat = async (
+        task: Awaited<ReturnType<typeof decryptUserTasks>>[number],
+        targetChatId: string,
+        createdAt: number,
+      ) => {
+        const encryptedTaskKey = task.encrypted.encrypted_task_key;
+        if (!encryptedTaskKey) throw new Error(`Task ${task.taskId} is missing encrypted task key.`);
+        const taskKey = await decryptBytesWithAesGcm(encryptedTaskKey, masterKey);
+        if (!taskKey) throw new Error(`Failed to decrypt task key for ${task.taskId}.`);
+        const targetChatKey = await resolveChatKey(targetChatId);
+        const existingProjectWrappers = await listProjectTaskKeyWrappers(task.taskId, createdAt);
+        const linkedProjectIds = task.linkedProjectIds ?? [];
+        if (linkedProjectIds.length > existingProjectWrappers.length) {
+          throw new Error(`Task ${task.taskId} is missing project key wrappers required for move persistence.`);
+        }
+        return [
+          {
+            key_type: "master",
+            encrypted_task_key: await encryptBytesWithAesGcm(taskKey, masterKey),
+            created_at: createdAt,
+          },
+          {
+            key_type: "chat",
+            hashed_chat_id: computeSHA256(targetChatId),
+            encrypted_task_key: await encryptBytesWithAesGcm(taskKey, targetChatKey),
+            created_at: createdAt,
+          },
+          ...existingProjectWrappers,
+        ];
+      };
+
+      const listProjectTaskKeyWrappers = async (taskId: string, createdAt: number): Promise<Array<Record<string, unknown>>> => {
+        const response = await this.http.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
+          `/v1/user-tasks/${encodeURIComponent(taskId)}/key-wrappers`,
+          this.getCliRequestHeaders(),
+        );
+        if (!response.ok) {
+          throw new Error(`User task key wrapper list failed with HTTP ${response.status}`);
+        }
+        return (response.data.key_wrappers ?? [])
+          .filter((wrapper) => wrapper.key_type === "project")
+          .map((wrapper) => ({
+            key_type: "project",
+            hashed_project_id: wrapper.hashed_project_id,
+            encrypted_task_key: wrapper.encrypted_task_key,
+            created_at: typeof wrapper.created_at === "number" ? wrapper.created_at : createdAt,
+            expires_at: wrapper.expires_at ?? null,
+          }));
+      };
+
+      const resolveChatKey = async (targetChatId: string): Promise<Uint8Array> => {
+        if (targetChatId === chatId && chatKeyBytes) return chatKeyBytes;
+        const cache = loadSyncCache() ?? (await this.ensureSynced());
+        const targetChat = cache.chats.find((chat) => String(chat.details.id ?? "") === targetChatId);
+        const encryptedTargetChatKey = typeof targetChat?.details.encrypted_chat_key === "string"
+          ? targetChat.details.encrypted_chat_key
+          : null;
+        if (!encryptedTargetChatKey) {
+          throw new Error(`Encrypted chat key not found for task move target '${targetChatId}'. Sync and try again.`);
+        }
+        const targetChatKey = await decryptBytesWithAesGcm(encryptedTargetChatKey, masterKey);
+        if (!targetChatKey) {
+          throw new Error(`Failed to decrypt chat key for task move target '${targetChatId}'.`);
+        }
+        return targetChatKey;
+      };
+
+      const taskEventTypeForOperation = (operation: string | null | undefined): string => {
+        switch (operation) {
+          case "create": return "created";
+          case "move": return "moved";
+          case "update": return "updated";
+          default: return operation || "updated";
+        }
+      };
+
+      for (const job of jobs) {
+        const claimPromise = ws.waitForMessage(
+          "task_update_job_claimed",
+          (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
+          20_000,
+        );
+        await ws.sendAsync("task_update_job_claim", {
+          protocol_version: 1,
+          job_id: job.job_id,
+        });
+        const claim = (await claimPromise).payload as unknown as TaskUpdateJobClaimPayload;
+
+        const privatePatch = claim.private_patch ?? {};
+        const safeMetadata = claim.safe_metadata ?? {};
+        const sourceChatId = claim.chat_id ?? job.chat_id ?? chatId;
+        const sourceChatKey = await resolveChatKey(sourceChatId);
+        const event = eventByJobId.get(job.job_id) ?? {
+          event_id: `task-event-${job.job_id}`,
+          chat_id: sourceChatId,
+          task_id: claim.task_id,
+          event_type: taskEventTypeForOperation(claim.operation),
+          title: typeof privatePatch.title === "string" ? privatePatch.title : null,
+          status: typeof safeMetadata.status === "string" ? safeMetadata.status : null,
+          created_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : Math.floor(Date.now() / 1000),
+          task_update_job_id: job.job_id,
+        } satisfies TaskEventFrame;
+        const eventMessage = await buildTaskEventSystemMessage({
+          chatKey: sourceChatKey,
+          userMessageId: claim.message_id ?? messageId,
+          event,
+        });
+        const confirmTaskEventPersisted = async () => {
+          const confirmedPromise = ws.waitForMessage(
+            "task_update_job_event_confirmed",
+            (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
+            20_000,
+          );
+          await ws.sendAsync("task_update_job_event_confirmed", {
+            protocol_version: 1,
+            job_id: job.job_id,
+            event_system_message_id: eventMessage.message_id,
+          });
+          await confirmedPromise;
+        };
+        if (claim.state === "TASK_PERSISTED") {
+          await persistEncryptedSystemMessage(eventMessage, sourceChatId);
+          persistedTaskEventIds.add(event.event_id);
+          await confirmTaskEventPersisted();
+          persistedJobIds.add(job.job_id);
+          continue;
+        }
+        if (!claim.lease_token || !Number.isSafeInteger(claim.lease_generation)) {
+          throw new Error("Task update job claim returned an invalid lease.");
+        }
+        let encryptedTaskPayload: Record<string, unknown>;
+        if (claim.operation === "create") {
+          const input = await buildCreateUserTaskInput(masterKey, {
+            title: typeof privatePatch.title === "string" ? privatePatch.title : "Untitled task",
+            description: typeof privatePatch.description === "string" ? privatePatch.description : "",
+            status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : "todo",
+            assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : "user",
+            chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : claim.chat_id ?? chatId,
+          });
+          encryptedTaskPayload = {
+            ...input,
+            task_id: claim.task_id,
+            position: typeof safeMetadata.position === "number" ? safeMetadata.position : input.position,
+            created_at: typeof safeMetadata.created_at === "number" ? safeMetadata.created_at : input.created_at,
+            updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : input.updated_at,
+          };
+        } else {
+          if (!decryptedTasksCache) {
+            decryptedTasksCache = await decryptUserTasks(await this.listUserTasks(), masterKey);
+          }
+          const task = findTask(decryptedTasksCache, claim.task_id);
+          const patch = await buildUpdateUserTaskInput(task, masterKey, {
+            title: typeof privatePatch.title === "string" ? privatePatch.title : undefined,
+            description: typeof privatePatch.description === "string" ? privatePatch.description : undefined,
+            status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : undefined,
+            assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : undefined,
+            chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : undefined,
+          });
+          encryptedTaskPayload = {
+            ...patch,
+            updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : patch.updated_at,
+          };
+          if (typeof safeMetadata.primary_chat_id === "string") {
+            encryptedTaskPayload.key_wrappers = await buildTaskKeyWrappersForChat(
+              task,
+              safeMetadata.primary_chat_id,
+              typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : Math.floor(Date.now() / 1000),
+            );
+          }
+        }
+
+        const encryptedEventMessage = eventMessage.encrypted_content;
+        const persistedPromise = ws.waitForMessage(
+          "task_update_job_persisted",
+          (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
+          20_000,
+        );
+        await ws.sendAsync("task_update_job_persist", buildTaskUpdateJobPersistPayload({
+          jobId: job.job_id,
+          leaseToken: claim.lease_token,
+          leaseGeneration: claim.lease_generation,
+          expectedTaskVersion: claim.expected_task_version,
+          encryptedTaskPayload,
+          encryptedTaskEventMessage: encryptedEventMessage,
+        }));
+        await persistedPromise;
+        await persistEncryptedSystemMessage(eventMessage, sourceChatId);
+        persistedTaskEventIds.add(event.event_id);
+        await confirmTaskEventPersisted();
+        persistedJobIds.add(job.job_id);
+      }
+      clearSyncCache();
+      return persistedJobIds;
+    };
+
     const streamOpts = {
       onStream: params.onStream,
       onSubChatEvent: handleSubChatEvent,
@@ -3979,6 +4355,8 @@ export class OpenMatesClient {
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
+        taskEvents = resp.taskEvents;
+        pendingTaskUpdateJobs = resp.pendingTaskUpdateJobs;
         subChatEvents = resp.subChatEvents;
         // Incognito chats are not post-processed — follow-up suggestions are not stored.
         if (resp.status === "waiting_for_user") {
@@ -3993,6 +4371,8 @@ export class OpenMatesClient {
             followUpSuggestions,
             taskProposals,
             taskUpdateProposals,
+            taskEvents,
+            pendingTaskUpdateJobs,
             subChatEvents,
             appSettingsMemoryRequests,
           };
@@ -4010,6 +4390,8 @@ export class OpenMatesClient {
         followUpSuggestions = resp.followUpSuggestions;
         taskProposals = resp.taskProposals;
         taskUpdateProposals = resp.taskUpdateProposals;
+        taskEvents = resp.taskEvents;
+        pendingTaskUpdateJobs = resp.pendingTaskUpdateJobs;
         subChatEvents = resp.subChatEvents;
 
         if (resp.status === "waiting_for_user") {
@@ -4024,6 +4406,8 @@ export class OpenMatesClient {
             followUpSuggestions,
             taskProposals,
             taskUpdateProposals,
+            taskEvents,
+            pendingTaskUpdateJobs,
             subChatEvents,
             appSettingsMemoryRequests,
           };
@@ -4180,6 +4564,9 @@ export class OpenMatesClient {
             newChatSuggestions: resp.newChatSuggestions,
             encryptedChatKey,
           });
+          const persistedTaskJobIds = await persistPendingTaskUpdateJobs(pendingTaskUpdateJobs, taskEvents);
+          pendingTaskUpdateJobs = pendingTaskUpdateJobs.filter((job) => !persistedTaskJobIds.has(job.job_id));
+          await persistTaskEventSystemMessages(taskEvents);
           clearSyncCache();
         }
       } finally {
@@ -4199,6 +4586,8 @@ export class OpenMatesClient {
       followUpSuggestions,
       taskProposals,
       taskUpdateProposals,
+      taskEvents,
+      pendingTaskUpdateJobs,
       subChatEvents,
       appSettingsMemoryRequests,
     };
@@ -5441,7 +5830,7 @@ export class OpenMatesClient {
     return response.data.task;
   }
 
-  async startUserTaskWithAI(taskId: string, input: UserTaskStartAIInput = {}): Promise<UserTaskRecord> {
+  async startUserTaskWithAI(taskId: string, input: UserTaskStartAIInput): Promise<UserTaskRecord> {
     this.requireSession();
     const response = await this.http.post<{ task?: UserTaskRecord }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}/start-ai`,
@@ -5454,10 +5843,10 @@ export class OpenMatesClient {
     return response.data.task;
   }
 
-  async deleteUserTask(taskId: string): Promise<{ deleted?: boolean; task_id?: string }> {
+  async deleteUserTask(taskId: string, version: number): Promise<{ deleted?: boolean; task_id?: string }> {
     this.requireSession();
     const response = await this.http.delete<{ deleted?: boolean; task_id?: string }>(
-      `/v1/user-tasks/${encodeURIComponent(taskId)}`,
+      `/v1/user-tasks/${encodeURIComponent(taskId)}?version=${encodeURIComponent(String(version))}`,
       undefined,
       this.getCliRequestHeaders(),
     );
@@ -5467,23 +5856,23 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async completeUserTask(taskId: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+  async completeUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
     return this.postUserTaskAction(taskId, "complete", input);
   }
 
-  async blockUserTask(taskId: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+  async blockUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
     return this.postUserTaskAction(taskId, "block", input);
   }
 
-  async unblockUserTask(taskId: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+  async unblockUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
     return this.postUserTaskAction(taskId, "unblock", input);
   }
 
-  async skipUserTask(taskId: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+  async skipUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
     return this.postUserTaskAction(taskId, "skip", input);
   }
 
-  async reorderUserTasks(input: Record<string, unknown>): Promise<UserTaskRecord[]> {
+  async reorderUserTasks(input: UserTaskReorderInput): Promise<UserTaskRecord[]> {
     this.requireSession();
     const response = await this.http.post<{ tasks?: UserTaskRecord[] }>(
       "/v1/user-tasks/reorder",
@@ -5496,7 +5885,7 @@ export class OpenMatesClient {
     return response.data.tasks ?? [];
   }
 
-  async postUserTaskAction(taskId: string, action: string, input: Record<string, unknown> = {}): Promise<UserTaskRecord> {
+  async postUserTaskAction(taskId: string, action: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
     this.requireSession();
     const response = await this.http.post<{ task?: UserTaskRecord }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}/${encodeURIComponent(action)}`,

@@ -1,0 +1,1474 @@
+schema_version: 2
+id: tasks-main-processor-tools
+title: Tasks Main Processor Tools
+status: approved
+
+goal: >
+  Make Tasks V1 a first-class main-processor capability for the OpenMates CLI.
+  During normal chat turns, the AI can create, update, reorder, block, complete,
+  and unblock chat tasks through explicit tools. Task content is edited in a
+  short-lived vault-encrypted backend working copy, then persisted durably only
+  after an authenticated client encrypts the latest task state with the task key.
+
+scope:
+  in:
+    - CLI-first implementation and verification for normal chat turns that use main-processor task tools.
+    - Pre-main task context resolution for tasks already attached to the chat and tasks mentioned with `@TASK-123` style IDs.
+    - Conditional main-processor task tool injection based on visible task context.
+    - A server-side vault-encrypted Redis task working copy used for AI inference and tool mutations.
+    - A claim/lease/idempotency protocol for client-encrypted task persistence jobs.
+    - CLI encryption and commit of pending task update jobs into Directus without durable plaintext or vault ciphertext.
+    - CLI rendering of task tool results as compact system events in normal output and structured `taskEvents` in JSON output.
+    - Durable chat-history persistence of task system events as client-encrypted `system` messages.
+    - One `primary_chat_id` execution owner per task, while `@TASK-123` from another chat creates a temporary inference reference only.
+    - Explicit task move support when the user asks to move a task into the active chat.
+    - Automatic approval of task creation and modification in CLI v1, with no confirmation prompts.
+    - Safe direct server mutation for non-private metadata such as status, queue state, position, and blocked reason.
+    - Deterministic tests and real dev CLI smoke coverage before web or Apple work.
+    - CLI task-tool smoke tests must run locally from this workspace against the real dev server before any GitHub Actions wiring.
+  out:
+    - Web UI implementation beyond documenting the later parity expectation.
+    - Apple implementation in this first slice.
+    - Team/shared/multi-owner tasks or multi-principal task encryption.
+    - Multi-primary-chat task ownership.
+    - Public task sharing.
+    - Removing legacy `pending_ai_response`; any cleanup needs a separate audit/spec.
+    - Replacing the existing postprocessor task proposal path in this slice, though it may be deprecated later.
+    - Server-side durable plaintext, server-side durable vault ciphertext, or server-side search over private task content.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP search returned 401 bad credentials."
+    - "Fallback `gh issue list --repo glowingkitty/OpenMates --search \"tasks main processor tools CLI task workflow\" --state all --limit 10` returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - docs/architecture/platforms/tasks-v1.md
+    - docs/architecture/core/chat-encryption-implementation.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/messaging/message-processing.md
+  code_patterns:
+    - backend/apps/ai/processing/main_processor.py currently generates normal app-skill tools but has no Tasks V1 main-processor tool injection.
+    - backend/apps/ai/processing/postprocessor.py can emit review-only `task_proposals` and `task_update_proposals`, but those are postprocessing metadata and are not the target architecture.
+    - backend/core/api/app/schemas/chat.py documents Directus client-encrypted message storage and vault-encrypted Redis AI cache storage.
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py implements claim/lease/persist handlers for sealed completion recovery.
+    - backend/core/api/app/services/workflow_chat_delivery_service.py implements claim-fenced client ciphertext persistence with expiry and conflict detection.
+    - backend/core/api/app/routes/user_tasks.py exposes current user task CRUD, extract, start-ai, complete, block, unblock, skip, and reorder routes.
+    - backend/core/api/app/services/user_task_service.py currently starts AI task execution through a synthetic `ai.ask` instruction and does not expose task tools to main processing.
+    - frontend/packages/openmates-cli/src/client.ts owns CLI chat send, recovery job persistence, and task API calls.
+    - frontend/packages/openmates-cli/src/cli.ts renders normal/JSON CLI chat output and task subcommands.
+    - frontend/packages/openmates-cli/src/ws.ts collects WebSocket frames for CLI AI responses.
+  tests:
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_task_proposals.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - backend/tests/test_chat_completion_recovery_jobs.py
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/verify_tasks_ai_chat_cli_smoke.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - Apple must eventually participate in the same task update job claim/persist protocol before native task tools are enabled.
+    - This first slice is CLI-first and must not require Apple work to prove the CLI contract.
+    - Shared backend protocol changes must remain compatible with a future Apple client that can decrypt task keys and persist encrypted task updates.
+  verification:
+    - Apple not implemented in this first slice.
+    - Reassess with `python3 scripts/apple_remote.py status` plus build/test when web or Apple task tool clients are added.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should task creation/modification be a postprocessor proposal flow or main-processor tool flow?
+      answer: >
+        Main-processor tool flow. The prior postprocessor-only path is not the
+        desired architecture for Tasks V1 task creation and modification.
+    - question: What task context should the main processor receive?
+      answer: >
+        The system prompt should include active chat tasks with IDs, titles, and
+        descriptions, positioned for high model attention. If no chat tasks are
+        attached, only create-task tools should be included to save tokens.
+        Mentioned tasks via `@TASK-123` should also be resolved and included.
+    - question: "How should `@TASK-123` interact with the one-primary-chat rule?"
+      answer: >
+        Keep exactly one primary chat for execution ownership and ordering.
+        `@TASK-123` from another chat is a temporary inference reference only.
+        Moving the task into the active chat requires an explicit move action.
+    - question: How should private task content be modified and persisted?
+      answer: >
+        Use the same two-layer pattern as chat messages: vault-encrypted backend
+        working copies in Redis for inference, and durable Directus storage only
+        after a client encrypts task content with the task key. Do not store
+        plaintext or vault ciphertext durably in Directus.
+    - question: Should task update persistence use loose pending events or a stronger recovery-style protocol?
+      answer: >
+        Use a task update job ID with claim, lease token, lease generation,
+        expected version, idempotent terminal persistence, and stale/conflicting
+        commit rejection, modeled after sealed chat recovery and workflow delivery.
+    - question: What should happen if no client can immediately encrypt and persist task updates?
+      answer: >
+        The vault-encrypted Redis working copy remains the temporary source of
+        truth and the task is marked pending client persistence. The pending job
+        is retried or delivered on reconnect until a trusted client persists the
+        encrypted update or the job expires according to retention policy.
+    - question: Should users confirm task changes?
+      answer: >
+        CLI v1 should auto-approve task creation and modification to avoid
+        constant confirmation prompts. The risk of annoying users with
+        approvals they always accept is higher than the v1 mutation risk.
+    - question: How should task tool calls appear in chat history?
+      answer: >
+        Render task creation and modification as system event cards/messages in
+        chat history. In CLI, show compact task event lines and include
+        structured events in JSON output. Persist those events into encrypted
+        chat history.
+    - question: Should task event cards be interactive?
+      answer: >
+        They must make tasks easy to open. For CLI-first scope, normal output
+        should include task IDs and JSON output should include task IDs/snapshots
+        so commands and tests can open or inspect the task. Rich web
+        interactivity is deferred.
+  vision_summary: >
+    Tasks become first-class AI tools during main processing, not after-the-fact
+    postprocessor suggestions. The backend may keep short-lived vault-encrypted
+    working copies for inference and mutation, but durable task and chat history
+    persistence remains client-encrypted. CLI is the first complete client and
+    must prove task tool execution, encrypted persistence, and visible task
+    system events end to end.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: a0ec7f387b8152116983c623047474b532111d45
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-14T11:28:32Z"
+  implementation_plan:
+    status: not_required
+    approved_at: ""
+    reason: The technical plan follows the approved product contract and introduces no new material architecture, privacy, migration, rollout, or external-dependency decisions beyond decisions D-1 through D-9.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Task creation and modification during chat are main-processor tool calls, not postprocessor suggestions.
+    reason: The user explicitly corrected the architecture and wants task management available during normal processing.
+    decided_at: "2026-07-14T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use conditional task tool injection to save tokens.
+    reason: Create-only tools are enough when a chat has no tasks; existing task management tools only matter when the model can see tasks.
+    decided_at: "2026-07-14T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Keep one primary chat per task; `@TASK-123` is a temporary inference reference unless the user explicitly moves the task.
+    reason: One execution owner preserves queue ordering and avoids conflicting active task contexts.
+    decided_at: "2026-07-14T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Private task content mutates in vault-encrypted Redis working copies and persists durably only as client-encrypted task-key ciphertext.
+    reason: This matches the chat inference/cache model and preserves zero-knowledge durable storage.
+    decided_at: "2026-07-14T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Task update persistence uses claim/lease/idempotency with stable task update job IDs.
+    reason: The newer recovery/workflow delivery patterns provide stronger race and duplicate protection than loose pending events.
+    decided_at: "2026-07-14T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: CLI v1 auto-approves task tool changes.
+    reason: The user prefers avoiding confirmation fatigue for task mutations.
+    decided_at: "2026-07-14T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: Task tool results create visible system events that are persisted into encrypted chat history.
+    reason: Auto-applied task mutations need a durable user-visible audit trail.
+    decided_at: "2026-07-14T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Do not remove legacy `pending_ai_response` as part of this work.
+    reason: It remains wired as legacy compatibility and needs a separate audit before removal.
+    decided_at: "2026-07-14T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: CLI task-tool verification runs locally against the real dev server first; GitHub Actions wiring comes only after local dev evidence is green.
+    reason: The CLI is the first implementation gate and must prove the real API/WebSocket/auth path before long-term CI stability coverage is added.
+    decided_at: "2026-07-14T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Validate the current postprocessor task proposal flow with real CLI chat smoke tests; useful smoke coverage, but not the target architecture because task management must happen in main processing.
+    outcome: rejected
+    recorded_at: "2026-07-14T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-6
+  next_action: Write red CLI task event and persistence tests plus local smoke script.
+  command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts tests/ws.test.ts
+  expected_outcome: Tests fail until CLI task event/job handling is implemented.
+  blocker: null
+  last_verified_commit: a0ec7f387b8152116983c623047474b532111d45
+
+scenarios:
+  - id: S-1
+    title: CLI chat creates tasks through main-processor tools
+    given:
+      - Alice is logged into the CLI.
+      - Alice starts a saved chat with no existing attached tasks.
+    when:
+      - Alice says `Create tasks to prepare the launch: checklist, announcement, and risk review`.
+    then:
+      - The main processor receives only create-task tool schemas for task management.
+      - The assistant creates three tasks through task tool calls during main processing.
+      - The CLI prints compact task-created system event lines.
+      - JSON output includes structured `taskEvents`, `pendingTaskUpdateJobs`, and updated task snapshots.
+      - The task-created system events are persisted to encrypted chat history as system messages.
+      - Durable task content in Directus is client-encrypted with task keys.
+
+  - id: S-2
+    title: CLI chat modifies existing attached tasks through main-processor tools
+    given:
+      - Alice has a saved chat with three attached tasks.
+      - Task `TASK-1001` is titled `Draft announcement`.
+    when:
+      - Alice says `Rename TASK-1001 to Draft launch announcement and move it before the checklist task`.
+    then:
+      - The main processor receives the attached task list and update/reorder tools.
+      - The assistant updates the task title and order through task tools.
+      - Private task title changes are first written to the vault-encrypted working copy.
+      - The CLI claims the pending task update job and persists client-encrypted task content.
+      - Safe order metadata is committed with version checks.
+      - The chat history contains encrypted system events for the rename and reorder.
+
+  - id: S-3
+    title: Mentioned task is available as a temporary reference
+    given:
+      - Alice is in chat A.
+      - Task `TASK-2002` has primary chat B.
+    when:
+      - Alice says `Use @TASK-2002 as context and explain what is still missing`.
+    then:
+      - The backend resolves `TASK-2002` for inference context if Alice owns it.
+      - The task is not automatically moved to chat A.
+      - The main processor can reference the task content in its response.
+      - No task move event or primary chat metadata change occurs.
+
+  - id: S-4
+    title: Explicit move transfers task execution ownership
+    given:
+      - Alice is in chat A.
+      - Task `TASK-2002` has primary chat B and no active execution.
+    when:
+      - Alice says `Move @TASK-2002 into this chat`.
+    then:
+      - The main processor calls the explicit move task tool.
+      - The task primary chat becomes chat A after safe metadata validation.
+      - The task content persistence job is created if encrypted task content references the new chat context.
+      - Chat A receives a durable encrypted system event noting the move.
+      - Chat B is no longer the execution owner for future queue ordering.
+
+  - id: S-5
+    title: Blocked attached task exposes unblock tool
+    given:
+      - Alice has a chat with attached task `TASK-3003` in `blocked` status.
+      - The blocked reason is `needs_user_input`.
+    when:
+      - Alice says `The missing destination city is Berlin, continue TASK-3003`.
+    then:
+      - The main processor receives the blocked task context and unblock tool.
+      - The assistant unblocks the task through a task tool.
+      - The CLI prints a task-unblocked system event.
+      - The encrypted chat history persists the system event.
+      - The task returns to an eligible queue state or starts according to queue policy.
+
+  - id: S-6
+    title: Offline client resumes pending task update persistence
+    given:
+      - Backend main processing created or modified a task while Alice's CLI disconnected before encrypted persistence completed.
+      - A vault-encrypted Redis working copy and pending task update job remain valid.
+    when:
+      - Alice reconnects with the CLI.
+    then:
+      - The backend advertises available pending task update jobs.
+      - The CLI claims one job, decrypts/opens the working-copy payload it is authorized to process, encrypts task content with the task key, and commits it.
+      - Duplicate claims are rejected or become idempotent no-ops.
+      - Directus never stores plaintext or vault-encrypted task content.
+
+  - id: S-7
+    title: CLI JSON output exposes deterministic task tool results
+    given:
+      - Alice runs `openmates chats new --json` with a prompt that creates and blocks tasks.
+    when:
+      - The chat completes successfully.
+    then:
+      - The JSON response includes `taskEvents` with stable event types and task IDs.
+      - The JSON response includes `pendingTaskUpdateJobs` only until the CLI has persisted them.
+      - The JSON response includes decrypted updated task snapshots suitable for smoke assertions.
+      - No encrypted task fields or plaintext private task payloads leak in the final CLI JSON output beyond user-visible decrypted content for Alice's authenticated device.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Main processing injects only create-task tools when an active chat has no visible tasks.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-CLI-001
+  - id: AC-2
+    scenario: S-2
+    text: Main processing injects update/reorder/block/complete tools when a chat has attached tasks.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-CLI-002
+  - id: AC-3
+    scenario: S-5
+    text: Main processing injects unblock tooling when visible attached tasks are blocked.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-CLI-003
+  - id: AC-4
+    scenario: S-3
+    text: "`@TASK-123` mentions expose owned task context without changing primary chat ownership."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-002
+      - T-CLI-004
+  - id: AC-5
+    scenario: S-4
+    text: Explicit move actions are required to change a task's primary chat.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-002
+      - T-CLI-004
+  - id: AC-6
+    scenario: S-2
+    text: Private task content updates are staged in vault-encrypted Redis working copies and durably persisted only as client-encrypted Directus fields.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-003
+      - T-NODE-001
+      - T-CLI-002
+  - id: AC-7
+    scenario: S-6
+    text: Pending task update jobs use claim/lease/idempotency and reject stale or conflicting encrypted commits.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-004
+      - T-NODE-001
+  - id: AC-8
+    scenario: S-1
+    text: CLI normal output renders compact task system events for created/updated/blocked/completed/unblocked tasks.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-NODE-002
+      - T-CLI-001
+  - id: AC-9
+    scenario: S-7
+    text: CLI JSON output includes structured task events, update jobs, and updated task snapshots without leaking raw encrypted fields.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-NODE-002
+      - T-CLI-001
+  - id: AC-10
+    scenario: S-1
+    text: Task system events are encrypted by the client and persisted as durable chat history system messages.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-NODE-001
+      - T-CLI-005
+  - id: AC-11
+    scenario: S-6
+    text: Pending task update jobs are rediscovered and completed by the CLI after reconnect.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-PYTEST-004
+      - T-CLI-006
+  - id: AC-12
+    scenario: S-1
+    text: CLI smoke tests are executed locally against the real dev server and pass before equivalent coverage is wired into GitHub Actions.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-LOCAL-001
+      - T-CI-001
+
+assumptions:
+  - id: A-1
+    text: Existing user task records already have client-encrypted durable content fields and safe metadata fields suitable for this protocol.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/specs/tasks-v1/spec.yml
+        summary: Tasks V1 requires client-encrypted task title, description, tags, activity, and instruction content with minimal backend metadata.
+      - source: backend/core/api/app/routes/user_tasks.py
+        summary: Current routes separate encrypted create/update payloads from safe metadata and state transitions.
+  - id: A-2
+    text: Chat history persistence supports client-encrypted system messages for task event audit entries.
+    category: encryption
+    required_before: implementation
+    status: checking
+    evidence:
+      - source: backend/core/api/app/schemas/chat.py
+        summary: Message roles include `system`; Directus stores encrypted content for durable message rows.
+  - id: A-3
+    text: A Directus extension or equivalent transactional boundary can be reused or added for task update job terminal persistence.
+    category: persistence
+    required_before: task_execution
+    status: unchecked
+    evidence: []
+
+contracts:
+  api:
+    - route: WebSocket `task_event`
+      request: server-to-client frame
+      response: "{ event_id, chat_id, task_id, short_id, event_type, title?, status?, reason?, created_at, task_update_job_id? }"
+      errors:
+        - Client ignores frames for chats it cannot decrypt or tasks it cannot resolve.
+    - route: WebSocket `task_update_jobs_available`
+      request: server-to-client frame
+      response: "{ jobs: [{ job_id, task_id, chat_id?, revision, task_key_version, expires_at }] }"
+      errors:
+        - Empty jobs list is ignored.
+    - route: WebSocket `task_update_job_claim`
+      request: "{ protocol_version: 1, job_id }"
+      response: "{ job_id, state: LEASED, lease_token, lease_generation, sealed_or_vault_payload_ref, expected_task_version, revision }"
+      errors:
+        - 404 when job is not found or not owned by the user.
+        - 409 when job is already terminal or currently leased by another device.
+    - route: WebSocket `task_update_job_persist`
+      request: "{ protocol_version: 1, job_id, lease_token, lease_generation, expected_task_version, encrypted_task_payload, encrypted_task_event_message? }"
+      response: "{ job_id, state: TERMINAL, committed_task_version }"
+      errors:
+        - 409 on stale lease, stale task version, or conflicting encrypted payload.
+    - route: WebSocket `task_event_message_persisted`
+      request: "{ event_id, encrypted_system_message }"
+      response: "{ event_id, persisted: true }"
+      errors:
+        - 409 when a duplicate event message is already persisted with different ciphertext.
+  data:
+    - Durable Directus task content fields remain client-encrypted with the task key.
+    - Redis task working copies are vault-encrypted, short-lived, owner scoped, and never copied into Directus.
+    - Task update jobs retain only encrypted/sealed payload references, safe metadata, lease state, revision, and expiry.
+    - Task system events persisted in chat history are normal encrypted `system` message rows.
+    - "`primary_chat_id` remains singular; `referenced_task_ids` may be transient request context and is not durable unless a move tool runs."
+  ui_states:
+    - CLI normal output task created event.
+    - CLI normal output task updated event.
+    - CLI normal output task blocked event with reason.
+    - CLI normal output task unblocked event.
+    - CLI JSON output with `taskEvents`, `pendingTaskUpdateJobs`, and `updatedTasks`.
+    - CLI reconnect processing pending task update jobs before or during chat sync.
+  privacy_security:
+    - Directus must never receive plaintext or vault-encrypted task title, description, latest instruction, tags, or activity summary.
+    - WebSocket task events may carry plaintext to the currently authenticated client session only for user-visible display and encryption.
+    - Logs must not include task plaintext, task keys, sealed task update payloads, or encrypted task payload bodies.
+    - Unauthorized `@TASK-123` mention resolution must reveal no existence information beyond a generic not-visible response.
+
+tests:
+  - id: T-SPEC-001
+    type: lint
+    file: docs/specs/tasks-main-processor-tools/spec.yml
+    command: python3 scripts/spec_validate.py docs/specs/tasks-main-processor-tools/spec.yml
+    covers:
+      - AC-12
+    assertions:
+      - spec structure validates before product-contract approval
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py
+        run_id: local-20260714T113830Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:38:30Z"
+
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_task_main_processor_tools.py
+    command: python3 -m pytest backend/tests/test_task_main_processor_tools.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - create-task tool is present when no visible tasks exist
+      - update/reorder/block/complete tools are present when attached tasks exist
+      - unblock tool is present only when a visible task is blocked
+      - task context prompt includes task IDs, titles, and descriptions for visible tasks
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py
+        run_id: local-20260714T113418Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:34:18Z"
+        summary: ModuleNotFoundError for backend.apps.ai.processing.task_runtime_tools before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py
+        run_id: local-20260714T113830Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:38:30Z"
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_task_mentions_and_chat_ownership.py
+    command: python3 -m pytest backend/tests/test_task_mentions_and_chat_ownership.py
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - owned `@TASK-123` mention adds task context without changing primary chat
+      - unauthorized task mention does not reveal existence
+      - explicit move tool changes primary chat with version checks
+      - active tasks cannot be moved while execution ownership would conflict
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py
+        run_id: local-20260714T113418Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:34:18Z"
+        summary: ModuleNotFoundError for backend.apps.ai.processing.task_runtime_tools before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_working_copy_privacy.py backend/tests/test_task_update_jobs.py
+        run_id: local-20260714T114331Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:43:31Z"
+
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_task_working_copy_privacy.py
+    command: python3 -m pytest backend/tests/test_task_working_copy_privacy.py
+    covers:
+      - AC-6
+      - AC-10
+    assertions:
+      - task tool mutation writes private content only to a vault-encrypted Redis working copy before client commit
+      - Directus task update payloads contain only client-encrypted private fields
+      - logs and task update job records do not include plaintext task content
+      - task system events can be persisted as encrypted system messages
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_task_working_copy_privacy.py backend/tests/test_task_update_jobs.py
+        run_id: local-20260714T114121Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:41:21Z"
+        summary: ModuleNotFoundError for working-copy and task update job services before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_working_copy_privacy.py backend/tests/test_task_update_jobs.py
+        run_id: local-20260714T114331Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:43:31Z"
+
+  - id: T-PYTEST-004
+    type: pytest
+    file: backend/tests/test_task_update_jobs.py
+    command: python3 -m pytest backend/tests/test_task_update_jobs.py
+    covers:
+      - AC-7
+      - AC-11
+    assertions:
+      - task update job IDs are stable for a task revision
+      - a job can be leased, renewed, persisted, and made terminal
+      - stale leases and stale expected task versions are rejected
+      - duplicate identical persistence is idempotent
+      - conflicting duplicate ciphertext is rejected
+      - expired jobs do not mutate durable task content
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_task_working_copy_privacy.py backend/tests/test_task_update_jobs.py
+        run_id: local-20260714T114121Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:41:21Z"
+        summary: ModuleNotFoundError for working-copy and task update job services before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/ws.test.ts
+        run_id: local-20260714T114656Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:46:56Z"
+
+  - id: T-NODE-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts
+    covers:
+      - AC-6
+      - AC-7
+      - AC-10
+    assertions:
+      - CLI claims task update jobs over WebSocket
+      - CLI encrypts task content with the task key before persistence
+      - CLI persists task event system messages with the chat key
+      - CLI retries or rediscovers pending jobs after reconnect
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/ws.test.ts
+        run_id: local-20260714T114546Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:45:46Z"
+        summary: WebSocket collector returned undefined taskEvents for task_event frames.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts
+        run_id: local-20260714T115113Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:51:13Z"
+
+  - id: T-NODE-002
+    type: unit
+    file: frontend/packages/openmates-cli/tests/ws.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/ws.test.ts
+    covers:
+      - AC-8
+      - AC-9
+    assertions:
+      - CLI WebSocket collector captures task event frames
+      - CLI chat result includes structured task events and pending task update jobs
+      - malformed task event frames are ignored without resolving the chat incorrectly
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts
+        run_id: local-20260714T115009Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:50:09Z"
+        summary: Client helper tests failed because task event/persist payload helpers were not exported yet.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CLI-001
+    type: unit
+    file: scripts/verify_tasks_main_processor_cli_smoke.py
+    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario create --skip-build
+    covers:
+      - AC-1
+      - AC-8
+      - AC-9
+    assertions:
+      - real CLI chat creates tasks through main-processor tool events
+      - CLI JSON contains taskEvents and updatedTasks
+      - created tasks are retrievable through `openmates tasks show`
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --scenario create --chat-timeout 360 --keep-artifacts
+        run_id: local-20260714T115512Z
+        subject_commit: a0ec7f387b8152116983c623047474b532111d45
+        timestamp: "2026-07-14T11:55:12Z"
+        summary: Real dev CLI smoke reached chat completion but taskEvents contained no created event before backend main-processor task tool execution is deployed.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CLI-LOCAL-001
+    type: unit
+    file: scripts/verify_tasks_main_processor_cli_smoke.py
+    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario all --skip-build
+    covers:
+      - AC-12
+    assertions:
+      - all task-tool CLI scenarios pass from the local workspace against the real dev API/WebSocket path
+      - the smoke uses real test-account auth and does not mock OpenMates API calls
+      - this evidence is recorded before any GitHub Actions workflow is added or enabled for this coverage
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CI-001
+    type: manual
+    file: .github/workflows/tasks-main-processor-cli-smoke.yml
+    command: gh workflow run tasks-main-processor-cli-smoke.yml --repo glowingkitty/OpenMates
+    covers:
+      - AC-12
+    assertions:
+      - GitHub Actions wiring is added only after T-CLI-LOCAL-001 has green evidence
+      - CI uses the same smoke script or a strict subset that preserves the real dev API/WebSocket contract
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CLI-002
+    type: unit
+    file: scripts/verify_tasks_main_processor_cli_smoke.py
+    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario update-reorder --skip-build
+    covers:
+      - AC-2
+      - AC-6
+    assertions:
+      - real CLI chat updates an existing task title through a task tool
+      - real CLI chat reorders two attached tasks through a task tool
+      - durable task content reloads correctly after encrypted persistence
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CLI-003
+    type: unit
+    file: scripts/verify_tasks_main_processor_cli_smoke.py
+    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario block-unblock --skip-build
+    covers:
+      - AC-3
+    assertions:
+      - blocked task context causes unblock tooling to be available
+      - real CLI chat unblocks a blocked task after user provides missing input
+      - task event history records block and unblock events
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CLI-004
+    type: unit
+    file: scripts/verify_tasks_main_processor_cli_smoke.py
+    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario mention-move --skip-build
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - "`@TASK-123` mention exposes task context without moving primary chat"
+      - explicit move command changes primary chat and emits a task event
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CLI-005
+    type: unit
+    file: scripts/verify_tasks_main_processor_cli_smoke.py
+    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario event-history --skip-build
+    covers:
+      - AC-10
+    assertions:
+      - task system events are visible in `openmates chats show`
+      - event message rows are encrypted in durable server payloads
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CLI-006
+    type: unit
+    file: scripts/verify_tasks_main_processor_cli_smoke.py
+    command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario reconnect-persist --skip-build
+    covers:
+      - AC-11
+    assertions:
+      - a pending task update job survives client disconnect
+      - reconnecting CLI discovers and persists the pending encrypted update
+      - duplicate reconnect attempts do not create duplicate task events or task versions
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-PRIVACY-001
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-6
+      - AC-7
+      - AC-10
+    status: pending
+    evidence:
+      status: ""
+      summary: "Review task update job records, Directus task rows, and logs for plaintext/vault-ciphertext leakage."
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/tasks-main-processor-tools/spec.yml
+  first_slice: >
+    Prove the server can resolve chat-attached and mentioned tasks, inject the
+    correct task tool schemas into main processing, and expose deterministic
+    red tests before implementing persistence jobs or CLI rendering.
+  existing_patterns:
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/cross-device-chat-completion-recovery/spec.yml
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/services/workflow_chat_delivery_service.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+  architecture: >
+    Add a task context resolver and task tool generator before main processing.
+    Task tools mutate safe metadata directly and private task content through a
+    vault-encrypted Redis working copy. Every private mutation creates a pending
+    task update job. The CLI claims jobs, encrypts task content with the task key,
+    persists encrypted updates, renders task events, and persists task events as
+    encrypted chat system messages.
+  boundaries:
+    - Main processor task tools are backend-only tool definitions, separate from postprocessor review-only proposals.
+    - Durable task private fields stay client-encrypted with task keys.
+    - Vault-encrypted Redis working copies are transient inference state, not durable storage.
+    - CLI is the first persistence client for task update jobs; web and Apple are deferred.
+    - GitHub Actions smoke wiring is deferred until local real-dev CLI smoke evidence passes.
+  data_flow:
+    - CLI sends a chat turn.
+    - Backend resolves chat tasks and `@TASK-123` mentions.
+    - Main processor receives task context and conditional task tool schemas.
+    - The model calls task tools during the turn.
+    - Task tools update safe metadata and vault-encrypted working copies.
+    - Backend emits task event frames and pending task update jobs.
+    - CLI renders task events, encrypts event system messages with the chat key, and persists them.
+    - CLI claims task update jobs, encrypts latest task content with task keys, and commits terminal encrypted persistence.
+    - Reconnect discovers and completes pending jobs that were not persisted before disconnect.
+  affected_files:
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Inject task tools and task context into main processing.
+    - path: backend/apps/ai/processing/task_tool_context.py
+      reason: New resolver for chat tasks and `@TASK-123` mentions.
+    - path: backend/apps/ai/processing/task_runtime_tools.py
+      reason: New task tool implementations for main processor calls.
+    - path: backend/core/api/app/services/user_task_working_copy_service.py
+      reason: Vault-encrypted Redis working-copy lifecycle.
+    - path: backend/core/api/app/services/user_task_update_job_service.py
+      reason: Claim/lease/idempotent client persistence protocol.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+      reason: WebSocket handlers for task update job claim/persist/discovery.
+    - path: backend/core/api/app/routes/websockets.py
+      reason: Wire task update job and task event handlers.
+    - path: frontend/packages/openmates-cli/src/ws.ts
+      reason: Collect task events and pending task update jobs.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Claim/persist task update jobs and persist encrypted task event messages.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Render normal and JSON task tool outputs during chat.
+    - path: scripts/verify_tasks_main_processor_cli_smoke.py
+      reason: Real dev CLI smoke coverage for task tool flows.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/tasks-main-processor-tools/spec.yml
+    - python3 -m pytest backend/tests/test_task_main_processor_tools.py backend/tests/test_task_mentions_and_chat_ownership.py backend/tests/test_task_working_copy_privacy.py backend/tests/test_task_update_jobs.py
+    - cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/ws.test.ts tests/client.test.ts
+    - python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --scenario all --skip-build
+    - python3 scripts/spec_verify.py docs/specs/tasks-main-processor-tools/spec.yml
+  verification_order:
+    - Backend pytest red phase for task context/tool injection and update jobs.
+    - CLI node red phase for task event/job frames and encrypted persistence.
+    - Real dev CLI smoke red phase against current dev behavior.
+    - Backend implementation.
+    - CLI implementation.
+    - Deploy to dev.
+    - Real dev CLI smoke green phase from this workspace against https://api.dev.openmates.org.
+    - Wire equivalent CLI smoke coverage into GitHub Actions only after local dev-server CLI evidence is green.
+    - Web and Apple deferred until CLI contract is stable.
+  migration_rollout:
+    - No migration of existing task content is required for the first slice.
+    - Existing postprocessor task proposal support remains available during rollout.
+    - Task update jobs and working-copy cache keys must be namespaced by protocol version so stale experimental jobs can be ignored safely.
+    - GitHub Actions workflow coverage must remain disabled or absent until T-CLI-LOCAL-001 has green evidence recorded in this spec.
+  observability:
+    - Log task tool names, task IDs, safe status transitions, job IDs, lease generations, and sanitized failure classes.
+    - Never log task plaintext, task keys, encrypted payload bodies, vault ciphertext, or full sealed working-copy payloads.
+    - Add counters or structured log fields for task_update_job_claimed, task_update_job_persisted, task_update_job_conflict, and task_event_persisted.
+  assumptions_to_check:
+    - A-2 before TASK-4: confirm CLI can persist client-encrypted system messages for task events without introducing a new message role.
+    - A-3 before TASK-6: confirm whether task update terminal persistence needs a Directus extension transaction or can safely use existing API/service boundaries.
+  ac_coverage_mapping:
+    AC-1: [T-PYTEST-001, T-CLI-001]
+    AC-2: [T-PYTEST-001, T-CLI-002]
+    AC-3: [T-PYTEST-001, T-CLI-003]
+    AC-4: [T-PYTEST-002, T-CLI-004]
+    AC-5: [T-PYTEST-002, T-CLI-004]
+    AC-6: [T-PYTEST-003, T-NODE-001, T-CLI-002]
+    AC-7: [T-PYTEST-004, T-NODE-001]
+    AC-8: [T-NODE-002, T-CLI-001]
+    AC-9: [T-NODE-002, T-CLI-001]
+    AC-10: [T-NODE-001, T-CLI-005]
+    AC-11: [T-PYTEST-004, T-CLI-006]
+    AC-12: [T-CLI-LOCAL-001, T-CI-001]
+  open_plan_questions:
+    - OQ-1 remains for retention TTL; default implementation should prefer a short configurable TTL unless product decides to match seven-day chat recovery jobs.
+    - OQ-2 remains for postprocessor proposal deprecation; do not remove it in this implementation.
+
+tasks:
+  - id: TASK-1
+    title: Approve product contract and implementation plan
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+        - AC-12
+    expected_files:
+      - docs/specs/tasks-main-processor-tools/spec.yml
+    verification:
+      - python3 scripts/spec_validate.py docs/specs/tasks-main-processor-tools/spec.yml
+    verification_ids:
+      - T-SPEC-001
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/tasks-main-processor-tools/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-2
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Write red backend task context and tool injection tests
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/tests/test_task_main_processor_tools.py
+      - backend/tests/test_task_mentions_and_chat_ownership.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-002
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-002
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/tests/test_task_main_processor_tools.py
+        - backend/tests/test_task_mentions_and_chat_ownership.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-3
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement backend task context and main-processor tool schemas
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/processing/task_tool_context.py
+      - backend/apps/ai/processing/task_runtime_tools.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-002
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-002
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - backend/apps/ai/processing/task_tool_context.py
+        - backend/apps/ai/processing/task_runtime_tools.py
+      shared_files:
+        - backend/apps/ai/processing/main_processor.py
+    blockers: []
+    follow_up_tasks:
+      - TASK-4
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Write red working-copy and task update job tests
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-2
+        - S-6
+      acceptance_criteria:
+        - AC-6
+        - AC-7
+        - AC-10
+        - AC-11
+    expected_files:
+      - backend/tests/test_task_working_copy_privacy.py
+      - backend/tests/test_task_update_jobs.py
+    verification:
+      - T-PYTEST-003
+      - T-PYTEST-004
+    verification_ids:
+      - T-PYTEST-003
+      - T-PYTEST-004
+    dependencies:
+      - TASK-3
+    ownership:
+      files:
+        - backend/tests/test_task_working_copy_privacy.py
+        - backend/tests/test_task_update_jobs.py
+      shared_files: []
+    blockers:
+      - A-3 must be confirmed before green implementation if terminal persistence needs a transaction extension.
+    follow_up_tasks:
+      - TASK-5
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Implement backend working-copy and task update job protocol
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-2
+        - S-6
+      acceptance_criteria:
+        - AC-6
+        - AC-7
+        - AC-10
+        - AC-11
+    expected_files:
+      - backend/core/api/app/services/user_task_working_copy_service.py
+      - backend/core/api/app/services/user_task_update_job_service.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+      - backend/core/api/app/routes/websockets.py
+      - backend/apps/ai/processing/task_runtime_tools.py
+    verification:
+      - T-PYTEST-003
+      - T-PYTEST-004
+    verification_ids:
+      - T-PYTEST-003
+      - T-PYTEST-004
+    dependencies:
+      - TASK-4
+    ownership:
+      files:
+        - backend/core/api/app/services/user_task_working_copy_service.py
+        - backend/core/api/app/services/user_task_update_job_service.py
+        - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+      shared_files:
+        - backend/core/api/app/routes/websockets.py
+        - backend/apps/ai/processing/task_runtime_tools.py
+    blockers: []
+    follow_up_tasks:
+      - TASK-6
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Write red CLI task event and persistence tests plus local smoke script
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+        - AC-12
+    expected_files:
+      - frontend/packages/openmates-cli/tests/client.test.ts
+      - frontend/packages/openmates-cli/tests/ws.test.ts
+      - scripts/verify_tasks_main_processor_cli_smoke.py
+    verification:
+      - T-NODE-001
+      - T-NODE-002
+      - T-CLI-001
+      - T-CLI-002
+      - T-CLI-003
+      - T-CLI-004
+      - T-CLI-005
+      - T-CLI-006
+      - T-CLI-LOCAL-001
+    verification_ids:
+      - T-NODE-001
+      - T-NODE-002
+      - T-CLI-001
+      - T-CLI-002
+      - T-CLI-003
+      - T-CLI-004
+      - T-CLI-005
+      - T-CLI-006
+      - T-CLI-LOCAL-001
+    dependencies:
+      - TASK-5
+    ownership:
+      files:
+        - scripts/verify_tasks_main_processor_cli_smoke.py
+      shared_files:
+        - frontend/packages/openmates-cli/tests/client.test.ts
+        - frontend/packages/openmates-cli/tests/ws.test.ts
+    blockers:
+      - A-2 must be confirmed before implementing task event message persistence.
+    follow_up_tasks:
+      - TASK-7
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Implement CLI task event rendering and encrypted task update persistence
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+    expected_files:
+      - frontend/packages/openmates-cli/src/ws.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+    verification:
+      - T-NODE-001
+      - T-NODE-002
+      - T-CLI-001
+      - T-CLI-002
+      - T-CLI-003
+      - T-CLI-004
+      - T-CLI-005
+      - T-CLI-006
+    verification_ids:
+      - T-NODE-001
+      - T-NODE-002
+      - T-CLI-001
+      - T-CLI-002
+      - T-CLI-003
+      - T-CLI-004
+      - T-CLI-005
+      - T-CLI-006
+    dependencies:
+      - TASK-6
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/ws.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-8
+    independently_deployable: false
+
+  - id: TASK-8
+    title: Run local real-dev CLI smoke and record evidence before CI wiring
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+        - AC-12
+    expected_files:
+      - docs/specs/tasks-main-processor-tools/spec.yml
+    verification:
+      - T-CLI-LOCAL-001
+      - V-PRIVACY-001
+    verification_ids:
+      - T-CLI-LOCAL-001
+      - V-PRIVACY-001
+    dependencies:
+      - TASK-7
+    ownership:
+      files:
+        - docs/specs/tasks-main-processor-tools/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-9
+    independently_deployable: true
+
+  - id: TASK-9
+    title: Wire long-term GitHub Actions smoke after local dev evidence is green
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-12
+    expected_files:
+      - .github/workflows/tasks-main-processor-cli-smoke.yml
+      - docs/specs/tasks-main-processor-tools/spec.yml
+    verification:
+      - T-CI-001
+    verification_ids:
+      - T-CI-001
+    dependencies:
+      - TASK-8
+    ownership:
+      files:
+        - .github/workflows/tasks-main-processor-cli-smoke.yml
+        - docs/specs/tasks-main-processor-tools/spec.yml
+      shared_files: []
+    blockers:
+      - T-CLI-LOCAL-001 must have passing green evidence before this task starts.
+    follow_up_tasks: []
+    independently_deployable: true
+
+risks:
+  - id: R-1
+    risk: Task tool auto-approval may surprise users if task events are not clear.
+    mitigation: Persist every task mutation as an encrypted chat system event and make CLI output explicit.
+  - id: R-2
+    risk: Task update jobs may conflict with concurrent clients.
+    mitigation: Use lease tokens, lease generations, expected versions, idempotent terminal persistence, and conflict rejection.
+  - id: R-3
+    risk: Private task plaintext could leak into Directus or logs.
+    mitigation: Add privacy tests and artifact review; keep durable private content client-encrypted only.
+  - id: R-4
+    risk: Prompt token growth from task context.
+    mitigation: Inject only relevant attached/mentioned tasks and only necessary tool schemas.
+
+open_questions:
+  - id: OQ-1
+    question: Should task update jobs expire after the same seven-day window as chat recovery jobs or a shorter task-specific TTL?
+    status: unresolved
+    next_action: Decide during implementation planning before adding cleanup jobs.
+  - id: OQ-2
+    question: Should the existing postprocessor task proposal flow remain as a secondary UX path after main-processor tools land?
+    status: unresolved
+    next_action: Decide after CLI main-processor tool smoke is green.

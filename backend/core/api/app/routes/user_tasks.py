@@ -8,7 +8,7 @@
 import time
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
@@ -65,6 +65,7 @@ class UserTaskCreateRequest(BaseModel):
     due_at: int | None = None
     priority: int = 0
     position: int = 0
+    version: int
     created_at: int
     updated_at: int
     key_wrappers: list[UserTaskKeyWrapperRequest] = Field(default_factory=list)
@@ -94,7 +95,7 @@ class UserTaskUpdateRequest(BaseModel):
     blocked_reason_code: str | None = None
     ai_execution_state: str | None = None
     updated_at: int | None = None
-    version: int | None = None
+    version: int
     key_wrappers: list[UserTaskKeyWrapperRequest] | None = None
 
 
@@ -108,11 +109,11 @@ class UserTaskStartAIRequest(BaseModel):
     plaintext_chat_title: str | None = None
     plaintext_project_context: str | None = None
     updated_at: int | None = None
-    version: int | None = None
+    version: int
 
 
 class UserTaskActionRequest(BaseModel):
-    version: int | None = None
+    version: int
     blocked_reason_code: str | None = None
 
 
@@ -122,7 +123,7 @@ class UserTaskReorderMoveRequest(BaseModel):
     after_task_id: str | None = None
     status: TaskStatus | None = None
     position: int | None = None
-    version: int | None = None
+    version: int
 
 
 class UserTaskReorderRequest(BaseModel):
@@ -137,6 +138,7 @@ class UserTaskExtractRequest(BaseModel):
 
 
 class UserTaskKeyWrappersRequest(BaseModel):
+    version: int
     key_wrappers: list[UserTaskKeyWrapperRequest] = Field(min_length=1)
 
 
@@ -276,12 +278,16 @@ async def delete_user_task(
     request: Request,
     response: Response,
     task_id: str,
+    version: int = Query(...),
     service: UserTaskService = Depends(get_user_task_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
-    deleted = await service.task_methods.delete_task(task_id, current_user.id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Task not found")
+    try:
+        deleted = await service.task_methods.delete_task(task_id, current_user.id, version)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Task not found")
+    except Exception as exc:
+        _handle_task_error(exc)
     return {"deleted": True, "task_id": task_id}
 
 
@@ -404,6 +410,7 @@ async def add_user_task_key_wrappers(
         current_user.id,
         task_id,
         [wrapper.model_dump() for wrapper in body.key_wrappers],
+        body.version,
     )
     if created is None:
         raise HTTPException(status_code=400, detail="Invalid task key wrappers")
