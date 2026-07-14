@@ -120,6 +120,14 @@ export interface PendingTaskUpdateJobFrame {
   expires_at: number;
 }
 
+interface AvailableRecoveryJobFrame {
+  job_id: string;
+  chat_id: string;
+  turn_id: string;
+  assistant_message_id: string;
+  chat_key_version: number;
+}
+
 const SUB_CHAT_EVENT_TYPES = new Set<string>([
   "spawn_sub_chats",
   "sub_chat_progress",
@@ -234,6 +242,28 @@ function parsePendingTaskUpdateJobs(value: unknown): PendingTaskUpdateJobFrame[]
     };
     if (typeof raw.chat_id === "string" || raw.chat_id === null) job.chat_id = raw.chat_id;
     return [job];
+  });
+}
+
+function parseAvailableRecoveryJobs(value: unknown): AvailableRecoveryJobFrame[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): AvailableRecoveryJobFrame[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (
+      typeof raw.job_id !== "string" ||
+      typeof raw.chat_id !== "string" ||
+      typeof raw.turn_id !== "string" ||
+      typeof raw.assistant_message_id !== "string" ||
+      typeof raw.chat_key_version !== "number"
+    ) return [];
+    return [{
+      job_id: raw.job_id,
+      chat_id: raw.chat_id,
+      turn_id: raw.turn_id,
+      assistant_message_id: raw.assistant_message_id,
+      chat_key_version: raw.chat_key_version,
+    }];
   });
 }
 
@@ -497,6 +527,7 @@ export class OpenMatesWsClient {
       onAppSettingsMemoriesRequest?: (
         event: AppSettingsMemoriesRequestEvent,
       ) => void | Promise<void>;
+      recoveryTurnId?: string | null;
     },
   ): Promise<{
     status: "completed" | "waiting_for_user";
@@ -822,6 +853,19 @@ export class OpenMatesWsClient {
           if (type === "task_update_jobs_available") {
             mergePendingTaskUpdateJobs(parsePendingTaskUpdateJobs(p.jobs));
             maybeResolve();
+            return;
+          }
+
+          if (type === "recovery_jobs_available") {
+            const job = parseAvailableRecoveryJobs(p.jobs).find(
+              (candidate) =>
+                candidate.chat_id === chatId &&
+                (!options?.recoveryTurnId || candidate.turn_id === options.recoveryTurnId),
+            );
+            if (!job) return;
+            recoveryJobId = job.job_id;
+            messageId = job.assistant_message_id;
+            scheduleResolve(latestContent);
             return;
           }
 

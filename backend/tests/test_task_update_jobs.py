@@ -323,6 +323,73 @@ async def test_task_update_job_persist_is_idempotent_after_task_persisted() -> N
 
 
 @pytest.mark.asyncio
+async def test_task_update_job_persist_accepts_already_applied_task_state() -> None:
+    cache = FakeCache()
+    manager = FakeManager()
+    job_id = "job-1"
+    working_copy_ref = "vault://user-tasks/working-copies/job-1"
+    encrypted_payload = {
+        "encrypted_title": "cipher-title",
+        "status": "todo",
+        "updated_at": 123,
+        "version": 2,
+    }
+    await cache.set(
+        f"user_task_working_copy:{hash_id(working_copy_ref)}",
+        {"owner_hash": hash_id("user-1"), "ref": working_copy_ref},
+    )
+    await cache.set(
+        f"{TASK_TOOL_JOB_CACHE_PREFIX}{job_id}",
+        {
+            "job_id": job_id,
+            "owner_hash": hash_id("user-1"),
+            "task_id": "task-1",
+            "state": "LEASED",
+            "operation": "update",
+            "expected_task_version": 1,
+            "working_copy_ref": working_copy_ref,
+            "lease_token": "lease-1",
+            "lease_generation": 1,
+            "lease_device_hash": "device-a",
+            "lease_expires_at": 9_999_999_999,
+            "expires_at": 9_999_999_999,
+        },
+    )
+    directus = SimpleNamespace(
+        user_task=SimpleNamespace(
+            update_task_if_version=AsyncMock(return_value=None),
+            get_task=AsyncMock(return_value={"task_id": "task-1", **encrypted_payload}),
+        ),
+        encryption_service=None,
+    )
+
+    await handle_task_update_job_persist(
+        manager=manager,
+        cache_service=cache,
+        directus_service=directus,
+        user_id="user-1",
+        device_fingerprint_hash="device-a",
+        payload={
+            "protocol_version": 1,
+            "job_id": job_id,
+            "lease_token": "lease-1",
+            "lease_generation": 1,
+            "expected_task_version": 1,
+            "encrypted_task_payload": encrypted_payload,
+            "encrypted_task_event_message": "cipher-system-event",
+        },
+    )
+
+    stored = await cache.get(f"{TASK_TOOL_JOB_CACHE_PREFIX}{job_id}")
+    assert manager.messages[-1]["type"] == "task_update_job_persisted"
+    assert manager.messages[-1]["payload"]["state"] == "TASK_PERSISTED"
+    assert stored["state"] == "TASK_PERSISTED"
+    assert stored["client_encrypted_payload"] == encrypted_payload
+    directus.user_task.update_task_if_version.assert_awaited_once()
+    directus.user_task.get_task.assert_awaited_once_with("task-1", "user-1")
+
+
+@pytest.mark.asyncio
 async def test_task_update_job_event_confirm_requires_system_message_confirmation() -> None:
     cache = FakeCache()
     manager = FakeManager()

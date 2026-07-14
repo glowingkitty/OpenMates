@@ -242,7 +242,10 @@ async def handle_task_update_job_persist(
                 current = await directus_service.user_task.get_task(task_id, user_id)
                 if not current:
                     raise TaskUpdateJobNotFoundError("Task not found")
-                raise TaskUpdateJobConflictError("Task changed before encrypted persistence")
+                if _task_already_matches_encrypted_payload(current, encrypted_payload, int(expected_task_version)):
+                    durable = current
+                else:
+                    raise TaskUpdateJobConflictError("Task changed before encrypted persistence")
         if not durable:
             raise RuntimeError("Failed to persist encrypted task update")
 
@@ -381,6 +384,35 @@ def _validate_encrypted_payload(payload: dict[str, Any]) -> None:
         if key.startswith("encrypted_") or key in allowed_safe:
             continue
         raise ValueError("Task update job payload contains plaintext or unsupported field")
+
+
+def _task_already_matches_encrypted_payload(
+    current: dict[str, Any],
+    encrypted_payload: dict[str, Any],
+    expected_task_version: int,
+) -> bool:
+    """Return true when a retry sees the exact already-committed task state."""
+    try:
+        current_version = int(current.get("version"))
+    except (TypeError, ValueError):
+        return False
+    accepted_versions = {int(expected_task_version) + 1}
+    try:
+        payload_version = int(encrypted_payload.get("version"))
+    except (TypeError, ValueError):
+        payload_version = None
+    if payload_version is not None and payload_version > int(expected_task_version):
+        accepted_versions.add(payload_version)
+    if current_version not in accepted_versions:
+        return False
+
+    skip_keys = {"version", "key_wrappers", "linked_project_ids"}
+    for key, value in encrypted_payload.items():
+        if key in skip_keys:
+            continue
+        if current.get(key) != value:
+            return False
+    return True
 
 
 def _validate_protocol_version(payload: dict[str, Any]) -> None:

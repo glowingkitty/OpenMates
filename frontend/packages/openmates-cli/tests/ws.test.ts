@@ -669,4 +669,66 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       client.close();
     }
   });
+
+  it("resolves saved-chat collection from a matching recovery job", async () => {
+    const chatId = "chat-recovery-available";
+    const userMessageId = "user-message-recovery";
+    const turnId = "turn-current";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [
+                {
+                  job_id: "recovery-job-stale",
+                  chat_id: chatId,
+                  turn_id: "turn-stale",
+                  assistant_message_id: "assistant-message-stale",
+                  chat_key_version: 1,
+                },
+                {
+                  job_id: "recovery-job-current",
+                  chat_id: chatId,
+                  turn_id: turnId,
+                  assistant_message_id: "assistant-message-current",
+                  chat_key_version: 1,
+                },
+              ],
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId },
+          }),
+        );
+      }, 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-recovery-available",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: turnId,
+      });
+
+      assert.equal(response.status, "completed");
+      assert.equal(response.recoveryJobId, "recovery-job-current");
+      assert.equal(response.messageId, "assistant-message-current");
+      assert.equal(response.content, "");
+    } finally {
+      client.close();
+    }
+  });
 });

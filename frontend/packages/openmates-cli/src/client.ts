@@ -3887,6 +3887,7 @@ export class OpenMatesClient {
       precollectedResponse = ws.collectAiResponse(messageId, chatId, {
         onStream: params.onStream,
         timeoutMs: params.responseTimeoutMs,
+        recoveryTurnId: savedTurnId,
       });
     }
     const confirmed = ws.waitForMessage(
@@ -4377,6 +4378,7 @@ export class OpenMatesClient {
         const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
           ...streamOpts,
           timeoutMs: params.responseTimeoutMs,
+          recoveryTurnId: savedTurnId,
         }));
         assistantMessageId = resp.messageId;
         assistant = resp.content;
