@@ -187,6 +187,7 @@ def test_directus_trigger_repository_upserts_by_public_trigger_id() -> None:
         "trigger_id": "trigger-1",
         "workflow_id": "workflow-1",
         "version_id": "version-1",
+        "owner_user_id": "owner-directus-id",
         "owner_hash": "user_sha256:owner",
         "hashed_project_id": None,
         "trigger_type": "schedule",
