@@ -7599,8 +7599,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Summary and updated title arrive via post_processing_metadata after the main
         // header is already shown. Decrypt and display them immediately so the header
         // updates live without needing to close and reopen the chat.
+        const incomingMetadataVersion = Number(incomingChatMetadata?.metadata_v ?? incomingChatMetadata?.title_v ?? 0);
+        const currentMetadataVersion = Number(currentChat?.metadata_v ?? currentChat?.title_v ?? 0);
+        const incomingMetadataIsStale = incomingMetadataVersion > 0 && currentMetadataVersion > 0 && incomingMetadataVersion < currentMetadataVersion;
         if (
             incomingChatMetadata &&
+            !incomingMetadataIsStale &&
             (incomingChatMetadata.encrypted_chat_summary || incomingChatMetadata.encrypted_title) &&
             (detail.type === 'post_processing_metadata' || detail.type === 'metadata_updated' || detail.type === 'title_updated')
         ) {
@@ -7648,9 +7652,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // let messagesNeedRefresh = false; // No longer relying on this for DB reload within this handler
         // let previousMessagesV = currentChat?.messages_v; // Not needed for direct comparison here anymore
 
-        if (incomingChatMetadata) {
+        if (incomingChatMetadata && !incomingMetadataIsStale) {
             console.debug("[ActiveChat] handleChatUpdated: Updating currentChat with metadata from event:", incomingChatMetadata);
             currentChat = { ...currentChat, ...incomingChatMetadata }; // Merge, prioritizing incoming. This updates messages_v etc.
+        } else if (incomingMetadataIsStale) {
+            console.debug('[ActiveChat] handleChatUpdated: Ignoring stale encrypted metadata event:', {
+                incomingMetadataVersion,
+                currentMetadataVersion,
+                type: detail.type
+            });
         } else {
             console.debug("[ActiveChat] 'chatUpdated' event received without full chat metadata, only chat_id:", incomingChatId, "Detail type:", detail.type);
         }
