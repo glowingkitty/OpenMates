@@ -3543,6 +3543,8 @@ export class OpenMatesClient {
     learningMode?: LearningModeContext;
     /** Start collecting before send for latency-sensitive benchmark turns. */
     precollectResponse?: boolean;
+    /** Override the WebSocket AI response collection timeout for long-running turns. */
+    responseTimeoutMs?: number;
   }): Promise<{
     status: "completed" | "waiting_for_user";
     chatId: string;
@@ -3784,7 +3786,7 @@ export class OpenMatesClient {
     }
 
     let precollectedResponse = params.precollectResponse && params.incognito
-      ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream })
+      ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream, timeoutMs: params.responseTimeoutMs })
       : null;
 
     if (!params.incognito && chatKeyBytes && encryptedChatKey) {
@@ -3868,6 +3870,7 @@ export class OpenMatesClient {
     if (params.precollectResponse && !params.incognito) {
       precollectedResponse = ws.collectAiResponse(messageId, chatId, {
         onStream: params.onStream,
+        timeoutMs: params.responseTimeoutMs,
       });
     }
     const confirmed = ws.waitForMessage(
@@ -4350,7 +4353,10 @@ export class OpenMatesClient {
 
     if (params.incognito) {
       try {
-        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, streamOpts));
+        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
+          ...streamOpts,
+          timeoutMs: params.responseTimeoutMs,
+        }));
         assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;
@@ -4382,7 +4388,10 @@ export class OpenMatesClient {
       }
     } else {
       try {
-        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, streamOpts));
+        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
+          ...streamOpts,
+          timeoutMs: params.responseTimeoutMs,
+        }));
         assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;

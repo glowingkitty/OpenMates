@@ -787,6 +787,11 @@ function parsePositiveIntegerFlag(value: string | boolean | undefined, flagName:
   return parsed;
 }
 
+function parseResponseTimeoutMs(flags: Record<string, string | boolean>): number | undefined {
+  const seconds = parsePositiveIntegerFlag(flags["response-timeout-seconds"], "--response-timeout-seconds");
+  return seconds === undefined ? undefined : seconds * 1000;
+}
+
 function parseRemoteAccessSourceType(value: string | boolean | undefined): RemoteAccessSourceRecord["sourceType"] {
   if (value === undefined) return "local_folder";
   if (value === "local_folder" || value === "local_git_repository") {
@@ -975,6 +980,7 @@ async function handleChats(
         autoApproveMemories: flags["auto-approve-memories"] === true,
         acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
+        responseTimeoutMs: parseResponseTimeoutMs(flags),
         anonymousLearningMode: client.hasSession() ? undefined : parseAnonymousLearningModeFlags(flags),
       },
       redactor,
@@ -1070,6 +1076,7 @@ async function handleChats(
         autoApproveMemories: flags["auto-approve-memories"] === true,
         acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
+        responseTimeoutMs: parseResponseTimeoutMs(flags),
       },
       redactor,
     );
@@ -1102,6 +1109,7 @@ async function handleChats(
         autoApproveMemories: flags["auto-approve-memories"] === true,
         acceptTaskProposals: flags["accept-task-proposals"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
+        responseTimeoutMs: parseResponseTimeoutMs(flags),
       },
       redactor,
     );
@@ -1124,6 +1132,7 @@ async function handleChats(
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
+        responseTimeoutMs: parseResponseTimeoutMs(flags),
       },
       redactor,
     );
@@ -4811,6 +4820,7 @@ async function sendMessageStreaming(
     acceptTaskProposals?: boolean;
     piiDetection?: boolean;
     anonymousLearningMode?: LearningModeContext;
+    responseTimeoutMs?: number;
   },
   redactor?: OutputRedactor,
 ): Promise<{
@@ -5237,6 +5247,7 @@ async function sendMessageStreaming(
     onSubChatApprovalRequest,
     autoApproveSubChats: params.autoApproveSubChats,
     autoApproveMemories: params.autoApproveMemories,
+    responseTimeoutMs: params.responseTimeoutMs,
     learningMode,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
     piiMappings: piiResult.mappings.map((mapping) => ({

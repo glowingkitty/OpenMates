@@ -69,7 +69,14 @@ def scenario_create(args: argparse.Namespace) -> dict[str, Any]:
         f"The task titles must be MPT-{suffix}-A write release checklist and MPT-{suffix}-B review launch risk. "
         "Do not browse the web. Reply briefly after the task tools finish."
     )
-    result = run_cli_json(["chats", "new", prompt, "--no-pii-detection"], timeout=args.chat_timeout)
+    result = run_cli_json([
+        "chats",
+        "new",
+        prompt,
+        "--no-pii-detection",
+        "--response-timeout-seconds",
+        str(args.chat_timeout),
+    ], timeout=args.chat_timeout + 30)
     events = task_events(result)
     require(any(event.get("event_type") == "created" for event in events), f"expected created task event, got {events}")
     require(pending_jobs(result) == [], "CLI should persist pending task update jobs before final JSON output")
@@ -88,8 +95,10 @@ def scenario_update(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str,
             chat_id,
             "Update one visible task title to mention final review, then complete one visible task using task tools.",
             "--no-pii-detection",
+            "--response-timeout-seconds",
+            str(args.chat_timeout),
         ],
-        timeout=args.chat_timeout,
+        timeout=args.chat_timeout + 30,
     )
     events = task_events(result)
     event_types = {event.get("event_type") for event in events}

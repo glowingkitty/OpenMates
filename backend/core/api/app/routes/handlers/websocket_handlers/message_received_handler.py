@@ -23,6 +23,7 @@ from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
 from backend.shared.python_utils.learning_mode import build_learning_mode_context
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import enqueue_chat_turn
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError, ChatRecoveryService
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 
@@ -245,6 +246,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 for key, value in payload.items()
                 if key not in {"protocol_version", "preflight_id"}
             }
+            inference_request["client_capabilities"] = server_client_capabilities(
+                manager,
+                user_id,
+                device_fingerprint_hash,
+            )
             try:
                 recovery_enqueue_result = await enqueue_chat_turn(
                     directus_service=directus_service,
@@ -1666,9 +1672,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):
             mentioned_settings_memories_cleartext = None
             logger.warning("mentioned_settings_memories_cleartext is not a dict, ignoring")
-        client_capabilities = []
-        if manager.supports_task_update_jobs(user_id, device_fingerprint_hash):
-            client_capabilities.append("task_update_jobs")
+        client_capabilities = server_client_capabilities(manager, user_id, device_fingerprint_hash)
 
         # OPE-265: Pass the current chat title (decrypted by client) to post-processing
         # so the LLM can decide if the title needs updating when the conversation drifts.

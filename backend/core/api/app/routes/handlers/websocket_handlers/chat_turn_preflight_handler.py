@@ -89,6 +89,13 @@ def build_inference_commitment(inference_request: dict[str, Any]) -> str:
     ).hexdigest()
 
 
+def server_client_capabilities(manager: Any, user_id: str, device_fingerprint_hash: str) -> list[str]:
+    capabilities: list[str] = []
+    if manager.supports_task_update_jobs(user_id, device_fingerprint_hash):
+        capabilities.append("task_update_jobs")
+    return capabilities
+
+
 async def enqueue_chat_turn(
     *,
     directus_service: Any,
@@ -158,6 +165,12 @@ async def handle_chat_turn_preflight(
             return
         encrypted_user_message = dict(payload["encrypted_user_message"])
         encrypted_user_message["hashed_user_id"] = user_id_hash
+        inference_request = dict(payload["inference_request"])
+        inference_request["client_capabilities"] = server_client_capabilities(
+            manager,
+            user_id,
+            device_fingerprint_hash,
+        )
         transaction_data = {
             "protocol_version": payload["protocol_version"],
             "hashed_user_id": user_id_hash,
@@ -168,7 +181,7 @@ async def handle_chat_turn_preflight(
             "chat_key_version": payload["chat_key_version"],
             "wrapped_chat_key": payload["encrypted_chat_key"],
             "recovery_public_key": payload["recovery_public_key"],
-            "inference_commitment": build_inference_commitment(payload["inference_request"]),
+            "inference_commitment": build_inference_commitment(inference_request),
             "commitment_version": COMMITMENT_VERSION,
             "expected_messages_v": payload["expected_messages_v"],
             "encrypted_user_message": encrypted_user_message,

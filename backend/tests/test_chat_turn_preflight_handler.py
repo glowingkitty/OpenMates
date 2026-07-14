@@ -18,9 +18,13 @@ from backend.core.api.app.routes.handlers.websocket_handlers import chat_turn_pr
 class FakeManager:
     def __init__(self) -> None:
         self.messages: list[tuple[dict, str, str]] = []
+        self.task_update_jobs = False
 
     async def send_personal_message(self, message: dict, user_id: str, device_hash: str) -> None:
         self.messages.append((message, user_id, device_hash))
+
+    def supports_task_update_jobs(self, user_id: str, device_hash: str) -> bool:
+        return self.task_update_jobs
 
 
 class FakeRecoveryService:
@@ -103,7 +107,9 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     assert transaction_data["encrypted_user_message"]["hashed_user_id"] == "owner-hash"
     assert "inference_request" not in transaction_data
     assert "private plaintext" not in json.dumps(transaction_data)
-    canonical = json.dumps(payload["inference_request"], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    expected_inference_request = dict(payload["inference_request"])
+    expected_inference_request["client_capabilities"] = []
+    canonical = json.dumps(expected_inference_request, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
     assert transaction_data["inference_commitment"] == hmac.new(
         b"commitment-secret", canonical, hashlib.sha256
     ).hexdigest()
