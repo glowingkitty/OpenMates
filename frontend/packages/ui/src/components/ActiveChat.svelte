@@ -7599,7 +7599,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Summary and updated title arrive via post_processing_metadata after the main
         // header is already shown. Decrypt and display them immediately so the header
         // updates live without needing to close and reopen the chat.
-        if (detail.type === 'post_processing_metadata' && (incomingChatMetadata?.encrypted_chat_summary || incomingChatMetadata?.encrypted_title)) {
+        if (
+            incomingChatMetadata &&
+            (incomingChatMetadata.encrypted_chat_summary || incomingChatMetadata.encrypted_title) &&
+            (detail.type === 'post_processing_metadata' || detail.type === 'metadata_updated' || detail.type === 'title_updated')
+        ) {
             try {
                 const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
                 // Safe key retrieval — same pattern as the title_updated handler above.

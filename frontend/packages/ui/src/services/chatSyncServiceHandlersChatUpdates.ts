@@ -1535,6 +1535,7 @@ export async function handleEncryptedChatMetadataImpl(
     chat_id: string;
     encrypted_chat_key?: string;
     encrypted_title?: string;
+    encrypted_chat_summary?: string;
     encrypted_icon?: string;
     encrypted_category?: string;
     versions?: {
@@ -1796,6 +1797,11 @@ export async function handleEncryptedChatMetadataImpl(
       chatMetadataCache.invalidateChat(payload.chat_id);
 
       // Dispatch event to notify UI components (e.g., Chats.svelte) to refresh
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatUpdated", {
+          detail: { chat_id: payload.chat_id, type: "metadata_updated", chat },
+        }),
+      );
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("chatHidden", {
@@ -1804,7 +1810,7 @@ export async function handleEncryptedChatMetadataImpl(
         );
         window.dispatchEvent(
           new CustomEvent("chatUpdated", {
-            detail: { chat_id: payload.chat_id, chat: chat },
+            detail: { chat_id: payload.chat_id, type: "metadata_updated", chat },
           }),
         );
       }
