@@ -30,6 +30,8 @@ def test_candidate_query_preserves_known_admin_and_content_users() -> None:
     assert "c.chat_count = 0" in sql
     assert "c.message_count = 0" in sql
     assert "c.embed_count = 0" in sql
+    assert "u.signup_started_at is not null" in sql
+    assert "u.last_opened like '/chat/%'" in sql
 
 
 def test_apply_requires_explicit_confirmation() -> None:

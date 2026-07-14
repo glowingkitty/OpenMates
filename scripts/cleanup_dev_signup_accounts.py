@@ -144,6 +144,12 @@ candidates as (
       and c.chat_count = 0
       and c.message_count = 0
       and c.embed_count = 0
+      and (
+          u.signup_started_at is not null
+          or u.signup_completed is true
+          or u.last_opened like '/chat/%'
+          or u.last_opened ~* '^[0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}}$'
+      )
 )
 """.strip()
 
