@@ -732,12 +732,35 @@ describe("task update job helpers", () => {
     });
   });
 
-  it("keeps active-turn task update jobs while dropping unrelated passive jobs", () => {
+  it("keeps task update jobs only when the current response emitted a matching event", () => {
     assert.equal(
       taskUpdateJobBelongsToActiveTurn(
         {
-          job_id: "job-active-chat",
+          job_id: "job-active-turn",
           task_id: "TASK-1",
+          chat_id: "chat-active",
+          revision: 1,
+          task_key_version: 1,
+          expires_at: 1780000900,
+        },
+        "chat-active",
+        [
+          {
+            event_id: "event-active",
+            chat_id: "chat-active",
+            task_id: "TASK-1",
+            event_type: "updated",
+            task_update_job_id: "job-active-turn",
+          },
+        ],
+      ),
+      true,
+    );
+    assert.equal(
+      taskUpdateJobBelongsToActiveTurn(
+        {
+          job_id: "job-same-chat-stale",
+          task_id: "TASK-STALE",
           chat_id: "chat-active",
           revision: 1,
           task_key_version: 1,
@@ -746,30 +769,7 @@ describe("task update job helpers", () => {
         "chat-active",
         [],
       ),
-      true,
-    );
-    assert.equal(
-      taskUpdateJobBelongsToActiveTurn(
-        {
-          job_id: "job-passive-reconnect",
-          task_id: "TASK-2",
-          chat_id: "chat-source",
-          revision: 1,
-          task_key_version: 1,
-          expires_at: 1780000900,
-        },
-        "chat-active",
-        [
-          {
-            event_id: "event-reconnect",
-            chat_id: "chat-source",
-            task_id: "TASK-2",
-            event_type: "created",
-            task_update_job_id: "job-passive-reconnect",
-          },
-        ],
-      ),
-      true,
+      false,
     );
     assert.equal(
       taskUpdateJobBelongsToActiveTurn(

@@ -874,8 +874,8 @@ export function taskUpdateJobBelongsToActiveTurn(
   activeChatId: string,
   taskEvents: TaskEventFrame[],
 ): boolean {
-  if (taskEvents.some((event) => event.task_update_job_id === job.job_id)) return true;
-  return !job.chat_id || job.chat_id === activeChatId;
+  void activeChatId;
+  return taskEvents.some((event) => event.task_update_job_id === job.job_id);
 }
 
 export function buildTaskUpdateJobPersistPayload(params: {
