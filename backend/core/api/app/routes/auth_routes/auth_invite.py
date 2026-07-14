@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.schemas.auth import (
-    E2ESignupInviteRestoreResponse,
+    DevSignupCleanupRequest,
+    DevSignupCleanupResponse,
     InviteCodeRequest,
     InviteCodeResponse,
 )
@@ -13,7 +14,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.invite_code import fingerprint_invite_code, validate_invite_code
+from backend.core.api.app.utils.invite_code import validate_invite_code
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_current_user_or_api_key,
     get_directus_service,
@@ -25,13 +26,10 @@ from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_or
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-E2E_INVITE_RESTORE_HEADER = "x-openmates-e2e-invite-restore"
-E2E_INVITE_RESTORE_HEADER_VALUE = "restore"
-E2E_INVITE_REMAINING_USES = 1000
-
 
 def _is_production_environment() -> bool:
     return os.getenv("SERVER_ENVIRONMENT", "development").strip().lower() in {"production", "prod"}
+
 
 @router.post("/check_invite_token_valid", response_model=InviteCodeResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
@@ -73,73 +71,72 @@ async def check_invite_token_valid(
 
 
 @router.post(
-    "/e2e/restore_signup_invite_code",
-    response_model=E2ESignupInviteRestoreResponse,
+    "/cleanup_failed_signup",
+    response_model=DevSignupCleanupResponse,
     include_in_schema=False,
 )
-@limiter.limit("10/minute")
-async def restore_e2e_signup_invite_code(
+@limiter.limit("20/minute")
+async def cleanup_failed_signup(
     request: Request,
-    invite_request: InviteCodeRequest,
+    cleanup_request: DevSignupCleanupRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-) -> E2ESignupInviteRestoreResponse:
-    """Idempotently restore the CI signup invite code on dev/test servers."""
+) -> DevSignupCleanupResponse:
+    """Queue deletion for one disposable signup account after a failed dev E2E run."""
     if _is_production_environment():
         raise HTTPException(status_code=404, detail="Not found")
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin API key required")
 
-    if request.headers.get(E2E_INVITE_RESTORE_HEADER) != E2E_INVITE_RESTORE_HEADER_VALUE:
-        raise HTTPException(status_code=403, detail="E2E invite restore header required")
+    hashed_email = cleanup_request.hashed_email.strip()
+    if not hashed_email:
+        raise HTTPException(status_code=400, detail="hashed_email is required")
 
-    invite_code = invite_request.invite_code.strip()
-    if not invite_code:
-        raise HTTPException(status_code=400, detail="Invite code is required")
-
-    existing = await directus_service.get_invite_code(invite_code)
-    payload = {
-        "remaining_uses": E2E_INVITE_REMAINING_USES,
-        "gifted_credits": 0,
-        "is_admin": False,
-    }
-
-    if existing:
-        updated = await directus_service.update_item(
-            "invite_codes",
-            existing["id"],
-            payload,
-            admin_required=True,
-        )
-        if not updated:
-            raise HTTPException(status_code=500, detail="Failed to refresh signup invite code")
-        await cache_service.delete(f"invite_code:{invite_code}")
-        logger.info(
-            "E2E signup invite code refreshed by user %s: %s",
-            current_user.id,
-            fingerprint_invite_code(invite_code),
-        )
-        return E2ESignupInviteRestoreResponse(
+    exists, target_user, message = await directus_service.get_user_by_hashed_email(hashed_email)
+    if not exists or not target_user:
+        return DevSignupCleanupResponse(
             success=True,
-            created=False,
-            message="Signup invite code refreshed",
+            deleted=False,
+            queued=False,
+            message="No matching disposable signup account found",
         )
 
-    success, _created_item = await directus_service.create_item(
-        "invite_codes",
-        {"code": invite_code, **payload},
-        admin_required=True,
-    )
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to restore signup invite code")
+    target_user_id = target_user.get("id")
+    if not target_user_id:
+        logger.error("Dev signup cleanup matched a user without an id: %s", message)
+        raise HTTPException(status_code=500, detail="Matched user record is missing an id")
+    if target_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Refusing to delete an admin user")
+    if target_user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Refusing to delete the requesting user")
 
-    await cache_service.delete(f"invite_code:{invite_code}")
-    logger.info(
-        "E2E signup invite code restored by user %s: %s",
-        current_user.id,
-        fingerprint_invite_code(invite_code),
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    test_file = (cleanup_request.test_file or "unknown signup spec")[:120]
+    reason = (cleanup_request.reason or "Failed dev signup E2E cleanup")[:200]
+    task_result = celery_app.send_task(
+        name="delete_user_account",
+        kwargs={
+            "user_id": target_user_id,
+            "deletion_type": "dev_failed_signup_e2e_cleanup",
+            "reason": f"{reason} ({test_file})",
+            "ip_address": None,
+            "device_fingerprint": None,
+            "refund_invoices": False,
+        },
+        queue="user_init",
     )
-    return E2ESignupInviteRestoreResponse(
+    await cache_service.delete("require_invite_code")
+    logger.info(
+        "Queued dev failed-signup cleanup for user %s from %s",
+        target_user_id[:8],
+        test_file,
+    )
+    return DevSignupCleanupResponse(
         success=True,
-        created=True,
-        message="Signup invite code restored",
+        queued=True,
+        deleted=True,
+        message="Disposable signup account deletion queued",
+        task_id=task_result.id,
     )

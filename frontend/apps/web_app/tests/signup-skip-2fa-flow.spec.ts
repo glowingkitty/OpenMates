@@ -10,10 +10,12 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
+let signupEmailForCleanup: string | null = null;
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 	networkActivities.length = 0;
+	signupEmailForCleanup = null;
 });
 
 // eslint-disable-next-line no-empty-pattern
@@ -26,6 +28,9 @@ test.afterEach(async ({}, testInfo: any) => {
 		console.log('\n[RECENT NETWORK ACTIVITIES]');
 		networkActivities.slice(-20).forEach((activity) => console.log(activity));
 		console.log('\n--- END DEBUG INFO ---\n');
+		await cleanupFailedSignupAccount(signupEmailForCleanup, console.log, {
+			testFile: testInfo.file || 'signup-skip-2fa-flow.spec.ts'
+		});
 	}
 });
 
@@ -35,6 +40,7 @@ const {
 	createStepScreenshotter,
 	setToggleChecked,
 	validateSignupInviteIfRequired,
+	cleanupFailedSignupAccount,
 	getSignupTestDomain,
 	buildSignupEmail,
 	createEmailClient,
@@ -149,6 +155,7 @@ test('completes password signup, login with password, and delete account via ema
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
+	signupEmailForCleanup = signupEmail;
 	// For Gmail +alias emails (openmates.e2e+apr121910@gmail.com), extract only
 	// the time-based part after '+' as the username, since '+' may not be valid
 	// in usernames and the base part would collide across runs.

@@ -19,6 +19,7 @@ const {
 	getSignupTestDomain,
 	getTestAccount,
 	setToggleChecked,
+	cleanupFailedSignupAccount,
 	validateSignupInviteIfRequired
 } = require('./signup-flow-helpers');
 const { loginToTestAccount, openSignupInterface } = require('./helpers/chat-test-helpers');
@@ -27,6 +28,19 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const STRIPE_TEST_CARD_NUMBER = '4242424242424242';
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+let referredEmailForCleanup: string | null = null;
+
+test.beforeEach(async () => {
+	referredEmailForCleanup = null;
+});
+
+test.afterEach(async (_fixtures: unknown, testInfo: any) => {
+	if (testInfo.status !== 'passed') {
+		await cleanupFailedSignupAccount(referredEmailForCleanup, console.log, {
+			testFile: testInfo.file || 'referral-signup-purchase.spec.ts'
+		});
+	}
+});
 
 async function getReferralCodeFromSettings(page: any): Promise<string> {
 	await page.getByTestId('profile-container').click();
@@ -172,6 +186,7 @@ test('referral signup purchase awards credits and notifies both users', async ({
 	const referredPage = await referredContext.newPage();
 	try {
 		const referredEmail = buildSignupEmail(signupDomain as string);
+		referredEmailForCleanup = referredEmail;
 		const paymentSubmittedAt = await completeSignupAndPurchase(
 			referredPage,
 			referredContext,
@@ -204,6 +219,10 @@ test('referral signup purchase awards credits and notifies both users', async ({
 		}
 	} finally {
 		await referredContext.close();
+		await cleanupFailedSignupAccount(referredEmailForCleanup, log, {
+			testFile: 'referral-signup-purchase.spec.ts'
+		});
+		referredEmailForCleanup = null;
 	}
 
 	await assertNoThirdPartyCookies(context);

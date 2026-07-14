@@ -417,6 +417,85 @@ function buildSignupEmail(domain: string): string {
 	return `${timePart}@${domain}`;
 }
 
+function deriveSignupCleanupApiUrl(): string {
+	const explicitApiUrl = process.env.OPENMATES_E2E_API_URL || process.env.PLAYWRIGHT_TEST_API_URL;
+	if (explicitApiUrl) return explicitApiUrl.replace(/\/$/, '');
+
+	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
+	return baseUrl
+		.replace('://app.', '://api.')
+		.replace('://www.', '://api.')
+		.replace('://openmates.org', '://api.openmates.org')
+		.replace(/\/$/, '');
+}
+
+function sha256Base64(value: string): string {
+	return nodeCrypto.createHash('sha256').update(value).digest('base64');
+}
+
+async function cleanupFailedSignupAccount(
+	signupEmail: string | null | undefined,
+	logStep: (message: string, metadata?: Record<string, unknown>) => void = () => undefined,
+	{ testFile = 'unknown signup spec' }: { testFile?: string } = {}
+): Promise<boolean> {
+	if (!signupEmail) {
+		logStep('Skipped failed signup cleanup because no signup email was generated.');
+		return false;
+	}
+
+	const adminApiKey = process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
+	if (!adminApiKey) {
+		logStep('Skipped failed signup cleanup because OPENMATES_TEST_ACCOUNT_API_KEY is unavailable.');
+		return false;
+	}
+
+	const apiUrl = deriveSignupCleanupApiUrl();
+	const hashedEmail = sha256Base64(signupEmail.trim().toLowerCase());
+	try {
+		const response = await fetch(`${apiUrl}/v1/auth/cleanup_failed_signup`, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${adminApiKey}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				hashed_email: hashedEmail,
+				test_file: testFile,
+				reason: 'Playwright signup spec failed before normal account deletion'
+			})
+		});
+
+		const bodyText = await response.text();
+		let body: any = null;
+		try {
+			body = bodyText ? JSON.parse(bodyText) : null;
+		} catch {
+			body = null;
+		}
+
+		if (!response.ok) {
+			logStep('Failed signup cleanup request was rejected.', {
+				status: response.status,
+				hashedEmailPrefix: hashedEmail.slice(0, 12)
+			});
+			return false;
+		}
+
+		logStep('Queued failed signup account cleanup.', {
+			hashedEmailPrefix: hashedEmail.slice(0, 12),
+			queued: Boolean(body?.queued),
+			deleted: Boolean(body?.deleted)
+		});
+		return true;
+	} catch (error) {
+		logStep('Failed signup cleanup request errored.', {
+			error: error instanceof Error ? error.message : String(error),
+			hashedEmailPrefix: hashedEmail.slice(0, 12)
+		});
+		return false;
+	}
+}
+
 /**
  * Check Mailosaur daily email quota via /api/usage/limits.
  * Returns { available: boolean, current, limit } so callers can skip tests cleanly.
@@ -1629,6 +1708,7 @@ module.exports = {
 	createStepScreenshotter,
 	setToggleChecked,
 	validateSignupInviteIfRequired,
+	cleanupFailedSignupAccount,
 	fillStripeCardDetails,
 	getSignupTestDomain,
 	getMailosaurServerId,

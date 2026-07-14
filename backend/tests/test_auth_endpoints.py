@@ -24,7 +24,7 @@ import pytest
 import sys
 import hashlib
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 from fastapi import HTTPException, Response
@@ -105,136 +105,124 @@ def mock_compliance_service():
 # ─── Test: hash_username is a module-level function ──────────────────────────
 
 
-class TestE2ESignupInviteRestore:
-    """Verify the dev-only E2E invite restore endpoint is gated and idempotent."""
+class TestDevSignupCleanup:
+    """Verify failed-signup cleanup is dev-only and admin-gated."""
 
     @staticmethod
-    def _request(headers: dict[str, str]) -> Request:
+    def _request() -> Request:
         return Request({
             "type": "http",
             "method": "POST",
-            "path": "/v1/auth/e2e/restore_signup_invite_code",
-            "headers": [(key.lower().encode(), value.encode()) for key, value in headers.items()],
+            "path": "/v1/auth/cleanup_failed_signup",
+            "headers": [],
+            "client": ("127.0.0.1", 12345),
         })
 
     @pytest.mark.anyio
-    async def test_restore_rejects_production_environment(self, monkeypatch):
-        from backend.core.api.app.routes.auth_routes.auth_invite import restore_e2e_signup_invite_code
-        from backend.core.api.app.schemas.auth import InviteCodeRequest
+    async def test_cleanup_rejects_production_environment(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
 
         monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
         directus_service = AsyncMock()
         cache_service = AsyncMock()
-        request = self._request({"x-openmates-e2e-invite-restore": "restore"})
 
         with pytest.raises(HTTPException) as exc_info:
-            await restore_e2e_signup_invite_code(
-                request=request,
-                invite_request=InviteCodeRequest(invite_code="secret-invite"),
-                current_user=SimpleNamespace(id="user-1"),
+            await cleanup_failed_signup(
+                request=self._request(),
+                cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
+                current_user=SimpleNamespace(id="admin", is_admin=True),
                 directus_service=directus_service,
                 cache_service=cache_service,
             )
 
         assert exc_info.value.status_code == 404
-        directus_service.get_invite_code.assert_not_called()
+        directus_service.get_user_by_hashed_email.assert_not_called()
 
     @pytest.mark.anyio
-    async def test_restore_requires_explicit_e2e_header(self, monkeypatch):
-        from backend.core.api.app.routes.auth_routes.auth_invite import restore_e2e_signup_invite_code
-        from backend.core.api.app.schemas.auth import InviteCodeRequest
+    async def test_cleanup_requires_admin_user(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
 
         monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
         directus_service = AsyncMock()
         cache_service = AsyncMock()
-        request = self._request({})
 
         with pytest.raises(HTTPException) as exc_info:
-            await restore_e2e_signup_invite_code(
-                request=request,
-                invite_request=InviteCodeRequest(invite_code="secret-invite"),
-                current_user=SimpleNamespace(id="user-1"),
+            await cleanup_failed_signup(
+                request=self._request(),
+                cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
+                current_user=SimpleNamespace(id="user", is_admin=False),
                 directus_service=directus_service,
                 cache_service=cache_service,
             )
 
         assert exc_info.value.status_code == 403
-        directus_service.get_invite_code.assert_not_called()
+        directus_service.get_user_by_hashed_email.assert_not_called()
 
     @pytest.mark.anyio
-    async def test_restore_creates_missing_invite_code(self, monkeypatch):
-        from backend.core.api.app.routes.auth_routes.auth_invite import (
-            E2E_INVITE_REMAINING_USES,
-            restore_e2e_signup_invite_code,
-        )
-        from backend.core.api.app.schemas.auth import InviteCodeRequest
+    async def test_cleanup_returns_success_when_user_is_missing(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
 
         monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
         directus_service = AsyncMock()
-        directus_service.get_invite_code = AsyncMock(return_value=None)
-        directus_service.create_item = AsyncMock(return_value=(True, {"id": "invite-1"}))
+        directus_service.get_user_by_hashed_email = AsyncMock(return_value=(False, None, "User not found"))
         cache_service = AsyncMock()
-        request = self._request({"x-openmates-e2e-invite-restore": "restore"})
 
-        response = await restore_e2e_signup_invite_code(
-            request=request,
-            invite_request=InviteCodeRequest(invite_code="secret-invite"),
-            current_user=SimpleNamespace(id="user-1"),
+        response = await cleanup_failed_signup(
+            request=self._request(),
+            cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
+            current_user=SimpleNamespace(id="admin", is_admin=True),
             directus_service=directus_service,
             cache_service=cache_service,
         )
 
         assert response.success is True
-        assert response.created is True
-        directus_service.create_item.assert_awaited_once_with(
-            "invite_codes",
-            {
-                "code": "secret-invite",
-                "remaining_uses": E2E_INVITE_REMAINING_USES,
-                "gifted_credits": 0,
-                "is_admin": False,
-            },
-            admin_required=True,
-        )
-        cache_service.delete.assert_awaited_once_with("invite_code:secret-invite")
+        assert response.queued is False
+        assert response.deleted is False
+        cache_service.delete.assert_not_called()
 
     @pytest.mark.anyio
-    async def test_restore_refreshes_existing_invite_code(self, monkeypatch):
-        from backend.core.api.app.routes.auth_routes.auth_invite import (
-            E2E_INVITE_REMAINING_USES,
-            restore_e2e_signup_invite_code,
-        )
-        from backend.core.api.app.schemas.auth import InviteCodeRequest
+    async def test_cleanup_queues_account_deletion_and_clears_signup_cache(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
 
         monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        send_task = MagicMock(return_value=SimpleNamespace(id="task-1"))
+        fake_tasks_package = ModuleType("backend.core.api.app.tasks")
+        fake_celery_config = ModuleType("backend.core.api.app.tasks.celery_config")
+        fake_celery_config.app = SimpleNamespace(send_task=send_task)
+        monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks", fake_tasks_package)
+        monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", fake_celery_config)
         directus_service = AsyncMock()
-        directus_service.get_invite_code = AsyncMock(return_value={"id": "invite-1"})
-        directus_service.update_item = AsyncMock(return_value={"id": "invite-1"})
+        directus_service.get_user_by_hashed_email = AsyncMock(
+            return_value=(True, {"id": "target-user", "is_admin": False}, "User found")
+        )
         cache_service = AsyncMock()
-        request = self._request({"x-openmates-e2e-invite-restore": "restore"})
 
-        response = await restore_e2e_signup_invite_code(
-            request=request,
-            invite_request=InviteCodeRequest(invite_code="secret-invite"),
-            current_user=SimpleNamespace(id="user-1"),
+        response = await cleanup_failed_signup(
+            request=self._request(),
+            cleanup_request=DevSignupCleanupRequest(
+                hashed_email="hash",
+                test_file="signup-flow-passkey.spec.ts",
+                reason="failed test",
+            ),
+            current_user=SimpleNamespace(id="admin", is_admin=True),
             directus_service=directus_service,
             cache_service=cache_service,
         )
 
         assert response.success is True
-        assert response.created is False
-        directus_service.update_item.assert_awaited_once_with(
-            "invite_codes",
-            "invite-1",
-            {
-                "remaining_uses": E2E_INVITE_REMAINING_USES,
-                "gifted_credits": 0,
-                "is_admin": False,
-            },
-            admin_required=True,
-        )
-        directus_service.create_item.assert_not_called()
-        cache_service.delete.assert_awaited_once_with("invite_code:secret-invite")
+        assert response.queued is True
+        assert response.task_id == "task-1"
+        send_task.assert_called_once()
+        _, kwargs = send_task.call_args
+        assert kwargs["name"] == "delete_user_account"
+        assert kwargs["kwargs"]["user_id"] == "target-user"
+        assert kwargs["kwargs"]["refund_invoices"] is False
+        cache_service.delete.assert_awaited_once_with("require_invite_code")
+
 
 class TestHashUsernameImport:
     """Verify hash_username is importable and callable as a standalone function.

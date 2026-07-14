@@ -9,10 +9,12 @@ export {};
 const { test, expect, assertNoThirdPartyCookies } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
+let signupEmailForCleanup: string | null = null;
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 	networkActivities.length = 0;
+	signupEmailForCleanup = null;
 });
 
 // eslint-disable-next-line no-empty-pattern
@@ -25,6 +27,9 @@ test.afterEach(async ({}, testInfo: any) => {
 		console.log('\n[RECENT NETWORK ACTIVITIES]');
 		networkActivities.slice(-20).forEach((activity) => console.log(activity));
 		console.log('\n--- END DEBUG INFO ---\n');
+		await cleanupFailedSignupAccount(signupEmailForCleanup, console.log, {
+			testFile: testInfo.file || 'signup-flow-stripe-eu.spec.ts'
+		});
 	}
 });
 
@@ -35,6 +40,7 @@ const {
 	setToggleChecked,
 	validateSignupInviteIfRequired,
 	fillStripeCardDetails,
+	cleanupFailedSignupAccount,
 	getSignupTestDomain,
 	buildSignupEmail,
 	createEmailClient,
@@ -128,6 +134,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
 	const signupEmail = buildSignupEmail(signupDomain);
+	signupEmailForCleanup = signupEmail;
 	const emailLocal = signupEmail.split('@')[0];
 	const signupUsername = emailLocal.includes('+') ? emailLocal.split('+')[1] : emailLocal;
 	const signupPassword = 'SignupTest!234';

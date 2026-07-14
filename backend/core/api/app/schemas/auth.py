@@ -12,10 +12,18 @@ class InviteCodeResponse(BaseModel):
     gifted_credits: Optional[int] = None
 
 
-class E2ESignupInviteRestoreResponse(BaseModel):
+class DevSignupCleanupRequest(BaseModel):
+    hashed_email: str = Field(..., description="Base64 SHA256 hash of the disposable signup email")
+    test_file: Optional[str] = Field(None, description="Playwright spec requesting cleanup")
+    reason: Optional[str] = Field(None, description="Short cleanup reason for audit logs")
+
+
+class DevSignupCleanupResponse(BaseModel):
     success: bool
-    created: bool
+    queued: bool = False
+    deleted: bool = False
     message: str
+    task_id: Optional[str] = None
 
 # Updated model for email verification
 class RequestEmailCodeRequest(BaseModel):
