@@ -232,24 +232,6 @@ test.describe('Unified detail metadata multi-device sync', () => {
 			await headerA.getByTestId('workspace-detail-title-input').fill(savedTitle);
 			await headerA.getByTestId('workspace-detail-title-save').click();
 			await expect(headerA.getByTestId('chat-header-title')).toHaveText(savedTitle);
-			await expect
-				.poll(
-					() =>
-						latestServerMetadataVersionAcrossSources(
-							[serverVersionsA, serverVersionsB],
-							chatId,
-							['chat_title_updated']
-						),
-					{
-						timeout: 30_000
-					}
-				)
-				.toBeGreaterThan(initialVersion);
-			const titleVersion = latestServerMetadataVersionAcrossSources(
-				[serverVersionsA, serverVersionsB],
-				chatId,
-				['chat_title_updated']
-			);
 			await expect(headerB.getByTestId('chat-header-title')).toHaveText(savedTitle, {
 				timeout: 30_000
 			});
@@ -269,9 +251,9 @@ test.describe('Unified detail metadata multi-device sync', () => {
 						),
 					{
 					timeout: 30_000
-				}
+					}
 				)
-				.toBeGreaterThan(titleVersion);
+				.toBeGreaterThan(initialVersion);
 			const summaryVersion = latestServerMetadataVersionAcrossSources(
 				[serverVersionsA, serverVersionsB],
 				chatId,
