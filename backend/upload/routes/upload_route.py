@@ -770,7 +770,11 @@ async def upload_file(
             f"nudity/violence/gore + AI detection (single request)..."
         )
         sightengine_start = time.monotonic()
-        safety_result, ai_result = await sightengine.check_all(file_bytes, filename=filename)
+        safety_result, ai_result = await sightengine.check_all(
+            file_bytes,
+            filename=filename,
+            content_type=content_type,
+        )
         sightengine_elapsed = (time.monotonic() - sightengine_start) * 1000
 
         if not safety_result.is_safe:
@@ -1832,7 +1836,11 @@ async def upload_profile_image(
             f"{log_prefix} [3/5] Content safety: running SightEngine nudity/violence/gore check..."
         )
         safety_start = time.monotonic()
-        safety_result = await sightengine.check_content_safety(file_bytes, filename=filename)
+        safety_result = await sightengine.check_content_safety(
+            file_bytes,
+            filename=filename,
+            content_type=content_type,
+        )
         safety_elapsed = (time.monotonic() - safety_start) * 1000
 
         if not safety_result.is_safe:

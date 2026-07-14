@@ -90,6 +90,7 @@
     align-items: center;
     justify-content: flex-start;
     width: 28px;
+    height: 28px;
     max-width: 28px;
     min-height: 28px;
     padding: 0;
@@ -111,6 +112,7 @@
     top: 12px;
     right: 12px;
     width: 32px;
+    height: 32px;
     max-width: 32px;
     min-height: 32px;
   }
@@ -132,6 +134,7 @@
   .authenticity-badge:focus-within,
   .authenticity-badge.expanded {
     width: auto;
+    height: auto;
     max-width: min(340px, calc(100% - 16px));
     padding: var(--spacing-2) var(--spacing-4) var(--spacing-2) var(--spacing-3);
     gap: var(--spacing-2);

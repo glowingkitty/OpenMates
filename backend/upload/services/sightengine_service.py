@@ -37,11 +37,14 @@ from typing import Optional
 
 import httpx
 
-from backend.shared.testing.caching_http_transport import create_http_client
-
 logger = logging.getLogger(__name__)
 
 SIGHTENGINE_API_URL = "https://api.sightengine.com/1.0/check.json"
+
+
+def create_http_client(_category: str, **httpx_kwargs) -> httpx.AsyncClient:
+    """Return a plain HTTP client; upload server stays isolated from backend.shared."""
+    return httpx.AsyncClient(**httpx_kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -212,7 +215,10 @@ class SightEngineService:
         return self._enabled
 
     async def check_all(
-        self, image_bytes: bytes, filename: str = "upload.jpg"
+        self,
+        image_bytes: bytes,
+        filename: str = "upload.jpg",
+        content_type: str = "application/octet-stream",
     ) -> tuple["ContentSafetyResult", "Optional[AIDetectionResult]"]:
         """
         Run content safety + AI detection in a SINGLE SightEngine API call.
@@ -250,30 +256,21 @@ class SightEngineService:
                         "api_secret": self.api_secret,
                     },
                     files={
-                        "media": (filename, image_bytes, "application/octet-stream"),
+                        "media": (filename, image_bytes, content_type),
                     },
                 )
 
             if resp.status_code != 200:
-                # Distinguish quota exhaustion from true service outages.
-                # Quota exhaustion (free plan limit) should not block uploads —
-                # log a warning and skip the scan. True outages (5xx, network)
-                # still fail-closed. See OPE-483 for plan upgrade tracking.
+                # External provider/media errors should not block legitimate
+                # uploads. Keep policy violations blocking only when SightEngine
+                # returns usable scores.
                 resp_text = resp.text[:300]
-                if resp.status_code == 400 and "usage limit" in resp_text.lower():
-                    logger.warning(
-                        f"{log_prefix} SightEngine API quota exhausted (HTTP 400: "
-                        f"{resp_text[:100]}). Skipping safety scan — see OPE-483."
-                    )
-                    return ContentSafetyResult(is_safe=True), None
-
-                logger.error(
+                logger.warning(
                     f"{log_prefix} Combined check API returned HTTP {resp.status_code}: "
-                    f"{resp_text[:200]} — failing CLOSED (upload rejected, service down)"
+                    f"{resp_text[:200]} — failing open (upload allowed, scan skipped)"
                 )
                 return ContentSafetyResult(
-                    is_safe=False,
-                    reason="safety_service_unavailable",
+                    is_safe=True,
                     error=f"API error {resp.status_code}",
                 ), None
 
@@ -281,13 +278,12 @@ class SightEngineService:
 
             if data.get("status") != "success":
                 error_msg = data.get("error", {}).get("message", "Unknown error")
-                logger.error(
+                logger.warning(
                     f"{log_prefix} Combined check API returned non-success: "
-                    f"{error_msg} — failing CLOSED (upload rejected, service error)"
+                    f"{error_msg} — failing open (upload allowed, scan skipped)"
                 )
                 return ContentSafetyResult(
-                    is_safe=False,
-                    reason="safety_service_unavailable",
+                    is_safe=True,
                     error=error_msg,
                 ), None
 
@@ -353,29 +349,30 @@ class SightEngineService:
             return safety_result, ai_result
 
         except httpx.TimeoutException as e:
-            logger.error(
+            logger.warning(
                 f"{log_prefix} Combined check request timed out: {e} — "
-                f"failing CLOSED (upload rejected, service timeout)"
+                f"failing open (upload allowed, scan skipped)"
             )
             return ContentSafetyResult(
-                is_safe=False,
-                reason="safety_service_unavailable",
+                is_safe=True,
                 error="timeout",
             ), None
         except Exception as e:
-            logger.error(
+            logger.warning(
                 f"{log_prefix} Combined check failed: {e} — "
-                f"failing CLOSED (upload rejected, service error)",
+                f"failing open (upload allowed, scan skipped)",
                 exc_info=True,
             )
             return ContentSafetyResult(
-                is_safe=False,
-                reason="safety_service_unavailable",
+                is_safe=True,
                 error=str(e),
             ), None
 
     async def check_content_safety(
-        self, image_bytes: bytes, filename: str = "upload.jpg"
+        self,
+        image_bytes: bytes,
+        filename: str = "upload.jpg",
+        content_type: str = "application/octet-stream",
     ) -> ContentSafetyResult:
         """
         Check an image for nudity, sexual content, violence, and gore.
@@ -420,7 +417,7 @@ class SightEngineService:
                         "api_secret": self.api_secret,
                     },
                     files={
-                        "media": (filename, image_bytes, "application/octet-stream"),
+                        "media": (filename, image_bytes, content_type),
                     },
                 )
 
