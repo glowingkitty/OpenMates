@@ -145,7 +145,22 @@ async def execute_task_tool_call(
             return _event_result("blocked", task, context.chat_id, message_id, now, reason=task.get("blocked_reason_code"))
         if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
             return _already_applied_result("block", task)
-        _check_turn_expected_version(context, task, args.get("expected_version"))
+        try:
+            _check_turn_expected_version(context, task, args.get("expected_version"))
+        except UserTaskConflictError:
+            already_applied = await _already_applied_direct_result_from_store(
+                context=context,
+                directus_service=directus_service,
+                task=task,
+                safe_metadata=safe_metadata,
+                event_type="blocked",
+                message_id=message_id,
+                now=now,
+                reason_key="blocked_reason_code",
+            )
+            if already_applied:
+                return already_applied
+            raise
         if _has_pending_client_persistence(context, str(task["task_id"])):
             return await _stage_client_persisted_task_change(
                 operation="block",
@@ -162,13 +177,28 @@ async def execute_task_tool_call(
                 message_id=message_id,
                 now=now,
             )
-        updated = await UserTaskQueueService(directus_service.user_task).block_task(
-            str(task["task_id"]),
-            context.user_id,
-            version=_task_version(task),
-            blocked_reason_code=str(args.get("blocked_reason_code") or "needs_input"),
-            now=now,
-        )
+        try:
+            updated = await UserTaskQueueService(directus_service.user_task).block_task(
+                str(task["task_id"]),
+                context.user_id,
+                version=_task_version(task),
+                blocked_reason_code=str(args.get("blocked_reason_code") or "needs_input"),
+                now=now,
+            )
+        except UserTaskConflictError:
+            already_applied = await _already_applied_direct_result_from_store(
+                context=context,
+                directus_service=directus_service,
+                task=task,
+                safe_metadata=safe_metadata,
+                event_type="blocked",
+                message_id=message_id,
+                now=now,
+                reason_key="blocked_reason_code",
+            )
+            if already_applied:
+                return already_applied
+            raise
         _apply_turn_task_update(context, updated)
         return _event_result("blocked", updated, context.chat_id, message_id, now, reason=updated.get("blocked_reason_code"))
 
@@ -179,7 +209,21 @@ async def execute_task_tool_call(
             return _event_result("completed", task, context.chat_id, message_id, now)
         if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
             return _already_applied_result("complete", task)
-        _check_turn_expected_version(context, task, args.get("expected_version"))
+        try:
+            _check_turn_expected_version(context, task, args.get("expected_version"))
+        except UserTaskConflictError:
+            already_applied = await _already_applied_direct_result_from_store(
+                context=context,
+                directus_service=directus_service,
+                task=task,
+                safe_metadata=safe_metadata,
+                event_type="completed",
+                message_id=message_id,
+                now=now,
+            )
+            if already_applied:
+                return already_applied
+            raise
         if _has_pending_client_persistence(context, str(task["task_id"])):
             return await _stage_client_persisted_task_change(
                 operation="complete",
@@ -196,12 +240,26 @@ async def execute_task_tool_call(
                 message_id=message_id,
                 now=now,
             )
-        updated = await UserTaskQueueService(directus_service.user_task).complete_task(
-            str(task["task_id"]),
-            context.user_id,
-            version=_task_version(task),
-            now=now,
-        )
+        try:
+            updated = await UserTaskQueueService(directus_service.user_task).complete_task(
+                str(task["task_id"]),
+                context.user_id,
+                version=_task_version(task),
+                now=now,
+            )
+        except UserTaskConflictError:
+            already_applied = await _already_applied_direct_result_from_store(
+                context=context,
+                directus_service=directus_service,
+                task=task,
+                safe_metadata=safe_metadata,
+                event_type="completed",
+                message_id=message_id,
+                now=now,
+            )
+            if already_applied:
+                return already_applied
+            raise
         _apply_turn_task_update(context, updated)
         return _event_result("completed", updated, context.chat_id, message_id, now)
 
@@ -212,7 +270,21 @@ async def execute_task_tool_call(
             return _event_result("unblocked", task, context.chat_id, message_id, now)
         if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
             return _already_applied_result("unblock", task)
-        _check_turn_expected_version(context, task, args.get("expected_version"))
+        try:
+            _check_turn_expected_version(context, task, args.get("expected_version"))
+        except UserTaskConflictError:
+            already_applied = await _already_applied_direct_result_from_store(
+                context=context,
+                directus_service=directus_service,
+                task=task,
+                safe_metadata=safe_metadata,
+                event_type="unblocked",
+                message_id=message_id,
+                now=now,
+            )
+            if already_applied:
+                return already_applied
+            raise
         if _has_pending_client_persistence(context, str(task["task_id"])):
             return await _stage_client_persisted_task_change(
                 operation="unblock",
@@ -229,12 +301,26 @@ async def execute_task_tool_call(
                 message_id=message_id,
                 now=now,
             )
-        updated = await UserTaskQueueService(directus_service.user_task).unblock_task(
-            str(task["task_id"]),
-            context.user_id,
-            version=_task_version(task),
-            now=now,
-        )
+        try:
+            updated = await UserTaskQueueService(directus_service.user_task).unblock_task(
+                str(task["task_id"]),
+                context.user_id,
+                version=_task_version(task),
+                now=now,
+            )
+        except UserTaskConflictError:
+            already_applied = await _already_applied_direct_result_from_store(
+                context=context,
+                directus_service=directus_service,
+                task=task,
+                safe_metadata=safe_metadata,
+                event_type="unblocked",
+                message_id=message_id,
+                now=now,
+            )
+            if already_applied:
+                return already_applied
+            raise
         _apply_turn_task_update(context, updated)
         return _event_result("unblocked", updated, context.chat_id, message_id, now)
 
@@ -450,6 +536,28 @@ def _already_applied_direct_change(
     if _expected_version_is_ahead(expected_version, task):
         return False
     return _task_matches_patch(task, safe_metadata, ignored_keys={"updated_at"})
+
+
+async def _already_applied_direct_result_from_store(
+    *,
+    context: TaskToolContext,
+    directus_service: Any,
+    task: dict[str, Any],
+    safe_metadata: dict[str, Any],
+    event_type: str,
+    message_id: str,
+    now: int,
+    reason_key: str | None = None,
+) -> dict[str, Any] | None:
+    task_id = str(task.get("task_id") or "")
+    if not task_id or task_id in context.client_persisted_task_ids:
+        return None
+    current = await directus_service.user_task.get_task(task_id, context.user_id)
+    if not current or not _task_matches_patch(current, safe_metadata, ignored_keys={"updated_at"}):
+        return None
+    _apply_turn_task_update(context, current)
+    reason = current.get(reason_key) if reason_key else None
+    return _event_result(event_type, current, context.chat_id, message_id, now, reason=reason)
 
 
 def _expected_version_is_ahead(expected_version: Any, task: dict[str, Any]) -> bool:
