@@ -16,6 +16,7 @@ from backend.core.api.app.services.directus.gift_card_methods import (
 )
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.payment_environment import should_enforce_eu_revenue_threshold
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
@@ -836,8 +837,9 @@ async def create_payment_order(
     use_managed_payments = not is_eu
     order_provider_name = "stripe_managed" if use_managed_payments else "stripe"
 
-    # EU threshold guard: block EU payments if YTD EUR revenue >= 9,900 EUR
-    if is_eu:
+    # EU threshold guard: block production EU payments if YTD EUR revenue >= 9,900 EUR.
+    # Dev/test Stripe runs use test-mode transactions and must not trip the real compliance guard.
+    if should_enforce_eu_revenue_threshold(is_eu):
         try:
             cached_revenue = await cache_service.get(EU_REVENUE_CACHE_KEY)
             if cached_revenue is None:
