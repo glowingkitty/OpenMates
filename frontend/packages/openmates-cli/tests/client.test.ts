@@ -705,6 +705,30 @@ describe("task update job helpers", () => {
       }),
       /plaintext/,
     );
+
+    const createPayload = buildTaskUpdateJobPersistPayload({
+      jobId: "task-update-job-2",
+      leaseToken: "lease-token",
+      leaseGeneration: 3,
+      expectedTaskVersion: 0,
+      encryptedTaskPayload: {
+        task_id: "task-1",
+        short_id: undefined,
+        plan_id: null,
+        due_at: null,
+        encrypted_task_key: "cipher-key",
+        encrypted_title: "cipher-title",
+        encrypted_description: "cipher-description",
+        version: 1,
+      },
+    });
+    assert.deepEqual(createPayload.encrypted_task_payload, {
+      task_id: "task-1",
+      encrypted_task_key: "cipher-key",
+      encrypted_title: "cipher-title",
+      encrypted_description: "cipher-description",
+      version: 1,
+    });
   });
 });
 

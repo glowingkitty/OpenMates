@@ -28,6 +28,7 @@ from backend.apps.ai.processing.task_tool_executor import (
 from backend.apps.ai.processing.task_tool_context import resolve_task_tool_context
 from backend.apps.ai.processing.task_tool_context import TaskToolContext
 from backend.apps.ai.llm_providers.openai_shared import _sanitize_schema_for_llm_providers
+from backend.shared.python_utils.thought_signature import serialize_thought_signature
 from backend.core.api.app.services.user_task_service import UserTaskConflictError
 
 
@@ -174,3 +175,9 @@ def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_proper
     sanitized = _sanitize_schema_for_llm_providers(schema)
 
     assert "additionalProperties" not in sanitized
+
+
+def test_google_thought_signature_serializer_handles_candidate_fallback_values() -> None:
+    assert serialize_thought_signature(b"signature") == "c2lnbmF0dXJl"
+    assert serialize_thought_signature("already-encoded") == "already-encoded"
+    assert serialize_thought_signature(None) is None

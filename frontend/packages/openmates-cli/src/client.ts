@@ -885,16 +885,23 @@ export function buildTaskUpdateJobPersistPayload(params: {
   encrypted_task_payload: Record<string, unknown>;
   encrypted_task_event_message?: string | null;
 } {
-  assertTaskPersistPayloadEncrypted(params.encryptedTaskPayload);
+  const encryptedTaskPayload = pruneAbsentTaskPersistFields(params.encryptedTaskPayload);
+  assertTaskPersistPayloadEncrypted(encryptedTaskPayload);
   return {
     protocol_version: 1,
     job_id: params.jobId,
     lease_token: params.leaseToken,
     lease_generation: params.leaseGeneration,
     expected_task_version: params.expectedTaskVersion,
-    encrypted_task_payload: { ...params.encryptedTaskPayload },
+    encrypted_task_payload: encryptedTaskPayload,
     encrypted_task_event_message: params.encryptedTaskEventMessage ?? null,
   };
+}
+
+function pruneAbsentTaskPersistFields(payload: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined && value !== null),
+  );
 }
 
 function formatTaskEventSystemContent(event: TaskEventFrame): string {

@@ -18,6 +18,7 @@ from google.genai import errors as google_errors
 from pydantic import BaseModel
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.thought_signature import serialize_thought_signature
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from .openai_shared import calculate_token_breakdown
 
@@ -645,6 +646,9 @@ async def invoke_google_ai_studio_chat_completions(
                 try:
                     if chunk.candidates:
                         for candidate in chunk.candidates:
+                            candidate_thought_sig = serialize_thought_signature(
+                                getattr(candidate, 'thought_signature', None)
+                            )
                             if candidate.content and candidate.content.parts:
                                 for part in candidate.content.parts:
                                     # Check for function call on this part (with thought signature)
@@ -654,14 +658,10 @@ async def invoke_google_ai_studio_chat_completions(
                                         args_dict = dict(fc.args) if fc.args else {}
                                         # CRITICAL: Extract thought_signature from the part
                                         # The signature may be bytes (binary) - convert to base64 string for storage
-                                        thought_sig_raw = getattr(part, 'thought_signature', None)
-                                        thought_sig = None
-                                        if thought_sig_raw is not None:
-                                            if isinstance(thought_sig_raw, bytes):
-                                                # Convert bytes to base64 string for JSON serialization
-                                                thought_sig = base64.b64encode(thought_sig_raw).decode('utf-8')
-                                            elif isinstance(thought_sig_raw, str):
-                                                thought_sig = thought_sig_raw
+                                        thought_sig = (
+                                            serialize_thought_signature(getattr(part, 'thought_signature', None))
+                                            or candidate_thought_sig
+                                        )
                                         parsed_tool_call = ParsedGoogleToolCall(
                                             tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
                                             function_name=fc.name,
@@ -687,15 +687,11 @@ async def invoke_google_ai_studio_chat_completions(
                                         yield part.text
 
                             # Check for thinking signature on the candidate level (fallback)
-                            if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
-                                # Convert bytes to base64 string if needed
-                                sig_value = candidate.thought_signature
-                                if isinstance(sig_value, bytes):
-                                    sig_value = base64.b64encode(sig_value).decode('utf-8')
+                            if candidate_thought_sig:
                                 logger.info(f"{log_prefix} Yielding thinking signature from candidate")
                                 yield UnifiedStreamChunk(
                                     type=StreamChunkType.THINKING_SIGNATURE,
-                                    signature=sig_value
+                                    signature=candidate_thought_sig
                                 )
                 except Exception as e:
                     # Fallback: If we can't parse candidates structure, use chunk.text
@@ -1032,6 +1028,9 @@ async def invoke_google_chat_completions(
                 try:
                     if chunk.candidates:
                         for candidate in chunk.candidates:
+                            candidate_thought_sig = serialize_thought_signature(
+                                getattr(candidate, 'thought_signature', None)
+                            )
                             if candidate.content and candidate.content.parts:
                                 for part in candidate.content.parts:
                                     # Check for function call on this part (with thought signature)
@@ -1041,14 +1040,10 @@ async def invoke_google_chat_completions(
                                         args_dict = dict(fc.args) if fc.args else {}
                                         # CRITICAL: Extract thought_signature from the part
                                         # The signature may be bytes (binary) - convert to base64 string for storage
-                                        thought_sig_raw = getattr(part, 'thought_signature', None)
-                                        thought_sig = None
-                                        if thought_sig_raw is not None:
-                                            if isinstance(thought_sig_raw, bytes):
-                                                # Convert bytes to base64 string for JSON serialization
-                                                thought_sig = base64.b64encode(thought_sig_raw).decode('utf-8')
-                                            elif isinstance(thought_sig_raw, str):
-                                                thought_sig = thought_sig_raw
+                                        thought_sig = (
+                                            serialize_thought_signature(getattr(part, 'thought_signature', None))
+                                            or candidate_thought_sig
+                                        )
                                         parsed_tool_call = ParsedGoogleToolCall(
                                             tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
                                             function_name=fc.name,
@@ -1074,15 +1069,11 @@ async def invoke_google_chat_completions(
                                         yield part.text
 
                             # Check for thinking signature on the candidate level (fallback)
-                            if hasattr(candidate, 'thought_signature') and candidate.thought_signature:
-                                # Convert bytes to base64 string if needed
-                                sig_value = candidate.thought_signature
-                                if isinstance(sig_value, bytes):
-                                    sig_value = base64.b64encode(sig_value).decode('utf-8')
+                            if candidate_thought_sig:
                                 logger.info(f"{log_prefix} Yielding thinking signature from candidate")
                                 yield UnifiedStreamChunk(
                                     type=StreamChunkType.THINKING_SIGNATURE,
-                                    signature=sig_value
+                                    signature=candidate_thought_sig
                                 )
                 except Exception as e:
                     # Fallback: If we can't parse candidates structure, use chunk.text
