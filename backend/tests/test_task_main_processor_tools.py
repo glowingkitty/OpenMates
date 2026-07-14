@@ -241,3 +241,85 @@ async def test_client_persisted_task_update_sequences_later_completion_in_same_t
     assert context.attached_tasks[0]["version"] == 3
     assert context.attached_tasks[0]["status"] == "done"
     directus_service.user_task.update_task_if_version.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_repeated_client_persisted_task_calls_are_same_turn_noops() -> None:
+    stored_jobs: list[dict] = []
+
+    class FakeCache:
+        async def set(self, key: str, value: dict, ttl: int | None = None) -> bool:
+            if key.startswith("user_task_update_job:"):
+                stored_jobs.append(value)
+            return True
+
+    class FakeEncryption:
+        async def encrypt_with_user_key(self, plaintext: str, vault_key_id: str) -> tuple[str, int]:
+            return f"cipher:{plaintext}", 1
+
+    directus_service = AsyncMock()
+    directus_service.user_task.update_task_if_version = AsyncMock()
+    context = TaskToolContext(
+        user_id="user-1",
+        chat_id="chat-1",
+        attached_tasks=[
+            {
+                "task_id": "task-1",
+                "short_id": "TASK-1",
+                "primary_chat_id": "chat-1",
+                "title": "Draft checklist",
+                "status": "todo",
+                "version": 1,
+            }
+        ],
+    )
+    cache = FakeCache()
+    encryption = FakeEncryption()
+
+    first_update = await execute_task_tool_call(
+        tool_name=TASK_TOOL_UPDATE,
+        args={"task_id": "TASK-1", "expected_version": 1, "title": "Final review"},
+        context=context,
+        cache_service=cache,
+        directus_service=directus_service,
+        encryption_service=encryption,
+        user_vault_key_id="vault-key-1",
+        message_id="message-1",
+    )
+    repeated_update = await execute_task_tool_call(
+        tool_name=TASK_TOOL_UPDATE,
+        args={"task_id": "TASK-1", "expected_version": 1, "title": "Final review"},
+        context=context,
+        cache_service=cache,
+        directus_service=directus_service,
+        encryption_service=encryption,
+        user_vault_key_id="vault-key-1",
+        message_id="message-1",
+    )
+    first_complete = await execute_task_tool_call(
+        tool_name=TASK_TOOL_COMPLETE,
+        args={"task_id": "TASK-1", "expected_version": 1},
+        context=context,
+        cache_service=cache,
+        directus_service=directus_service,
+        encryption_service=encryption,
+        user_vault_key_id="vault-key-1",
+        message_id="message-1",
+    )
+    repeated_complete = await execute_task_tool_call(
+        tool_name=TASK_TOOL_COMPLETE,
+        args={"task_id": "TASK-1", "expected_version": 1},
+        context=context,
+        cache_service=cache,
+        directus_service=directus_service,
+        encryption_service=encryption,
+        user_vault_key_id="vault-key-1",
+        message_id="message-1",
+    )
+
+    assert first_update["status"] == "pending_client_persistence"
+    assert repeated_update == {"status": "already_applied", "operation": "update", "task_id": "task-1", "version": 2}
+    assert first_complete["status"] == "pending_client_persistence"
+    assert repeated_complete == {"status": "already_applied", "operation": "complete", "task_id": "task-1", "version": 3}
+    assert [job["expected_task_version"] for job in stored_jobs] == [1, 2]
+    directus_service.user_task.update_task_if_version.assert_not_awaited()

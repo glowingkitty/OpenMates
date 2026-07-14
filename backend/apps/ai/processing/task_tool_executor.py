@@ -101,13 +101,15 @@ async def execute_task_tool_call(
 
     if skill_id == "update":
         task = _attached_task(context, str(args.get("task_id") or ""))
-        _check_turn_expected_version(context, task, args.get("expected_version"))
         private_patch = {key: args[key] for key in ("title", "description") if key in args and args[key] is not None}
         safe_metadata: dict[str, Any] = {"updated_at": now}
         if args.get("status") is not None:
             safe_metadata["status"] = _safe_status(args.get("status"), default=str(task.get("status") or "todo"))
         if args.get("assignee_type") is not None:
             safe_metadata["assignee_type"] = _safe_assignee_type(args.get("assignee_type"))
+        if _already_applied_client_persisted_change(context, task, args.get("expected_version"), private_patch, safe_metadata):
+            return _already_applied_result("update", task)
+        _check_turn_expected_version(context, task, args.get("expected_version"))
         if private_patch:
             return await _stage_client_persisted_task_change(
                 operation="update",
@@ -137,6 +139,9 @@ async def execute_task_tool_call(
 
     if skill_id == "block":
         task = _attached_task(context, str(args.get("task_id") or ""))
+        safe_metadata = {"status": "blocked", "blocked_reason_code": str(args.get("blocked_reason_code") or "needs_input"), "updated_at": now}
+        if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
+            return _already_applied_result("block", task)
         _check_turn_expected_version(context, task, args.get("expected_version"))
         if _has_pending_client_persistence(context, str(task["task_id"])):
             return await _stage_client_persisted_task_change(
@@ -145,7 +150,7 @@ async def execute_task_tool_call(
                 task_id=str(task["task_id"]),
                 args=args,
                 private_patch={},
-                safe_metadata={"status": "blocked", "blocked_reason_code": str(args.get("blocked_reason_code") or "needs_input"), "updated_at": now},
+                safe_metadata=safe_metadata,
                 expected_version=_task_version(task),
                 context=context,
                 cache_service=cache_service,
@@ -166,6 +171,9 @@ async def execute_task_tool_call(
 
     if skill_id == "complete":
         task = _attached_task(context, str(args.get("task_id") or ""))
+        safe_metadata = {"status": "done", "updated_at": now}
+        if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
+            return _already_applied_result("complete", task)
         _check_turn_expected_version(context, task, args.get("expected_version"))
         if _has_pending_client_persistence(context, str(task["task_id"])):
             return await _stage_client_persisted_task_change(
@@ -174,7 +182,7 @@ async def execute_task_tool_call(
                 task_id=str(task["task_id"]),
                 args=args,
                 private_patch={},
-                safe_metadata={"status": "done", "updated_at": now},
+                safe_metadata=safe_metadata,
                 expected_version=_task_version(task),
                 context=context,
                 cache_service=cache_service,
@@ -194,6 +202,9 @@ async def execute_task_tool_call(
 
     if skill_id == "unblock":
         task = _attached_task(context, str(args.get("task_id") or ""))
+        safe_metadata = {"status": "todo", "blocked_reason_code": None, "updated_at": now}
+        if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
+            return _already_applied_result("unblock", task)
         _check_turn_expected_version(context, task, args.get("expected_version"))
         if _has_pending_client_persistence(context, str(task["task_id"])):
             return await _stage_client_persisted_task_change(
@@ -202,7 +213,7 @@ async def execute_task_tool_call(
                 task_id=str(task["task_id"]),
                 args=args,
                 private_patch={},
-                safe_metadata={"status": "todo", "blocked_reason_code": None, "updated_at": now},
+                safe_metadata=safe_metadata,
                 expected_version=_task_version(task),
                 context=context,
                 cache_service=cache_service,
@@ -225,17 +236,20 @@ async def execute_task_tool_call(
 
     if skill_id == "move":
         task = _visible_task(context, str(args.get("task_id") or ""))
-        _check_turn_expected_version(context, task, args.get("expected_version"))
         target_chat_id = str(args.get("target_chat_id") or "").strip()
         if not target_chat_id:
             raise ValueError("target_chat_id is required")
+        safe_metadata = {"primary_chat_id": target_chat_id, "updated_at": now}
+        if _already_applied_client_persisted_change(context, task, args.get("expected_version"), {}, safe_metadata):
+            return _already_applied_result("move", task)
+        _check_turn_expected_version(context, task, args.get("expected_version"))
         return await _stage_client_persisted_task_change(
             operation="move",
             event_type="moved",
             task_id=str(task["task_id"]),
             args=args,
             private_patch={},
-            safe_metadata={"primary_chat_id": target_chat_id, "updated_at": now},
+            safe_metadata=safe_metadata,
             expected_version=_task_version(task),
             context=context,
             cache_service=cache_service,
@@ -385,6 +399,43 @@ def _task_version(task: dict[str, Any]) -> int:
 
 def _has_pending_client_persistence(context: TaskToolContext, task_id: str) -> bool:
     return task_id in context.client_persisted_task_ids
+
+
+def _already_applied_client_persisted_change(
+    context: TaskToolContext,
+    task: dict[str, Any],
+    expected_version: Any,
+    private_patch: dict[str, Any],
+    safe_metadata: dict[str, Any],
+) -> bool:
+    task_id = str(task.get("task_id") or "")
+    if not task_id or task_id not in context.client_persisted_task_ids or expected_version is None:
+        return False
+    try:
+        if int(expected_version) >= _task_version(task):
+            return False
+    except (TypeError, ValueError):
+        return False
+    return _task_matches_patch(task, private_patch) and _task_matches_patch(task, safe_metadata, ignored_keys={"updated_at"})
+
+
+def _task_matches_patch(task: dict[str, Any], patch: dict[str, Any], *, ignored_keys: set[str] | None = None) -> bool:
+    ignored = ignored_keys or set()
+    for key, value in patch.items():
+        if key in ignored:
+            continue
+        if task.get(key) != value:
+            return False
+    return True
+
+
+def _already_applied_result(operation: str, task: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": "already_applied",
+        "operation": operation,
+        "task_id": task.get("task_id"),
+        "version": task.get("version"),
+    }
 
 
 def _mark_client_persisted_turn_update(

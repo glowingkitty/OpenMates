@@ -87,13 +87,23 @@ def scenario_create(args: argparse.Namespace) -> dict[str, Any]:
 def scenario_update(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str, Any]:
     chat_id = seed.get("chat_id")
     require(isinstance(chat_id, str) and chat_id, "create scenario did not return a chat id")
+    seed_events = seed.get("task_events")
+    require(isinstance(seed_events, list) and len(seed_events) >= 2, "create scenario did not return two task events")
+    update_task_id = seed_events[0].get("task_id") if isinstance(seed_events[0], dict) else None
+    complete_task_id = seed_events[1].get("task_id") if isinstance(seed_events[1], dict) else None
+    require(isinstance(update_task_id, str) and update_task_id, "first create event did not include task_id")
+    require(isinstance(complete_task_id, str) and complete_task_id, "second create event did not include task_id")
     result = run_cli_json(
         [
             "chats",
             "send",
             "--chat",
             chat_id,
-            "Update one visible task title to mention final review, then complete one visible task using task tools.",
+            (
+                f"Update the existing task with id {update_task_id}, currently version 1, so its title mentions final review. "
+                f"Mark the existing task with id {complete_task_id}, currently version 1, as complete. "
+                "Do not create any new tasks. Reply briefly after those two task changes finish."
+            ),
             "--no-pii-detection",
             "--response-timeout-seconds",
             str(args.chat_timeout),
