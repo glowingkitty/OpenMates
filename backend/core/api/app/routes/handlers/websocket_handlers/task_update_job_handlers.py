@@ -391,7 +391,11 @@ def _task_already_matches_encrypted_payload(
     encrypted_payload: dict[str, Any],
     expected_task_version: int,
 ) -> bool:
-    """Return true when a retry sees the exact already-committed task state."""
+    """Return true when a retry sees the task already advanced to this job's version.
+
+    Private fields are encrypted with randomized AEAD, so equivalent plaintext can
+    produce different ciphertext on retry. Only compare non-private metadata here.
+    """
     try:
         current_version = int(current.get("version"))
     except (TypeError, ValueError):
@@ -408,7 +412,7 @@ def _task_already_matches_encrypted_payload(
 
     skip_keys = {"version", "key_wrappers", "linked_project_ids"}
     for key, value in encrypted_payload.items():
-        if key in skip_keys:
+        if key in skip_keys or key.startswith("encrypted_"):
             continue
         if current.get(key) != value:
             return False

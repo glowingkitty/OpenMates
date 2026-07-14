@@ -358,7 +358,7 @@ async def test_task_update_job_persist_accepts_already_applied_task_state() -> N
     directus = SimpleNamespace(
         user_task=SimpleNamespace(
             update_task_if_version=AsyncMock(return_value=None),
-            get_task=AsyncMock(return_value={"task_id": "task-1", **encrypted_payload}),
+            get_task=AsyncMock(return_value={"task_id": "task-1", **encrypted_payload, "encrypted_title": "cipher-title-randomized-retry"}),
         ),
         encryption_service=None,
     )
