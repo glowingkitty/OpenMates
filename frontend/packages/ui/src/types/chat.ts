@@ -697,7 +697,7 @@ export interface ChatTitleUpdatedPayload {
   event: string;
   chat_id: string;
   data: { encrypted_title: string };
-  versions: { title_v: number };
+  versions: { title_v: number; metadata_v?: number };
 }
 
 export interface ChatDraftUpdatedPayload {

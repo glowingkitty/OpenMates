@@ -138,6 +138,9 @@ export async function handleChatTitleUpdatedImpl(
       // Update encrypted title from broadcast
       chat.encrypted_title = payload.data.encrypted_title;
       chat.title_v = payload.versions.title_v;
+      if (payload.versions.metadata_v !== undefined) {
+        chat.metadata_v = payload.versions.metadata_v;
+      }
       chat.updated_at = Math.floor(Date.now() / 1000);
 
       // Use a separate transaction for updateChat (it will create its own internally)
@@ -146,6 +149,7 @@ export async function handleChatTitleUpdatedImpl(
       // Invalidate metadata cache so the next getDecryptedMetadata() call
       // re-decrypts from the freshly updated IDB record instead of serving
       // a stale (possibly null) cached title for up to 5 minutes.
+      chatListCache.markDirty();
       chatMetadataCache.invalidateChat(payload.chat_id);
 
       // DB operation completed successfully - dispatch event
@@ -154,6 +158,13 @@ export async function handleChatTitleUpdatedImpl(
           detail: { chat_id: payload.chat_id, type: "title_updated", chat },
         }),
       );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("chatUpdated", {
+            detail: { chat_id: payload.chat_id, type: "title_updated", chat },
+          }),
+        );
+      }
     } else {
       console.debug(
         `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for title update`,
