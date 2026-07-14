@@ -316,10 +316,21 @@ async def test_repeated_client_persisted_task_calls_are_same_turn_noops() -> Non
         user_vault_key_id="vault-key-1",
         message_id="message-1",
     )
+    same_version_repeated_complete = await execute_task_tool_call(
+        tool_name=TASK_TOOL_COMPLETE,
+        args={"task_id": "TASK-1", "expected_version": 3},
+        context=context,
+        cache_service=cache,
+        directus_service=directus_service,
+        encryption_service=encryption,
+        user_vault_key_id="vault-key-1",
+        message_id="message-1",
+    )
 
     assert first_update["status"] == "pending_client_persistence"
     assert repeated_update == {"status": "already_applied", "operation": "update", "task_id": "task-1", "version": 2}
     assert first_complete["status"] == "pending_client_persistence"
     assert repeated_complete == {"status": "already_applied", "operation": "complete", "task_id": "task-1", "version": 3}
+    assert same_version_repeated_complete == {"status": "already_applied", "operation": "complete", "task_id": "task-1", "version": 3}
     assert [job["expected_task_version"] for job in stored_jobs] == [1, 2]
     directus_service.user_task.update_task_if_version.assert_not_awaited()

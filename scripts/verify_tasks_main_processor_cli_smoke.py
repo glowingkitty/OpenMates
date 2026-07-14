@@ -62,6 +62,29 @@ def pending_jobs(result: dict[str, Any]) -> list[dict[str, Any]]:
     return [job for job in jobs if isinstance(job, dict)]
 
 
+def wait_for_visible_tasks(chat_id: str, task_ids: set[str], *, timeout: int) -> list[dict[str, Any]]:
+    deadline = time.monotonic() + timeout
+    last_tasks: list[dict[str, Any]] = []
+    messages_ready = False
+    while time.monotonic() < deadline:
+        listed = run_cli_json(["tasks", "list", "--chat", chat_id], timeout=60)
+        tasks = listed.get("tasks")
+        require(isinstance(tasks, list), "tasks list result did not include tasks")
+        last_tasks = [task for task in tasks if isinstance(task, dict)]
+        visible_ids = {str(task.get("task_id") or "") for task in last_tasks}
+        if task_ids.issubset(visible_ids):
+            shown = run_cli_json(["chats", "show", chat_id], timeout=60)
+            messages = shown.get("messages")
+            require(isinstance(messages, list), "chat show result did not include messages")
+            message_text = "\n".join(str(message.get("content") or "") for message in messages if isinstance(message, dict))
+            messages_ready = all(task_id in message_text for task_id in task_ids)
+        if task_ids.issubset(visible_ids) and messages_ready:
+            time.sleep(3)
+            return last_tasks
+        time.sleep(2)
+    raise AssertionError(f"created tasks were not visible before update: expected {sorted(task_ids)}, got {last_tasks}")
+
+
 def scenario_create(args: argparse.Namespace) -> dict[str, Any]:
     suffix = str(int(time.time()))
     prompt = (
@@ -93,6 +116,7 @@ def scenario_update(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str,
     complete_task_id = seed_events[1].get("task_id") if isinstance(seed_events[1], dict) else None
     require(isinstance(update_task_id, str) and update_task_id, "first create event did not include task_id")
     require(isinstance(complete_task_id, str) and complete_task_id, "second create event did not include task_id")
+    wait_for_visible_tasks(chat_id, {update_task_id, complete_task_id}, timeout=args.task_ready_timeout)
     result = run_cli_json(
         [
             "chats",
@@ -128,6 +152,7 @@ def main() -> int:
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the CLI first")
     parser.add_argument("--scenario", choices=["all", "create", "update"], default="all")
     parser.add_argument("--chat-timeout", type=int, default=360, help="Seconds per real AI chat CLI call")
+    parser.add_argument("--task-ready-timeout", type=int, default=90, help="Seconds to wait for created tasks to become visible before update")
     parser.add_argument("--keep-artifacts", action="store_true", help="Do not delete created chats")
     args = parser.parse_args()
 

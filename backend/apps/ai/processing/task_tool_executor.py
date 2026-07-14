@@ -412,7 +412,7 @@ def _already_applied_client_persisted_change(
     if not task_id or task_id not in context.client_persisted_task_ids or expected_version is None:
         return False
     try:
-        if int(expected_version) >= _task_version(task):
+        if int(expected_version) > _task_version(task):
             return False
     except (TypeError, ValueError):
         return False
