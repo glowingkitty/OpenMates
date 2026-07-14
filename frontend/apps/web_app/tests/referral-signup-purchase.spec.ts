@@ -18,7 +18,8 @@ const {
 	getE2EDebugUrl,
 	getSignupTestDomain,
 	getTestAccount,
-	setToggleChecked
+	setToggleChecked,
+	validateSignupInviteIfRequired
 } = require('./signup-flow-helpers');
 const { loginToTestAccount, openSignupInterface } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
@@ -61,6 +62,7 @@ async function completeSignupAndPurchase(page: any, context: any, emailClient: a
 	await page.getByRole('button', { name: /continue/i }).click();
 	await screenshot(page, 'referral-signup-basics');
 	log('Reached referred signup basics step.', { signupEmail });
+	await validateSignupInviteIfRequired(page, log);
 	const emailRequestedAt = new Date().toISOString();
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]').first();
 	const usernameInput = page.locator('input[autocomplete="username"]').first();

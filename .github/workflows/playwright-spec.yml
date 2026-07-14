@@ -136,7 +136,7 @@ jobs:
           OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ github.event.inputs.account }}
           PLAYWRIGHT_WORKER_SLOT: "1"
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
-          E2E_SIGNUP_INVITE_CODE: ${{ (github.event.inputs.spec == 'signup-flow-passkey.spec.ts' || github.event.inputs.spec == 'signup-skip-2fa-flow.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
+          E2E_SIGNUP_INVITE_CODE: ${{ (contains(github.event.inputs.spec, 'signup') || github.event.inputs.spec == 'referral-signup-purchase.spec.ts' || github.event.inputs.spec == 'create-test-account.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
           OPENMATES_CLI_SIGNUP_INVITE_CODE: ${{ github.event.inputs.spec == 'cli-provision-auth-accounts.spec.ts' && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
           MAILOSAUR_API_KEY: ${{ secrets.MAILOSAUR_API_KEY }}
           MAILOSAUR_SERVER_ID: ${{ secrets.MAILOSAUR_SERVER_ID }}

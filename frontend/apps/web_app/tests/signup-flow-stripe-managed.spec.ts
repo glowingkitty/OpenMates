@@ -33,6 +33,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	validateSignupInviteIfRequired,
 	getSignupTestDomain,
 	buildSignupEmail,
 	createEmailClient,
@@ -166,6 +167,7 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	// Verify no missing translations on the basics step (back button, form labels, etc.).
 	await assertNoMissingTranslations(page);
 	logSignupCheckpoint('Reached basics step.');
+	await validateSignupInviteIfRequired(page, logSignupCheckpoint);
 
 	// Basics step: fill email/username and exercise key toggles.
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');

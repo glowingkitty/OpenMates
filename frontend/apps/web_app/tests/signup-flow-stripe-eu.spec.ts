@@ -33,6 +33,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	validateSignupInviteIfRequired,
 	fillStripeCardDetails,
 	getSignupTestDomain,
 	buildSignupEmail,
@@ -167,6 +168,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	// Verify no missing translations on the basics step (back button, form labels, etc.).
 	await assertNoMissingTranslations(page);
 	logSignupCheckpoint('Reached basics step.');
+	await validateSignupInviteIfRequired(page, logSignupCheckpoint);
 
 	// Basics step: fill email/username and exercise key toggles.
 	const emailInput = page.locator('input[type="email"][autocomplete="email"]');

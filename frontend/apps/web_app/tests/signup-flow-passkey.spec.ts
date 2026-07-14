@@ -31,6 +31,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	validateSignupInviteIfRequired,
 	getSignupTestDomain,
 	buildSignupEmail,
 	createEmailClient,
@@ -58,7 +59,6 @@ const { openSignupInterface } = require('./helpers/chat-test-helpers');
  */
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
-const E2E_SIGNUP_INVITE_CODE = process.env.E2E_SIGNUP_INVITE_CODE;
 
 /**
  * Attach a virtual authenticator so WebAuthn prompts are satisfied automatically.
@@ -200,19 +200,7 @@ test('completes passkey signup flow with email', async ({
 		await takeStepScreenshot(page, 'basics-step');
 		logSignupCheckpoint('Reached basics step.');
 
-		const inviteCodeInput = page.getByTestId('signup-invite-code-input');
-		if (await inviteCodeInput.isVisible().catch(() => false)) {
-			if (!E2E_SIGNUP_INVITE_CODE) {
-				throw new Error('E2E_SIGNUP_INVITE_CODE is required when dev signup requires an invite code.');
-			}
-			// Keep the secret unreadable in automatic failure screenshots and videos.
-			await inviteCodeInput.evaluate((input: HTMLInputElement) => {
-				input.type = 'password';
-			});
-			await inviteCodeInput.fill(E2E_SIGNUP_INVITE_CODE);
-			await expect(page.locator('input[autocomplete="username"]')).toBeVisible({ timeout: 10000 });
-			logSignupCheckpoint('Validated the configured invite code.');
-		}
+		await validateSignupInviteIfRequired(page, logSignupCheckpoint);
 
 		// Basics step: fill email/username and exercise key toggles.
 		const usernameInput = page.locator('input[autocomplete="username"]');

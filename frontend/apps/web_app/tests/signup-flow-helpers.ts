@@ -241,6 +241,27 @@ async function setToggleChecked(toggleLocator: any, shouldBeChecked: boolean): P
 	}
 }
 
+async function validateSignupInviteIfRequired(
+	page: any,
+	logStep: (message: string, metadata?: Record<string, unknown>) => void = () => undefined
+): Promise<void> {
+	const inviteCodeInput = page.getByTestId('signup-invite-code-input');
+	if (!(await inviteCodeInput.isVisible().catch(() => false))) return;
+
+	const inviteCode = process.env.E2E_SIGNUP_INVITE_CODE;
+	if (!inviteCode) {
+		throw new Error('E2E_SIGNUP_INVITE_CODE is required when dev signup requires an invite code.');
+	}
+
+	// Keep the invite code out of automatic failure screenshots and videos.
+	await inviteCodeInput.evaluate((input: HTMLInputElement) => {
+		input.type = 'password';
+	});
+	await inviteCodeInput.fill(inviteCode);
+	await page.locator('input[autocomplete="username"]').waitFor({ state: 'visible', timeout: 10000 });
+	logStep('Validated the configured invite code.');
+}
+
 /**
  * Fill Stripe Payment Element card fields with a fallback for iframe layouts.
  * The element can render either a unified payment iframe or separate card frames.
@@ -1607,6 +1628,7 @@ module.exports = {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	setToggleChecked,
+	validateSignupInviteIfRequired,
 	fillStripeCardDetails,
 	getSignupTestDomain,
 	getMailosaurServerId,
