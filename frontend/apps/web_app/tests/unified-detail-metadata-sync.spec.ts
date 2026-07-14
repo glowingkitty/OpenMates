@@ -32,7 +32,7 @@ function captureServerMetadataVersions(page: any, versions: ServerMetadataVersio
 				if (chatId && Number.isInteger(metadataVersion)) {
 					versions.push({
 						chatId,
-						type: message.type ?? message.event ?? 'unknown',
+						type: payload.event ?? message.event ?? message.type ?? 'unknown',
 						version: metadataVersion
 					});
 				}
@@ -233,7 +233,7 @@ test.describe('Unified detail metadata multi-device sync', () => {
 				'chat_title_updated'
 			]);
 			await expect
-				.poll(() => latestServerMetadataVersion(serverVersionsB, chatId, ['encrypted_chat_metadata']), {
+				.poll(() => latestServerMetadataVersion(serverVersionsB, chatId, ['chat_title_updated']), {
 					timeout: 30_000
 				})
 				.toBeGreaterThanOrEqual(titleVersion);

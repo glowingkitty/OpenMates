@@ -21,6 +21,7 @@ import type {
   AITypingStartedPayload,
   AIMessageReadyPayload,
   AITaskCancelRequestedPayload,
+  ChatTitleUpdatedPayload,
   ChatDraftUpdatedPayload,
   ChatMessageReceivedPayload,
   ChatMessageConfirmedPayload,
@@ -419,7 +420,12 @@ export class ChatSynchronizationService extends EventTarget {
         payload as SyncStatusResponsePayload,
       ),
     );
-    // chat_title_updated removed - titles now handled via ai_typing_started in dual-phase architecture
+    webSocketService.on("chat_title_updated", (payload) =>
+      chatUpdateHandlers.handleChatTitleUpdatedImpl(
+        this,
+        payload as ChatTitleUpdatedPayload,
+      ),
+    );
     webSocketService.on("chat_draft_updated", (payload) =>
       chatUpdateHandlers.handleChatDraftUpdatedImpl(
         this,
