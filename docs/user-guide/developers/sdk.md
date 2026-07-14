@@ -71,6 +71,60 @@ await om.docs.search("api keys");
 
 SDK chat deletion/sharing, billing exports/downloads, connected-account import, encrypted memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
 
+### Workflow Automation
+
+Author Workflows from YAML when you want the same server-side validation and compilation as the CLI:
+
+```ts
+const source = `
+title: Morning rain check
+trigger:
+  type: manual
+steps: []
+`;
+
+const validation = await om.workflows.validateYaml(source);
+if (validation.draft_valid) {
+  const { workflow } = await om.workflows.createFromYaml(source);
+  await om.workflows.enable(workflow.id);
+}
+```
+
+Structured callers can still create or modify graph workflows directly:
+
+```ts
+const workflow = await om.workflows.create({
+  title: "Morning rain check",
+  enabled: false,
+  graph: {
+    version: 1,
+    trigger_node_id: "trigger",
+    nodes: [{ id: "trigger", type: "manual_trigger", config: {} }],
+    edges: [],
+  },
+});
+
+await om.workflows.update(workflow.id, { enabled: true });
+```
+
+Run Workflows with a stable idempotency key, poll run detail, inspect retained node outputs, cancel active runs, or answer an `ask_for_user_input` step:
+
+```ts
+const run = await om.workflows.run(workflow.id, {
+  idempotencyKey: `rain-check-${Date.now()}`,
+  mode: "manual",
+  input: { city: "Berlin" },
+});
+
+const detail = await om.workflows.runDetail(workflow.id, run.id);
+for (const nodeRun of detail.node_runs ?? []) {
+  console.log(nodeRun.node_id, nodeRun.status, nodeRun.output_summary);
+}
+
+await om.workflows.respond(workflow.id, run.id, "ask-city", { city: "Berlin" });
+await om.workflows.cancelRun(workflow.id, run.id);
+```
+
 ## Python
 
 Install the Python package:
@@ -120,6 +174,60 @@ om.docs.search("api keys")
 ```
 
 SDK chat deletion/sharing, billing exports/downloads, connected-account import, encrypted memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
+
+### Workflow Automation
+
+Use YAML when you want server-side validation and compilation parity with the CLI:
+
+```python
+source = """
+title: Morning rain check
+trigger:
+  type: manual
+steps: []
+"""
+
+validation = om.workflows.validate_yaml(source)
+if validation["draft_valid"]:
+    created = om.workflows.create_from_yaml(source)
+    workflow = created["workflow"]
+    om.workflows.enable(workflow["id"])
+```
+
+Structured callers can create and modify graph workflows directly:
+
+```python
+workflow = om.workflows.create(
+    title="Morning rain check",
+    enabled=False,
+    graph={
+        "version": 1,
+        "trigger_node_id": "trigger",
+        "nodes": [{"id": "trigger", "type": "manual_trigger", "config": {}}],
+        "edges": [],
+    },
+)
+
+om.workflows.update(workflow["id"], enabled=True)
+```
+
+Run Workflows, inspect retained per-node outputs, cancel active runs, or answer `ask_for_user_input` steps:
+
+```python
+run = om.workflows.run(
+    workflow["id"],
+    idempotency_key="rain-check-2026-07-14",
+    mode="manual",
+    input_data={"city": "Berlin"},
+)
+
+detail = om.workflows.run_detail(workflow["id"], run["id"])
+for node_run in detail.get("node_runs", []):
+    print(node_run.get("node_id"), node_run.get("status"), node_run.get("output_summary"))
+
+om.workflows.respond(workflow["id"], run["id"], "ask-city", {"city": "Berlin"})
+om.workflows.cancel_run(workflow["id"], run["id"])
+```
 
 ## Scopes
 

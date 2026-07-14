@@ -1,7 +1,7 @@
 schema_version: 2
 id: workflows-sdk-runtime
 title: Workflows SDK Runtime
-status: draft
+status: implementing
 
 parent_spec: docs/specs/workflows-cli-runtime/spec.yml
 
@@ -75,20 +75,20 @@ clarification:
     code. YAML is the ergonomic authoring path, graph APIs remain available for
     structured callers, and run detail must expose step outputs so SDK users can
     build automation around completed or waiting Workflow runs.
-  approved_by_user: false
+  approved_by_user: true
 
 implementation_state:
-  subject_commit: 5cf1a5ae9f80e919fbfe899e2c531ce53e643c3a
+  subject_commit: pending-deploy
 
 approvals:
   product_contract:
-    status: pending
-    approved_at: ""
-    reason: "Draft spec written from the user's approved SDK examples; final spec approval is still required before implementation."
+    status: approved
+    approved_at: "2026-07-14T00:00:00Z"
+    reason: "User instructed: continue with implementing the spec for the workflow SDK changes."
   implementation_plan:
-    status: pending
-    approved_at: ""
-    reason: "Plan is included as the smallest known route but implementation waits for product-contract approval."
+    status: approved
+    approved_at: "2026-07-14T00:00:00Z"
+    reason: "Implementation uses the approved thin SDK facade plan over existing Workflow routes."
 
 decisions:
   - id: D-1
@@ -121,17 +121,12 @@ attempts:
     recorded_at: "2026-07-13T22:15:00Z"
 
 handoff:
-  current_task_id: TASK-1
-  next_action: "Ask the user to approve the Workflow SDK runtime product contract, then implement npm/pip SDK facade methods and parity tests."
-  command: "python3 scripts/spec_validate.py docs/specs/workflows-sdk-runtime/spec.yml"
-  expected_outcome: "The draft spec validates structurally before implementation starts."
-  blocker:
-    task_id: TASK-1
-    requires_user_input: true
-    reason: "Full spec product-contract approval is required before implementation."
-    question: "Approve docs/specs/workflows-sdk-runtime/spec.yml for implementation?"
-    next_action: "If approved, mark the product contract approved and implement TASK-2 through TASK-5."
-  last_verified_commit: 5cf1a5ae9f80e919fbfe899e2c531ce53e643c3a
+  current_task_id: TASK-5
+  next_action: "Deploy the SDK implementation, rerun focused checks on the committed revision, and record final evidence."
+  command: "python3 scripts/spec_verify.py docs/specs/workflows-sdk-runtime/spec.yml"
+  expected_outcome: "Spec verification passes after evidence is recorded for the deployed subject commit."
+  blocker: null
+  last_verified_commit: pending-deploy
 
 scenarios:
   - id: S-1

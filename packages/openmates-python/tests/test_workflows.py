@@ -63,7 +63,7 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         if url.endswith("/v1/workflows/wf-1/runs"):
             return FakeResponse({"runs": [{"id": "run-1", "status": "completed"}]})
         if url.endswith("/v1/workflows/wf-1/runs/run-1"):
-            return FakeResponse({"run": {"id": "run-1", "status": "completed"}})
+            return FakeResponse({"run": {"id": "run-1", "status": "completed", "node_runs": [{"id": "node-run-1", "node_id": "weather", "status": "completed", "output_summary": {"forecast": "rain"}, "credits_charged": 2}]}})
         return FakeResponse({"workflow": {"id": "wf-1", "title": "Morning", "graph": graph}})
 
     def fake_post(url, *, json, headers, timeout):
@@ -80,7 +80,22 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
             return FakeResponse({"session": {"session_id": "session-1", "status": "stopped", "event_cursor": 8, "undo_available": True}})
         if url.endswith("/v1/workflows/input/session-1/undo"):
             return FakeResponse({"session": {"session_id": "session-1", "status": "undone", "event_cursor": 9, "undo_available": False}})
+        if url.endswith("/v1/workflows/validate"):
+            assert json == {"source": "title: Morning\n"}
+            return FakeResponse({"validation": {"draft_valid": True, "enable_ready": False, "diagnostics": [{"code": "REQUIRED_RUNTIME_INPUT"}]}})
+        if url.endswith("/v1/workflows/yaml"):
+            assert json == {"source": "title: Morning\n"}
+            return FakeResponse({"workflow": {"id": "wf-yaml", "title": "Morning", "graph": graph}, "validation": {"draft_valid": True, "enable_ready": True, "diagnostics": []}})
+        if url.endswith("/v1/workflows/wf-1/yaml"):
+            assert json == {"source": "title: Updated\n"}
+            return FakeResponse({"workflow": {"id": "wf-1", "title": "Updated", "graph": graph}, "validation": {"draft_valid": True, "enable_ready": True, "diagnostics": []}})
         if url.endswith("/run"):
+            assert headers["Idempotency-Key"] == "stable-run-1"
+            return FakeResponse({"run": {"id": "run-1", "status": "completed"}})
+        if url.endswith("/runs/run-1/cancel"):
+            return FakeResponse({"run_id": "run-1", "status": "cancellation_requested"})
+        if url.endswith("/runs/run-1/respond"):
+            assert json == {"step_id": "ask", "input": {"answer": "Berlin"}}
             return FakeResponse({"run": {"id": "run-1", "status": "completed"}})
         return FakeResponse({"workflow": {"id": "wf-1", "title": json.get("title", "Morning"), "graph": graph}})
 
@@ -114,6 +129,9 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     assert client.workflows.follow_up_input("session-1", "weekdays only")["event_cursor"] == 7
     assert client.workflows.stop_input("session-1")["status"] == "stopped"
     assert client.workflows.undo_input("session-1")["status"] == "undone"
+    assert client.workflows.validate_yaml("title: Morning\n")["draft_valid"] is True
+    assert client.workflows.create_from_yaml("title: Morning\n")["workflow"]["id"] == "wf-yaml"
+    assert client.workflows.update_from_yaml("wf-1", "title: Updated\n")["workflow"]["title"] == "Updated"
     assert client.workflows.create(
         title="Morning",
         graph=graph,
@@ -129,9 +147,11 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     assert client.workflows.enable("wf-1")["id"] == "wf-1"
     assert client.workflows.disable("wf-1")["id"] == "wf-1"
     assert client.workflows.keep("wf-1")["id"] == "wf-1"
-    assert client.workflows.run("wf-1", mode="test", input_data={"dry": True})["id"] == "run-1"
+    assert client.workflows.run("wf-1", idempotency_key="stable-run-1", mode="test", input_data={"dry": True})["id"] == "run-1"
     assert client.workflows.runs("wf-1")[0]["id"] == "run-1"
-    assert client.workflows.run_detail("wf-1", "run-1")["id"] == "run-1"
+    assert client.workflows.run_detail("wf-1", "run-1")["node_runs"][0]["output_summary"]["forecast"] == "rain"
+    assert client.workflows.cancel_run("wf-1", "run-1")["status"] == "cancellation_requested"
+    assert client.workflows.respond("wf-1", "run-1", "ask", {"answer": "Berlin"})["status"] == "completed"
     assert client.workflows.upsert_template_projection(
         "wf-1",
         template_id="tpl-1",
@@ -161,6 +181,9 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/input/session-1/follow-up", "json": {"text": "weekdays only"}},
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/input/session-1/stop", "json": {}},
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/input/session-1/undo", "json": {}},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows/validate", "json": {"source": "title: Morning\n"}},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows/yaml", "json": {"source": "title: Morning\n"}},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/yaml", "json": {"source": "title: Updated\n"}},
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows", "json": {"title": "Morning", "graph": graph, "enabled": True, "run_content_retention": "none", "lifecycle": "temporary", "source": "chat", "created_by_assistant": True, "source_chat_id": "chat-1"}},
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows/wf-1"},
         {"method": "PATCH", "url": "https://api.openmates.org/v1/workflows/wf-1", "json": {"enabled": False, "run_content_retention": "last_5"}},
@@ -170,6 +193,8 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/run", "json": {"mode": "test", "input": {"dry": True}}},
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows/wf-1/runs"},
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows/wf-1/runs/run-1"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/runs/run-1/cancel", "json": {}},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/runs/run-1/respond", "json": {"step_id": "ask", "input": {"answer": "Berlin"}}},
         {"method": "PUT", "url": "https://api.openmates.org/v1/workflows/wf-1/template-projection", "json": {"template_id": "tpl-1", "source_version": 2, "ciphertext": "opaque-ciphertext", "ciphertext_checksum": "sha256:abc", "owner_wrapped_key": "wrapped-key", "projection_schema_version": 1}},
         {"method": "POST", "url": "https://api.openmates.org/v1/share/short-url", "json": {"token": "Abc123XY", "encrypted_url": "opaque-url", "content_type": "workflow_template", "content_id": "tpl-1", "password_protected": False, "ttl_seconds": 3600}},
         {"method": "DELETE", "url": "https://api.openmates.org/v1/share/short-url/Abc123XY", "json": None},
@@ -182,6 +207,55 @@ def test_pip_sdk_workflows_require_api_key():
     client = OpenMates(api_key=None)
     with pytest.raises(OpenMatesConfigError, match="API key is required"):
         client.workflows.list()
+
+
+def test_pip_sdk_workflow_template_sharing_transport_uses_shared_api(monkeypatch):
+    requests_seen = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append({"method": "GET", "url": url})
+        assert url.endswith("/v1/workflows/template-projections/tpl-1")
+        assert "Authorization" not in headers
+        return FakeResponse({
+            "template_id": "tpl-1",
+            "ciphertext": "opaque-ciphertext",
+            "ciphertext_checksum": "sha256:abc",
+            "projection_schema_version": 1,
+        })
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append({"method": "POST", "url": url, "json": json})
+        if url.endswith("/v1/workflows/wf-1/template-projection/revoke"):
+            assert json == {}
+            return FakeResponse({"template_id": "tpl-1", "revoked_at": 1000})
+        if url.endswith("/v1/workflows/wf-1/template-projection/unrevoke"):
+            assert json == {}
+            return FakeResponse({"template_id": "tpl-1", "revoked_at": None})
+        raise AssertionError(f"Unexpected request: {url}")
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key=None)
+    assert client.workflows.get_public_template_projection("tpl-1")["ciphertext"] == "opaque-ciphertext"
+    client = OpenMates(api_key="x")
+    assert client.workflows.revoke_template_projection("wf-1")["revoked_at"] == 1000
+    assert client.workflows.unrevoke_template_projection("wf-1")["revoked_at"] is None
+
+    assert requests_seen == [
+        {"method": "GET", "url": "https://api.openmates.org/v1/workflows/template-projections/tpl-1"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/template-projection/revoke", "json": {}},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/template-projection/unrevoke", "json": {}},
+    ]
 
 
 def test_pip_sdk_workflow_delete_requires_confirmation():

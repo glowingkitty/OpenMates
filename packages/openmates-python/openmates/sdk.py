@@ -97,8 +97,15 @@ class OpenMates:
             {"input_data": input_data, "parameters": {}},
         )
 
-    def _post(self, path: str, payload: dict[str, Any], *, timeout: float = DEFAULT_TIMEOUT_SECONDS) -> dict[str, Any]:
-        return self._request("POST", path, payload, timeout=timeout)
+    def _post(
+        self,
+        path: str,
+        payload: dict[str, Any],
+        *,
+        timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        extra_headers: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        return self._request("POST", path, payload, timeout=timeout, extra_headers=extra_headers)
 
     def _patch(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("PATCH", path, payload)
@@ -109,13 +116,21 @@ class OpenMates:
     def _delete(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._request("DELETE", path, payload)
 
-    def _request(self, method: str, path: str, payload: dict[str, Any] | None, *, timeout: float = DEFAULT_TIMEOUT_SECONDS) -> dict[str, Any]:
+    def _request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None,
+        *,
+        timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        extra_headers: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         if not self._api_key:
             raise OpenMatesConfigError("OpenMates API key is required")
 
         request_kwargs = {
             "json": payload,
-            "headers": self._headers(has_body=payload is not None),
+            "headers": {**self._headers(has_body=payload is not None), **(extra_headers or {})},
             "timeout": timeout,
         }
         if method == "POST":
@@ -137,6 +152,14 @@ class OpenMates:
         response = requests.get(
             f"{self._api_url}{path}",
             headers=self._headers(has_body=False),
+            timeout=DEFAULT_TIMEOUT_SECONDS,
+        )
+        return self._parse_response(response)
+
+    def _get_public(self, path: str) -> dict[str, Any]:
+        response = requests.get(
+            f"{self._api_url}{path}",
+            headers=self._public_headers(),
             timeout=DEFAULT_TIMEOUT_SECONDS,
         )
         return self._parse_response(response)
@@ -168,6 +191,13 @@ class OpenMates:
         if has_body:
             headers["Content-Type"] = "application/json"
         return headers
+
+    def _public_headers(self) -> dict[str, str]:
+        return {
+            "Accept": "application/json",
+            "X-OpenMates-SDK": "pip",
+            "X-OpenMates-Device-Identity": self._device_id,
+        }
 
     def _parse_response(self, response: Any) -> dict[str, Any]:
         data = response.json()
@@ -987,6 +1017,28 @@ class OpenMatesWorkflows:
     def capabilities(self) -> list[dict[str, Any]]:
         return self._client._get("/v1/workflows/capabilities").get("capabilities", [])
 
+    def validate_yaml(self, source: str) -> dict[str, Any]:
+        validation = self._client._post("/v1/workflows/validate", {"source": source}).get("validation")
+        if not isinstance(validation, dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow validation response missing validation"})
+        return validation
+
+    def create_from_yaml(self, source: str) -> dict[str, Any]:
+        response = self._client._post("/v1/workflows/yaml", {"source": source})
+        if not isinstance(response.get("workflow"), dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing workflow"})
+        if not isinstance(response.get("validation"), dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing validation"})
+        return response
+
+    def update_from_yaml(self, workflow_id: str, source: str) -> dict[str, Any]:
+        response = self._client._post(f"/v1/workflows/{_quote(workflow_id)}/yaml", {"source": source})
+        if not isinstance(response.get("workflow"), dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing workflow"})
+        if not isinstance(response.get("validation"), dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow YAML response missing validation"})
+        return response
+
     def start_input(
         self,
         *,
@@ -1103,10 +1155,20 @@ class OpenMatesWorkflows:
     def keep(self, workflow_id: str) -> dict[str, Any]:
         return self._client._post(f"/v1/workflows/{_quote(workflow_id)}/keep", {}).get("workflow", {})
 
-    def run(self, workflow_id: str, *, mode: str = "manual", input_data: dict[str, Any] | None = None) -> dict[str, Any]:
+    def run(
+        self,
+        workflow_id: str,
+        *,
+        idempotency_key: str,
+        mode: str = "manual",
+        input_data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if not idempotency_key.strip():
+            raise OpenMatesConfigError("Workflow run requires a stable idempotency_key")
         return self._client._post(
             f"/v1/workflows/{_quote(workflow_id)}/run",
             {"mode": mode, "input": input_data or {}},
+            extra_headers={"Idempotency-Key": idempotency_key},
         ).get("run", {})
 
     def runs(self, workflow_id: str) -> list[dict[str, Any]]:
@@ -1114,6 +1176,22 @@ class OpenMatesWorkflows:
 
     def run_detail(self, workflow_id: str, run_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}").get("run", {})
+
+    def cancel_run(self, workflow_id: str, run_id: str) -> dict[str, Any]:
+        result = self._client._post(f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}/cancel", {})
+        if result.get("status") not in {"cancellation_requested", "cancelled"}:
+            raise OpenMatesApiError(500, {"detail": "Workflow response has invalid cancellation status"})
+        return result
+
+    def respond(self, workflow_id: str, run_id: str, step_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
+        response = self._client._post(
+            f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}/respond",
+            {"step_id": step_id, "input": input_data},
+        )
+        run = response.get("run")
+        if not isinstance(run, dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow response missing run"})
+        return run
 
     def upsert_template_projection(
         self,
@@ -1136,6 +1214,33 @@ class OpenMatesWorkflows:
                 "owner_wrapped_key": owner_wrapped_key,
                 "projection_schema_version": projection_schema_version,
             },
+        )
+
+    def get_public_template_projection(self, template_id: str) -> dict[str, Any]:
+        return self._client._get_public(f"/v1/workflows/template-projections/{_quote(template_id)}")
+
+    def revoke_template_projection(self, workflow_id: str) -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/workflows/{_quote(workflow_id)}/template-projection/revoke",
+            {},
+        )
+
+    def unrevoke_template_projection(self, workflow_id: str) -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/workflows/{_quote(workflow_id)}/template-projection/unrevoke",
+            {},
+        )
+
+    def complete_imported_binding(
+        self,
+        workflow_id: str,
+        *,
+        binding_type: str,
+        node_id: str,
+    ) -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/workflows/{_quote(workflow_id)}/binding-requirements/complete",
+            {"type": binding_type, "node_id": node_id},
         )
 
     def create_template_short_url(

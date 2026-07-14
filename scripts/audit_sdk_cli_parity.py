@@ -18,6 +18,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI_TS = ROOT / "frontend/packages/openmates-cli/src/cli.ts"
+CLI_CLIENT_TS = ROOT / "frontend/packages/openmates-cli/src/client.ts"
 SDK_TS = ROOT / "frontend/packages/openmates-cli/src/sdk.ts"
 SDK_PY = ROOT / "packages/openmates-python/openmates/sdk.py"
 GENERATED_TS = ROOT / "frontend/packages/openmates-cli/src/generated/appSkills.ts"
@@ -55,6 +56,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "feedback": "feedback.assistantResponse / feedback.assistant_response",
     "benchmark": "benchmark.*",
     "workflows": "workflows.*",
+    "tasks": "tasks.*",
     "remote-access": "local-remote-access",
     "support": "project-support-info",
     "update": "cli-self-update",
@@ -65,10 +67,21 @@ TOP_LEVEL_CLASSIFICATION = {
     "e2e": "e2e-provisioning",
 }
 
+OPTIONAL_TOP_LEVEL_COMMANDS = {
+    "tasks",
+}
+
 
 @dataclass(frozen=True)
 class ParityEntry:
     cli_marker: str
+    npm: str
+    pip: str
+
+
+@dataclass(frozen=True)
+class WorkflowTemplateTransportEntry:
+    cli_client: str
     npm: str
     pip: str
 
@@ -120,6 +133,9 @@ PARITY_ENTRIES = [
     ParityEntry('printBenchmarkHelp', "benchmark.run", "benchmark.run"),
     ParityEntry('openmates workflows list', "workflows.list", "workflows.list"),
     ParityEntry('openmates workflows capabilities', "workflows.capabilities", "workflows.capabilities"),
+    ParityEntry('openmates workflows validate --file workflow.yml', "workflows.validateYaml", "workflows.validate_yaml"),
+    ParityEntry('openmates workflows create --file workflow.yml', "workflows.createFromYaml", "workflows.create_from_yaml"),
+    ParityEntry('openmates workflows update <workflow-id> --file workflow.yml', "workflows.updateFromYaml", "workflows.update_from_yaml"),
     ParityEntry('openmates workflows show', "workflows.get", "workflows.get"),
     ParityEntry('openmates workflows create', "workflows.create", "workflows.create"),
     ParityEntry('openmates workflows enable', "workflows.enable", "workflows.enable"),
@@ -127,6 +143,8 @@ PARITY_ENTRIES = [
     ParityEntry('openmates workflows run', "workflows.run", "workflows.run"),
     ParityEntry('openmates workflows runs', "workflows.runs", "workflows.runs"),
     ParityEntry('openmates workflows run-show', "workflows.runDetail", "workflows.run_detail"),
+    ParityEntry('openmates workflows run-cancel', "workflows.cancelRun", "workflows.cancel_run"),
+    ParityEntry('openmates workflows respond', "workflows.respond", "workflows.respond"),
     ParityEntry('openmates workflows delete', "workflows.delete", "workflows.delete"),
     ParityEntry('subcommand === "list"', "docs.list", "docs.list"),
     ParityEntry('subcommand === "search"', "docs.search", "docs.search"),
@@ -135,6 +153,32 @@ PARITY_ENTRIES = [
     ParityEntry('openmates embeds show', "embeds.show", "embeds.show"),
     ParityEntry('openmates embeds share', "embeds.share", "embeds.share"),
     ParityEntry('openmates embeds versions list', "embeds.versions", "embeds.versions"),
+]
+
+
+# These endpoints are intentionally transport-only until a shared client-side
+# crypto format exists for creating a user-facing workflow share URL.
+WORKFLOW_TEMPLATE_TRANSPORT_ENTRIES = [
+    WorkflowTemplateTransportEntry(
+        "getPublicWorkflowTemplateProjection",
+        "getPublicTemplateProjection",
+        "get_public_template_projection",
+    ),
+    WorkflowTemplateTransportEntry(
+        "revokeWorkflowTemplateProjection",
+        "revokeTemplateProjection",
+        "revoke_template_projection",
+    ),
+    WorkflowTemplateTransportEntry(
+        "unrevokeWorkflowTemplateProjection",
+        "unrevokeTemplateProjection",
+        "unrevoke_template_projection",
+    ),
+    WorkflowTemplateTransportEntry(
+        "completeImportedWorkflowBinding",
+        "completeImportedBinding",
+        "complete_imported_binding",
+    ),
 ]
 
 
@@ -148,8 +192,15 @@ def pip_method_exists(source: str, dotted: str) -> bool:
     return f"self.{namespace} =" in source and re.search(rf"def {re.escape(method)}\s*\(", source) is not None
 
 
+def method_exists(source: str, method: str, *, is_async: bool) -> bool:
+    if is_async:
+        return re.search(rf"async {re.escape(method)}\s*\(", source) is not None
+    return re.search(rf"def {re.escape(method)}\s*\(", source) is not None
+
+
 def main() -> int:
     cli = CLI_TS.read_text(encoding="utf-8")
+    cli_client = CLI_CLIENT_TS.read_text(encoding="utf-8")
     sdk_ts = SDK_TS.read_text(encoding="utf-8")
     sdk_py = SDK_PY.read_text(encoding="utf-8")
     generated_ts = GENERATED_TS.read_text(encoding="utf-8")
@@ -162,7 +213,7 @@ def main() -> int:
         failures.append(f"Unclassified CLI command(s): {', '.join(sorted(unclassified))}")
 
     for command, classification in TOP_LEVEL_CLASSIFICATION.items():
-        if command not in top_level_commands and command != "help":
+        if command not in top_level_commands and command != "help" and command not in OPTIONAL_TOP_LEVEL_COMMANDS:
             failures.append(f"Classified CLI command missing from cli.ts: {command}")
         if classification in EXCLUSION_REASONS and not EXCLUSION_REASONS[classification]:
             failures.append(f"Excluded command {command} has empty reason {classification}")
@@ -174,6 +225,14 @@ def main() -> int:
             failures.append(f"Missing npm SDK method: {entry.npm}")
         if not pip_method_exists(sdk_py, entry.pip):
             failures.append(f"Missing pip SDK method: {entry.pip}")
+
+    for entry in WORKFLOW_TEMPLATE_TRANSPORT_ENTRIES:
+        if not method_exists(cli_client, entry.cli_client, is_async=True):
+            failures.append(f"Missing CLI workflow template transport method: {entry.cli_client}")
+        if not method_exists(sdk_ts, entry.npm, is_async=True):
+            failures.append(f"Missing npm workflow template transport method: {entry.npm}")
+        if not method_exists(sdk_py, entry.pip, is_async=False):
+            failures.append(f"Missing pip workflow template transport method: {entry.pip}")
 
     if "class WebAppSkills" not in generated_ts or "async search" not in generated_ts:
         failures.append("Generated npm app-skill methods are missing web.search")
@@ -193,7 +252,11 @@ def main() -> int:
             print(f"sdk-cli-parity: {failure}", file=sys.stderr)
         return 1
 
-    print(f"sdk-cli-parity: {len(PARITY_ENTRIES)} parity entries checked")
+    print(
+        "sdk-cli-parity: "
+        f"{len(PARITY_ENTRIES)} command entries and "
+        f"{len(WORKFLOW_TEMPLATE_TRANSPORT_ENTRIES)} workflow template transport entries checked"
+    )
     return 0
 
 

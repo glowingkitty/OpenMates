@@ -46,11 +46,16 @@ import type {
   WorkflowTemplateImportPayload,
   WorkflowTemplateProjectionResult,
   WorkflowTemplateProjectionUpsertParams,
+  PublicWorkflowTemplateProjection,
+  WorkflowTemplateProjectionRevocationResult,
+  WorkflowTemplateBindingCompletionParams,
+  WorkflowTemplateBindingCompletionResult,
   WorkflowTemplateShortUrlParams,
   WorkflowTemplateShortUrlResult,
   ImportedWorkflowTemplate,
   ShortUrlRevokeResult,
   WorkflowRunContentRetention,
+  WorkflowRunCancellationResult,
   WorkflowRunDetail,
   WorkflowSummary,
   ProjectSourceCreateInput,
@@ -256,8 +261,8 @@ export class OpenMates {
     });
   }
 
-  async request<T>(path: string, body?: unknown, timeoutMs?: number): Promise<T> {
-    return this.requestWithMethod<T>("POST", path, body, timeoutMs);
+  async request<T>(path: string, body?: unknown, timeoutMs?: number, extraHeaders?: Record<string, string>): Promise<T> {
+    return this.requestWithMethod<T>("POST", path, body, timeoutMs, extraHeaders);
   }
 
   async patch<T>(path: string, body?: unknown): Promise<T> {
@@ -282,6 +287,14 @@ export class OpenMates {
       headers: this.headers(false),
     });
 
+    return this.parseResponse<T>(response);
+  }
+
+  async getPublic<T>(path: string): Promise<T> {
+    const response = await fetch(`${this.apiUrl}${path}`, {
+      method: "GET",
+      headers: this.publicHeaders(),
+    });
     return this.parseResponse<T>(response);
   }
 
@@ -439,14 +452,20 @@ export class OpenMates {
     return null;
   }
 
-  private async requestWithMethod<T>(method: string, path: string, body?: unknown, timeoutMs?: number): Promise<T> {
+  private async requestWithMethod<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    timeoutMs?: number,
+    extraHeaders?: Record<string, string>,
+  ): Promise<T> {
     if (!this.apiKey) {
       throw new OpenMatesConfigError("OpenMates API key is required");
     }
 
     const response = await fetch(`${this.apiUrl}${path}`, {
       method,
-      headers: this.headers(body !== undefined),
+      headers: { ...this.headers(body !== undefined), ...extraHeaders },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs),
     });
@@ -499,6 +518,14 @@ export class OpenMates {
       headers["Content-Type"] = "application/json";
     }
     return headers;
+  }
+
+  private publicHeaders(): Record<string, string> {
+    return {
+      Accept: "application/json",
+      "X-OpenMates-SDK": "npm",
+      "X-OpenMates-Device-Identity": this.deviceId,
+    };
   }
 
   private async parseResponse<T>(response: Response): Promise<T> {
@@ -1313,6 +1340,26 @@ export class OpenMatesWorkflows {
     return response.capabilities ?? [];
   }
 
+  async validateYaml(source: string): Promise<Record<string, unknown>> {
+    const response = await this.client.request<{ validation?: Record<string, unknown> }>("/v1/workflows/validate", { source });
+    if (!response.validation) throw new OpenMatesApiError(500, { detail: "Workflow validation response missing validation" });
+    return response.validation;
+  }
+
+  async createFromYaml(source: string): Promise<{ workflow: WorkflowDetail; validation: Record<string, unknown> }> {
+    const response = await this.client.request<{ workflow?: WorkflowDetail; validation?: Record<string, unknown> }>("/v1/workflows/yaml", { source });
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing workflow" });
+    if (!response.validation) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing validation" });
+    return { workflow: response.workflow, validation: response.validation };
+  }
+
+  async updateFromYaml(workflowId: string, source: string): Promise<{ workflow: WorkflowDetail; validation: Record<string, unknown> }> {
+    const response = await this.client.request<{ workflow?: WorkflowDetail; validation?: Record<string, unknown> }>(`/v1/workflows/${encodeURIComponent(workflowId)}/yaml`, { source });
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing workflow" });
+    if (!response.validation) throw new OpenMatesApiError(500, { detail: "Workflow YAML response missing validation" });
+    return { workflow: response.workflow, validation: response.validation };
+  }
+
   async startInput(params: WorkflowInputStartParams): Promise<WorkflowInputSessionResult> {
     const response = await this.client.request<{ session?: WorkflowInputSessionResult }>("/v1/workflows/input", {
       ...(params.text !== undefined ? { text: params.text } : {}),
@@ -1428,12 +1475,13 @@ export class OpenMatesWorkflows {
 
   async run(
     workflowId: string,
-    params: { mode?: "manual" | "test"; input?: Record<string, unknown> } = {},
+    params: { idempotencyKey: string; mode?: "manual" | "test"; input?: Record<string, unknown> },
   ): Promise<WorkflowRunDetail> {
+    if (!params.idempotencyKey.trim()) throw new OpenMatesConfigError("Workflow run requires a stable idempotencyKey");
     const response = await this.client.request<{ run?: WorkflowRunDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/run`, {
       mode: params.mode ?? "manual",
       input: params.input ?? {},
-    });
+    }, undefined, { "Idempotency-Key": params.idempotencyKey });
     if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
     return response.run;
   }
@@ -1445,6 +1493,26 @@ export class OpenMatesWorkflows {
 
   async runDetail(workflowId: string, runId: string): Promise<WorkflowRunDetail> {
     const response = await this.client.get<{ run?: WorkflowRunDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`);
+    if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
+    return response.run;
+  }
+
+  async cancelRun(workflowId: string, runId: string): Promise<WorkflowRunCancellationResult> {
+    const result = await this.client.request<WorkflowRunCancellationResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/cancel`,
+      {},
+    );
+    if (result.status !== "cancellation_requested" && result.status !== "cancelled") {
+      throw new OpenMatesApiError(500, { detail: "Workflow response has invalid cancellation status" });
+    }
+    return result;
+  }
+
+  async respond(workflowId: string, runId: string, stepId: string, input: Record<string, unknown>): Promise<WorkflowRunDetail> {
+    const response = await this.client.request<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/respond`,
+      { step_id: stepId, input },
+    );
     if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
     return response.run;
   }
@@ -1461,6 +1529,36 @@ export class OpenMatesWorkflows {
       owner_wrapped_key: params.ownerWrappedKey,
       projection_schema_version: params.projectionSchemaVersion,
     });
+  }
+
+  async getPublicTemplateProjection(templateId: string): Promise<PublicWorkflowTemplateProjection> {
+    return this.client.getPublic<PublicWorkflowTemplateProjection>(
+      `/v1/workflows/template-projections/${encodeURIComponent(templateId)}`,
+    );
+  }
+
+  async revokeTemplateProjection(workflowId: string): Promise<WorkflowTemplateProjectionRevocationResult> {
+    return this.client.request<WorkflowTemplateProjectionRevocationResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/revoke`,
+      {},
+    );
+  }
+
+  async unrevokeTemplateProjection(workflowId: string): Promise<WorkflowTemplateProjectionRevocationResult> {
+    return this.client.request<WorkflowTemplateProjectionRevocationResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/template-projection/unrevoke`,
+      {},
+    );
+  }
+
+  async completeImportedBinding(
+    workflowId: string,
+    params: WorkflowTemplateBindingCompletionParams,
+  ): Promise<WorkflowTemplateBindingCompletionResult> {
+    return this.client.request<WorkflowTemplateBindingCompletionResult>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/binding-requirements/complete`,
+      { type: params.type, node_id: params.nodeId },
+    );
   }
 
   async createTemplateShortUrl(params: WorkflowTemplateShortUrlParams): Promise<WorkflowTemplateShortUrlResult> {
