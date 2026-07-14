@@ -1574,6 +1574,7 @@ export async function sendEncryptedStoragePackage(
 		user_message: Message;
 		task_id?: string;
 		updated_chat?: Chat; // Optional pre-fetched chat with updated versions
+		include_encrypted_chat_key?: boolean;
 	}
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
@@ -1611,7 +1612,8 @@ export async function sendEncryptedStoragePackage(
 			plaintext_icon,
 			user_message,
 			task_id,
-			updated_chat
+			updated_chat,
+			include_encrypted_chat_key = false
 		} = data;
 
 		// Get chat object for version info - use provided chat or fetch from DB
@@ -1640,6 +1642,7 @@ export async function sendEncryptedStoragePackage(
 		);
 
 		let encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
+		let encryptedChatKeyCreatedDuringSend = false;
 		// Prefer any cached chat key first (covers hidden chats already unlocked).
 		let chatKey: Uint8Array | null = await chatKeyManager.getKey(chat_id);
 
@@ -1785,6 +1788,7 @@ export async function sendEncryptedStoragePackage(
 					const result = await chatKeyManager.createAndPersistKeyLocked(chat_id);
 					chatKey = result.chatKey;
 					encryptedChatKey = result.encryptedChatKey;
+					encryptedChatKeyCreatedDuringSend = true;
 					chat.encrypted_chat_key = encryptedChatKey;
 					console.log(
 						`[ChatSyncService:Senders] ✅ Atomically created and persisted key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`
@@ -1799,6 +1803,7 @@ export async function sendEncryptedStoragePackage(
 				// Key found in memory but not persisted — encrypt and save
 				encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 				if (encryptedChatKey) {
+					encryptedChatKeyCreatedDuringSend = true;
 					chat.encrypted_chat_key = encryptedChatKey;
 					await chatDB.updateChat(chat);
 					console.log(
@@ -1957,8 +1962,6 @@ export async function sendEncryptedStoragePackage(
 			encrypted_category: encryptedUserCategory, // User message category
 			// NOTE: encrypted_model_name is NOT included for user messages - only for assistant messages
 			created_at: user_message.created_at,
-			// Chat key (ALWAYS included for new chats, may be undefined for follow-ups if already stored)
-			encrypted_chat_key: encryptedChatKey,
 			// Version info - use actual values from chat object
 			versions: {
 				messages_v: chat.messages_v || 0,
@@ -1967,6 +1970,12 @@ export async function sendEncryptedStoragePackage(
 			},
 			task_id
 		};
+		if (
+			encryptedChatKey &&
+			(include_encrypted_chat_key || encryptedChatKeyCreatedDuringSend)
+		) {
+			metadataPayload.encrypted_chat_key = encryptedChatKey;
+		}
 
 		// ONLY include chat metadata fields if they're set (NEW CHATS ONLY)
 		// For follow-ups, these will be null and should NOT be sent to avoid overwriting existing metadata

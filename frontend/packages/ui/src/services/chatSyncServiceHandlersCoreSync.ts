@@ -523,6 +523,9 @@ export async function handlePhase1bChatContentImpl(
       `${payload.embeds?.length || 0} embeds, ${payload.embed_keys?.length || 0} embed_keys`,
   );
 
+  const deferredChatIds = new Set<string>();
+  let phase1bFailed = false;
+
   try {
     // Store messages for each chat (encrypted, no decryption)
     for (const chatData of payload.chats || []) {
@@ -567,6 +570,7 @@ export async function handlePhase1bChatContentImpl(
         const persistableMessages = messageFilter.messages;
         if (messageFilter.skippedChatIds.has(chatData.chat_id)) {
           await markSyncedMessagesDeferred(chatData.chat_id, "Phase 1b content sync");
+          deferredChatIds.add(chatData.chat_id);
           continue;
         }
         if (persistableMessages.length > 0) {
@@ -653,9 +657,32 @@ export async function handlePhase1bChatContentImpl(
       );
     }
 
-    console.info("[ChatSyncService:CoreSync] ✅ Phase 1b complete");
+    if (deferredChatIds.size > 0) {
+      console.warn(
+        `[ChatSyncService:CoreSync] Phase 1b deferred content for ${deferredChatIds.size} chat(s): ${Array.from(deferredChatIds).join(", ")}`,
+      );
+    } else {
+      console.info("[ChatSyncService:CoreSync] ✅ Phase 1b complete");
+    }
   } catch (error) {
+    phase1bFailed = true;
     console.error("[ChatSyncService:CoreSync] Phase 1b error:", error);
+  }
+
+  if (phase1bFailed) {
+    serviceInstance.dispatchEvent(
+      new CustomEvent("phase_1b_chat_content_error", { detail: payload }),
+    );
+    return;
+  }
+
+  if (deferredChatIds.size > 0) {
+    serviceInstance.dispatchEvent(
+      new CustomEvent("phase_1b_chat_content_deferred", {
+        detail: { ...payload, deferred_chat_ids: Array.from(deferredChatIds) },
+      }),
+    );
+    return;
   }
 
   serviceInstance.dispatchEvent(

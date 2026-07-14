@@ -1817,6 +1817,7 @@ export async function handleAITypingStartedImpl( // Changed to async
       user_message: userMessage,
       task_id: payload.task_id,
       updated_chat: updatedChat, // Pass the updated chat object with incremented title_v
+      include_encrypted_chat_key: isNewChat,
     });
 
     if (isNewChat) {
@@ -5278,6 +5279,7 @@ export async function handleSpawnSubChatsImpl(
         await sendEncryptedStoragePackage(serviceInstance, {
           chat_id: scId,
           user_message: userMsg,
+          include_encrypted_chat_key: true,
         });
         console.info(
           `[ChatSyncService:AI] Synced child chat and user message to Directus for ${scId}`,
