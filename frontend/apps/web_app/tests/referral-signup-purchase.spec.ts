@@ -34,7 +34,8 @@ test.beforeEach(async () => {
 	referredEmailForCleanup = null;
 });
 
-test.afterEach(async (_fixtures: unknown, testInfo: any) => {
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo: any) => {
 	if (testInfo.status !== 'passed') {
 		await cleanupFailedSignupAccount(referredEmailForCleanup, console.log, {
 			testFile: testInfo.file || 'referral-signup-purchase.spec.ts'
