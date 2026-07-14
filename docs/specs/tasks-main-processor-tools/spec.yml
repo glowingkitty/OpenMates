@@ -144,7 +144,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 7218f0af927e99d731e3f22076cb1523199e3181
+  subject_commit: 0a60388dae88a623d4a6197d6e32aefe274ab098
 
 approvals:
   product_contract:
@@ -211,11 +211,11 @@ attempts:
 
 handoff:
   current_task_id: TASK-9
-  next_action: Run the newly added GitHub Actions smoke workflow and record T-CI-001 evidence.
-  command: gh workflow run tasks-main-processor-cli-smoke.yml --repo glowingkitty/OpenMates
-  expected_outcome: The workflow runs the same real-dev CLI smoke against https://api.dev.openmates.org and passes.
+  next_action: Decide whether remaining placeholder smoke scenarios for block/unblock, mention/move, and reconnect should be implemented now or split into follow-up scope.
+  command: python3 scripts/spec_verify.py docs/specs/tasks-main-processor-tools/spec.yml
+  expected_outcome: Spec verification reports the remaining unchecked or deferred evidence before final completion.
   blocker: null
-  last_verified_commit: 7218f0af927e99d731e3f22076cb1523199e3181
+  last_verified_commit: 0a60388dae88a623d4a6197d6e32aefe274ab098
 
 scenarios:
   - id: S-1
@@ -758,11 +758,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --keep-artifacts --chat-timeout 420
+        run_id: local-20260714T204705Z
+        subject_commit: 7218f0af927e99d731e3f22076cb1523199e3181
+        timestamp: "2026-07-14T20:47:05Z"
+        summary: Real dev CLI smoke created two tasks through main-processor task tool events in chat 9e7ac596-625a-4652-a24f-616a26a184ed and returned no pending task update jobs.
 
   - id: T-CLI-LOCAL-001
     type: unit
@@ -812,11 +813,13 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: gh run watch 29367396963 --repo glowingkitty/OpenMates --exit-status
+        run_id: gha-29367396963
+        subject_commit: 0a60388dae88a623d4a6197d6e32aefe274ab098
+        timestamp: "2026-07-14T20:53:31Z"
+        reason: GitHub Actions push-triggered workflow run completed successfully for the deployed smoke workflow.
+        summary: Push-triggered Tasks Main-Processor CLI Smoke workflow passed on dev in 1m04s and ran the real-dev CLI smoke against https://api.dev.openmates.org.
 
   - id: T-CLI-002
     type: unit
@@ -895,12 +898,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: passed
-        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --keep-artifacts --chat-timeout 420
-        run_id: local-20260714T204705Z
-        subject_commit: 7218f0af927e99d731e3f22076cb1523199e3181
-        timestamp: "2026-07-14T20:47:05Z"
-        summary: Smoke verified persisted chat history system messages contained the updated and completed short IDs after client-encrypted event persistence.
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
 
   - id: T-CLI-005
     type: unit
@@ -922,11 +924,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: python3 scripts/verify_tasks_main_processor_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --keep-artifacts --chat-timeout 420
+        run_id: local-20260714T204705Z
+        subject_commit: 7218f0af927e99d731e3f22076cb1523199e3181
+        timestamp: "2026-07-14T20:47:05Z"
+        summary: Smoke verified persisted chat history system messages contained the updated and completed short IDs after client-encrypted event persistence.
 
   - id: T-CLI-006
     type: unit
@@ -1427,7 +1430,7 @@ tasks:
 
   - id: TASK-9
     title: Wire long-term GitHub Actions smoke after local dev evidence is green
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -1448,8 +1451,7 @@ tasks:
         - .github/workflows/tasks-main-processor-cli-smoke.yml
         - docs/specs/tasks-main-processor-tools/spec.yml
       shared_files: []
-    blockers:
-      - T-CI-001 still needs a GitHub Actions run after this workflow is deployed or dispatched.
+    blockers: []
     follow_up_tasks: []
     independently_deployable: true
 
