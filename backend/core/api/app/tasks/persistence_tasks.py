@@ -1779,7 +1779,30 @@ async def _async_persist_encrypted_chat_metadata(
             current_metadata_v = int(chat_metadata.get("metadata_v", 0) or 0)
             if not current_metadata_v and current_title_v > 0:
                 current_metadata_v = current_title_v
-            
+
+            if user_id:
+                try:
+                    cache_service_for_versions = CacheService()
+                    cached_versions = await cache_service_for_versions.get_chat_versions(user_id, chat_id)
+                    if cached_versions:
+                        current_messages_v = max(current_messages_v, int(cached_versions.messages_v or 0))
+                        current_title_v = max(current_title_v, int(cached_versions.title_v or 0))
+                        cached_metadata_v = getattr(cached_versions, "metadata_v", None)
+                        current_metadata_v = max(
+                            current_metadata_v,
+                            int(
+                                cached_metadata_v
+                                if cached_metadata_v is not None
+                                else cached_versions.title_v or 0
+                            ),
+                        )
+                except Exception as cache_version_error:
+                    logger.warning(
+                        f"Failed to read cached versions for chat {chat_id} before metadata persistence; "
+                        f"falling back to Directus versions: {cache_version_error}",
+                        exc_info=True,
+                    )
+             
             # Prepare update fields, excluding versions if they are not newer
             # CRITICAL: Always include encrypted metadata fields (title, icon, category) even if versions are same
             # These fields should be updated whenever provided, regardless of version
