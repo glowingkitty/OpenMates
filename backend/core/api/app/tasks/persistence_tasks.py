@@ -1776,9 +1776,10 @@ async def _async_persist_encrypted_chat_metadata(
             # OPTIMISTIC LOCKING: Don't downgrade versions or timestamps
             current_messages_v = int(chat_metadata.get("messages_v", 0) or 0)
             current_title_v = int(chat_metadata.get("title_v", 0) or 0)
-            current_metadata_v = int(chat_metadata.get("metadata_v", 0) or 0)
-            if not current_metadata_v and current_title_v > 0:
-                current_metadata_v = current_title_v
+            persisted_metadata_v = int(chat_metadata.get("metadata_v", 0) or 0)
+            if not persisted_metadata_v and current_title_v > 0:
+                persisted_metadata_v = current_title_v
+            current_metadata_v = persisted_metadata_v
 
             if user_id:
                 try:
@@ -1894,7 +1895,9 @@ async def _async_persist_encrypted_chat_metadata(
                 logger.info(f"Updating title_v from 0 to {incoming_title_v} for chat {chat_id} (pre-processing metadata)")
 
             incoming_metadata_v = update_fields.get("metadata_v")
-            if incoming_metadata_v is not None and incoming_metadata_v <= current_metadata_v:
+            if incoming_metadata_v is not None and (
+                incoming_metadata_v <= persisted_metadata_v or incoming_metadata_v < current_metadata_v
+            ):
                 update_fields.pop("metadata_v", None)
                 update_fields.pop("encrypted_title", None)
                 update_fields.pop("encrypted_chat_summary", None)

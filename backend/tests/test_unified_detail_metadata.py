@@ -22,6 +22,7 @@ from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_meta
 from backend.core.api.app.routes.handlers.websocket_handlers.title_update_handler import (
     handle_update_title,
 )
+from backend.core.api.app.tasks import persistence_tasks
 from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id
 from backend.core.api.app.services.user_plan_service import UserPlanNotFoundError, UserPlanService
 from backend.core.api.app.services.user_task_service import UserTaskNotFoundError, UserTaskService
@@ -414,6 +415,73 @@ def test_chat_title_update_broadcasts_server_versions(monkeypatch) -> None:
         "data": {"encrypted_title": "cipher-title-v5"},
         "versions": {"messages_v": 3, "title_v": 5, "metadata_v": 5},
     }
+
+
+def test_metadata_persistence_writes_reserved_cache_version_to_directus(monkeypatch) -> None:
+    record = {
+        "id": "chat-1",
+        "messages_v": 12,
+        "title_v": 7,
+        "metadata_v": 4,
+        "encrypted_title": "cipher-title-v7",
+        "encrypted_chat_summary": "cipher-summary-v4",
+    }
+    updates: list[dict[str, object]] = []
+
+    class DirectusDouble:
+        def __init__(self) -> None:
+            self.chat = SimpleNamespace(
+                get_chat_metadata=AsyncMock(side_effect=lambda _chat_id: dict(record)),
+                update_chat_fields_in_directus=AsyncMock(side_effect=self.update_chat),
+            )
+
+        async def ensure_auth_token(self) -> None:
+            return None
+
+        async def update_chat(self, chat_id: str, fields_to_update: dict[str, object]) -> dict[str, object]:
+            assert chat_id == "chat-1"
+            updates.append(dict(fields_to_update))
+            record.update(fields_to_update)
+            return dict(record)
+
+    class CacheDouble:
+        async def get_chat_versions(self, _user_id: str, _chat_id: str) -> SimpleNamespace:
+            return SimpleNamespace(messages_v=12, title_v=7, metadata_v=5)
+
+        async def get_chat_list_item_data(self, _user_id: str, _chat_id: str) -> None:
+            return None
+
+        async def set_chat_list_item_data(self, _user_id: str, _chat_id: str, _cache_data) -> bool:
+            return True
+
+        async def set_chat_versions(self, _user_id: str, _chat_id: str, _versions) -> bool:
+            return True
+
+        async def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(persistence_tasks, "DirectusService", DirectusDouble)
+    monkeypatch.setattr(persistence_tasks, "CacheService", CacheDouble)
+
+    asyncio.run(
+        persistence_tasks._async_persist_encrypted_chat_metadata(
+            "chat-1",
+            {
+                "encrypted_chat_summary": "cipher-summary-v5",
+                "messages_v": 12,
+                "title_v": 7,
+                "metadata_v": 5,
+                "updated_at": 1000,
+            },
+            "task-1",
+            hashed_user_id="owner-hash",
+            user_id="owner-1",
+        )
+    )
+
+    assert updates
+    assert updates[0]["metadata_v"] == 5
+    assert updates[0]["encrypted_chat_summary"] == "cipher-summary-v5"
 
 
 def test_workflow_metadata_version_is_owner_scoped_and_vault_backed() -> None:
