@@ -38,7 +38,7 @@ describe("E2E provisioning command surface", () => {
 
   it("requires the secret-backed invite before provisioning", () => {
     assert.throws(
-      () => runCli(["e2e", "provision-auth-accounts", "--slot", "14"]),
+      () => runCli(["--api-url", "https://api.dev.openmates.org", "e2e", "provision-auth-accounts", "--slot", "14"]),
       /OPENMATES_CLI_SIGNUP_INVITE_CODE is required/,
     );
   });
