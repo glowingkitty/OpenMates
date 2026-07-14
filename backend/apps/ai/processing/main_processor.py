@@ -3975,7 +3975,13 @@ async def handle_main_processing(
                                 result=task_result,
                             )
                         except Exception as task_tool_error:
-                            logger.warning("%s Task tool execution failed for %s: %s", log_prefix, tool_name, task_tool_error.__class__.__name__)
+                            logger.warning(
+                                "%s Task tool execution failed for %s: %s: %s",
+                                log_prefix,
+                                tool_name,
+                                task_tool_error.__class__.__name__,
+                                str(task_tool_error),
+                            )
                             task_result = {
                                 "status": "rejected",
                                 "reason": "Task tool execution failed before encrypted persistence.",

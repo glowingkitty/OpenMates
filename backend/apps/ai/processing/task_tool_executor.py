@@ -433,10 +433,7 @@ def _already_applied_client_persisted_change(
     task_id = str(task.get("task_id") or "")
     if not task_id or task_id not in context.client_persisted_task_ids or expected_version is None:
         return False
-    try:
-        if _parse_version(expected_version) > _task_version(task):
-            return False
-    except (TypeError, ValueError):
+    if _expected_version_is_ahead(expected_version, task):
         return False
     return _task_matches_patch(task, private_patch) and _task_matches_patch(task, safe_metadata, ignored_keys={"updated_at"})
 
@@ -450,12 +447,16 @@ def _already_applied_direct_change(
     task_id = str(task.get("task_id") or "")
     if not task_id or task_id in context.client_persisted_task_ids or expected_version is None:
         return False
-    try:
-        if _parse_version(expected_version) > _task_version(task):
-            return False
-    except (TypeError, ValueError):
+    if _expected_version_is_ahead(expected_version, task):
         return False
     return _task_matches_patch(task, safe_metadata, ignored_keys={"updated_at"})
+
+
+def _expected_version_is_ahead(expected_version: Any, task: dict[str, Any]) -> bool:
+    try:
+        return _parse_version(expected_version) > _task_version(task)
+    except (TypeError, ValueError):
+        return False
 
 
 def _task_matches_patch(task: dict[str, Any], patch: dict[str, Any], *, ignored_keys: set[str] | None = None) -> bool:

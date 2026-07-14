@@ -409,12 +409,24 @@ async def test_repeated_direct_task_complete_returns_event_noop() -> None:
         user_vault_key_id="vault-key-1",
         message_id="message-1",
     )
+    malformed_version_retry = await execute_task_tool_call(
+        tool_name=TASK_TOOL_COMPLETE,
+        args={"task_id": "TASK-1", "expected_version": "latest"},
+        context=context,
+        cache_service=AsyncMock(),
+        directus_service=directus_service,
+        encryption_service=AsyncMock(),
+        user_vault_key_id="vault-key-1",
+        message_id="message-1",
+    )
 
     assert first_complete["status"] == "ok"
     assert first_complete["event"]["event_type"] == "completed"
     assert repeated_complete["status"] == "ok"
     assert repeated_complete["event"]["event_type"] == "completed"
     assert repeated_complete["updated_task"]["version"] == 2
+    assert malformed_version_retry["status"] == "ok"
+    assert malformed_version_retry["event"]["event_type"] == "completed"
     directus_service.user_task.update_task_if_version.assert_awaited_once()
 
 
