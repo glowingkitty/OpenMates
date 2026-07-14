@@ -209,6 +209,24 @@ jobs:
             echo "Updating OPENMATES_TEST_ACCOUNT_API_KEY after credential-mutating test..."
             gh secret set OPENMATES_TEST_ACCOUNT_API_KEY --body "$NEW_API_KEY" && echo "✅ Updated OPENMATES_TEST_ACCOUNT_API_KEY" || echo "⚠️ Failed to update OPENMATES_TEST_ACCOUNT_API_KEY"
           fi
+      - name: Update account credentials if created by utility spec
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+        run: |
+          CREDS_FILE="frontend/apps/web_app/artifacts/test_account_credentials.json"
+          if [ -f "$CREDS_FILE" ]; then
+            SLOT=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["slot"])' "$CREDS_FILE")
+            EMAIL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["email"])' "$CREDS_FILE")
+            PASSWORD=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["password"])' "$CREDS_FILE")
+            OTP_KEY=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["otpKey"])' "$CREDS_FILE")
+            rm -f "$CREDS_FILE"
+            echo "Updating OPENMATES_TEST_ACCOUNT_${SLOT}_* after account provisioning..."
+            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" --body "$EMAIL"
+            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD" --body "$PASSWORD"
+            gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_OTP_KEY" --body "$OTP_KEY"
+            echo "✅ Updated OPENMATES_TEST_ACCOUNT_${SLOT}_* secrets"
+          fi
       - name: Sanitize artifact name
         if: always()
         id: artifact_name

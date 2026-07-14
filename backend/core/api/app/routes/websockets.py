@@ -61,6 +61,12 @@ from .handlers.websocket_handlers.workflow_chat_delivery_handlers import (
     handle_workflow_chat_delivery_persist,
     send_available_workflow_chat_deliveries,
 )
+from .handlers.websocket_handlers.task_update_job_handlers import (
+    handle_task_update_job_claim,
+    handle_task_update_job_event_confirmed,
+    handle_task_update_job_persist,
+    send_available_task_update_jobs,
+)
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
@@ -728,6 +734,27 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 device_fingerprint_hash=device_hash
                             )
                             logger.info(f"AI Stream Listener: Forwarded '{event_type}' to active chat on {user_id_uuid}/{device_hash}")
+                    continue
+
+                if event_type in ("task_event", "task_update_jobs_available"):
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    chat_id_from_payload = redis_payload.get("chat_id")
+                    if not user_id_uuid or not chat_id_from_payload:
+                        logger.warning(
+                            "AI Stream Listener: Malformed task payload on channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    for device_hash, websocket_conn in manager.get_connections_for_user(user_id_uuid).items():
+                        if not manager.supports_task_update_jobs(user_id_uuid, device_hash):
+                            continue
+                        if chat_id_from_payload == manager.get_active_chat(user_id_uuid, device_hash):
+                            payload = {key: value for key, value in redis_payload.items() if key not in {"type", "user_id_uuid", "user_id_hash"}}
+                            await manager.send_personal_message(
+                                message={"type": event_type, "payload": payload},
+                                user_id=user_id_uuid,
+                                device_fingerprint_hash=device_hash,
+                            )
                     continue
 
                 elif event_type == "ai_message_chunk":
@@ -2076,6 +2103,9 @@ async def websocket_endpoint(
     user_id = auth_data["user_id"]
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    raw_capabilities = websocket.query_params.get("client_capabilities", "")
+    connection_capabilities = {item.strip() for item in raw_capabilities.split(",") if item.strip()}
+    supports_task_update_jobs = "task_update_jobs" in connection_capabilities
 
     # Extract user OTel attributes for privacy tier resolution (OTEL-02, OTEL-06).
     # These are set once per connection and passed to every handler span.
@@ -2087,7 +2117,12 @@ async def websocket_endpoint(
     }
 
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
-    await manager.connect(websocket, user_id, device_fingerprint_hash)
+    await manager.connect(
+        websocket,
+        user_id,
+        device_fingerprint_hash,
+        supports_task_update_jobs=supports_task_update_jobs,
+    )
 
     try:
         recovery_epoch = await ChatRecoveryCutoverController(
@@ -2117,6 +2152,16 @@ async def websocket_endpoint(
             user_otel_attrs=user_otel_attrs,
         )
     )
+
+    if supports_task_update_jobs:
+        asyncio.create_task(
+            send_available_task_update_jobs(
+                manager=manager,
+                cache_service=cache_service,
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash,
+            )
+        )
 
     # Deliver any pending reminder notifications that fired while the user was offline.
     # This runs as a background task so it doesn't block the WebSocket message loop.
@@ -2246,6 +2291,48 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "task_update_job_claim":
+                if not supports_task_update_jobs:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Task update jobs require a task-update-jobs capable client"}})
+                    continue
+                await handle_task_update_job_claim(
+                    manager=manager,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    user_vault_key_id=_user_data.get("vault_key_id"),
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "task_update_job_persist":
+                if not supports_task_update_jobs:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Task update jobs require a task-update-jobs capable client"}})
+                    continue
+                await handle_task_update_job_persist(
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "task_update_job_event_confirmed":
+                if not supports_task_update_jobs:
+                    await websocket.send_json({"type": "error", "payload": {"message": "Task update jobs require a task-update-jobs capable client"}})
+                    continue
+                await handle_task_update_job_event_confirmed(
+                    manager=manager,
+                    cache_service=cache_service,
+                    user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,

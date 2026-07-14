@@ -16,11 +16,8 @@
  *   gh workflow run playwright-spec.yml -f spec=create-test-account.spec.ts \
  *     -f create_account_slot=1
  *
- * After the run, parse logs for the ===ACCOUNT_CREDENTIALS=== block and set
- * GitHub secrets:
- *   gh secret set OPENMATES_TEST_ACCOUNT_{SLOT}_EMAIL --body "..."
- *   gh secret set OPENMATES_TEST_ACCOUNT_{SLOT}_PASSWORD --body "..."
- *   gh secret set OPENMATES_TEST_ACCOUNT_{SLOT}_OTP_KEY --body "..."
+ * After the run, the GitHub Actions workflow updates the slot-scoped secrets
+ * from a temporary credential artifact that is deleted before artifact upload.
  *
  * Architecture: docs/architecture/e2e-testing.md
  * Test reference: python3 scripts/run_tests.py --spec create-test-account.spec.ts
@@ -28,6 +25,8 @@
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
 	createSignupLogger,
 	archiveExistingScreenshots,
@@ -89,7 +88,7 @@ test.describe('Create persistent test account', () => {
 		const accountUsername = accountSlug;
 		const accountPassword = `TestAcct!2026pw${slot}`;
 
-		logCheckpoint(`Creating test account for slot ${slot}.`, { accountEmail });
+		logCheckpoint(`Creating test account for slot ${slot}.`);
 
 		// ─── Open signup dialog ───────────────────────────────────────────
 		await page.goto(getE2EDebugUrl('/'));
@@ -253,17 +252,26 @@ test.describe('Create persistent test account', () => {
 		await page.waitForURL(/chat/);
 		logCheckpoint('Arrived in chat after signup.');
 
-		// ─── Output credentials immediately ───────────────────────────────
-		// Output BEFORE any optional verifications so credentials are always captured.
-		console.log('===ACCOUNT_CREDENTIALS===');
-		console.log(`SLOT=${slot}`);
-		console.log(`EMAIL=${accountEmail}`);
-		console.log(`PASSWORD=${accountPassword}`);
-		console.log(`OTP_KEY=${tfaSecret}`);
-		console.log('===END_CREDENTIALS===');
+		// ─── Persist credentials for the workflow secret-update step ───────
+		// Write BEFORE optional verifications so a completed signup can be reused.
+		const credentialArtifactDir = path.resolve(process.cwd(), 'artifacts');
+		fs.mkdirSync(credentialArtifactDir, { recursive: true });
+		fs.writeFileSync(
+			path.join(credentialArtifactDir, 'test_account_credentials.json'),
+			JSON.stringify(
+				{
+					slot,
+					email: accountEmail,
+					password: accountPassword,
+					otpKey: tfaSecret
+				},
+				null,
+				2
+			),
+			{ mode: 0o600 }
+		);
 
 		logCheckpoint(`Account slot ${slot} created successfully.`, {
-			email: accountEmail,
 			username: accountUsername
 		});
 
