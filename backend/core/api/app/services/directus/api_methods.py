@@ -94,9 +94,12 @@ async def create_item(self, collection: str, payload: dict, admin_required: bool
     try:
         headers = {}
         if admin_required:
-            # Use admin token for collections that require elevated privileges
-            # (e.g. analytics, server_stats, signup_funnel collections)
-            token = await self.login_admin()
+            # Use the shared cached admin-token path so service-only collection
+            # writes do not fall back to a regular user token on login failure.
+            token = await self.ensure_auth_token(admin_required=True)
+            if not token:
+                logger.error(f"Failed to get admin token for item creation in collection: {collection}")
+                return False, {"error": "admin_auth_unavailable"}
             headers["Authorization"] = f"Bearer {token}"
 
         # Use the internal _make_api_request helper for the POST request

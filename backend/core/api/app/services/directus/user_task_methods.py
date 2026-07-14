@@ -358,7 +358,7 @@ class UserTaskMethods:
             "fields": USER_TASK_KEY_WRAPPER_FIELDS,
             "limit": 50,
         }
-        response = await self.directus_service.get_items("user_task_key_wrappers", params=params, no_cache=True)
+        response = await self.directus_service.get_items("user_task_key_wrappers", params=params, no_cache=True, admin_required=True)
         return response if isinstance(response, list) else []
 
     async def update_task(self, task_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:

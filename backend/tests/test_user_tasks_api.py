@@ -201,6 +201,8 @@ async def test_update_task_if_version_relinks_chat_with_replacement_key_wrappers
     assert persisted_patch["hashed_primary_chat_id"] == hash_id("chat-2")
     assert persisted_patch["linked_project_hashes"] == [hash_id("project-1")]
     assert persisted_patch["version"] == 2
+    assert directus.get_items.await_args_list[1].kwargs["admin_required"] is True
+    assert all(call.kwargs.get("admin_required") is True for call in directus.create_item.await_args_list)
     assert directus.delete_item.await_count == len(existing_wrappers)
 
 
