@@ -22,3 +22,28 @@ generate:
   sv: Generate 3D model
   he: Generate 3D model
   verified_by_human: [en, de]
+
+generate.description:
+  context: Description for the 3D model generation skill
+  en: Create a 3D model from a text prompt or reference images.
+  de: Erstelle ein 3D-Modell aus einem Text-Prompt oder Referenzbildern.
+  zh: Create a 3D model from a text prompt or reference images.
+  es: Create a 3D model from a text prompt or reference images.
+  fr: Create a 3D model from a text prompt or reference images.
+  pt: Create a 3D model from a text prompt or reference images.
+  ru: Create a 3D model from a text prompt or reference images.
+  ja: Create a 3D model from a text prompt or reference images.
+  ko: Create a 3D model from a text prompt or reference images.
+  it: Create a 3D model from a text prompt or reference images.
+  tr: Create a 3D model from a text prompt or reference images.
+  vi: Create a 3D model from a text prompt or reference images.
+  id: Create a 3D model from a text prompt or reference images.
+  pl: Create a 3D model from a text prompt or reference images.
+  nl: Create a 3D model from a text prompt or reference images.
+  ar: Create a 3D model from a text prompt or reference images.
+  hi: Create a 3D model from a text prompt or reference images.
+  th: Create a 3D model from a text prompt or reference images.
+  cs: Create a 3D model from a text prompt or reference images.
+  sv: Create a 3D model from a text prompt or reference images.
+  he: Create a 3D model from a text prompt or reference images.
+  verified_by_human: [en, de]

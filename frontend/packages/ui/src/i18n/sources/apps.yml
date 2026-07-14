@@ -2638,6 +2638,54 @@ mindmaps.description:
   sv: Skapa strukturerade idékartor och ämnesträd för brainstorming.
   he: יצירת מפות רעיונות מובנות ועצי נושאים לסיעור מוחות.
   verified_by_human: [en, de]
+models3d:
+  context: App name for the 3D Models app
+  en: 3D Models
+  de: 3D-Modelle
+  zh: 3D Models
+  es: 3D Models
+  fr: 3D Models
+  pt: 3D Models
+  ru: 3D Models
+  ja: 3D Models
+  ko: 3D Models
+  it: 3D Models
+  tr: 3D Models
+  vi: 3D Models
+  id: 3D Models
+  pl: 3D Models
+  nl: 3D Models
+  ar: 3D Models
+  hi: 3D Models
+  th: 3D Models
+  cs: 3D Models
+  sv: 3D Models
+  he: 3D Models
+  verified_by_human: [en, de]
+models3d.description:
+  context: Description for the 3D Models app
+  en: Generate 3D models from prompts or reference images.
+  de: Generiere 3D-Modelle aus Prompts oder Referenzbildern.
+  zh: Generate 3D models from prompts or reference images.
+  es: Generate 3D models from prompts or reference images.
+  fr: Generate 3D models from prompts or reference images.
+  pt: Generate 3D models from prompts or reference images.
+  ru: Generate 3D models from prompts or reference images.
+  ja: Generate 3D models from prompts or reference images.
+  ko: Generate 3D models from prompts or reference images.
+  it: Generate 3D models from prompts or reference images.
+  tr: Generate 3D models from prompts or reference images.
+  vi: Generate 3D models from prompts or reference images.
+  id: Generate 3D models from prompts or reference images.
+  pl: Generate 3D models from prompts or reference images.
+  nl: Generate 3D models from prompts or reference images.
+  ar: Generate 3D models from prompts or reference images.
+  hi: Generate 3D models from prompts or reference images.
+  th: Generate 3D models from prompts or reference images.
+  cs: Generate 3D models from prompts or reference images.
+  sv: Generate 3D models from prompts or reference images.
+  he: Generate 3D models from prompts or reference images.
+  verified_by_human: [en, de]
 math:
   context: App name for the Math app
   en: Math
