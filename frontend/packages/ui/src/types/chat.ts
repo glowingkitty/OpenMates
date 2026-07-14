@@ -572,6 +572,7 @@ export interface AITypingStartedPayload {
   server_region?: string | null; // Server region for UI display (e.g., "EU", "US", "APAC")
   title?: string | null; // Added to include the chat title
   icon_names?: string[]; // Added to include the icon names from AI preprocessing
+  encrypted_chat_key?: string; // Server-provided canonical chat key wrapper for secondary devices
   // DUAL-PHASE: task_id for tracking
   task_id?: string;
   // CRITICAL: When true, this is a continuation task after app settings/memories confirmation

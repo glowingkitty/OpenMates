@@ -31,6 +31,26 @@ logger = logging.getLogger(__name__)
 COMMITMENT_VERSION = 1
 
 
+def _start_ws_span(event_type: str, user_id: str, payload: dict[str, Any] | None, user_otel_attrs: dict | None):
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
+
+        return start_ws_handler_span(event_type, user_id, payload, user_otel_attrs)
+    except Exception:
+        return None, None
+
+
+def _end_ws_span(otel_span: Any, otel_token: Any) -> None:
+    if otel_span is None:
+        return
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span
+
+        end_ws_handler_span(otel_span, otel_token)
+    except Exception:
+        pass
+
+
 def canonicalize_inference_request(inference_request: dict[str, Any]) -> bytes:
     if not isinstance(inference_request, dict) or not inference_request:
         raise ValueError("inference_request must be a non-empty object")
@@ -105,7 +125,14 @@ async def handle_chat_turn_preflight(
     user_id_hash: str,
     device_fingerprint_hash: str,
     payload: dict[str, Any],
+    user_otel_attrs: dict | None = None,
 ) -> None:
+    _otel_span, _otel_token = _start_ws_span(
+        "chat_turn_preflight",
+        user_id,
+        payload,
+        user_otel_attrs,
+    )
     try:
         recovery_service = ChatRecoveryService(directus_service)
         cutover_state = await recovery_service.execute(
@@ -194,3 +221,5 @@ async def handle_chat_turn_preflight(
             user_id,
             device_fingerprint_hash,
         )
+    finally:
+        _end_ws_span(_otel_span, _otel_token)

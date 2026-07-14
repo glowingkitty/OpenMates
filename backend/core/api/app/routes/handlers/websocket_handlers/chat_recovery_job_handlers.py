@@ -20,6 +20,26 @@ from backend.core.api.app.services.chat_recovery_service import (
 logger = logging.getLogger(__name__)
 
 
+def _start_ws_span(event_type: str, user_id: str, payload: dict[str, Any] | None, user_otel_attrs: dict | None):
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
+
+        return start_ws_handler_span(event_type, user_id, payload, user_otel_attrs)
+    except Exception:
+        return None, None
+
+
+def _end_ws_span(otel_span: Any, otel_token: Any) -> None:
+    if otel_span is None:
+        return
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span
+
+        end_ws_handler_span(otel_span, otel_token)
+    except Exception:
+        pass
+
+
 def _request_id(payload: dict[str, Any]) -> str | None:
     request_id = payload.get("request_id")
     if isinstance(request_id, str) and request_id and len(request_id) <= 128:
@@ -90,7 +110,14 @@ async def send_available_recovery_jobs(
     user_id: str,
     user_id_hash: str,
     device_fingerprint_hash: str,
+    user_otel_attrs: dict | None = None,
 ) -> None:
+    _otel_span, _otel_token = _start_ws_span(
+        "send_available_recovery_jobs",
+        user_id,
+        None,
+        user_otel_attrs,
+    )
     try:
         result = await ChatRecoveryService(directus_service).execute(
             "list_available_jobs",
@@ -115,6 +142,8 @@ async def send_available_recovery_jobs(
                 device_fingerprint_hash[:8],
                 exc.code,
             )
+    finally:
+        _end_ws_span(_otel_span, _otel_token)
 
 
 async def _send_protocol_error(
@@ -148,7 +177,14 @@ async def handle_recovery_job_claim(
     user_id_hash: str,
     device_fingerprint_hash: str,
     payload: dict[str, Any],
+    user_otel_attrs: dict | None = None,
 ) -> None:
+    _otel_span, _otel_token = _start_ws_span(
+        "recovery_job_claim",
+        user_id,
+        payload,
+        user_otel_attrs,
+    )
     request_id = _request_id(payload)
     try:
         result = await ChatRecoveryService(directus_service).execute(
@@ -177,6 +213,8 @@ async def handle_recovery_job_claim(
             payload.get("job_id"),
             request_id,
         )
+    finally:
+        _end_ws_span(_otel_span, _otel_token)
 
 
 async def handle_recovery_job_renew(
@@ -187,7 +225,14 @@ async def handle_recovery_job_renew(
     user_id_hash: str,
     device_fingerprint_hash: str,
     payload: dict[str, Any],
+    user_otel_attrs: dict | None = None,
 ) -> None:
+    _otel_span, _otel_token = _start_ws_span(
+        "recovery_job_renew",
+        user_id,
+        payload,
+        user_otel_attrs,
+    )
     request_id = _request_id(payload)
     try:
         result = await ChatRecoveryService(directus_service).execute(
@@ -218,6 +263,8 @@ async def handle_recovery_job_renew(
             payload.get("job_id"),
             request_id,
         )
+    finally:
+        _end_ws_span(_otel_span, _otel_token)
 
 
 async def handle_recovery_job_persist(
@@ -228,7 +275,14 @@ async def handle_recovery_job_persist(
     user_id_hash: str,
     device_fingerprint_hash: str,
     payload: dict[str, Any],
+    user_otel_attrs: dict | None = None,
 ) -> None:
+    _otel_span, _otel_token = _start_ws_span(
+        "recovery_job_persist",
+        user_id,
+        payload,
+        user_otel_attrs,
+    )
     request_id = _request_id(payload)
     try:
         encrypted_message = dict(payload.get("encrypted_assistant_message") or {})
@@ -263,3 +317,5 @@ async def handle_recovery_job_persist(
             payload.get("job_id"),
             request_id,
         )
+    finally:
+        _end_ws_span(_otel_span, _otel_token)

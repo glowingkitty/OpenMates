@@ -1131,7 +1131,10 @@ export async function handleAITypingStartedImpl( // Changed to async
   payload: AITypingStartedPayload,
 ): Promise<void> {
   // Added Promise<void>
-  console.debug("[ChatSyncService:AI] Received 'ai_typing_started':", payload);
+  const safePayloadForLog = payload.encrypted_chat_key
+    ? { ...payload, encrypted_chat_key: "[redacted]" }
+    : payload;
+  console.debug("[ChatSyncService:AI] Received 'ai_typing_started':", safePayloadForLog);
 
   // Update aiTypingStore first
   aiTypingStore.setTyping(
@@ -1286,19 +1289,17 @@ export async function handleAITypingStartedImpl( // Changed to async
       // ask_skill_task.py for secondary devices), decrypt and cache it BEFORE
       // falling back to getOrGenerateChatKey(). Without this, secondary devices
       // generate a random wrong key and all subsequent encryption/decryption fails.
-      const payloadWithKey = payload as AITypingStartedPayload & {
-        encrypted_chat_key?: string;
-      };
+      const payloadEncryptedChatKey = payload.encrypted_chat_key;
       // KEYS-04: getKeySync acceptable here -- guard prevents redundant key decryption (key establishment, not content decrypt)
       if (
-        payloadWithKey.encrypted_chat_key &&
+        payloadEncryptedChatKey &&
         !chatKeyManager.getKeySync(payload.chat_id)
       ) {
         try {
           // Use receiveKeyFromServer() so server key wins over stale bulk_init keys
           const decryptedKey = await chatKeyManager.receiveKeyFromServer(
             payload.chat_id,
-            payloadWithKey.encrypted_chat_key,
+            payloadEncryptedChatKey,
           );
           if (decryptedKey) {
             console.info(
@@ -1369,6 +1370,13 @@ export async function handleAITypingStartedImpl( // Changed to async
         // Return early — do NOT proceed with metadata encryption or sendEncryptedStoragePackage
         // on a secondary device without the correct key. The originating device handles all of it.
         return;
+      }
+      if (!chat.encrypted_chat_key && payloadEncryptedChatKey) {
+        chat.encrypted_chat_key = payloadEncryptedChatKey;
+        await chatDB.updateChat(chat);
+        console.info(
+          `[ChatSyncService:AI] Hydrated server-provided encrypted chat key for chat ${payload.chat_id} before metadata encryption`,
+        );
       }
       if (
         !(await ensureChatKeySafeForWrite(
@@ -1514,22 +1522,19 @@ export async function handleAITypingStartedImpl( // Changed to async
             );
           }
 
-          // KEYS-04: getKeySync acceptable here -- encrypt path for key re-wrapping, not a content decrypt path.
-          // Key must be ready from ai_typing_started handler above.
-          const chatKey = chatKeyManager.getKeySync(payload.chat_id);
-          if (!chatKey) {
-            console.error(
-              `[ChatSyncService:AI] Chat key missing for ${payload.chat_id} when storing encrypted_chat_key — this should not happen`,
-            );
-            // Skip storing encrypted_chat_key rather than generating a wrong one
-          }
-          const encryptedChatKey = chatKey
-            ? await encryptChatKeyWithMasterKey(chatKey)
-            : null;
-          if (encryptedChatKey) {
-            chatToUpdate.encrypted_chat_key = encryptedChatKey;
+          if (!chatToUpdate.encrypted_chat_key && payloadEncryptedChatKey) {
+            chatToUpdate.encrypted_chat_key = payloadEncryptedChatKey;
             console.info(
-              `[ChatSyncService:AI] Stored encrypted chat key for chat ${payload.chat_id}`,
+              `[ChatSyncService:AI] Stored server-provided encrypted chat key for chat ${payload.chat_id}`,
+            );
+          } else if (chatToUpdate.encrypted_chat_key) {
+            console.debug(
+              `[ChatSyncService:AI] Preserving existing encrypted chat key wrapper for chat ${payload.chat_id}`,
+            );
+          } else {
+            console.warn(
+              `[ChatSyncService:AI] No encrypted_chat_key wrapper available for chat ${payload.chat_id}; ` +
+                `skipping key storage to avoid creating a non-canonical wrapper`,
             );
           }
 

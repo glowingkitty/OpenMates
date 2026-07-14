@@ -25,6 +25,26 @@ from backend.core.api.app.services.workflow_chat_delivery_service import (
 logger = logging.getLogger(__name__)
 
 
+def _start_ws_span(event_type: str, user_id: str, payload: dict[str, Any] | None, user_otel_attrs: dict | None):
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
+
+        return start_ws_handler_span(event_type, user_id, payload, user_otel_attrs)
+    except Exception:
+        return None, None
+
+
+def _end_ws_span(otel_span: Any, otel_token: Any) -> None:
+    if otel_span is None:
+        return
+    try:
+        from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span
+
+        end_ws_handler_span(otel_span, otel_token)
+    except Exception:
+        pass
+
+
 class _UnavailableDeliveryCipher:
     """Cipher placeholder for handler paths that never create deliveries."""
 
@@ -75,8 +95,15 @@ async def send_available_workflow_chat_deliveries(
     directus_service: Any,
     user_id: str,
     device_fingerprint_hash: str,
+    user_otel_attrs: dict | None = None,
 ) -> None:
     """Notify a newly connected owner device about claimable deliveries."""
+    _otel_span, _otel_token = _start_ws_span(
+        "send_available_workflow_chat_deliveries",
+        user_id,
+        None,
+        user_otel_attrs,
+    )
     try:
         deliveries = _service(directus_service).list_pending_for_owner(owner_id=user_id)
         if not deliveries:
@@ -91,6 +118,8 @@ async def send_available_workflow_chat_deliveries(
         )
     except Exception:
         logger.exception("Workflow chat delivery discovery failed for user=%s", user_id[:8])
+    finally:
+        _end_ws_span(_otel_span, _otel_token)
 
 
 async def handle_workflow_chat_delivery_claim(
@@ -102,7 +131,14 @@ async def handle_workflow_chat_delivery_claim(
     user_id: str,
     device_fingerprint_hash: str,
     payload: dict[str, Any],
+    user_otel_attrs: dict | None = None,
 ) -> None:
+    _otel_span, _otel_token = _start_ws_span(
+        "workflow_chat_delivery_claim",
+        user_id,
+        payload,
+        user_otel_attrs,
+    )
     request_id = _request_id(payload)
     delivery_id = payload.get("delivery_id")
     lock_key = f"workflow_chat_delivery_claim:{delivery_id}"
@@ -146,6 +182,7 @@ async def handle_workflow_chat_delivery_claim(
     finally:
         if lock_acquired:
             await _release_claim_lock(cache_service, lock_key)
+        _end_ws_span(_otel_span, _otel_token)
 
 
 async def handle_workflow_chat_delivery_persist(
@@ -155,7 +192,14 @@ async def handle_workflow_chat_delivery_persist(
     user_id: str,
     device_fingerprint_hash: str,
     payload: dict[str, Any],
+    user_otel_attrs: dict | None = None,
 ) -> None:
+    _otel_span, _otel_token = _start_ws_span(
+        "workflow_chat_delivery_persist",
+        user_id,
+        payload,
+        user_otel_attrs,
+    )
     request_id = _request_id(payload)
     delivery_id = str(payload.get("delivery_id") or "")
     try:
@@ -177,6 +221,8 @@ async def handle_workflow_chat_delivery_persist(
         )
     except (PermissionError, WorkflowChatDeliveryError, ValueError) as exc:
         await _send_protocol_error(manager, user_id, device_fingerprint_hash, delivery_id, request_id, exc)
+    finally:
+        _end_ws_span(_otel_span, _otel_token)
 
 
 async def handle_workflow_chat_delivery_ack(
@@ -186,7 +232,14 @@ async def handle_workflow_chat_delivery_ack(
     user_id: str,
     device_fingerprint_hash: str,
     payload: dict[str, Any],
+    user_otel_attrs: dict | None = None,
 ) -> None:
+    _otel_span, _otel_token = _start_ws_span(
+        "workflow_chat_delivery_ack",
+        user_id,
+        payload,
+        user_otel_attrs,
+    )
     request_id = _request_id(payload)
     delivery_id = str(payload.get("delivery_id") or "")
     try:
@@ -206,6 +259,8 @@ async def handle_workflow_chat_delivery_ack(
         )
     except (PermissionError, WorkflowChatDeliveryError, ValueError) as exc:
         await _send_protocol_error(manager, user_id, device_fingerprint_hash, delivery_id, request_id, exc)
+    finally:
+        _end_ws_span(_otel_span, _otel_token)
 
 
 async def _send_protocol_error(

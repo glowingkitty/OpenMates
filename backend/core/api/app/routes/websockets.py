@@ -2137,6 +2137,7 @@ async def websocket_endpoint(
                 user_id=user_id,
                 user_id_hash=user_id_hash,
                 device_fingerprint_hash=device_fingerprint_hash,
+                user_otel_attrs=user_otel_attrs,
             )
         )
 
@@ -2146,6 +2147,7 @@ async def websocket_endpoint(
             directus_service=directus_service,
             user_id=user_id,
             device_fingerprint_hash=device_fingerprint_hash,
+            user_otel_attrs=user_otel_attrs,
         )
     )
 
@@ -2246,6 +2248,7 @@ async def websocket_endpoint(
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "recovery_job_claim":
@@ -2256,6 +2259,7 @@ async def websocket_endpoint(
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "recovery_job_renew":
@@ -2266,6 +2270,7 @@ async def websocket_endpoint(
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "recovery_job_persist":
@@ -2276,6 +2281,7 @@ async def websocket_endpoint(
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "workflow_chat_delivery_claim":
@@ -2287,6 +2293,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "workflow_chat_delivery_persist":
@@ -2296,6 +2303,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "workflow_chat_delivery_ack":
@@ -2305,6 +2313,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
                 )
 
             elif message_type == "chat_message_added":
