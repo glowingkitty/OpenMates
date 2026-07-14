@@ -2069,7 +2069,7 @@ export async function handleWorkflowChatDeliveriesAvailableImpl(
   if (deliveries.length === 0) return;
   const { webSocketService } = await import("./websocketService");
   for (const delivery of deliveries) {
-    if (!delivery.delivery_id || delivery.status === "acknowledged") continue;
+    if (!delivery.delivery_id || delivery.status !== "delivery_pending") continue;
     await webSocketService.sendMessage("workflow_chat_delivery_claim", {
       delivery_id: delivery.delivery_id,
       request_id: `workflow-delivery-${delivery.delivery_id}`,

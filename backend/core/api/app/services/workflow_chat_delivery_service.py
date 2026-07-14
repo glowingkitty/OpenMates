@@ -132,7 +132,7 @@ class InMemoryWorkflowChatDeliveryRepository:
             deliveries = [
                 deepcopy(delivery)
                 for delivery in self._deliveries.values()
-                if delivery.owner_id == owner_id and delivery.status not in WorkflowChatDeliveryService.TERMINAL_STATUSES
+                if delivery.owner_id == owner_id and delivery.status == "delivery_pending"
             ]
         return sorted(deliveries, key=lambda delivery: delivery.created_at)[:limit]
 
@@ -180,7 +180,7 @@ class DirectusWorkflowChatDeliveryRepository:
     def list_pending_for_owner(self, owner_id: str, *, limit: int = 50) -> list[WorkflowChatDelivery]:
         owner_hash = _owner_hash(owner_id)
         items = self._get_items(
-            {"hashed_user_id": {"_eq": owner_hash}, "status": {"_nin": list(WorkflowChatDeliveryService.TERMINAL_STATUSES)}},
+            {"hashed_user_id": {"_eq": owner_hash}, "status": {"_eq": "delivery_pending"}},
             fields="*",
             sort="created_at",
             limit=limit,

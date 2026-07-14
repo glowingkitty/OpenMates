@@ -75,11 +75,64 @@ vi.mock("../stores/serverStatusStore", () => ({
 }));
 
 import {
+  handleWorkflowChatDeliveriesAvailableImpl,
   handlePendingAIResponseImpl,
 } from "../chatSyncServiceHandlersAppSettings";
 import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
 
 afterEach(() => vi.useRealTimers());
+
+describe("handleWorkflowChatDeliveriesAvailableImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("claims only pending workflow chat deliveries", async () => {
+    await handleWorkflowChatDeliveriesAvailableImpl({
+      deliveries: [
+        {
+          delivery_id: "pending-delivery",
+          chat_id: "chat-1",
+          message_id: "message-1",
+          status: "delivery_pending",
+          encrypted_payload: "vault-ciphertext",
+          created_at: 100,
+          expires_at: 200,
+          claim_generation: 0,
+        },
+        {
+          delivery_id: "claimed-delivery",
+          chat_id: "chat-2",
+          message_id: "message-2",
+          status: "claimed",
+          encrypted_payload: "vault-ciphertext",
+          created_at: 100,
+          expires_at: 200,
+          claim_generation: 1,
+        },
+        {
+          delivery_id: "persisted-delivery",
+          chat_id: "chat-3",
+          message_id: "message-3",
+          status: "persisted",
+          encrypted_payload: "vault-ciphertext",
+          created_at: 100,
+          expires_at: 200,
+          claim_generation: 1,
+        },
+      ],
+    });
+
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith(
+      "workflow_chat_delivery_claim",
+      {
+        delivery_id: "pending-delivery",
+        request_id: "workflow-delivery-pending-delivery",
+      },
+    );
+  });
+});
 
 describe("handlePendingAIResponseImpl", () => {
   beforeEach(() => {

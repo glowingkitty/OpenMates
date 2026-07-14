@@ -106,6 +106,40 @@ def test_stale_claim_cannot_persist_or_acknowledge_after_reclaim() -> None:
     assert service.acknowledge_delivery(delivery_id=delivery.delivery_id, owner_id="alice", claim=winning_claim).status == "acknowledged"
 
 
+def test_reconnect_advertises_only_unclaimed_pending_deliveries() -> None:
+    service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: 100)
+    pending = service.create_delivery(owner_id="alice", title="Pending", message="Message", expires_at=200)
+    claimed = service.create_delivery(owner_id="alice", title="Claimed", message="Message", expires_at=200)
+    persisted = service.create_delivery(owner_id="alice", title="Persisted", message="Message", expires_at=200)
+
+    claimed_claim = service.claim_new_chat_delivery(
+        delivery_id=claimed.delivery_id,
+        owner_id="alice",
+        device_id="phone",
+    )
+    persisted_claim = service.claim_new_chat_delivery(
+        delivery_id=persisted.delivery_id,
+        owner_id="alice",
+        device_id="phone",
+    )
+    service.persist_client_ciphertext(
+        delivery_id=persisted.delivery_id,
+        owner_id="alice",
+        claim=persisted_claim,
+        encrypted_chat_metadata="metadata",
+        encrypted_message="message",
+        device_id="phone",
+    )
+
+    offered_ids = {
+        delivery.delivery_id
+        for delivery in service.list_pending_for_owner(owner_id="alice")
+    }
+
+    assert offered_ids == {pending.delivery_id}
+    assert claimed_claim.token
+
+
 def test_claim_token_is_bound_to_the_claiming_device_when_supplied() -> None:
     service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: 100)
     delivery = service.create_delivery(owner_id="alice", title="Title", message="Message", expires_at=200)
