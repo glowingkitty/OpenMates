@@ -43,3 +43,5 @@ def test_signup_invite_secret_is_scoped_to_invite_required_specs() -> None:
         "|| github.event.inputs.spec == 'create-test-account.spec.ts') "
         "&& secrets.E2E_SIGNUP_INVITE_CODE || '' }}"
     ) in workflow
+    assert "OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}" in workflow
+    assert "/v1/auth/e2e/restore_signup_invite_code" in workflow

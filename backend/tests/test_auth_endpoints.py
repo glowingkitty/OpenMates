@@ -27,7 +27,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from fastapi import Response
+from fastapi import HTTPException, Response
+from starlette.requests import Request
 from starlette.datastructures import Headers
 
 # Add project root to Python path for imports (schemas use 'backend.core...' paths)
@@ -102,6 +103,138 @@ def mock_compliance_service():
 
 
 # ─── Test: hash_username is a module-level function ──────────────────────────
+
+
+class TestE2ESignupInviteRestore:
+    """Verify the dev-only E2E invite restore endpoint is gated and idempotent."""
+
+    @staticmethod
+    def _request(headers: dict[str, str]) -> Request:
+        return Request({
+            "type": "http",
+            "method": "POST",
+            "path": "/v1/auth/e2e/restore_signup_invite_code",
+            "headers": [(key.lower().encode(), value.encode()) for key, value in headers.items()],
+        })
+
+    @pytest.mark.anyio
+    async def test_restore_rejects_production_environment(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import restore_e2e_signup_invite_code
+        from backend.core.api.app.schemas.auth import InviteCodeRequest
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+        directus_service = AsyncMock()
+        cache_service = AsyncMock()
+        request = self._request({"x-openmates-e2e-invite-restore": "restore"})
+
+        with pytest.raises(HTTPException) as exc_info:
+            await restore_e2e_signup_invite_code(
+                request=request,
+                invite_request=InviteCodeRequest(invite_code="secret-invite"),
+                current_user=SimpleNamespace(id="user-1"),
+                directus_service=directus_service,
+                cache_service=cache_service,
+            )
+
+        assert exc_info.value.status_code == 404
+        directus_service.get_invite_code.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_restore_requires_explicit_e2e_header(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import restore_e2e_signup_invite_code
+        from backend.core.api.app.schemas.auth import InviteCodeRequest
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        directus_service = AsyncMock()
+        cache_service = AsyncMock()
+        request = self._request({})
+
+        with pytest.raises(HTTPException) as exc_info:
+            await restore_e2e_signup_invite_code(
+                request=request,
+                invite_request=InviteCodeRequest(invite_code="secret-invite"),
+                current_user=SimpleNamespace(id="user-1"),
+                directus_service=directus_service,
+                cache_service=cache_service,
+            )
+
+        assert exc_info.value.status_code == 403
+        directus_service.get_invite_code.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_restore_creates_missing_invite_code(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import (
+            E2E_INVITE_REMAINING_USES,
+            restore_e2e_signup_invite_code,
+        )
+        from backend.core.api.app.schemas.auth import InviteCodeRequest
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        directus_service = AsyncMock()
+        directus_service.get_invite_code = AsyncMock(return_value=None)
+        directus_service.create_item = AsyncMock(return_value=(True, {"id": "invite-1"}))
+        cache_service = AsyncMock()
+        request = self._request({"x-openmates-e2e-invite-restore": "restore"})
+
+        response = await restore_e2e_signup_invite_code(
+            request=request,
+            invite_request=InviteCodeRequest(invite_code="secret-invite"),
+            current_user=SimpleNamespace(id="user-1"),
+            directus_service=directus_service,
+            cache_service=cache_service,
+        )
+
+        assert response.success is True
+        assert response.created is True
+        directus_service.create_item.assert_awaited_once_with(
+            "invite_codes",
+            {
+                "code": "secret-invite",
+                "remaining_uses": E2E_INVITE_REMAINING_USES,
+                "gifted_credits": 0,
+                "is_admin": False,
+            },
+            admin_required=True,
+        )
+        cache_service.delete.assert_awaited_once_with("invite_code:secret-invite")
+
+    @pytest.mark.anyio
+    async def test_restore_refreshes_existing_invite_code(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import (
+            E2E_INVITE_REMAINING_USES,
+            restore_e2e_signup_invite_code,
+        )
+        from backend.core.api.app.schemas.auth import InviteCodeRequest
+
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        directus_service = AsyncMock()
+        directus_service.get_invite_code = AsyncMock(return_value={"id": "invite-1"})
+        directus_service.update_item = AsyncMock(return_value={"id": "invite-1"})
+        cache_service = AsyncMock()
+        request = self._request({"x-openmates-e2e-invite-restore": "restore"})
+
+        response = await restore_e2e_signup_invite_code(
+            request=request,
+            invite_request=InviteCodeRequest(invite_code="secret-invite"),
+            current_user=SimpleNamespace(id="user-1"),
+            directus_service=directus_service,
+            cache_service=cache_service,
+        )
+
+        assert response.success is True
+        assert response.created is False
+        directus_service.update_item.assert_awaited_once_with(
+            "invite_codes",
+            "invite-1",
+            {
+                "remaining_uses": E2E_INVITE_REMAINING_USES,
+                "gifted_credits": 0,
+                "is_admin": False,
+            },
+            admin_required=True,
+        )
+        directus_service.create_item.assert_not_called()
+        cache_service.delete.assert_awaited_once_with("invite_code:secret-invite")
 
 class TestHashUsernameImport:
     """Verify hash_username is importable and callable as a standalone function.

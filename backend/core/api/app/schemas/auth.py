@@ -11,6 +11,12 @@ class InviteCodeResponse(BaseModel):
     is_admin: Optional[bool] = None
     gifted_credits: Optional[int] = None
 
+
+class E2ESignupInviteRestoreResponse(BaseModel):
+    success: bool
+    created: bool
+    message: str
+
 # Updated model for email verification
 class RequestEmailCodeRequest(BaseModel):
     email: EmailStr
