@@ -276,13 +276,13 @@ test.describe('Unified detail metadata multi-device sync', () => {
 			await pageB.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await loginToTestAccount(pageB);
 			await ensureSidebarClosed(pageB);
-			await expect
-				.poll(() => localMetadataVersion(pageB, chatId), { timeout: 60_000 })
-				.toBeGreaterThanOrEqual(summaryVersion);
 
 			await openOwnedChat(pageB, chatId);
 			await pageB.reload({ waitUntil: 'domcontentloaded' });
 			await ensureSidebarClosed(pageB);
+			await expect
+				.poll(() => localMetadataVersion(pageB, chatId), { timeout: 60_000 })
+				.toBeGreaterThanOrEqual(summaryVersion);
 			const coldBootHeader = pageB.getByTestId('workspace-detail-header');
 			await expect(coldBootHeader.getByTestId('chat-header-title')).toHaveText(savedTitle, {
 				timeout: 45_000
