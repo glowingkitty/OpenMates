@@ -87,6 +87,31 @@ async def test_attached_tasks_enable_update_reorder_block_complete_and_move_tool
 
 
 @pytest.mark.asyncio
+async def test_bare_short_id_mentions_resolve_active_chat_tasks_as_attached() -> None:
+    task_methods = AsyncMock()
+    task_methods.list_tasks.return_value = []
+    task_methods.get_task_by_short_id.return_value = {
+        "task_id": "task-1",
+        "short_id": "TASK-101",
+        "primary_chat_id": "chat-1",
+        "status": "todo",
+        "version": 1,
+    }
+
+    context = await resolve_task_tool_context(
+        task_methods=task_methods,
+        user_id="user-1",
+        chat_id="chat-1",
+        message_text="Update TASK-101 to mention final review.",
+    )
+    names = _tool_names(build_task_runtime_tools(context))
+
+    assert [task["short_id"] for task in context.attached_tasks] == ["TASK-101"]
+    assert TASK_TOOL_UPDATE in names
+    task_methods.get_task_by_short_id.assert_awaited_once_with("TASK-101", "user-1")
+
+
+@pytest.mark.asyncio
 async def test_blocked_attached_tasks_enable_unblock_tool() -> None:
     task_methods = AsyncMock()
     task_methods.list_tasks.return_value = [

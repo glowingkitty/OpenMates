@@ -14,7 +14,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-TASK_MENTION_PATTERN = re.compile(r"(?<![\w-])@(?P<task_id>TASK-[A-Za-z0-9_-]+)\b")
+TASK_MENTION_PATTERN = re.compile(r"(?<![\w-])@?(?P<task_id>TASK-[A-Za-z0-9_-]+)\b")
 DEFAULT_ATTACHED_TASK_LIMIT = 50
 
 
@@ -71,7 +71,12 @@ async def resolve_task_tool_context(
     if not isinstance(attached_tasks, list):
         attached_tasks = []
 
-    attached_ids = {str(task.get("task_id")) for task in attached_tasks if task.get("task_id")}
+    attached_ids = {
+        str(identifier)
+        for task in attached_tasks
+        for identifier in (task.get("task_id"), task.get("short_id"))
+        if identifier
+    }
     referenced_tasks: list[dict[str, Any]] = []
     missing_reference_ids: list[str] = []
 
@@ -83,7 +88,11 @@ async def resolve_task_tool_context(
         if not task:
             task = await task_methods.get_task(task_id, user_id)
         if isinstance(task, dict) and task.get("task_id"):
-            referenced_tasks.append(task)
+            if task.get("primary_chat_id") == chat_id:
+                attached_tasks.append(task)
+                attached_ids.update(str(identifier) for identifier in (task.get("task_id"), task.get("short_id")) if identifier)
+            else:
+                referenced_tasks.append(task)
         else:
             missing_reference_ids.append(task_id)
             logger.info("Task mention was not visible to user; mention ignored")
