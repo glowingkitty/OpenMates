@@ -177,6 +177,45 @@ function websocketProtocolError(envelope: WsEnvelope): Error | null {
   return null;
 }
 
+function errorFrameBelongsToAiResponse(
+  envelope: WsEnvelope<Record<string, unknown>>,
+  userMessageId: string,
+  chatId: string,
+  recoveryTurnId?: string | null,
+): boolean {
+  if (envelope.type === "client_update_required") return true;
+  if (envelope.type !== "error") return true;
+  const payload = envelope.payload && typeof envelope.payload === "object"
+    ? envelope.payload as Record<string, unknown>
+    : {};
+  let scoped = false;
+  const errorChatId = typeof payload.chat_id === "string" ? payload.chat_id : null;
+  if (errorChatId) {
+    scoped = true;
+    if (errorChatId !== chatId) return false;
+  }
+  const errorMessageId = typeof payload.user_message_id === "string"
+    ? payload.user_message_id
+    : typeof payload.userMessageId === "string"
+      ? payload.userMessageId
+      : typeof payload.message_id === "string"
+        ? payload.message_id
+        : null;
+  if (errorMessageId) {
+    scoped = true;
+    if (errorMessageId !== userMessageId) return false;
+  }
+  const errorTurnId = typeof payload.turn_id === "string" ? payload.turn_id : null;
+  if (errorTurnId) {
+    scoped = true;
+    if (recoveryTurnId !== errorTurnId) return false;
+  }
+  if (typeof payload.job_id === "string") {
+    scoped = true;
+  }
+  return !scoped || Boolean(errorChatId || errorMessageId || errorTurnId);
+}
+
 function parseTaskProposals(value: unknown): TaskProposalEvent[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item): TaskProposalEvent[] => {
@@ -806,6 +845,9 @@ export class OpenMatesWsClient {
 
           const protocolError = websocketProtocolError(parsed);
           if (protocolError) {
+            if (!errorFrameBelongsToAiResponse(parsed, userMessageId, chatId, options?.recoveryTurnId)) {
+              return;
+            }
             cleanup();
             reject(protocolError);
             return;

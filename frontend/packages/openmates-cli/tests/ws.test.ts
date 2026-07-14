@@ -335,6 +335,94 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  it("ignores preflight errors scoped to a different saved-chat turn", async () => {
+    const chatId = "chat-ignore-stale-preflight";
+    const userMessageId = "user-message-ignore-stale-preflight";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "error",
+          payload: {
+            code: "durable_preflight_conflict",
+            message: "Encrypted chat preflight was rejected.",
+            turn_id: "turn-stale",
+          },
+        }));
+        socket.send(JSON.stringify({
+          type: "ai_message_update",
+          payload: {
+            user_message_id: userMessageId,
+            message_id: "assistant-ignore-stale-preflight",
+            chat_id: chatId,
+            is_final_chunk: true,
+            full_content_so_far: "The active turn completed.",
+          },
+        }));
+      }, 5);
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "post_processing_metadata",
+          payload: { chat_id: chatId },
+        }));
+      }, 10);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-ignore-stale-preflight",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: "turn-current",
+      });
+
+      assert.equal(response.content, "The active turn completed.");
+    } finally {
+      client.close();
+    }
+  });
+
+  it("rejects preflight errors scoped to the active saved-chat turn", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => socket.send(JSON.stringify({
+        type: "error",
+        payload: {
+          code: "durable_preflight_conflict",
+          message: "Encrypted chat preflight was rejected.",
+          turn_id: "turn-current",
+        },
+      })), 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-active-preflight-error",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      await assert.rejects(
+        client.collectAiResponse("user-message", "chat-active-preflight-error", {
+          timeoutMs: 1_000,
+          recoveryTurnId: "turn-current",
+        }),
+        (error) => error instanceof WebSocketProtocolError
+          && error.code === "durable_preflight_conflict"
+          && /Encrypted chat preflight was rejected/.test(error.message),
+      );
+    } finally {
+      client.close();
+    }
+  });
+
   it("collects completed assistant messages from chat_message_added fallback", async () => {
     const chatId = "chat-fallback";
     const userMessageId = "cli-user-message-fallback";
