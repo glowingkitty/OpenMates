@@ -861,7 +861,7 @@ describe("CLI saved-chat recovery preflight", () => {
                   chat_id: frame.payload.chat_id,
                   user_message_id: message.message_id,
                   message_id: assistantMessageId,
-                  full_content_so_far: "ok",
+                  full_content_so_far: "stale streamed content",
                   is_final_chunk: true,
                   category: "general_knowledge",
                   model_name: "test-model",
@@ -912,7 +912,7 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
-      await client.sendMessage({
+      const result = await client.sendMessage({
         message: "Email [EMAIL_1_com] or call [PHONE_1_567].",
         piiMappings: [
           { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
@@ -970,6 +970,7 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
       assert.equal(captured.frameTypes.includes("recovery_job_claim"), true);
       assert.equal(captured.frameTypes.includes("recovery_job_persist"), true);
+      assert.equal(result.assistant, "ok");
       assert.ok(captured.persistPayload);
       assert.equal(captured.persistPayload.job_id, recoveryJobId);
       assert.equal(captured.persistPayload.lease_token, "lease-token-1");

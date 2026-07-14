@@ -4504,16 +4504,16 @@ export class OpenMatesClient {
             || typeof recovered.content !== "string"
             || (recovered.category !== null && typeof recovered.category !== "string")
             || (recovered.model_name !== null && typeof recovered.model_name !== "string")
-            || recovered.content !== assistant
-            || recovered.category !== category
-            || recovered.model_name !== modelName
           ) {
             throw new Error("Recovery job plaintext did not match the terminal completion identity.");
           }
+          assistant = recovered.content;
+          category = recovered.category as string | null;
+          modelName = recovered.model_name as string | null;
 
           const completedAt = Math.floor(Date.now() / 1000);
           const encryptedAssistantContent = await encryptWithAesGcmCombined(
-            recovered.content,
+            assistant,
             chatKeyBytes,
           );
           const encryptedSenderName = await encryptWithAesGcmCombined("Assistant", chatKeyBytes);
