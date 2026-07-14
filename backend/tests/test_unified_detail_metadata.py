@@ -14,9 +14,13 @@ import pytest
 
 from backend.core.api.app.routes.handlers.websocket_handlers import (
     encrypted_chat_metadata_handler,
+    title_update_handler,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.encrypted_chat_metadata_handler import (
     handle_encrypted_chat_metadata,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.title_update_handler import (
+    handle_update_title,
 )
 from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id
 from backend.core.api.app.services.user_plan_service import UserPlanNotFoundError, UserPlanService
@@ -104,6 +108,34 @@ class ChatMetadataDirectus:
 class ChatMetadataCache:
     async def get_chat_list_item_data(self, _user_id: str, _chat_id: str):
         return None
+
+
+class TitleUpdateCache:
+    def __init__(self) -> None:
+        self.fields: list[tuple[str, str, str, str]] = []
+
+    async def update_chat_list_item_field(
+        self,
+        user_id: str,
+        chat_id: str,
+        field: str,
+        value: str,
+    ) -> bool:
+        self.fields.append((user_id, chat_id, field, value))
+        return True
+
+
+class TitleUpdateDirectus:
+    def __init__(self) -> None:
+        self.chat = SimpleNamespace(
+            get_chat_metadata=AsyncMock(
+                return_value={
+                    "messages_v": 3,
+                    "title_v": 4,
+                    "metadata_v": 4,
+                }
+            )
+        )
 
 
 def chat_metadata_payload(**overrides: object) -> dict[str, object]:
@@ -328,6 +360,60 @@ def test_chat_metadata_acceptance_is_server_versioned_ciphertext_only_and_broadc
     assert "title" not in broadcast["payload"]
     assert "summary" not in broadcast["payload"]
     assert "chat_summary" not in broadcast["payload"]
+
+
+def test_chat_title_update_broadcasts_server_versions(monkeypatch) -> None:
+    queued_tasks: list[tuple[str, dict, str | None]] = []
+
+    def queue_task(name: str, kwargs=None, queue: str | None = None):
+        queued_tasks.append((name, kwargs or {}, queue))
+        return SimpleNamespace(id="task-1")
+
+    monkeypatch.setattr(title_update_handler.celery_app_instance, "send_task", queue_task)
+
+    manager = ChatMetadataManager()
+    cache = TitleUpdateCache()
+    asyncio.run(
+        handle_update_title(
+            websocket=None,
+            manager=manager,
+            cache_service=cache,
+            directus_service=TitleUpdateDirectus(),
+            encryption_service=None,
+            user_id="owner-1",
+            device_fingerprint_hash="device-1",
+            payload={
+                "chat_id": "chat-1",
+                "encrypted_title": "cipher-title-v5",
+                "encrypted_chat_key": "cipher-key",
+            },
+        )
+    )
+
+    assert cache.fields == [("owner-1", "chat-1", "title", "cipher-title-v5")]
+    assert queued_tasks == [
+        (
+            "app.tasks.persistence_tasks.persist_chat_title",
+            {
+                "chat_id": "chat-1",
+                "encrypted_title": "cipher-title-v5",
+                "title_v": 5,
+                "metadata_v": 5,
+                "encrypted_chat_key": "cipher-key",
+            },
+            "persistence",
+        )
+    ]
+    assert len(manager.broadcasts) == 1
+    broadcast, user_id, excluded_device = manager.broadcasts[0]
+    assert user_id == "owner-1"
+    assert excluded_device is None
+    assert broadcast == {
+        "event": "chat_title_updated",
+        "chat_id": "chat-1",
+        "data": {"encrypted_title": "cipher-title-v5"},
+        "versions": {"messages_v": 3, "title_v": 5, "metadata_v": 5},
+    }
 
 
 def test_workflow_metadata_version_is_owner_scoped_and_vault_backed() -> None:

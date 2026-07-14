@@ -121,7 +121,7 @@ async def handle_update_title(
             "versions": accepted_versions,
         }
         await manager.broadcast_to_user(
-            message_content=broadcast_payload, 
+            message=broadcast_payload,
             user_id=user_id,
             exclude_device_hash=None 
         )
