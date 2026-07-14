@@ -71,6 +71,7 @@ class AskSkillRequest(BaseModel):
     connected_account_permission_state: Optional[Dict[str, Any]] = Field(default=None, description="Permission continuation state for connected-account approvals.")
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
     benchmark_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Sanitized CLI benchmark metadata for usage source tagging.")
+    client_capabilities: Optional[List[str]] = Field(default_factory=list, description="Server-derived client capabilities available for this request.")
     recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
     legacy_cutover_task_id: Optional[str] = Field(default=None, description="Stable epoch-0 task ID owning one durable cutover admission.")
     recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
