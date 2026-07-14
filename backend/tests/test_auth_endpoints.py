@@ -21,6 +21,7 @@
 #   python -m pytest tests/test_auth_endpoints.py -v
 
 import pytest
+import base64
 import sys
 import hashlib
 from pathlib import Path
@@ -106,15 +107,18 @@ def mock_compliance_service():
 
 
 class TestDevSignupCleanup:
-    """Verify failed-signup cleanup is dev-only and admin-gated."""
+    """Verify failed-signup cleanup is dev-only and secret-gated."""
 
     @staticmethod
-    def _request() -> Request:
+    def _request(api_key: str | None = "cleanup-key") -> Request:
+        headers = []
+        if api_key is not None:
+            headers.append((b"authorization", f"Bearer {api_key}".encode()))
         return Request({
             "type": "http",
             "method": "POST",
             "path": "/v1/auth/cleanup_failed_signup",
-            "headers": [],
+            "headers": headers,
             "client": ("127.0.0.1", 12345),
         })
 
@@ -131,7 +135,6 @@ class TestDevSignupCleanup:
             await cleanup_failed_signup(
                 request=self._request(),
                 cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
-                current_user=SimpleNamespace(id="admin", is_admin=True),
                 directus_service=directus_service,
                 cache_service=cache_service,
             )
@@ -140,19 +143,43 @@ class TestDevSignupCleanup:
         directus_service.get_user_by_hashed_email.assert_not_called()
 
     @pytest.mark.anyio
-    async def test_cleanup_requires_admin_user(self, monkeypatch):
+    async def test_cleanup_requires_matching_dev_secret(self, monkeypatch):
         from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
         from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
 
         monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "cleanup-key")
+        directus_service = AsyncMock()
+        cache_service = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await cleanup_failed_signup(
+                request=self._request("wrong-key"),
+                cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
+                directus_service=directus_service,
+                cache_service=cache_service,
+            )
+
+        assert exc_info.value.status_code == 403
+        directus_service.get_user_by_hashed_email.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_cleanup_refuses_configured_test_account_hash(self, monkeypatch):
+        from backend.core.api.app.routes.auth_routes.auth_invite import cleanup_failed_signup
+        from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
+
+        configured_email = "persistent@example.test"
+        configured_hash = base64.b64encode(hashlib.sha256(configured_email.encode()).digest()).decode()
+        monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "cleanup-key")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_1_EMAIL", configured_email)
         directus_service = AsyncMock()
         cache_service = AsyncMock()
 
         with pytest.raises(HTTPException) as exc_info:
             await cleanup_failed_signup(
                 request=self._request(),
-                cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
-                current_user=SimpleNamespace(id="user", is_admin=False),
+                cleanup_request=DevSignupCleanupRequest(hashed_email=configured_hash),
                 directus_service=directus_service,
                 cache_service=cache_service,
             )
@@ -166,6 +193,7 @@ class TestDevSignupCleanup:
         from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
 
         monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "cleanup-key")
         directus_service = AsyncMock()
         directus_service.get_user_by_hashed_email = AsyncMock(return_value=(False, None, "User not found"))
         cache_service = AsyncMock()
@@ -173,7 +201,6 @@ class TestDevSignupCleanup:
         response = await cleanup_failed_signup(
             request=self._request(),
             cleanup_request=DevSignupCleanupRequest(hashed_email="hash"),
-            current_user=SimpleNamespace(id="admin", is_admin=True),
             directus_service=directus_service,
             cache_service=cache_service,
         )
@@ -189,6 +216,7 @@ class TestDevSignupCleanup:
         from backend.core.api.app.schemas.auth import DevSignupCleanupRequest
 
         monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+        monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "cleanup-key")
         send_task = MagicMock(return_value=SimpleNamespace(id="task-1"))
         fake_tasks_package = ModuleType("backend.core.api.app.tasks")
         fake_celery_config = ModuleType("backend.core.api.app.tasks.celery_config")
@@ -208,7 +236,6 @@ class TestDevSignupCleanup:
                 test_file="signup-flow-passkey.spec.ts",
                 reason="failed test",
             ),
-            current_user=SimpleNamespace(id="admin", is_admin=True),
             directus_service=directus_service,
             cache_service=cache_service,
         )

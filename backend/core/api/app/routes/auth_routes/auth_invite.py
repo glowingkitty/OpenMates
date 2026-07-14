@@ -1,9 +1,11 @@
+import base64
+import hashlib
+import hmac
 import logging
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from backend.core.api.app.models.user import User
 from backend.core.api.app.schemas.auth import (
     DevSignupCleanupRequest,
     DevSignupCleanupResponse,
@@ -16,7 +18,6 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.invite_code import validate_invite_code
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
-    get_current_user_or_api_key,
     get_directus_service,
     get_cache_service,
     get_metrics_service,
@@ -29,6 +30,33 @@ logger = logging.getLogger(__name__)
 
 def _is_production_environment() -> bool:
     return os.getenv("SERVER_ENVIRONMENT", "development").strip().lower() in {"production", "prod"}
+
+
+def _configured_test_account_hashes() -> set[str]:
+    hashes: set[str] = set()
+    for key, value in os.environ.items():
+        if not key.startswith("OPENMATES_TEST_ACCOUNT") or not key.endswith("EMAIL"):
+            continue
+        if not value or "@" not in value:
+            continue
+        digest = hashlib.sha256(value.lower().strip().encode()).digest()
+        hashes.add(base64.b64encode(digest).decode())
+    return hashes
+
+
+def _verify_dev_cleanup_secret(request: Request) -> None:
+    expected_key = os.getenv("OPENMATES_TEST_ACCOUNT_API_KEY", "")
+    if not expected_key:
+        logger.error("Dev signup cleanup called but OPENMATES_TEST_ACCOUNT_API_KEY is not configured.")
+        raise HTTPException(status_code=500, detail="Dev signup cleanup is not configured")
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing cleanup API key")
+
+    provided_key = auth_header[7:]
+    if not hmac.compare_digest(provided_key, expected_key):
+        raise HTTPException(status_code=403, detail="Invalid cleanup API key")
 
 
 @router.post("/check_invite_token_valid", response_model=InviteCodeResponse, dependencies=[Depends(verify_allowed_origin)])
@@ -79,19 +107,19 @@ async def check_invite_token_valid(
 async def cleanup_failed_signup(
     request: Request,
     cleanup_request: DevSignupCleanupRequest,
-    current_user: User = Depends(get_current_user_or_api_key),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> DevSignupCleanupResponse:
     """Queue deletion for one disposable signup account after a failed dev E2E run."""
     if _is_production_environment():
         raise HTTPException(status_code=404, detail="Not found")
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin API key required")
+    _verify_dev_cleanup_secret(request)
 
     hashed_email = cleanup_request.hashed_email.strip()
     if not hashed_email:
         raise HTTPException(status_code=400, detail="hashed_email is required")
+    if hashed_email in _configured_test_account_hashes():
+        raise HTTPException(status_code=403, detail="Refusing to delete a configured test account")
 
     exists, target_user, message = await directus_service.get_user_by_hashed_email(hashed_email)
     if not exists or not target_user:
@@ -108,8 +136,6 @@ async def cleanup_failed_signup(
         raise HTTPException(status_code=500, detail="Matched user record is missing an id")
     if target_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Refusing to delete an admin user")
-    if target_user_id == current_user.id:
-        raise HTTPException(status_code=400, detail="Refusing to delete the requesting user")
 
     from backend.core.api.app.tasks.celery_config import app as celery_app
 
