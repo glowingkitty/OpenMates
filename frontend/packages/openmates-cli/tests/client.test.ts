@@ -919,6 +919,7 @@ describe("CLI saved-chat recovery preflight", () => {
                 type: "chat_turn_preflight_ack",
                 payload: {
                   preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                  turn_id: frame.payload.turn_id,
                 },
               }));
             }, 10);
@@ -1160,7 +1161,7 @@ describe("CLI saved-chat recovery preflight", () => {
             ));
             ws.send(JSON.stringify({
               type: "chat_turn_preflight_ack",
-              payload: { preflight_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" },
+              payload: { preflight_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", turn_id: frame.payload.turn_id },
             }));
           }
           if (frame.type === "chat_message_added") {

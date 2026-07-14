@@ -85,6 +85,11 @@ def wait_for_visible_tasks(chat_id: str, task_ids: set[str], *, timeout: int) ->
     raise AssertionError(f"created tasks were not visible before update: expected {sorted(task_ids)}, got {last_tasks}")
 
 
+def force_cli_sync_refresh() -> None:
+    sync_cache = Path.home() / ".openmates" / "sync_cache.json"
+    sync_cache.unlink(missing_ok=True)
+
+
 def wait_for_updated_task_state(
     chat_id: str,
     *,
@@ -172,6 +177,7 @@ def scenario_update(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str,
     complete_short_id = visible_by_id.get(complete_task_id, {}).get("short_id")
     require(isinstance(update_short_id, str) and update_short_id, "first created task did not include short_id")
     require(isinstance(complete_short_id, str) and complete_short_id, "second created task did not include short_id")
+    force_cli_sync_refresh()
     result = run_cli_json(
         [
             "chats",
