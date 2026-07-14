@@ -56,6 +56,14 @@ function latestServerMetadataVersion(
 	);
 }
 
+function latestServerMetadataVersionAcrossSources(
+	sources: ServerMetadataVersion[][],
+	chatId: string,
+	types: string[]
+): number {
+	return Math.max(0, ...sources.map((source) => latestServerMetadataVersion(source, chatId, types)));
+}
+
 async function localMetadataVersion(page: any, chatId: string): Promise<number> {
 	return page.evaluate(async (id: string) => {
 		const database = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -247,13 +255,23 @@ test.describe('Unified detail metadata multi-device sync', () => {
 			await headerA.getByTestId('workspace-detail-description-save').click();
 			await expect(headerA.getByTestId('chat-header-summary')).toHaveText(savedSummary);
 			await expect
-				.poll(() => latestServerMetadataVersion(serverVersionsA, chatId, ['encrypted_metadata_stored']), {
+				.poll(
+					() =>
+						latestServerMetadataVersionAcrossSources(
+							[serverVersionsA, serverVersionsB],
+							chatId,
+							['encrypted_metadata_stored', 'encrypted_chat_metadata']
+						),
+					{
 					timeout: 30_000
-				})
+				}
+				)
 				.toBeGreaterThan(titleVersion);
-			const summaryVersion = latestServerMetadataVersion(serverVersionsA, chatId, [
-				'encrypted_metadata_stored'
-			]);
+			const summaryVersion = latestServerMetadataVersionAcrossSources(
+				[serverVersionsA, serverVersionsB],
+				chatId,
+				['encrypted_metadata_stored', 'encrypted_chat_metadata']
+			);
 			await expect(headerB.getByTestId('chat-header-summary')).toHaveText(savedSummary, {
 				timeout: 30_000
 			});
