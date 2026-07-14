@@ -133,25 +133,15 @@ def test_epoch_zero_admission_identity_chain_and_acknowledgment_retry_are_wired(
     assert "self.retry" in persistence_wrapper_source
 
 
-def test_final_stream_recovery_discovery_sends_target_job_after_broad_batch() -> None:
+def test_final_stream_recovery_discovery_uses_authoritative_available_jobs() -> None:
     helper_source = _function_source(
         "backend/core/api/app/routes/websockets.py",
         "_send_available_recovery_jobs_for_final_stream",
     )
-    target_source = _function_source(
-        "backend/core/api/app/routes/websockets.py",
-        "_target_recovery_job_from_final_stream",
-    )
 
     assert "await send_available_recovery_jobs" in helper_source
-    assert "_target_recovery_job_from_final_stream(redis_payload, chat_id)" in helper_source
-    assert '"type": "recovery_jobs_available"' in helper_source
-    assert helper_source.index("await send_available_recovery_jobs") < helper_source.index(
-        '"type": "recovery_jobs_available"'
-    )
-    assert 'redis_payload.get("recovery_job_id")' in target_source
-    assert 'redis_payload.get("recovery_turn_id")' in target_source
-    assert 'redis_payload.get("chat_key_version")' in target_source
+    assert "_target_recovery_job_from_final_stream" not in helper_source
+    assert '"type": "recovery_jobs_available"' not in helper_source
 
 
 def test_final_chunk_orders_recovery_discovery_before_completion_frames() -> None:

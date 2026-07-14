@@ -105,29 +105,6 @@ def _safe_payload_summary(payload: object) -> str:
     return f"type={type(payload).__name__}"
 
 
-def _target_recovery_job_from_final_stream(redis_payload: dict, chat_id: str) -> Optional[dict]:
-    job_id = redis_payload.get("recovery_job_id")
-    turn_id = redis_payload.get("recovery_turn_id")
-    assistant_message_id = redis_payload.get("message_id")
-    chat_key_version = redis_payload.get("chat_key_version")
-    if not (
-        isinstance(job_id, str)
-        and isinstance(turn_id, str)
-        and isinstance(assistant_message_id, str)
-        and isinstance(chat_key_version, int)
-    ):
-        return None
-    return {
-        "job_id": job_id,
-        "chat_id": chat_id,
-        "turn_id": turn_id,
-        "inference_task_id": assistant_message_id,
-        "assistant_message_id": assistant_message_id,
-        "chat_key_version": chat_key_version,
-        "state": "AVAILABLE",
-    }
-
-
 async def _send_available_recovery_jobs_for_final_stream(
     *,
     manager: ConnectionManager,
@@ -135,9 +112,10 @@ async def _send_available_recovery_jobs_for_final_stream(
     user_id: str,
     user_id_hash: str,
     device_fingerprint_hash: str,
-    redis_payload: dict,
-    chat_id: str,
 ) -> None:
+    # Directus is the only authoritative recovery-job state. Do not synthesize
+    # AVAILABLE jobs from Redis final-frame metadata; another tab may already
+    # hold the lease, which creates noisy lease_conflict rejections.
     await send_available_recovery_jobs(
         manager=manager,
         directus_service=directus_service,
@@ -145,13 +123,6 @@ async def _send_available_recovery_jobs_for_final_stream(
         user_id_hash=user_id_hash,
         device_fingerprint_hash=device_fingerprint_hash,
     )
-    target_job = _target_recovery_job_from_final_stream(redis_payload, chat_id)
-    if target_job:
-        await manager.send_personal_message(
-            {"type": "recovery_jobs_available", "payload": {"jobs": [target_job]}},
-            user_id,
-            device_fingerprint_hash,
-        )
 
 
 # =============================================================================
@@ -853,8 +824,6 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     user_id=user_id_uuid,
                                     user_id_hash=redis_payload.get("user_id_hash"),
                                     device_fingerprint_hash=device_hash,
-                                    redis_payload=redis_payload,
-                                    chat_id=chat_id_from_payload,
                                 )
 
                             # CRITICAL: Send immediately - websocket.send_json() is fast (just queues message)
@@ -901,8 +870,6 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                         user_id=user_id_uuid,
                                         user_id_hash=redis_payload.get("user_id_hash"),
                                         device_fingerprint_hash=device_hash,
-                                        redis_payload=redis_payload,
-                                        chat_id=chat_id_from_payload,
                                     )
 
                                 # Send background completion event with full response

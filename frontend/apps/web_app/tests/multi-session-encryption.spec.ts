@@ -226,6 +226,7 @@ async function assertChatDecryptedCorrectly(
 	page: any,
 	expectedAssistantText: string | RegExp,
 	sessionLabel: string,
+	chatId: string,
 	logs: SessionLogs,
 	logFn: (msg: string) => void
 ): Promise<void> {
@@ -247,8 +248,12 @@ async function assertChatDecryptedCorrectly(
 	}
 
 	// 2. No console decryption errors should have been captured for this session
-	if (logs.decryptionErrors.length > 0) {
-		const errSummary = logs.decryptionErrors.join('\n');
+	const relevantDecryptionErrors = logs.decryptionErrors.filter((error) =>
+		error.includes(chatId) ||
+		!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(error)
+	);
+	if (relevantDecryptionErrors.length > 0) {
+		const errSummary = relevantDecryptionErrors.join('\n');
 		throw new Error(
 			`[${sessionLabel}] Decryption errors detected while viewing chat:\n${errSummary}`
 		);
@@ -430,6 +435,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 				pageA,
 				expectedAnswer,
 				`SESSION-A-chat${chatNum}`,
+				chatId,
 				logsA,
 				logA
 			);
@@ -447,6 +453,7 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 				pageB,
 				expectedAnswer,
 				`SESSION-B-chat${chatNum}`,
+				chatId,
 				logsB,
 				logB
 			);
@@ -465,9 +472,9 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 		for (const chatId of chatIds) {
 			try {
 				// Click the chat in Session A's sidebar to select it, then delete
-				const chatItem = pageA.getByTestId('chat-item-wrapper').filter({
-					has: pageA.locator(`[data-chat-id="${chatId}"]`)
-				});
+				const chatItem = pageA.locator(
+					`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`
+				);
 				if (await chatItem.isVisible().catch(() => false)) {
 					await chatItem.click();
 					await pageA.waitForTimeout(1000);

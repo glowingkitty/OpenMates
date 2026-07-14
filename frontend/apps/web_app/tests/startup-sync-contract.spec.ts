@@ -17,13 +17,14 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-async function waitForSyncComplete(page: any): Promise<void> {
-	const syncingIndicator = page.getByTestId('syncing-indicator');
-	try {
-		await expect(syncingIndicator).not.toBeVisible({ timeout: 30000 });
-	} catch {
-		console.log('WARNING: Syncing indicator still visible after 30s; continuing with captured events.');
-	}
+async function waitForStartupSyncFrames(receivedTypes: string[]): Promise<void> {
+	await expect.poll(() => ({
+		phase1b: receivedTypes.includes('phase_1b_chat_content_ready'),
+		phase2: receivedTypes.includes('phase_2_last_20_chats_ready')
+	}), {
+		timeout: 30000,
+		message: 'Startup sync should receive Phase 1b content and Phase 2 metadata frames'
+	}).toEqual({ phase1b: true, phase2: true });
 }
 
 async function getLocalChatWithNoMessages(page: any): Promise<string | null> {
@@ -105,8 +106,7 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	});
 
 	await loginToTestAccount(page);
-	await waitForSyncComplete(page);
-	await page.waitForTimeout(3000);
+	await waitForStartupSyncFrames(receivedTypes);
 
 	expect(receivedTypes).toContain('phase_1b_chat_content_ready');
 	expect(receivedTypes).toContain('phase_2_last_20_chats_ready');
