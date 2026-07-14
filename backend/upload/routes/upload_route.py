@@ -156,6 +156,16 @@ class AIDetectionMetadata(BaseModel):
     error: Optional[str] = Field(None, description="Non-sensitive failure reason when detection failed")
 
 
+def _duplicate_ai_detection_needs_refresh(ai_detection: Any) -> bool:
+    """Return true when cached duplicate metadata cannot prove AI detection succeeded."""
+    if not isinstance(ai_detection, dict):
+        return True
+    if ai_detection.get("status") == "failed":
+        return True
+    score = ai_detection.get("ai_generated")
+    return not isinstance(score, (int, float))
+
+
 class UploadFileResponse(BaseModel):
     """Response returned after a successful file upload."""
     embed_id: str = Field(..., description="UUID used as embed_id in the embed system")
@@ -664,6 +674,48 @@ async def upload_file(
             # bucket URL due to the shared-service bucket bug.
             s3_service_for_dedup = request.app.state.s3
             dedup_s3_base_url = s3_service_for_dedup.get_base_url(target_env=target_env)
+            dedup_ai_detection = existing_record.get("ai_detection")
+
+            if is_image and _duplicate_ai_detection_needs_refresh(dedup_ai_detection):
+                sightengine = request.app.state.sightengine
+                if sightengine.is_enabled:
+                    logger.info(
+                        f"{log_prefix} [5/13] Duplicate has missing/failed AI metadata — "
+                        "rerunning SightEngine before returning cached file metadata"
+                    )
+                    safety_result, ai_result = await sightengine.check_all(
+                        file_bytes,
+                        filename=filename,
+                        content_type=content_type,
+                    )
+
+                    if not safety_result.is_safe:
+                        logger.warning(
+                            f"{log_prefix} [5/13] Duplicate image rejected by refreshed "
+                            f"content safety check — reason: {safety_result.reason}"
+                        )
+                        raise HTTPException(
+                            status_code=422,
+                            detail={
+                                "code": "content_rejected",
+                                "message": "Image rejected: content violates community guidelines (nudity, violence, or gore)",
+                            },
+                        )
+
+                    if ai_result is not None:
+                        dedup_ai_detection = AIDetectionMetadata(
+                            ai_generated=ai_result.ai_generated,
+                            provider=ai_result.provider,
+                            status="failed" if ai_result.error else "success",
+                            error=ai_result.error,
+                        ).model_dump()
+                    else:
+                        dedup_ai_detection = AIDetectionMetadata(
+                            ai_generated=0.0,
+                            provider="sightengine",
+                            status="failed",
+                            error="unavailable",
+                        ).model_dump()
 
             return UploadFileResponse(
                 embed_id=existing_record["embed_id"],
@@ -680,8 +732,8 @@ async def upload_file(
                 vault_wrapped_aes_key=existing_record["vault_wrapped_aes_key"],
                 malware_scan="clean",
                 ai_detection=(
-                    AIDetectionMetadata(**existing_record["ai_detection"])
-                    if existing_record.get("ai_detection")
+                    AIDetectionMetadata(**dedup_ai_detection)
+                    if dedup_ai_detection
                     else None
                 ),
                 deduplicated=True,

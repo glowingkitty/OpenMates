@@ -66,6 +66,17 @@ def test_sightengine_http_client_accepts_provider_category() -> None:
     assert positional_args[:1] == ["_category"]
 
 
+def test_duplicate_images_with_failed_ai_detection_are_refreshed() -> None:
+    route_source = (PROJECT_ROOT / "backend" / "upload" / "routes" / "upload_route.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "def _duplicate_ai_detection_needs_refresh" in route_source
+    assert 'ai_detection.get("status") == "failed"' in route_source
+    assert "Duplicate has missing/failed AI metadata" in route_source
+    assert "await sightengine.check_all(" in route_source
+
+
 def test_image_authenticity_badge_collapsed_state_is_square() -> None:
     component = (
         PROJECT_ROOT
