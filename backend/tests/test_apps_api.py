@@ -383,8 +383,15 @@ def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypa
             assert user_id == user.id
             return "vault-1"
 
+        async def get_embed_from_cache(self, embed_id):
+            assert embed_id == "embed-chair"
+            return {"embed_id": embed_id, "user_id": user.id}
+
     class FakeEmbedService:
+        called = False
+
         async def get_embed_by_id(self, embed_id):
+            self.called = True
             assert embed_id == "embed-chair"
             return {"embed_id": embed_id, "hashed_user_id": expected_user_hash}
 
@@ -399,10 +406,11 @@ def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypa
             "requested_credits": requested_credits,
         }
 
+    fake_embed_service = FakeEmbedService()
     app = FastAPI()
     app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
     app.dependency_overrides[apps_api.get_cache_service] = lambda: FakeCache()
-    app.dependency_overrides[apps_api.get_directus_service] = lambda: types.SimpleNamespace(embed=FakeEmbedService())
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: types.SimpleNamespace(embed=fake_embed_service)
     monkeypatch.setattr(apps_api, "call_app_skill", fake_call_app_skill)
     monkeypatch.setattr(apps_api, "require_api_key_budget_for_charge", fake_require_api_key_budget_for_charge)
     apps_api._register_models3d_custom_routes(app, "models3d")
@@ -430,3 +438,4 @@ def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypa
     assert captured["user_info"] is user_info
     assert captured["budget"]["user_info"] is user_info
     assert captured["budget"]["requested_credits"] == 25
+    assert fake_embed_service.called is False

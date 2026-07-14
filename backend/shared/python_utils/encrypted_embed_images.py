@@ -82,23 +82,24 @@ async def resolve_encrypted_image_embed(
     """Resolve one encrypted image from cache or Directus and decrypt it in memory."""
     if not user_vault_key_id:
         raise EncryptedEmbedImageError("A vault key is required to access the referenced image")
-    if decode_toon is None:
-        from toon_format import decode as decode_toon
-
     record = await _load_embed_record(
         embed_id=embed_id,
         cache_client=cache_client,
         directus_service=directus_service,
     )
     encrypted_content = record.get("encrypted_content")
-    if not isinstance(encrypted_content, str) or not encrypted_content:
-        raise EncryptedEmbedImageError("Referenced image has no encrypted content")
-    decrypted_toon = await encryption_service.decrypt_with_user_key(encrypted_content, user_vault_key_id)
-    if not decrypted_toon:
-        raise EncryptedEmbedImageError("Referenced image content could not be decrypted")
-    content = decode_toon(decrypted_toon)
-    if not isinstance(content, dict):
-        raise EncryptedEmbedImageError("Referenced image content is invalid")
+    if isinstance(encrypted_content, str) and encrypted_content:
+        if decode_toon is None:
+            from toon_format import decode as decode_toon
+        decrypted_toon = await encryption_service.decrypt_with_user_key(encrypted_content, user_vault_key_id)
+        if not decrypted_toon:
+            raise EncryptedEmbedImageError("Referenced image content could not be decrypted")
+        content = decode_toon(decrypted_toon)
+        if not isinstance(content, dict):
+            raise EncryptedEmbedImageError("Referenced image content is invalid")
+    else:
+        # Fresh uploads are cached before their optional chat embed is persisted.
+        content = record
 
     files = content.get("files")
     wrapped_key = content.get("vault_wrapped_aes_key")

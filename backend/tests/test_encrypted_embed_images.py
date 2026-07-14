@@ -110,3 +110,34 @@ async def test_cache_miss_falls_back_to_directus_and_recaches_encrypted_embed() 
     assert resolved.content == plaintext
     assert resolved.mime_type == "image/png"
     assert "embed:embed-1" in cache.values
+
+
+@pytest.mark.asyncio
+async def test_upload_cache_image_decrypts_without_chat_embed_persistence() -> None:
+    nonce = b"\x22" * 12
+    plaintext = b"\x89PNG\r\n\x1a\nchair-image"
+    encrypted = AESGCM(b"\x11" * 32).encrypt(nonce, plaintext, None)
+    cache = _FakeCache()
+    cache.values["embed:embed-1"] = __import__("json").dumps(
+        {
+            "embed_id": "embed-1",
+            "user_id": "user-1",
+            "content_type": "image/png",
+            "vault_wrapped_aes_key": "wrapped-aes-key",
+            "aes_nonce": base64.b64encode(nonce).decode(),
+            "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+        }
+    )
+
+    resolved = await resolve_encrypted_image_embed(
+        embed_id="embed-1",
+        user_vault_key_id="vault-key-1",
+        cache_client=cache,
+        directus_service=_FakeDirectus(),
+        encryption_service=_FakeEncryption(),
+        s3_service=_FakeS3(encrypted),
+        decode_toon=lambda _plaintext: pytest.fail("upload-cache records must not decode chat TOON"),
+    )
+
+    assert resolved.content == plaintext
+    assert resolved.mime_type == "image/png"

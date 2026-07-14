@@ -1998,6 +1998,9 @@ def _register_models3d_custom_routes(app: FastAPI, app_name: str) -> None:
 
         expected_user_hash = hashlib.sha256(user_id.encode()).hexdigest()
         for embed_id in image_embed_ids:
+            cached_embed = await cache_service.get_embed_from_cache(embed_id)
+            if cached_embed and cached_embed.get("user_id") == user_id:
+                continue
             embed = await directus_service.embed.get_embed_by_id(embed_id)
             if not embed or embed.get("hashed_user_id") != expected_user_hash:
                 raise HTTPException(status_code=404, detail="Uploaded image not found")
