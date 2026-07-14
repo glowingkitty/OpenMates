@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
+import { userDB } from "./userDB";
 import { chatMetadataCache } from "./chatMetadataCache";
 import { chatListCache } from "./chatListCache";
 import type {
@@ -433,9 +434,11 @@ export async function handleNewChatMessageImpl(
         `[ChatSyncService:ChatUpdates] Creating new chat shell ${payload.chat_id} from new_chat_message event`,
       );
       isNewChat = true;
+      const userProfile = await userDB.getUserProfile();
 
       const newChat: Chat = {
         chat_id: payload.chat_id,
+        user_id: userProfile?.user_id ?? undefined,
         encrypted_title: payload.encrypted_title || null, // Set from payload if available (e.g. inspiration chat sync)
         encrypted_category: payload.encrypted_category || undefined, // Set from payload if available (e.g. inspiration chat sync)
         messages_v: payload.messages_v || 1,
