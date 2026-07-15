@@ -35,7 +35,7 @@ def test_application_preview_fixture_uses_deterministic_svelte5_runtime() -> Non
     main_ts = by_path["src/main.ts"]["content"]
 
     assert "latest" not in package_json
-    assert '"vite":"^7.3.6"' in package_json
+    assert '"vite":"^5.4.21"' in package_json
     assert '"svelte":"^5.55.7"' in package_json
     assert "import { mount } from 'svelte';" in main_ts
     assert "new App" not in main_ts

@@ -41,7 +41,7 @@
         {
           "path": "package.json",
           "language": "json",
-          "content": "{\"scripts\":{\"dev\":\"vite --host 0.0.0.0\"},\"dependencies\":{\"@sveltejs/vite-plugin-svelte\":\"^6.2.4\",\"vite\":\"^7.3.6\",\"svelte\":\"^5.55.7\"},\"devDependencies\":{\"typescript\":\"^5.9.2\"},\"type\":\"module\"}"
+          "content": "{\"scripts\":{\"dev\":\"vite --host 0.0.0.0\"},\"dependencies\":{\"@sveltejs/vite-plugin-svelte\":\"^4.0.4\",\"vite\":\"^5.4.21\",\"svelte\":\"^5.55.7\"},\"devDependencies\":{\"typescript\":\"^5.9.2\"},\"type\":\"module\"}"
         },
         {
           "path": "src/App.svelte",

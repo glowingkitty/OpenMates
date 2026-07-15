@@ -460,7 +460,7 @@ console.log('hello');
 
         by_path = {file["filename"]: file for file in files}
         assert cleaned == "Here is the recipe manager app."
-        assert '"vite": "^7.3.6"' in by_path["package.json"]["content"]
+        assert '"vite": "^5.4.21"' in by_path["package.json"]["content"]
         assert '"svelte": "^5.55.7"' in by_path["package.json"]["content"]
         assert '"typescript": "^5.9.2"' in by_path["package.json"]["content"]
         assert "latest" not in by_path["package.json"]["content"]
