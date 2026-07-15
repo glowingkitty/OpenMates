@@ -32,6 +32,7 @@
     import PdfReadEmbedFullscreen from './embeds/pdf/PdfReadEmbedFullscreen.svelte';
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
     import RecordingEmbedFullscreen from './embeds/audio/RecordingEmbedFullscreen.svelte';
+    import Model3DResultEmbedFullscreen from './embeds/models3d/Model3DResultEmbedFullscreen.svelte';
     import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
     import { forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
     import { normalizeEmbedType as registryNormalizeEmbedType } from '../data/embedRegistry.generated';
@@ -12166,7 +12167,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     registryNormalizeEmbedType(embedFullscreenData.embedType || ''),
                     embedFullscreenData.decodedContent ?? undefined
                 )}
-                {#if registryKey && hasFullscreenComponent(registryKey)}
+                {@const isModel3DResultFullscreen =
+                    embedFullscreenData.embedType === 'models3d-model-result' ||
+                    embedFullscreenData.embedData?.type === 'model_result' ||
+                    embedFullscreenData.decodedContent?.type === 'model_result'}
+                {#if isModel3DResultFullscreen}
+                    <Model3DResultEmbedFullscreen
+                        data={{
+                            decodedContent: embedFullscreenData.decodedContent ?? {},
+                            attrs: embedFullscreenData.attrs,
+                            embedData: embedFullscreenData.embedData,
+                            focusChildEmbedId: embedFullscreenData.focusChildEmbedId,
+                            restoreFromPip: embedFullscreenData.restoreFromPip,
+                            highlightQuoteText: embedFullscreenData.highlightQuoteText,
+                            focusLineRange: embedFullscreenData.focusLineRange,
+                            focusSheetRange: embedFullscreenData.focusSheetRange,
+                            chatEmbedIds,
+                        }}
+                        embedId={embedFullscreenData.embedId}
+                        onClose={handleCloseEmbedFullscreen}
+                        {hasPreviousEmbed}
+                        {hasNextEmbed}
+                        onNavigatePrevious={handleNavigatePreviousEmbed}
+                        onNavigateNext={handleNavigateNextEmbed}
+                    />
+                {:else if registryKey && hasFullscreenComponent(registryKey)}
                     {#await loadFullscreenComponent(registryKey)}
                         <div class="embed-fullscreen-loading" data-testid="embed-fullscreen-loading">
                             <div class="fullscreen-content">
