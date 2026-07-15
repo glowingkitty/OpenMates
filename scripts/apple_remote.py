@@ -42,6 +42,7 @@ DESTRUCTIVE_TOKENS = {
 TEST_ACCOUNT_ENV_PATTERN = re.compile(
     r"^OPENMATES_TEST_ACCOUNT(?:_\d+)?_(?:EMAIL|PASSWORD|OTP_KEY|API_KEY)$"
 )
+CHAT_RENDERING_PARITY_ENV_PATTERN = re.compile(r"^CHAT_RENDERING_PARITY_[A-Z0-9_]+$")
 LIVE_TEST_CREDENTIALS_PATH = "apple/.openmates-live-test-account.env"
 XCODE_CACHE_TARGETS = {
     "derived-data": "~/Library/Developer/Xcode/DerivedData",
@@ -3118,7 +3119,7 @@ def local_test_account_env(env: dict[str, str] | None = None) -> dict[str, str]:
     merged = load_local_dotenv()
     source = env if env is not None else dict(os.environ)
     for key, value in source.items():
-        if TEST_ACCOUNT_ENV_PATTERN.fullmatch(key) and value:
+        if (TEST_ACCOUNT_ENV_PATTERN.fullmatch(key) or CHAT_RENDERING_PARITY_ENV_PATTERN.fullmatch(key)) and value:
             merged[key] = value
     return merged
 

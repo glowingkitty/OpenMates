@@ -1,8 +1,8 @@
 // Shared real-account UI-test helpers.
 // Keeps credential loading, password + OTP login, TOTP generation, and stable
 // chat selectors in one place for native live-dev chat tests. Credentials are
-// read only from the XCTest process environment and must never be logged or
-// committed.
+// read only from the XCTest process environment or the local live-test file
+// written by scripts/apple_remote.py, and must never be logged or committed.
 
 import CryptoKit
 import XCTest
@@ -244,13 +244,15 @@ struct RealAccountTestCredentials {
 
     static func fromEnvironment() throws -> RealAccountTestCredentials {
         let environment = ProcessInfo.processInfo.environment
-        guard let email = environment["OPENMATES_TEST_ACCOUNT_EMAIL"], !email.isEmpty,
-              let password = environment["OPENMATES_TEST_ACCOUNT_PASSWORD"], !password.isEmpty,
-              let otpKey = environment["OPENMATES_TEST_ACCOUNT_OTP_KEY"], !otpKey.isEmpty
-        else {
-            throw XCTSkip("Missing OPENMATES_TEST_ACCOUNT_EMAIL/PASSWORD/OTP_KEY")
+        if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT") {
+            return credentials
         }
-        return RealAccountTestCredentials(email: email, password: password, otpKey: otpKey)
+
+        if let credentials = read(environment: readCredentialFile(), prefix: "OPENMATES_TEST_ACCOUNT") {
+            return credentials
+        }
+
+        throw XCTSkip("Missing OPENMATES_TEST_ACCOUNT_EMAIL/PASSWORD/OTP_KEY")
     }
 
     static func fromReservedSlot(_ slot: Int) throws -> RealAccountTestCredentials {
@@ -260,13 +262,45 @@ struct RealAccountTestCredentials {
 
         let environment = ProcessInfo.processInfo.environment
         let prefix = "OPENMATES_TEST_ACCOUNT_\(slot)"
+        if let credentials = read(environment: environment, prefix: prefix) {
+            return credentials
+        }
+
+        if let credentials = read(environment: readCredentialFile(), prefix: prefix) {
+            return credentials
+        }
+
+        throw XCTSkip("Missing reserved credentials for slot \(slot)")
+    }
+
+    private static func read(environment: [String: String], prefix: String) -> RealAccountTestCredentials? {
         guard let email = environment["\(prefix)_EMAIL"], !email.isEmpty,
               let password = environment["\(prefix)_PASSWORD"], !password.isEmpty,
-              let otpKey = environment["\(prefix)_OTP_KEY"], !otpKey.isEmpty
-        else {
-            throw XCTSkip("Missing reserved credentials for slot \(slot)")
+              let otpKey = environment["\(prefix)_OTP_KEY"], !otpKey.isEmpty else {
+            return nil
         }
         return RealAccountTestCredentials(email: email, password: password, otpKey: otpKey)
+    }
+
+    private static func readCredentialFile() -> [String: String] {
+        let sourceFileURL = URL(fileURLWithPath: #filePath)
+        let credentialFileURL = sourceFileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent(".openmates-live-test-account.env")
+        guard let contents = try? String(contentsOf: credentialFileURL, encoding: .utf8) else {
+            return [:]
+        }
+
+        var values: [String: String] = [:]
+        for rawLine in contents.split(separator: "\n") {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
+            let parts = line.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard parts.count == 2 else { continue }
+            values[String(parts[0])] = String(parts[1])
+        }
+        return values
     }
 }
 
