@@ -49,14 +49,17 @@ test.describe('Example chat: Models3D Printables', () => {
 			'Models3D example should render both Benchy and phone stand parent search embeds'
 		).toBeGreaterThanOrEqual(2);
 
-		const childResultCards = page.getByTestId('models3d-result-card');
+		const childResultEmbeds = page.locator(
+			'[data-testid="embed-preview"][data-app-id="models3d"][data-skill-id="model_result"][data-status="finished"]'
+		);
+		const childResultCards = childResultEmbeds.getByTestId('models3d-result-card');
 		await expect(childResultCards.first()).toBeVisible({ timeout: 15000 });
 		expect(
-			await childResultCards.count(),
+			await childResultEmbeds.count(),
 			'Models3D example should render static child model result cards in chat'
 		).toBeGreaterThanOrEqual(5);
 		await expect(childResultCards.first().getByTestId('models3d-open-provider-cta')).toHaveCount(0);
-		const firstChildEmbed = childResultCards.first().locator('xpath=ancestor::*[@data-testid="embed-preview"][1]');
+		const firstChildEmbed = childResultEmbeds.first();
 		await expectModels3dVisualContract(firstChildEmbed);
 
 		await firstChildEmbed.click();

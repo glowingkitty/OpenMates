@@ -10,6 +10,7 @@ import {
   type EmbedData,
 } from "../../../../services/embedResolver";
 import { embedStore } from "../../../../services/embedStore";
+import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
 import {
   downloadCodeFilesAsZip,
   type CodeFileData,
@@ -75,6 +76,8 @@ import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointm
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
 import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
+import TaskEmbedPreview from "../../../embeds/tasks/TaskEmbedPreview.svelte";
+import WorkflowEmbedPreview from "../../../embeds/workflows/WorkflowEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.svelte";
@@ -455,6 +458,16 @@ export class GroupRenderer implements EmbedRenderer {
             content,
           ),
       ],
+      [
+        "tasks-task",
+        (item, embedData, decodedContent, content) =>
+          this.renderTaskComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "workflows-workflow",
+        (item, embedData, decodedContent, content) =>
+          this.renderWorkflowComponent(item, embedData, decodedContent, content),
+      ],
     ]);
 
     // Startup check: warn if EMBED_RENDERER_MAP contains GroupRenderer types
@@ -775,6 +788,10 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderWeatherDayItem(item, embedData, decodedContent);
       case "social-media-post":
         return this.renderSocialMediaPostItem(item, embedData, decodedContent);
+      case "tasks-task":
+        return this.renderTaskItem(item, embedData, decodedContent);
+      case "workflows-workflow":
+        return this.renderWorkflowItem(item, embedData, decodedContent);
       default:
         console.error(
           `[GroupRenderer] No renderer found for embed type: ${baseType}`,
@@ -5144,6 +5161,122 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
+  private async renderTaskComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+    if (!content.isConnected) return;
+
+    try {
+      const component = mount(TaskEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          taskId: (decodedContent?.task_id as string | undefined) || (decodedContent?.id as string | undefined) || "",
+          shortId: (decodedContent?.short_id as string | undefined) || "",
+          title: (decodedContent?.title as string | undefined) || "",
+          description: (decodedContent?.description as string | undefined) || "",
+          status: (decodedContent?.status as string | undefined) || "todo",
+          assignee: (decodedContent?.assignee as string | undefined) || (decodedContent?.assignee_type as string | undefined) || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[GroupRenderer] Error mounting TaskEmbedPreview:", error);
+      if (content.isConnected) content.innerHTML = await this.renderTaskItem(item, embedData, decodedContent);
+    }
+  }
+
+  private async renderTaskItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const title = (decodedContent?.title as string | undefined) || "Task";
+    const status = (decodedContent?.status as string | undefined) || "todo";
+    return `
+      <div class="embed-app-icon tasks">
+        <span class="icon icon_task"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${escapeHtml(title)}</div>
+        <div class="embed-text-subline">${escapeHtml(status.replace(/_/g, " "))}</div>
+      </div>
+    `;
+  }
+
+  private async renderWorkflowComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+    if (!content.isConnected) return;
+
+    try {
+      const component = mount(WorkflowEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          workflowId: (decodedContent?.workflow_id as string | undefined) || (decodedContent?.id as string | undefined) || "",
+          title: (decodedContent?.title as string | undefined) || "",
+          description: (decodedContent?.description as string | undefined) || "",
+          status: (decodedContent?.status as string | undefined) || "manual",
+          enabled: typeof decodedContent?.enabled === "boolean" ? decodedContent.enabled : true,
+          triggerSummary: (decodedContent?.trigger_summary as string | undefined) || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[GroupRenderer] Error mounting WorkflowEmbedPreview:", error);
+      if (content.isConnected) content.innerHTML = await this.renderWorkflowItem(item, embedData, decodedContent);
+    }
+  }
+
+  private async renderWorkflowItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const title = (decodedContent?.title as string | undefined) || "Workflow";
+    const status = (decodedContent?.status as string | undefined) || "manual";
+    return `
+      <div class="embed-app-icon workflows">
+        <span class="icon icon_workflow"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${escapeHtml(title)}</div>
+        <div class="embed-text-subline">${escapeHtml(status.replace(/_/g, " "))}</div>
+      </div>
+    `;
+  }
+
   private getGroupDisplayName(baseType: string, count: number): string {
     // App skill use groups use a distinct label format: "{count} app skills used:"
     if (baseType === "app-skill-use") {
@@ -5168,6 +5301,8 @@ export class GroupRenderer implements EmbedRenderer {
       "shopping-product": "product",
       "electronics-component": "component",
       "weather-day": "weather day",
+      "tasks-task": "task",
+      "workflows-workflow": "workflow",
     };
 
     const displayName = typeDisplayNames[baseType] || baseType;
@@ -6234,7 +6369,8 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (rawEmbedId && attrs.contentRef?.startsWith("embed:")) {
       try {
-        const resolvedTarget = await embedStore.resolveFullscreenTarget(rawEmbedId);
+        const resolvedTarget = resolveExampleFullscreenTarget(rawEmbedId) ??
+          await embedStore.resolveFullscreenTarget(rawEmbedId);
         targetEmbedId = resolvedTarget.targetEmbedId;
         focusChildEmbedId = resolvedTarget.focusChildEmbedId;
 
