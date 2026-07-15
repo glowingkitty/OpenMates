@@ -225,10 +225,14 @@
   function handleResultSelect(index: number, resultsForClick: T[] = allResults) {
     allResults = resultsForClick;
     selectedIndex = index;
-    // Update URL hash to reflect the child embed ID for shareable deep links
     const result = resultsForClick[index];
     selectedResult = result ?? null;
-    if (result?.embed_id) {
+
+    // Real child embeds are shareable deep links. Legacy fallback results use
+    // synthetic IDs that are only valid inside this mounted fullscreen; publishing
+    // them to the global hash makes the app-level resolver chase an unresolvable
+    // embed and can hide the nested child overlay.
+    if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
       activeEmbedStore.setActiveEmbed(result.embed_id, null);
     }
   }
@@ -261,7 +265,7 @@
       selectedIndex -= 1;
       const result = allResults[selectedIndex];
       selectedResult = result ?? null;
-      if (result?.embed_id) activeEmbedStore.setActiveEmbed(result.embed_id, null);
+      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) activeEmbedStore.setActiveEmbed(result.embed_id, null);
     }
   }
 
@@ -270,8 +274,12 @@
       selectedIndex += 1;
       const result = allResults[selectedIndex];
       selectedResult = result ?? null;
-      if (result?.embed_id) activeEmbedStore.setActiveEmbed(result.embed_id, null);
+      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) activeEmbedStore.setActiveEmbed(result.embed_id, null);
     }
+  }
+
+  function isSyntheticLegacyEmbedId(embedId: string): boolean {
+    return embedId.startsWith('legacy-');
   }
 
   /**
