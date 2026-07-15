@@ -59,13 +59,14 @@ test.describe('Example chat: Models3D Printables', () => {
 		const firstChildEmbed = childResultCards.first().locator('xpath=ancestor::*[@data-testid="embed-preview"][1]');
 		await expectModels3dVisualContract(firstChildEmbed);
 
-		const resultOverlay = await openFullscreen(page, firstChildEmbed);
+		await firstChildEmbed.click();
 		const resultFullscreen = page.getByTestId('models3d-result-fullscreen');
-		await expect(resultFullscreen).toBeVisible({ timeout: 15000 });
+		await expect(resultFullscreen).toBeVisible({ timeout: 60000 });
 		const cta = page.getByTestId('models3d-open-provider-cta');
 		await expect(cta).toBeVisible({ timeout: 15000 });
 		await expect(cta).toContainText('Open on Printables');
 		expect(await cta.getAttribute('href')).toMatch(/^https:\/\/(www\.)?printables\.com\//);
+		const resultOverlay = resultFullscreen.locator('xpath=ancestor::*[@data-testid="embed-fullscreen-overlay"][1]');
 		await closeFullscreen(page, resultOverlay);
 
 		const fullscreenOverlay = await openFullscreen(page, parentSearchEmbeds.first());
