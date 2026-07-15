@@ -89,6 +89,22 @@ jobs:
         if: github.event.inputs.spec != '__cli_integration_code_docs__'
         run: npx playwright install --with-deps chromium
         working-directory: frontend/apps/web_app
+      - name: Install Proton Mail Bridge for live Proton specs
+        if: github.event.inputs.spec == 'proton-bridge-live.spec.ts'
+        run: |
+          set -euo pipefail
+          if [ "$(dpkg --print-architecture)" != "amd64" ]; then
+            echo "Proton's official Linux Bridge DEB is amd64-only; runner architecture is $(dpkg --print-architecture)."
+            exit 1
+          fi
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg2 pass dbus-x11
+          gpg --batch --passphrase '' --quick-generate-key openmates-proton-bridge-ci@example.invalid default default never
+          fingerprint="$(gpg --list-secret-keys --with-colons openmates-proton-bridge-ci@example.invalid | awk -F: '/^fpr:/ { print $10; exit }')"
+          pass init "$fingerprint"
+          wget -O /tmp/protonmail-bridge.deb https://proton.me/download/bridge/protonmail-bridge_3.22.0-1_amd64.deb
+          sudo apt-get install -y /tmp/protonmail-bridge.deb
+          protonmail-bridge --version || protonmail-bridge -v || true
       - name: Run spec
         if: github.event.inputs.spec != '__cli_integration_code_docs__'
         id: pw_run
@@ -152,6 +168,9 @@ jobs:
           GOOGLE_TEST_EMAIL: ${{ secrets.GOOGLE_TEST_EMAIL }}
           GOOGLE_TEST_PASSWORD: ${{ secrets.GOOGLE_TEST_PASSWORD }}
           GOOGLE_TEST_TOTP_KEY: ${{ secrets.GOOGLE_TEST_TOTP_KEY }}
+          PROTON_BRIDGE_TEST_EMAIL: ${{ secrets.PROTON_BRIDGE_TEST_EMAIL }}
+          PROTON_BRIDGE_TEST_PASSWORD: ${{ secrets.PROTON_BRIDGE_TEST_PASSWORD }}
+          PROTON_BRIDGE_TEST_TOTP_KEY: ${{ secrets.PROTON_BRIDGE_TEST_TOTP_KEY }}
           E2E_USE_MOCKS: ${{ github.event.inputs.use_mocks == 'true' && '1' || '' }}
           E2E_RECORD_FIXTURES: ${{ github.event.inputs.record_fixtures == 'true' && '1' || '' }}
           E2E_USE_LIVE_MOCKS: ${{ github.event.inputs.use_live_mocks == 'true' && '1' || '' }}

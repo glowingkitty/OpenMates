@@ -195,9 +195,9 @@ handoff:
   blocker:
     task_id: TASK-5
     requires_user_input: true
-    reason: "Automated CLI/backend/settings/Playwright evidence is complete, but final user confirmation and real Proton Bridge IMAP/SMTP validation require user-provided Proton test setup."
-    question: "Can you review the deployed Proton Bridge connector flow and provide/approve a real Proton Bridge test setup for live IMAP/SMTP validation?"
-    next_action: "After confirmation or credentials, record final evidence and run the live Proton Bridge validation path."
+    reason: "Mocked/fake automated evidence is complete, but live Proton Bridge IMAP/SMTP validation still requires PROTON_BRIDGE_TEST_PASSWORD plus an amd64 Bridge-capable runner. The local dev host is Linux aarch64 and cannot install Proton's official amd64 DEB."
+    question: "Please add PROTON_BRIDGE_TEST_PASSWORD (and PROTON_BRIDGE_TEST_TOTP_KEY if 2FA is enabled) to local .env and GitHub repository secrets, then rerun proton-bridge-live.spec.ts on GitHub Actions."
+    next_action: "After live Proton Bridge passes, record T-PLAYWRIGHT-PROTON-BRIDGE-LIVE and final user confirmation evidence."
   last_verified_commit: 81ff546e1
 
 scenarios:
@@ -367,6 +367,7 @@ acceptance_criteria:
     verification_scope: cli
     verification_ids:
       - T-CLI-PROTON-UNIT
+      - T-PLAYWRIGHT-PROTON-BRIDGE-LIVE
       - T-BACKEND-LOCAL-CONNECTOR
   - id: AC-5
     scenario: S-5
@@ -712,6 +713,38 @@ tests:
         timestamp: "2026-07-15T09:36:24Z"
         target: app.dev.openmates.org
         deployment_reference: dpl_BUSQEGPFnPfzuvDXbEjm2kaGNMMb
+  - id: T-PLAYWRIGHT-PROTON-BRIDGE-LIVE
+    type: playwright
+    file: frontend/apps/web_app/tests/proton-bridge-live.spec.ts
+    command: python3 scripts/tests.py run -- --spec proton-bridge-live.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-10
+    assertions:
+      - GitHub Actions installs Proton Mail Bridge from Proton's official amd64 DEB before running the spec.
+      - Bridge CLI login succeeds with the dedicated Proton test account when test secrets are present.
+      - Bridge `info` output includes localhost IMAP and SMTP configuration.
+      - Test diagnostics redact Proton account password, 2FA secret/code, and Bridge-generated password lines.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        reason: Live provider smoke is a long-term compatibility check, not a red/green product implementation test.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: blocked
+        command: python3 scripts/tests.py run -- --spec proton-bridge-live.spec.ts
+        run_id: not-run-local-dev-aarch64
+        subject_commit: 81ff546e1
+        timestamp: "2026-07-15T09:45:00Z"
+        target: app.dev.openmates.org
+        reason: "Local dev host is aarch64 and lacks Proton's official amd64 Bridge package; .env currently contains PROTON_BRIDGE_TEST_EMAIL but not PROTON_BRIDGE_TEST_PASSWORD. GitHub Actions workflow now installs Bridge for this spec on amd64 runners once secrets are configured."
   - id: T-SDK-CLI-PARITY-AUDIT
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -1006,6 +1039,8 @@ tasks:
       - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
       - frontend/packages/ui/src/services/connectedAccountStorageService.ts
       - frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
+      - frontend/apps/web_app/tests/proton-bridge-live.spec.ts
+      - .github/workflows/playwright-spec.yml
       - scripts/audit_sdk_cli_parity.py
       - docs/user-guide/cli/README.md
       - docs/user-guide/apps/mail.md
@@ -1017,10 +1052,12 @@ tasks:
       - frontend/packages/ui/src/legal/documents/privacy-policy.ts
     verification:
       - T-PLAYWRIGHT-PROTON-SETTINGS
+      - T-PLAYWRIGHT-PROTON-BRIDGE-LIVE
       - T-SDK-CLI-PARITY-AUDIT
       - V-USER-CONFIRMATION
     verification_ids:
       - T-PLAYWRIGHT-PROTON-SETTINGS
+      - T-PLAYWRIGHT-PROTON-BRIDGE-LIVE
       - T-SDK-CLI-PARITY-AUDIT
       - V-USER-CONFIRMATION
     dependencies:
@@ -1030,6 +1067,8 @@ tasks:
         - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
         - frontend/packages/ui/src/services/connectedAccountStorageService.ts
         - frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
+        - frontend/apps/web_app/tests/proton-bridge-live.spec.ts
+        - .github/workflows/playwright-spec.yml
         - scripts/audit_sdk_cli_parity.py
         - docs/user-guide/cli/README.md
         - docs/user-guide/apps/mail.md
@@ -1041,6 +1080,6 @@ tasks:
         - frontend/packages/ui/src/legal/documents/privacy-policy.ts
       shared_files: []
     blockers:
-      - "Final user confirmation and live Proton Bridge IMAP/SMTP validation require user-provided Proton test setup."
+      - "Final user confirmation and live Proton Bridge IMAP/SMTP validation require PROTON_BRIDGE_TEST_PASSWORD plus a Bridge-capable amd64 runner."
     follow_up_tasks: []
     independently_deployable: true

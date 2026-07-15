@@ -1,0 +1,178 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+/**
+ * Live Proton Mail Bridge smoke coverage.
+ *
+ * Purpose: prove GitHub Actions can install Proton Mail Bridge, log into the
+ * dedicated Proton test account, and read local IMAP/SMTP credentials from
+ * Bridge `info` output without exposing those credentials in logs.
+ * Architecture: docs/specs/proton-bridge-cli-connector/spec.yml
+ * Security: all provider passwords, 2FA codes, and Bridge-generated passwords
+ * are redacted before any diagnostic output is emitted.
+ */
+export {};
+
+const { test, expect } = require('./helpers/cookie-audit');
+const { generateTotp } = require('./signup-flow-helpers');
+const { spawn, execFileSync } = require('node:child_process');
+
+const PROTON_EMAIL = process.env.PROTON_BRIDGE_TEST_EMAIL;
+const PROTON_PASSWORD = process.env.PROTON_BRIDGE_TEST_PASSWORD;
+const PROTON_TOTP_KEY = process.env.PROTON_BRIDGE_TEST_TOTP_KEY;
+
+const BRIDGE_COMMANDS = ['protonmail-bridge', 'proton-mail-bridge'];
+const BRIDGE_ARGS = ['--cli'];
+const PROMPT_RE = />+\s*$|bridge>\s*$/im;
+const CREDENTIAL_LINE_RE = /^.*(?:password|token|secret|2fa|totp|code).*$/gim;
+
+function findBridgeBinary(): string | null {
+	for (const command of BRIDGE_COMMANDS) {
+		try {
+			const path = execFileSync('bash', ['-lc', `command -v ${command}`], {
+				encoding: 'utf8',
+				stdio: ['ignore', 'pipe', 'ignore']
+			}).trim();
+			if (path) return path;
+		} catch {
+			// Try the next known binary name.
+		}
+	}
+	return null;
+}
+
+function redactBridgeOutput(output: string): string {
+	let redacted = output.replace(CREDENTIAL_LINE_RE, '<redacted credential line>');
+	for (const value of [PROTON_EMAIL, PROTON_PASSWORD, PROTON_TOTP_KEY]) {
+		if (value) redacted = redacted.split(value).join('<redacted>');
+	}
+	return redacted;
+}
+
+function waitForOutput(
+	getOutput: () => string,
+	pattern: RegExp,
+	label: string,
+	timeoutMs = 30_000
+): Promise<void> {
+	const startedAt = Date.now();
+	return new Promise((resolve, reject) => {
+		const tick = () => {
+			const output = getOutput();
+			if (pattern.test(output)) {
+				resolve();
+				return;
+			}
+			if (Date.now() - startedAt > timeoutMs) {
+				reject(new Error(`Timed out waiting for ${label}. Output:\n${redactBridgeOutput(output).slice(-3000)}`));
+				return;
+			}
+			setTimeout(tick, 250);
+		};
+		tick();
+	});
+}
+
+function waitForEitherOutput(
+	getOutput: () => string,
+	patterns: Array<{ label: string; pattern: RegExp }>,
+	timeoutMs = 30_000
+): Promise<string> {
+	const startedAt = Date.now();
+	return new Promise((resolve, reject) => {
+		const tick = () => {
+			const output = getOutput();
+			for (const candidate of patterns) {
+				if (candidate.pattern.test(output)) {
+					resolve(candidate.label);
+					return;
+				}
+			}
+			if (Date.now() - startedAt > timeoutMs) {
+				reject(new Error(`Timed out waiting for ${patterns.map((p) => p.label).join(' or ')}. Output:\n${redactBridgeOutput(output).slice(-3000)}`));
+				return;
+			}
+			setTimeout(tick, 250);
+		};
+		tick();
+	});
+}
+
+function extractInfoSection(output: string): string {
+	const infoIndex = output.toLowerCase().lastIndexOf('info');
+	return infoIndex >= 0 ? output.slice(infoIndex) : output;
+}
+
+test.describe('Proton Bridge live connector smoke', () => {
+	test.describe.configure({ timeout: 180000 });
+
+	test('logs into Bridge and exposes localhost IMAP/SMTP info without leaking secrets', async () => {
+		test.skip(!PROTON_EMAIL || !PROTON_PASSWORD, 'PROTON_BRIDGE_TEST_EMAIL and PROTON_BRIDGE_TEST_PASSWORD are required for live Proton Bridge smoke coverage.');
+
+		const bridgeBinary = findBridgeBinary();
+		test.skip(!bridgeBinary, 'Proton Mail Bridge binary is not installed on this runner.');
+
+		const child = spawn(bridgeBinary, BRIDGE_ARGS, {
+			env: {
+				...process.env,
+				TERM: 'dumb'
+			},
+			stdio: ['pipe', 'pipe', 'pipe']
+		});
+
+		let output = '';
+		child.stdout.on('data', (data: Buffer) => {
+			output += data.toString();
+		});
+		child.stderr.on('data', (data: Buffer) => {
+			output += data.toString();
+		});
+
+		try {
+			await waitForOutput(() => output, PROMPT_RE, 'initial Bridge prompt');
+			child.stdin.write('login\n');
+
+			await waitForOutput(() => output, /username|email|login/i, 'Bridge username prompt');
+			child.stdin.write(`${PROTON_EMAIL}\n`);
+
+			await waitForOutput(() => output, /password/i, 'Bridge password prompt');
+			child.stdin.write(`${PROTON_PASSWORD}\n`);
+
+			const postPasswordState = await waitForEitherOutput(
+				() => output,
+				[
+					{ label: 'totp', pattern: /2fa|two[- ]?factor|totp|authenticator|verification code/i },
+					{ label: 'prompt', pattern: PROMPT_RE },
+					{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged/i }
+				],
+				45_000
+			);
+
+			if (postPasswordState === 'totp') {
+				test.skip(!PROTON_TOTP_KEY, 'PROTON_BRIDGE_TEST_TOTP_KEY is required when the Proton account prompts for 2FA.');
+				child.stdin.write(`${generateTotp(PROTON_TOTP_KEY)}\n`);
+				await waitForEitherOutput(
+					() => output,
+					[
+						{ label: 'prompt', pattern: PROMPT_RE },
+						{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged/i }
+					],
+					45_000
+				);
+			}
+
+			child.stdin.write('info\n');
+			await waitForOutput(() => output, /imap|smtp/i, 'Bridge info output', 30_000);
+
+			const info = extractInfoSection(output);
+			expect(info).toMatch(/imap/i);
+			expect(info).toMatch(/smtp/i);
+			expect(info).toMatch(/127\.0\.0\.1|localhost/i);
+			expect(redactBridgeOutput(info)).not.toContain(PROTON_PASSWORD as string);
+			if (PROTON_TOTP_KEY) expect(redactBridgeOutput(info)).not.toContain(PROTON_TOTP_KEY);
+		} catch (error) {
+			throw new Error(`${error instanceof Error ? error.message : String(error)}\nSanitized Bridge output:\n${redactBridgeOutput(output).slice(-3000)}`);
+		} finally {
+			child.stdin.write('exit\n');
+			child.kill('SIGTERM');
+		}
+	});
+});
