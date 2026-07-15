@@ -32,6 +32,14 @@ test.describe('Example chat: Models3D Printables', () => {
 		expect(imageBox!.x, 'Models3D result preview image must render to the right of text').toBeGreaterThan(bodyBox!.x);
 	}
 
+	async function openResultFullscreen(page: any, resultCard: any) {
+		const cardBody = resultCard.getByTestId('models3d-result-card-body');
+		await expect(async () => {
+			await cardBody.click();
+			await expect(page.getByTestId('models3d-result-fullscreen')).toBeVisible({ timeout: 5000 });
+		}).toPass({ timeout: 30000 });
+	}
+
 	test('renders messages, result embeds, fullscreen, and reloads', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
 
@@ -65,7 +73,7 @@ test.describe('Example chat: Models3D Printables', () => {
 		await expect(firstFullscreenCard.getByTestId('models3d-open-provider-cta')).toHaveCount(0);
 		await expectModels3dVisualContract(firstFullscreenCard);
 
-		await firstFullscreenCard.click();
+		await openResultFullscreen(page, firstFullscreenCard);
 		const resultFullscreen = page.getByTestId('models3d-result-fullscreen');
 		await expect(resultFullscreen).toBeVisible({ timeout: 15000 });
 		const cta = page.getByTestId('models3d-open-provider-cta');
