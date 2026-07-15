@@ -6,6 +6,9 @@ last_updated: "2026-06-24"
 settings_and_memories: []
 embed_types:
   - id: create-or-modify
+    # Web chat embed rendering is deferred by docs/specs/tasks-workflows-app-skill-embeds/spec.yml.
+    # Keep the backend/CLI skill active, but keep this out of the generated web embed registry until the Svelte renderers exist.
+    default_enabled: false
     category: app-skill-use
     skill_id: create-or-modify
     frontend_type: app-skill-use
@@ -22,6 +25,9 @@ embed_types:
     gradient_var: "--color-app-workflows"
     i18n_namespace: embeds.workflows.create
   - id: search
+    # Web chat embed rendering is deferred by docs/specs/tasks-workflows-app-skill-embeds/spec.yml.
+    # Keep the backend/CLI skill active, but keep this out of the generated web embed registry until the Svelte renderers exist.
+    default_enabled: false
     category: app-skill-use
     skill_id: search
     frontend_type: app-skill-use
