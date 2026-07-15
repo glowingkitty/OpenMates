@@ -1,28 +1,62 @@
 ---
 name: openmates:add-example-chat
-description: Create a new hardcoded example chat from a shared chat URL with encryption key
+description: Create a new hardcoded example chat from a real OpenMates CLI chat, then verify the deployed example page
 user-invocable: true
-argument-hint: "<share-url-with-key>"
+argument-hint: "<prompt-or-share-url-with-key>"
 ---
 
 ## Overview
 
-Creates a new example chat from a shared chat link (with encryption key in the URL fragment).
-Extracts the full chat content, generates TypeScript data + i18n YAML with 21-language translations,
+Creates a new public example chat from a real OpenMates CLI chat, not from
+hand-authored fixtures. The default workflow is mandatory:
+
+1. Create a real chat through the OpenMates CLI against the dev API.
+2. Share that real chat and use its share URL with the encryption key fragment.
+3. Scaffold the permanent example chat from the shared real chat.
+4. Deploy the example chat.
+5. Verify the deployed example page yourself before giving the user the link.
+
+Extraction generates TypeScript data + i18n YAML with 21-language translations,
 registers it in the example chat store, builds translations, and prepares for deploy.
 
 ## Input
 
-The user provides a share URL like:
+Preferred input is the public demo prompt or product moment to demonstrate. If
+the user provides only a share URL, first confirm it was produced from a real
+OpenMates CLI chat in this workflow or recreate the chat through the CLI before
+scaffolding.
+
+Share URLs look like:
 ```
 https://app.dev.openmates.org/share/chat/{uuid}#key={encrypted-blob}
 ```
 
 For new social videos that need a chat-based product demo, prefer creating **three candidate chats** with slight prompt variations first, then choose the strongest one for the video's intended highlight. Keep the winner, convert it to a permanent example chat, and delete/unshare the two weaker candidates when they are no longer needed.
 
+## Required Workflow
+
+Do not skip these gates for new or replaced example chats:
+
+1. **Create a real CLI chat first.** Use the OpenMates CLI against the dev API so the source transcript reflects real model, tool, app-skill, embed, and sharing behavior. Do not use mocked SDK calls, hand-authored transcripts, direct backend functions, fixture replay, or copied static output as the source of a public example chat.
+2. **Inspect the real chat before scaffolding.** Confirm the source chat has the intended messages, app-skill output, embeds, and any fullscreen-worthy embed state. If it is weak, create another real CLI chat rather than editing the transcript into shape.
+3. **Create the example chat from that real chat.** Share the selected CLI chat, then run `scripts/create-example-chat-from-share.mjs` on the resulting share URL with key fragment.
+4. **Deploy before final verification.** Use `sessions.py deploy`; do not report the example URL from undeployed local files.
+5. **Verify the deployed example page yourself.** Open the deployed `/example/{slug}` page and confirm messages render, embeds render, and every relevant embed fullscreen opens correctly. Use browser/Playwright automation where practical, and run the targeted example-chat specs after deploy.
+6. **Only then give the user the link.** The final response must include the deployed example-chat URL only after self-verification passes. If verification fails, fix it or state the blocker instead of giving an unverified link.
+
+When a specific CLI command is not obvious, use the closest real CLI chat path
+for the product surface being demonstrated, for example `openmates chat`,
+`openmates apps <app> <skill>`, or the documented app-skill command. The key
+requirement is that the source chat is created through the real OpenMates CLI
+and dev API path before it becomes public example data.
+
 ## Fast Path
 
-Use the scaffold script whenever possible. It extracts the shared chat, creates the TypeScript example-chat data file, creates the i18n source YAML, registers the chat in the store, strips private embed fields such as `vault_key_id` and `user_id`, and preserves existing order when `--force` is used.
+Use the scaffold script whenever possible after the real CLI source chat has
+been created, inspected, and shared. It extracts the shared chat, creates the
+TypeScript example-chat data file, creates the i18n source YAML, registers the
+chat in the store, strips private embed fields such as `vault_key_id` and
+`user_id`, and preserves existing order when `--force` is used.
 
 ```bash
 node scripts/create-example-chat-from-share.mjs "<SHARE_URL>" \
@@ -61,7 +95,7 @@ If the translation tool skips a long assistant message, retry the missing locale
 Use this when creating a permanent example chat for a new social video. The goal is to get a real chat that cleanly demonstrates the product moment the video will highlight, such as source-backed research, app auto-selection, fullscreen embeds, maps, web/news results, file analysis, or another chat-based feature.
 
 1. Write three natural user prompts with slight variations that all satisfy the social video's product and story requirement. Do not mention internal app-skill names unless the user explicitly wants to demonstrate manual app selection.
-2. Create and share three real chats through the OpenMates CLI or app. Prefer CLI for repeatability when it supports the needed flow.
+2. Create and share three real chats through the OpenMates CLI against the dev API. Use the app only for a UI-only product moment with an explicit reason recorded in the handoff or final summary.
 3. Inspect each candidate for the required product behavior and for video usefulness. For example, check whether the answer has a clear focal moment, enough but not too much text, relevant embeds, and a UI state that can be recorded cleanly.
 4. Choose the strongest candidate based on content quality, brevity, visual usefulness for recording, and exact match to the social video's intended hook and payoff.
 5. Convert only the winner with `scripts/create-example-chat-from-share.mjs`.
@@ -69,7 +103,18 @@ Use this when creating a permanent example chat for a new social video. The goal
 
 ## Steps
 
-### 1. Extract chat content
+### 1. Create and inspect the real CLI source chat
+
+Create the source chat with the real OpenMates CLI and dev API. Record the
+command, chat ID, and share URL in the session notes or spec evidence. Inspect
+the CLI output and, when needed, open the real chat in the web app before
+scaffolding to confirm the transcript and embeds are suitable for public use.
+
+Do not proceed if the real chat is missing the intended app-skill output,
+contains broken embeds, has weak content, leaks private data, or requires manual
+transcript rewriting to look good. Create a better real CLI chat instead.
+
+### 2. Extract chat content
 
 Run the extraction script to decrypt the shared chat:
 
@@ -90,7 +135,7 @@ for i, msg in enumerate(data['messages']):
 "
 ```
 
-### 2. Determine slug and variable name
+### 3. Determine slug and variable name
 
 Ask the user for a natural-language slug if not obvious from the title. Examples:
 - "Gigantic airplanes for transporting rocket parts" → `gigantic-airplanes-transporting-rocket-parts`
@@ -102,7 +147,7 @@ Derive the TypeScript variable name from the slug: `giganticAirplanesChat`, `art
 The chat_id prefix is always `example-`: e.g. `example-gigantic-airplanes`.
 The i18n key prefix is `example_chats.{snake_case_name}`.
 
-### 3. Generate TypeScript data file
+### 4. Generate TypeScript data file
 
 Prefer the fast-path scaffold script above. Only create the files manually if the script cannot handle the source chat.
 
@@ -165,7 +210,7 @@ export const {varName}: ExampleChat = {
 - Embeds stay as-is (TOON content, English only, not translated)
 - Keywords are English only (SEO)
 
-### 4. Generate i18n YAML source file
+### 5. Generate i18n YAML source file
 
 Prefer `scripts/create-example-chat-from-share.mjs` plus `scripts/auto_translate.py`. Only create translations manually when the automation fails for a specific locale/key.
 
@@ -188,7 +233,7 @@ Use YAML block scalar `|` for multiline content (assistant messages).
 - Agent 2: ko, it, tr, vi, id, pl, nl
 - Agent 3: ar, hi, th, cs, sv, he
 
-### 5. Register in exampleChatStore.ts
+### 6. Register in exampleChatStore.ts
 
 Add import and array entry in `frontend/packages/ui/src/demo_chats/exampleChatStore.ts`:
 
@@ -201,7 +246,7 @@ const ALL_EXAMPLE_CHATS: ExampleChat[] = [
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 ```
 
-### 6. Build translations
+### 7. Build translations
 
 ```bash
 cd frontend/packages/ui && npm run build:translations
@@ -218,7 +263,7 @@ print(f'Keys: {list(ec.keys())}')
 "
 ```
 
-### 7. Deploy
+### 8. Deploy
 
 Track only intended files and deploy via `sessions.py deploy`:
 
@@ -250,6 +295,19 @@ After deploy, run related Playwright specs against deployed dev:
 python3 scripts/tests.py run --suite playwright --spec example-chats-load.spec.ts --environment development --force
 python3 scripts/tests.py run --suite playwright --spec example-chat-clone.spec.ts --environment development --force
 ```
+
+Then verify the specific deployed example page yourself before responding:
+
+1. Open `https://app.dev.openmates.org/example/{slug}`.
+2. Confirm the expected user and assistant messages render in the transcript.
+3. Confirm each expected embed preview renders without raw JSON, missing assets, or private fields.
+4. Open every relevant embed fullscreen and confirm the fullscreen content, CTA links, and close behavior work.
+5. Reload the page and confirm the same example chat still loads correctly.
+
+Return the example-chat link only after these checks pass. Include the deployed
+URL, the verification commands or browser checks performed, and the deploy
+commit. If any check fails, do not give the link as complete; fix the issue or
+report the blocker.
 
 If the example is for a marketing video, hand off the final slug and deployed example URL to the marketing repo's Remotion workflow. The video should use the permanent example chat rather than a temporary shared chat whenever possible.
 
