@@ -12,7 +12,10 @@
 import { writable } from "svelte/store";
 import { EmbedStoreEntry, EmbedType } from "../message_parsing/types";
 import { computeSHA256, createContentId } from "../message_parsing/utils";
-import { normalizeEmbedType as registryNormalizeEmbedType } from "../data/embedRegistry.generated";
+import {
+  EMBED_FULLSCREEN_COMPONENTS,
+  normalizeEmbedType as registryNormalizeEmbedType,
+} from "../data/embedRegistry.generated";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import {
@@ -741,6 +744,13 @@ export class EmbedStore {
     let directParentId: string | null = null;
     try {
       const rawEntry = await this.getRawEntry(`embed:${normalizedEmbedId}`);
+      const directRegistryKey = typeof rawEntry?.type === "string"
+        ? registryNormalizeEmbedType(rawEntry.type)
+        : null;
+      if (directRegistryKey && directRegistryKey in EMBED_FULLSCREEN_COMPONENTS) {
+        return { targetEmbedId: normalizedEmbedId };
+      }
+
       if (
         typeof rawEntry?.parent_embed_id === "string" &&
         rawEntry.parent_embed_id.length > 0
@@ -2282,7 +2292,7 @@ export class EmbedStore {
    */
   async getRawEntry(
     contentRef: string,
-  ): Promise<{ parent_embed_id?: string; embed_ids?: string[] } | null> {
+  ): Promise<{ parent_embed_id?: string; embed_ids?: string[]; type?: string } | null> {
     // Check memory cache first
     let entry = embedCache.get(contentRef);
 
@@ -2321,6 +2331,7 @@ export class EmbedStore {
       return {
         parent_embed_id: entry.parent_embed_id,
         embed_ids: Array.isArray(entry.embed_ids) ? entry.embed_ids : undefined,
+        type: entry.type,
       };
     }
 
