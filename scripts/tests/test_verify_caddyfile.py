@@ -37,3 +37,17 @@ def test_electronics_pcb_schematic_route_is_verified_and_allowlisted() -> None:
     ):
         paths = verifier.parse_caddyfile_paths(caddyfile.read_text())
         assert verifier.path_is_covered(route_prefix, paths), caddyfile
+
+
+def test_native_chats_route_is_verified_and_allowlisted() -> None:
+    verifier = _load_verify_caddyfile_module()
+    route_prefix = "/v1/chats"
+
+    assert any(route[0] == route_prefix for route in verifier.FASTAPI_ROUTES)
+
+    for caddyfile in (
+        REPO_ROOT / "deployment/dev_server/Caddyfile",
+        REPO_ROOT / "deployment/prod_server/Caddyfile",
+    ):
+        paths = verifier.parse_caddyfile_paths(caddyfile.read_text())
+        assert verifier.path_is_covered(route_prefix, paths), caddyfile

@@ -35,6 +35,7 @@ FASTAPI_ROUTES = [
     ("/v1/server", "Server info", False),
     ("/v1/status", "Status page API", False),
     ("/v1/auth", "Authentication", False),
+    ("/v1/chats", "Session-authenticated native chat reads", False),
     ("/v1/email", "Email template previews (dev-only, no auth)", True),
     ("/v1/invoice", "Invoice PDF previews (dev-only, no auth)", True),
     ("/v1/credit-note", "Credit note PDF previews (dev-only, no auth)", True),
