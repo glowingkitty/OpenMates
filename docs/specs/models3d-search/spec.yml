@@ -110,7 +110,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: efbc47b
+  subject_commit: df5a19009
 
 approvals:
   product_contract:
@@ -185,14 +185,26 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-15T11:58:00Z"
     reason: "`OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url http://127.0.0.1:8000 --name models3d-sdk-detail-smoke --models3d-only` passed for npm and pip. Both SDKs returned detailed Printables results for `benchy` and `phone stand`, with no missing detail fields and no `open_cta_label`."
+  - id: ATTEMPT-7
+    task_id: TASK-4
+    approach: Run deployed Playwright web verification after the Printables-only models3d search deploy.
+    outcome: rejected
+    recorded_at: "2026-07-15T12:20:24Z"
+    reason: "GitHub Actions run 29414841703 reached the expected rendered result card but failed because the spec still expected the legacy `/api/image-proxy?url=` path while `proxyImage()` now renders `/api/v1/image?url=`."
+  - id: ATTEMPT-8
+    task_id: TASK-4
+    approach: Deploy the image proxy assertion correction and rerun the focused models3d search Playwright spec.
+    outcome: succeeded
+    recorded_at: "2026-07-15T12:34:48Z"
+    reason: "GitHub Actions run 29415566220 passed for `models3d-search.spec.ts` after commit df5a19009 deployed to Vercel as dpl_9ZZT3ZoAFmtZsq5kGYM9o1rPJ4bk."
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy the broader models3d search changes, wait for Vercel Ready, then run deployed web verification for the models3d search parent/child renderers and collect user confirmation before Apple parity.
-  command: python3 scripts/tests.py run --spec models3d-search.spec.ts
-  expected_outcome: The deployed dev web app renders the models3d search parent and child result cards with proxied previews and `Open on (provider)` CTAs.
+  next_action: Ask the user to review the deployed dev web app models3d.search rendering and explicitly approve or reject the parent/child card behavior before Apple parity starts.
+  command: User confirmation on app.dev.openmates.org for the chat containing the models3d.search parent and child result cards.
+  expected_outcome: User confirms the deployed web app renders proxied previews and `Open on (provider)` CTAs correctly, or gives specific UI fixes to apply before Apple parity.
   blocker: null
-  last_verified_commit: efbc47b
+  last_verified_commit: df5a19009
 
 scenarios:
   - id: S-1
@@ -398,6 +410,7 @@ tests:
         status: failed_as_expected
         command: node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json
         run_id: local-cli-dev-smoke-20260715-0935
+        reason: The deployed dev API did not yet include the Printables provider fixes and returned `all_providers_failed` for the real CLI command.
         timestamp: "2026-07-15T09:34:59Z"
     green_phase:
       required: true
@@ -407,6 +420,7 @@ tests:
         command: node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json
         run_id: dev-cli-models3d-search-20260715-0949
         subject_commit: efbc47b
+        reason: Manual real-dev CLI smoke with the CLI test account returned normalized Printables results and preview-only fields.
         timestamp: "2026-07-15T09:49:40Z"
 
   - id: T-CLI-UNIT-001
@@ -572,19 +586,22 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         command: ""
         run_id: ""
-        timestamp: ""
+        reason: "No clean pre-implementation Playwright red run was recorded. The post-deploy run 29414841703 failed for a stale image-proxy assertion, not for missing product behavior; green evidence is recorded after the assertion correction."
+        timestamp: "2026-07-15T12:34:48Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run -- --spec models3d-search.spec.ts
+        run_id: "29415566220"
+        subject_commit: df5a19009
+        deployment_reference: dpl_9ZZT3ZoAFmtZsq5kGYM9o1rPJ4bk
+        target: app.dev.openmates.org
+        timestamp: "2026-07-15T12:34:48Z"
 
   - id: T-APPLE-001
     type: manual
