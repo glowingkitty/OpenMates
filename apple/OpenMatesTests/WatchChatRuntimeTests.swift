@@ -23,14 +23,28 @@ final class WatchChatRuntimeTests: XCTestCase {
                 stayLoggedIn: true
             )
         } catch AuthError.tfaRequired {
-            try await authManager.loginWithPassword(
-                email: credentials.email,
-                password: credentials.password,
-                userEmailSalt: lookup.userEmailSalt,
-                tfaCode: WatchLiveTOTP.generate(secret: credentials.otpKey),
-                codeType: "otp",
-                stayLoggedIn: true
-            )
+            var lastOTPError: Error?
+            for offset in [0, -1, 1, 0, -1] {
+                WatchLiveTOTP.waitPastBoundaryIfNeeded()
+                do {
+                    try await authManager.loginWithPassword(
+                        email: credentials.email,
+                        password: credentials.password,
+                        userEmailSalt: lookup.userEmailSalt,
+                        tfaCode: WatchLiveTOTP.generate(secret: credentials.otpKey, windowOffset: offset),
+                        codeType: "otp",
+                        stayLoggedIn: true
+                    )
+                    lastOTPError = nil
+                    break
+                } catch AuthError.invalidTwoFactorCode {
+                    lastOTPError = AuthError.invalidTwoFactorCode
+                    try await Task.sleep(nanoseconds: 3_000_000_000)
+                }
+            }
+            if let lastOTPError {
+                throw lastOTPError
+            }
         }
 
         XCTAssertEqual(authManager.state, .authenticated)
@@ -512,13 +526,15 @@ private struct WatchLiveAccountCredentials {
 }
 
 private enum WatchLiveTOTP {
-    static func generate(secret: String, date: Date = Date()) -> String {
+    static func waitPastBoundaryIfNeeded(date: Date = Date()) {
         let secondsIntoWindow = Int(date.timeIntervalSince1970) % 30
-        if secondsIntoWindow >= 25 {
-            Thread.sleep(forTimeInterval: TimeInterval(30 - secondsIntoWindow + 2))
-        }
+        guard secondsIntoWindow >= 25 else { return }
+        Thread.sleep(forTimeInterval: TimeInterval(30 - secondsIntoWindow + 2))
+    }
+
+    static func generate(secret: String, windowOffset: Int = 0, date: Date = Date()) -> String {
         let key = SymmetricKey(data: base32Decode(secret))
-        let counter = UInt64(floor(Date().timeIntervalSince1970 / 30.0))
+        let counter = UInt64(Int64(floor(date.timeIntervalSince1970 / 30.0)) + Int64(windowOffset))
         var counterBigEndian = counter.bigEndian
         let counterData = Data(bytes: &counterBigEndian, count: MemoryLayout<UInt64>.size)
         let hash = HMAC<Insecure.SHA1>.authenticationCode(for: counterData, using: key)
