@@ -478,17 +478,27 @@ private struct WatchLiveAccountCredentials {
 
     static func fromEnvironment(preferredReservedSlot slot: Int) throws -> WatchLiveAccountCredentials {
         let environment = ProcessInfo.processInfo.environment
-        if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT") {
-            return credentials
-        }
         if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT_\(slot)") {
             return credentials
         }
-        let fileEnvironment = readCredentialFile()
-        if let credentials = read(environment: fileEnvironment, prefix: "OPENMATES_TEST_ACCOUNT") {
+        for fallbackSlot in 1...20 where fallbackSlot != slot {
+            if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT_\(fallbackSlot)") {
+                return credentials
+            }
+        }
+        if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT") {
             return credentials
         }
+        let fileEnvironment = readCredentialFile()
         if let credentials = read(environment: fileEnvironment, prefix: "OPENMATES_TEST_ACCOUNT_\(slot)") {
+            return credentials
+        }
+        for fallbackSlot in 1...20 where fallbackSlot != slot {
+            if let credentials = read(environment: fileEnvironment, prefix: "OPENMATES_TEST_ACCOUNT_\(fallbackSlot)") {
+                return credentials
+            }
+        }
+        if let credentials = read(environment: fileEnvironment, prefix: "OPENMATES_TEST_ACCOUNT") {
             return credentials
         }
         throw XCTSkip("Missing OPENMATES_TEST_ACCOUNT or reserved Apple slot \(slot) credentials")
