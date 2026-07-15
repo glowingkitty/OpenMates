@@ -7389,6 +7389,8 @@ function printConnectAccountHelp(): void {
 
 Starts a local Proton Mail Bridge connector for OpenMates Mail. Proton Bridge
 owns Proton login. OpenMates never asks for your Proton account password.
+Proton Mail Bridge requires a paid Proton Mail plan; free Proton accounts cannot
+use Bridge IMAP/SMTP access.
 If Bridge is missing, the CLI prints OS-specific install instructions and stops;
 install Bridge yourself, sign in through Proton Bridge, then rerun this command.
 
