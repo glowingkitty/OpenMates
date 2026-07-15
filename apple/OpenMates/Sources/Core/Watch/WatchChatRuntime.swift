@@ -345,8 +345,8 @@ final class WatchChatRuntime: ObservableObject {
     private static let incognitoChatIdPrefix = "incognito-"
     private static let recentChatLimit = 20
     private static let hiddenCandidateFetchLimit = 40
-    private static let fetchRetryAttempts = 2
-    private static let fetchRetryDelayNanoseconds: UInt64 = 250_000_000
+    private static let fetchRetryAttempts = 4
+    private static let fetchRetryDelayNanoseconds: UInt64 = 750_000_000
 
     init(
         currentUserId: String? = nil,
