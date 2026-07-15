@@ -466,7 +466,6 @@ async def delete_reminder_endpoint(
         raise HTTPException(status_code=500, detail="Failed to delete reminder")
 
 
-# --- Endpoint for Privacy & Apps Consent ---
 @router.post("/user/consent/privacy-apps", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("30/minute")  # Prevent abuse of consent updates
 async def record_privacy_apps_consent(
