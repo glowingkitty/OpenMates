@@ -23,7 +23,7 @@ const BRIDGE_COMMANDS = ['protonmail-bridge', 'proton-mail-bridge'];
 const BRIDGE_ARGS = ['--cli'];
 const BRIDGE_READY_RE = /No active accounts\. Please add account to continue\.|>{3,}|bridge>\s*$/im;
 const BRIDGE_AUTH_FAILURE_RE = /invalid|incorrect|authentication failed|login failed|wrong password|bad credentials/i;
-const CREDENTIAL_LINE_RE = /^.*(?:password|token|secret|2fa|totp|code).*$/gim;
+const SECRET_PROMPT_VALUE_RE = /((?:password|token|secret|2fa|totp|code)[^:\r\n]*:\s*)[^\r\n]*/gim;
 const ANSI_ESCAPE_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, 'g');
 const TERMINAL_CONTROL_RE = new RegExp(`[${String.fromCharCode(8)}${String.fromCharCode(13)}]`, 'g');
 
@@ -43,7 +43,7 @@ function findBridgeBinary(): string | null {
 }
 
 function redactBridgeOutput(output: string): string {
-	let redacted = output.replace(CREDENTIAL_LINE_RE, '<redacted credential line>');
+	let redacted = output.replace(SECRET_PROMPT_VALUE_RE, '$1<redacted>');
 	for (const value of [PROTON_EMAIL, PROTON_PASSWORD, PROTON_TOTP_KEY]) {
 		if (value) redacted = redacted.split(value).join('<redacted>');
 	}
