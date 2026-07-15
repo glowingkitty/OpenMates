@@ -59,6 +59,8 @@ const DIRECT_TYPES = new Set([
   "shopping-product",
   "images-image-result",
   "news-article",
+  "tasks-task",
+  "workflows-workflow",
 ]);
 
 /** Human-readable labels for direct types */
@@ -90,6 +92,8 @@ const DIRECT_TYPE_LABELS: Record<string, string> = {
   "shopping-product": "product",
   "images-image-result": "image",
   "news-article": "article",
+  "tasks-task": "task",
+  "workflows-workflow": "workflow",
 };
 
 const STATUS_ICONS: Record<string, string> = {
@@ -170,6 +174,8 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
   const shortId = embed.embedId.slice(0, 8);
   const c = (embed.content ?? {}) as Record<string, unknown>;
   const resolvedType = embed.type ?? str(c.type) ?? "embed";
+  if (resolvedType === "tasks-task") return formatTaskEmbedPreviewLines(c, shortId);
+  if (resolvedType === "workflows-workflow") return formatWorkflowEmbedPreviewLines(c, shortId);
   const app = embed.appId ?? str(c.app_id) ?? "";
   const skill = embed.skillId ?? str(c.skill_id) ?? "";
   const label = skill ? `${app}/${skill}` : (app || DIRECT_TYPE_LABELS[resolvedType] || resolvedType);
@@ -195,6 +201,31 @@ export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines =
 
   lines.push(`└─ openmates embeds show ${shortId}`);
   return lines;
+}
+
+function formatTaskEmbedPreviewLines(c: Record<string, unknown>, fallbackShortId: string): string[] {
+  const taskId = str(c.short_id) ?? str(c.task_id) ?? fallbackShortId;
+  const title = str(c.title) ?? str(c.name) ?? "Untitled task";
+  const status = str(c.status) ?? "todo";
+  const assignee = str(c.assignee) ?? (str(c.assignee_type) === "ai" ? "openmates" : str(c.assignee_type) ?? "user");
+  return [
+    `┌─ ✓ task · ${taskId} · ${trunc(title, 56)}`,
+    `│  Status: ${status}`,
+    `│  Assignee: ${assignee}`,
+    `└─ openmates tasks show ${taskId}`,
+  ];
+}
+
+function formatWorkflowEmbedPreviewLines(c: Record<string, unknown>, fallbackShortId: string): string[] {
+  const workflowId = str(c.workflow_id) ?? str(c.id) ?? fallbackShortId;
+  const title = str(c.title) ?? str(c.name) ?? "Untitled workflow";
+  const status = str(c.status) ?? "draft";
+  return [
+    `┌─ ✓ workflow · ${trunc(title, 56)}`,
+    `│  Status: ${status}`,
+    `│  ID: ${workflowId}`,
+    `└─ openmates workflows show ${workflowId}`,
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -1372,6 +1403,20 @@ function renderByDirectType(
       const source = str(c.source) ?? str(c.url) ?? "";
       if (title) ln(trunc(title, 60));
       if (source) ln(`\x1b[2m${trunc(source, 60)}\x1b[0m`);
+      break;
+    }
+
+    case "tasks-task": {
+      for (const line of formatTaskEmbedPreviewLines(c, embed.embedId.slice(0, 8)).slice(1, -1)) {
+        ln(line.replace(/^│\s\s/, ""));
+      }
+      break;
+    }
+
+    case "workflows-workflow": {
+      for (const line of formatWorkflowEmbedPreviewLines(c, embed.embedId.slice(0, 8)).slice(1, -1)) {
+        ln(line.replace(/^│\s\s/, ""));
+      }
       break;
     }
 

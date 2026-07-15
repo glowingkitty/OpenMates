@@ -1191,6 +1191,78 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/apps/tasks/skills/create") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "tasks",
+            skill_id: "create",
+            result_count: 2,
+            results: [
+              { type: "task", task_id: "task-1", short_id: "TASK-1", title: "Draft checklist", status: "todo", assignee: "user" },
+              { type: "task", task_id: "task-2", short_id: "TASK-2", title: "Draft announcement", status: "todo", assignee: "openmates" },
+            ],
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/tasks/skills/search") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "tasks",
+            skill_id: "search",
+            status: "waiting_for_client",
+            pending_client_search: { request_id: "task-search-request-1", notification_queued: true },
+            results: [],
+            result_count: 0,
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/workflows/skills/create-or-modify") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "workflows",
+            skill_id: "create-or-modify",
+            result_count: 1,
+            results: [
+              { type: "workflow", workflow_id: "workflow-1", title: "Morning weather", status: "draft" },
+            ],
+          },
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/workflows/skills/search") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "workflows",
+            skill_id: "search",
+            status: "finished",
+            requires_connected_client: false,
+            result_count: 2,
+            results: [
+              { type: "workflow", workflow_id: "workflow-1", title: "Morning weather", status: "enabled" },
+              { type: "workflow", workflow_id: "workflow-2", title: "Weather digest", status: "draft" },
+            ],
+          },
+        });
+        return;
+      }
       response.writeHead(404);
       response.end();
     } catch (error) {
@@ -1537,15 +1609,15 @@ describe("CLI self-update commands", () => {
   it("skips self-update when the installed version already matches the latest version", () => {
     const output = runCli(["update", "--dry-run"], {
       npm_config_user_agent: "",
-      OPENMATES_CLI_LATEST_VERSION: "0.14.0",
+      OPENMATES_CLI_LATEST_VERSION: "0.15.0",
     });
     assert.match(output, /OpenMates CLI is already up to date\./);
     assert.doesNotMatch(output, /Would run:/);
   });
 
   it("supports upgrade as the same dry-run command with a selected package manager", () => {
-    const output = runCli(["upgrade", "--version", "0.14.0", "--package-manager", "pnpm", "--dry-run", "--json"], {
-      OPENMATES_CLI_LATEST_VERSION: "0.14.0",
+    const output = runCli(["upgrade", "--version", "0.15.0", "--package-manager", "pnpm", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: "0.15.0",
     });
     const parsed = JSON.parse(output) as {
       command: string;
@@ -1558,21 +1630,21 @@ describe("CLI self-update commands", () => {
     };
     assert.equal(parsed.command, "upgrade");
     assert.equal(parsed.package_manager, "pnpm");
-    assert.equal(parsed.package, "openmates@0.14.0");
-    assert.deepEqual(parsed.run, ["pnpm", "add", "-g", "openmates@0.14.0"]);
+    assert.equal(parsed.package, "openmates@0.15.0");
+    assert.deepEqual(parsed.run, ["pnpm", "add", "-g", "openmates@0.15.0"]);
     assert.equal(parsed.dry_run, true);
-    assert.equal(parsed.latest_version, "0.14.0");
+    assert.equal(parsed.latest_version, "0.15.0");
     assert.equal(parsed.update_available, false);
   });
 
   it("prints version and update guidance through command and top-level flag", () => {
     const commandOutput = runCli(["version"], { OPENMATES_CLI_LATEST_VERSION: "99.0.0" });
-    assert.match(commandOutput, /OpenMates CLI 0\.14\.0/);
+    assert.match(commandOutput, /OpenMates CLI 0\.15\.0/);
     assert.match(commandOutput, /Update available: 99\.0\.0/);
     assert.match(commandOutput, /Run: openmates upgrade/);
 
-    const flagOutput = runCli(["--version"], { OPENMATES_CLI_LATEST_VERSION: "0.14.0" });
-    assert.match(flagOutput, /OpenMates CLI 0\.14\.0/);
+    const flagOutput = runCli(["--version"], { OPENMATES_CLI_LATEST_VERSION: "0.15.0" });
+    assert.match(flagOutput, /OpenMates CLI 0\.15\.0/);
     assert.match(flagOutput, /OpenMates CLI is up to date\./);
   });
 });
@@ -1915,6 +1987,61 @@ describe("apps skill formatted output", () => {
       assert.deepEqual(requests[1].body, {
         requests: [{ query: "yoga", address: "Sorauer Str. 12", radius_km: 1, start_date: "2026-07-10", attendance_mode: "onsite", limit: 2 }],
       });
+    });
+  });
+
+  it("prints task app-skill child results from generic apps commands", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const createOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "tasks", "create",
+        "--input", JSON.stringify({ tasks: [{ title: "Draft checklist" }, { title: "Draft announcement", assignee: "openmates" }] }),
+      ]);
+      const searchOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "tasks", "search",
+        "--input", JSON.stringify({ query: "invoice follow-up" }),
+      ]);
+
+      assert.match(createOutput, /Draft checklist/);
+      assert.match(createOutput, /TASK-1/);
+      assert.match(createOutput, /openmates tasks show TASK-1/);
+      assert.match(createOutput, /Draft announcement/);
+      assert.doesNotMatch(createOutput, /No results found/i);
+      assert.match(searchOutput, /Waiting for a connected task client/i);
+      assert.match(searchOutput, /task-search-request-1/);
+
+      assert.deepEqual(requests.slice(-2).map((entry) => entry.url), [
+        "/v1/apps/tasks/skills/create",
+        "/v1/apps/tasks/skills/search",
+      ]);
+    });
+  });
+
+  it("prints workflow app-skill child results from generic apps commands", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const createOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "workflows", "create-or-modify",
+        "--input", JSON.stringify({ title: "Morning weather", graph: { version: 1, nodes: [], edges: [] } }),
+      ]);
+      const searchOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "workflows", "search",
+        "--input", JSON.stringify({ query: "weather" }),
+      ]);
+
+      assert.match(createOutput, /Morning weather/);
+      assert.match(createOutput, /openmates workflows show workflow-1/);
+      assert.match(searchOutput, /Weather digest/);
+      assert.match(searchOutput, /openmates workflows show workflow-2/);
+      assert.doesNotMatch(`${createOutput}\n${searchOutput}`, /Waiting for a connected/i);
+      assert.doesNotMatch(`${createOutput}\n${searchOutput}`, /No results found/i);
+
+      assert.deepEqual(requests.slice(-2).map((entry) => entry.url), [
+        "/v1/apps/workflows/skills/create-or-modify",
+        "/v1/apps/workflows/skills/search",
+      ]);
     });
   });
 });

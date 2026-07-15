@@ -1,0 +1,991 @@
+schema_version: 2
+id: tasks-workflows-app-skill-embeds
+title: Tasks And Workflows App Skill Embeds
+status: implementing
+
+goal: >
+  Replace dev-only task chat system artifacts with first-class Tasks and Workflows
+  app-skill embeds. The first implementation slice is backend and OpenMates CLI:
+  chat turns can create, search, and reference durable tasks and workflows through
+  app skills; results appear as parent app-skill embeds with structured child
+  task or workflow embeds instead of encrypted task-event system messages. SDK
+  parity follows after CLI/backend proof; web fullscreen/detail reuse is deferred.
+
+scope:
+  in:
+    - Backend and CLI-first implementation for Tasks app skills and Workflows app skills.
+    - Separate Tasks and Workflows apps with separate skill metadata, execution contracts, and embed renderer identities.
+    - Complete replacement of task-management `system` chat artifacts for new dev data; no production migration or backward compatibility path is required.
+    - Task create app skill can create one or many durable `user_tasks` records in one skill call.
+    - A task create result is a parent `app_skill_use` embed with one or more child task embeds.
+    - Task search app skill searches client-encrypted task content on a connected capable client and returns a parent app-skill embed with matching child task embeds.
+    - Task search has a pending waiting-for-client state when no capable client is online; it does not fall back to server-visible private metadata.
+    - Workflow create or modify app skill creates or modifies exactly one workflow per skill call.
+    - Workflow search app skill runs server-side because workflow definitions and relevant run metadata use server-side Automation Vault encryption.
+    - Explicit task assignment semantics: every task is assigned to `user` or `openmates`; unclear assignment defaults to `user`; the assistant only executes tasks assigned to `openmates`.
+    - Assistant prompt context includes chat-connected task information and assignment boundaries even when no tasks are currently attached.
+    - CLI normal and JSON output render app-skill embed results and child task/workflow records without requiring browser UI.
+    - Top-level `openmates tasks ...` and `openmates workflows ...` commands remain the primary user CLI workspace UX; generic `openmates apps ...` app-skill access remains an advanced/debug/API parity surface.
+    - npm SDK and pip SDK parity after backend/CLI proof.
+  out:
+    - Production migration of existing task chats, task system messages, or dev task records.
+    - Keeping legacy task-event system messages as a compatibility surface.
+    - Durable server-side plaintext or Vault-encrypted copies of private task title, description, tags, activity, or instructions.
+    - Server-side private task-content search or metadata fallback for task search.
+    - Web app implementation in the first slice.
+    - Apple implementation in the first slice.
+    - Multi-workflow creation in one skill call.
+    - Team/shared/multi-owner tasks.
+    - Remote filesystem access, code mutation, or high-stakes agentic coding permissions.
+  deferred:
+    - Web chat rendering for task/workflow child embeds and fullscreen overlays.
+    - Reusing the same task/workflow detail components between workspace detail pages and chat fullscreen embeds.
+    - Apple parity for chat embed rendering and task/workflow detail reuse.
+
+context_discovery:
+  github_issues:
+    - "#447 Design planning, tasks, projects, and permissions for agentic coding: related product direction for planning, tasks, projects, permissions, and remote access."
+    - "GitHub MCP returned 401 bad credentials; `gh issue view 447 --repo glowingkitty/OpenMates --json ...` was used instead."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/tasks-main-processor-tools/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/architecture/platforms/tasks-v1.md
+    - docs/architecture/apps/app-skills.md
+    - docs/architecture/messaging/embeds.md
+  code_patterns:
+    - backend/apps/ai/processing/task_tool_context.py currently returns no task prompt when no visible tasks exist.
+    - backend/apps/ai/processing/task_runtime_tools.py currently exposes task_create, task_update, task_reorder, task_block, task_complete, task_unblock, and task_move as main-processor tools.
+    - docs/specs/tasks-main-processor-tools/spec.yml currently requires encrypted task event `system` messages, which this spec supersedes for new dev data.
+    - docs/architecture/apps/app-skills.md defines app skills as independently executed JSON-producing skill calls that become embeds.
+    - docs/architecture/messaging/embeds.md defines parent `app_skill_use` embeds, child embed IDs, client-encrypted embed persistence, and fullscreen-capable rendering.
+    - docs/specs/workflows-v1/spec.yml already defines workflow assistant skills, server-side execution, and Automation Vault-style server runtime access.
+    - frontend/packages/openmates-cli/src/client.ts currently renders `taskEvents` and `pendingTaskUpdateJobs` from task system-event flows.
+    - frontend/packages/openmates-cli/tests/tasks.test.ts and sdk-tasks.test.ts contain CLI/SDK task contract coverage that can be extended.
+    - frontend/packages/openmates-cli/tests/workflows.test.ts and sdk-workflows.test.ts contain CLI/SDK workflow contract coverage that can be extended.
+  tests:
+    - backend/tests/test_task_main_processor_tools.py
+    - backend/tests/test_task_update_jobs.py
+    - backend/tests/test_task_working_copy_privacy.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_task_runtime_tools.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_assistant_and_events.py
+    - backend/tests/test_workflow_chat_delivery.py
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - Apple is not part of the backend/CLI/SDK implementation slice.
+    - When web chat task/workflow embeds are implemented, Apple must eventually render the same semantic parent/child embed structure and reuse native task/workflow detail components for fullscreen views.
+  verification:
+    - Not required for the first backend/CLI/SDK slice.
+    - Reassess with `python3 scripts/apple_remote.py status` plus build/test when Apple task or workflow embed UI is added.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should app-skill embeds replace the existing task-management `system` messages immediately, or coexist during migration?
+      answer: >
+        Replace completely. Tasks are not deployed to production, so all current
+        task data and chats with tasks can be safely deleted and no migration is
+        needed.
+    - question: Should Tasks and Workflows be separate apps/skills or one combined planning/work app?
+      answer: >
+        Separate apps. The Workflows app likely already exists and should remain
+        separate from Tasks.
+    - question: Should task create produce one task card or a task-list embed containing multiple tasks?
+      answer: >
+        Task create must be able to create multiple tasks in one call. The parent
+        app-skill embed should contain one or more child task embeds.
+    - question: Did task/workflow search mean local client search over encrypted tasks/workflows with matching child embeds?
+      answer: >
+        Yes. Search skills should exist for both Tasks and Workflows apps.
+    - question: Should workflow create support multiple workflows in one call?
+      answer: >
+        No. Workflow create or modify should handle one workflow only because
+        workflows are more complex and multi-workflow creation is uncommon.
+    - question: Should a task child card in chat open the normal task detail/workspace view or a task embed fullscreen?
+      answer: >
+        It should open task embed fullscreen inside chat, while reusing the same
+        fields, content, and UI elements as the task detail view from the Tasks
+        workspace. There should not be a separate UI.
+    - question: Should task search use server Vault encryption, connected-client search, or metadata fallback?
+      answer: >
+        Follow the recommendation to keep durable Tasks client-side encrypted.
+        Task search requires a capable connected client, can wait asynchronously,
+        and may notify according to user notification preferences. No private
+        metadata fallback.
+    - question: Should workflow search require a connected client?
+      answer: >
+        No. Workflows are server-side encrypted, so workflow search can run
+        server-side and does not require a connected client or user confirmation.
+    - question: What implementation phase should this spec focus on?
+      answer: >
+        Focus now on backend and CLI. Then implement SDK parity. Frontend comes
+        later.
+  vision_summary: >
+    Tasks and Workflows become normal separate app-skill surfaces in chat. Task
+    data remains the existing durable task model with client-side encrypted
+    private content, but chat-visible artifacts become app-skill embeds instead
+    of task system messages; Workflows use their server-side encrypted workflow
+    model and server-side search.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-15T00:00:00Z"
+  implementation_plan:
+    status: not_required
+    approved_at: ""
+    reason: The implementation plan follows the approved product contract and introduces no additional architecture, privacy, migration, rollout, or external-dependency decision beyond decisions D-1 through D-7.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Tasks and Workflows remain separate apps with separate app skills and embed identities.
+    reason: The user explicitly rejected a combined planning/work app and wants Tasks and Workflows as separate product surfaces.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: New task chat artifacts use app-skill embeds and replace task event `system` messages completely.
+    reason: Tasks are not deployed to production, so no migration or backward compatibility surface is needed.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Task create can create multiple child task embeds under one parent app-skill embed.
+    reason: Multi-task creation is common in planning conversations and should not require one skill call per task.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Workflow create or modify handles exactly one workflow per skill call.
+    reason: Workflow validation, approval, rollback, and fullscreen editing are more complex than tasks and multi-workflow creation is not a common V1 need.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Task search is a client-required skill with a pending waiting-for-client state and optional notifications.
+    reason: Durable task content remains client-side encrypted; server-side metadata fallback would be incomplete and create privacy pressure.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Workflow search runs server-side.
+    reason: Workflows use server-side encryption/Automation Vault access for runtime behavior, so connected-client search is unnecessary.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: Backend and CLI are the first implementation gate, SDK parity is second, web and Apple are deferred.
+    reason: The user explicitly wants current work focused on CLI and backend, then SDK, with frontend later.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Keep both generic app-skill CLI access and dedicated Tasks/Workflows CLI workspace commands.
+    reason: Product commands are the polished human UX, while generic app commands remain useful for discovery, debugging, automation, and app-skill parity.
+    decided_at: "2026-07-15T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Extend the existing task main-processor system-event flow.
+    outcome: rejected
+    recorded_at: "2026-07-15T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Model Tasks and Workflows as separate app-skill embed producers, replacing task system messages for new dev data.
+    outcome: planned
+    recorded_at: "2026-07-15T00:00:00Z"
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Add generic `openmates apps tasks ...` and `openmates apps workflows ...` command-path tests for flat child result arrays.
+    outcome: succeeded
+    recorded_at: "2026-07-15T00:00:00Z"
+  - id: ATTEMPT-4
+    task_id: TASK-4
+    approach: Run real dev `apps tasks create` with the available local CLI session.
+    outcome: blocked
+    recorded_at: "2026-07-15T00:00:00Z"
+    summary: Dev endpoint was reachable but returned `Vault key id is required to seal task working copies` for this account.
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Run real dev `apps workflows search` before deploying the workflow app metadata change.
+    outcome: blocked
+    recorded_at: "2026-07-15T00:00:00Z"
+    summary: Dev returned 404 because the Workflows app-skill surface is not exposed on dev until this slice is deployed.
+
+handoff:
+  current_task_id: TASK-4
+  next_action: Deploy the backend/CLI app-skill slice to dev, then rerun real CLI app-skill proof commands before starting SDK parity.
+  command: node dist/cli.js --api-url https://api.dev.openmates.org apps tasks search --input '{"query":"invoice follow-up"}' && node dist/cli.js --api-url https://api.dev.openmates.org apps workflows search --input '{"query":"weather"}'
+  expected_outcome: Task search prints waiting-for-client state and workflow search returns server-side workflow child results from dev.
+  blocker:
+    task_id: TASK-4
+    requires_user_input: false
+    reason: Real dev proof is partially blocked until this slice is deployed; task create additionally needs a Vault-key-enabled account or an accepted account-state blocker.
+    next_action: Deploy, then rerun task search and workflow search; use a Vault-enabled dev account for task create proof.
+  last_verified_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+
+scenarios:
+  - id: S-1
+    title: CLI chat creates multiple task embeds
+    given:
+      - Alice is logged into the OpenMates CLI.
+      - Alice starts a saved chat with no attached tasks.
+    when:
+      - Alice says `Create tasks for launch prep: checklist, announcement, risk review`.
+    then:
+      - The Tasks app create skill creates three durable `user_tasks` records.
+      - The chat receives one parent app-skill embed for the skill call.
+      - The parent embed references three child task embeds.
+      - The CLI JSON output includes the parent embed ID and child task embed IDs.
+      - No task-created `system` messages are persisted for this flow.
+
+  - id: S-2
+    title: Task assignment defaults to user unless OpenMates is clearly assigned
+    given:
+      - Alice is chatting with OpenMates in the CLI.
+    when:
+      - Alice asks `Make tasks for the client workshop` without delegating execution.
+      - Alice later asks `OpenMates, take the announcement task and do it`.
+    then:
+      - The ambiguous workshop tasks are assigned to `user`.
+      - The explicitly delegated announcement task is assigned to `openmates`.
+      - The assistant only starts or completes tasks assigned to `openmates`.
+
+  - id: S-3
+    title: CLI task search waits for connected-client search
+    given:
+      - Alice has client-encrypted tasks on trusted devices.
+    when:
+      - Alice asks the assistant to search tasks for `invoice follow-up`.
+      - No capable task-search client is online.
+    then:
+      - The Tasks search skill creates a pending parent app-skill embed with a waiting-for-client state.
+      - The backend does not search private task title, description, tags, activity, or instructions.
+      - Notifications are sent only according to Alice's notification preferences.
+      - When a capable CLI client connects, it decrypts/searches locally and updates the parent embed with matching child task embeds.
+
+  - id: S-4
+    title: CLI workflow create and server-side workflow search
+    given:
+      - Alice is logged into the CLI.
+      - Alice has existing server-side encrypted workflows.
+    when:
+      - Alice asks `Create a workflow that sends me a weather summary every morning`.
+      - Alice asks `Find my weather workflows`.
+    then:
+      - Workflow create creates or modifies exactly one workflow and one child workflow embed under a parent app-skill embed.
+      - Workflow search runs server-side and returns a parent app-skill embed with matching child workflow embeds.
+      - Workflow search does not require a connected client or user confirmation.
+
+  - id: S-5
+    title: SDKs expose the same backend contracts after CLI proof
+    given:
+      - Backend and CLI task/workflow app-skill embed flows are green against dev.
+    when:
+      - npm SDK and pip SDK clients call the matching task/workflow create and search APIs.
+    then:
+      - SDK results expose the same parent embed and child task/workflow embed structure as CLI JSON.
+      - SDK task search reports pending connected-client requirements without fabricating server search results.
+      - SDK workflow search returns server-side workflow search results.
+
+contracts:
+  apps:
+    - app_id: tasks
+      skills:
+        - task_create
+        - task_search
+      embed_types:
+        - tasks-task
+      notes:
+        - The parent skill-call embed uses existing `app_skill_use` semantics.
+        - The child task embed references the durable `user_tasks` record and contains only client-encrypted private content in durable storage.
+    - app_id: workflows
+      skills:
+        - workflow_create_or_modify
+        - workflow_search
+      embed_types:
+        - workflows-workflow
+      notes:
+        - Workflow create or modify returns exactly one workflow child embed.
+        - Workflow search may return multiple workflow child embeds.
+  chat_artifacts:
+    - Task and workflow create/search chat artifacts are embeds, not `system` messages.
+    - Parent app-skill embeds contain child embed IDs for generated or matched tasks/workflows.
+    - CLI output must be sufficient to inspect the parent and children without web rendering.
+  cli_surfaces:
+    - "`openmates tasks ...` remains the primary user-facing task workspace command surface."
+    - "`openmates workflows ...` remains the primary user-facing workflow workspace command surface."
+    - "Generic `openmates apps ...` app-skill execution may expose `tasks.create`, `tasks.search`, `workflows.create-or-modify`, and `workflows.search` for advanced/debug/API parity use."
+    - Both CLI surfaces share backend contracts and SDK payload shapes.
+  task_assignment:
+    - Allowed assignees are `user` and `openmates` for this scope.
+    - Missing or ambiguous assignment defaults to `user`.
+    - The assistant can work only on `openmates` tasks.
+    - A task may be reassigned only through explicit user intent or an explicit task update action.
+  task_search_privacy:
+    - Private task title, description, tags, activity, and instructions remain client-side encrypted for durable storage.
+    - Search over private task content requires a capable connected client.
+    - Server-side search over private task content and server-visible metadata fallback are forbidden.
+  workflow_search_privacy:
+    - Workflow search may use server-side Automation Vault access and server-side indexes allowed by Workflows V1.
+    - Workflow search does not require a connected client or user confirmation.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Task create app skill can create one or many durable tasks and return one parent app-skill embed with child task embeds instead of task system messages.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-PYTEST-TASK-EMBEDS
+      - T-CLI-TASK-EMBEDS
+
+  - id: AC-2
+    scenario: S-2
+    text: Task assignment is explicit, defaults unclear tasks to user, and prevents assistant execution for non-openmates tasks.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-TASK-ASSIGNMENT
+      - T-CLI-TASK-EMBEDS
+
+  - id: AC-3
+    scenario: S-3
+    text: Task search requires a capable connected client, supports a pending waiting-for-client embed state, and never falls back to server-side private task-content search.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-PYTEST-TASK-SEARCH
+      - T-CLI-TASK-SEARCH
+
+  - id: AC-4
+    scenario: S-4
+    text: Workflow create or modify handles one workflow per skill call, while workflow search runs server-side and can return multiple workflow child embeds.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-PYTEST-WORKFLOW-EMBEDS
+      - T-CLI-WORKFLOW-EMBEDS
+
+  - id: AC-5
+    scenario: S-5
+    text: npm SDK and pip SDK expose the same parent/child embed structure and search availability semantics as CLI JSON after CLI/backend proof is green.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: npm_sdk
+    verification_ids:
+      - T-NPM-SDK-EMBEDS
+      - T-PIP-SDK-EMBEDS
+      - V-SDK-CLI-PARITY
+
+  - id: AC-6
+    scenario: S-1
+    text: The first implementation phase does not require web or Apple UI changes and does not introduce a compatibility path for dev-only task system messages.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - V-PHASE-ORDER
+
+assumptions:
+  - id: A-1
+    text: Existing app-skill execution can represent a parent `app_skill_use` embed with child embed IDs.
+    category: embeds
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/messaging/embeds.md
+        summary: Embed architecture documents parent `app_skill_use` embeds and child `embed_ids`.
+  - id: A-2
+    text: Existing Tasks durable storage remains the source of truth for task records.
+    category: tasks
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/specs/tasks-v1/spec.yml
+        summary: Tasks V1 defines durable `user_tasks` records with client-encrypted private content.
+  - id: A-3
+    text: Existing Workflows server-side encryption/runtime model can support server-side workflow search without connected-client search.
+    category: workflows
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/specs/workflows-v1/spec.yml
+        summary: Workflows V1 requires server-side workflow execution and Automation Vault-style runtime access.
+
+tests:
+  - id: T-PYTEST-TASK-EMBEDS
+    type: pytest
+    file: backend/tests/test_task_app_skill_embeds.py
+    command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py
+    covers:
+      - AC-1
+    assertions:
+      - task create returns a parent app-skill embed payload
+      - one task create skill call can produce multiple child task embeds
+      - no task event system-message payload is emitted for the new flow
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py
+        run_id: local-red-task-app-skill-modules-missing-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: Tests failed during collection because `backend.apps.tasks` did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py
+        run_id: local-green-task-app-skill-backend-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: Focused backend tests passed for embed-ready task create responses without system events.
+
+  - id: T-PYTEST-TASK-ASSIGNMENT
+    type: pytest
+    file: backend/tests/test_task_app_skill_assignment.py
+    command: python3 -m pytest backend/tests/test_task_app_skill_assignment.py
+    covers:
+      - AC-2
+    assertions:
+      - omitted assignment defaults to user
+      - explicit OpenMates delegation assigns openmates
+      - assistant execution tools reject user-assigned tasks
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py
+        run_id: local-red-task-app-skill-modules-missing-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: Tests failed during collection because `backend.apps.tasks` did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py
+        run_id: local-green-task-app-skill-backend-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: Focused backend tests passed for user/openmates assignment normalization and execution guard.
+
+  - id: T-PYTEST-TASK-SEARCH
+    type: pytest
+    file: backend/tests/test_task_app_skill_search.py
+    command: python3 -m pytest backend/tests/test_task_app_skill_search.py
+    covers:
+      - AC-3
+    assertions:
+      - task search creates a pending connected-client search request when no capable client is online
+      - private task fields are not server-searched or copied into server-visible metadata
+      - client search completion updates the parent embed with child task embeds
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py
+        run_id: local-red-task-app-skill-modules-missing-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: Tests failed during collection because `backend.apps.tasks` did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py
+        run_id: local-green-task-app-skill-backend-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: Focused backend tests passed for connected-client task search pending and matched-result responses.
+
+  - id: T-PYTEST-WORKFLOW-EMBEDS
+    type: pytest
+    file: backend/tests/test_workflow_app_skill_embeds.py
+    command: python3 -m pytest backend/tests/test_workflow_app_skill_embeds.py
+    covers:
+      - AC-4
+    assertions:
+      - workflow create or modify returns exactly one workflow child embed
+      - workflow search runs server-side and can return multiple workflow child embeds
+      - workflow search does not create a connected-client request
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_workflow_app_skill_embeds.py
+        run_id: local-red-workflow-create-or-modify-missing-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: Test failed during collection because `backend.apps.workflows.skills.create_or_modify_skill` did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workflow_app_skill_embeds.py backend/tests/test_workflow_assistant_and_events.py
+        run_id: local-green-workflow-app-skill-backend-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: Workflow embed contract and nearby workflow assistant regression tests passed.
+
+  - id: T-CLI-TASK-EMBEDS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/tasks.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - CLI JSON renders task create parent embed and child task embeds
+      - CLI normal output includes task embed summaries rather than task system-event lines
+      - ambiguous task assignment is user and explicit delegation is openmates
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: node --test --test-name-pattern "task app-skill|workflow app-skill" tests/cli.test.ts
+        run_id: local-red-cli-generic-app-skill-flat-results-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: New generic apps command tests failed because flat task/workflow app-skill child result arrays were rendered as `No results found`.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts && node --test --test-name-pattern "task app-skill|workflow app-skill" tests/cli.test.ts
+        run_id: local-green-cli-child-embed-and-generic-app-skill-format-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: CLI task/workflow suites and generic apps command tests passed with product-specific child embed preview formatting and flat app-skill result rendering.
+
+  - id: T-CLI-TASK-SEARCH
+    type: unit
+    file: frontend/packages/openmates-cli/tests/tasks.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts
+    covers:
+      - AC-3
+    assertions:
+      - CLI can fulfill a pending connected-client task search by decrypting local task content
+      - CLI updates the parent search embed with matching child task embeds
+      - CLI reports waiting-for-client state when it cannot fulfill the request
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: node --test --test-name-pattern "task app-skill|workflow app-skill" tests/cli.test.ts
+        run_id: local-red-cli-generic-app-skill-flat-results-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: New generic apps command tests failed because task search waiting state and flat result arrays were not rendered correctly.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts && node --test --test-name-pattern "task app-skill|workflow app-skill" tests/cli.test.ts
+        run_id: local-green-cli-child-embed-and-generic-app-skill-format-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: CLI task suite and generic tasks app command tests passed with product-specific child embed formatting, assignment labels, and waiting-for-client output.
+
+  - id: T-CLI-WORKFLOW-EMBEDS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows.test.ts
+    covers:
+      - AC-4
+    assertions:
+      - CLI renders one child workflow embed for workflow create or modify
+      - CLI renders multiple child workflow embeds for workflow search
+      - workflow search output has no waiting-for-client state
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: node --test --test-name-pattern "task app-skill|workflow app-skill" tests/cli.test.ts
+        run_id: local-red-cli-generic-app-skill-flat-results-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: New generic apps command tests failed because flat workflow app-skill child result arrays were rendered as `No results found`.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts && node --test --test-name-pattern "task app-skill|workflow app-skill" tests/cli.test.ts
+        run_id: local-green-cli-child-embed-and-generic-app-skill-format-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: CLI workflow suite and generic workflows app command tests passed with flat child workflow result rendering and no connected-client waiting state.
+
+  - id: T-NPM-SDK-EMBEDS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-tasks.test.ts tests/sdk-workflows.test.ts
+    covers:
+      - AC-5
+    assertions:
+      - npm SDK exposes task/workflow parent app-skill embeds and child embed IDs
+      - npm SDK exposes task search pending-client state
+      - npm SDK exposes workflow search server results
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts
+        run_id: local-red-cli-task-workflow-child-embed-format-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: New CLI tests failed because task/workflow child embeds rendered raw type labels and generic embed commands.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts
+        run_id: local-green-cli-task-workflow-child-embed-format-20260715
+        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+        timestamp: "2026-07-15T00:00:00Z"
+        summary: CLI workflow suite passed with product-specific workflow child embed preview formatting.
+
+  - id: T-PIP-SDK-EMBEDS
+    type: pytest
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    covers:
+      - AC-5
+    assertions:
+      - pip SDK exposes task/workflow parent app-skill embeds and child embed IDs
+      - pip SDK exposes task search pending-client state
+      - pip SDK exposes workflow search server results
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+
+verifications:
+  - id: V-SDK-CLI-PARITY
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-5
+    status: pending
+    evidence: {}
+  - id: V-PHASE-ORDER
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-6
+    status: pending
+    evidence: {}
+
+implementation_plan:
+  spec_path: docs/specs/tasks-workflows-app-skill-embeds/spec.yml
+  existing_patterns:
+    - docs/architecture/apps/app-skills.md
+    - docs/architecture/messaging/embeds.md
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/processing/task_runtime_tools.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+  architecture: >
+    Add Tasks and Workflows app-skill contracts that produce app-skill parent
+    embeds with child task/workflow embeds. Preserve durable task and workflow
+    storage models; change chat connection artifacts from task system messages to
+    embed references. Backend owns skill schemas, execution routing, privacy
+    boundaries, and task-search request lifecycle. CLI is the first capable client
+    and renders/fulfills these contracts before SDKs are added.
+  data_flow:
+    - User asks in CLI chat to create tasks, create/modify a workflow, or search tasks/workflows.
+    - Main processing selects the Tasks or Workflows app skill.
+    - Backend creates a parent `app_skill_use` embed for the skill call.
+    - Task create persists durable task records and child task embeds; workflow create persists one workflow and one child workflow embed.
+    - Task search creates a connected-client search request when needed; CLI decrypts local tasks and returns matching child task embeds.
+    - Workflow search uses server-side workflow access and returns matching child workflow embeds.
+    - CLI JSON and normal output render parent and child embed summaries.
+    - npm SDK and pip SDK expose the same payload shapes after CLI/backend proof.
+  affected_files:
+    - path: backend/apps/tasks/app.yml
+      reason: New Tasks app metadata and app-skill declarations if no app folder exists yet.
+    - path: backend/apps/tasks/skills/create_skill.py
+      reason: Task create app skill implementation.
+    - path: backend/apps/tasks/skills/search_skill.py
+      reason: Client-required task search app skill implementation.
+    - path: backend/apps/workflows/app.yml
+      reason: Workflow app metadata and skill declarations.
+    - path: backend/apps/workflows/skills/create_or_modify_skill.py
+      reason: One-workflow create or modify app skill implementation.
+    - path: backend/apps/workflows/skills/search_skill.py
+      reason: Server-side workflow search app skill implementation.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: App-skill selection and task prompt context integration.
+    - path: backend/apps/ai/processing/task_tool_context.py
+      reason: Prompt guidance for task creation and assignment even when no visible tasks exist.
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Parent/child task and workflow embed persistence integration if existing helpers need extension.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI chat send/render/connected-client task-search handling.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Normal and JSON output for parent/child app-skill embed results.
+    - path: frontend/packages/openmates-cli/tests/tasks.test.ts
+      reason: CLI task app-skill embed and client-search coverage.
+    - path: frontend/packages/openmates-cli/tests/workflows.test.ts
+      reason: CLI workflow app-skill embed coverage.
+    - path: packages/openmates-python/tests/test_sdk.py
+      reason: pip SDK parity coverage.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/tasks-workflows-app-skill-embeds/spec.yml
+    - python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py backend/tests/test_workflow_app_skill_embeds.py
+    - node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts
+    - node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-tasks.test.ts tests/sdk-workflows.test.ts
+    - python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    - python3 scripts/audit_sdk_cli_parity.py
+    - python3 scripts/spec_verify.py docs/specs/tasks-workflows-app-skill-embeds/spec.yml --phase green
+  verification_order:
+    - Backend contract tests for app-skill embed shapes, assignment, privacy boundaries, task search lifecycle, and workflow search behavior.
+    - CLI tests and real dev CLI smoke for parent/child embed output and connected-client task search.
+    - npm SDK and pip SDK parity after backend/CLI proof.
+    - Web Playwright only in a later frontend phase after deploy.
+    - User confirmation for user-visible web UI only in the later frontend phase.
+    - Apple remote build/test only when Apple task/workflow embed UI is implemented.
+
+tasks:
+  - id: TASK-1
+    title: Approve product contract and plan backend/CLI slice
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - docs/specs/tasks-workflows-app-skill-embeds/spec.yml
+    verification_ids:
+      - V-PHASE-ORDER
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/specs/tasks-workflows-app-skill-embeds/spec.yml
+      shared_files: []
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Implement backend task app-skill embed contracts
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - backend/apps/tasks/app.yml
+      - backend/apps/tasks/skills/create_skill.py
+      - backend/apps/tasks/skills/search_skill.py
+      - backend/apps/ai/processing/task_tool_context.py
+      - backend/tests/test_task_app_skill_embeds.py
+      - backend/tests/test_task_app_skill_assignment.py
+      - backend/tests/test_task_app_skill_search.py
+    verification_ids:
+      - T-PYTEST-TASK-EMBEDS
+      - T-PYTEST-TASK-ASSIGNMENT
+      - T-PYTEST-TASK-SEARCH
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/apps/tasks/app.yml
+        - backend/apps/tasks/skills/create_skill.py
+        - backend/apps/tasks/skills/search_skill.py
+        - backend/apps/ai/processing/task_tool_context.py
+        - backend/tests/test_task_app_skill_embeds.py
+        - backend/tests/test_task_app_skill_assignment.py
+        - backend/tests/test_task_app_skill_search.py
+      shared_files:
+        - backend/core/api/app/services/embed_service.py
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Implement backend workflow app-skill embed contracts
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-4
+    expected_files:
+      - backend/apps/workflows/app.yml
+      - backend/apps/workflows/skills/create_or_modify_skill.py
+      - backend/apps/workflows/skills/search_skill.py
+      - backend/tests/test_workflow_app_skill_embeds.py
+    verification_ids:
+      - T-PYTEST-WORKFLOW-EMBEDS
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/apps/workflows/app.yml
+        - backend/apps/workflows/skills/create_or_modify_skill.py
+        - backend/apps/workflows/skills/search_skill.py
+        - backend/tests/test_workflow_app_skill_embeds.py
+      shared_files:
+        - backend/core/api/app/services/embed_service.py
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Implement CLI parent-child embed output and task client-search handling
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/tasks.test.ts
+      - frontend/packages/openmates-cli/tests/workflows.test.ts
+    verification_ids:
+      - T-CLI-TASK-EMBEDS
+      - T-CLI-TASK-SEARCH
+      - T-CLI-WORKFLOW-EMBEDS
+    dependencies:
+      - TASK-2
+      - TASK-3
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/tests/tasks.test.ts
+        - frontend/packages/openmates-cli/tests/workflows.test.ts
+      shared_files: []
+    independently_deployable: true
+
+  - id: TASK-5
+    title: Implement npm and pip SDK parity
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+      - packages/openmates-python/tests/test_sdk.py
+    verification_ids:
+      - T-NPM-SDK-EMBEDS
+      - T-PIP-SDK-EMBEDS
+      - V-SDK-CLI-PARITY
+    dependencies:
+      - TASK-4
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+        - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+        - packages/openmates-python/tests/test_sdk.py
+      shared_files:
+        - frontend/packages/openmates-cli/src/client.ts
+    independently_deployable: true
+
+  - id: TASK-6
+    title: Record deferred web and Apple embed detail reuse follow-up
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-4
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - docs/specs/tasks-workflows-app-skill-embeds/spec.yml
+    verification_ids:
+      - V-PHASE-ORDER
+    dependencies:
+      - TASK-5
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/specs/tasks-workflows-app-skill-embeds/spec.yml
+      shared_files: []
+    independently_deployable: true

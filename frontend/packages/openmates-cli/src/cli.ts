@@ -41,6 +41,7 @@ import {
 } from "./client.js";
 import type { PendingTaskUpdateJobFrame, StreamEvent, SubChatEvent, TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
+import { stdin, stdout } from "node:process";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
@@ -90,6 +91,7 @@ import {
   startRemoteAccessSource,
   type RemoteAccessSourceRecord,
 } from "./remoteAccess.js";
+import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
 import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
@@ -206,6 +208,10 @@ async function main(): Promise<void> {
       printConnectedAccountsHelp();
       return;
     }
+    if (command === "connect-account") {
+      printConnectAccountHelp();
+      return;
+    }
     if (command === "learning-mode") {
       printLearningModeHelp();
       return;
@@ -260,6 +266,10 @@ async function main(): Promise<void> {
     }
     if (command === "remote-access") {
       printRemoteAccessHelp();
+      return;
+    }
+    if (command === "connect-account") {
+      printConnectAccountHelp();
       return;
     }
     printHelp();
@@ -361,6 +371,11 @@ async function main(): Promise<void> {
 
   if (command === "connected-accounts") {
     await handleConnectedAccounts(client, subcommand, parsed.flags);
+    return;
+  }
+
+  if (command === "connect-account") {
+    await handleConnectAccount(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -3459,6 +3474,54 @@ async function handleConnectedAccounts(
   console.log("Validation: harmless read succeeded");
 }
 
+async function handleConnectAccount(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  _rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printConnectAccountHelp();
+    return;
+  }
+  if (subcommand !== "proton") {
+    throw new Error(`Unknown connect-account provider '${subcommand}'. Run 'openmates connect-account --help'.`);
+  }
+  if (!client.hasSession()) {
+    throw new Error("Not logged in. Run `openmates login` before connecting Proton Mail.");
+  }
+  const result = await runProtonBridgeConnector(
+    client,
+    { write: flags.write === true, flags },
+    {
+      confirmWriteMode: async () => {
+        console.log(buildProtonWriteWarning());
+        const answer = await promptPlainText("Type ENABLE WRITE to continue: ");
+        return answer.trim() === "ENABLE WRITE";
+      },
+    },
+  );
+  if (flags.json === true) {
+    printJson({
+      connected_account_id: result.connectedAccountId,
+      connector_session_id: result.connectorSessionId,
+      capabilities: result.capabilities,
+    });
+    return;
+  }
+  console.log("Proton Mail connector is online.");
+  console.log(`Connected account: ${result.connectedAccountId}`);
+}
+
+async function promptPlainText(question: string): Promise<string> {
+  const rl = createInterface({ input: stdin, output: stdout });
+  try {
+    return await rl.question(question);
+  } finally {
+    rl.close();
+  }
+}
+
 async function writeSecretFile(filePath: string, content: string, force = false): Promise<string> {
   const { mkdir, writeFile, stat } = await import("node:fs/promises");
   const { dirname } = await import("node:path");
@@ -6169,17 +6232,29 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
   const credits =
     typeof res.credits_charged === "number" ? res.credits_charged : null;
 
+  if (str(data.status) === "waiting_for_client" && data.pending_client_search && typeof data.pending_client_search === "object") {
+    const pending = data.pending_client_search as Record<string, unknown>;
+    header(`${capitalise(app)} › ${capitalise(skill)}${credits !== null ? `  \x1b[2m(${credits} credits)\x1b[0m` : ""}\n`);
+    console.log("Waiting for a connected task client to search encrypted local task content.");
+    const requestId = str(pending.request_id);
+    if (requestId) kv("request", requestId, 12);
+    if (pending.notification_queued === true) kv("notification", "queued", 12);
+    return;
+  }
+
   // ── Grouped results: { results: [{ id, results: [...] }] } ──────────────
-  // This is the standard shape for all skill responses with request arrays.
+  // This is the standard shape for request-array skills. App-skill embed
+  // responses can also return a flat results array of child task/workflow items.
   type ResultItem = Record<string, unknown>;
   const topResults = data?.results as ResultItem[] | undefined;
   if (Array.isArray(topResults)) {
-    let totalItems = 0;
+    const resultItems: ResultItem[] = [];
     for (const group of topResults) {
       const items = group.results as ResultItem[] | undefined;
-      if (Array.isArray(items)) totalItems += items.length;
+      if (Array.isArray(items)) resultItems.push(...items);
+      else resultItems.push(group);
     }
-    if (totalItems === 0) {
+    if (resultItems.length === 0) {
       header(
         `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${credits !== null ? `${credits} credits` : "no results"})\x1b[0m\n`,
       );
@@ -6202,18 +6277,14 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
       if (provider) console.log(`\x1b[2mProvider: ${provider}\x1b[0m`);
       return;
     }
-    if (totalItems > 0) {
+    if (resultItems.length > 0) {
       header(
-        `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${totalItems} result${totalItems !== 1 ? "s" : ""}${credits !== null ? `, ${credits} credits` : ""})\x1b[0m\n`,
+        `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${resultItems.length} result${resultItems.length !== 1 ? "s" : ""}${credits !== null ? `, ${credits} credits` : ""})\x1b[0m\n`,
       );
       let resultNum = 0;
-      for (const group of topResults) {
-        const items = group.results as ResultItem[] | undefined;
-        if (!Array.isArray(items)) continue;
-        for (const item of items) {
-          resultNum += 1;
-          printSkillResultItem(item, resultNum, totalItems);
-        }
+      for (const item of resultItems) {
+        resultNum += 1;
+        printSkillResultItem(item, resultNum, resultItems.length);
       }
 
       // ── Provider info ──────────────────────────────────────────────────
@@ -6270,6 +6341,30 @@ function printSkillResultItem(
 ): void {
   const itemType = str(item.type);
   const numLabel = total > 1 ? `\x1b[36m[${num}]\x1b[0m ` : "";
+
+  // ── OpenMates task child embed result ───────────────────────────────────
+  if (itemType === "task") {
+    const title = str(item.title) ?? "Untitled task";
+    const taskId = str(item.short_id) ?? str(item.task_id) ?? "unknown-task";
+    const summary = [str(item.status), str(item.assignee) ? `assignee: ${str(item.assignee)}` : null]
+      .filter(Boolean)
+      .join(" · ");
+    console.log(`${numLabel}\x1b[1mtask · ${taskId} · ${title}\x1b[0m${summary ? `  ${summary}` : ""}`);
+    console.log(`\x1b[2m  → openmates tasks show ${taskId}\x1b[0m`);
+    console.log("");
+    return;
+  }
+
+  // ── OpenMates workflow child embed result ───────────────────────────────
+  if (itemType === "workflow") {
+    const title = str(item.title) ?? "Untitled workflow";
+    const workflowId = str(item.workflow_id) ?? str(item.id) ?? "unknown-workflow";
+    const status = str(item.status);
+    console.log(`${numLabel}\x1b[1mworkflow · ${title}\x1b[0m${status ? `  ${status}` : ""}`);
+    console.log(`\x1b[2m  → openmates workflows show ${workflowId}\x1b[0m`);
+    console.log("");
+    return;
+  }
 
   // ── Connection (travel flights/trains) ─────────────────────────────────
   if (itemType === "connection") {
@@ -7152,6 +7247,7 @@ Commands:
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Predefined settings commands
   openmates connected-accounts [--help]      Connected account import helpers
+  openmates connect-account [--help]         Local connected-account setup helpers
   openmates learning-mode [--help]           Account-wide Learning Mode controls
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
@@ -7232,6 +7328,24 @@ Options:
 
 Security:
   Do not pass the passcode as a flag. It is always entered through a hidden prompt.`);
+}
+
+function printConnectAccountHelp(): void {
+  console.log(`Connect account commands:
+  openmates connect-account proton [--write] [--json]
+
+Starts a local Proton Mail Bridge connector for OpenMates Mail. Proton Bridge
+owns Proton login. OpenMates never asks for your Proton account password.
+
+Proton connector behavior:
+  Read-only by default.
+  Active only while this CLI process keeps running.
+  Use screen, tmux, or zellij for long-lived terminal sessions.
+  Bridge IMAP/SMTP credentials stay local to this process and are not stored in OpenMates cloud.
+
+Options:
+  --write  Enable Proton Mail send capability after confirmation. Sends are delayed 30 seconds for undo.
+  --json   Output a redacted JSON summary`);
 }
 
 function printFeedbackHelp(): void {

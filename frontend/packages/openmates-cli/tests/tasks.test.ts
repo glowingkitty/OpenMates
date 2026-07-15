@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OpenMatesClient, type UserTaskCreateInput } from "../src/client.ts";
+import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
 import { findTask, type DecryptedUserTask } from "../src/tasksCli.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
@@ -119,5 +120,27 @@ describe("OpenMatesClient user tasks", () => {
 
     assert.throws(() => findTask(tasks, "TASK-1234"), /ambiguous/);
     assert.equal(findTask(tasks, "task-2").taskId, "task-2");
+  });
+
+  it("formats task child embeds for CLI output", () => {
+    const lines = formatEmbedPreviewLines({
+      embedId: "task-embed-12345678",
+      type: "tasks-task",
+      status: "finished",
+      content: {
+        type: "task",
+        title: "Draft launch announcement",
+        short_id: "TASK-42",
+        status: "todo",
+        assignee: "openmates",
+      },
+    });
+
+    assert.equal(lines[0], "┌─ ✓ task · TASK-42 · Draft launch announcement");
+    assert.deepEqual(lines.slice(1, 4), [
+      "│  Status: todo",
+      "│  Assignee: openmates",
+      "└─ openmates tasks show TASK-42",
+    ]);
   });
 });

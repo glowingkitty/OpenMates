@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { OpenMatesClient, type WorkflowGraph } from "../src/client.ts";
+import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown; headers: IncomingMessage["headers"] };
@@ -87,6 +88,27 @@ async function withServer(
 }
 
 describe("OpenMatesClient workflows", () => {
+  it("formats workflow child embeds for CLI output", () => {
+    const lines = formatEmbedPreviewLines({
+      embedId: "workflow-embed-12345678",
+      type: "workflows-workflow",
+      status: "finished",
+      content: {
+        type: "workflow",
+        workflow_id: "wf-1",
+        title: "Morning weather",
+        status: "draft",
+      },
+    });
+
+    assert.equal(lines[0], "┌─ ✓ workflow · Morning weather");
+    assert.deepEqual(lines.slice(1, 4), [
+      "│  Status: draft",
+      "│  ID: wf-1",
+      "└─ openmates workflows show wf-1",
+    ]);
+  });
+
   it("creates, lists, and updates workflows through typed endpoints", async () => {
     const graph = minimalGraph();
     await withServer(
