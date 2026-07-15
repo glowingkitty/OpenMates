@@ -12,9 +12,11 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { Header, Settings, Notification, WorkspaceHomeShell, WorkspaceReportIssueButton, WorkflowDetailPage, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, workflowWorkspaceStore } from '@repo/ui';
+  import { Header, Settings, Notification, WorkspaceHomeShell, WorkspaceReportIssueButton, WorkflowDetailPage, WorkflowTemplateShare, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
+  import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
+  import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
   import { userProfile } from '@repo/ui/stores/userProfile';
-  import type { DailyInspiration, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowRun, WorkflowSummary } from '@repo/ui';
+  import type { DailyInspiration, ImportedWorkflowTemplate, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowRun, WorkflowSummary, WorkflowTemplateBindingRequirement } from '@repo/ui';
 
   type WorkflowContinueItem = {
     id: string;
@@ -102,6 +104,7 @@
   let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
   let routeWorkflowId = $derived(page.params.workflow_id ?? null);
   let isManageView = $derived(!!routeWorkflowId || page.url.searchParams.get('view') === 'manage');
+  let isRunsView = $derived(page.url.pathname.endsWith('/runs'));
   let requestedWorkflowId = $derived(routeWorkflowId ?? page.url.searchParams.get('workflow'));
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
@@ -233,6 +236,7 @@
         enabled,
         runContentRetention,
       });
+      await maintainTemplateProjection(workflow);
       await selectWorkflow(workflow.id);
       await goto(`/workflows/${encodeURIComponent(workflow.id)}`);
     } catch (createError) {
@@ -256,6 +260,34 @@
     }
   }
 
+  async function runSelectedWorkflow() {
+    if (!selectedWorkflow) return;
+    saving = true;
+    routeError = null;
+    try {
+      await workflowWorkspaceStore.runWorkflow(selectedWorkflow.id);
+      await goto(`/workflows/${encodeURIComponent(selectedWorkflow.id)}/runs`);
+    } catch (runError) {
+      routeError = runError instanceof Error ? runError.message : 'Failed to run workflow.';
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function deleteSelectedWorkflow() {
+    if (!selectedWorkflow || !window.confirm(`Delete “${selectedWorkflow.title}”? This cannot be undone.`)) return;
+    saving = true;
+    routeError = null;
+    try {
+      await workflowWorkspaceStore.deleteWorkflow(selectedWorkflow.id);
+      await goto('/workflows');
+    } catch (deleteError) {
+      routeError = deleteError instanceof Error ? deleteError.message : 'Failed to delete workflow.';
+    } finally {
+      saving = false;
+    }
+  }
+
   async function saveSelectedWorkflow() {
     if (!selectedWorkflow || !editorGraph) return;
     saving = true;
@@ -268,11 +300,38 @@
         run_content_retention: selectedRunContentRetention
       });
       resetEditor(workflow);
+      await maintainTemplateProjection(workflow);
     } catch (saveError) {
       routeError = saveError instanceof Error ? saveError.message : 'Failed to save workflow.';
     } finally {
       saving = false;
     }
+  }
+
+  async function maintainTemplateProjection(workflow: WorkflowDetail): Promise<void> {
+    try {
+      await upsertWorkflowTemplateProjection(workflow);
+    } catch (projectionError) {
+      const message = projectionError instanceof Error ? projectionError.message : 'Could not update the encrypted workflow template projection.';
+      routeError = `Workflow saved, but its shareable template was not updated: ${message}`;
+    }
+  }
+
+  async function handleWorkflowVersionRestored(workflow: WorkflowDetail): Promise<void> {
+    resetEditor(workflow);
+    await maintainTemplateProjection(workflow);
+  }
+
+  async function unavailableTemplateImport(): Promise<ImportedWorkflowTemplate | null> {
+    return null;
+  }
+
+  async function unavailableTemplateBinding(_requirement: WorkflowTemplateBindingRequirement): Promise<void> {
+    return;
+  }
+
+  async function unavailableTemplateEnable(): Promise<void> {
+    return;
   }
 
   function rainAlertGraph(): WorkflowGraph {
@@ -702,9 +761,31 @@
               onSaveWorkflow={saveSelectedWorkflow}
               onUndoWorkflow={undoEditorChanges}
               onCreateWorkflow={createBlankWorkflow}
+              onRunWorkflow={runSelectedWorkflow}
+              onDeleteWorkflow={deleteSelectedWorkflow}
+              runsHref={`/workflows/${encodeURIComponent(selectedWorkflow.id)}/runs`}
             />
 
-            <div class="workflow-editor" data-testid="workflow-editor">
+            {#if isRunsView}
+              <WorkflowRunHistory
+                {runs}
+                editorHref={`/workflows/${encodeURIComponent(selectedWorkflow.id)}`}
+              />
+            {:else}
+              <WorkflowTemplateShare
+                ownerWorkflow={selectedWorkflow}
+                disabled={saving || editorDirty}
+                onImport={unavailableTemplateImport}
+                onCompleteBinding={unavailableTemplateBinding}
+                onEnable={unavailableTemplateEnable}
+              />
+              <WorkflowVersionHistory
+                workflow={selectedWorkflow}
+                disabled={saving || editorDirty}
+                onRestored={handleWorkflowVersionRestored}
+              />
+
+              <div class="workflow-editor" data-testid="workflow-editor">
               <div class="node-stack shortcut-flow" data-testid="workflow-node-stack">
                 {#each flowItems(editorGraph) as item (item.id)}
                   {#if item.kind === 'connector'}
@@ -878,21 +959,8 @@
                 <button type="button" data-testid="add-push-node" onclick={() => appendNode('send_notification')}>Add push</button>
                 <button type="button" data-testid="add-email-node" onclick={() => appendNode('send_email_notification')}>Add email</button>
               </div>
-            </div>
-
-            <div class="runs-panel" data-testid="workflow-runs">
-              <h3>Run history</h3>
-              {#if runs.length === 0}
-                <p class="empty-copy">No workflow runs yet.</p>
-              {:else}
-                {#each runs as run (run.id)}
-                  <div class="run-row" data-testid="workflow-run-row">
-                    <strong>{run.status}</strong>
-                    <span>{run.trigger_type} - {run.node_runs?.length ?? 0} nodes - {run.content_available === false ? 'content unavailable' : `${run.content_storage ?? 'unknown'} ${run.content_retention_mode ?? 'last_5'}`}</span>
-                  </div>
-                {/each}
-              {/if}
-            </div>
+              </div>
+            {/if}
           {:else}
             <div class="empty-detail">
               <h2>Build your first workflow</h2>
@@ -1058,13 +1126,6 @@
   .show-all-button {
     color: var(--color-font-primary);
     background: var(--color-grey-20);
-  }
-
-  .empty-copy,
-  .run-row span {
-    margin: 0;
-    color: var(--color-font-secondary);
-    font-size: 0.9rem;
   }
 
   .workflow-detail {
@@ -1323,20 +1384,6 @@
   .node-note {
     margin: 0;
     color: var(--color-font-secondary);
-  }
-
-  .runs-panel {
-    margin-block-start: 22px;
-    padding: 18px 22px 22px;
-    border-block-start: 1px solid var(--color-grey-20);
-  }
-
-  .run-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 0;
-    border-block-end: 1px solid var(--color-grey-10);
   }
 
   .error-banner {

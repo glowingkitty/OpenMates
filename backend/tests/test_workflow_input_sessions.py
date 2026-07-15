@@ -14,9 +14,19 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
-from backend.core.api.app.services.workflow_input_service import WorkflowInputEvent, WorkflowInputMutation, WorkflowInputService
-from backend.tests.test_workflows_models import rain_graph
+from backend.core.api.app.routes.workflows import WorkflowInputStartRequest
+from backend.core.api.app.services.workflow_input_service import (
+    WORKFLOW_INPUT_PLANNER_UNAVAILABLE,
+    WORKFLOW_INPUT_SESSION_STATE_INVALID,
+    WORKFLOW_INPUT_TRANSCRIPTION_UNAVAILABLE,
+    DirectusWorkflowInputRepository,
+    WorkflowInputEvent,
+    WorkflowInputMutation,
+    WorkflowInputService,
+)
+from backend.tests.test_workflows_models import FakeDirectusClient, rain_graph
 from backend.tests.workflow_test_utils import workflow_service
 
 
@@ -61,29 +71,61 @@ class FakeWorkflowInputRepository:
         self.events: list[WorkflowInputEvent] = []
         self.mutations: list[WorkflowInputMutation] = []
 
-    def save_session(self, session: dict[str, Any]) -> None:
+    def save_session(self, session: dict[str, Any], vault_key_id: str | None) -> None:
+        del vault_key_id
         self.sessions[session["id"]] = dict(session)
 
-    def get_session(self, session_id: str, user_id: str) -> dict[str, Any] | None:
+    def get_session(self, session_id: str, user_id: str, vault_key_id: str | None) -> dict[str, Any] | None:
+        del vault_key_id
         session = self.sessions.get(session_id)
         if not session or session["user_id"] != user_id:
             return None
         return session
 
-    def save_event(self, event: WorkflowInputEvent, user_id: str) -> None:
-        del user_id
+    def save_event(self, event: WorkflowInputEvent, user_id: str, vault_key_id: str | None) -> None:
+        del user_id, vault_key_id
         self.events.append(event)
 
-    def list_events(self, session_id: str, user_id: str, after_event_id: int = 0) -> list[WorkflowInputEvent]:
-        session = self.get_session(session_id, user_id)
+    def list_events(
+        self,
+        session_id: str,
+        user_id: str,
+        after_event_id: int,
+        vault_key_id: str | None,
+    ) -> list[WorkflowInputEvent]:
+        session = self.get_session(session_id, user_id, vault_key_id)
         if not session:
             return []
         return [event for event in self.events if event.session_id == session_id and event.event_id > after_event_id]
 
-    def save_mutation(self, mutation: WorkflowInputMutation, session_id: str, user_id: str) -> None:
-        del session_id, user_id
+    def save_mutation(
+        self,
+        mutation: WorkflowInputMutation,
+        session_id: str,
+        user_id: str,
+        vault_key_id: str | None,
+    ) -> None:
+        del session_id, user_id, vault_key_id
         self.mutations = [item for item in self.mutations if item.id != mutation.id]
         self.mutations.append(mutation)
+
+    def list_mutations(self, session_id: str, user_id: str, vault_key_id: str | None) -> list[WorkflowInputMutation]:
+        session = self.get_session(session_id, user_id, vault_key_id)
+        if not session:
+            return []
+        return list(self.mutations)
+
+
+def test_workflow_input_request_requires_one_strict_input_source() -> None:
+    assert WorkflowInputStartRequest(text="Create a workflow").input_type == "text"
+    assert WorkflowInputStartRequest(input_type="audio", audio_ref={"id": "audio-1"}).audio_ref == {"id": "audio-1"}
+
+    with pytest.raises(ValidationError):
+        WorkflowInputStartRequest(text="Create a workflow", audio_ref={"id": "audio-1"})
+    with pytest.raises(ValidationError):
+        WorkflowInputStartRequest(input_type="audio", audio_ref={"id": 1})
+    with pytest.raises(ValidationError):
+        WorkflowInputStartRequest(text="Create a workflow", unexpected=True)
 
 
 def test_text_workflow_input_creates_durable_session_and_streams_events() -> None:
@@ -109,13 +151,13 @@ def test_text_workflow_input_creates_durable_session_and_streams_events() -> Non
     assert [event.type for event in input_service.events(result.session_id)] == [
         "input_received",
         "planning_started",
+        "validation_passed",
         "assumption",
         "draft_node_added",
         "draft_node_added",
         "draft_node_added",
         "draft_node_added",
         "draft_node_added",
-        "validation_passed",
         "committed",
     ]
     status = input_service.status(result.session_id)
@@ -140,6 +182,37 @@ def test_workflow_input_persists_session_events_and_mutations() -> None:
     assert repository.mutations[0].type == "create_workflow"
     assert input_service.status(result.session_id, user_id="alice").status == "executed"
     assert [event.event_id for event in input_service.events(result.session_id, after_event_id=8, user_id="alice")] == [9]
+
+
+def test_directus_workflow_input_persists_sensitive_state_only_in_vault_blobs() -> None:
+    service = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=service.payload_cipher)
+    fake_client = FakeDirectusClient()
+    repository._client = fake_client
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        planner=QueuePlanner([{"action": "create_workflow", "title": "Private rain plan", "graph": rain_graph()}]),
+        repository=repository,
+    )
+
+    result = input_service.start(user_id="alice", text="Create a private rain alert")
+    raw_session = fake_client.collections["workflow_input_sessions"][result.session_id]
+    raw_event_rows = fake_client.collections["workflow_input_events"]
+    raw_mutation_rows = fake_client.collections["workflow_input_mutations"]
+    raw_blob_rows = fake_client.collections["workflow_encrypted_blobs"]
+
+    assert "record_json" not in raw_session
+    assert raw_session["encrypted_state_ref"].startswith("vault://workflows/workflow_input_session/")
+    assert all("payload_json" not in row for row in raw_event_rows.values())
+    assert all("before_json" not in row and "after_json" not in row for row in raw_mutation_rows.values())
+    assert "Create a private rain alert" not in str(raw_session)
+    assert "Private rain plan" not in str(raw_mutation_rows)
+    assert "Private rain plan" not in str(raw_blob_rows)
+
+    input_service._sessions.clear()
+    restored = input_service.status(result.session_id, user_id="alice")
+    assert restored.workflow is not None
+    assert restored.workflow.title == "Private rain plan"
 
 
 def test_workflow_input_sanitizes_ascii_smuggling_before_planner_use() -> None:
@@ -179,10 +252,7 @@ def test_invalid_generated_nodes_are_rejected_before_commit() -> None:
 
 def test_stop_followup_and_undo_are_session_scoped() -> None:
     service = workflow_service()
-    planner = QueuePlanner([
-        {"action": "draft", "draft_graph": rain_graph()},
-        {"action": "create_workflow", "title": "Rain at 8", "graph": rain_graph(), "enabled": False},
-    ])
+    planner = QueuePlanner([{"action": "draft", "draft_graph": rain_graph()}])
     input_service = WorkflowInputService(workflow_service=service, planner=planner)
 
     draft = input_service.start(user_id="alice", text="Create a rain workflow")
@@ -191,14 +261,31 @@ def test_stop_followup_and_undo_are_session_scoped() -> None:
     assert stopped.status == "stopped"
     assert service.list_workflows("alice") == []
 
-    committed = input_service.follow_up(user_id="alice", session_id=draft.session_id, text="Actually run it at 8")
-    assert committed.status == "executed"
-    assert [workflow.title for workflow in service.list_workflows("alice")] == ["Rain at 8"]
+    rejected = input_service.follow_up(user_id="alice", session_id=draft.session_id, text="Actually run it at 8")
+    assert rejected.status == "stopped"
+    assert rejected.error_code == WORKFLOW_INPUT_SESSION_STATE_INVALID
+    assert service.list_workflows("alice") == []
 
     undone = input_service.undo(user_id="alice", session_id=draft.session_id)
+    assert undone.status == "stopped"
+    assert undone.error_code == "WORKFLOW_INPUT_UNDO_UNAVAILABLE"
+
+
+def test_undo_reverts_an_executed_workflow_creation() -> None:
+    service = workflow_service()
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        planner=QueuePlanner([{"action": "create_workflow", "title": "Rain at 8", "graph": rain_graph()}]),
+    )
+
+    committed = input_service.start(user_id="alice", text="Create a rain workflow")
+    assert committed.status == "executed"
+    assert committed.undo_available is True
+
+    undone = input_service.undo(user_id="alice", session_id=committed.session_id)
     assert undone.status == "undone"
+    assert undone.undo_available is False
     assert service.list_workflows("alice") == []
-    assert [event.type for event in input_service.events(draft.session_id)][-1] == "undone"
 
 
 def test_project_workflow_linking_validates_workflow_ownership() -> None:
@@ -255,6 +342,20 @@ def test_audio_input_transcribes_before_planning() -> None:
         "transcript_ready",
         "input_received",
     ]
+
+
+def test_unconfigured_planner_and_transcriber_are_visible_typed_failures() -> None:
+    service = workflow_service()
+    input_service = WorkflowInputService(workflow_service=service)
+
+    planner_result = input_service.start(user_id="alice", text="Create a rain alert")
+    assert planner_result.status == "failed"
+    assert planner_result.error_code == WORKFLOW_INPUT_PLANNER_UNAVAILABLE
+    assert input_service.events(planner_result.session_id)[-1].type == "capability_unavailable"
+
+    transcription_result = input_service.start(user_id="alice", input_type="audio", audio_ref={"id": "audio-1"})
+    assert transcription_result.status == "failed"
+    assert transcription_result.error_code == WORKFLOW_INPUT_TRANSCRIPTION_UNAVAILABLE
 
 
 def test_wrong_user_cannot_stop_or_undo_a_session() -> None:

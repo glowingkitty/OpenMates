@@ -52,6 +52,30 @@ export type WorkflowSummary = {
 
 export type WorkflowDetail = WorkflowSummary & { graph: WorkflowGraph };
 
+export type WorkflowVersionSummary = {
+  version_id: string;
+  version_number: number;
+  created_at: number;
+  created_by_client: string;
+  graph_hash: string;
+  restored_from_version_id?: string | null;
+  current: boolean;
+  change_summary?: Record<string, unknown> | null;
+};
+
+export type WorkflowVersionDetail = WorkflowVersionSummary & {
+  graph: WorkflowGraph;
+};
+
+export type WorkflowVersionHistory = {
+  versions: WorkflowVersionSummary[];
+  current_version_id: string;
+  retention: {
+    mode: string;
+    max_versions: number;
+  };
+};
+
 export type WorkflowRun = {
   id: string;
   status: string;
@@ -340,6 +364,28 @@ export const workflowWorkspaceStore = {
       method: "PATCH",
       body: JSON.stringify(payload),
     });
+    assertCurrentGeneration(requestGeneration);
+    this.upsertWorkflow(data.workflow);
+    return data.workflow;
+  },
+
+  async getWorkflowVersions(workflowId: string): Promise<WorkflowVersionHistory> {
+    return workflowApiRequest<WorkflowVersionHistory>(`/v1/workflows/${encodeURIComponent(workflowId)}/versions`);
+  },
+
+  async getWorkflowVersion(workflowId: string, versionId: string): Promise<WorkflowVersionDetail> {
+    const data = await workflowApiRequest<{ version: WorkflowVersionDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}`,
+    );
+    return data.version;
+  },
+
+  async restoreWorkflowVersion(workflowId: string, versionId: string): Promise<WorkflowDetail> {
+    const requestGeneration = cacheGeneration;
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}/restore`,
+      { method: "POST", body: JSON.stringify({}) },
+    );
     assertCurrentGeneration(requestGeneration);
     this.upsertWorkflow(data.workflow);
     return data.workflow;

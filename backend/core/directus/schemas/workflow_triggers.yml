@@ -19,6 +19,9 @@ workflow_triggers:
     hashed_user_id:
       type: string
       note: "[Indexed] SHA256(user_id) of the owner."
+    owner_user_id:
+      type: string
+      note: "[Internal scheduler only] Raw owner id returned only by the authenticated transaction claim endpoint; never expose from public workflow models."
     hashed_project_id:
       type: string
       note: "[Indexed, Nullable] SHA256(project_id) when the trigger is project-scoped."

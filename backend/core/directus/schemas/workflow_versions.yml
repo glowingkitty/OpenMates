@@ -32,6 +32,12 @@ workflow_versions:
     created_by_client:
       type: string
       note: "web, cli, npm, pip, apple, or system."
+    restored_from_version_id:
+      type: string
+      note: "Nullable immutable source version when this version was restored."
+    pruned_at:
+      type: integer
+      note: "Nullable Unix timestamp when version retention made this snapshot unavailable."
     created_at:
       type: integer
       note: "Unix timestamp."

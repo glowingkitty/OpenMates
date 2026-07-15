@@ -1,6 +1,6 @@
 # backend/core/directus/schemas/workflow_input_mutations.yml
-# Workflow-input mutations are the durable undo ledger. Full normalized snapshots
-# are stored in record_json fields and must not include plaintext secrets.
+# Workflow-input mutations are the durable undo ledger. Before/after snapshots
+# are owner-encrypted Automation Vault blobs, never Directus JSON fields.
 workflow_input_mutations:
   type: collection
   fields:
@@ -22,12 +22,18 @@ workflow_input_mutations:
     target_id:
       type: string
       note: "Target identifier for undo."
-    before_json:
-      type: json
-      note: "Nullable normalized pre-mutation snapshot."
-    after_json:
-      type: json
-      note: "Nullable normalized post-mutation snapshot."
+    encrypted_before_ref:
+      type: string
+      note: "Nullable Automation Vault reference for the pre-mutation snapshot."
+    encrypted_before_checksum:
+      type: string
+      note: "Nullable SHA256 checksum for the pre-mutation snapshot."
+    encrypted_after_ref:
+      type: string
+      note: "Nullable Automation Vault reference for the post-mutation snapshot."
+    encrypted_after_checksum:
+      type: string
+      note: "Nullable SHA256 checksum for the post-mutation snapshot."
     undone_at:
       type: integer
       note: "Nullable Unix timestamp when the mutation was undone."

@@ -13,9 +13,16 @@ import json
 
 import pytest
 
-from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository
+from backend.core.api.app.services.workflow_service import (
+    DirectusWorkflowRepository,
+    InMemoryWorkflowRepository,
+    WorkflowBindingRequirementsUnresolvedError,
+    WorkflowNotFoundError,
+)
+from backend.tests.test_workflows_models import FakeDirectusClient
 from backend.core.api.app.services.workflow_template_service import (
     WorkflowTemplateImportError,
+    WorkflowTemplateProjectionRevokedError,
     WorkflowTemplateProjectionService,
     WorkflowTemplateProjectionStaleError,
 )
@@ -84,6 +91,81 @@ def test_projection_persists_opaque_client_ciphertext_and_rejects_stale_snapshot
             owner_wrapped_key="owner:new-wrapped-template-key",
             projection_schema_version=1,
         )
+
+
+def test_public_projection_retrieval_excludes_keys_and_respects_owner_revocation() -> None:
+    service, runtime_service = projection_service()
+    workflow = runtime_service.create_workflow("alice", "Daily rain alert", rain_graph())
+    service.upsert_projection(
+        workflow.id,
+        "alice",
+        template_id="template-rain-v1",
+        source_version=workflow.version,
+        ciphertext="client:aes-gcm:ciphertext",
+        ciphertext_checksum="sha256:opaque-ciphertext",
+        owner_wrapped_key="owner:wrapped-template-key",
+        projection_schema_version=1,
+    )
+
+    response = service.get_public_projection("template-rain-v1").model_dump()
+
+    assert response == {
+        "template_id": "template-rain-v1",
+        "ciphertext": "client:aes-gcm:ciphertext",
+        "ciphertext_checksum": "sha256:opaque-ciphertext",
+        "projection_schema_version": 1,
+    }
+    assert "owner_wrapped_key" not in response
+    assert "Daily rain alert" not in json.dumps(response, sort_keys=True)
+
+    with pytest.raises(WorkflowNotFoundError):
+        service.revoke_projection(workflow.id, "bob")
+
+    service.revoke_projection(workflow.id, "alice")
+    with pytest.raises(WorkflowTemplateProjectionRevokedError):
+        service.get_public_projection("template-rain-v1")
+
+    service.unrevoke_projection(workflow.id, "alice")
+    assert service.get_public_projection("template-rain-v1").ciphertext == "client:aes-gcm:ciphertext"
+
+
+def test_projection_revocation_is_durable_in_directus_projection_storage() -> None:
+    repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
+    directus = FakeDirectusClient()
+    setattr(repository, "_client", directus)
+    runtime_service = workflow_service(repository=repository)
+    service = WorkflowTemplateProjectionService(runtime_service)
+    workflow = runtime_service.create_workflow("alice", "Daily rain alert", rain_graph())
+    service.upsert_projection(
+        workflow.id,
+        "alice",
+        template_id="template-rain-v1",
+        source_version=workflow.version,
+        ciphertext="client:aes-gcm:ciphertext",
+        ciphertext_checksum="sha256:opaque-ciphertext",
+        owner_wrapped_key="owner:wrapped-template-key",
+        projection_schema_version=1,
+    )
+
+    service.revoke_projection(workflow.id, "alice")
+    stored_projection = next(iter(directus.collections["workflow_template_projections"].values()))
+    assert isinstance(stored_projection["revoked_at"], int)
+
+    service.unrevoke_projection(workflow.id, "alice")
+    assert stored_projection["revoked_at"] is None
+
+
+def test_imported_workflow_cannot_enable_from_an_unverified_binding_completion_claim() -> None:
+    service, runtime_service = projection_service()
+    imported = service.import_template("bob", template_payload())
+
+    with pytest.raises(WorkflowBindingRequirementsUnresolvedError) as exc_info:
+        runtime_service.update_workflow(imported.workflow.id, "bob", enabled=True)
+    assert exc_info.value.unresolved_binding_requirements == imported.binding_requirements
+    stored_workflow = runtime_service.repository.workflows[imported.workflow.id]
+    assert stored_workflow["binding_requirements"] == imported.binding_requirements
+
+    assert not hasattr(runtime_service, "complete_import_binding")
 
 
 def test_template_import_rejects_runtime_fields_and_creates_disabled_recipient_workflow() -> None:

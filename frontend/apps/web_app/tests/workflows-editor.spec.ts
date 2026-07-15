@@ -68,8 +68,9 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-retention-select')).toHaveCount(0);
 			await expect(page.getByTestId('selected-workflow-retention')).toHaveCount(0);
 			await expect(page.getByTestId('selected-workflow-retention-select')).toHaveCount(0);
-			await expect(page.getByTestId('run-workflow')).toHaveCount(0);
-			await expect(page.getByTestId('delete-workflow')).toHaveCount(0);
+			await expect(page.getByTestId('run-workflow')).toBeVisible();
+			await expect(page.getByTestId('delete-workflow')).toBeVisible();
+			await expect(page.getByTestId('workflow-run-history')).toHaveAttribute('href', /\/workflows\/[^/?#]+\/runs$/);
 			await expect(page.getByTestId('workflow-action-palette')).toContainText('Add action');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('then');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('If true:');
@@ -97,6 +98,26 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
 			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
 			await expect(page.getByTestId('undo-workflow')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-version-history')).toBeVisible();
+			await expect(page.getByTestId('workflow-version-history-retention')).toContainText('Keeps up to 25 definitions');
+			const historicalVersion = page.locator('[data-testid="workflow-version-row"][data-current="false"]').first();
+			await expect(historicalVersion).toBeVisible();
+			await historicalVersion.click();
+			await expect(page.getByTestId('workflow-version-graph-inspection')).toBeVisible();
+			await expect(page.getByTestId('workflow-version-inspection-node')).toHaveCount(6);
+			await page.getByTestId('workflow-version-restore').click();
+			await expect(page.getByTestId('workflow-version-restore-confirmation')).toContainText('creates a new current version');
+			await page.route('**/v1/workflows/*/versions/*/restore', (route) => route.fulfill({ status: 500, json: { detail: 'restore failed' } }), { times: 1 });
+			await page.getByTestId('workflow-version-restore-confirm').click();
+			await expect(page.getByTestId('workflow-version-error')).toBeVisible();
+			const restoreResponse = page.waitForResponse(
+				(response) => response.url().includes('/versions/') && response.url().endsWith('/restore') && response.request().method() === 'POST' && response.ok(),
+				{ timeout: 30000 }
+			);
+			await page.getByTestId('workflow-version-restore-confirm').click();
+			await restoreResponse;
+			await expect(page.getByTestId('workflow-version-restored')).toContainText('new current version');
+			await expect(page.locator('[data-testid="workflow-version-row"][data-current="true"]')).toHaveCount(1);
 			await expect(page.getByTestId('toggle-workflow')).toBeVisible();
 			await expect(page.getByTestId('create-blank-workflow')).toBeVisible();
 		} finally {

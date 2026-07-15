@@ -78,6 +78,43 @@ def test_create_collection_preserves_string_primary_key(monkeypatch, tmp_path: P
     assert primary_field["schema"]["data_type"] == "varchar(64)"
 
 
+def test_create_collection_processes_all_top_level_collections(monkeypatch, tmp_path: Path) -> None:
+    setup_schemas = load_setup_schemas_module()
+    schema_file = tmp_path / "multi_collection.yml"
+    schema_file.write_text(
+        yaml.safe_dump(
+            {
+                "user_tasks": {
+                    "type": "collection",
+                    "fields": {"encrypted_title": {"type": "text"}},
+                },
+                "user_task_key_wrappers": {
+                    "type": "collection",
+                    "fields": {"encrypted_task_key": {"type": "text"}},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    posted_collections: list[str] = []
+
+    monkeypatch.setattr(setup_schemas, "collection_exists", lambda token, collection_name: False)
+    monkeypatch.setattr(setup_schemas, "create_or_update_field", lambda *args, **kwargs: False)
+
+    def fake_post(url: str, json: dict[str, Any], headers: dict[str, str]) -> FakeResponse:
+        posted_collections.append(json["collection"])
+        return FakeResponse(200)
+
+    monkeypatch.setattr(setup_schemas.requests, "post", fake_post)
+    monkeypatch.setattr(setup_schemas.time, "sleep", lambda seconds: None)
+
+    success, newly_created = setup_schemas.create_collection("token", str(schema_file))
+
+    assert success is True
+    assert newly_created is True
+    assert set(posted_collections) == {"user_tasks", "user_task_key_wrappers"}
+
+
 def test_repair_primary_field_metadata_removes_stale_uuid_special(monkeypatch) -> None:
     setup_schemas = load_setup_schemas_module()
     patched_payloads: list[dict[str, Any]] = []
@@ -163,6 +200,8 @@ def test_ensure_backend_collection_permissions_creates_missing_crud(monkeypatch)
         "anonymous_free_usage_reservations": {"create", "read", "update", "delete"},
         "free_testing_credit_grants": {"create", "read", "update", "delete"},
         "free_testing_credits_budget": {"create", "read", "update", "delete"},
+        "user_plan_key_wrappers": {"create", "read", "update", "delete"},
+        "user_task_key_wrappers": {"create", "read", "update", "delete"},
     }
 
 

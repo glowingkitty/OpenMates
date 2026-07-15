@@ -1,6 +1,6 @@
 # backend/core/directus/schemas/workflow_input_sessions.yml
-# Durable workflow-input sessions. User-authored text stays inside sanitized,
-# server-owned records and event payloads; list queries are always owner-hashed.
+# Durable workflow-input session reconnect metadata. All private session state,
+# including drafts and planner output, is stored in Automation Vault blobs.
 workflow_input_sessions:
   type: collection
   fields:
@@ -18,18 +18,15 @@ workflow_input_sessions:
     status:
       type: string
       note: "running, needs_clarification, draft, executed, stopped, undone, or failed."
-    selected_workflow_id:
-      type: string
-      note: "Nullable workflow id selected when the session started."
-    selected_project_id:
-      type: string
-      note: "Nullable project id selected when the session started."
     event_cursor:
       type: integer
       note: "Latest append-only event id for reconnect polling."
-    record_json:
-      type: json
-      note: "Server-owned normalized session snapshot, including sanitized metadata only."
+    encrypted_state_ref:
+      type: string
+      note: "Automation Vault reference for the private session state."
+    encrypted_state_checksum:
+      type: string
+      note: "SHA256 checksum for the encrypted private session state."
     created_at:
       type: integer
       note: "Unix timestamp."

@@ -19,6 +19,9 @@
     onSaveWorkflow,
     onUndoWorkflow,
     onCreateWorkflow,
+    onRunWorkflow,
+    onDeleteWorkflow,
+    runsHref,
   }: {
     title: string;
     description: string;
@@ -31,6 +34,9 @@
     onSaveWorkflow: () => void | Promise<void>;
     onUndoWorkflow: () => void;
     onCreateWorkflow: () => void | Promise<void>;
+    onRunWorkflow: () => void | Promise<void>;
+    onDeleteWorkflow: () => void | Promise<void>;
+    runsHref: string;
   } = $props();
 
   const metadataLabel = $derived(nextRunAt ? `Next run ${relativeTime(nextRunAt)}` : createdAt ? `Created ${relativeTime(createdAt)}` : 'Manual workflow');
@@ -56,6 +62,9 @@
       <button type="button" class="primary-action" data-testid="save-workflow" disabled={saving} onclick={() => void onSaveWorkflow()}>{saving ? 'Saving...' : 'Save'}</button>
     {/if}
     <button type="button" class="primary-action" data-testid="create-blank-workflow" disabled={saving} onclick={() => void onCreateWorkflow()}>New workflow</button>
+    <a class="secondary-action" data-testid="workflow-run-history" href={runsHref}>Run history</a>
+    <button type="button" class="secondary-action" data-testid="run-workflow" disabled={saving} onclick={() => void onRunWorkflow()}>Run now</button>
+    <button type="button" class="destructive-action" data-testid="delete-workflow" disabled={saving} onclick={() => void onDeleteWorkflow()}>Delete</button>
     <WorkspaceReportIssueButton />
   </div>
 
@@ -110,7 +119,8 @@
     gap: var(--spacing-4);
   }
 
-  .header-actions button {
+  .header-actions button,
+  .header-actions a {
     border: 0;
     border-radius: var(--radius-8);
     padding: var(--spacing-5) var(--spacing-8);
@@ -118,11 +128,17 @@
     background: var(--color-button-primary);
     font-weight: 800;
     cursor: pointer;
+    text-decoration: none;
   }
 
   .header-actions .secondary-action {
     color: var(--color-grey-0);
     background: color-mix(in srgb, var(--color-grey-0) 18%, transparent);
+  }
+
+  .header-actions .destructive-action {
+    color: var(--color-grey-0);
+    background: var(--color-danger, #b42318);
   }
 
   .header-actions button:disabled,

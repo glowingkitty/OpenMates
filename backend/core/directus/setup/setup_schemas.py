@@ -48,9 +48,16 @@ WORKFLOW_RUNTIME_MIGRATION_PATH = os.getenv(
 )
 WORKFLOW_RUNTIME_INDEXES = (
     'workflow_triggers_due_claim_idx',
+    'workflow_triggers_due_owner_idx',
+    'workflow_versions_version_id_uq',
     'workflow_runs_acceptance_identity_uq',
     'workflow_event_receipts_trigger_event_uq',
     'workflow_template_projections_workflow_uq',
+    'workflow_input_events_session_event_uq',
+    'workflow_input_sessions_owner_updated_idx',
+    'workflow_input_mutations_session_created_idx',
+    'workflow_assistant_proposals_proposal_id_uq',
+    'workflow_assistant_proposals_pending_expiry_idx',
 )
 
 BACKEND_PERMISSION_COLLECTIONS = (
@@ -59,6 +66,8 @@ BACKEND_PERMISSION_COLLECTIONS = (
     'anonymous_free_usage_reservations',
     'free_testing_credit_grants',
     'free_testing_credits_budget',
+    'user_plan_key_wrappers',
+    'user_task_key_wrappers',
 )
 BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
 BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')
@@ -618,9 +627,9 @@ def create_or_update_field(token, collection_name, field_name, field_config, is_
         return is_relation
 
 
-def create_collection(token, schema_file):
+def create_collection_from_config(token, collection_name, collection):
     """
-    Create collection from schema file, or update fields/relations for existing collections.
+    Create one collection from parsed schema config, or update missing fields/relations.
     
     Behavior:
     - For new collections: Creates the collection and all fields/relations
@@ -631,11 +640,6 @@ def create_collection(token, schema_file):
     Returns a tuple: (success: bool, newly_created: bool)
     """
     try:
-        with open(schema_file, 'r') as f:
-            schema = yaml.safe_load(f)
-        
-        # Get collection name from the first key in the schema
-        collection_name = list(schema.keys())[0]
         is_system_collection = collection_name.startswith('directus_')
         
         # Check if collection already exists
@@ -659,8 +663,6 @@ def create_collection(token, schema_file):
             else:
                 print(f"Creating new custom collection: {collection_name}")
                 create_new = True
-        
-        collection = schema[collection_name]
         
         # Create the collection if needed (non-system collections only)
         if create_new:
@@ -783,6 +785,43 @@ def create_collection(token, schema_file):
             print(f'Response status code: {e.response.status_code}')
             print(f'Response body: {e.response.text}')
         return False, False # Not successful, not newly created
+
+
+def create_collection(token, schema_file):
+    """
+    Create collections from a schema file, or update fields/relations for existing collections.
+    A single YAML file may define multiple top-level collections.
+
+    Behavior:
+    - For new collections: Creates the collection and all fields/relations
+    - For system collections (directus_*): Updates existing fields and adds missing ones
+    - For existing custom collections: Only adds missing fields (does not update existing ones
+      to preserve user changes)
+
+    Returns a tuple: (success: bool, newly_created: bool)
+    """
+    try:
+        with open(schema_file, 'r') as f:
+            schema = yaml.safe_load(f) or {}
+
+        if not isinstance(schema, dict) or not schema:
+            print(f"Schema file {schema_file} does not define any collections")
+            return False, False
+
+        overall_success = True
+        any_newly_created = False
+        for collection_name, collection in schema.items():
+            success, newly_created = create_collection_from_config(token, collection_name, collection or {})
+            overall_success = overall_success and success
+            any_newly_created = any_newly_created or newly_created
+
+        return overall_success, any_newly_created
+    except Exception as e:
+        print(f'Error processing schema file {schema_file}: {str(e)}')
+        if hasattr(e, 'response') and e.response is not None:
+            print(f'Response status code: {e.response.status_code}')
+            print(f'Response body: {e.response.text}')
+        return False, False
 
 
 def check_if_database_initialized(token):

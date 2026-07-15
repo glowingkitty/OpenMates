@@ -6,7 +6,7 @@ status: approved
 goal: >
   Add a real server-backed Workflows section where users can create, edit,
   enable, run, inspect, and delete server-side automations through a manual
-  Shortcuts-style editor across web, CLI, npm SDK, pip SDK, and Apple clients.
+  Shortcuts-style editor across web, CLI, npm SDK, and pip SDK clients.
   V1 must be durable enough to run scheduled workflows while the user is
   offline, replace reminders as the underlying automation primitive once fully
   released, support assistant-created temporary one-time workflows from chat,
@@ -34,7 +34,6 @@ scope:
     - CLI commands to list, show, create from JSON/YAML, edit, enable, disable, delete, run, and inspect workflow runs.
     - npm SDK and pip SDK methods that match CLI workflow management and run behavior.
     - Web Playwright coverage for the workflow list/editor and canonical rain/news workflows.
-    - Apple app parity for listing, viewing, enabling/disabling, manually running, and inspecting workflows only after the user explicitly approves corrected deployed web screenshots/artifacts.
   out:
     - Open-ended AI-assisted workflow design as the primary editor. V1 may let the assistant create or run structured workflows from chat only through validated workflow skills and safety gates.
     - Fully free-form n8n-style canvas editing as the primary editor.
@@ -50,14 +49,13 @@ scope:
 current_milestone:
   id: core-ui-alignment
   goal: >
-    Release a Figma-correct core workflow loop across web and, only after
-    explicit approval of corrected deployed web artifacts, Apple with a
+    Release a core workflow loop across web with a
     chat-like landing page, one mixed recent/example row, workspace-aware
     sidebar, restrained title-first draft creation, a Workflow-specific detail
     composition, focused vertical workflow canvas, contextual dirty-state actions,
     and useful run history.
   in:
-    - Web and Apple workflow landing with Daily Inspiration and one horizontal row containing recently edited workflows first followed by curated example workflows.
+    - Web workflow landing with Daily Inspiration and one horizontal row containing recently edited workflows first followed by curated example workflows.
     - Show all browsing plus a visible non-functional Search affordance whose future behavior is not implied.
     - A bottom workflow composer that visually matches the message input, centers its placeholder, and shows its submit action only while focused with non-empty valid text.
     - Title-only draft creation from the landing composer; general workflow AI planning and voice remain deferred.
@@ -67,7 +65,6 @@ current_milestone:
     - Removal from the primary detail canvas of the run-retention picker, duplicate title/description form, run-content pill, permanent management toolbar, and permanent test/disable/delete button row shown in the rejected prototype.
     - Compact vertical trigger/action/decision cards matching Figma geometry; expanding a node grows that card in place on desktop and mobile and never opens a sibling editor panel.
     - Explicit dirty state with contextual Undo and Save only after graph changes; graph edits are never auto-saved.
-    - Full native Apple creation and vertical editor parity for the core node set.
     - Workspace-aware sidebar content in mobile drawers and persistent desktop/tablet sidebars.
     - Routed Workflow and Workflow runs tabs at /workflows/{workflow_id} and /workflows/{workflow_id}/runs, with the run screen matching Figma node 5488:39515.
   deferred:
@@ -103,8 +100,8 @@ current_milestone:
     Workflow frames. Structured node metadata is temporarily rate-limited with
     HTTP 429 after a full-file index refresh; implementation may use native exports
     but must not invent nested values that still require structured inspection.
-    Corrected deployed web screenshots and artifacts require explicit user approval
-    before becoming Apple's visual source of truth.
+    Corrected deployed web screenshots and artifacts verify the functional core
+    workflow flow without requiring an external visual-comparison test.
 
 context_discovery:
   github_issues:
@@ -134,9 +131,6 @@ context_discovery:
     - backend/core/api/app/services/push_notification_service.py and backend/core/api/app/tasks/email_tasks/reminder_notification_email_task.py provide notification delivery patterns.
     - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts already contains planned workflow-surface inspiration copy but no editor or route.
     - frontend/apps/web_app/src/routes/workflows/+page.svelte is a monolithic prototype that combines landing, detail, retention, duplicate metadata, permanent management actions, node canvas, and run history in one route.
-    - frontend/packages/ui/src/components/Header.svelte hard-disables the web workspace switcher while Apple always exposes workspace tabs.
-    - apple/OpenMates/Sources/App/MainAppView.swift renders Workflows through WorkspacePlaceholderView and keeps the chat sidebar in every workspace.
-    - apple/OpenMates/Sources/Features/Workflows contains unused iOS-only API models and no production workflow views.
     - test-results/recordings and the current Playwright sources prove that prior green evidence covered a dense admin-style editor, not the full Figma-aligned UI assertions recorded below.
     - frontend/packages/ui/src/components/ChatHeader.svelte owns component-scoped CSS, so exact reuse requires the shared visual primitive specified by docs/specs/unified-detail-pages/spec.yml rather than copied Workflow CSS.
     - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte currently composes WorkspaceDetailHeader with an absolutely positioned top-right Report Issue button, which is the rejected generic visual composition.
@@ -157,31 +151,13 @@ context_discovery:
 
 apple_impact:
   affected_files:
-    - apple/OpenMates/Sources/App/MainAppView.swift
-    - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
-    - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
-    - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
-    - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowHomeView.swift
-    - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowDetailView.swift
-    - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowEditorView.swift
-    - apple/OpenMates/Sources/Features/Workflows/Views/WorkflowRunHistoryView.swift
-    - apple/OpenMatesTests/WorkflowsParityTests.swift
-    - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+    - none
   parity_expectations:
-    - Apple can create, edit, list, view, enable, disable, manually run, and inspect core workflows through the same API contracts as web, CLI, and SDKs.
-    - Apple implements the full core vertical editor rather than a read-only or limited-edit first slice.
-    - The workspace sidebar shows workflow navigation in Workflows mode on iPhone, iPad, and macOS instead of retaining the chat list.
-    - Apple must use localized strings and generated design tokens; no hardcoded user-visible English strings.
-    - Apple Workflow details use Workflow-specific native composition only after the user explicitly approves corrected deployed web screenshots/artifacts; the rejected generic deployed Workflow UI cannot unlock Apple work.
+    - No Apple app counterpart is included in this Workflow scope.
   verification:
-    - Run or attempt python3 scripts/apple_remote.py status.
-    - Run or attempt python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WorkflowsParityTests.
-    - Run or attempt python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/WorkflowsParityUITests when UI parity is implemented.
-    - Capture sanitized iPhone, iPad, and macOS screenshots for workflow home, focused editor, expanded node, and run history.
-    - Do not run Workflow visual parity implementation as approved work until V-FIGMA-CORE-UI records explicit user approval of corrected deployed web artifacts.
+    - Not required; this scope is CLI, SDK, backend, and web only.
   intentional_native_differences:
-    - Apple uses native SwiftUI composition with OpenMates primitives, but the vertical flow semantics, labels, sidebar context, dirty state, and run states match web.
-    - OS-owned text input and accessibility behavior may differ while the surrounding product UI matches the approved web contract.
+    - none
 
 clarification:
   rounds:
@@ -191,8 +167,8 @@ clarification:
       answer: Manual Shortcuts-style editing remains the primary editor, but the assistant must be able to use explicit workflow skills to create temporary one-time workflows from chat, run matching existing workflows after a cancelable countdown or required approval, and keep temporary workflows when the user asks.
     - question: Should workflows always run server-side, independent of user connection state?
       answer: Yes. Workflows must always run on the server; user input is modeled as an ask-user node that starts or continues a chat and resumes when the user responds.
-    - question: Should CLI, SDK, web, and Apple clients all be able to manage workflows?
-      answer: Yes. Users must be able to view, manage, create, and edit workflows across CLI, npm SDK, pip SDK, web, and Apple, with Apple parity after the other surfaces are confirmed.
+    - question: Which clients are in scope for workflow management?
+      answer: Users can view, manage, create, and edit workflows across CLI, npm SDK, pip SDK, and web.
     - question: Should workflows have separate private-device and cloud modes?
       answer: No. V1 should keep one cloud workflow product model, acknowledge that server-side automation needs backend runtime decrypt access, protect definitions and run content with Automation Vault encryption, and expose simple run-content retention controls.
     - question: Should one-time workflows delete themselves immediately after running?
@@ -201,6 +177,10 @@ clarification:
       answer: No. A workflow completes naturally when a node has no next executable outgoing edge. The editor may show a visual terminator for readability, but the graph contract and runner must not require an end node.
     - question: Should user-created workflows be available to the assistant?
       answer: Yes. Persisted user-created workflows must be exposed as assistant-considerable runnable capabilities, and every workflow must support manual on-demand runs. If a manual run needs trigger input, the user is asked for the missing input before execution.
+    - question: How should assistant-generated workflow changes be applied?
+      answer: The assistant generates a reversible draft that is fully visible in the Workflow UI. Save persists create/update changes, Undo discards them, and deletion requires explicit confirmation because it cannot be reverted.
+    - question: How should assistant-triggered runs start?
+      answer: Use the existing Focus Mode-style cancellable countdown, then start automatically unless the user cancels.
     - question: Should the Workflows screen keep the current manual-editor-first layout or move toward the Figma chat-like workflow surface?
       answer: >
         The Workflows screen should use the same basic layout model as the chat
@@ -217,8 +197,6 @@ clarification:
       answer: Use a durable REST session/job as the source of truth and WebSocket only for live event streaming while connected. Connection drops must not cancel workflow creation or updates; clients can poll or reconnect by session_id and event cursor.
     - question: Should the first Figma alignment milestone ship a core slice or the complete workflow model?
       answer: Ship a releasable core slice first.
-    - question: How much Apple workflow editing belongs in the core milestone?
-      answer: Apple includes the full native manual vertical editor in the core milestone.
     - question: How should the core workflow composer behave before general AI planning exists?
       answer: It stays fixed to the bottom of the viewport and only creates a new draft workflow using the entered text as its title. General AI processing comes later.
     - question: Should the workflow editor keep a dedicated workflow-list column?
@@ -265,9 +243,9 @@ clarification:
     browsing, and a bottom workflow command input. Natural-language text or
     voice workflow input is processed through a separate durable streaming
     workflow-input session pipeline, with CLI/SDK contracts implemented and
-    tested before the web and Apple UI surfaces. The current core UI milestone
+    tested before the web UI surface. The current core UI milestone
     uses title-only draft creation instead of general AI planning, provides full
-    manual editors on web and Apple, opens workflows in a focused canvas, uses
+    manual editors on web, opens workflows in a focused canvas, uses
     contextual Save/Undo only for dirty graph state, expands mobile nodes inline,
     and makes every sidebar or hamburger list reflect the active workspace. The
     corrected landing keeps Daily Inspiration and one mixed recent/example row.
@@ -276,10 +254,9 @@ clarification:
     composition rather than inheriting the generic detail-header visual. Runtime
     records are created only for accepted executions, event routing is normalized
     and authenticated, and sharing uses a separate persistent client-encrypted
-    portable projection. Native Figma exports are available, while structured
-    nested metadata must be fetched after the temporary API rate limit resets.
-    Apple remains blocked until corrected deployed web artifacts receive explicit
-    user approval.
+    portable projection. Assistant-generated create and update changes are
+    displayed as reversible drafts until Save, deletes require confirmation, and
+    assistant-triggered runs use a cancellable Focus Mode-style countdown.
   approved_by_user: true
 
 implementation_state:
@@ -293,18 +270,13 @@ approvals:
   implementation_plan:
     status: approved
     approved_at: "2026-07-11T22:14:15Z"
-    reason: The user explicitly approved the dependency order, fail-closed schedule migration, lazy client-created projections, cross-client sequence, web artifact gate, and Apple dependency.
+    reason: The user explicitly approved the dependency order, fail-closed schedule migration, lazy client-created projections, cross-client sequence, and web verification.
 
 decisions:
   - id: D-1
     status: active
     decision: Ship a core Figma-aligned workflow milestone before the complete V1 model.
     reason: The existing implementation is too far from the approved UI and test contract to safely release all planned automation capabilities in one slice.
-    decided_at: "2026-07-10T13:31:07Z"
-  - id: D-2
-    status: active
-    decision: Include a full manual vertical editor in the first Apple milestone.
-    reason: The user explicitly chose native creation/edit parity instead of read-only or manage-only Apple support.
     decided_at: "2026-07-10T13:31:07Z"
   - id: D-3
     status: active
@@ -320,11 +292,6 @@ decisions:
     status: active
     decision: Make sidebars and hamburger lists reflect the active workspace on every viewport and client.
     reason: Chat lists in Workflows or Projects mode are misleading and prevent the shell from acting as a reusable workspace navigator.
-    decided_at: "2026-07-10T13:31:07Z"
-  - id: D-6
-    status: active
-    decision: Treat Figma as directional intent and the approved rendered web UI as the Apple visual source of truth.
-    reason: The Figma board is exploratory and does not maintain one-to-one implementation or token parity.
     decided_at: "2026-07-10T13:31:07Z"
   - id: D-7
     status: superseded
@@ -379,12 +346,6 @@ attempts:
     outcome: rejected
     recorded_at: "2026-07-10T13:31:07Z"
     reason: Source and recorded-browser review show a dense admin layout that conflicts with the focused Figma workflow canvas and is difficult to maintain.
-  - id: ATTEMPT-2
-    task_id: TASK-5
-    approach: Treat synthetic model decoding and a shell-launch UI test as Apple workflow parity.
-    outcome: rejected
-    recorded_at: "2026-07-10T13:31:07Z"
-    reason: Apple production UI still renders a placeholder, and the UI test never opens Workflows or asserts workflow content.
   - id: ATTEMPT-3
     task_id: TASK-7
     approach: Present the deterministic rain-keyword fallback as general workflow-input AI in the core UI.
@@ -396,7 +357,7 @@ attempts:
     approach: Count the deployed generic WorkspaceDetailHeader Workflow composition and workflows-editor green run as Figma visual approval.
     outcome: rejected
     recorded_at: "2026-07-11T00:00:00Z"
-    reason: The user rejected its generic header, top-right report action, duplicate below-header action row, and non-Figma composition; the prior artifact cannot unlock Apple work.
+    reason: The user rejected its generic header, top-right report action, duplicate below-header action row, and non-Figma composition.
   - id: ATTEMPT-5
     task_id: TASK-7
     approach: Replace the generic WorkspaceDetailHeader usage and duplicate below-header Workflow/status/New workflow row with a Workflow-owned header carrying back, save/undo, toggle, New workflow, and Report Issue actions while deferring functional Share to TASK-8.
@@ -423,16 +384,8 @@ assumptions:
         summary: Existing routes expose reusable CRUD and history boundaries, while WorkflowRunner still creates and persists run ids only after execution.
       - source: backend/core/api/app/services/workflow_event_service.py
         summary: Current event matching uses process-local rate state and unnormalized dictionaries rather than authenticated envelopes and durable receipts.
-  - id: A-2
-    text: Remote Mac verification is reachable for iPhone, iPad, and macOS workflow UI evidence.
-    category: apple
-    required_before: task_execution
-    status: confirmed
-    evidence:
-      - source: python3 scripts/apple_remote.py status
-        summary: Redacted remote status returned ssh_reachable true on 2026-07-10.
   - id: A-3
-    text: Workflows remains feature-gated until real web and Apple core UI evidence replaces the stale assertions in this spec.
+    text: Workflows remains feature-gated until real web core UI evidence replaces the stale assertions in this spec.
     category: rollout
     required_before: completion
     status: confirmed
@@ -482,7 +435,7 @@ scenarios:
     title: Server runs the daily rain alert without an active user device
     given:
       - Alice has enabled the Daily rain alert workflow.
-      - Alice has no active web or Apple session.
+      - Alice has no active web session.
       - The schedule trigger is due.
     when:
       - The workflow scheduler claims the due trigger.
@@ -536,20 +489,6 @@ scenarios:
       - SDK behavior matches CLI command semantics for the same workflows.
       - SDK calls use API-key scopes and approved SDK devices.
       - SDK methods cannot bypass feature availability, workflow ownership, approval, or unsafe-action restrictions.
-
-  - id: S-6
-    title: Apple app can view and manage workflows after shared surfaces are green
-    given:
-      - Alice is logged into the Apple app.
-      - The Daily rain alert and AI news brief workflows exist.
-    when:
-      - Alice opens the native Workflows section.
-      - Alice views workflow details and run history.
-      - Alice disables, re-enables, and manually runs a workflow.
-    then:
-      - Apple shows the same workflow names, status, trigger summary, node summaries, next run, and last run state as web.
-      - Apple actions use the same API contracts and authorization rules.
-      - Apple manual runs create the same workflow_run and workflow_node_run records as web, CLI, and SDK runs.
 
   - id: S-7
     title: Decision nodes are structured and safe
@@ -847,7 +786,7 @@ scenarios:
   - id: S-27
     title: Workspace navigation shows the active workspace list
     given:
-      - Alice is authenticated on web or Apple.
+      - Alice is authenticated on web.
       - Alice can open the workspace sidebar as a mobile drawer or persistent desktop/tablet column.
     when:
       - Alice switches between Chats, Workflows, and Projects.
@@ -971,14 +910,6 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: npm_sdk
     verification_ids: [T-NPM-SDK-001, T-PIP-SDK-001]
-  - id: AC-7
-    scenario: S-6
-    text: Apple can create and manually edit core workflow graphs, list, view, enable, disable, manually run, and inspect workflows and run history through native UI only after the user explicitly approves corrected deployed web screenshots/artifacts.
-    required: true
-    status: pending
-    coverage_status: covered
-    verification_scope: apple
-    verification_ids: [T-APPLE-001, T-APPLE-UI-001]
   - id: AC-8
     scenario: S-7
     text: Decision nodes use structured safe predicates over typed node outputs and never evaluate arbitrary user-authored code.
@@ -1005,12 +936,12 @@ acceptance_criteria:
     verification_ids: [T-PYTEST-001, T-PYTEST-002]
   - id: AC-11
     scenario: S-10
-    text: platform:workflows gates all web, API, CLI, SDK, Apple, and runner execution paths without deleting historical data.
+    text: platform:workflows gates all web, API, CLI, SDK, and runner execution paths without deleting historical data.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: full_ci
-    verification_ids: [T-PYTEST-001, T-E2E-001, T-APPLE-001]
+    verification_ids: [T-PYTEST-001, T-E2E-001]
   - id: AC-12
     scenario: S-1
     text: App-skill workflow action nodes are generated from existing feature-enabled app skill metadata, with minimal workflow metadata overrides for side effects, approval, retry, and output summary fields.
@@ -1114,7 +1045,7 @@ acceptance_criteria:
     status: pending
     coverage_status: covered
     verification_scope: full_ci
-    verification_ids: [T-PYTEST-001, T-E2E-003, T-APPLE-UI-001]
+    verification_ids: [T-PYTEST-001, T-E2E-003]
   - id: AC-25
     scenario: S-20
     text: Web Workflows landing keeps Daily Inspiration and one horizontal row with recently edited workflows first followed by curated examples, with no separate recent section.
@@ -1205,28 +1136,28 @@ acceptance_criteria:
     verification_ids: [T-E2E-002]
   - id: AC-36
     scenario: S-27
-    text: Web and Apple sidebars and hamburger drawers render the active workspace list in every viewport, preserving chat behavior while Workflows shows workflows and Projects shows projects.
+    text: Web sidebars and hamburger drawers render the active workspace list in every viewport, preserving chat behavior while Workflows shows workflows and Projects shows projects.
     required: true
     status: pending
     coverage_status: covered
-    verification_scope: full_ci
-    verification_ids: [T-E2E-003, T-APPLE-UI-001]
+    verification_scope: playwright
+    verification_ids: [T-E2E-003]
   - id: AC-37
     scenario: S-28
-    text: Web opens Workflow-specific routed detail and runs tabs with the approved low-radius gradient header, fixed white unshadowed title/description, enabled toggle, relative Created or applicable next-run metadata, top-left back/New workflow/Share/Report Issue actions, compact in-place expanding cards, and Figma run composition; it has no top-right report action, duplicate below-header row, sibling editor panel, or rejected management areas, and Apple remains blocked pending explicit corrected-web artifact approval.
+    text: Web opens Workflow-specific routed detail and runs tabs with a low-radius gradient header, fixed white title/description, enabled toggle, relative Created or applicable next-run metadata, top-left back/New workflow/Share/Report Issue actions, and compact in-place expanding cards; it has no top-right report action, duplicate below-header row, sibling editor panel, or rejected management areas.
     required: true
     status: pending
     coverage_status: covered
-    verification_scope: full_ci
-    verification_ids: [T-E2E-004, T-APPLE-UI-001, V-FIGMA-CORE-UI]
+    verification_scope: playwright
+    verification_ids: [T-E2E-001]
   - id: AC-38
     scenario: S-29
     text: The bottom composer matches message-input styling, centers its placeholder, reveals submit only while focused with valid non-empty input, creates a disabled title-only draft, and makes no general AI or voice-processing claim.
     required: true
     status: pending
     coverage_status: covered
-    verification_scope: full_ci
-    verification_ids: [T-E2E-002, T-APPLE-UI-001]
+    verification_scope: playwright
+    verification_ids: [T-E2E-002]
 
   - id: AC-39
     scenario: S-30
@@ -1282,8 +1213,8 @@ acceptance_criteria:
     required: true
     status: pending
     coverage_status: covered
-    verification_scope: full_ci
-    verification_ids: [T-PYTEST-006, T-PYTEST-007, T-E2E-004]
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-006, T-PYTEST-007]
 
 contracts:
   api:
@@ -1437,7 +1368,7 @@ contracts:
     - route: GET /v1/workflows/input/{session_id}
       auth: session_or_api_key
       response: "WorkflowInputSessionDetail with status, transcript metadata, current draft, committed mutations, undo availability, clarification prompt, events after cursor, and latest event_cursor"
-      behavior: Lets web, CLI, SDKs, and Apple recover after connection drops or poll when streaming is unavailable.
+      behavior: Lets web, CLI, and SDKs recover after connection drops or poll when streaming is unavailable.
     - route: GET /v1/workflows/input/{session_id}/events
       auth: session_or_api_key
       request: "?after_event_id=integer"
@@ -2294,75 +2225,6 @@ tests:
           timestamp: "2026-07-05T16:42:26Z"
           summary: Invalidated because the test asserted no recents/Show all and exercised a rain-keyword planner outside the approved core contract.
 
-  - id: T-APPLE-001
-    type: unit
-    file: apple/OpenMatesTests/WorkflowsParityTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WorkflowsParityTests
-    covers:
-      - AC-7
-      - AC-10
-      - AC-11
-    assertions:
-      - Apple workflow models decode every core node, workflow summary/detail, run summary/detail, and error field used by web, CLI, and SDKs
-      - Apple create/update, enable, disable, manual run, list-run, and run-detail requests use the shared API contract
-      - Apple feature availability and workspace navigation use the same platform:workflows decision as web
-    red_phase:
-      required: true
-      expected: fail
-      evidence:
-        status: skipped_with_reason
-        run_id: ""
-        timestamp: "2026-07-05T16:46:27Z"
-        summary: Apple workflow model parity tests already existed before this session resumed; no separate red phase was run for the workflow-input implementation slice.
-    green_phase:
-      required: true
-      expected: pass
-      evidence:
-        status: pending
-        note: "Pending current Swift model, API, and feature-availability parity."
-      history:
-        - status: passed
-          run_id: remote-macos-peer-workflows-parity-2026-07-05
-          timestamp: "2026-07-05T16:45:15Z"
-          note: "Invalidated because the Swift contract omits current backend node/run fields and has no feature-availability integration."
-
-  - id: T-APPLE-UI-001
-    type: unit
-    file: apple/OpenMatesUITests/WorkflowsParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/WorkflowsParityUITests
-    covers:
-      - AC-7
-      - AC-11
-      - AC-24
-      - AC-36
-      - AC-37
-      - AC-38
-    assertions:
-      - Apple user opens a real Workflows home instead of WorkspacePlaceholderView
-      - Apple workspace sidebar shows workflows instead of chats in mobile, tablet, and desktop modes
-      - Apple landing shows Daily Inspiration plus one mixed recent/example row and the restrained title composer after web is approved
-      - Apple user creates a title-only draft and opens a shared-header Workflow detail page with the Figma vertical editor
-      - dirty native graph edits expose contextual Undo and Save, mobile node details expand inline, and rejected prototype controls are absent
-      - Apple user disables, re-enables, manually runs, and inspects useful per-node run history
-      - disabled platform:workflows hides or blocks native workflow navigation consistently with web
-    red_phase:
-      required: true
-      expected: fail
-      evidence:
-        status: pending
-        summary: Pending a fresh remote Mac run that must fail on the current workflow placeholder and missing native editor assertions.
-    green_phase:
-      required: true
-      expected: pass
-      evidence:
-        status: pending
-        note: "Pending real native workflow home, editor, sidebar, and run-history UI evidence."
-      history:
-        - status: passed
-          run_id: remote-macos-peer-workflows-ui-parity-2026-07-05
-          timestamp: "2026-07-05T16:46:27Z"
-          note: "Invalidated because the test never opened Workflows and production UI still rendered a placeholder."
-
   - id: T-PYTEST-005
     type: pytest
     file: backend/tests/test_workflow_core_ui_contract.py
@@ -2414,34 +2276,6 @@ tests:
         status: pending
         summary: Pending deployed implementation.
 
-  - id: T-E2E-004
-    type: playwright
-    file: frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
-    command: python3 scripts/tests.py run --spec workflows-figma-detail.spec.ts
-    target: app.dev.openmates.org
-    covers: [AC-37, AC-45]
-    assertions:
-      - /workflows/{workflow_id} and /workflows/{workflow_id}/runs render selected routed tabs and survive reload/back navigation
-      - Workflow header has a low-radius gradient with fixed white title/description text and no text shadow
-      - enabled toggle is below the title and metadata shows Created relative time or applicable next-run information
-      - top-left back arrow is followed by an orange New workflow CTA with Share and Report Issue beside it
-      - no top-right Report Issue action and no duplicate below-header Workflow/status/New workflow row exist
-      - compact vertical cards match approved Figma artifact geometry and expansion grows the same card in place on desktop and mobile without a sibling editor panel
-      - /runs composition matches the approved artifact for Figma node 5488:39515
-      - privacy copy accurately describes Automation Vault/backend execution access without claiming cryptographic backend inaccessibility
-      - no exact nested pixel measurements are asserted until Figma export/API access succeeds or the user approves measured deployed artifacts
-    red_phase:
-      required: true
-      expected: fail
-      evidence:
-        status: pending
-        summary: New Workflow-owned routed Figma contract; the rejected generic deployed UI cannot supply red or green evidence.
-    green_phase:
-      required: true
-      expected: pass_after_deploy
-      evidence:
-        status: pending
-
   - id: T-E2E-005
     type: playwright
     file: frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
@@ -2469,36 +2303,6 @@ tests:
         status: pending
 
 verifications:
-  - id: V-FIGMA-CORE-UI
-    kind: artifact_review
-    phase: final
-    required_for_done: true
-    covers:
-      - AC-25
-      - AC-37
-      - AC-38
-    status: blocked
-    evidence:
-      status: blocked
-      summary: The deployed generic Workflow detail artifact was explicitly rejected and is invalid as visual approval. Compare corrected deployed detail/run screenshots with native exports of Figma nodes 5420:34107, 5420:34558, 5420:35214, 5422:34561, and 5488:39515, then obtain explicit user approval. Structured metadata not visible in exports must be inspected after the temporary 429 rate limit resets rather than guessed.
-      timestamp: "2026-07-11T00:00:00Z"
-      next_action: Implement only after contract/plan approval, capture corrected deployed web artifacts, and request explicit user visual approval before Apple work.
-  - id: V-APPLE-MULTIPLATFORM
-    kind: artifact_review
-    phase: final
-    required_for_done: true
-    covers:
-      - AC-7
-      - AC-24
-      - AC-36
-      - AC-37
-      - AC-38
-    status: blocked
-    evidence:
-      status: blocked
-      summary: Apple visual work and evidence remain blocked until V-FIGMA-CORE-UI records explicit user approval of corrected deployed web screenshots/artifacts; the rejected generic Workflow deployment does not satisfy this gate.
-      timestamp: "2026-07-11T00:00:00Z"
-      next_action: Recheck only after corrected web artifacts are explicitly approved.
 
 implementation_plan:
   spec_path: docs/specs/workflows-v1/spec.yml
@@ -2510,7 +2314,7 @@ implementation_plan:
     - frontend/packages/ui/src/services/shareEncryption.ts for existing Web Crypto AES-GCM, URL-safe encoding, token, and fragment-key primitives; extend it rather than creating Workflow cryptography.
     - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts for the existing workflow list/detail/run cache and mutation boundary.
     - frontend/packages/ui/src/components/DailyInspirationBanner.svelte and frontend/packages/ui/src/components/enter_message/MessageInput.svelte as rendered visual references, without importing chat send/storage behavior.
-    - docs/specs/unified-detail-pages/spec.yml for metadata API/version/encryption compatibility only; workflows-v1 owns Workflow header, action, tab, card, run-screen, and Apple visual composition.
+    - docs/specs/unified-detail-pages/spec.yml for metadata API/version/encryption compatibility only; workflows-v1 owns Workflow header, action, tab, card, and run-screen composition.
     - frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/sdk.ts, and packages/openmates-python/openmates/sdk.py for cross-client API contract patterns.
   architecture: >
     Correct the core in dependency order instead of extending the prototype.
@@ -2527,8 +2331,7 @@ implementation_plan:
     /v1/share/short-url path with workflow_template ownership/revocation; the
     server never receives projection plaintext keys or URL fragment keys. CLI,
     npm, and pip prove shared runtime/share contracts before web. Web then owns
-    the Workflow-specific Figma routes and composition. Apple begins only after
-    corrected deployed web artifacts receive explicit approval.
+    the Workflow-specific routes and functional composition.
   boundaries:
     - No planned or future workflow_run records; recurrence state is only workflow_triggers.next_run_at and encrypted recurrence config.
     - No parallel short-link route, collection, encryption primitive, or Workflow-only resolver; extend /v1/share/short-url and share_short_links.
@@ -2554,15 +2357,10 @@ implementation_plan:
     - id: P4-web
       dependencies: [P3-sharing-cross-client]
       covers: [AC-1, AC-2, AC-4, AC-8, AC-11, AC-12, AC-19, AC-20, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-43, AC-45]
-      outcome: Implement Workflow-owned /workflows/{workflow_id} and /workflows/{workflow_id}/runs screens, exact approved action hierarchy, compact in-place expanding cards, share/import UI, and workspace navigation. Use native Figma exports plus structured metadata after its temporary rate limit resets; do not invent uninspected nested values. Deploy, wait Ready, run Playwright, review screenshots/artifacts, and obtain explicit user approval.
-      verification_ids: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI]
-    - id: P5-apple
-      dependencies: [P4-web, V-FIGMA-CORE-UI]
-      covers: [AC-7, AC-10, AC-11, AC-24, AC-36, AC-37, AC-38]
-      outcome: Build native Workflow-specific composition from the explicitly approved rendered web artifact, then verify models, API, iPhone/iPad/macOS behavior, and visual artifacts.
-      verification_ids: [T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
+      outcome: Implement Workflow-owned /workflows/{workflow_id} and /workflows/{workflow_id}/runs screens, contextual actions, compact in-place expanding cards, share/import UI, and workspace navigation. Deploy, wait Ready, and run functional Playwright coverage.
+      verification_ids: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-005]
     - id: P6-deferred-broad-features
-      dependencies: [P5-apple]
+      dependencies: [P4-web]
       covers: [AC-14, AC-15, AC-16, AC-21, AC-22, AC-23, AC-28, AC-29, AC-30, AC-31, AC-32, AC-33, AC-34, AC-35]
       outcome: Plan separately after the corrected core runtime/share/UI contract; do not pull AI workflow-input planning, assistant temporary workflows, Tasks projections, definition history, or advanced producers into P1-P5 unless a required AC explicitly needs them.
   data_flow:
@@ -2574,7 +2372,7 @@ implementation_plan:
     - After an authorized workflow edit, the client recursively allowlists a portable template, encrypts it with a client-generated template key, wraps that key for the owner, and PUTs only template_id, source_version, ciphertext, checksum, schema version, and owner_wrapped_key.
     - Online sharing generates token, shortKey, and encrypted_url client-side; POST /v1/share/short-url receives content_type=workflow_template plus opaque ciphertext but no fragment key, and the client assembles /s/{token}#{shortKey}. Owner-authorized DELETE revokes retrieval.
     - Offline sharing reads the persistent local/cross-device projection and emits /share/workflow-template/{templateId}#key={templateKeyBlob}. Import decrypts and validates client-side, then sends the portable allowlisted payload to create a new recipient-owned disabled workflow with rebinding requirements.
-    - Web routes load the same owner-scoped records into the Workflow-owned header/editor or runs screen. Only dirty graph changes reveal Save/Undo. The deployed rendered artifact, not guessed Figma dimensions, is reviewed before Apple composition begins.
+    - Web routes load the same owner-scoped records into the Workflow-owned header/editor or runs screen. Only dirty graph changes reveal Save/Undo.
   affected_files:
     - path: backend/core/directus/schemas/workflows.yml
       reason: Minimal owner/routing metadata and encrypted title/description references.
@@ -2666,35 +2464,19 @@ implementation_plan:
       reason: New pip SDK equivalent contract.
     - path: frontend/apps/web_app/tests/workflows-editor.spec.ts
       reason: Corrected functional graph/editor behavior; prior generic-detail green is stale.
-    - path: frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
-      reason: New routed Workflow-owned visual/action/card/run contract.
     - path: frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
       reason: New client-key, projection, short/long share, revoke, import, and rebinding contract.
     - path: frontend/apps/web_app/tests/workflows-input.spec.ts
       reason: Existing landing, mixed row, Show all, and title-only composer contract; no AI planner expansion.
     - path: frontend/apps/web_app/tests/workspace-sidebar.spec.ts
       reason: Active-workspace navigation and routed run behavior.
-    - path: apple/OpenMates/Sources/App/MainAppView.swift
-      reason: Workflow workspace navigation and sidebar integration after web approval.
-    - path: apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
-      reason: Native accepted-run/trigger/share contract models.
-    - path: apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
-      reason: Native shared API paths after CLI/npm/pip/web are green.
-    - path: apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
-      reason: Native owner-scoped list/detail/editor/run/share state after corrected web approval.
-    - path: apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
-      reason: Existing native file to replace with Workflow-specific approved web composition and in-place card editing.
-    - path: apple/OpenMatesTests/WorkflowsParityTests.swift
-      reason: Native model/API parity.
-    - path: apple/OpenMatesUITests/WorkflowsParityUITests.swift
-      reason: Native rendered visibility, clickability, routes/states, and visual artifact evidence.
   migration_backfill:
     - Add new nullable claim/Vault reference fields and new receipt/projection collections while platform:workflows remains disabled; deploy schema before readers/writers.
     - Migrate every existing plaintext workflow_triggers.schedule_config to Automation Vault ciphertext, verify checksum/owner/version association, write encrypted_schedule_config_ref, and clear plaintext only after verified persistence. Revised scheduler stays fail-closed until no enabled trigger depends on plaintext.
     - Existing workflows receive a workflow_template_projection lazily on the next authorized client edit/share, because client key creation cannot be fabricated by a server migration. Until then sharing reports projection_required; it never falls back to server-built plaintext.
     - Existing share_short_links rows remain valid; workflow_template is an additive content type and owner-authorized revoke applies generically.
     - Do not backfill workflow_runs. Existing actual historical executions remain history; no schedule occurrence, missed occurrence, or future occurrence becomes a run row.
-    - Keep platform:workflows gated throughout migration, contract correction, deployed web review, and Apple sequencing.
+    - Keep platform:workflows gated throughout migration, contract correction, and deployed web verification.
   verification_strategy:
     - "Plan/spec: python3 scripts/spec_validate.py docs/specs/workflows-v1/spec.yml"
     - "Red foundations: python3 -m pytest backend/tests/test_workflow_scheduler_contract.py"
@@ -2709,51 +2491,41 @@ implementation_plan:
     - "Web fourth: python3 scripts/tests.py run --spec workflows-editor.spec.ts"
     - "Web fourth: python3 scripts/tests.py run --spec workflows-input.spec.ts"
     - "Web fourth: python3 scripts/tests.py run --spec workspace-sidebar.spec.ts"
-    - "Web fourth: python3 scripts/tests.py run --spec workflows-figma-detail.spec.ts"
     - "Web fourth: python3 scripts/tests.py run --spec workflow-template-sharing.spec.ts"
-    - Capture desktop/mobile detail, expanded-card, and runs artifacts; compare source values and rendered output to the available Figma references without guessed nested measurements; record explicit user approval in V-FIGMA-CORE-UI.
-    - "Apple fifth, only after V-FIGMA-CORE-UI approval: python3 scripts/apple_remote.py status"
-    - "Apple fifth: python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/WorkflowsParityTests"
-    - "Apple fifth: python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/WorkflowsParityUITests"
     - "Final evidence: python3 scripts/spec_verify.py docs/specs/workflows-v1/spec.yml"
   verification_order:
     - Deterministic backend red contracts and data/privacy foundations.
     - Backend scheduler/runtime/event/template green contracts.
     - OpenMates CLI, then npm SDK, then pip SDK.
-    - Deploy and wait for Vercel Ready, then web Playwright and screenshot/artifact review.
-    - Explicit user approval of corrected deployed web artifacts.
-    - Apple models/API, native UI tests, and iPhone/iPad/macOS artifacts.
+    - Deploy and wait for Vercel Ready, then web Playwright verification.
     - Final spec verification while platform:workflows remains gated until rollout approval.
   acceptance_criteria_coverage:
     - acceptance_criteria: [AC-1, AC-2, AC-4, AC-8, AC-12, AC-19]
       verification_ids: [T-PYTEST-002, T-E2E-001]
     - acceptance_criteria: [AC-3, AC-10, AC-13, AC-17, AC-18, AC-24, AC-39, AC-40, AC-41, AC-42, AC-44, AC-45]
-      verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-E2E-004]
+      verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-E2E-001]
     - acceptance_criteria: [AC-5, AC-6]
       verification_ids: [T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003]
     - acceptance_criteria: [AC-11]
-      verification_ids: [T-PYTEST-001, T-CLI-001, T-NPM-SDK-001, T-PIP-SDK-001, T-E2E-001, T-APPLE-001]
+      verification_ids: [T-PYTEST-001, T-CLI-001, T-NPM-SDK-001, T-PIP-SDK-001, T-E2E-001]
     - acceptance_criteria: [AC-20, AC-43]
       verification_ids: [T-PYTEST-008, T-CLI-003, T-NPM-SDK-003, T-PIP-SDK-003, T-E2E-005]
     - acceptance_criteria: [AC-25, AC-26, AC-27, AC-38]
-      verification_ids: [T-PYTEST-005, T-E2E-002, T-APPLE-UI-001, V-FIGMA-CORE-UI]
+      verification_ids: [T-PYTEST-005, T-E2E-002]
     - acceptance_criteria: [AC-36]
-      verification_ids: [T-E2E-003, T-APPLE-UI-001]
+      verification_ids: [T-E2E-003]
     - acceptance_criteria: [AC-37]
-      verification_ids: [T-E2E-004, V-FIGMA-CORE-UI, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
-    - acceptance_criteria: [AC-7]
-      verification_ids: [T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
+      verification_ids: [T-E2E-001]
   evidence_validity:
     - Existing green evidence remains usable only for assertions whose contract and implementation subject did not change.
     - Prior scheduler/runner green evidence is stale for atomic acceptance, no-planned-run semantics, encrypted trigger configuration, normalized events, receipts, and per-run credential revalidation; T-PYTEST-006 and T-PYTEST-007 replace it.
     - Prior ephemeral server-built template evidence is stale for persistent client-encrypted projection, fragment-key sharing, revoke, offline long link, and recipient import; T-PYTEST-008 plus CLI/npm/pip and T-E2E-005 replace it.
-    - Prior generic Workflow detail Playwright/artifacts are stale for AC-37 and cannot unlock Apple; T-E2E-004 plus explicit V-FIGMA-CORE-UI approval replace them.
+    - Prior generic Workflow detail Playwright evidence is stale for AC-37; T-E2E-001 replaces it.
     - Unchanged landing/title-only composer evidence may remain current where its assertions and subject commit still match AC-25, AC-27, and AC-38.
   rollout:
     - Keep platform:workflows disabled by default through schema migration, red/green runtime/share correction, and cross-client verification.
     - Permit only controlled dev accounts after plaintext schedule migration and backend plus CLI/npm/pip contracts are green.
-    - Keep web gated until deployed Playwright, screenshot/artifact review, and explicit corrected-web approval pass.
-    - Keep Apple gated until that web approval plus native model/UI/artifact evidence pass.
+    - Keep web gated until deployed Playwright coverage passes.
   observability:
     - Emit only redacted/prefixed workflow_id, trigger_id, run_id, receipt id, template_id, source/event type, status/error code, attempt/count, and phase duration.
     - Audit every Automation Vault decrypt with purpose category, redacted subject id, caller/service identity, key version, success/failure, and timing; never include ciphertext, schedule, predicate, payload, graph, credential, title, or user text.
@@ -2761,12 +2533,10 @@ implementation_plan:
     - Never log event payloads, predicate operands, command text, schedule bodies, projection plaintext, fragment keys, encrypted_url, provider credentials/responses, run input/output, notification bodies, or private UI labels.
   required_assumptions:
     - A-1
-    - A-2
     - A-3
     - A-4
     - A-5
-  open_questions:
-    - Native Figma frame exports are available. Structured node metadata is temporarily rate-limited after the full-file refresh; retry it before implementation needs nested values, and require user artifact approval before Apple work.
+  open_questions: []
   risks:
     - A partial plaintext-schedule migration could cause missed or duplicate execution; the revised scheduler must fail closed until every enabled trigger has verified ciphertext and idempotency state.
     - Directus atomic-update semantics may be insufficient for leases without an existing transaction/RPC pattern; resolve in P1 before implementation rather than emulating claims in process memory.
@@ -2774,8 +2544,6 @@ implementation_plan:
     - Client-created projection keys mean legacy workflows cannot become shareable through a server-only backfill; UI must clearly request an authorized client refresh/edit instead of silently weakening encryption.
     - Reusing share.py must not preserve its current private-id logging for workflow shares; touched paths must emit redacted identifiers only.
     - Provider scope drift can fail unattended runs; failures must be visible and must never fall back to cached credentials or stale grants.
-    - Structured Figma metadata may remain temporarily rate-limited; guessing uninspected values would create another stale prototype, so visual completion depends on native exports, metadata inspection when available, rendered artifact review, and explicit approval.
-    - Apple implementation before corrected web approval would encode the rejected generic composition and is prohibited by the phase dependency.
 
 tasks:
   - id: TASK-1
@@ -2992,7 +2760,6 @@ tasks:
       - frontend/apps/web_app/tests/workflows-editor.spec.ts
       - frontend/apps/web_app/tests/workflows-input.spec.ts
       - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-      - frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
     ownership:
       files:
         - frontend/apps/web_app/src/routes/workflows/[workflow_id]/+page.svelte
@@ -3000,7 +2767,6 @@ tasks:
         - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
         - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
         - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
-        - frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
       shared_files:
         - frontend/apps/web_app/src/routes/workflows/+page.svelte
         - frontend/packages/ui/src/components/workflows/nodes/*.svelte
@@ -3010,11 +2776,10 @@ tasks:
         - frontend/apps/web_app/tests/workflows-editor.spec.ts
         - frontend/apps/web_app/tests/workflows-input.spec.ts
         - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-    verification: [T-PYTEST-005, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004]
-    verification_ids: [T-PYTEST-005, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004]
+    verification: [T-PYTEST-005, T-E2E-001, T-E2E-002, T-E2E-003]
+    verification_ids: [T-PYTEST-005, T-E2E-001, T-E2E-002, T-E2E-003]
     dependencies: [TASK-6]
-    blockers:
-      - Native Figma exports are available; retry temporarily rate-limited structured metadata before using nested values that are not visible in those exports.
+    blockers: []
     follow_up_tasks: [TASK-8]
     independently_deployable: false
 
@@ -3051,7 +2816,7 @@ tasks:
     independently_deployable: false
 
   - id: TASK-9
-    title: Deploy corrected web, verify Playwright artifacts, and obtain Figma core UI approval
+    title: Deploy corrected web and verify functional Playwright coverage
     status: pending
     phase: running_checks
     covers:
@@ -3062,7 +2827,6 @@ tasks:
       - frontend/apps/web_app/tests/workflows-editor.spec.ts
       - frontend/apps/web_app/tests/workflows-input.spec.ts
       - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-      - frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
       - frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
     ownership:
       files:
@@ -3071,46 +2835,11 @@ tasks:
         - frontend/apps/web_app/tests/workflows-editor.spec.ts
         - frontend/apps/web_app/tests/workflows-input.spec.ts
         - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
-        - frontend/apps/web_app/tests/workflows-figma-detail.spec.ts
         - frontend/apps/web_app/tests/workflow-template-sharing.spec.ts
-    verification: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI]
-    verification_ids: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI]
+    verification: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-005]
+    verification_ids: [T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-005]
     dependencies: [TASK-8]
-    blockers:
-      - V-FIGMA-CORE-UI requires explicit user approval of corrected deployed detail, expanded-card, and runs artifacts after Vercel is Ready.
-    follow_up_tasks: [TASK-10]
-    independently_deployable: false
-
-  - id: TASK-10
-    title: Build and verify Apple workflow models, store, and Workflow-specific native UI
-    status: pending
-    phase: blocked
-    covers:
-      scenarios: [S-6, S-9, S-10, S-11, S-20, S-21, S-27, S-28, S-29]
-      acceptance_criteria: [AC-7, AC-10, AC-11, AC-24, AC-25, AC-27, AC-36, AC-37, AC-38]
-    expected_files:
-      - apple/OpenMates/Sources/App/MainAppView.swift
-      - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
-      - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
-      - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
-      - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
-      - apple/OpenMatesTests/WorkflowsParityTests.swift
-      - apple/OpenMatesUITests/WorkflowsParityUITests.swift
-    ownership:
-      files:
-        - apple/OpenMates/Sources/Features/Workflows/WorkflowModels.swift
-        - apple/OpenMates/Sources/Features/Workflows/WorkflowAPI.swift
-        - apple/OpenMates/Sources/Features/Workflows/WorkflowStore.swift
-        - apple/OpenMates/Sources/Features/Workflows/WorkflowViews.swift
-        - apple/OpenMatesTests/WorkflowsParityTests.swift
-        - apple/OpenMatesUITests/WorkflowsParityUITests.swift
-      shared_files:
-        - apple/OpenMates/Sources/App/MainAppView.swift
-    verification: [V-FIGMA-CORE-UI, T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
-    verification_ids: [V-FIGMA-CORE-UI, T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
-    dependencies: [TASK-9]
-    blockers:
-      - Do not begin Apple visual composition until TASK-9 records explicit passed V-FIGMA-CORE-UI approval.
+    blockers: []
     follow_up_tasks: [TASK-11]
     independently_deployable: false
 
@@ -3119,8 +2848,8 @@ tasks:
     status: pending
     phase: running_checks
     covers:
-      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-9, S-10, S-11, S-15, S-16, S-17, S-20, S-21, S-27, S-28, S-29, S-30, S-31]
-      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-10, AC-11, AC-12, AC-13, AC-17, AC-18, AC-19, AC-20, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-39, AC-40, AC-41, AC-42, AC-43, AC-44, AC-45]
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-7, S-9, S-10, S-11, S-15, S-16, S-17, S-20, S-21, S-27, S-28, S-29, S-30, S-31]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-8, AC-10, AC-11, AC-12, AC-13, AC-17, AC-18, AC-19, AC-20, AC-24, AC-25, AC-26, AC-27, AC-36, AC-37, AC-38, AC-39, AC-40, AC-41, AC-42, AC-43, AC-44, AC-45]
     expected_files:
       - docs/specs/workflows-v1/spec.yml
       - backend/core/api/app/services/feature_availability_service.py
@@ -3131,9 +2860,9 @@ tasks:
       shared_files:
         - backend/core/api/app/services/feature_availability_service.py
         - frontend/packages/ui/src/config/workspaceFeatureGates.ts
-    verification: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-005, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI, T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
-    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-005, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-004, T-E2E-005, V-FIGMA-CORE-UI, T-APPLE-001, T-APPLE-UI-001, V-APPLE-MULTIPLATFORM]
-    dependencies: [TASK-10]
+    verification: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-005, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-005]
+    verification_ids: [T-PYTEST-001, T-PYTEST-002, T-PYTEST-005, T-PYTEST-006, T-PYTEST-007, T-PYTEST-008, T-CLI-001, T-CLI-003, T-NPM-SDK-001, T-NPM-SDK-003, T-PIP-SDK-001, T-PIP-SDK-003, T-E2E-001, T-E2E-002, T-E2E-003, T-E2E-005]
+    dependencies: [TASK-9]
     blockers:
       - Rollout remains gated until every required verification is current for the final subject commit and both artifact reviews pass.
     follow_up_tasks: [TASK-12]

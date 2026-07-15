@@ -60,6 +60,14 @@ class WorkflowTemplateProjectionStaleError(WorkflowTemplateProjectionError):
     """Raised when a client snapshot predates the current runtime workflow."""
 
 
+class WorkflowTemplateProjectionNotFoundError(KeyError):
+    """Raised when a projection does not exist for a requested owner/workflow."""
+
+
+class WorkflowTemplateProjectionRevokedError(WorkflowTemplateProjectionError):
+    """Raised when public retrieval is attempted after owner revocation."""
+
+
 class WorkflowTemplateImportError(ValueError):
     """Raised when a client-decrypted template is not safe to import."""
 
@@ -80,6 +88,17 @@ class WorkflowTemplateProjectionRecord(BaseModel):
     created_at: int
     updated_at: int
     revoked_at: int | None = None
+
+
+class PublicWorkflowTemplateProjection(BaseModel):
+    """Public opaque transport fields; key wrapping and template plaintext stay private."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    template_id: str
+    ciphertext: str
+    ciphertext_checksum: str
+    projection_schema_version: int
 
 
 class WorkflowTemplateImportPayload(BaseModel):
@@ -152,6 +171,46 @@ class WorkflowTemplateProjectionService:
         )
         return WorkflowTemplateProjectionRecord.model_validate(self.repository.save_template_projection(record.model_dump()))
 
+    def get_public_projection(self, template_id: str) -> PublicWorkflowTemplateProjection:
+        """Retrieve only the opaque payload required by a fragment-key share URL."""
+        self.workflow_service.ensure_enabled()
+        record = self.repository.get_public_template_projection(template_id)
+        if record is None:
+            raise WorkflowTemplateProjectionNotFoundError(template_id)
+        projection = WorkflowTemplateProjectionRecord.model_validate(record)
+        if projection.revoked_at is not None:
+            raise WorkflowTemplateProjectionRevokedError("Workflow template projection is revoked")
+        return PublicWorkflowTemplateProjection(
+            template_id=projection.template_id,
+            ciphertext=projection.ciphertext,
+            ciphertext_checksum=projection.ciphertext_checksum,
+            projection_schema_version=projection.projection_schema_version,
+        )
+
+    def revoke_projection(self, workflow_id: str, user_id: str) -> WorkflowTemplateProjectionRecord:
+        """Persist revocation through the runtime workflow owner boundary."""
+        return self._set_projection_revocation(workflow_id, user_id, revoked=True)
+
+    def unrevoke_projection(self, workflow_id: str, user_id: str) -> WorkflowTemplateProjectionRecord:
+        """Restore a previously revoked projection for its runtime workflow owner."""
+        return self._set_projection_revocation(workflow_id, user_id, revoked=False)
+
+    def _set_projection_revocation(
+        self,
+        workflow_id: str,
+        user_id: str,
+        *,
+        revoked: bool,
+    ) -> WorkflowTemplateProjectionRecord:
+        self.workflow_service.ensure_enabled()
+        self.workflow_service.get_workflow(workflow_id, user_id)
+        record = self.repository.get_template_projection_for_workflow(workflow_id, user_id)
+        if record is None:
+            raise WorkflowTemplateProjectionNotFoundError(workflow_id)
+        record["revoked_at"] = int(time.time()) if revoked else None
+        record["updated_at"] = int(time.time())
+        return WorkflowTemplateProjectionRecord.model_validate(self.repository.save_template_projection(record))
+
     def import_template(self, user_id: str, payload: dict[str, Any] | WorkflowTemplateImportPayload) -> ImportedWorkflowTemplate:
         """Create a fresh recipient-owned disabled runtime workflow from a portable template."""
         self.workflow_service.ensure_enabled()
@@ -175,6 +234,7 @@ class WorkflowTemplateProjectionService:
             source="import",
             description=template.description,
         )
+        self.workflow_service.initialize_import_binding_requirements(workflow.id, user_id, binding_requirements)
         return ImportedWorkflowTemplate(workflow=workflow, binding_requirements=binding_requirements)
 
 
