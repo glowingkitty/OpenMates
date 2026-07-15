@@ -1799,6 +1799,25 @@ export interface CreatedApiKeyResult {
   crypto: ApiKeyCryptoMaterial;
 }
 
+export interface ApiKeyRecord {
+  id: string;
+  name: string;
+  key_prefix: string;
+  created_at?: string | null;
+  expires_at?: string | null;
+  last_used_at?: string | null;
+  full_access?: boolean;
+  scopes?: Record<string, unknown>;
+  credit_limit?: Record<string, unknown> | null;
+  pending_device_count?: number;
+  encrypted_name?: string | null;
+  encrypted_key_prefix?: string | null;
+}
+
+export interface ApiKeyListResult {
+  api_keys: ApiKeyRecord[];
+}
+
 export interface AuthMethodsStatus {
   has_passkey?: boolean;
   has_2fa?: boolean;
@@ -6368,6 +6387,42 @@ export class OpenMatesClient {
       key: response.data,
       crypto: material,
     };
+  }
+
+  async listApiKeys(): Promise<ApiKeyListResult> {
+    const result = await this.settingsGet("api-keys") as { api_keys?: Array<Record<string, unknown>> };
+    return this.decryptApiKeyList(result);
+  }
+
+  async revokeApiKey(id: string): Promise<unknown> {
+    return this.settingsDelete(`api-keys/${id}`);
+  }
+
+  private async decryptApiKeyList(result: { api_keys?: Array<Record<string, unknown>> }): Promise<ApiKeyListResult> {
+    const session = this.requireSession();
+    const masterKey = base64ToBytes(session.masterKeyExportedB64);
+    const apiKeys: ApiKeyRecord[] = [];
+    for (const key of result.api_keys ?? []) {
+      const encryptedName = typeof key.encrypted_name === "string" ? key.encrypted_name : null;
+      const encryptedPrefix = typeof key.encrypted_key_prefix === "string" ? key.encrypted_key_prefix : null;
+      const name = encryptedName ? await decryptWithAesGcmCombined(encryptedName, masterKey) : null;
+      const prefix = encryptedPrefix ? await decryptWithAesGcmCombined(encryptedPrefix, masterKey) : null;
+      apiKeys.push({
+        id: String(key.id ?? ""),
+        name: name || encryptedName || "Unnamed API key",
+        key_prefix: prefix || encryptedPrefix || "sk-api-...",
+        created_at: typeof key.created_at === "string" ? key.created_at : null,
+        expires_at: typeof key.expires_at === "string" ? key.expires_at : null,
+        last_used_at: typeof key.last_used_at === "string" ? key.last_used_at : null,
+        full_access: typeof key.full_access === "boolean" ? key.full_access : true,
+        scopes: (key.scopes && typeof key.scopes === "object" ? key.scopes : {}) as Record<string, unknown>,
+        credit_limit: (key.credit_limit && typeof key.credit_limit === "object" ? key.credit_limit : null) as Record<string, unknown> | null,
+        pending_device_count: typeof key.pending_device_count === "number" ? key.pending_device_count : 0,
+        encrypted_name: encryptedName,
+        encrypted_key_prefix: encryptedPrefix,
+      });
+    }
+    return { api_keys: apiKeys };
   }
 
   async settingsPost(

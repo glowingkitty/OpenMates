@@ -189,16 +189,16 @@ attempts:
 
 handoff:
   current_task_id: TASK-5
-  next_action: "Ask the user to review the deployed Proton Bridge connector flow and provide real Proton Bridge test credentials/setup when live IMAP/SMTP validation should run."
+  next_action: "Ask the user to provide a paid Proton Mail plan on the dedicated Bridge test account, then rerun live IMAP/SMTP validation."
   command: "python3 scripts/spec_verify.py docs/specs/proton-bridge-cli-connector/spec.yml --phase green"
-  expected_outcome: "Automated green evidence is complete; verification remains blocked only by user confirmation/live Proton Bridge validation."
+  expected_outcome: "Automated green evidence is complete except live Proton Bridge validation, which is blocked by the test account plan."
   blocker:
     task_id: TASK-5
     requires_user_input: true
-    reason: "Mocked/fake automated evidence is complete, but live Proton Bridge IMAP/SMTP validation still requires PROTON_BRIDGE_TEST_PASSWORD plus an amd64 Bridge-capable runner. The local dev host is Linux aarch64 and cannot install Proton's official amd64 DEB."
-    question: "Please add PROTON_BRIDGE_TEST_PASSWORD (and PROTON_BRIDGE_TEST_TOTP_KEY if 2FA is enabled) to local .env and GitHub repository secrets, then rerun proton-bridge-live.spec.ts on GitHub Actions."
-    next_action: "After live Proton Bridge passes, record T-PLAYWRIGHT-PROTON-BRIDGE-LIVE and final user confirmation evidence."
-  last_verified_commit: 81ff546e1
+    reason: "Live GitHub Actions validation reaches Proton Bridge authentication, but Proton rejects the dedicated test account with Code=10004: Please upgrade to a paid plan to use this client. Bridge requires a paid Proton plan before it exposes local IMAP/SMTP credentials."
+    question: "Please upgrade the dedicated Proton Bridge test account to a paid Proton Mail plan, or provide a different paid Bridge-capable test account in PROTON_BRIDGE_TEST_EMAIL / PROTON_BRIDGE_TEST_PASSWORD / PROTON_BRIDGE_TEST_TOTP_KEY."
+    next_action: "After the account is Bridge-capable, rerun python3 scripts/tests.py run -- --spec proton-bridge-live.spec.ts, then record T-PLAYWRIGHT-PROTON-BRIDGE-LIVE and final user confirmation evidence."
+  last_verified_commit: eb5731f83
 
 scenarios:
   - id: S-1
@@ -751,11 +751,13 @@ tests:
       evidence:
         status: blocked
         command: python3 scripts/tests.py run -- --spec proton-bridge-live.spec.ts
-        run_id: not-run-local-dev-aarch64
-        subject_commit: 81ff546e1
-        timestamp: "2026-07-15T09:45:00Z"
+        run_id: github-29432193121
+        subject_commit: eb5731f83
+        timestamp: "2026-07-15T16:26:21Z"
         target: app.dev.openmates.org
-        reason: "Local dev host is aarch64 and lacks Proton's official amd64 Bridge package; .env currently contains PROTON_BRIDGE_TEST_EMAIL but not PROTON_BRIDGE_TEST_PASSWORD. GitHub Actions workflow now installs Bridge for this spec on amd64 runners once secrets are configured."
+        reason: "GitHub Actions installed Proton Mail Bridge on ubuntu-latest amd64 and reached Bridge auth, but Proton returned Code=10004: Please upgrade to a paid plan to use this client. The dedicated test account must be paid before Bridge will create a local active account and expose IMAP/SMTP info."
+        next_action: "Upgrade/provide a paid Bridge-capable Proton test account, then rerun this spec on GitHub Actions."
+        recheck_condition: "PROTON_BRIDGE_TEST_EMAIL points to a paid Proton account that can use Bridge; PROTON_BRIDGE_TEST_PASSWORD and PROTON_BRIDGE_TEST_TOTP_KEY, if applicable, are current GitHub secrets."
   - id: T-SDK-CLI-PARITY-AUDIT
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -1091,6 +1093,6 @@ tasks:
         - frontend/packages/ui/src/legal/documents/privacy-policy.ts
       shared_files: []
     blockers:
-      - "Final user confirmation and live Proton Bridge IMAP/SMTP validation require PROTON_BRIDGE_TEST_PASSWORD plus a Bridge-capable amd64 runner."
+      - "Final user confirmation and live Proton Bridge IMAP/SMTP validation require a paid Bridge-capable Proton test account; GitHub run 29432193121 reached Bridge auth but Proton returned Code=10004 for the current account."
     follow_up_tasks: []
     independently_deployable: true

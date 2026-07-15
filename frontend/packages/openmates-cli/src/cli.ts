@@ -3042,6 +3042,50 @@ async function printSettingsResult(
   }
 }
 
+function printApiKeyList(
+  result: { api_keys: Array<Record<string, unknown>> },
+  flags: Record<string, string | boolean>,
+): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  if (result.api_keys.length === 0) {
+    process.stdout.write("No API keys found.\n");
+    return;
+  }
+  for (const key of result.api_keys) {
+    const name = String(key.name || "Unnamed API key");
+    const id = String(key.id || "unknown");
+    const prefix = String(key.key_prefix || "sk-api-...");
+    const access = key.full_access === false ? "Restricted access" : "Full access";
+    const pendingCount = typeof key.pending_device_count === "number" ? key.pending_device_count : 0;
+    process.stdout.write(`${name} (${id})\n`);
+    process.stdout.write(`  Prefix: ${prefix}\n`);
+    process.stdout.write(`  Access: ${access}\n`);
+    process.stdout.write(`  Created: ${formatCliDateTime(key.created_at)}\n`);
+    process.stdout.write(`  Last used: ${formatCliDateTime(key.last_used_at, "Never used")}\n`);
+    process.stdout.write(`  Credit limit: ${formatCliCreditLimit(key.credit_limit)}\n`);
+    if (pendingCount > 0) {
+      process.stdout.write(`  Confirm device: ${pendingCount} pending request${pendingCount === 1 ? "" : "s"}\n`);
+    }
+  }
+}
+
+function formatCliDateTime(value: unknown, emptyLabel = "Unknown"): string {
+  if (typeof value !== "string" || !value) return emptyLabel;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString();
+}
+
+function formatCliCreditLimit(value: unknown): string {
+  if (!value || typeof value !== "object") return "Unlimited credits";
+  const limit = value as { credits?: unknown; period?: unknown };
+  if (typeof limit.credits !== "number" || typeof limit.period !== "string") return "Unlimited credits";
+  return `${limit.credits} credits / ${limit.period}`;
+}
+
 async function printSettingsMutationResult(
   resultPromise: Promise<unknown>,
   flags: Record<string, string | boolean>,
@@ -4224,7 +4268,8 @@ async function handleSettings(
   }
 
   if (matches(tokens, ["developers", "api-keys", "list"])) {
-    await printSettingsResult(client.settingsGet("api-keys"), flags);
+    const result = await client.listApiKeys();
+    printApiKeyList(result, flags);
     return;
   }
 
@@ -4253,7 +4298,7 @@ async function handleSettings(
     const id = rest[2];
     if (!id) throw new Error("Missing API key ID.");
     if (flags.yes !== true) await confirmOrExit(`Revoke API key ${id}? [y/N] `);
-    await printSettingsMutationResult(client.settingsDelete(`api-keys/${id}`), flags);
+    await printSettingsMutationResult(client.revokeApiKey(id), flags);
     return;
   }
 
