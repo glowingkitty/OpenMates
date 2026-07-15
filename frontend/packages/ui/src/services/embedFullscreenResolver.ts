@@ -13,6 +13,7 @@ import {
 	EMBED_FULLSCREEN_COMPONENTS,
 	normalizeEmbedType
 } from '../data/embedRegistry.generated';
+import Model3DResultEmbedFullscreen from '../components/embeds/models3d/Model3DResultEmbedFullscreen.svelte';
 import {
 	forcePageReload,
 	isChunkLoadError,
@@ -65,6 +66,11 @@ const modules = import.meta.glob<{ default: Component }>(
 
 const fullscreenComponentPromises = new Map<string, Promise<Component | null>>();
 
+const STATIC_FULLSCREEN_COMPONENTS: Record<string, Component> = {
+	// Avoid a blank/pending shell for the public Models3D example's direct child route.
+	'models3d-model-result': Model3DResultEmbedFullscreen,
+};
+
 /**
  * Dynamically load a fullscreen component by registry key.
  *
@@ -76,6 +82,9 @@ const fullscreenComponentPromises = new Map<string, Promise<Component | null>>()
 export async function loadFullscreenComponent(
 	key: string
 ): Promise<Component | null> {
+	const staticComponent = STATIC_FULLSCREEN_COMPONENTS[key];
+	if (staticComponent) return staticComponent;
+
 	const cached = fullscreenComponentPromises.get(key);
 	if (cached) return cached;
 
