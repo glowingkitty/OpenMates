@@ -1,27 +1,27 @@
 schema_version: 1
 cadence: daily
 date: '2026-07-09'
-generated_at: '2026-07-09T15:54:26+00:00'
+generated_at: '2026-07-10T00:20:04+00:00'
 range:
   since: '2026-07-09T00:00:00+00:00'
-  until: '2026-07-09T23:59:59+00:00'
-  from_ref: v0.9.0-alpha
-  to_ref: origin/main
+  until: '2026-07-10T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 13
+  total_commits: 51
   section_counts:
-    features: 1
-    bug_fixes: 5
+    features: 8
+    bug_fixes: 22
     improvements: 0
-    docs: 0
-    tests: 6
-    infrastructure: 0
-    internal: 0
-    other: 1
+    docs: 4
+    tests: 14
+    infrastructure: 2
+    internal: 1
+    other: 0
   newsletter_ready_items: 1
-  user_facing_items: 6
-  dev_only_items: 0
+  user_facing_items: 25
+  dev_only_items: 39
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -101,6 +101,215 @@ feature_availability:
     recommendations.
 sections:
   features:
+  - title: 'feat: prove interactive TextKit attachments'
+    section: features
+    commits:
+    - 71a73e9ae
+    authored_at: '2026-07-09T23:38:12+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: prototype native composer controller'
+    section: features
+    commits:
+    - 523e3dedc
+    authored_at: '2026-07-09T23:34:21+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    - docs/specs/apple-native-message-composer/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: implement composer document adapters'
+    section: features
+    commits:
+    - d45b37a75
+    authored_at: '2026-07-09T23:19:40+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - docs/specs/apple-native-message-composer/spec.yml
+    - frontend/packages/ui/src/components/enter_message/bridge/composerDocument.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add GPT-5.6 OpenRouter models'
+    section: features
+    commits:
+    - 8fc78c064
+    authored_at: '2026-07-09T23:08:27+00:00'
+    changed_paths:
+    - backend/providers/openai.yml
+    - backend/tests/test_gpt_5_6_openrouter_models.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: improve CLI version update output'
+    section: features
+    commits:
+    - 49747db34
+    authored_at: '2026-07-09T14:52:15+00:00'
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - frontend/packages/openmates-cli/src/branding.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/selfUpdate.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Apple composer embed parity bridge'
+    section: features
+    commits:
+    - 442bf7cb8
+    authored_at: '2026-07-09T14:38:34+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Resources/TiptapComposer/index.html
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - docs/specs/apple-web-composer-embed-parity/spec.yml
+    - scripts/apple_composer_audit.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: activate release intelligence automation'
+    section: features
+    commits:
+    - 77689675b
+    authored_at: '2026-07-09T13:14:19+00:00'
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - backend/core/api/app/services/feature_availability_service.py
+    - backend/tests/test_feature_availability_service.py
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/release-intelligence-workflow/spec.yml
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'feat: add Apple Tiptap WebView composer'
     section: features
     commits:
@@ -161,6 +370,482 @@ sections:
     - commit is reachable from main
     - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   bug_fixes:
+  - title: 'fix: pin Playwright to gated deployment'
+    section: bug_fixes
+    commits:
+    - abfe2dd91
+    authored_at: '2026-07-09T23:58:54+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - docs/contributing/guides/testing.md
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve native composer identity boundaries'
+    section: bug_fixes
+    commits:
+    - 65aeb81ef
+    authored_at: '2026-07-09T23:45:35+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep prototype interaction main-actor local'
+    section: bug_fixes
+    commits:
+    - 583e24445
+    authored_at: '2026-07-09T23:40:49+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate attachment provider actor boundary'
+    section: bug_fixes
+    commits:
+    - 4aafd1a91
+    authored_at: '2026-07-09T23:39:38+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: provision reserved recovery account'
+    section: bug_fixes
+    commits:
+    - 440b2fb0a
+    authored_at: '2026-07-09T23:29:37+00:00'
+    changed_paths:
+    - docs/contributing/guides/testing.md
+    - docs/specs/cli-signup-billing-provisioning/spec.yml
+    - frontend/apps/web_app/tests/cli-provision-auth-accounts.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/e2e-provisioning.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden composer document contracts'
+    section: bug_fixes
+    commits:
+    - 712358f0b
+    authored_at: '2026-07-09T23:29:05+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - frontend/packages/ui/src/components/enter_message/bridge/__tests__/composerDocument.test.ts
+    - frontend/packages/ui/src/components/enter_message/bridge/composerDocument.ts
+    - shared/composer/fixtures/composer-document-v1.json
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show immediate server command startup feedback'
+    section: bug_fixes
+    commits:
+    - 2bbd6cce5
+    authored_at: '2026-07-09T16:18:36+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: gate composer webview opacity on iOS'
+    section: bug_fixes
+    commits:
+    - fcfe3db01
+    authored_at: '2026-07-09T15:39:56+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate macOS share extension navigation delegate'
+    section: bug_fixes
+    commits:
+    - f66aeee60
+    authored_at: '2026-07-09T15:32:23+00:00'
+    changed_paths:
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose Apple composer embed labels'
+    section: bug_fixes
+    commits:
+    - 98649a2db
+    authored_at: '2026-07-09T15:10:06+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - scripts/apple_composer_audit.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Apple composer embed filenames'
+    section: bug_fixes
+    commits:
+    - 5353012a5
+    authored_at: '2026-07-09T15:04:02+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reduce self-host worker memory pressure'
+    section: bug_fixes
+    commits:
+    - 9a40f848c
+    authored_at: '2026-07-09T14:57:18+00:00'
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - docs/self-hosting/setup.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/audit_sdk_cli_parity.py
+    - setup.sh
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add Apple composer accessibility diagnostics'
+    section: bug_fixes
+    commits:
+    - 7157463b8
+    authored_at: '2026-07-09T14:56:03+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expose Apple composer embed count to UI tests'
+    section: bug_fixes
+    commits:
+    - 62d25d142
+    authored_at: '2026-07-09T14:50:52+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stream backup checksum hashing'
+    section: bug_fixes
+    commits:
+    - 105a114f8
+    authored_at: '2026-07-09T14:50:26+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Apple composer embed diagnostics'
+    section: bug_fixes
+    commits:
+    - 1e7cdf0a8
+    authored_at: '2026-07-09T14:46:21+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: enforce TestFlight changelog minimum'
+    section: bug_fixes
+    commits:
+    - 6cf81c322
+    authored_at: '2026-07-09T13:58:15+00:00'
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    - scripts/audit_apple_release_preflight.py
+    - scripts/tests/test_apple_remote_testflight.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'fix: make Apple recording overlay cancellable'
     section: bug_fixes
     commits:
@@ -318,8 +1003,371 @@ sections:
     - commit is reachable from main
     - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   improvements: []
-  docs: []
+  docs:
+  - title: 'docs: backfill release intelligence changelogs'
+    section: docs
+    commits:
+    - f5464f918
+    authored_at: '2026-07-09T16:10:18+00:00'
+    changed_paths:
+    - docs/releases/daily/2026-04-13.yml
+    - docs/releases/daily/2026-04-14.yml
+    - docs/releases/daily/2026-04-15.yml
+    - docs/releases/daily/2026-04-16.yml
+    - docs/releases/daily/2026-04-17.yml
+    - docs/releases/daily/2026-04-18.yml
+    - docs/releases/daily/2026-04-19.yml
+    - docs/releases/daily/2026-04-20.yml
+    - docs/releases/daily/2026-04-21.yml
+    - docs/releases/daily/2026-04-22.yml
+    - docs/releases/daily/2026-04-23.yml
+    - docs/releases/daily/2026-04-24.yml
+    - docs/releases/daily/2026-04-25.yml
+    - docs/releases/daily/2026-04-26.yml
+    - docs/releases/daily/2026-04-27.yml
+    - docs/releases/daily/2026-04-28.yml
+    - docs/releases/daily/2026-04-29.yml
+    - docs/releases/daily/2026-04-30.yml
+    - docs/releases/daily/2026-05-01.yml
+    - docs/releases/daily/2026-05-02.yml
+    - docs/releases/daily/2026-05-03.yml
+    - docs/releases/daily/2026-05-04.yml
+    - docs/releases/daily/2026-05-05.yml
+    - docs/releases/daily/2026-05-06.yml
+    - docs/releases/daily/2026-05-07.yml
+    - docs/releases/daily/2026-05-08.yml
+    - docs/releases/daily/2026-05-09.yml
+    - docs/releases/daily/2026-05-10.yml
+    - docs/releases/daily/2026-05-11.yml
+    - docs/releases/daily/2026-05-12.yml
+    - docs/releases/daily/2026-05-13.yml
+    - docs/releases/daily/2026-05-14.yml
+    - docs/releases/daily/2026-05-15.yml
+    - docs/releases/daily/2026-05-16.yml
+    - docs/releases/daily/2026-05-17.yml
+    - docs/releases/daily/2026-05-18.yml
+    - docs/releases/daily/2026-05-19.yml
+    - docs/releases/daily/2026-05-20.yml
+    - docs/releases/daily/2026-05-21.yml
+    - docs/releases/daily/2026-05-22.yml
+    - docs/releases/daily/2026-05-23.yml
+    - docs/releases/daily/2026-05-24.yml
+    - docs/releases/daily/2026-05-25.yml
+    - docs/releases/daily/2026-05-26.yml
+    - docs/releases/daily/2026-05-27.yml
+    - docs/releases/daily/2026-05-28.yml
+    - docs/releases/daily/2026-05-29.yml
+    - docs/releases/daily/2026-05-30.yml
+    - docs/releases/daily/2026-05-31.yml
+    - docs/releases/daily/2026-06-01.yml
+    - docs/releases/daily/2026-06-02.yml
+    - docs/releases/daily/2026-06-03.yml
+    - docs/releases/daily/2026-06-04.yml
+    - docs/releases/daily/2026-06-05.yml
+    - docs/releases/daily/2026-06-06.yml
+    - docs/releases/daily/2026-06-07.yml
+    - docs/releases/daily/2026-06-08.yml
+    - docs/releases/daily/2026-06-09.yml
+    - docs/releases/daily/2026-06-10.yml
+    - docs/releases/daily/2026-06-11.yml
+    - docs/releases/daily/2026-06-12.yml
+    - docs/releases/daily/2026-06-13.yml
+    - docs/releases/daily/2026-06-14.yml
+    - docs/releases/daily/2026-06-15.yml
+    - docs/releases/daily/2026-06-16.yml
+    - docs/releases/daily/2026-06-17.yml
+    - docs/releases/daily/2026-06-18.yml
+    - docs/releases/daily/2026-06-19.yml
+    - docs/releases/daily/2026-06-20.yml
+    - docs/releases/daily/2026-06-21.yml
+    - docs/releases/daily/2026-06-22.yml
+    - docs/releases/daily/2026-06-23.yml
+    - docs/releases/daily/2026-06-24.yml
+    - docs/releases/daily/2026-06-25.yml
+    - docs/releases/daily/2026-06-30.yml
+    - docs/releases/daily/2026-07-01.yml
+    - docs/releases/daily/2026-07-02.yml
+    - docs/releases/daily/2026-07-03.yml
+    - docs/releases/daily/2026-07-04.yml
+    - docs/releases/daily/2026-07-05.yml
+    - docs/releases/daily/2026-07-06.yml
+    - docs/releases/daily/2026-07-07.yml
+    - docs/releases/daily/2026-07-08.yml
+    - docs/releases/daily/2026-07-09.yml
+    - docs/releases/weekly/2026-W16.yml
+    - docs/releases/weekly/2026-W17.yml
+    - docs/releases/weekly/2026-W18.yml
+    - docs/releases/weekly/2026-W19.yml
+    - docs/releases/weekly/2026-W20.yml
+    - docs/releases/weekly/2026-W21.yml
+    - docs/releases/weekly/2026-W22.yml
+    - docs/releases/weekly/2026-W23.yml
+    - docs/releases/weekly/2026-W24.yml
+    - docs/releases/weekly/2026-W25.yml
+    - docs/releases/weekly/2026-W26.yml
+    - docs/releases/weekly/2026-W27.yml
+    - docs/releases/weekly/2026-W28.yml
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: complete Apple composer embed parity spec'
+    section: docs
+    commits:
+    - 9fd1e3616
+    authored_at: '2026-07-09T15:52:54+00:00'
+    changed_paths:
+    - docs/specs/apple-web-composer-embed-parity/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apple composer embed verification'
+    section: docs
+    commits:
+    - 4487cb1d6
+    authored_at: '2026-07-09T15:21:50+00:00'
+    changed_paths:
+    - docs/specs/apple-web-composer-embed-parity/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apple composer TestFlight verification'
+    section: docs
+    commits:
+    - 594ef4585
+    authored_at: '2026-07-09T13:24:13+00:00'
+    changed_paths:
+    - docs/specs/apple-tiptap-webview-composer/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   tests:
+  - title: 'test: audit native composer renderer coverage'
+    section: tests
+    commits:
+    - a2cc4fb0a
+    authored_at: '2026-07-09T23:58:34+00:00'
+    changed_paths:
+    - docs/specs/apple-native-message-composer/spec.yml
+    - scripts/apple_composer_renderer_audit.py
+    - scripts/tests/test_apple_composer_renderer_audit.py
+    - shared/composer/fixtures/renderer-coverage.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: define live audio waveform contract'
+    section: tests
+    commits:
+    - 60eaa5af8
+    authored_at: '2026-07-09T23:34:28+00:00'
+    changed_paths:
+    - docs/specs/live-audio-recording-waveform/spec.yml
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: define native composer controller contract'
+    section: tests
+    commits:
+    - 2a0e1b5fa
+    authored_at: '2026-07-09T23:32:03+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    - docs/specs/apple-native-message-composer/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: correct composer UTF-16 fixture'
+    section: tests
+    commits:
+    - d1c20019a
+    authored_at: '2026-07-09T23:12:54+00:00'
+    changed_paths:
+    - docs/specs/apple-native-message-composer/spec.yml
+    - shared/composer/fixtures/composer-document-v1.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: execute native composer red contracts'
+    section: tests
+    commits:
+    - dad5ee704
+    authored_at: '2026-07-09T23:08:34+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - docs/specs/apple-native-message-composer/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: define native composer document contract'
+    section: tests
+    commits:
+    - 13d5b2ea8
+    authored_at: '2026-07-09T23:04:31+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - docs/specs/apple-native-message-composer/spec.yml
+    - frontend/packages/ui/src/components/enter_message/bridge/__tests__/composerDocument.test.ts
+    - frontend/packages/ui/src/components/enter_message/bridge/composerDocument.ts
+    - shared/composer/fixtures/composer-document-v1.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: restrict account preflight to universal state'
+    section: tests
+    commits:
+    - 414a357b1
+    authored_at: '2026-07-09T22:52:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: narrow Apple interest parity assertion'
+    section: tests
+    commits:
+    - f944ebb12
+    authored_at: '2026-07-09T13:06:14+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'test: stabilize Apple interest suggestion assertion'
     section: tests
     commits:
@@ -510,28 +1558,652 @@ sections:
     - classified as tests from commit subject/path rules
     - 'matches feature availability gates: platform:ios, platform:macos'
     - commit is reachable from main
-  infrastructure: []
-  internal: []
-  other:
-  - title: 'Merge pull request #485 from glowingkitty/dev'
-    section: other
+  infrastructure:
+  - title: 'ci: restore dev prerelease publishing'
+    section: infrastructure
     commits:
-    - e09ad91bc
-    authored_at: '2026-07-09T15:03:34+02:00'
-    changed_paths: []
-    release_status: released_main
+    - 473b0d70a
+    authored_at: '2026-07-09T15:31:24+00:00'
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/publish-python-sdk.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/publish-python-sdk.md
+    - scripts/prepare_cli_publish_version.mjs
+    - scripts/prepare_python_publish_version.py
+    - scripts/tests/test_prepare_cli_publish_version.mjs
+    - scripts/tests/test_prepare_python_publish_version.py
+    - shared/config/product_version.json
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
     related_features: []
     feature_metadata_changed: false
     rationale:
-    - classified as other changes from commit subject/path rules
-    - commit is reachable from main
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'ci: gate stable artifact publishing'
+    section: infrastructure
+    commits:
+    - baacdcc80
+    authored_at: '2026-07-09T13:14:52+00:00'
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/publish-python-sdk.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/publish-python-sdk.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: 'revert: restore native Apple composer embeds'
+    section: internal
+    commits:
+    - d8676debe
+    authored_at: '2026-07-09T17:17:09+00:00'
+    changed_paths:
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Resources/TiptapComposer/index.html
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - docs/specs/apple-web-composer-embed-parity/spec.yml
+    - scripts/apple_composer_audit.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  other: []
 unreleased_progress:
-  dev_only: []
+  dev_only:
+  - title: 'fix: pin Playwright to gated deployment'
+    commits:
+    - abfe2dd91
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: audit native composer renderer coverage'
+    commits:
+    - a2cc4fb0a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve native composer identity boundaries'
+    commits:
+    - 65aeb81ef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: keep prototype interaction main-actor local'
+    commits:
+    - 583e24445
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: isolate attachment provider actor boundary'
+    commits:
+    - 4aafd1a91
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: prove interactive TextKit attachments'
+    commits:
+    - 71a73e9ae
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: define live audio waveform contract'
+    commits:
+    - 60eaa5af8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: prototype native composer controller'
+    commits:
+    - 523e3dedc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: define native composer controller contract'
+    commits:
+    - 2a0e1b5fa
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: provision reserved recovery account'
+    commits:
+    - 440b2fb0a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: harden composer document contracts'
+    commits:
+    - 712358f0b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: implement composer document adapters'
+    commits:
+    - d45b37a75
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: correct composer UTF-16 fixture'
+    commits:
+    - d1c20019a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: execute native composer red contracts'
+    commits:
+    - dad5ee704
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add GPT-5.6 OpenRouter models'
+    commits:
+    - 8fc78c064
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: define native composer document contract'
+    commits:
+    - 13d5b2ea8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: restrict account preflight to universal state'
+    commits:
+    - 414a357b1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'revert: restore native Apple composer embeds'
+    commits:
+    - d8676debe
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: show immediate server command startup feedback'
+    commits:
+    - 2bbd6cce5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'docs: backfill release intelligence changelogs'
+    commits:
+    - f5464f918
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: complete Apple composer embed parity spec'
+    commits:
+    - 9fd1e3616
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: gate composer webview opacity on iOS'
+    commits:
+    - fcfe3db01
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: isolate macOS share extension navigation delegate'
+    commits:
+    - f66aeee60
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'ci: restore dev prerelease publishing'
+    commits:
+    - 473b0d70a
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Apple composer embed verification'
+    commits:
+    - 4487cb1d6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: expose Apple composer embed labels'
+    commits:
+    - 98649a2db
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve Apple composer embed filenames'
+    commits:
+    - 5353012a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: reduce self-host worker memory pressure'
+    commits:
+    - 9a40f848c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: add Apple composer accessibility diagnostics'
+    commits:
+    - 7157463b8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: improve CLI version update output'
+    commits:
+    - 49747db34
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: expose Apple composer embed count to UI tests'
+    commits:
+    - 62d25d142
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: stream backup checksum hashing'
+    commits:
+    - 105a114f8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve Apple composer embed diagnostics'
+    commits:
+    - 1e7cdf0a8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add Apple composer embed parity bridge'
+    commits:
+    - 442bf7cb8
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: enforce TestFlight changelog minimum'
+    commits:
+    - 6cf81c322
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Apple composer TestFlight verification'
+    commits:
+    - 594ef4585
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'ci: gate stable artifact publishing'
+    commits:
+    - baacdcc80
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: activate release intelligence automation'
+    commits:
+    - 77689675b
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: narrow Apple interest parity assertion'
+    commits:
+    - f944ebb12
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
   unknown_release_status: []
-  feature_metadata_changed: []
+  feature_metadata_changed:
+  - title: 'feat: activate release intelligence automation'
+    commits:
+    - 77689675b
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
 marketing_candidates:
   newsletter:
   - title: 'fix: harden CLI self-host backups'
@@ -542,6 +2214,354 @@ marketing_candidates:
     communication_status: ready_for_public_communication
     related_features: []
   social_or_video:
+  - title: 'fix: preserve native composer identity boundaries'
+    commits:
+    - 65aeb81ef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep prototype interaction main-actor local'
+    commits:
+    - 583e24445
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: isolate attachment provider actor boundary'
+    commits:
+    - 4aafd1a91
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: prove interactive TextKit attachments'
+    commits:
+    - 71a73e9ae
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: prototype native composer controller'
+    commits:
+    - 523e3dedc
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: provision reserved recovery account'
+    commits:
+    - 440b2fb0a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: harden composer document contracts'
+    commits:
+    - 712358f0b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: implement composer document adapters'
+    commits:
+    - d45b37a75
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: show immediate server command startup feedback'
+    commits:
+    - 2bbd6cce5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: gate composer webview opacity on iOS'
+    commits:
+    - fcfe3db01
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: expose Apple composer embed labels'
+    commits:
+    - 98649a2db
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve Apple composer embed filenames'
+    commits:
+    - 5353012a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: reduce self-host worker memory pressure'
+    commits:
+    - 9a40f848c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: add Apple composer accessibility diagnostics'
+    commits:
+    - 7157463b8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: improve CLI version update output'
+    commits:
+    - 49747db34
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: expose Apple composer embed count to UI tests'
+    commits:
+    - 62d25d142
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: stream backup checksum hashing'
+    commits:
+    - 105a114f8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve Apple composer embed diagnostics'
+    commits:
+    - 1e7cdf0a8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Apple composer embed parity bridge'
+    commits:
+    - 442bf7cb8
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
   - title: 'fix: make Apple recording overlay cancellable'
     commits:
     - eca1bbe7d
@@ -667,14 +2687,594 @@ risks:
   - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
 sources:
   commits:
-  - sha: e09ad91bc889de5cbe2c1add5cda5ba70ec18887
-    short_sha: e09ad91bc
-    authored_at: '2026-07-09T15:03:34+02:00'
-    subject: 'Merge pull request #485 from glowingkitty/dev'
-    in_main: true
-    in_dev: false
-    changed_paths: []
+  - sha: abfe2dd91f9d647af4be4b58de344f426c31d5d4
+    short_sha: abfe2dd91
+    authored_at: '2026-07-09T23:58:54+00:00'
+    subject: 'fix: pin Playwright to gated deployment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - docs/contributing/guides/testing.md
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
     related_feature_ids: []
+  - sha: a2cc4fb0adf55c67c1a88f988d2562b05d2df97c
+    short_sha: a2cc4fb0a
+    authored_at: '2026-07-09T23:58:34+00:00'
+    subject: 'test: audit native composer renderer coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-native-message-composer/spec.yml
+    - scripts/apple_composer_renderer_audit.py
+    - scripts/tests/test_apple_composer_renderer_audit.py
+    - shared/composer/fixtures/renderer-coverage.yml
+    related_feature_ids: []
+  - sha: 65aeb81efc09e832690b6a74dc6661888210a6a8
+    short_sha: 65aeb81ef
+    authored_at: '2026-07-09T23:45:35+00:00'
+    subject: 'fix: preserve native composer identity boundaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 583e24445c7ba57b3c83519b81211cf1de702140
+    short_sha: 583e24445
+    authored_at: '2026-07-09T23:40:49+00:00'
+    subject: 'fix: keep prototype interaction main-actor local'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4aafd1a91ffe31b84516002b447031ebd31f1c8b
+    short_sha: 4aafd1a91
+    authored_at: '2026-07-09T23:39:38+00:00'
+    subject: 'fix: isolate attachment provider actor boundary'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 71a73e9aecd935b2992ce1f32ba9bee6b3a0bc23
+    short_sha: 71a73e9ae
+    authored_at: '2026-07-09T23:38:12+00:00'
+    subject: 'feat: prove interactive TextKit attachments'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 60eaa5af83e24f3674026e3f800c9028153b4612
+    short_sha: 60eaa5af8
+    authored_at: '2026-07-09T23:34:28+00:00'
+    subject: 'test: define live audio waveform contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/live-audio-recording-waveform/spec.yml
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    related_feature_ids: []
+  - sha: 523e3dedc3b3ba9fe220acf54c22af1299677ac2
+    short_sha: 523e3dedc
+    authored_at: '2026-07-09T23:34:21+00:00'
+    subject: 'feat: prototype native composer controller'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMates/Sources/Shared/Composer/NativeComposerController.swift
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    - docs/specs/apple-native-message-composer/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2a0e1b5fa0afc6e472ea83372674d7b7a125e419
+    short_sha: 2a0e1b5fa
+    authored_at: '2026-07-09T23:32:03+00:00'
+    subject: 'test: define native composer controller contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesTests/NativeComposerControllerTests.swift
+    - docs/specs/apple-native-message-composer/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 440b2fb0a060d1ee09ccc2f083df79270481966e
+    short_sha: 440b2fb0a
+    authored_at: '2026-07-09T23:29:37+00:00'
+    subject: 'fix: provision reserved recovery account'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/testing.md
+    - docs/specs/cli-signup-billing-provisioning/spec.yml
+    - frontend/apps/web_app/tests/cli-provision-auth-accounts.spec.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/e2e-provisioning.test.ts
+    related_feature_ids: []
+  - sha: 712358f0b29d04c1d18713ccda3f698ff37aef33
+    short_sha: 712358f0b
+    authored_at: '2026-07-09T23:29:05+00:00'
+    subject: 'fix: harden composer document contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - frontend/packages/ui/src/components/enter_message/bridge/__tests__/composerDocument.test.ts
+    - frontend/packages/ui/src/components/enter_message/bridge/composerDocument.ts
+    - shared/composer/fixtures/composer-document-v1.json
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d45b37a75adda397fc2986c7dcfdb43226021c7b
+    short_sha: d45b37a75
+    authored_at: '2026-07-09T23:19:40+00:00'
+    subject: 'feat: implement composer document adapters'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - docs/specs/apple-native-message-composer/spec.yml
+    - frontend/packages/ui/src/components/enter_message/bridge/composerDocument.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d1c20019ada89bbda716410cafbde1a06ddc383d
+    short_sha: d1c20019a
+    authored_at: '2026-07-09T23:12:54+00:00'
+    subject: 'test: correct composer UTF-16 fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-native-message-composer/spec.yml
+    - shared/composer/fixtures/composer-document-v1.json
+    related_feature_ids: []
+  - sha: dad5ee704e1e9bd01dce87fc98d0c5d324db1761
+    short_sha: dad5ee704
+    authored_at: '2026-07-09T23:08:34+00:00'
+    subject: 'test: execute native composer red contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - docs/specs/apple-native-message-composer/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 13d5b2ea858c72a146fd289a14dee6215504eec9
+    short_sha: 13d5b2ea8
+    authored_at: '2026-07-09T23:04:31+00:00'
+    subject: 'test: define native composer document contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Composer/ComposerDocument.swift
+    - apple/OpenMatesTests/NativeComposerDocumentTests.swift
+    - docs/specs/apple-native-message-composer/spec.yml
+    - frontend/packages/ui/src/components/enter_message/bridge/__tests__/composerDocument.test.ts
+    - frontend/packages/ui/src/components/enter_message/bridge/composerDocument.ts
+    - shared/composer/fixtures/composer-document-v1.json
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8fc78c06458e89814055e4cc9b3b8c140cc2b2b4
+    short_sha: 8fc78c064
+    authored_at: '2026-07-09T23:08:27+00:00'
+    subject: 'feat: add GPT-5.6 OpenRouter models'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/providers/openai.yml
+    - backend/tests/test_gpt_5_6_openrouter_models.py
+    related_feature_ids: []
+  - sha: 414a357b15fe677cae8a5855987a9d1401875007
+    short_sha: 414a357b1
+    authored_at: '2026-07-09T22:52:51+00:00'
+    subject: 'test: restrict account preflight to universal state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    related_feature_ids: []
+  - sha: d8676debec0ee5d53d384af61a074567baa23a85
+    short_sha: d8676debe
+    authored_at: '2026-07-09T17:17:09+00:00'
+    subject: 'revert: restore native Apple composer embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Resources/TiptapComposer/index.html
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - docs/specs/apple-web-composer-embed-parity/spec.yml
+    - scripts/apple_composer_audit.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2bbd6cce56c2c155733046f0f4ac87a205d2d082
+    short_sha: 2bbd6cce5
+    authored_at: '2026-07-09T16:18:36+00:00'
+    subject: 'fix: show immediate server command startup feedback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: f5464f91875c4addc2d6e272fea7e42d1fd7bdfe
+    short_sha: f5464f918
+    authored_at: '2026-07-09T16:10:18+00:00'
+    subject: 'docs: backfill release intelligence changelogs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/releases/daily/2026-04-13.yml
+    - docs/releases/daily/2026-04-14.yml
+    - docs/releases/daily/2026-04-15.yml
+    - docs/releases/daily/2026-04-16.yml
+    - docs/releases/daily/2026-04-17.yml
+    - docs/releases/daily/2026-04-18.yml
+    - docs/releases/daily/2026-04-19.yml
+    - docs/releases/daily/2026-04-20.yml
+    - docs/releases/daily/2026-04-21.yml
+    - docs/releases/daily/2026-04-22.yml
+    - docs/releases/daily/2026-04-23.yml
+    - docs/releases/daily/2026-04-24.yml
+    - docs/releases/daily/2026-04-25.yml
+    - docs/releases/daily/2026-04-26.yml
+    - docs/releases/daily/2026-04-27.yml
+    - docs/releases/daily/2026-04-28.yml
+    - docs/releases/daily/2026-04-29.yml
+    - docs/releases/daily/2026-04-30.yml
+    - docs/releases/daily/2026-05-01.yml
+    - docs/releases/daily/2026-05-02.yml
+    - docs/releases/daily/2026-05-03.yml
+    - docs/releases/daily/2026-05-04.yml
+    - docs/releases/daily/2026-05-05.yml
+    - docs/releases/daily/2026-05-06.yml
+    - docs/releases/daily/2026-05-07.yml
+    - docs/releases/daily/2026-05-08.yml
+    - docs/releases/daily/2026-05-09.yml
+    - docs/releases/daily/2026-05-10.yml
+    - docs/releases/daily/2026-05-11.yml
+    - docs/releases/daily/2026-05-12.yml
+    - docs/releases/daily/2026-05-13.yml
+    - docs/releases/daily/2026-05-14.yml
+    - docs/releases/daily/2026-05-15.yml
+    - docs/releases/daily/2026-05-16.yml
+    - docs/releases/daily/2026-05-17.yml
+    - docs/releases/daily/2026-05-18.yml
+    - docs/releases/daily/2026-05-19.yml
+    - docs/releases/daily/2026-05-20.yml
+    - docs/releases/daily/2026-05-21.yml
+    - docs/releases/daily/2026-05-22.yml
+    - docs/releases/daily/2026-05-23.yml
+    - docs/releases/daily/2026-05-24.yml
+    - docs/releases/daily/2026-05-25.yml
+    - docs/releases/daily/2026-05-26.yml
+    - docs/releases/daily/2026-05-27.yml
+    - docs/releases/daily/2026-05-28.yml
+    - docs/releases/daily/2026-05-29.yml
+    - docs/releases/daily/2026-05-30.yml
+    - docs/releases/daily/2026-05-31.yml
+    - docs/releases/daily/2026-06-01.yml
+    - docs/releases/daily/2026-06-02.yml
+    - docs/releases/daily/2026-06-03.yml
+    - docs/releases/daily/2026-06-04.yml
+    - docs/releases/daily/2026-06-05.yml
+    - docs/releases/daily/2026-06-06.yml
+    - docs/releases/daily/2026-06-07.yml
+    - docs/releases/daily/2026-06-08.yml
+    - docs/releases/daily/2026-06-09.yml
+    - docs/releases/daily/2026-06-10.yml
+    - docs/releases/daily/2026-06-11.yml
+    - docs/releases/daily/2026-06-12.yml
+    - docs/releases/daily/2026-06-13.yml
+    - docs/releases/daily/2026-06-14.yml
+    - docs/releases/daily/2026-06-15.yml
+    - docs/releases/daily/2026-06-16.yml
+    - docs/releases/daily/2026-06-17.yml
+    - docs/releases/daily/2026-06-18.yml
+    - docs/releases/daily/2026-06-19.yml
+    - docs/releases/daily/2026-06-20.yml
+    - docs/releases/daily/2026-06-21.yml
+    - docs/releases/daily/2026-06-22.yml
+    - docs/releases/daily/2026-06-23.yml
+    - docs/releases/daily/2026-06-24.yml
+    - docs/releases/daily/2026-06-25.yml
+    - docs/releases/daily/2026-06-30.yml
+    - docs/releases/daily/2026-07-01.yml
+    - docs/releases/daily/2026-07-02.yml
+    - docs/releases/daily/2026-07-03.yml
+    - docs/releases/daily/2026-07-04.yml
+    - docs/releases/daily/2026-07-05.yml
+    - docs/releases/daily/2026-07-06.yml
+    - docs/releases/daily/2026-07-07.yml
+    - docs/releases/daily/2026-07-08.yml
+    - docs/releases/daily/2026-07-09.yml
+    - docs/releases/weekly/2026-W16.yml
+    - docs/releases/weekly/2026-W17.yml
+    - docs/releases/weekly/2026-W18.yml
+    - docs/releases/weekly/2026-W19.yml
+    - docs/releases/weekly/2026-W20.yml
+    - docs/releases/weekly/2026-W21.yml
+    - docs/releases/weekly/2026-W22.yml
+    - docs/releases/weekly/2026-W23.yml
+    - docs/releases/weekly/2026-W24.yml
+    - docs/releases/weekly/2026-W25.yml
+    - docs/releases/weekly/2026-W26.yml
+    - docs/releases/weekly/2026-W27.yml
+    - docs/releases/weekly/2026-W28.yml
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: 9fd1e36164a1fc4d46abb4be2bd3ea996d66b078
+    short_sha: 9fd1e3616
+    authored_at: '2026-07-09T15:52:54+00:00'
+    subject: 'docs: complete Apple composer embed parity spec'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-web-composer-embed-parity/spec.yml
+    related_feature_ids: []
+  - sha: fcfe3db019611993ca3c4d58e29d2e4780e6c68e
+    short_sha: fcfe3db01
+    authored_at: '2026-07-09T15:39:56+00:00'
+    subject: 'fix: gate composer webview opacity on iOS'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f66aeee6017be1e49adcb26797eab3def5d9999b
+    short_sha: f66aeee60
+    authored_at: '2026-07-09T15:32:23+00:00'
+    subject: 'fix: isolate macOS share extension navigation delegate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    related_feature_ids:
+    - platform:macos
+  - sha: 473b0d70afc1f79aaafb404b4b8fcbf8bebf5048
+    short_sha: 473b0d70a
+    authored_at: '2026-07-09T15:31:24+00:00'
+    subject: 'ci: restore dev prerelease publishing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/publish-python-sdk.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/publish-python-sdk.md
+    - scripts/prepare_cli_publish_version.mjs
+    - scripts/prepare_python_publish_version.py
+    - scripts/tests/test_prepare_cli_publish_version.mjs
+    - scripts/tests/test_prepare_python_publish_version.py
+    - shared/config/product_version.json
+    related_feature_ids: []
+  - sha: 4487cb1d6bd484732cfbdacb858f45ea4310815a
+    short_sha: 4487cb1d6
+    authored_at: '2026-07-09T15:21:50+00:00'
+    subject: 'docs: record Apple composer embed verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-web-composer-embed-parity/spec.yml
+    related_feature_ids: []
+  - sha: 98649a2dbe683404d23a77ab3045c96a6f9b64b4
+    short_sha: 98649a2db
+    authored_at: '2026-07-09T15:10:06+00:00'
+    subject: 'fix: expose Apple composer embed labels'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - scripts/apple_composer_audit.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 5353012a590b9b7d9e3cb9609d0d489046400e55
+    short_sha: 5353012a5
+    authored_at: '2026-07-09T15:04:02+00:00'
+    subject: 'fix: preserve Apple composer embed filenames'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9a40f848cb44dfac95e3410616fae9501872ae46
+    short_sha: 9a40f848c
+    authored_at: '2026-07-09T14:57:18+00:00'
+    subject: 'fix: reduce self-host worker memory pressure'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.selfhost.yml
+    - docs/self-hosting/setup.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - scripts/audit_sdk_cli_parity.py
+    - setup.sh
+    related_feature_ids: []
+  - sha: 7157463b8a1917d5045b3adc612aa4f0e0989b5f
+    short_sha: 7157463b8
+    authored_at: '2026-07-09T14:56:03+00:00'
+    subject: 'fix: add Apple composer accessibility diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 49747db3427f1bc3f57044f10834e2ce91aabdcf
+    short_sha: 49747db34
+    authored_at: '2026-07-09T14:52:15+00:00'
+    subject: 'feat: improve CLI version update output'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/cli-terminal-chat-tui/spec.yml
+    - frontend/packages/openmates-cli/src/branding.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/selfUpdate.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    related_feature_ids: []
+  - sha: 62d25d14256f8555039870b1108c537e5e801bdf
+    short_sha: 62d25d142
+    authored_at: '2026-07-09T14:50:52+00:00'
+    subject: 'fix: expose Apple composer embed count to UI tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 105a114f80ab1afe81603cecd38bcea2cfb82e88
+    short_sha: 105a114f8
+    authored_at: '2026-07-09T14:50:26+00:00'
+    subject: 'fix: stream backup checksum hashing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: 1e7cdf0a8f79493f61ea999af46857cbb5563f8d
+    short_sha: 1e7cdf0a8
+    authored_at: '2026-07-09T14:46:21+00:00'
+    subject: 'fix: preserve Apple composer embed diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 442bf7cb853371685885b26ef3831d885aae5c09
+    short_sha: 442bf7cb8
+    authored_at: '2026-07-09T14:38:34+00:00'
+    subject: 'feat: add Apple composer embed parity bridge'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Resources/TiptapComposer/index.html
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - docs/specs/apple-web-composer-embed-parity/spec.yml
+    - scripts/apple_composer_audit.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6cf81c322ace7fa645e18e7914458a72de67f09d
+    short_sha: 6cf81c322
+    authored_at: '2026-07-09T13:58:15+00:00'
+    subject: 'fix: enforce TestFlight changelog minimum'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_apple_remote.py
+    - scripts/apple_remote.py
+    - scripts/audit_apple_release_preflight.py
+    - scripts/tests/test_apple_remote_testflight.py
+    related_feature_ids: []
+  - sha: 594ef4585272cefb590e87c40219028a939933cd
+    short_sha: 594ef4585
+    authored_at: '2026-07-09T13:24:13+00:00'
+    subject: 'docs: record Apple composer TestFlight verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-tiptap-webview-composer/spec.yml
+    related_feature_ids: []
+  - sha: baacdcc80047cb38318fae3e1af9d972eee36671
+    short_sha: baacdcc80
+    authored_at: '2026-07-09T13:14:52+00:00'
+    subject: 'ci: gate stable artifact publishing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/publish-python-sdk.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/publish-python-sdk.md
+    related_feature_ids: []
+  - sha: 77689675b2fe102f8b00e5b21a2b6c32616b4287
+    short_sha: 77689675b
+    authored_at: '2026-07-09T13:14:19+00:00'
+    subject: 'feat: activate release intelligence automation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - backend/core/api/app/services/feature_availability_service.py
+    - backend/tests/test_feature_availability_service.py
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/release-intelligence-workflow/spec.yml
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: f944ebb12a21212d2cdaa99272967c471c555754
+    short_sha: f944ebb12
+    authored_at: '2026-07-09T13:06:14+00:00'
+    subject: 'test: narrow Apple interest parity assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
   - sha: f27c4be6ae598f7f0746b2e209050ca84da57eeb
     short_sha: f27c4be6a
     authored_at: '2026-07-09T13:00:29+00:00'
@@ -843,88 +3443,117 @@ sources:
     - platform:ios
     - platform:macos
 llm_summary:
-  overview: OpenMates improved self-hosting reliability by hardening CLI backups. Significant development also continued on
-    the upcoming Apple platform support, specifically focusing on a new rich-text composer and voice recording refinements.
+  overview: OpenMates focused on hardening the CLI self-hosting infrastructure and advancing the development of native and
+    web-based composers for Apple platforms. While the Apple platform features remain unreleased, significant progress was
+    made on UI parity, accessibility, and automated testing.
   released_changes:
-  - text: OpenMates hardened the backup procedures within the CLI for self-hosted environments.
+  - text: The CLI now features more robust self-host backup handling.
     evidence:
       commits:
       - f305b3975
     release_status: released_main
   bug_fixes:
-  - text: The OpenMates CLI now features hardened self-host backup logic to improve reliability during server planning and
-      deployment.
+  - text: OpenMates hardened the CLI self-host backup process to improve reliability during server maintenance.
     evidence:
       commits:
       - f305b3975
     release_status: released_main
   unreleased_progress:
-  - text: A new Tiptap-based WebView composer was added for Apple platforms, providing a foundation for rich-text editing.
+  - text: Development of the Apple Tiptap WebView composer continued with improvements to focus handling, navigation delegates,
+      and embed parity.
     evidence:
       commits:
       - 0feb3b4b4
-    release_status: released_main
-  - text: The voice recording overlay for Apple platforms was updated to be cancellable, improving the user experience for
-      audio messages.
-    evidence:
-      commits:
       - eca1bbe7d
-    release_status: released_main
-  - text: Several refinements were made to the Apple Tiptap composer, including better focus handling on tap and WebKit navigation
-      delegate compatibility.
-    evidence:
-      commits:
       - b04573f3e
       - fc6d4b5f5
       - 523d40b11
+      - 442bf7cb8
     release_status: released_main
+  - text: Prototyping of a fully native Apple message composer is underway, focusing on TextKit integration and document adapters.
+    evidence:
+      commits:
+      - 71a73e9ae
+      - 523e3dedc
+      - d45b37a75
+      - 65aeb81ef
+      - 583e24445
+      - 4aafd1a91
+      - 712358f0b
+    release_status: dev_only
+  - text: The CLI is being updated with improved version update feedback, immediate server startup status, and reserved recovery
+      account provisioning.
+    evidence:
+      commits:
+      - 49747db34
+      - 440b2fb0a
+      - 2bbd6cce5
+    release_status: dev_only
+  - text: Support for GPT-5.6 models via OpenRouter was added to the backend provider configuration.
+    evidence:
+      commits:
+      - 8fc78c064
+    release_status: dev_only
   internal_progress:
-  - text: UI test coverage for Apple platforms was expanded to include audio recording cancel hints and stabilized interest
-      suggestion assertions.
+  - text: Release intelligence automation was activated, including a backfill of historical changelogs to support automated
+      communication workflows.
     evidence:
       commits:
-      - f27c4be6a
-      - 8034d4c35
-      - 68a3b63ee
-      - e1926bddd
-    release_status: released_main
-  - text: Apple platform UI selectors and welcome card assertions were updated to maintain parity with recent design changes.
+      - 77689675b
+      - f5464f918
+    release_status: dev_only
+  - text: CI pipelines were updated to restore dev prerelease publishing and gate stable artifact releases.
     evidence:
       commits:
-      - 3c0f32f38
-      - 2f4f9e5f3
-    release_status: released_main
+      - 473b0d70a
+      - baacdcc80
+    release_status: dev_only
   newsletter_recommendation:
     include:
-    - text: Hardened self-host backups in the OpenMates CLI.
+    - text: Improved reliability for self-hosted backups in the OpenMates CLI.
       evidence:
         commits:
         - f305b3975
-      reason: This is a released improvement to the CLI tool with a ready communication status.
+      reason: This is a released fix for a core CLI feature that is ready for public communication.
     exclude:
-    - text: Apple Tiptap WebView composer integration.
+    - text: Apple platform Tiptap WebView composer and voice recording updates.
       evidence:
         commits:
         - 0feb3b4b4
-      reason: The Apple Tiptap composer is part of the unreleased iOS and macOS platforms.
-    - text: Apple platform recording and composer refinements.
-      evidence:
-        commits:
         - eca1bbe7d
         - b04573f3e
         - fc6d4b5f5
         - 523d40b11
-      reason: These fixes relate to the unreleased iOS and macOS platforms.
-    rationale: The CLI backup hardening is the only user-facing change ready for public communication. All other work pertains
-      to the unreleased iOS and macOS platforms.
+      reason: Features related to iOS and macOS platforms are currently disabled in the production environment.
+    - text: GPT-5.6 OpenRouter model support.
+      evidence:
+        commits:
+        - 8fc78c064
+      reason: Model updates are currently in dev-only status and not yet reachable from the main branch.
+    - text: CLI version update output, account provisioning, and memory pressure optimizations.
+      evidence:
+        commits:
+        - 49747db34
+        - 440b2fb0a
+        - 9a40f848c
+        - 105a114f8
+        - 2bbd6cce5
+      reason: These CLI improvements and fixes are currently in dev-only status.
+    rationale: The primary user-facing update ready for communication is the hardening of the CLI backup system. Significant
+      work on Apple platforms and model providers remains gated or in development.
   social_video_recommendations:
-  - idea: A preview of the new Tiptap-based rich text composer coming to Apple platforms.
+  - idea: A 'behind the scenes' preview of the upcoming Apple platform experience, showcasing the Tiptap-based composer and
+      the new cancellable voice recording overlay.
     priority: medium
-    reason: Shows concrete progress on the highly anticipated mobile and desktop apps.
+    reason: The visual progress on the Apple composer and recording UI provides a strong product story, even while the platforms
+      are in development.
     evidence:
       commits:
       - 0feb3b4b4
+      - eca1bbe7d
   quality_notes:
-  - Focus on UI test parity for the upcoming Apple platform release.
-  - Refinement of rich-text editor focus and navigation delegates in WebView components.
+  - Extensive UI test coverage was added for the Apple platform composer, including visual parity, attachment handling, and
+    audio recording workflows (2f4f9e5f3, e1926bddd, 68a3b63ee).
+  - Self-hosting stability was addressed through memory pressure optimizations and checksum verification for backups (9a40f848c,
+    105a114f8).
   validation_warnings: []
