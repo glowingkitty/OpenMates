@@ -1,8 +1,8 @@
 <!--
   frontend/packages/ui/src/components/embeds/models3d/Model3DResultEmbedPreview.svelte
 
-  Preview-only child card for a 3D model catalog result. The CTA links to the
-  provider source page; no model file is downloaded or rendered in V1.
+  Preview-only child card for a 3D model catalog result. Source-provider CTAs
+  are intentionally reserved for fullscreen so preview cards stay navigational.
 -->
 
 <script lang="ts">
@@ -31,7 +31,6 @@
     title = '',
     provider = '',
     creatorName = '',
-    sourcePageUrl = '',
     previewImageUrl = '',
     thumbnailUrl = '',
     license = '',
@@ -46,14 +45,8 @@
   let imageFailed = $state(false);
   let displayImage = $derived(proxyImage(previewImageUrl || thumbnailUrl, MAX_WIDTH_PREVIEW_THUMBNAIL));
   let cardTitle = $derived(title || $text('embeds.models3d.search.result_title'));
-  let ctaLabel = $derived(provider ? $text('embeds.models3d.search.open_on_provider', { values: { provider } }) : $text('embeds.models3d.search.open_result'));
-
   function handleStop() {
     // Result cards are not cancellable.
-  }
-
-  function stopLinkClick(event: MouseEvent) {
-    event.stopPropagation();
   }
 </script>
 
@@ -72,7 +65,19 @@
 >
   {#snippet details()}
     <article class="model-card" data-testid="models3d-result-card">
-      <div class="image-shell">
+      <div class="card-body" data-testid="models3d-result-card-body">
+        <h3>{cardTitle}</h3>
+        <div class="meta-line">
+          {#if creatorName}<span>{creatorName}</span>{/if}
+          {#if provider}<span>{provider}</span>{/if}
+        </div>
+        <div class="pills">
+          {#if isFree === true}<span>{$text('embeds.models3d.search.free')}</span>{/if}
+          {#if filesCount != null}<span>{$text('embeds.models3d.search.files_count', { values: { count: filesCount } })}</span>{/if}
+          {#if license}<span>{license}</span>{/if}
+        </div>
+      </div>
+      <div class="image-shell" data-testid="models3d-result-card-image">
         {#if displayImage && !imageFailed}
           <img
             src={displayImage}
@@ -86,30 +91,6 @@
           <span class="clickable-icon icon_3dmodels placeholder-icon"></span>
         {/if}
       </div>
-      <div class="card-body">
-        <h3>{cardTitle}</h3>
-        <div class="meta-line">
-          {#if creatorName}<span>{creatorName}</span>{/if}
-          {#if provider}<span>{provider}</span>{/if}
-        </div>
-        <div class="pills">
-          {#if isFree === true}<span>{$text('embeds.models3d.search.free')}</span>{/if}
-          {#if filesCount != null}<span>{$text('embeds.models3d.search.files_count', { values: { count: filesCount } })}</span>{/if}
-          {#if license}<span>{license}</span>{/if}
-        </div>
-        {#if sourcePageUrl}
-          <a
-            class="provider-cta"
-            data-testid="models3d-open-provider-cta"
-            href={sourcePageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onclick={stopLinkClick}
-          >
-            {ctaLabel}
-          </a>
-        {/if}
-      </div>
     </article>
   {/snippet}
 </UnifiedEmbedPreview>
@@ -117,18 +98,20 @@
 <style>
   .model-card {
     display: flex;
-    flex-direction: column;
-    gap: var(--spacing-6);
+    align-items: stretch;
+    gap: var(--spacing-4);
     width: 100%;
     height: 100%;
     padding: var(--spacing-6);
   }
 
   .image-shell {
+    flex: 0 0 40%;
     display: grid;
     place-items: center;
     aspect-ratio: 4 / 3;
-    width: 100%;
+    width: 40%;
+    min-width: 96px;
     overflow: hidden;
     border-radius: 18px;
     background: var(--color-grey-10);
@@ -154,6 +137,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-3);
+    justify-content: center;
+    flex: 1 1 0;
     min-width: 0;
   }
 
@@ -180,15 +165,13 @@
     background: var(--color-grey-10);
   }
 
-  .provider-cta {
-    align-self: flex-start;
-    margin-top: var(--spacing-3);
-    padding: 7px 11px;
-    border-radius: var(--radius-8);
-    background: var(--color-button-primary);
-    color: var(--color-font-button);
-    font-size: var(--font-size-xs);
-    font-weight: 650;
-    text-decoration: none;
+  :global(.unified-embed-preview.mobile) .model-card {
+    flex-direction: column-reverse;
+  }
+
+  :global(.unified-embed-preview.mobile) .image-shell {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
   }
 </style>

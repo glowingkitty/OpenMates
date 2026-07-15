@@ -75,6 +75,7 @@ apps:
   calculator:        { start: "#067c02", end: "#40c45e" }
   games:             { start: "#0d1b31", end: "#167aaa" }
   3dmodels:          { start: "#ea7600", end: "#fbab59" }
+  models3d:          { start: "#ea7600", end: "#fbab59" }
   math:              { start: "#4c1d95", end: "#7c3aed" }
   # These two use var() refs to --color-primary-* (not raw hex)
   openmates:         { start_ref: "color-primary-start", end_ref: "color-primary-end" }
