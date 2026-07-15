@@ -22,6 +22,7 @@ const PROTON_TOTP_KEY = process.env.PROTON_BRIDGE_TEST_TOTP_KEY;
 const BRIDGE_COMMANDS = ['protonmail-bridge', 'proton-mail-bridge'];
 const BRIDGE_ARGS = ['--cli'];
 const BRIDGE_READY_RE = /No active accounts\. Please add account to continue\.|>{3,}|bridge>\s*$/im;
+const BRIDGE_AUTH_FAILURE_RE = /invalid|incorrect|authentication failed|login failed|wrong password|bad credentials/i;
 const CREDENTIAL_LINE_RE = /^.*(?:password|token|secret|2fa|totp|code).*$/gim;
 const ANSI_ESCAPE_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, 'g');
 const TERMINAL_CONTROL_RE = new RegExp(`[${String.fromCharCode(8)}${String.fromCharCode(13)}]`, 'g');
@@ -160,7 +161,7 @@ test.describe('Proton Bridge live connector smoke', () => {
 		try {
 			await waitForOutput(newOutput, BRIDGE_READY_RE, 'initial Bridge prompt');
 			markOutputCheckpoint();
-			child.stdin.write('login\n');
+			child.stdin.write('add\n');
 
 			await waitForOutput(newOutput, /username|email|login/i, 'Bridge username prompt');
 			markOutputCheckpoint();
@@ -173,6 +174,7 @@ test.describe('Proton Bridge live connector smoke', () => {
 			const postPasswordState = await waitForEitherOutput(
 				newOutput,
 				[
+					{ label: 'auth-failed', pattern: BRIDGE_AUTH_FAILURE_RE },
 					{ label: 'totp', pattern: /2fa|two[- ]?factor|totp|authenticator|verification code/i },
 					{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged|successfully added/i },
 					{ label: 'prompt', pattern: BRIDGE_READY_RE }
@@ -180,19 +182,22 @@ test.describe('Proton Bridge live connector smoke', () => {
 				45_000
 			);
 			markOutputCheckpoint();
+			if (postPasswordState === 'auth-failed') throw new Error('Bridge rejected Proton account credentials.');
 
 			if (postPasswordState === 'totp') {
 				test.skip(!PROTON_TOTP_KEY, 'PROTON_BRIDGE_TEST_TOTP_KEY is required when the Proton account prompts for 2FA.');
 				child.stdin.write(`${generateTotp(PROTON_TOTP_KEY)}\n`);
-				await waitForEitherOutput(
+				const postTotpState = await waitForEitherOutput(
 					newOutput,
 					[
+						{ label: 'auth-failed', pattern: BRIDGE_AUTH_FAILURE_RE },
 						{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged|successfully added/i },
 						{ label: 'prompt', pattern: BRIDGE_READY_RE }
 					],
 					45_000
 				);
 				markOutputCheckpoint();
+				if (postTotpState === 'auth-failed') throw new Error('Bridge rejected Proton account 2FA code.');
 			}
 
 			child.stdin.write('info\n');
