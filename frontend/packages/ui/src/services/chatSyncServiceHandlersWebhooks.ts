@@ -30,6 +30,7 @@ import { pendingWebhookChatsStore } from "../stores/pendingWebhookChatsStore";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
+import { userDB } from "./userDB";
 
 /**
  * Payload structure for the webhook_chat WebSocket event.
@@ -164,8 +165,11 @@ export async function handleWebhookChatImpl(
         return;
       }
 
+      const userProfile = await userDB.getUserProfile();
+
       const newChat = {
         chat_id,
+        user_id: userProfile?.user_id,
         title: titleText,
         encrypted_title: encryptedTitle,
         created_at: firedAt,
