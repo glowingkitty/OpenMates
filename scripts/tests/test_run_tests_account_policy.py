@@ -109,6 +109,108 @@ def test_preflight_availability_reduces_normal_pool_and_blocks_reserved_specs():
     assert "account-recovery-flow.spec.ts (slot 14)" in reason
 
 
+def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
+    run_tests = load_run_tests_module()
+    captured: dict[str, object] = {}
+    preflight_calls: list[list[int] | None] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = "regular.spec.ts"
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = True
+    orchestrator.use_mocks = True
+    orchestrator._discover_specs = lambda: ["regular.spec.ts"]
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        if accounts == [1]:
+            return run_tests.SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                    "status": "failed",
+                    "account": 1,
+                }],
+                reason="slot 1 failed",
+            )
+        return run_tests.SuiteResult(
+            status="passed",
+            tests=[{
+                "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "status": "passed",
+                "account": 2,
+            }],
+        )
+
+    class FakeBatchRunner:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run_all_batches(self):
+            return run_tests.SuiteResult(
+                status="passed",
+                tests=[{"name": "regular.spec.ts", "file": "regular.spec.ts", "status": "passed"}],
+            )
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
+
+    result = orchestrator._run_playwright()
+
+    assert result.status == "passed"
+    assert preflight_calls == [[1], list(range(2, 14))]
+    assert captured["normal_account_slots"] == (2,)
+    assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
+
+
+def test_single_reserved_spec_does_not_fall_back_when_reserved_account_fails(monkeypatch):
+    run_tests = load_run_tests_module()
+    preflight_calls: list[list[int] | None] = []
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = "account-recovery-flow.spec.ts"
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = True
+    orchestrator.use_mocks = True
+    orchestrator._discover_specs = lambda: ["account-recovery-flow.spec.ts"]
+
+    expected = run_tests.SuiteResult(
+        status="failed",
+        tests=[{
+            "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+            "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+            "status": "failed",
+            "account": 14,
+        }],
+        reason="slot 14 failed",
+    )
+
+    def fake_preflight(_client, accounts=None):
+        preflight_calls.append(accounts)
+        return expected
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+
+    result = orchestrator._run_playwright()
+
+    assert result is expected
+    assert preflight_calls == [[14]]
+
+
 def test_hourly_dev_specs_exist():
     run_tests = load_run_tests_module()
     tests_dir = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"

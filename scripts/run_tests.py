@@ -1155,6 +1155,12 @@ def _passed_preflight_slots(results: list[SpecResult]) -> frozenset[int]:
     )
 
 
+def _passed_normal_preflight_slots(results: list[SpecResult]) -> tuple[int, ...]:
+    """Return healthy normal account slots in stable dispatch order."""
+    passed_slots = _passed_preflight_slots(results)
+    return tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot in passed_slots)
+
+
 def _apply_preflight_account_availability(
     specs: list[str],
     preflight_results: list[SpecResult],
@@ -5314,7 +5320,34 @@ class TestOrchestrator:
             account = _account_for_spec_in_batch(self.spec, 0)
             preflight = self._run_account_preflight(client, accounts=[account])
             if preflight.status == "failed":
-                return preflight
+                if self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+                    return preflight
+
+                fallback_accounts = [
+                    slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+                    if slot != account
+                ]
+                fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
+                fallback_slots = _passed_normal_preflight_slots([
+                    self._dict_to_spec_result(test)
+                    for test in fallback_preflight.tests
+                ])
+                if not fallback_slots:
+                    return SuiteResult(
+                        status="failed",
+                        tests=[*preflight.tests, *fallback_preflight.tests],
+                        duration_seconds=round(preflight.duration_seconds + fallback_preflight.duration_seconds, 1),
+                        reason="No healthy normal Playwright account slots after single-spec preflight fallback",
+                    )
+
+                normal_account_slots = (fallback_slots[0],)
+                preflight_reason = (
+                    f"Selected normal account slot {account} failed preflight; "
+                    f"using fallback slot {fallback_slots[0]} for {self.spec}"
+                )
+                _log(preflight_reason, "WARN")
+            else:
+                normal_account_slots = (account,)
 
         runner = BatchRunner(
             client=client,
