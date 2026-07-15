@@ -21,6 +21,7 @@ import type { LocalConnectorRequestFrame, OpenMatesWsClient } from "./ws.js";
 export const PROTON_BRIDGE_PROVIDER_ID = "protonmail_bridge";
 export const PROTON_BRIDGE_APP_ID = "mail";
 export const PROTON_WRITE_DELAY_SECONDS = 30;
+const PROTON_PAID_PLAN_REQUIREMENT = "Proton Mail Bridge requires a paid Proton Mail plan; free Proton accounts cannot use Bridge IMAP/SMTP access.";
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 25_000;
 const DEFAULT_IMAP_TIMEOUT_MS = 5_000;
 const IMAP_COMMAND_TIMEOUT_MS = 15_000;
@@ -201,12 +202,14 @@ export function buildProtonBridgeInstallGuidance(platform: ProtonConnectorPlatfo
     const brewLine = hasHomebrew ? "Run: brew install --cask proton-mail-bridge" : "Install Homebrew or download Proton Mail Bridge from Proton's official website.";
     return [
       "Proton Mail Bridge is required for local Proton Mail access.",
+      PROTON_PAID_PLAN_REQUIREMENT,
       brewLine,
       "After installing, run `openmates connect-account proton` again.",
     ].join("\n");
   }
   return [
     "Proton Mail Bridge is required for local Proton Mail access.",
+    PROTON_PAID_PLAN_REQUIREMENT,
     "For Debian/Ubuntu, follow Proton's official DEB instructions: https://proton.me/support/installing-bridge-linux-deb-file",
     "Current Proton DEB example: wget https://proton.me/download/bridge/protonmail-bridge_3.22.0-1_amd64.deb && sudo apt install ./protonmail-bridge_3.22.0-1_amd64.deb",
     "For RPM or Arch/PKGBUILD systems, use Proton's current Bridge download/support page and verify the package before installing.",
@@ -219,6 +222,7 @@ export function buildProtonBridgeInstallGuidance(platform: ProtonConnectorPlatfo
 export function buildProtonConnectorStartupMessage(writeMode: boolean): string {
   const lines = [
     "Proton Mail Bridge connector starting in read-only mode by default.",
+    PROTON_PAID_PLAN_REQUIREMENT,
     "OpenMates Proton access is active only while this command keeps running.",
     "For long-lived use, run this command inside screen, tmux, or zellij.",
   ];

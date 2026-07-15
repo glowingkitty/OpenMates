@@ -70,12 +70,14 @@ describe("Proton Bridge connector primitives", () => {
     const mac = resolveProtonBridgeCommand({ platform: "darwin", exists: () => false, findExecutable: () => null, hasHomebrew: () => true });
     assert.equal(mac.shouldStart, false);
     assert.match(mac.installGuidance ?? "", /brew install --cask proton-mail-bridge/);
+    assert.match(mac.installGuidance ?? "", /paid Proton Mail plan/);
     assert.match(mac.installGuidance ?? "", /run `openmates connect-account proton` again/i);
 
     const linuxGuidance = buildProtonBridgeInstallGuidance("linux");
     assert.match(linuxGuidance, /installing-bridge-linux-deb-file/);
     assert.match(linuxGuidance, /protonmail-bridge_3\.22\.0-1_amd64\.deb/);
     assert.match(linuxGuidance, /RPM or Arch\/PKGBUILD/);
+    assert.match(linuxGuidance, /paid Proton Mail plan/);
     assert.match(linuxGuidance, /verify the package/);
     assert.match(linuxGuidance, /secret-service\/GNOME Keyring or pass/);
     assert.match(linuxGuidance, /run `openmates connect-account proton` again/i);
@@ -90,6 +92,7 @@ describe("Proton Bridge connector primitives", () => {
     assert.match(message, /active only while this command keeps running/);
     assert.match(message, /screen, tmux, or zellij/);
     assert.match(message, /read-only mode by default/);
+    assert.match(message, /paid Proton Mail plan/);
   });
 
   it("parses Bridge info output and rejects non-localhost hosts", () => {
