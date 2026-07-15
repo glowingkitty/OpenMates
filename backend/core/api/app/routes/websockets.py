@@ -2085,6 +2085,35 @@ async def _deliver_pending_embeds(
         logger.error(f"[PENDING_EMBEDS] Error delivering pending embeds: {e}", exc_info=True)
 
 
+def _schedule_sync_metadata_chats_background(
+    *,
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    user_id: str,
+    device_fingerprint_hash: str,
+    payload: dict,
+    user_otel_attrs: dict | None = None,
+) -> asyncio.Task:
+    # Metadata sync can send hundreds of chat summaries. Keep the receive loop
+    # free so latency-sensitive sends can still preflight and ACK promptly.
+    return asyncio.create_task(
+        handle_sync_metadata_chats(
+            websocket=websocket,
+            manager=manager,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+            payload=payload,
+            user_otel_attrs=user_otel_attrs,
+        )
+    )
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -3017,7 +3046,7 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "sync_metadata_chats":
-                await handle_sync_metadata_chats(
+                _schedule_sync_metadata_chats_background(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,
