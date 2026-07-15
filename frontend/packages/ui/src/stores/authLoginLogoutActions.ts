@@ -38,6 +38,7 @@ import { applyServerDarkMode } from "./theme";
 import { applyServerUiFont } from "./uiFont";
 import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
 import { markDeviceReceivedFreeTestingCredits } from "./serverStatusStore";
+import { isExampleChat } from "../demo_chats/exampleChatStore";
 
 // Import core auth state and related flags
 import {
@@ -125,7 +126,9 @@ export function resetLocalLogoutState(): void {
   const isOgImageModeLogout =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("og") === "1";
-  if (!isOgImageModeLogout) {
+  const activeChatId = activeChatStore.get();
+  const shouldPreserveExampleChat = activeChatId ? isExampleChat(activeChatId) : false;
+  if (!isOgImageModeLogout && !shouldPreserveExampleChat) {
     activeChatStore.clearActiveChat();
   }
 

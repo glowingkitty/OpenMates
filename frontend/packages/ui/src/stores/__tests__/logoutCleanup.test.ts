@@ -20,6 +20,7 @@ import { get } from "svelte/store";
 
 // Track which cleanup functions were called
 const cleanupCalls: string[] = [];
+let currentActiveChatId: string | null = "private-chat-1";
 
 vi.mock("../../services/chatListCache", () => ({
   chatListCache: {
@@ -66,8 +67,16 @@ vi.mock("../chatNavigationStore", () => ({
 
 vi.mock("../activeChatStore", () => ({
   activeChatStore: {
-    clearActiveChat: vi.fn(() => cleanupCalls.push("activeChatStore.clearActiveChat")),
+    get: vi.fn(() => currentActiveChatId),
+    clearActiveChat: vi.fn(() => {
+      currentActiveChatId = null;
+      cleanupCalls.push("activeChatStore.clearActiveChat");
+    }),
   },
+}));
+
+vi.mock("../../demo_chats/exampleChatStore", () => ({
+  isExampleChat: vi.fn((chatId: string) => chatId.startsWith("example-")),
 }));
 
 vi.mock("../../services/sharedChatKeyStorage", () => ({
@@ -259,6 +268,7 @@ import { authStore } from "../authState";
 describe("logout cleanup completeness", () => {
   beforeEach(() => {
     cleanupCalls.length = 0;
+    currentActiveChatId = "private-chat-1";
     vi.clearAllMocks();
     authStore.set({ isAuthenticated: true, isInitialized: true });
   });
@@ -291,6 +301,15 @@ describe("logout cleanup completeness", () => {
     const state = get(authStore);
     expect(state.isAuthenticated).toBe(false);
     expect(state.isInitialized).toBe(true);
+  });
+
+  it("preserves an active static example chat during local logout cleanup", async () => {
+    currentActiveChatId = "example-printable-benchy-phone-stand";
+
+    await logout();
+
+    expect(cleanupCalls).not.toContain("activeChatStore.clearActiveChat");
+    expect(currentActiveChatId).toBe("example-printable-benchy-phone-stand");
   });
 
   it("cleanup order: crypto cleared BEFORE auth state reset", async () => {

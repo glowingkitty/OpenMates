@@ -20,7 +20,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getRecentExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, isExampleChat, getRecentExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -1699,9 +1699,11 @@ let _chatUpdatedFlushPending = false;
 			// valid even when the master key is gone. Clearing them would force the user to re-open
 			// the share link to see the chat again.
 			allChatsFromDB = allChatsFromDB.filter(c => c.is_shared_by_others);
-			// Preserve selection if the active chat is a shared chat that survived the filter above
-			const activeIsShared = selectedChatId && allChatsFromDB.some(c => c.chat_id === selectedChatId);
-			if (!activeIsShared) {
+			// Preserve selection if the active chat is still valid for logged-out users.
+			const activeChatId = selectedChatId ?? activeChatStore.get();
+			const activeIsShared = activeChatId && allChatsFromDB.some(c => c.chat_id === activeChatId);
+			const activeIsExample = activeChatId ? isExampleChat(activeChatId) : false;
+			if (!activeIsShared && !activeIsExample) {
 				selectedChatId = null;
 			}
 			_chatIdToSelectAfterUpdate = null;
@@ -1710,7 +1712,7 @@ let _chatUpdatedFlushPending = false;
 			syncComplete = false;
 			
 			// Clear the persistent store — but only if the active chat isn't a shared chat
-			if (!activeIsShared) {
+			if (!activeIsShared && !activeIsExample) {
 				activeChatStore.clearActiveChat();
 			}
 			

@@ -758,6 +758,12 @@
                 console.debug("[ActiveChat] Skipping welcome reset after logout - deep link processing in progress");
                 return;
             }
+
+            if (isExampleChat(currentChat?.chat_id ?? activeChatStore.get() ?? '')) {
+                console.debug("[ActiveChat] Preserving static example chat after logout");
+                return;
+            }
+
             currentChat = null;
             currentMessages = [];
             followUpSuggestions = [];
@@ -9647,6 +9653,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
             console.debug('[ActiveChat] Logout event received - clearing user chat and showing welcome screen');
+
+            const activeChatIdAtLogout = currentChat?.chat_id ?? activeChatStore.get();
+            if (activeChatIdAtLogout && isExampleChat(activeChatIdAtLogout)) {
+                console.debug('[ActiveChat] Logout event received while viewing static example chat - preserving chat:', activeChatIdAtLogout);
+                phasedSyncState.markSyncCompleted();
+                return;
+            }
             
             try {
                 // Clear current chat state immediately (before database deletion)

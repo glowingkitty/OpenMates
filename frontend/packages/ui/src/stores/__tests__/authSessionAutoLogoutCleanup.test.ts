@@ -119,6 +119,10 @@ vi.mock("../activeChatStore", () => ({
   },
 }));
 
+vi.mock("../../demo_chats/exampleChatStore", () => ({
+  isExampleChat: vi.fn((chatId: string) => chatId.startsWith("example-")),
+}));
+
 vi.mock("../../services/drafts/sessionStorageDraftService", () => ({
   clearAllSessionStorageDrafts: vi.fn(() =>
     cleanupCalls.push("clearAllSessionStorageDrafts"),
