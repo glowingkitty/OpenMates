@@ -225,6 +225,42 @@ async def test_gateway_strips_vite_hmr_client_from_html() -> None:
 
 
 @pytest.mark.anyio
+async def test_gateway_returns_empty_module_for_direct_vite_hmr_client() -> None:
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+        preview_host_label="preview-testhost",
+    )
+    stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    stored.update({"status": "running", "upstream_base_url": "https://sandbox.example"})
+    await cache.redis.set(application_preview_session_key("session-1"), json.dumps(stored))
+
+    async def upstream_fetch(_url: str, _method: str, **_kwargs):
+        raise AssertionError("Vite HMR client requests must not be proxied upstream")
+
+    response = await build_preview_gateway_response(
+        cache,
+        "session-1",
+        "token-abc",
+        "@vite/client",
+        now=2_030.0,
+        preview_host="preview-testhost.openmatesusercontent.org",
+        upstream_fetch=upstream_fetch,
+    )
+
+    assert response.status_code == 200
+    assert response.body == b""
+    assert response.headers["content-type"].startswith("application/javascript")
+
+
+@pytest.mark.anyio
 async def test_gateway_rewrites_root_relative_module_imports_to_signed_path() -> None:
     cache = FakeCache()
     await create_application_preview_session(
