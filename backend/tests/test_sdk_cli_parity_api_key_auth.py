@@ -24,6 +24,7 @@ from backend.core.api.app.routes.sdk import (
 class _FakeDirectusService:
     def __init__(self):
         self.chat = SimpleNamespace(
+            get_user_chats_metadata=self.get_user_chats_metadata,
             get_new_chat_suggestions_for_user=self.get_new_chat_suggestions_for_user,
             check_chat_ownership=self.check_chat_ownership,
             get_chat_metadata=self.get_chat_metadata,
@@ -38,6 +39,7 @@ class _FakeDirectusService:
             get_embed_keys_by_embed_id=self.get_embed_keys_by_embed_id,
         )
         self.suggestion_queries = []
+        self.chat_metadata_queries = []
         self.ownership_allowed = True
         self.embed_owner_allowed = True
         self.deleted_chat_id = None
@@ -56,6 +58,10 @@ class _FakeDirectusService:
     async def get_new_chat_suggestions_for_user(self, hashed_user_id, limit=50):
         self.suggestion_queries.append((hashed_user_id, limit))
         return [{"id": "suggestion-1"}, {"id": "suggestion-2"}]
+
+    async def get_user_chats_metadata(self, user_id, **kwargs):
+        self.chat_metadata_queries.append((user_id, kwargs))
+        return [{"id": "chat-1", "encrypted_title": "cipher-title"}]
 
     async def check_chat_ownership(self, chat_id, user_id):
         return self.ownership_allowed and chat_id == "chat-1" and user_id == "user-1"
@@ -403,6 +409,29 @@ async def test_sdk_account_export_requires_chat_and_billing_scopes():
 
     assert exc.value.status_code == 403
     assert exc.value.detail == {"error": "missing_scope", "missing_scope": "chat:read_existing"}
+
+
+@pytest.mark.anyio
+async def test_sdk_chat_list_uses_admin_directus_read_after_api_key_auth(monkeypatch):
+    request = _FakeRequest(query_params={"limit": "25", "offset": "5"})
+
+    async def fake_auth(_request):
+        return {
+            "user_id": "user-1",
+            "api_key_metadata": {
+                "full_access": False,
+                "scopes": {"chat": ["chat:read_existing"]},
+            },
+        }
+
+    monkeypatch.setattr(sdk_routes, "_authenticate_sdk_request", fake_auth)
+
+    result = await sdk_routes.list_sdk_chats(request, limit=25, offset=5)
+
+    assert result["chats"] == [{"id": "chat-1", "encrypted_title": "cipher-title"}]
+    assert request.app.state.directus_service.chat_metadata_queries == [
+        ("user-1", {"limit": 25, "offset": 5, "admin_required": True})
+    ]
 
 
 @pytest.mark.asyncio

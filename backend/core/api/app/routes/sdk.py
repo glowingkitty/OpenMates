@@ -841,6 +841,7 @@ async def list_sdk_chats(
         api_key_info["user_id"],
         limit=-1 if limit == 0 else limit,
         offset=offset,
+        admin_required=True,
     )
     return {"chats": chats, "limit": limit, "offset": offset}
 
