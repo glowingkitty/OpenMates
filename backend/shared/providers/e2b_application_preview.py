@@ -338,15 +338,27 @@ def _write_vite_allowed_hosts_config(sandbox: Any, files: list[ApplicationPrevie
     hosts = ", ".join(repr(host) for host in allowed_hosts)
     uses_svelte = _has_svelte_vite_plugin_dependency(files)
     imports = "import { defineConfig } from 'vite';\n"
-    plugins = ""
+    plugin_entries = ["openmatesStaticPreview()"]
     if uses_svelte:
         imports += "import { svelte } from '@sveltejs/vite-plugin-svelte';\n"
-        plugins = "  plugins: [svelte()],\n"
+        plugin_entries.insert(0, "svelte()")
+    plugins = f"  plugins: [{', '.join(plugin_entries)}],\n"
     sandbox.files.write_files([
         {
             "path": VITE_OPENMATES_CONFIG_PATH,
             "data": (
                 f"{imports}\n"
+                "function openmatesStaticPreview() {\n"
+                "  return {\n"
+                "    name: 'openmates-static-preview',\n"
+                "    transformIndexHtml: {\n"
+                "      order: 'post',\n"
+                "      handler(html) {\n"
+                "        return html.replace(/<script\\b[^>]*\\bsrc=[\"']\\/@vite\\/client[\"'][^>]*><\\/script>\\s*/g, '');\n"
+                "      },\n"
+                "    },\n"
+                "  };\n"
+                "}\n\n"
                 "export default defineConfig({\n"
                 f"{plugins}"
                 "  server: {\n"
