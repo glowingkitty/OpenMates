@@ -79,7 +79,7 @@ test.describe('App: Models3D / Skill: search', () => {
 		const href = await cta.getAttribute('href');
 		expect(href || '').toMatch(/^https:\/\/(www\.)?(printables|myminifactory|thingiverse)\./);
 
-		await expect(resultCards.first().locator('img')).toHaveAttribute('src', /\/api\/image-proxy\?url=/, { timeout: 30_000 });
+		await expect(resultCards.first().locator('img')).toHaveAttribute('src', /\/(api\/v1\/image|api\/image-proxy)\?url=/, { timeout: 30_000 });
 		expect(forbiddenModelFileRequests, 'Preview/fullscreen must not download full 3D model files').toEqual([]);
 		expect(providerScriptRequests, 'Preview/fullscreen must not execute provider JavaScript').toEqual([]);
 
