@@ -98,7 +98,7 @@ jobs:
             exit 1
           fi
           sudo apt-get update
-          sudo apt-get install -y wget gnupg2 pass dbus-x11
+          sudo apt-get install -y wget gnupg2 pass dbus-x11 libopengl0
           gpg --batch --passphrase '' --quick-generate-key openmates-proton-bridge-ci@example.invalid default default never
           fingerprint="$(gpg --list-secret-keys --with-colons openmates-proton-bridge-ci@example.invalid | awk -F: '/^fpr:/ { print $10; exit }')"
           pass init "$fingerprint"

@@ -21,7 +21,7 @@ const PROTON_TOTP_KEY = process.env.PROTON_BRIDGE_TEST_TOTP_KEY;
 
 const BRIDGE_COMMANDS = ['protonmail-bridge', 'proton-mail-bridge'];
 const BRIDGE_ARGS = ['--cli'];
-const PROMPT_RE = />+\s*$|bridge>\s*$/im;
+const BRIDGE_READY_RE = /Welcome to Proton Mail Bridge interactive shell|>+\s*$|bridge>\s*$/im;
 const CREDENTIAL_LINE_RE = /^.*(?:password|token|secret|2fa|totp|code).*$/gim;
 
 function findBridgeBinary(): string | null {
@@ -127,7 +127,7 @@ test.describe('Proton Bridge live connector smoke', () => {
 		});
 
 		try {
-			await waitForOutput(() => output, PROMPT_RE, 'initial Bridge prompt');
+			await waitForOutput(() => output, BRIDGE_READY_RE, 'initial Bridge prompt');
 			child.stdin.write('login\n');
 
 			await waitForOutput(() => output, /username|email|login/i, 'Bridge username prompt');
@@ -140,7 +140,7 @@ test.describe('Proton Bridge live connector smoke', () => {
 				() => output,
 				[
 					{ label: 'totp', pattern: /2fa|two[- ]?factor|totp|authenticator|verification code/i },
-					{ label: 'prompt', pattern: PROMPT_RE },
+					{ label: 'prompt', pattern: BRIDGE_READY_RE },
 					{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged/i }
 				],
 				45_000
@@ -152,7 +152,7 @@ test.describe('Proton Bridge live connector smoke', () => {
 				await waitForEitherOutput(
 					() => output,
 					[
-						{ label: 'prompt', pattern: PROMPT_RE },
+						{ label: 'prompt', pattern: BRIDGE_READY_RE },
 						{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged/i }
 					],
 					45_000
