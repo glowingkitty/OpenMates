@@ -13,9 +13,7 @@ from backend.shared.providers.models3d_catalogs import (
     Model3DProviderError,
     Model3DProviderResult,
     collect_provider_search_results,
-    normalize_myminifactory_object,
     normalize_printables_print,
-    normalize_thingiverse_thing,
 )
 
 
@@ -80,48 +78,17 @@ def test_printables_normalization_is_preview_only() -> None:
     assert result.source_page_url == "https://www.printables.com/model/3161-3dbenchy"
 
 
-def test_myminifactory_normalization_is_preview_only() -> None:
-    result = normalize_myminifactory_object(
+def test_printables_missing_price_is_free_public_catalog_result() -> None:
+    result = normalize_printables_print(
         {
-            "id": 123,
-            "name": "Phone Stand",
-            "url": "https://www.myminifactory.com/object/3d-print-phone-stand-123",
-            "thumbnailUrl": "https://cdn.myminifactory.com/object-assets/thumb.jpg",
-            "designer": {"username": "maker"},
-            "license": "CC BY",
-            "tags": ["phone", "stand"],
-            "price": "0.00",
-            "files": [{"url": "https://example.com/file.stl"}],
+            "id": "3161",
+            "name": "3DBenchy",
+            "slug": "3dbenchy",
+            "image": {"filePath": "/media/prints/3161/images/123.jpg"},
         }
     )
 
-    assert_preview_only(result)
-    assert result.provider == "MyMiniFactory"
-    assert result.provider_kind == "official_api"
-    assert result.provider_item_id == "123"
     assert result.is_free is True
-
-
-def test_thingiverse_normalization_is_preview_only() -> None:
-    result = normalize_thingiverse_thing(
-        {
-            "id": 456,
-            "name": "Cable Clip",
-            "public_url": "https://www.thingiverse.com/thing:456",
-            "thumbnail": "https://cdn.thingiverse.com/thumb.jpg",
-            "creator": {"name": "designer"},
-            "license": "cc-sa",
-            "tags": [{"name": "cable"}],
-            "like_count": 12,
-            "download_count": 34,
-            "files_url": "https://api.thingiverse.com/things/456/files",
-        }
-    )
-
-    assert_preview_only(result)
-    assert result.provider == "Thingiverse"
-    assert result.provider_kind == "official_api"
-    assert result.provider_item_id == "456"
 
 
 @pytest.mark.asyncio
@@ -144,10 +111,10 @@ async def test_collect_provider_search_results_returns_partial_warnings() -> Non
             ]
 
     class FailingProvider:
-        provider_name = "MyMiniFactory"
+        provider_name = "BrokenCatalog"
 
         async def search(self, query: str, *, count: int) -> list[Model3DProviderResult]:
-            raise Model3DProviderError("MyMiniFactory", "missing_api_key", "Missing MyMiniFactory API key")
+            raise Model3DProviderError("BrokenCatalog", "provider_unavailable", "BrokenCatalog unavailable")
 
     results, warnings = await collect_provider_search_results(
         query="benchy",
@@ -158,9 +125,9 @@ async def test_collect_provider_search_results_returns_partial_warnings() -> Non
     assert [result.provider for result in results] == ["Printables"]
     assert warnings == [
         {
-            "provider": "MyMiniFactory",
-            "code": "missing_api_key",
-            "message": "Missing MyMiniFactory API key",
+            "provider": "BrokenCatalog",
+            "code": "provider_unavailable",
+            "message": "BrokenCatalog unavailable",
         }
     ]
 
@@ -168,10 +135,10 @@ async def test_collect_provider_search_results_returns_partial_warnings() -> Non
 @pytest.mark.asyncio
 async def test_collect_provider_search_results_raises_when_all_providers_fail() -> None:
     class FailingProvider:
-        provider_name = "MyMiniFactory"
+        provider_name = "BrokenCatalog"
 
         async def search(self, query: str, *, count: int) -> list[Model3DProviderResult]:
-            raise Model3DProviderError("MyMiniFactory", "missing_api_key", "Missing MyMiniFactory API key")
+            raise Model3DProviderError("BrokenCatalog", "provider_unavailable", "BrokenCatalog unavailable")
 
     with pytest.raises(Model3DProviderError) as exc_info:
         await collect_provider_search_results(

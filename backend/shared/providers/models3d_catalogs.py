@@ -8,10 +8,8 @@ Provider credentials stay server-side and are never serialized into results.
 
 from __future__ import annotations
 
-import os
 import re
 from typing import Any, Iterable, Protocol
-from urllib.parse import quote_plus
 
 import httpx
 from pydantic import BaseModel, Field
@@ -21,8 +19,6 @@ DEFAULT_TIMEOUT_SECONDS = 15.0
 PRINTABLES_GRAPHQL_URL = "https://api.printables.com/graphql/"
 PRINTABLES_MEDIA_BASE_URL = "https://media.printables.com"
 PRINTABLES_SOURCE_BASE_URL = "https://www.printables.com/model"
-MYMINIFACTORY_SEARCH_URL = "https://www.myminifactory.com/api/v2/search"
-THINGIVERSE_SEARCH_URL = "https://api.thingiverse.com/search/{query}"
 
 FORBIDDEN_METADATA_KEYS = {
     "api_key",
@@ -196,6 +192,7 @@ def normalize_printables_print(item: dict[str, Any]) -> Model3DProviderResult:
     image = item.get("image") if isinstance(item.get("image"), dict) else {}
     user = item.get("user") if isinstance(item.get("user"), dict) else {}
     price = item.get("price")
+    is_free = True if price is None else _is_free_price(price)
     source_suffix = f"{provider_item_id}-{slug}" if slug else provider_item_id
     return Model3DProviderResult(
         title=title,
@@ -218,74 +215,8 @@ def normalize_printables_print(item: dict[str, Any]) -> Model3DProviderResult:
         download_count=_int_or_none(item.get("downloadCount")),
         files_count=_int_or_none(item.get("filesCount")),
         price=str(price) if price is not None else None,
-        is_free=_is_free_price(price),
+        is_free=is_free,
         normalized_provider_metadata=_safe_metadata(item, ("imagesCount",)),
-    )
-
-
-def normalize_myminifactory_object(item: dict[str, Any]) -> Model3DProviderResult:
-    provider_item_id = str(item.get("id") or item.get("objectId") or "").strip()
-    if not provider_item_id:
-        raise Model3DProviderError("MyMiniFactory", "invalid_result", "MyMiniFactory result missing id")
-
-    designer = item.get("designer") if isinstance(item.get("designer"), dict) else {}
-    price = item.get("price")
-    return Model3DProviderResult(
-        title=_first_string(item.get("name"), item.get("title")) or "Untitled 3D model",
-        provider="MyMiniFactory",
-        provider_kind="official_api",
-        provider_item_id=provider_item_id,
-        source_page_url=_first_string(item.get("url"), item.get("sourceUrl"))
-        or f"https://www.myminifactory.com/object/{provider_item_id}",
-        description=_plain_text(item.get("description"), max_length=320),
-        preview_image_url=_first_string(item.get("thumbnailUrl"), item.get("thumbnail_url"), item.get("imageUrl")),
-        thumbnail_url=_first_string(item.get("thumbnailUrl"), item.get("thumbnail_url")),
-        creator_name=_first_string(designer.get("username"), designer.get("name"), item.get("designerName")),
-        published_at=_first_string(item.get("publishedAt"), item.get("published_at")),
-        created_at=_first_string(item.get("createdAt"), item.get("created_at")),
-        updated_at=_first_string(item.get("updatedAt"), item.get("updated_at")),
-        license=_first_string(item.get("license"), item.get("licenseName")),
-        tags=_tags_from(item.get("tags")),
-        category=_category_name(item.get("category")),
-        rating=_float_or_none(item.get("rating")),
-        likes_count=_int_or_none(item.get("likes")),
-        download_count=_int_or_none(item.get("downloads")),
-        files_count=_int_or_none(item.get("filesCount")),
-        price=str(price) if price is not None else None,
-        is_free=_is_free_price(price),
-        normalized_provider_metadata=_safe_metadata(item, ("visibility",)),
-    )
-
-
-def normalize_thingiverse_thing(item: dict[str, Any]) -> Model3DProviderResult:
-    provider_item_id = str(item.get("id") or "").strip()
-    if not provider_item_id:
-        raise Model3DProviderError("Thingiverse", "invalid_result", "Thingiverse result missing id")
-
-    creator = item.get("creator") if isinstance(item.get("creator"), dict) else {}
-    return Model3DProviderResult(
-        title=_first_string(item.get("name"), item.get("title")) or "Untitled 3D model",
-        provider="Thingiverse",
-        provider_kind="official_api",
-        provider_item_id=provider_item_id,
-        source_page_url=_first_string(item.get("public_url"), item.get("url"))
-        or f"https://www.thingiverse.com/thing:{provider_item_id}",
-        description=_plain_text(item.get("description"), max_length=320),
-        preview_image_url=_first_string(item.get("thumbnail"), item.get("preview_image_url"), item.get("image_url")),
-        thumbnail_url=_first_string(item.get("thumbnail"), item.get("thumbnail_url")),
-        creator_name=_first_string(creator.get("name"), creator.get("username"), item.get("creator_name")),
-        published_at=_first_string(item.get("added"), item.get("published_at")),
-        created_at=_first_string(item.get("created_at")),
-        updated_at=_first_string(item.get("modified"), item.get("updated_at")),
-        license=_first_string(item.get("license")),
-        tags=_tags_from(item.get("tags")),
-        category=_category_name(item.get("category")),
-        rating=_float_or_none(item.get("rating")),
-        likes_count=_int_or_none(item.get("like_count"),),
-        download_count=_int_or_none(item.get("download_count")),
-        files_count=_int_or_none(item.get("file_count")),
-        is_free=True,
-        normalized_provider_metadata=_safe_metadata(item, ("is_wip",)),
     )
 
 
@@ -336,51 +267,6 @@ class PrintablesSearchProvider:
         if not isinstance(items, list):
             raise Model3DProviderError("Printables", "invalid_response", "Printables returned an invalid search response")
         return [normalize_printables_print(item) for item in items if isinstance(item, dict)]
-
-
-class MyMiniFactorySearchProvider:
-    provider_name = "MyMiniFactory"
-
-    def __init__(self, api_key: str | None = None):
-        self.api_key = (api_key or os.getenv("MYMINIFACTORY_API_KEY") or "").strip()
-
-    async def search(self, query: str, *, count: int) -> list[Model3DProviderResult]:
-        if not self.api_key:
-            raise Model3DProviderError("MyMiniFactory", "missing_api_key", "Missing MyMiniFactory API key")
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        params = {"q": query, "limit": count}
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS) as client:
-            response = await client.get(MYMINIFACTORY_SEARCH_URL, params=params, headers=headers)
-        if response.status_code != 200:
-            raise Model3DProviderError("MyMiniFactory", "http_error", f"MyMiniFactory returned HTTP {response.status_code}")
-        payload = response.json()
-        items = payload.get("results") or payload.get("items") or payload if isinstance(payload, list) else []
-        if not isinstance(items, list):
-            raise Model3DProviderError("MyMiniFactory", "invalid_response", "MyMiniFactory returned an invalid search response")
-        return [normalize_myminifactory_object(item) for item in items if isinstance(item, dict)]
-
-
-class ThingiverseSearchProvider:
-    provider_name = "Thingiverse"
-
-    def __init__(self, api_key: str | None = None):
-        self.api_key = (api_key or os.getenv("THINGIVERSE_API_KEY") or "").strip()
-
-    async def search(self, query: str, *, count: int) -> list[Model3DProviderResult]:
-        if not self.api_key:
-            raise Model3DProviderError("Thingiverse", "missing_api_key", "Missing Thingiverse API key")
-        url = THINGIVERSE_SEARCH_URL.format(query=quote_plus(query))
-        params = {"type": "things", "per_page": count}
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS) as client:
-            response = await client.get(url, params=params, headers=headers)
-        if response.status_code != 200:
-            raise Model3DProviderError("Thingiverse", "http_error", f"Thingiverse returned HTTP {response.status_code}")
-        payload = response.json()
-        items = payload.get("hits") or payload.get("results") or payload if isinstance(payload, list) else []
-        if not isinstance(items, list):
-            raise Model3DProviderError("Thingiverse", "invalid_response", "Thingiverse returned an invalid search response")
-        return [normalize_thingiverse_thing(item) for item in items if isinstance(item, dict)]
 
 
 async def collect_provider_search_results(

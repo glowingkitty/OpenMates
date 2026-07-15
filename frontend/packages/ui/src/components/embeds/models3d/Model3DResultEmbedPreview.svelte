@@ -21,7 +21,6 @@
     license?: string;
     filesCount?: number | null;
     isFree?: boolean | null;
-    openCtaLabel?: string;
     status?: 'processing' | 'finished' | 'error';
     isMobile?: boolean;
     onFullscreen: () => void;
@@ -38,7 +37,6 @@
     license = '',
     filesCount = null,
     isFree = null,
-    openCtaLabel = '',
     status = 'finished',
     isMobile = false,
     onFullscreen,
@@ -48,7 +46,7 @@
   let imageFailed = $state(false);
   let displayImage = $derived(proxyImage(previewImageUrl || thumbnailUrl, MAX_WIDTH_PREVIEW_THUMBNAIL));
   let cardTitle = $derived(title || $text('embeds.models3d.search.result_title'));
-  let ctaLabel = $derived(openCtaLabel || (provider ? $text('embeds.models3d.search.open_on_provider', { values: { provider } }) : $text('embeds.models3d.search.open_result')));
+  let ctaLabel = $derived(provider ? $text('embeds.models3d.search.open_on_provider', { values: { provider } }) : $text('embeds.models3d.search.open_result'));
 
   function handleStop() {
     // Result cards are not cancellable.

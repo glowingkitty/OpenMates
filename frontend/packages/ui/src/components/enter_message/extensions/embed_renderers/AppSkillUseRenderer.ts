@@ -2544,7 +2544,6 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           license: decodedContent?.license || "",
           filesCount: decodedContent?.files_count ?? null,
           isFree: decodedContent?.is_free ?? null,
-          openCtaLabel: decodedContent?.open_cta_label || "",
           status: status as "processing" | "finished" | "error",
           isMobile: false,
           onFullscreen: handleFullscreen,

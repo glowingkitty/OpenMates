@@ -17,22 +17,17 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.models3d_catalogs import (
     Model3DProviderError,
     Model3DSearchProvider,
-    MyMiniFactorySearchProvider,
     PrintablesSearchProvider,
-    ThingiverseSearchProvider,
     collect_provider_search_results,
 )
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PROVIDER_KEYS = ("printables", "myminifactory", "thingiverse")
+DEFAULT_PROVIDER_KEYS = ("printables",)
 SUPPORTED_PROVIDER_ALIASES = {
     "all": "all",
     "printables": "printables",
     "printable": "printables",
-    "myminifactory": "myminifactory",
-    "my mini factory": "myminifactory",
-    "thingiverse": "thingiverse",
 }
 SUPPORTED_SORTS = {"best_match", "popular", "downloads", "newest"}
 MAX_PARALLEL_REQUESTS = 5
@@ -125,6 +120,8 @@ class SearchSkill(BaseSkill):
                     error_code=exc.code,
                     warnings=all_warnings or [exc.as_warning()],
                 )
+            except ValueError as exc:
+                return Model3DSearchResponse(success=False, error=str(exc), error_code="invalid_request")
             except Exception as exc:
                 logger.error("models3d.search failed: %s", exc, exc_info=True)
                 return Model3DSearchResponse(success=False, error=str(exc), error_code="search_failed")
@@ -229,24 +226,4 @@ class SearchSkill(BaseSkill):
     ) -> Model3DSearchProvider:
         if provider_key == "printables":
             return PrintablesSearchProvider()
-        if provider_key == "thingiverse":
-            return ThingiverseSearchProvider(api_key=await self._provider_api_key(secrets_manager, "thingiverse"))
-        if provider_key == "myminifactory":
-            return MyMiniFactorySearchProvider(api_key=await self._provider_api_key(secrets_manager, "myminifactory"))
         raise ValueError(f"Unsupported 3D model search provider: {provider_key}")
-
-    async def _provider_api_key(self, secrets_manager: SecretsManager | None, provider_key: str) -> str | None:
-        if secrets_manager is None:
-            secrets_manager, error_response = await self._get_or_create_secrets_manager(
-                secrets_manager=None,
-                skill_name="Models3DSearchSkill",
-                error_response_factory=lambda message: Model3DSearchResponse(success=False, error=message),
-                logger=logger,
-            )
-            if error_response:
-                return None
-        try:
-            return await secrets_manager.get_secret(f"kv/data/providers/{provider_key}", "api_key")
-        except Exception as exc:
-            logger.warning("Could not load %s API key: %s", provider_key, exc)
-            return None

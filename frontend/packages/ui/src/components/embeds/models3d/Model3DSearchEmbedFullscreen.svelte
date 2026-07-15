@@ -24,7 +24,6 @@
     license?: string;
     files_count?: number | null;
     is_free?: boolean | null;
-    open_cta_label?: string;
   }
 
   interface Props {
@@ -78,7 +77,6 @@
       license: content.license as string | undefined,
       files_count: content.files_count as number | null | undefined,
       is_free: content.is_free as boolean | null | undefined,
-      open_cta_label: content.open_cta_label as string | undefined,
     };
   }
 
@@ -126,7 +124,6 @@
       license={result.license}
       filesCount={result.files_count}
       isFree={result.is_free}
-      openCtaLabel={result.open_cta_label}
       onFullscreen={onSelect}
     />
   {/snippet}

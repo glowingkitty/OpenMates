@@ -104,22 +104,16 @@ async def test_models3d_search_returns_preview_only_child_results() -> None:
 
 
 @pytest.mark.asyncio
-async def test_models3d_search_defaults_to_all_providers_ten_results_and_trims_total() -> None:
-    providers = {
-        "printables": FakeProvider("Printables"),
-        "myminifactory": FakeProvider("MyMiniFactory"),
-        "thingiverse": FakeProvider("Thingiverse"),
-    }
+async def test_models3d_search_defaults_to_printables_only_ten_results() -> None:
+    providers = {"printables": FakeProvider("Printables")}
 
     response = await _skill().execute(requests=[{"query": "benchy"}], provider_clients=providers)
     payload = response.model_dump()
 
     assert payload["success"] is True
-    assert payload["provider"] == "MyMiniFactory, Printables, Thingiverse"
-    assert payload["result_count"] == 3
+    assert payload["provider"] == "Printables"
+    assert payload["result_count"] == 1
     assert [provider.calls for provider in providers.values()] == [
-        [{"query": "benchy", "count": 10}],
-        [{"query": "benchy", "count": 10}],
         [{"query": "benchy", "count": 10}],
     ]
 
@@ -180,37 +174,29 @@ async def test_models3d_search_applies_sort_free_filter_and_total_count() -> Non
 
 
 @pytest.mark.asyncio
-async def test_models3d_search_surfaces_partial_provider_warnings() -> None:
-    class FailingProvider:
-        provider_name = "MyMiniFactory"
-
-        async def search(self, query: str, *, count: int) -> list[Model3DProviderResult]:
-            raise Model3DProviderError("MyMiniFactory", "missing_api_key", "Missing MyMiniFactory API key")
-
+async def test_models3d_search_rejects_removed_provider_names() -> None:
     response = await _skill().execute(
-        requests=[{"query": "benchy", "providers": ["Printables", "MyMiniFactory"]}],
-        provider_clients={"printables": FakeProvider(), "myminifactory": FailingProvider()},
+        requests=[{"query": "benchy", "providers": ["Thingiverse"]}],
+        provider_clients={"printables": FakeProvider()},
     )
     payload = response.model_dump()
 
-    assert payload["success"] is True
-    assert payload["warnings"] == [
-        {"provider": "MyMiniFactory", "code": "missing_api_key", "message": "Missing MyMiniFactory API key"}
-    ]
-    assert payload["result_count"] == 1
+    assert payload["success"] is False
+    assert payload["error_code"] == "invalid_request"
+    assert payload["error"] == "Unsupported 3D model search provider: Thingiverse"
 
 
 @pytest.mark.asyncio
 async def test_models3d_search_returns_typed_error_when_all_providers_fail() -> None:
     class FailingProvider:
-        provider_name = "MyMiniFactory"
+        provider_name = "Printables"
 
         async def search(self, query: str, *, count: int) -> list[Model3DProviderResult]:
-            raise Model3DProviderError("MyMiniFactory", "missing_api_key", "Missing MyMiniFactory API key")
+            raise Model3DProviderError("Printables", "provider_unavailable", "Printables unavailable")
 
     response = await _skill().execute(
-        requests=[{"query": "benchy", "providers": ["MyMiniFactory"]}],
-        provider_clients={"myminifactory": FailingProvider()},
+        requests=[{"query": "benchy", "providers": ["Printables"]}],
+        provider_clients={"printables": FailingProvider()},
     )
     payload = response.model_dump()
 
@@ -230,3 +216,7 @@ def test_models3d_app_metadata_declares_parent_child_search_embeds() -> None:
     assert search_embed["child_type"] == "model_result"
     assert child_embed["category"] == "direct"
     assert child_embed["frontend_type"] == "models3d-model-result"
+    search_skill = next(skill for skill in app_yml["skills"] if skill["id"] == "search")
+    providers = search_skill["tool_schema"]["properties"]["requests"]["items"]["properties"]["providers"]["items"]["enum"]
+    assert search_skill["providers"] == [{"name": "Printables", "no_api_key": True}]
+    assert providers == ["Printables"]

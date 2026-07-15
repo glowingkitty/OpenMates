@@ -14,7 +14,7 @@ goal: >
 scope:
   in:
     - Add `models3d.search` under the existing canonical `models3d` app while keeping `models3d.generate` disabled by default until Hi3D credits or an approved waiver allow real-provider verification.
-    - Search existing 3D model catalogs using provider APIs or documented browser-facing endpoints, starting with Printables, MyMiniFactory, and Thingiverse.
+    - Search existing 3D model catalogs using the Printables browser-facing endpoint as the only current provider.
     - Mark Printables as `reverse_engineered_browser_api` because it has no official public API contract even though its browser-facing GraphQL endpoint supports public search and detail reads.
     - Normalize provider results into a parent `search` app-skill-use embed and child `model_result` direct embeds.
     - Store only lightweight, public, display-safe fields in child embeds: title, creator, provider, provider model ID, source URL, preview image URL, license, stats, tags, category, price/free state, file count, and shallow provider metadata.
@@ -22,7 +22,7 @@ scope:
     - Show an "Open on (provider)" CTA on every web child result card that opens the provider source page.
     - Persist parent-level preview metadata so the parent card can render useful results without hydrating child embeds.
     - Expose the same search contract through CLI first, npm SDK second, pip SDK third, web fourth, user confirmation fifth, and Apple last if native rendering is affected.
-    - Add provider documentation and privacy notes for catalog search providers before enabling web UI.
+    - Add provider documentation and privacy notes for Printables catalog search before enabling web UI.
   out:
     - Re-enabling or completing `models3d.generate`.
     - Downloading, importing, caching, decrypting, storing, converting, validating, or printing model files in V1.
@@ -70,8 +70,7 @@ context_discovery:
   external_research:
     - "Printables public GraphQL endpoint `https://api.printables.com/graphql/` supports `searchPrints2(query, printType: print, limit, ordering)` and `print(id: ID!)` with preview field `image.filePath`, detail `images.filePath`, title, creator, license, category, tags, stats, price, and filesCount. Ten read-only requests returned HTTP 200 with no blocking."
     - "Printables unauthenticated detail probes returned `filesCount` but empty `fileUploads` for tested public models, so V1 must not promise direct file names or downloads."
-    - "MyMiniFactory API documentation confirms Search and Get Object endpoints expose `thumbnailUrl` for object previews and require API authentication."
-    - "Thingiverse developer Swagger confirms thing image endpoints expose `image_url` and `thumbnail_url`; live smoke returned 401 without an app-level key, so Thingiverse is treated as a server-keyed provider."
+    - "MyMiniFactory and Thingiverse were investigated but removed from the current provider surface after the user asked to reduce V1 to Printables only. They remain potential future providers behind a separate approval/spec amendment."
     - "Sketchfab has official search/download APIs but is broader than 3D printing; Cults has official GraphQL/API but limited direct file access; CGTrader appears commercial/OAuth/B2B-oriented. These are deferred."
 
 apple_impact:
@@ -98,6 +97,8 @@ clarification:
       answer: No. Child entries should show preview images, not execute external JS, and not download the full 3D model.
     - question: Should implementation follow the OpenMates phase ladder?
       answer: Yes. CLI implementation first; SDK, web, user confirmation, and Apple later.
+    - question: Should V1 keep MyMiniFactory and Thingiverse in the current provider surface?
+      answer: No. Reduce current providers to Printables only, remove the other two, then continue SDK parity and web implementation.
   vision_summary: >
     `models3d.search` is a low-cost discovery skill for existing 3D models. It
     uses provider search/detail APIs to create a parent search card and child
@@ -133,8 +134,8 @@ decisions:
     decided_at: "2026-07-15T00:00:00Z"
   - id: D-3
     status: active
-    decision: Use Printables, MyMiniFactory, and Thingiverse for the first provider slice.
-    reason: These providers have enough verified search/detail or preview-image support for the initial contract; other providers are less clearly compatible or broader than the immediate 3D-printing search goal.
+    decision: Use Printables as the only current V1 search provider.
+    reason: The user explicitly reduced the provider surface to Printables only before SDK and web work. MyMiniFactory and Thingiverse require separate future provider work and are no longer exposed in metadata or CLI/SDK request enums.
     decided_at: "2026-07-15T00:00:00Z"
   - id: D-4
     status: active
@@ -157,25 +158,37 @@ attempts:
   - id: ATTEMPT-2
     task_id: TASK-1
     approach: Scrape MyMiniFactory and Thingiverse API documentation for preview-image support.
-    outcome: succeeded
+    outcome: rejected
     recorded_at: "2026-07-15T00:00:00Z"
-    reason: MyMiniFactory exposes `thumbnailUrl` on search/object responses; Thingiverse exposes `image_url` and `thumbnail_url` on thing image endpoints.
+    reason: Initial research found possible future paths, but the current V1 provider surface was later reduced to Printables only by user instruction.
   - id: ATTEMPT-3
     task_id: TASK-2
     approach: Live-smoke provider adapters from the working tree after implementation.
     outcome: succeeded
     recorded_at: "2026-07-15T09:34:59Z"
-    reason: Printables returned live results for `benchy`; MyMiniFactory and Thingiverse correctly returned visible `missing_api_key` warnings without failing the full search.
+    reason: Printables returned live results for `benchy`; later provider scope was reduced to Printables only.
   - id: ATTEMPT-4
     task_id: TASK-3
     approach: Run the real dev CLI command before deploying the working-tree provider fixes.
     outcome: failed_as_expected
     recorded_at: "2026-07-15T09:34:59Z"
     reason: "`node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json` reached the dev API but returned `all_providers_failed`; green evidence must wait for a deploy of the local Printables and keyed-provider fixes."
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Remove the retired backend-supplied `open_cta_label` web path so result-card CTAs are derived from provider metadata, then regenerate embed registry metadata and run changed-file lint.
+    outcome: succeeded
+    recorded_at: "2026-07-15T11:34:50Z"
+    reason: "`./scripts/lint_changed.sh backend/apps/models3d/app.yml frontend/packages/ui/src/components/embeds/models3d/Model3DResultEmbedPreview.svelte frontend/packages/ui/src/components/embeds/models3d/Model3DSearchEmbedFullscreen.svelte frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts frontend/packages/ui/src/data/embedRegistry.generated.ts` passed after `npm run generate-embed-registry`. Web Playwright green evidence still requires deploy."
+  - id: ATTEMPT-6
+    task_id: TASK-3
+    approach: Run live npm and pip SDK models3d.search smoke with required detail-field assertions for title, description, preview image URL, source URL, creator, and provider.
+    outcome: succeeded
+    recorded_at: "2026-07-15T11:58:00Z"
+    reason: "`OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url http://127.0.0.1:8000 --name models3d-sdk-detail-smoke --models3d-only` passed for npm and pip. Both SDKs returned detailed Printables results for `benchy` and `phone stand`, with no missing detail fields and no `open_cta_label`."
 
 handoff:
   current_task_id: TASK-4
-  next_action: Add or run deployed web verification for the models3d search parent/child renderers, then collect user confirmation before Apple parity.
+  next_action: Deploy the broader models3d search changes, wait for Vercel Ready, then run deployed web verification for the models3d search parent/child renderers and collect user confirmation before Apple parity.
   command: python3 scripts/tests.py run --spec models3d-search.spec.ts
   expected_outcome: The deployed dev web app renders the models3d search parent and child result cards with proxied previews and `Open on (provider)` CTAs.
   blocker: null
@@ -217,15 +230,13 @@ scenarios:
       - Each child omits full model file bytes, direct download/import state, executable viewer scripts, and provider account tokens.
 
   - id: S-4
-    title: Provider failures are visible and scoped
+    title: Printables provider failures are visible and scoped
     given:
-      - One provider is unavailable, returns invalid data, lacks credentials, or exceeds a rate limit.
-      - At least one other requested provider can still return results.
+      - The Printables browser-facing endpoint is unavailable, returns invalid data, or exceeds a rate limit.
     when:
-      - Alice searches across multiple providers.
+      - Alice searches with the current Printables-only provider surface.
     then:
-      - The skill returns available successful results with provider-level warnings.
-      - If all providers fail, the skill returns a typed visible error rather than a silent empty success.
+      - The skill returns a typed visible error rather than a silent empty success.
       - Logs include enough provider and query context for debugging without storing secrets or private user data.
 
   - id: S-5
@@ -283,7 +294,7 @@ acceptance_criteria:
       - T-PYTEST-002
   - id: AC-4
     scenario: S-4
-    text: Provider-level partial failures are surfaced as warnings, while total failure returns a typed visible error instead of a silent empty success.
+    text: Printables provider failure returns a typed visible error instead of a silent empty success, and unsupported removed provider selections are rejected explicitly.
     required: true
     status: satisfied
     coverage_status: covered
@@ -338,21 +349,13 @@ assumptions:
       - source: https://api.printables.com/graphql/
         summary: Read-only search/detail probes returned HTTP 200 for multiple public models on 2026-07-15.
   - id: A-3
-    text: MyMiniFactory requires a server-side API credential; missing credentials must produce a visible provider warning and must not leak secrets or fail other providers.
+    text: MyMiniFactory and Thingiverse are not part of the current V1 provider surface.
     category: provider
     required_before: task_execution
     status: confirmed
     evidence:
-      - source: backend/shared/providers/models3d_catalogs.py
-        summary: MyMiniFactory provider requires a server-side API key and raises a typed `missing_api_key` warning when absent.
-  - id: A-4
-    text: Thingiverse API access uses a server-side app credential for V1 public preview fields and does not require user account credentials.
-    category: provider
-    required_before: task_execution
-    status: confirmed
-    evidence:
-      - source: live smoke 2026-07-15
-        summary: Thingiverse returned `missing_api_key` locally after the adapter stopped attempting unauthenticated calls; no user account credential is required.
+      - source: user instruction 2026-07-15
+        summary: User asked to reduce current provider support to Printables only and remove the other two before SDK and web work.
 
 contracts:
   api:
@@ -369,7 +372,7 @@ contracts:
     - Child embed type `model_result` has category `direct` and stores title, creator_name, provider, provider_item_id, source_page_url, preview_image_url, thumbnail_url, license, tags, category, rating, likes_count, download_count, files_count, price, is_free, and normalized_provider_metadata.
     - Child embeds must not store full model file URLs when those URLs bypass the provider's source page, file bytes, external JS snippets, provider credentials, auth cookies, or long raw provider responses.
   ui_states:
-    - Search parent loading, partial-results-with-warnings, success with results, success with zero results, and visible provider error.
+    - Search parent loading, success with results, success with zero results, unsupported-provider error, and visible Printables provider error.
     - Child result with preview image, child result without preview image, free result, paid result, known license, unknown license, and source-link action.
   privacy_security:
     - Search queries are sent to selected external providers and must be disclosed in provider/privacy docs.
@@ -472,8 +475,8 @@ tests:
       - AC-3
       - AC-4
     assertions:
-      - Printables, MyMiniFactory, and Thingiverse adapter fixtures normalize preview fields consistently
-      - partial provider failures return warnings with successful provider results
+      - Printables adapter fixtures normalize preview fields consistently
+      - unsupported removed provider selections are rejected explicitly
       - total provider failure returns a typed visible error
       - provider credentials and raw blobs are not included in normalized output
     red_phase:
@@ -503,7 +506,8 @@ tests:
     assertions:
       - npm SDK exposes `client.apps.models3d.search`
       - SDK posts to `/v1/apps/models3d/skills/search`
-      - SDK sends the expected `input_data` envelope
+      - SDK sends the direct skill-schema request body
+      - Live SDK smoke returns title, description, preview image URL, source URL, creator, provider, license, file count, and free-state details
     red_phase:
       required: true
       expected: fail
@@ -531,7 +535,8 @@ tests:
     assertions:
       - pip SDK exposes `client.apps.models3d.search`
       - SDK posts to `/v1/apps/models3d/skills/search`
-      - SDK sends the expected `input_data` envelope
+      - SDK sends the direct skill-schema request body
+      - Live SDK smoke returns title, description, preview image URL, source URL, creator, provider, license, file count, and free-state details
     red_phase:
       required: true
       expected: fail
@@ -627,15 +632,15 @@ implementation_plan:
     - backend/apps/news/skills/search_skill.py direct async provider search with typed request/response models.
     - docs/specs/search-parent-preview-metadata-sync/spec.yml parent-preview metadata contract.
   architecture: >
-    Add provider adapters under shared providers or a models3d-local provider
-    integration layer, then implement a direct async `models3d.search` skill that
-    normalizes public catalog results into parent/child embed content. Keep all
-    provider credentials server-side, use fixture-backed tests for normalization,
-    and gate real dev CLI verification before SDK/web/native work.
+    Add a Printables provider adapter under shared providers or a models3d-local
+    provider integration layer, then implement a direct async `models3d.search`
+    skill that normalizes public catalog results into parent/child embed content.
+    Use fixture-backed tests for normalization, and gate real CLI verification
+    before SDK/web/native work.
   data_flow:
-    - CLI or SDK sends a `models3d.search` request with query, providers, and count.
-    - Backend validates the request and dispatches read-only searches to selected provider adapters.
-    - Provider adapters normalize raw results into preview-only model result records.
+    - CLI or SDK sends a `models3d.search` request with query, optional Printables provider selection, and count.
+    - Backend validates the request and dispatches read-only searches to the Printables provider adapter.
+    - The Printables adapter normalizes raw results into preview-only model result records.
     - Skill creates child `model_result` embeds and a parent `search` app-skill-use embed with preview_results metadata.
     - CLI/SDK receive normalized response data and embed IDs; web later renders cards from encrypted embed content.
   affected_files:
@@ -647,10 +652,6 @@ implementation_plan:
       reason: Implement read-only 3D model catalog search skill.
     - path: backend/shared/providers/printables/
       reason: Browser-facing GraphQL search/detail adapter with explicit reverse-engineered status.
-    - path: backend/shared/providers/myminifactory/
-      reason: Official API search/object adapter.
-    - path: backend/shared/providers/thingiverse/
-      reason: Official API thing/image adapter.
     - path: backend/tests/test_models3d_search_skill.py
       reason: Parent/child embed contract tests.
     - path: backend/tests/test_models3d_search_providers.py
@@ -746,8 +747,6 @@ tasks:
       - backend/apps/models3d/app.yml
       - backend/apps/models3d/skills/search_skill.py
       - backend/shared/providers/printables/
-      - backend/shared/providers/myminifactory/
-      - backend/shared/providers/thingiverse/
       - backend/tests/test_models3d_search_skill.py
       - backend/tests/test_models3d_search_providers.py
     verification_ids:
@@ -762,8 +761,6 @@ tasks:
         - backend/apps/models3d/app.yml
         - backend/apps/models3d/skills/search_skill.py
         - backend/shared/providers/printables/
-        - backend/shared/providers/myminifactory/
-        - backend/shared/providers/thingiverse/
         - backend/tests/test_models3d_search_skill.py
         - backend/tests/test_models3d_search_providers.py
       shared_files: []

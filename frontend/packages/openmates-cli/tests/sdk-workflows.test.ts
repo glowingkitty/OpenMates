@@ -208,8 +208,7 @@ describe("OpenMates SDK workflows", () => {
       (request, body) => {
         if (request.url === "/v1/apps/workflows/skills/create-or-modify") {
           assert.deepEqual(body, {
-            input_data: { title: "Morning weather" },
-            parameters: {},
+            title: "Morning weather",
           });
           return {
             success: true,
@@ -234,8 +233,8 @@ describe("OpenMates SDK workflows", () => {
         }
         if (request.url === "/v1/apps/workflows/skills/search") {
           assert.deepEqual(body, {
-            input_data: { query: "weather", include_temporary: true },
-            parameters: {},
+            query: "weather",
+            include_temporary: true,
           });
           return {
             success: true,

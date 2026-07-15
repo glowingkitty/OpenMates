@@ -5089,7 +5089,6 @@ export class GroupRenderer implements EmbedRenderer {
           license: (decodedContent?.license as string | undefined) || "",
           filesCount: (decodedContent?.files_count as number | null | undefined) ?? null,
           isFree: (decodedContent?.is_free as boolean | null | undefined) ?? null,
-          openCtaLabel: (decodedContent?.open_cta_label as string | undefined) || "",
           status,
           isMobile: false,
           onFullscreen: () =>

@@ -90,8 +90,7 @@ describe("OpenMates SDK user tasks", () => {
       (request, body) => {
         if (request.url === "/v1/apps/tasks/skills/create") {
           assert.deepEqual(body, {
-            input_data: { tasks: [{ title: "Draft checklist" }] },
-            parameters: {},
+            tasks: [{ title: "Draft checklist" }],
           });
           return {
             success: true,
@@ -118,8 +117,7 @@ describe("OpenMates SDK user tasks", () => {
         }
         if (request.url === "/v1/apps/tasks/skills/search") {
           assert.deepEqual(body, {
-            input_data: { query: "checklist" },
-            parameters: {},
+            query: "checklist",
           });
           return {
             success: true,

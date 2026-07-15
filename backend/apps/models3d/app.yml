@@ -80,8 +80,6 @@ embed_types:
         type: string
       - name: is_free
         type: boolean
-      - name: open_cta_label
-        type: string
   - id: generate
     category: app-skill-use
     skill_id: generate
@@ -137,8 +135,6 @@ skills:
     providers:
       - name: Printables
         no_api_key: true
-      - MyMiniFactory
-      - Thingiverse
     exclude_fields_for_llm:
       - preview_image_url
       - thumbnail_url
@@ -162,8 +158,8 @@ skills:
                 type: array
                 items:
                   type: string
-                  enum: [Printables, MyMiniFactory, Thingiverse]
-                description: Optional provider filter. Defaults to all supported providers.
+                  enum: [Printables]
+                description: Optional provider filter. Defaults to Printables.
               count:
                 type: integer
                 minimum: 1
