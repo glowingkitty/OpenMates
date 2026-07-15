@@ -19,7 +19,19 @@ export const APP_SKILL_METADATA = [
     "description": "Run this OpenMates app skill.",
     "schema": {
       "type": "object",
-      "properties": {}
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The question or task for the Workflow AI step."
+        },
+        "conversation": {
+          "type": "string",
+          "description": "Optional run-local conversation name for retaining previous Workflow AI context in the same run."
+        }
+      },
+      "required": [
+        "prompt"
+      ]
     }
   },
   {
@@ -1041,6 +1053,75 @@ export const APP_SKILL_METADATA = [
       },
       "required": [
         "expression"
+      ]
+    }
+  },
+  {
+    "app_id": "models3d",
+    "skill_id": "search",
+    "app_namespace_ts": "models3d",
+    "skill_method_ts": "search",
+    "app_namespace_py": "models3d",
+    "skill_method_py": "search",
+    "description_key": "app_skills.models3d.search.description",
+    "description": "Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "description": "Array of 3D model search requests. Each request searches public 3D model catalogs and returns preview-only result cards.\n",
+          "items": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query, e.g. \"benchy\", \"phone stand\", or \"desk cable clip\"."
+              },
+              "providers": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "Printables",
+                    "MyMiniFactory",
+                    "Thingiverse"
+                  ]
+                },
+                "description": "Optional provider filter. Defaults to all supported providers."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20,
+                "default": 10,
+                "description": "Maximum total results to return after merging providers."
+              },
+              "sort": {
+                "type": "string",
+                "enum": [
+                  "best_match",
+                  "popular",
+                  "downloads",
+                  "newest"
+                ],
+                "default": "best_match",
+                "description": "Sorting strategy applied after provider results are merged."
+              },
+              "free_only": {
+                "type": "boolean",
+                "default": false,
+                "description": "Return only results that the provider marks as free."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      "required": [
+        "requests"
       ]
     }
   },
@@ -2131,6 +2212,88 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
+    "app_id": "tasks",
+    "skill_id": "create",
+    "app_namespace_ts": "tasks",
+    "skill_method_ts": "create",
+    "app_namespace_py": "tasks",
+    "skill_method_py": "create",
+    "description_key": "tasks.skills.create.description",
+    "description": "Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "assignee": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "openmates"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "backlog",
+                  "todo",
+                  "in_progress",
+                  "blocked"
+                ]
+              }
+            }
+          }
+        },
+        "title": {
+          "type": "string",
+          "description": "Single-task title when not using tasks[]."
+        },
+        "description": {
+          "type": "string"
+        },
+        "assignee": {
+          "type": "string",
+          "enum": [
+            "user",
+            "openmates"
+          ]
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "app_id": "tasks",
+    "skill_id": "search",
+    "app_namespace_ts": "tasks",
+    "skill_method_ts": "search",
+    "app_namespace_py": "tasks",
+    "skill_method_py": "search",
+    "description_key": "tasks.skills.search.description",
+    "description": "Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Private task text to search for on a connected client."
+        }
+      },
+      "required": [
+        "query"
+      ]
+    }
+  },
+  {
     "app_id": "travel",
     "skill_id": "search_connections",
     "app_namespace_ts": "travel",
@@ -3009,6 +3172,59 @@ export const APP_SKILL_METADATA = [
         "requests"
       ]
     }
+  },
+  {
+    "app_id": "workflows",
+    "skill_id": "create-or-modify",
+    "app_namespace_ts": "workflows",
+    "skill_method_ts": "createOrModify",
+    "app_namespace_py": "workflows",
+    "skill_method_py": "create_or_modify",
+    "description_key": "workflows.skills.create_or_modify.description",
+    "description": "Create or modify exactly one workflow from chat. Do not batch multiple workflows into one skill call.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "workflow_id": {
+          "type": "string",
+          "description": "Existing workflow ID when modifying a workflow."
+        },
+        "title": {
+          "type": "string",
+          "description": "Short user-facing workflow title."
+        },
+        "graph": {
+          "type": "object",
+          "description": "Valid WorkflowGraph definition."
+        }
+      },
+      "required": [
+        "title"
+      ]
+    }
+  },
+  {
+    "app_id": "workflows",
+    "skill_id": "search",
+    "app_namespace_ts": "workflows",
+    "skill_method_ts": "search",
+    "app_namespace_py": "workflows",
+    "skill_method_py": "search",
+    "description_key": "workflows.skills.search.description",
+    "description": "Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Workflow title or intent text to search for."
+        },
+        "include_temporary": {
+          "type": "boolean",
+          "description": "Include temporary chat-created workflows in the search results."
+        }
+      }
+    }
   }
 ] as const;
 
@@ -3264,6 +3480,21 @@ export class MathAppSkills {
   }
 }
 
+export class Models3dAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.
+   * Description key: app_skills.models3d.search.description
+   * Skill: models3d/search
+   */
+  async search<T = unknown>(input: SkillInput): Promise<T> {
+    return this.runSkill<T>("models3d", "search", input);
+  }
+}
+
 export class MusicAppSkills {
   private readonly runSkill: AppSkillRunner;
   constructor(runSkill: AppSkillRunner) {
@@ -3440,6 +3671,29 @@ export class SocialMediaAppSkills {
   }
 }
 
+export class TasksAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.
+   * Description key: tasks.skills.create.description
+   * Skill: tasks/create
+   */
+  async create<T = unknown>(input: SkillInput): Promise<T> {
+    return this.runSkill<T>("tasks", "create", input);
+  }
+  /**
+   * Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.
+   * Description key: tasks.skills.search.description
+   * Skill: tasks/search
+   */
+  async search<T = unknown>(input: SkillInput): Promise<T> {
+    return this.runSkill<T>("tasks", "search", input);
+  }
+}
+
 export class TravelAppSkills {
   private readonly runSkill: AppSkillRunner;
   constructor(runSkill: AppSkillRunner) {
@@ -3556,6 +3810,29 @@ export class WebAppSkills {
   }
 }
 
+export class WorkflowsAppSkills {
+  private readonly runSkill: AppSkillRunner;
+  constructor(runSkill: AppSkillRunner) {
+    this.runSkill = runSkill;
+  }
+  /**
+   * Create or modify exactly one workflow from chat. Do not batch multiple workflows into one skill call.
+   * Description key: workflows.skills.create_or_modify.description
+   * Skill: workflows/create-or-modify
+   */
+  async createOrModify<T = unknown>(input: SkillInput): Promise<T> {
+    return this.runSkill<T>("workflows", "create-or-modify", input);
+  }
+  /**
+   * Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
+   * Description key: workflows.skills.search.description
+   * Skill: workflows/search
+   */
+  async search<T = unknown>(input: SkillInput): Promise<T> {
+    return this.runSkill<T>("workflows", "search", input);
+  }
+}
+
 export class GeneratedAppSkills {
   constructor(runSkill: AppSkillRunner) {
     this.ai = new AiAppSkills(runSkill);
@@ -3570,6 +3847,7 @@ export class GeneratedAppSkills {
     this.mail = new MailAppSkills(runSkill);
     this.maps = new MapsAppSkills(runSkill);
     this.math = new MathAppSkills(runSkill);
+    this.models3d = new Models3dAppSkills(runSkill);
     this.music = new MusicAppSkills(runSkill);
     this.news = new NewsAppSkills(runSkill);
     this.nutrition = new NutritionAppSkills(runSkill);
@@ -3578,10 +3856,12 @@ export class GeneratedAppSkills {
     this.reminder = new ReminderAppSkills(runSkill);
     this.shopping = new ShoppingAppSkills(runSkill);
     this.socialMedia = new SocialMediaAppSkills(runSkill);
+    this.tasks = new TasksAppSkills(runSkill);
     this.travel = new TravelAppSkills(runSkill);
     this.videos = new VideosAppSkills(runSkill);
     this.weather = new WeatherAppSkills(runSkill);
     this.web = new WebAppSkills(runSkill);
+    this.workflows = new WorkflowsAppSkills(runSkill);
   }
   readonly ai: AiAppSkills;
   readonly books: BooksAppSkills;
@@ -3595,6 +3875,7 @@ export class GeneratedAppSkills {
   readonly mail: MailAppSkills;
   readonly maps: MapsAppSkills;
   readonly math: MathAppSkills;
+  readonly models3d: Models3dAppSkills;
   readonly music: MusicAppSkills;
   readonly news: NewsAppSkills;
   readonly nutrition: NutritionAppSkills;
@@ -3603,8 +3884,10 @@ export class GeneratedAppSkills {
   readonly reminder: ReminderAppSkills;
   readonly shopping: ShoppingAppSkills;
   readonly socialMedia: SocialMediaAppSkills;
+  readonly tasks: TasksAppSkills;
   readonly travel: TravelAppSkills;
   readonly videos: VideosAppSkills;
   readonly weather: WeatherAppSkills;
   readonly web: WebAppSkills;
+  readonly workflows: WorkflowsAppSkills;
 }

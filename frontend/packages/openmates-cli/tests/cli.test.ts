@@ -1278,6 +1278,36 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/apps/models3d/skills/search") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            success: true,
+            app_id: "models3d",
+            skill_id: "search",
+            status: "finished",
+            provider: "Printables",
+            result_count: 1,
+            results: [{
+              id: 1,
+              query: "benchy",
+              providers: ["Printables"],
+              result_count: 1,
+              results: [{
+                type: "model_result",
+                title: "Bench Boat",
+                provider: "Printables",
+                source_page_url: "https://www.printables.com/model/3161-bench-boat",
+                preview_image_url: "https://media.printables.com/bench.jpg",
+                open_cta_label: "Open on Printables",
+              }],
+            }],
+          },
+        });
+        return;
+      }
       response.writeHead(404);
       response.end();
     } catch (error) {
@@ -2057,6 +2087,52 @@ describe("apps skill formatted output", () => {
         "/v1/apps/workflows/skills/create-or-modify",
         "/v1/apps/workflows/skills/search",
       ]);
+    });
+  });
+
+  it("passes models3d search flags as request-array skill input", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "models3d", "search",
+        "--query", "benchy",
+        "--count", "10",
+        "--providers", "Printables,Thingiverse",
+        "--sort", "popular",
+        "--free-only",
+        "--json",
+      ]);
+      const parsed = JSON.parse(output) as { data?: { result_count?: number } };
+
+      assert.equal(parsed.data?.result_count, 1);
+      assert.deepEqual(requests.at(-1), {
+        url: "/v1/apps/models3d/skills/search",
+        body: {
+          requests: [{
+            query: "benchy",
+            count: 10,
+            providers: ["Printables", "Thingiverse"],
+            sort: "popular",
+            free_only: true,
+          }],
+        },
+      });
+    });
+  });
+
+  it("starts a chat asking for 3D models through the CLI chat command", async () => {
+    await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "chats", "new",
+        "Find 3D printable benchy models",
+        "--json",
+      ], { HOME: tempHome });
+      const parsed = JSON.parse(output) as { assistant?: string };
+
+      assert.equal(parsed.assistant, "anonymous inference ok");
+      assert.equal(requests.length, 1);
+      assert.match(JSON.stringify(requests[0]), /Find 3D printable benchy models/);
     });
   });
 

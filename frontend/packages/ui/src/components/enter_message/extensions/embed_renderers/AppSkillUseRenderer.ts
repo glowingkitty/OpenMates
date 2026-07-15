@@ -41,6 +41,8 @@ import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceC
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerateEmbedPreview.svelte";
+import Model3DSearchEmbedPreview from "../../../embeds/models3d/Model3DSearchEmbedPreview.svelte";
+import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
@@ -308,6 +310,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       price_calendar_result: true,
       listing: true,
       weather_day: true,
+      model_result: true,
     };
     const childType = decodedContent?.type || embedData?.type;
     if (childType && CHILD_TYPE_OVERRIDES[childType as string]) {
@@ -326,6 +329,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // If this is images/search WITHOUT embed_ids, it's actually a child image_result.
       if (decodedContent.image_url || decodedContent.thumbnail_url) {
         skillId = "image_result";
+      }
+    } else if (
+      appId === "models3d" &&
+      skillId === "search" &&
+      decodedContent &&
+      !decodedContent.embed_ids
+    ) {
+      if (decodedContent.source_page_url || decodedContent.preview_image_url || decodedContent.thumbnail_url) {
+        skillId = "model_result";
       }
     }
 
@@ -578,6 +590,24 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For images search, render images search preview using Svelte component
       if (appId === "images" && skillId === "search") {
         return this.renderImagesSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "models3d" && skillId === "search") {
+        return this.renderModel3DSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "models3d" && skillId === "model_result") {
+        return this.renderModel3DResultComponent(
           attrs,
           embedData,
           decodedContent,
@@ -2195,6 +2225,84 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
+  /** Render the models3d.search parent preview component. */
+  private renderModel3DSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || "Printables";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const results =
+      decodedContent?.results ||
+      decodedContent?.preview_results ||
+      decodedContent?.preview_thumbnails ||
+      [];
+    const previewResultsJson = decodedContent?.preview_results_json || "";
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds
+        : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      const component = mount(Model3DSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as "processing" | "finished" | "error",
+          results,
+          previewResultsJson,
+          resultCount,
+          childEmbedIds,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted Model3DSearchEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting Model3DSearchEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
   /**
    * Render Social Media get-posts preview component.
    */
@@ -2386,6 +2494,69 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting ImageResultEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** Render a preview-only models3d.model_result child card. */
+  private renderModel3DResultComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "finished";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      const component = mount(Model3DResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title || "",
+          provider: decodedContent?.provider || "",
+          creatorName: decodedContent?.creator_name || "",
+          sourcePageUrl: decodedContent?.source_page_url || "",
+          previewImageUrl: decodedContent?.preview_image_url || "",
+          thumbnailUrl: decodedContent?.thumbnail_url || "",
+          license: decodedContent?.license || "",
+          filesCount: decodedContent?.files_count ?? null,
+          isFree: decodedContent?.is_free ?? null,
+          openCtaLabel: decodedContent?.open_cta_label || "",
+          status: status as "processing" | "finished" | "error",
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted Model3DResultEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting Model3DResultEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

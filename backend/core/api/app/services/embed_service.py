@@ -3685,6 +3685,7 @@ class EmbedService:
         ("shopping", "search_products"): "product",
         ("news", "search"): "website",
         ("web", "search"): "website",
+        ("models3d", "search"): "model_result",
         ("fitness", "search_locations"): "location",
         ("fitness", "search_classes"): "class",
         ("nutrition", "search_recipes"): "recipe",

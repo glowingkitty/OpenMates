@@ -3,8 +3,85 @@ name_translation_key: models3d
 description_translation_key: models3d.description
 icon_image: 3dmodels.svg
 category: creative
-last_updated: "2026-07-12"
+last_updated: "2026-07-15"
 embed_types:
+  - id: search
+    category: app-skill-use
+    skill_id: search
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: model_result
+    child_frontend_type: models3d-model-result
+    groupable: true
+    preview_component: models3d/Model3DSearchEmbedPreview.svelte
+    fullscreen_component: models3d/Model3DSearchEmbedFullscreen.svelte
+    child_preview_component: models3d/Model3DResultEmbedPreview.svelte
+    child_fullscreen_component: models3d/Model3DResultEmbedFullscreen.svelte
+    icon: search
+    gradient_var: "--color-app-3dmodels"
+    i18n_namespace: embeds.models3d.search
+    content_fields:
+      - name: query
+        type: string
+      - name: provider
+        type: string
+      - name: providers
+        type: string
+      - name: result_count
+        type: number
+      - name: embed_ids
+        type: string
+      - name: preview_results
+        type: object
+  - id: model_result
+    category: direct
+    frontend_type: models3d-model-result
+    backend_type: model_result
+    has_children: false
+    preview_component: models3d/Model3DResultEmbedPreview.svelte
+    fullscreen_component: models3d/Model3DResultEmbedFullscreen.svelte
+    icon: 3dmodels
+    gradient_var: "--color-app-3dmodels"
+    i18n_namespace: embeds.models3d.search.result
+    content_fields:
+      - name: title
+        type: string
+        required: true
+      - name: provider
+        type: string
+        required: true
+      - name: provider_kind
+        type: string
+      - name: provider_item_id
+        type: string
+      - name: source_page_url
+        type: string
+        required: true
+      - name: preview_image_url
+        type: string
+      - name: thumbnail_url
+        type: string
+      - name: creator_name
+        type: string
+      - name: license
+        type: string
+      - name: tags
+        type: object
+      - name: category
+        type: string
+      - name: likes_count
+        type: number
+      - name: download_count
+        type: number
+      - name: files_count
+        type: number
+      - name: price
+        type: string
+      - name: is_free
+        type: boolean
+      - name: open_cta_label
+        type: string
   - id: generate
     category: app-skill-use
     skill_id: generate
@@ -45,7 +122,71 @@ instructions:
       When models3d-generate starts, acknowledge the request naturally without
       exposing task IDs, embed IDs, provider URLs, or encryption details.
 skills:
+  - id: search
+    name_translation_key: app_skills.models3d.search
+    description_translation_key: app_skills.models3d.search.description
+    icon_image: 3dmodels.svg
+    api_config:
+      expose_get: false
+      expose_post: true
+    preprocessor_hint: >
+      Search public 3D model catalogs for existing models. Use this when the
+      user wants to find, browse, compare, or link to existing 3D-printable or
+      downloadable 3D models. Do not use it to generate new models.
+    class_path: backend.apps.models3d.skills.search_skill.SearchSkill
+    providers:
+      - name: Printables
+        no_api_key: true
+      - MyMiniFactory
+      - Thingiverse
+    exclude_fields_for_llm:
+      - preview_image_url
+      - thumbnail_url
+      - source_page_url
+      - normalized_provider_metadata
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: >
+            Array of 3D model search requests. Each request searches public 3D
+            model catalogs and returns preview-only result cards.
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: Search query, e.g. "benchy", "phone stand", or "desk cable clip".
+              providers:
+                type: array
+                items:
+                  type: string
+                  enum: [Printables, MyMiniFactory, Thingiverse]
+                description: Optional provider filter. Defaults to all supported providers.
+              count:
+                type: integer
+                minimum: 1
+                maximum: 20
+                default: 10
+                description: Maximum total results to return after merging providers.
+              sort:
+                type: string
+                enum: [best_match, popular, downloads, newest]
+                default: best_match
+                description: Sorting strategy applied after provider results are merged.
+              free_only:
+                type: boolean
+                default: false
+                description: Return only results that the provider marks as free.
+            required:
+              - query
+      required:
+        - requests
   - id: generate
+    # Disabled by default until Hi3D-backed generation is affordable enough to
+    # keep real CLI/SDK/web verification green. Enable with skill:models3d:generate.
+    default_enabled: false
     name_translation_key: app_skills.models3d.generate
     description_translation_key: app_skills.models3d.generate.description
     icon_image: 3dmodels.svg

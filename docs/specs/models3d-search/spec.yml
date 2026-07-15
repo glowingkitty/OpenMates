@@ -1,0 +1,860 @@
+schema_version: 2
+id: models3d-search
+title: 3D Models Search Skill And Result Embeds
+status: implementing
+
+goal: >
+  Add an enabled-by-default `models3d.search` skill that finds existing 3D
+  models from supported public catalogs and returns a parent search embed with
+  child 3D model result embeds. V1 is a low-cost discovery and link-out flow:
+  it shows provider metadata and preview images, but does not download full
+  model files, execute external JavaScript, or render interactive third-party
+  model viewers inside OpenMates.
+
+scope:
+  in:
+    - Add `models3d.search` under the existing canonical `models3d` app while keeping `models3d.generate` disabled by default until Hi3D credits or an approved waiver allow real-provider verification.
+    - Search existing 3D model catalogs using provider APIs or documented browser-facing endpoints, starting with Printables, MyMiniFactory, and Thingiverse.
+    - Mark Printables as `reverse_engineered_browser_api` because it has no official public API contract even though its browser-facing GraphQL endpoint supports public search and detail reads.
+    - Normalize provider results into a parent `search` app-skill-use embed and child `model_result` direct embeds.
+    - Store only lightweight, public, display-safe fields in child embeds: title, creator, provider, provider model ID, source URL, preview image URL, license, stats, tags, category, price/free state, file count, and shallow provider metadata.
+    - Use preview or thumbnail images supplied by the provider and proxy them through the existing image proxy path in the web UI.
+    - Show an "Open on (provider)" CTA on every web child result card that opens the provider source page.
+    - Persist parent-level preview metadata so the parent card can render useful results without hydrating child embeds.
+    - Expose the same search contract through CLI first, npm SDK second, pip SDK third, web fourth, user confirmation fifth, and Apple last if native rendering is affected.
+    - Add provider documentation and privacy notes for catalog search providers before enabling web UI.
+  out:
+    - Re-enabling or completing `models3d.generate`.
+    - Downloading, importing, caching, decrypting, storing, converting, validating, or printing model files in V1.
+    - Rendering interactive third-party 3D viewers or executing provider JavaScript in chat, fullscreen, CLI, SDK, or Apple clients.
+    - Claiming print readiness, slicer compatibility, manifoldness, scale correctness, or license compliance beyond displaying the provider's public metadata and source link.
+    - User-uploaded 3D files, CAD creation, mesh editing, model repair, or search-by-geometry.
+    - Provider write actions such as likes, collections, follows, downloads, purchases, or account-authenticated operations.
+    - Adding CGTrader, Cults, Sketchfab, MakerWorld, Thangs, or paid/commercial providers to the first implementation slice unless the spec is amended and approved.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search failed with 401 Bad credentials. `gh issue list --repo glowingkitty/OpenMates --search \"models3d search 3D models Printables Thingiverse MyMiniFactory\" --state all --limit 5` returned no matching issue output."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/add-embed-type.md
+    - docs/contributing/guides/testing.md
+    - docs/architecture/messaging/embeds.md
+    - docs/specs/models3d-generate/spec.yml
+    - docs/specs/search-parent-preview-metadata-sync/spec.yml
+  code_patterns:
+    - backend/apps/models3d/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/images/skills/search_skill.py
+    - backend/apps/news/app.yml
+    - backend/apps/news/skills/search_skill.py
+    - backend/apps/shopping/app.yml
+    - backend/apps/web/skills/search_skill.py
+    - backend/shared/providers/
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+  tests:
+    - backend/tests/test_models3d_search_skill.py
+    - backend/tests/test_models3d_search_providers.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - frontend/apps/web_app/tests/models3d-search.spec.ts
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+  external_research:
+    - "Printables public GraphQL endpoint `https://api.printables.com/graphql/` supports `searchPrints2(query, printType: print, limit, ordering)` and `print(id: ID!)` with preview field `image.filePath`, detail `images.filePath`, title, creator, license, category, tags, stats, price, and filesCount. Ten read-only requests returned HTTP 200 with no blocking."
+    - "Printables unauthenticated detail probes returned `filesCount` but empty `fileUploads` for tested public models, so V1 must not promise direct file names or downloads."
+    - "MyMiniFactory API documentation confirms Search and Get Object endpoints expose `thumbnailUrl` for object previews and require API authentication."
+    - "Thingiverse developer Swagger confirms thing image endpoints expose `image_url` and `thumbnail_url`; live smoke returned 401 without an app-level key, so Thingiverse is treated as a server-keyed provider."
+    - "Sketchfab has official search/download APIs but is broader than 3D printing; Cults has official GraphQL/API but limited direct file access; CGTrader appears commercial/OAuth/B2B-oriented. These are deferred."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+  parity_expectations:
+    - Apple eventually renders the same parent search summary and child model-result cards as web using preview images and source-link metadata only.
+    - Apple must not execute provider JavaScript or download full 3D model files for V1 search results.
+    - Apple work waits until CLI, npm SDK, pip SDK, web implementation, and user confirmation are complete.
+  verification:
+    - Run `python3 scripts/apple_remote.py status` before native verification when the implementation reaches the Apple phase.
+    - Use targeted parity tests or `build-ios` after web approval, recording only sanitized evidence.
+  intentional_native_differences:
+    - Native source links may open in the OS browser instead of an in-app webview.
+
+clarification:
+  rounds:
+    - question: Should `models3d.search` create a parent app-skill embed and child entries for each result?
+      answer: Yes. Every search creates a search app-skill embed parent, and each result is a 3D model result child entry.
+    - question: Should V1 download or render full model files?
+      answer: No. Child entries should show preview images, not execute external JS, and not download the full 3D model.
+    - question: Should implementation follow the OpenMates phase ladder?
+      answer: Yes. CLI implementation first; SDK, web, user confirmation, and Apple later.
+  vision_summary: >
+    `models3d.search` is a low-cost discovery skill for existing 3D models. It
+    uses provider search/detail APIs to create a parent search card and child
+    model result cards with preview images and source links. V1 intentionally
+    avoids all model-file handling and third-party executable viewers, while the
+    expensive Hi3D-backed generate skill remains off by default. When web
+    frontend work is implemented, each child result must include an "Open on
+    (provider)" CTA for the provider source page.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: working-tree-ea6c53c6-models3d-search
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-15T00:00:00Z"
+    reason: The user approved the V1 preview-only provider-search contract and added the web child-card `Open on (provider)` CTA requirement.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-15T00:00:00Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Implement `models3d.search` as a read-only search skill separate from the disabled Hi3D-backed `models3d.generate` skill.
+    reason: Search is low-cost and useful while generation remains blocked by provider credits and incomplete verification gates.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: V1 search results are link-out result cards with preview images, not imported 3D assets.
+    reason: The user explicitly required preview-only child entries with no external JavaScript execution and no full model downloads.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Use Printables, MyMiniFactory, and Thingiverse for the first provider slice.
+    reason: These providers have enough verified search/detail or preview-image support for the initial contract; other providers are less clearly compatible or broader than the immediate 3D-printing search goal.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Document Printables as a reverse-engineered browser-facing API provider, not an official API provider.
+    reason: Printables exposes useful public GraphQL search/detail operations but no official public API guarantee was found.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Web child result cards must show an "Open on (provider)" CTA.
+    reason: The user explicitly added this as a frontend requirement when approving the spec.
+    decided_at: "2026-07-15T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Probe Printables browser-facing GraphQL search/detail queries and basic rate behavior with read-only public requests.
+    outcome: succeeded
+    recorded_at: "2026-07-15T00:00:00Z"
+    reason: Search and detail fields needed for preview-only result cards were confirmed, while direct file metadata was not usable for V1.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Scrape MyMiniFactory and Thingiverse API documentation for preview-image support.
+    outcome: succeeded
+    recorded_at: "2026-07-15T00:00:00Z"
+    reason: MyMiniFactory exposes `thumbnailUrl` on search/object responses; Thingiverse exposes `image_url` and `thumbnail_url` on thing image endpoints.
+  - id: ATTEMPT-3
+    task_id: TASK-2
+    approach: Live-smoke provider adapters from the working tree after implementation.
+    outcome: succeeded
+    recorded_at: "2026-07-15T09:34:59Z"
+    reason: Printables returned live results for `benchy`; MyMiniFactory and Thingiverse correctly returned visible `missing_api_key` warnings without failing the full search.
+  - id: ATTEMPT-4
+    task_id: TASK-3
+    approach: Run the real dev CLI command before deploying the working-tree provider fixes.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-15T09:34:59Z"
+    reason: "`node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json` reached the dev API but returned `all_providers_failed`; green evidence must wait for a deploy of the local Printables and keyed-provider fixes."
+
+handoff:
+  current_task_id: TASK-3
+  next_action: Deploy only the intended models3d search files, wait for dev/Vercel readiness, then rerun the real dev CLI command for T-CLI-001 green evidence.
+  command: node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json
+  expected_outcome: The deployed dev API returns success JSON with normalized preview-only model results and warnings only for missing keyed providers.
+  blocker: null
+  last_verified_commit: ea6c53c6f31a7601c9ef8576704005d9ff037047
+
+scenarios:
+  - id: S-1
+    title: CLI searches existing 3D model catalogs
+    given:
+      - Alice is authenticated in the OpenMates CLI.
+      - Alice wants to find existing public 3D models for a query such as "benchy" or "phone stand".
+    when:
+      - Alice runs `openmates apps models3d search --query benchy --json` against the dev API.
+    then:
+      - The command returns success JSON with the normalized provider name, result count, parent embed ID, and child result embed IDs.
+      - Each result includes a title, source URL, provider, preview image URL when available, and public metadata.
+      - The CLI response does not include full model file URLs, provider executable viewer code, or downloaded model artifacts.
+
+  - id: S-2
+    title: Parent search embed stores lightweight preview metadata
+    given:
+      - A search request returns one or more model results.
+    when:
+      - The backend creates the `models3d.search` parent app-skill-use embed.
+    then:
+      - The parent content includes app_id, skill_id, query, provider or providers, result_count, embed_ids, and lightweight preview_results.
+      - The preview_results fields are sufficient for chat card rendering without loading child embeds.
+      - The parent content does not contain full child payloads, raw provider blobs, model files, or hidden download URLs.
+
+  - id: S-3
+    title: Child result embeds are preview-only link-out cards
+    given:
+      - A provider returns public 3D model search results.
+    when:
+      - The backend creates child `model_result` embeds.
+    then:
+      - Each child stores normalized public metadata and a preview or thumbnail image URL when the provider supplies one.
+      - Each child points users to the provider source page for downloads, licensing details, purchases, or account-specific actions.
+      - Each child omits full model file bytes, direct download/import state, executable viewer scripts, and provider account tokens.
+
+  - id: S-4
+    title: Provider failures are visible and scoped
+    given:
+      - One provider is unavailable, returns invalid data, lacks credentials, or exceeds a rate limit.
+      - At least one other requested provider can still return results.
+    when:
+      - Alice searches across multiple providers.
+    then:
+      - The skill returns available successful results with provider-level warnings.
+      - If all providers fail, the skill returns a typed visible error rather than a silent empty success.
+      - Logs include enough provider and query context for debugging without storing secrets or private user data.
+
+  - id: S-5
+    title: SDKs expose the same native search contract
+    given:
+      - A developer uses the npm or pip SDK with an API key.
+    when:
+      - The developer calls the generated native method for `client.apps.models3d.search`.
+    then:
+      - The SDK sends `input_data` to `/v1/apps/models3d/skills/search` with the same request schema as the CLI.
+      - The SDK returns the API response without requiring a browser session or chat UI.
+
+  - id: S-6
+    title: Web renders parent and child previews safely
+    given:
+      - CLI and SDK contracts are already green.
+      - The deployed dev web app has a chat containing a `models3d.search` parent with child model results.
+    when:
+      - Alice opens the chat and the search fullscreen.
+    then:
+      - The parent preview renders from parent metadata without child hydration.
+      - Child cards display preview images through the image proxy and link to source pages.
+      - Each child card has an `Open on (provider)` CTA that opens the provider source page.
+      - Web never executes provider JavaScript and never downloads full 3D model files for V1 search result display.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The real dev CLI can run `models3d search` against the dev API and receive normalized preview-only 3D model search results.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-001
+  - id: AC-2
+    scenario: S-2
+    text: The parent `models3d.search` app-skill embed persists lightweight preview metadata and never requires child hydration for chat-card rendering.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-002
+  - id: AC-3
+    scenario: S-3
+    text: Child `model_result` embeds store preview-only public metadata and omit model downloads, executable viewers, provider tokens, and raw provider blobs.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-002
+  - id: AC-4
+    scenario: S-4
+    text: Provider-level partial failures are surfaced as warnings, while total failure returns a typed visible error instead of a silent empty success.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-002
+  - id: AC-5
+    scenario: S-5
+    text: npm SDK and pip SDK expose native `models3d.search` methods with the same request/response contract as CLI.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: npm_sdk
+    verification_ids:
+      - T-NPM-001
+      - T-PIP-001
+  - id: AC-6
+    scenario: S-6
+    text: The deployed web app renders `models3d.search` parent and child previews safely, using proxied preview images, an `Open on (provider)` CTA on every child card, and no provider JavaScript or full model downloads.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-E2E-001
+      - V-WEB-USER-APPROVAL
+  - id: AC-7
+    scenario: S-6
+    text: Apple native parity is completed or explicitly blocked/skipped only after web user confirmation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-001
+
+assumptions:
+  - id: A-1
+    text: Existing app-skill metadata loading will expose a new enabled `models3d.search` skill without re-enabling `models3d.generate`.
+    category: app_metadata
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/apps/models3d/app.yml
+        summary: "`models3d.generate` is disabled only at the skill level with `default_enabled: false`, so additional enabled skills can coexist under the same app."
+  - id: A-2
+    text: Printables public GraphQL remains available enough for low-rate catalog search.
+    category: provider
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: https://api.printables.com/graphql/
+        summary: Read-only search/detail probes returned HTTP 200 for multiple public models on 2026-07-15.
+  - id: A-3
+    text: MyMiniFactory requires a server-side API credential; missing credentials must produce a visible provider warning and must not leak secrets or fail other providers.
+    category: provider
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: backend/shared/providers/models3d_catalogs.py
+        summary: MyMiniFactory provider requires a server-side API key and raises a typed `missing_api_key` warning when absent.
+  - id: A-4
+    text: Thingiverse API access uses a server-side app credential for V1 public preview fields and does not require user account credentials.
+    category: provider
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: live smoke 2026-07-15
+        summary: Thingiverse returned `missing_api_key` locally after the adapter stopped attempting unauthenticated calls; no user account credential is required.
+
+contracts:
+  api:
+    - route: POST /v1/apps/models3d/skills/search
+      request: "{ input_data: { requests: [{ query: string, providers?: string[], count?: number = 10, sort?: 'best_match' | 'popular' | 'downloads' | 'newest', free_only?: boolean }] }, parameters?: object }"
+      response: "{ success: true, data: { results: [{ id, query, provider_results, warnings? }], provider, result_count, parent_embed_id?, embed_ids? } }"
+      errors:
+        - 400 for missing or blank query.
+        - 400 for unsupported provider selection.
+        - 429 or typed provider_rate_limited error when a provider is rate limited and no fallback results are available.
+        - typed provider_unavailable error when all requested providers fail.
+  data:
+    - Parent embed type `search` has category `app-skill-use`, skill_id `search`, has_children true, child_type `model_result`, and parent preview metadata fields query, provider/providers, result_count, embed_ids, and preview_results.
+    - Child embed type `model_result` has category `direct` and stores title, creator_name, provider, provider_item_id, source_page_url, preview_image_url, thumbnail_url, license, tags, category, rating, likes_count, download_count, files_count, price, is_free, and normalized_provider_metadata.
+    - Child embeds must not store full model file URLs when those URLs bypass the provider's source page, file bytes, external JS snippets, provider credentials, auth cookies, or long raw provider responses.
+  ui_states:
+    - Search parent loading, partial-results-with-warnings, success with results, success with zero results, and visible provider error.
+    - Child result with preview image, child result without preview image, free result, paid result, known license, unknown license, and source-link action.
+  privacy_security:
+    - Search queries are sent to selected external providers and must be disclosed in provider/privacy docs.
+    - Preview images load through OpenMates image proxy in web UI to avoid leaking user IP directly from chat render.
+    - Provider API keys, if any, remain server-side in Vault and are never serialized into embeds, SDK responses, logs, or frontend code.
+    - No third-party script execution is allowed for result previews or fullscreen in V1.
+
+tests:
+  - id: T-CLI-001
+    type: manual
+    command: node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json
+    covers:
+      - AC-1
+    assertions:
+      - real dev CLI command authenticates with the CLI test account
+      - command returns success JSON with result_count and child embed IDs
+      - result payload contains preview image metadata and source links
+      - result payload does not contain full model file bytes or executable provider scripts
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json
+        run_id: local-cli-dev-smoke-20260715-0935
+        timestamp: "2026-07-15T09:34:59Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-CLI-UNIT-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: node --test --test-name-pattern "models3d search flags|starts a chat asking for 3D models" tests/cli.test.ts
+    covers:
+      - AC-1
+      - AC-5
+    assertions:
+      - direct app-skill CLI maps `--query`, `--count`, `--providers`, `--sort`, and `--free-only` into a request-array skill payload
+      - chat CLI path can submit a prompt asking for 3D models
+      - this is supplemental and does not replace the real dev CLI gate
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_recorded
+        reason: Supplemental CLI parser coverage was added after implementation work resumed.
+        timestamp: "2026-07-15T09:34:59Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --test-name-pattern "models3d search flags|starts a chat asking for 3D models" tests/cli.test.ts
+        run_id: local-node-cli-models3d-20260715-0928
+        subject_commit: working-tree-ea6c53c6-models3d-search
+        timestamp: "2026-07-15T09:34:59Z"
+
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_models3d_search_skill.py
+    command: python3 -m pytest backend/tests/test_models3d_search_skill.py
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - normalized provider results create parent preview metadata
+      - child embeds contain preview-only public metadata
+      - forbidden file/download/script/token fields are rejected or omitted
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_models3d_search_skill.py backend/tests/test_models3d_search_providers.py -q
+        run_id: local-pytest-models3d-20260715-0928
+        subject_commit: working-tree-ea6c53c6-models3d-search
+        timestamp: "2026-07-15T09:34:59Z"
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_models3d_search_providers.py
+    command: python3 -m pytest backend/tests/test_models3d_search_providers.py
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+    assertions:
+      - Printables, MyMiniFactory, and Thingiverse adapter fixtures normalize preview fields consistently
+      - partial provider failures return warnings with successful provider results
+      - total provider failure returns a typed visible error
+      - provider credentials and raw blobs are not included in normalized output
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_models3d_search_skill.py backend/tests/test_models3d_search_providers.py -q
+        run_id: local-pytest-models3d-20260715-0928
+        subject_commit: working-tree-ea6c53c6-models3d-search
+        timestamp: "2026-07-15T09:34:59Z"
+
+  - id: T-NPM-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk.test.ts
+    covers:
+      - AC-5
+    assertions:
+      - npm SDK exposes `client.apps.models3d.search`
+      - SDK posts to `/v1/apps/models3d/skills/search`
+      - SDK sends the expected `input_data` envelope
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "models3d" tests/sdk.test.ts
+        run_id: local-node-sdk-models3d-20260715-0929
+        subject_commit: working-tree-ea6c53c6-models3d-search
+        timestamp: "2026-07-15T09:34:59Z"
+
+  - id: T-PIP-001
+    type: pytest
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    covers:
+      - AC-5
+    assertions:
+      - pip SDK exposes `client.apps.models3d.search`
+      - SDK posts to `/v1/apps/models3d/skills/search`
+      - SDK sends the expected `input_data` envelope
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py packages/openmates-python/tests/test_sdk_generator.py -q
+        run_id: local-pytest-python-sdk-models3d-20260715-0928
+        subject_commit: working-tree-ea6c53c6-models3d-search
+        timestamp: "2026-07-15T09:34:59Z"
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/models3d-search.spec.ts
+    command: python3 scripts/tests.py run --spec models3d-search.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-6
+    assertions:
+      - chat shows `models3d.search` parent preview from parent metadata
+      - fullscreen lists child model results with proxied preview images and source links
+      - each child result exposes an `Open on (provider)` CTA
+      - no network request downloads full model file artifacts during preview/fullscreen render
+      - no provider JavaScript is injected or executed
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-APPLE-001
+    type: manual
+    command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+    covers:
+      - AC-7
+    assertions:
+      - Apple verification is attempted only after web user confirmation
+      - native build or targeted parity test succeeds, or a sanitized blocker is recorded
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        reason: Apple verification occurs only after web user confirmation.
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-WEB-USER-APPROVAL
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-6
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/models3d-search/spec.yml
+  existing_patterns:
+    - backend/apps/images/app.yml parent `search` plus child `image_result` embed metadata.
+    - backend/apps/images/skills/search_skill.py direct async search skill returning child result embeds.
+    - backend/apps/news/skills/search_skill.py direct async provider search with typed request/response models.
+    - docs/specs/search-parent-preview-metadata-sync/spec.yml parent-preview metadata contract.
+  architecture: >
+    Add provider adapters under shared providers or a models3d-local provider
+    integration layer, then implement a direct async `models3d.search` skill that
+    normalizes public catalog results into parent/child embed content. Keep all
+    provider credentials server-side, use fixture-backed tests for normalization,
+    and gate real dev CLI verification before SDK/web/native work.
+  data_flow:
+    - CLI or SDK sends a `models3d.search` request with query, providers, and count.
+    - Backend validates the request and dispatches read-only searches to selected provider adapters.
+    - Provider adapters normalize raw results into preview-only model result records.
+    - Skill creates child `model_result` embeds and a parent `search` app-skill-use embed with preview_results metadata.
+    - CLI/SDK receive normalized response data and embed IDs; web later renders cards from encrypted embed content.
+  affected_files:
+    - path: docs/specs/models3d-search/spec.yml
+      reason: Product contract, tasks, and verification ledger.
+    - path: backend/apps/models3d/app.yml
+      reason: Add search skill and parent/child embed metadata while preserving disabled generate skill.
+    - path: backend/apps/models3d/skills/search_skill.py
+      reason: Implement read-only 3D model catalog search skill.
+    - path: backend/shared/providers/printables/
+      reason: Browser-facing GraphQL search/detail adapter with explicit reverse-engineered status.
+    - path: backend/shared/providers/myminifactory/
+      reason: Official API search/object adapter.
+    - path: backend/shared/providers/thingiverse/
+      reason: Official API thing/image adapter.
+    - path: backend/tests/test_models3d_search_skill.py
+      reason: Parent/child embed contract tests.
+    - path: backend/tests/test_models3d_search_providers.py
+      reason: Provider normalization and failure-mode tests.
+    - path: frontend/packages/openmates-cli/tests/cli.test.ts
+      reason: CLI command parsing/contract coverage if needed.
+    - path: frontend/packages/openmates-cli/tests/sdk.test.ts
+      reason: npm SDK native method parity.
+    - path: packages/openmates-python/tests/test_sdk.py
+      reason: pip SDK native method parity.
+    - path: frontend/packages/ui/src/components/embeds/models3d/
+      reason: Web preview/fullscreen renderers and child result cards with `Open on (provider)` CTA after CLI and SDK gates are green.
+    - path: frontend/apps/web_app/tests/models3d-search.spec.ts
+      reason: Deployed web safety and rendering verification.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+      reason: Apple native parity after web user confirmation.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/models3d-search/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/models3d-search/spec.yml --phase red
+    - Run red CLI/backend/SDK tests before implementation where feasible.
+    - Deploy before Playwright green verification.
+    - python3 scripts/spec_verify.py docs/specs/models3d-search/spec.yml
+  verification_order:
+    - Real dev CLI command against the dev API first, with no mocked OpenMates API/WebSocket path.
+    - Backend provider and embed contract tests.
+    - npm SDK parity.
+    - pip SDK parity.
+    - Web implementation and deployed Playwright verification.
+    - User confirmation of deployed web behavior.
+    - Apple remote status plus build/test only after user confirmation.
+
+tasks:
+  - id: TASK-1
+    title: Approve search product contract
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - docs/specs/models3d-search/spec.yml
+    verification_ids:
+      - T-CLI-001
+      - T-CLI-UNIT-001
+      - T-PYTEST-001
+      - T-PYTEST-002
+      - T-NPM-001
+      - T-PIP-001
+      - T-E2E-001
+      - T-APPLE-001
+      - V-WEB-USER-APPROVAL
+    dependencies: []
+    ownership:
+      files:
+        - docs/specs/models3d-search/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-2
+      - TASK-3
+      - TASK-4
+      - TASK-5
+
+  - id: TASK-2
+    title: Add backend provider adapters and search skill tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - backend/apps/models3d/app.yml
+      - backend/apps/models3d/skills/search_skill.py
+      - backend/shared/providers/printables/
+      - backend/shared/providers/myminifactory/
+      - backend/shared/providers/thingiverse/
+      - backend/tests/test_models3d_search_skill.py
+      - backend/tests/test_models3d_search_providers.py
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-002
+      - T-CLI-001
+      - T-CLI-UNIT-001
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/apps/models3d/app.yml
+        - backend/apps/models3d/skills/search_skill.py
+        - backend/shared/providers/printables/
+        - backend/shared/providers/myminifactory/
+        - backend/shared/providers/thingiverse/
+        - backend/tests/test_models3d_search_skill.py
+        - backend/tests/test_models3d_search_providers.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-3
+
+  - id: TASK-3
+    title: Add CLI and SDK parity for models3d search
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-5
+    expected_files:
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+      - packages/openmates-python/tests/test_sdk.py
+    verification_ids:
+      - T-CLI-001
+      - T-CLI-UNIT-001
+      - T-NPM-001
+      - T-PIP-001
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/tests/cli.test.ts
+        - frontend/packages/openmates-cli/tests/sdk.test.ts
+        - packages/openmates-python/tests/test_sdk.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-4
+
+  - id: TASK-4
+    title: Add web renderers and deployed Playwright verification
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/models3d/
+      - frontend/apps/web_app/tests/models3d-search.spec.ts
+    verification_ids:
+      - T-E2E-001
+      - V-WEB-USER-APPROVAL
+    dependencies:
+      - TASK-3
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/models3d/
+        - frontend/apps/web_app/tests/models3d-search.spec.ts
+      shared_files: []
+    blockers:
+      - Web green verification requires deploy and user confirmation before Apple work starts.
+    follow_up_tasks:
+      - TASK-5
+
+  - id: TASK-5
+    title: Add Apple parity after web approval
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-7
+    expected_files:
+      - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    verification_ids:
+      - T-APPLE-001
+    dependencies:
+      - TASK-4
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+        - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+        - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+        - apple/OpenMatesTests/SkillApplicationParityTests.swift
+      shared_files: []
+    blockers:
+      - Requires explicit user confirmation of deployed web behavior first.
+    follow_up_tasks: []

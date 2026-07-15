@@ -31,6 +31,7 @@ DEFAULT_POLL_INTERVAL_SECONDS = 10.0
 DEFAULT_MAX_POLLS = 120
 _VIEW_ORDER = (Hi3DView.FRONT, Hi3DView.BACK, Hi3DView.LEFT, Hi3DView.RIGHT)
 _ALLOWED_DOWNLOAD_HOST_SUFFIXES = (".zaohaowu.net", ".hitem3d.ai", ".hi3d.ai")
+_TASK_ID_RESPONSE_KEYS = ("task_id", "taskId")
 _PIL_TO_MIME_TYPE = {
     "JPEG": "image/jpeg",
     "PNG": "image/png",
@@ -150,7 +151,8 @@ class Hi3DClient:
             supplied = {view for view, *_ in ordered}
             data["multi_images_bit"] = "".join("1" if view in supplied else "0" for view in _VIEW_ORDER)
         response = await self._request("POST", "/submit-task", token=token, files=files, data=data)
-        task_id = str(self._require_success(response, "task submission").get("task_id") or "")
+        response_data = self._require_success(response, "task submission")
+        task_id = str(next((response_data.get(key) for key in _TASK_ID_RESPONSE_KEYS if response_data.get(key)), ""))
         if not task_id:
             raise Hi3DProviderError("Hi3D task submission returned no task ID")
         return task_id

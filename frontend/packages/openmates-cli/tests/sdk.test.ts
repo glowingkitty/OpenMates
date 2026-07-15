@@ -9,6 +9,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { encode as toonEncode } from "@toon-format/toon";
 import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { mkdtempSync, readFileSync } from "node:fs";
@@ -99,6 +100,33 @@ describe("OpenMates SDK", () => {
         requests: [{ prompt: "a friendly robot" }],
       });
       assert.deepEqual(result, { success: true, image: "ok" });
+    });
+  });
+
+  it("does not expose disabled models3d generation skill methods by default", () => {
+    const client = new OpenMates({ apiKey: "sk-api-test", apiUrl: "https://api.example.test" });
+    assert.equal(typeof client.apps.models3d.search, "function");
+    assert.equal((client.apps.models3d as unknown as Record<string, unknown>).generate, undefined);
+  });
+
+  it("exposes native models3d search skill methods", async () => {
+    await withServer((request, response) => {
+      assert.equal(request.url, "/v1/apps/models3d/skills/search");
+      let body = "";
+      request.on("data", (chunk) => { body += chunk.toString(); });
+      request.on("end", () => {
+        assert.deepEqual(JSON.parse(body).input_data, {
+          requests: [{ query: "benchy" }],
+        });
+        response.setHeader("content-type", "application/json");
+        response.end(JSON.stringify({ success: true, data: { result_count: 1 } }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      const result = await client.apps.models3d.search({
+        requests: [{ query: "benchy" }],
+      });
+      assert.deepEqual(result, { success: true, data: { result_count: 1 } });
     });
   });
 
@@ -452,6 +480,10 @@ describe("OpenMates SDK", () => {
     const encryptedEmbedContent = await encryptWithAesGcmCombined(JSON.stringify({ result: 4 }), embedKey);
     const encryptedEmbedPreview = await encryptWithAesGcmCombined("2 + 2 = 4", embedKey);
     const hashedEmbedId = createHash("sha256").update("embed-1").digest("hex");
+    const encryptedToonEmbedType = await encryptWithAesGcmCombined("code", embedKey);
+    const encryptedToonEmbedContent = await encryptWithAesGcmCombined(toonEncode({ code: "export default function App() {}", file_path: "src/App.jsx" }), embedKey);
+    const encryptedToonEmbedPreview = await encryptWithAesGcmCombined("src/App.jsx", embedKey);
+    const hashedToonEmbedId = createHash("sha256").update("embed-2").digest("hex");
     const seenUrls: string[] = [];
 
     await withServer((request, response) => {
@@ -471,8 +503,14 @@ describe("OpenMates SDK", () => {
       response.end(JSON.stringify({
         chat: { id: "chat-1", encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle },
         messages: [{ id: "message-1", encrypted_content: encryptedContent, encrypted_sender_name: encryptedSender }],
-        embeds: [{ embed_id: "embed-1", encrypted_type: encryptedEmbedType, encrypted_content: encryptedEmbedContent, encrypted_text_preview: encryptedEmbedPreview }],
-        embed_keys: [{ hashed_embed_id: hashedEmbedId, key_type: "master", encrypted_embed_key: encryptedEmbedKey }],
+        embeds: [
+          { embed_id: "embed-1", encrypted_type: encryptedEmbedType, encrypted_content: encryptedEmbedContent, encrypted_text_preview: encryptedEmbedPreview },
+          { embed_id: "embed-2", encrypted_type: encryptedToonEmbedType, encrypted_content: encryptedToonEmbedContent, encrypted_text_preview: encryptedToonEmbedPreview },
+        ],
+        embed_keys: [
+          { hashed_embed_id: hashedEmbedId, key_type: "master", encrypted_embed_key: encryptedEmbedKey },
+          { hashed_embed_id: hashedToonEmbedId, key_type: "master", encrypted_embed_key: encryptedEmbedKey },
+        ],
       }));
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
@@ -484,6 +522,9 @@ describe("OpenMates SDK", () => {
       assert.equal(loaded.embeds[0].type, "math.calculate");
       assert.deepEqual(loaded.embeds[0].content, { result: 4 });
       assert.equal(loaded.embeds[0].textPreview, "2 + 2 = 4");
+      assert.equal(loaded.embeds[1].type, "code");
+      assert.deepEqual(loaded.embeds[1].content, { code: "export default function App() {}", file_path: "src/App.jsx" });
+      assert.equal(loaded.embeds[1].textPreview, "src/App.jsx");
     });
 
     assert.deepEqual(seenUrls, ["GET /v1/sdk/chats/chat-1", "POST /v1/sdk/session"]);

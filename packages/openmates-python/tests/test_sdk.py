@@ -98,6 +98,59 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     }
 
 
+def test_native_models3d_skill_method_uses_generated_namespace(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"success": True, "data": {"status": "processing"}}
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    assert not hasattr(client.apps.models3d, "generate")
+    result = client.apps.models3d.search({"requests": [{"query": "benchy"}]})
+
+    assert result == {"success": True, "data": {"status": "processing"}}
+    assert requests[0]["url"] == "https://api.openmates.org/v1/apps/models3d/skills/search"
+    assert requests[0]["json"] == {
+        "input_data": {"requests": [{"query": "benchy"}]},
+        "parameters": {},
+    }
+
+
+def test_native_models3d_search_skill_method_uses_generated_namespace(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"success": True, "data": {"result_count": 1}}
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    result = client.apps.models3d.search({"requests": [{"query": "benchy"}]})
+
+    assert result == {"success": True, "data": {"result_count": 1}}
+    assert requests[0]["url"] == "https://api.openmates.org/v1/apps/models3d/skills/search"
+    assert requests[0]["json"] == {
+        "input_data": {"requests": [{"query": "benchy"}]},
+        "parameters": {},
+    }
+
+
 def test_new_chat_defaults_to_non_persistent(monkeypatch):
     requests = []
 

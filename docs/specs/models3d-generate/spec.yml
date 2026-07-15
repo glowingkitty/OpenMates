@@ -135,7 +135,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 54cd2741
+  subject_commit: working-tree-e3d6b69bd-hi3d-taskid
 
 approvals:
   product_contract:
@@ -192,6 +192,11 @@ decisions:
     decision: Benchmark two real Hi3D outputs generated end-to-end through the OpenMates CLI after the skill is implemented.
     reason: The user confirmed two real outputs are sufficient; requiring pre-supplied 30/60/100 MB fixtures unnecessarily blocked backend and CLI implementation.
     decided_at: "2026-07-12T00:31:00Z"
+  - id: D-10
+    status: active
+    decision: Ship `models3d.generate` off by default until Hi3D-backed real-provider verification is affordable again.
+    reason: The live Hi3D provider balance is `0.0`, additional credits are too expensive for the near term, and remaining CLI/SDK/web gates require real provider runs. Keeping only the skill disabled preserves the `models3d` app for a lower-cost search skill.
+    decided_at: "2026-07-15T01:48:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -224,14 +229,34 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-15T01:07:00Z"
     reason: "`npm run build` in `frontend/packages/openmates-cli` passed after exposing `drainPassiveTaskUpdateJobs`; Vercel reached READY for commit `54cd2741`."
+  - id: ATTEMPT-6
+    task_id: TASK-5
+    approach: Rebuild the dev API and image worker, log in the CLI test account, and rerun the real single-image `models3d generate --image` command against dev.
+    outcome: succeeded
+    recorded_at: "2026-07-15T01:30:25Z"
+    reason: "`node dist/cli.js --api-url https://api.dev.openmates.org apps models3d generate --image ./fixtures/brandenburger-tor.png --json` returned `success: true` with a finished encrypted model result containing master, preview, and poster files. Download tokens are intentionally not stored in the spec."
+  - id: ATTEMPT-7
+    task_id: TASK-5
+    approach: Add support for Hi3D's documented `taskId` submit response key, rebuild the image worker, and rerun the CLI generation-plus-download integrity check.
+    outcome: blocked
+    recorded_at: "2026-07-15T01:39:19Z"
+    reason: "The provider parser fix is covered by `python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_apps_api.py backend/tests/test_encrypted_embed_images.py backend/tests/test_models3d_generate_task.py -q` with 45 passing tests. The second real provider run still cannot complete because the live Hi3D provider balance is now `0.0`, so remaining real-provider CLI text, multi-view, and explicit download checks need credits or an approved waiver."
+  - id: ATTEMPT-8
+    task_id: TASK-5
+    approach: Disable only the Hi3D-backed `models3d.generate` skill by default while preserving the `models3d` app for future search work.
+    outcome: succeeded
+    recorded_at: "2026-07-15T01:48:00Z"
+    reason: "`backend/apps/models3d/app.yml` now sets `default_enabled: false` on the `generate` skill with an explanatory comment; `python3 scripts/audit_app_provider_contracts.py --require-app models3d --require-provider hi3d` and `python3 scripts/spec_validate.py docs/specs/models3d-generate/spec.yml` passed."
 
 handoff:
   current_task_id: TASK-5
-  next_action: Add and run the real dev-server CLI image-generation contract for `models3d generate --image`, then continue SDK parity only after CLI evidence is green.
+  next_action: Keep `models3d.generate` off by default and switch product planning to a lower-cost `models3d.search` skill backed by official 3D model search APIs.
   command: python3 scripts/spec_verify.py docs/specs/models3d-generate/spec.yml --json
-  expected_outcome: Verification remains incomplete until real CLI generation, npm/pip parity, benchmark, Playwright, print artifact review, user approval, and Apple evidence are either passed or explicitly rescoped.
-  blocker: null
-  last_verified_commit: 54cd2741
+  expected_outcome: The generate spec remains incomplete and externally blocked, with `generate` intentionally hidden by default until future credits or an explicit waiver allow real-provider verification.
+  blocker:
+    reason: "External provider credits are unavailable and too expensive in the near term. The user chose not to add Hi3D credits and to leave only `models3d.generate` disabled by default rather than disabling the full app."
+    next_action: "Resume this spec only if Hi3D credits become available or the user explicitly approves a waiver for the remaining real-provider CLI/SDK/web gates."
+  last_verified_commit: e3d6b69bd761147b134f6fa8dd7cd9af3deaa7ca
 
 scenarios:
   - id: S-1
@@ -526,11 +551,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_generate_task.py -q
-        run_id: local-pytest-models3d-provider-storage-generate-20260715T003700Z
-        subject_commit: working-tree-dcc5b3669
-        timestamp: "2026-07-15T00:37:00Z"
-        summary: Hi3D provider, generated-model storage, and models3d generation-task contracts passed with 40 tests.
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_apps_api.py backend/tests/test_encrypted_embed_images.py backend/tests/test_models3d_generate_task.py -q
+        run_id: local-pytest-models3d-provider-route-resolver-generate-20260715T013919Z
+        subject_commit: working-tree-e3d6b69bd-hi3d-taskid
+        timestamp: "2026-07-15T01:39:19Z"
+        summary: Hi3D provider, custom apps route, encrypted input resolver, and models3d generation-task contracts passed with 45 tests, including both `task_id` and documented `taskId` submit response keys.
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_models3d_generate_task.py
@@ -548,11 +573,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_generate_task.py -q
-        run_id: local-pytest-models3d-provider-storage-generate-20260715T003700Z
-        subject_commit: working-tree-dcc5b3669
-        timestamp: "2026-07-15T00:37:00Z"
-        summary: Hi3D provider, generated-model storage, and models3d generation-task contracts passed with 40 tests.
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_apps_api.py backend/tests/test_encrypted_embed_images.py backend/tests/test_models3d_generate_task.py -q
+        run_id: local-pytest-models3d-provider-route-resolver-generate-20260715T013919Z
+        subject_commit: working-tree-e3d6b69bd-hi3d-taskid
+        timestamp: "2026-07-15T01:39:19Z"
+        summary: Hi3D provider, custom apps route, encrypted input resolver, and models3d generation-task contracts passed with 45 tests, including worker-visible preloaded encrypted image metadata.
   - id: T-PYTEST-003
     type: pytest
     file: backend/tests/test_generated_model_storage.py
@@ -685,12 +710,14 @@ tests:
       expected: pass
       evidence:
         status: blocked
-        command: python3 scripts/tests.py run --suite cli
-        reason: "The current passing CLI regression (`node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts`) proves app-skill polling/auth recovery but not the approved real single/multi-view generate-and-download contract."
+        command: node dist/cli.js --api-url https://api.dev.openmates.org apps models3d generate --image ./fixtures/brandenburger-tor.png --json
+        run_id: real-cli-models3d-single-image-dev-20260715T012929Z
+        subject_commit: e3d6b69bd761147b134f6fa8dd7cd9af3deaa7ca
+        reason: "The real dev CLI single-image generation path passed, but the approved verification also requires ordered multi-view input and explicit GLB download validation before T-CLI-002 can be marked passed. A follow-up real-provider check is blocked because the live Hi3D balance is now `0.0`."
         actor: opencode
-        timestamp: "2026-07-15T00:38:00Z"
-        next_action: Add and run the real dev-server CLI image-generation contract before marking T-CLI-002 green.
-        summary: CLI client regression passed locally with 32 tests, but the approved real generation contract remains unproven.
+        timestamp: "2026-07-15T01:30:25Z"
+        next_action: Top up Hi3D credits or approve a waiver, then add or run the multi-view image contract and validate a downloaded GLB from the CLI/API result.
+        summary: Real dev CLI `--image` generation returned a finished encrypted model result with master, preview, and poster artifacts; no signed download URL or private token is stored here.
   - id: T-NPM-001
     type: unit
     file: frontend/packages/openmates-cli/tests/sdk.test.ts

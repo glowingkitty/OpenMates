@@ -47,3 +47,53 @@ generate.description:
   sv: Create a 3D model from a text prompt or reference images.
   he: Create a 3D model from a text prompt or reference images.
   verified_by_human: [en, de]
+
+search:
+  context: Skill name for searching existing 3D models
+  en: Search 3D models
+  de: 3D-Modelle suchen
+  zh: Search 3D models
+  es: Search 3D models
+  fr: Search 3D models
+  pt: Search 3D models
+  ru: Search 3D models
+  ja: Search 3D models
+  ko: Search 3D models
+  it: Search 3D models
+  tr: Search 3D models
+  vi: Search 3D models
+  id: Search 3D models
+  pl: Search 3D models
+  nl: Search 3D models
+  ar: Search 3D models
+  hi: Search 3D models
+  th: Search 3D models
+  cs: Search 3D models
+  sv: Search 3D models
+  he: Search 3D models
+  verified_by_human: [en, de]
+
+search.description:
+  context: Description for the 3D model search skill
+  en: Find existing 3D models in public model catalogs.
+  de: Finde vorhandene 3D-Modelle in öffentlichen Modellkatalogen.
+  zh: Find existing 3D models in public model catalogs.
+  es: Find existing 3D models in public model catalogs.
+  fr: Find existing 3D models in public model catalogs.
+  pt: Find existing 3D models in public model catalogs.
+  ru: Find existing 3D models in public model catalogs.
+  ja: Find existing 3D models in public model catalogs.
+  ko: Find existing 3D models in public model catalogs.
+  it: Find existing 3D models in public model catalogs.
+  tr: Find existing 3D models in public model catalogs.
+  vi: Find existing 3D models in public model catalogs.
+  id: Find existing 3D models in public model catalogs.
+  pl: Find existing 3D models in public model catalogs.
+  nl: Find existing 3D models in public model catalogs.
+  ar: Find existing 3D models in public model catalogs.
+  hi: Find existing 3D models in public model catalogs.
+  th: Find existing 3D models in public model catalogs.
+  cs: Find existing 3D models in public model catalogs.
+  sv: Find existing 3D models in public model catalogs.
+  he: Find existing 3D models in public model catalogs.
+  verified_by_human: [en, de]

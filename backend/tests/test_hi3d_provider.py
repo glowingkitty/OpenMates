@@ -78,7 +78,8 @@ async def test_authenticates_and_queries_balance_without_secret_logs(caplog: pyt
 
 
 @pytest.mark.asyncio
-async def test_submits_ordered_multi_view_v21_fast_pbr_glb() -> None:
+@pytest.mark.parametrize("task_id_key", ["task_id", "taskId"])
+async def test_submits_ordered_multi_view_v21_fast_pbr_glb(task_id_key: str) -> None:
     submitted_body = b""
 
     async def handler(request: httpx.Request) -> httpx.Response:
@@ -86,7 +87,7 @@ async def test_submits_ordered_multi_view_v21_fast_pbr_glb() -> None:
         if request.url.path.endswith("/auth/token"):
             return httpx.Response(200, json={"code": 200, "data": {"accessToken": "token"}, "msg": "success"})
         submitted_body = await request.aread()
-        return httpx.Response(200, json={"code": 200, "data": {"task_id": "task-1"}, "msg": "success"})
+        return httpx.Response(200, json={"code": 200, "data": {task_id_key: "task-1"}, "msg": "success"})
 
     client, http_client = _client(httpx.MockTransport(handler))
     try:

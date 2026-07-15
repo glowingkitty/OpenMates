@@ -13,7 +13,15 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_ts': 'ai',
   'description': 'Run this OpenMates app skill.',
   'description_key': 'ai.ask.description',
-  'schema': {'properties': {}, 'type': 'object'},
+  'schema': {'properties': {'conversation': {'description': 'Optional run-local conversation name '
+                                                            'for retaining previous Workflow AI '
+                                                            'context in the same run.',
+                                             'type': 'string'},
+                            'prompt': {'description': 'The question or task for the Workflow AI '
+                                                      'step.',
+                                       'type': 'string'}},
+             'required': ['prompt'],
+             'type': 'object'},
   'skill_id': 'ask',
   'skill_method_py': 'ask',
   'skill_method_ts': 'ask'},
@@ -1852,6 +1860,85 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'calculate',
   'skill_method_py': 'calculate',
   'skill_method_ts': 'calculate'},
+ {'app_id': 'models3d',
+  'app_namespace_py': 'models3d',
+  'app_namespace_ts': 'models3d',
+  'description': 'Search public 3D model catalogs for existing models. Use this when the user '
+                 'wants to find, browse, compare, or link to existing 3D-printable or downloadable '
+                 '3D models. Do not use it to generate new models.',
+  'description_key': 'app_skills.models3d.search.description',
+  'schema': {'properties': {'requests': {'description': 'Array of 3D model search requests. Each '
+                                                        'request searches public 3D model catalogs '
+                                                        'and returns preview-only result cards.\n',
+                                         'items': {'properties': {'count': {'default': 10,
+                                                                            'description': 'Maximum '
+                                                                                           'total '
+                                                                                           'results '
+                                                                                           'to '
+                                                                                           'return '
+                                                                                           'after '
+                                                                                           'merging '
+                                                                                           'providers.',
+                                                                            'maximum': 20,
+                                                                            'minimum': 1,
+                                                                            'type': 'integer'},
+                                                                  'free_only': {'default': False,
+                                                                                'description': 'Return '
+                                                                                               'only '
+                                                                                               'results '
+                                                                                               'that '
+                                                                                               'the '
+                                                                                               'provider '
+                                                                                               'marks '
+                                                                                               'as '
+                                                                                               'free.',
+                                                                                'type': 'boolean'},
+                                                                  'providers': {'description': 'Optional '
+                                                                                               'provider '
+                                                                                               'filter. '
+                                                                                               'Defaults '
+                                                                                               'to '
+                                                                                               'all '
+                                                                                               'supported '
+                                                                                               'providers.',
+                                                                                'items': {'enum': ['Printables',
+                                                                                                   'MyMiniFactory',
+                                                                                                   'Thingiverse'],
+                                                                                          'type': 'string'},
+                                                                                'type': 'array'},
+                                                                  'query': {'description': 'Search '
+                                                                                           'query, '
+                                                                                           'e.g. '
+                                                                                           '"benchy", '
+                                                                                           '"phone '
+                                                                                           'stand", '
+                                                                                           'or '
+                                                                                           '"desk '
+                                                                                           'cable '
+                                                                                           'clip".',
+                                                                            'type': 'string'},
+                                                                  'sort': {'default': 'best_match',
+                                                                           'description': 'Sorting '
+                                                                                          'strategy '
+                                                                                          'applied '
+                                                                                          'after '
+                                                                                          'provider '
+                                                                                          'results '
+                                                                                          'are '
+                                                                                          'merged.',
+                                                                           'enum': ['best_match',
+                                                                                    'popular',
+                                                                                    'downloads',
+                                                                                    'newest'],
+                                                                           'type': 'string'}},
+                                                   'required': ['query'],
+                                                   'type': 'object'},
+                                         'type': 'array'}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'search',
+  'skill_method_py': 'search',
+  'skill_method_ts': 'search'},
  {'app_id': 'music',
   'app_namespace_py': 'music',
   'app_namespace_ts': 'music',
@@ -3350,6 +3437,47 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'search',
   'skill_method_py': 'search',
   'skill_method_ts': 'search'},
+ {'app_id': 'tasks',
+  'app_namespace_py': 'tasks',
+  'app_namespace_ts': 'tasks',
+  'description': 'Create one or more user-visible tasks. Use this for planning, task capture, or '
+                 'breaking a request into trackable work. Default unclear assignees to the user.',
+  'description_key': 'tasks.skills.create.description',
+  'schema': {'properties': {'assignee': {'enum': ['user', 'openmates'], 'type': 'string'},
+                            'description': {'type': 'string'},
+                            'tasks': {'items': {'properties': {'assignee': {'enum': ['user',
+                                                                                     'openmates'],
+                                                                            'type': 'string'},
+                                                               'description': {'type': 'string'},
+                                                               'status': {'enum': ['backlog',
+                                                                                   'todo',
+                                                                                   'in_progress',
+                                                                                   'blocked'],
+                                                                          'type': 'string'},
+                                                               'title': {'type': 'string'}},
+                                                'type': 'object'},
+                                      'type': 'array'},
+                            'title': {'description': 'Single-task title when not using tasks[].',
+                                      'type': 'string'}},
+             'required': [],
+             'type': 'object'},
+  'skill_id': 'create',
+  'skill_method_py': 'create',
+  'skill_method_ts': 'create'},
+ {'app_id': 'tasks',
+  'app_namespace_py': 'tasks',
+  'app_namespace_ts': 'tasks',
+  'description': "Search the user's encrypted tasks through a connected capable client. Do not use "
+                 'server-visible metadata as a private task-content search fallback.',
+  'description_key': 'tasks.skills.search.description',
+  'schema': {'properties': {'query': {'description': 'Private task text to search for on a '
+                                                     'connected client.',
+                                      'type': 'string'}},
+             'required': ['query'],
+             'type': 'object'},
+  'skill_id': 'search',
+  'skill_method_py': 'search',
+  'skill_method_ts': 'search'},
  {'app_id': 'travel',
   'app_namespace_py': 'travel',
   'app_namespace_ts': 'travel',
@@ -4707,7 +4835,41 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
              'type': 'object'},
   'skill_id': 'read',
   'skill_method_py': 'read',
-  'skill_method_ts': 'read'}]
+  'skill_method_ts': 'read'},
+ {'app_id': 'workflows',
+  'app_namespace_py': 'workflows',
+  'app_namespace_ts': 'workflows',
+  'description': 'Create or modify exactly one workflow from chat. Do not batch multiple workflows '
+                 'into one skill call.',
+  'description_key': 'workflows.skills.create_or_modify.description',
+  'schema': {'properties': {'graph': {'description': 'Valid WorkflowGraph definition.',
+                                      'type': 'object'},
+                            'title': {'description': 'Short user-facing workflow title.',
+                                      'type': 'string'},
+                            'workflow_id': {'description': 'Existing workflow ID when modifying a '
+                                                           'workflow.',
+                                            'type': 'string'}},
+             'required': ['title'],
+             'type': 'object'},
+  'skill_id': 'create-or-modify',
+  'skill_method_py': 'create_or_modify',
+  'skill_method_ts': 'createOrModify'},
+ {'app_id': 'workflows',
+  'app_namespace_py': 'workflows',
+  'app_namespace_ts': 'workflows',
+  'description': "Search the user's existing persisted workflows before proposing a new "
+                 'automation. Include temporary workflows only when the user explicitly asks about '
+                 'recent chat-created workflows.',
+  'description_key': 'workflows.skills.search.description',
+  'schema': {'properties': {'include_temporary': {'description': 'Include temporary chat-created '
+                                                                 'workflows in the search results.',
+                                                  'type': 'boolean'},
+                            'query': {'description': 'Workflow title or intent text to search for.',
+                                      'type': 'string'}},
+             'type': 'object'},
+  'skill_id': 'search',
+  'skill_method_py': 'search',
+  'skill_method_ts': 'search'}]
 
 SkillRunner = Callable[[str, str, dict[str, Any]], dict[str, Any]]
 
@@ -4927,6 +5089,18 @@ class MathAppSkills:
         """
         return self._run_skill("math", "calculate", input_data)
 
+class Models3dAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Search public 3D model catalogs for existing models. Use this when the user wants to find, browse, compare, or link to existing 3D-printable or downloadable 3D models. Do not use it to generate new models.
+
+        Description key: app_skills.models3d.search.description
+        Skill: models3d/search
+        """
+        return self._run_skill("models3d", "search", input_data)
+
 class MusicAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
@@ -5079,6 +5253,26 @@ class SocialMediaAppSkills:
         """
         return self._run_skill("social_media", "search", input_data)
 
+class TasksAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def create(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.
+
+        Description key: tasks.skills.create.description
+        Skill: tasks/create
+        """
+        return self._run_skill("tasks", "create", input_data)
+
+    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.
+
+        Description key: tasks.skills.search.description
+        Skill: tasks/search
+        """
+        return self._run_skill("tasks", "search", input_data)
+
 class TravelAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
@@ -5183,6 +5377,26 @@ class WebAppSkills:
         """
         return self._run_skill("web", "search", input_data)
 
+class WorkflowsAppSkills:
+    def __init__(self, run_skill: SkillRunner):
+        self._run_skill = run_skill
+
+    def create_or_modify(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Create or modify exactly one workflow from chat. Do not batch multiple workflows into one skill call.
+
+        Description key: workflows.skills.create_or_modify.description
+        Skill: workflows/create-or-modify
+        """
+        return self._run_skill("workflows", "create-or-modify", input_data)
+
+    def search(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Search the user's existing persisted workflows before proposing a new automation. Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
+
+        Description key: workflows.skills.search.description
+        Skill: workflows/search
+        """
+        return self._run_skill("workflows", "search", input_data)
+
 class GeneratedAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self.ai = AiAppSkills(run_skill)
@@ -5197,6 +5411,7 @@ class GeneratedAppSkills:
         self.mail = MailAppSkills(run_skill)
         self.maps = MapsAppSkills(run_skill)
         self.math = MathAppSkills(run_skill)
+        self.models3d = Models3dAppSkills(run_skill)
         self.music = MusicAppSkills(run_skill)
         self.news = NewsAppSkills(run_skill)
         self.nutrition = NutritionAppSkills(run_skill)
@@ -5205,7 +5420,9 @@ class GeneratedAppSkills:
         self.reminder = ReminderAppSkills(run_skill)
         self.shopping = ShoppingAppSkills(run_skill)
         self.social_media = SocialMediaAppSkills(run_skill)
+        self.tasks = TasksAppSkills(run_skill)
         self.travel = TravelAppSkills(run_skill)
         self.videos = VideosAppSkills(run_skill)
         self.weather = WeatherAppSkills(run_skill)
         self.web = WebAppSkills(run_skill)
+        self.workflows = WorkflowsAppSkills(run_skill)

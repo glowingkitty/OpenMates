@@ -38,6 +38,8 @@ import TravelConnectionEmbedPreview from "../../../embeds/travel/TravelConnectio
 import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerateEmbedPreview.svelte";
+import Model3DSearchEmbedPreview from "../../../embeds/models3d/Model3DSearchEmbedPreview.svelte";
+import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
@@ -351,6 +353,16 @@ export class GroupRenderer implements EmbedRenderer {
         "images-image-result",
         (item, embedData, decodedContent, content) =>
           this.renderImageResultComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
+      ],
+      [
+        "models3d-model-result",
+        (item, embedData, decodedContent, content) =>
+          this.renderModel3DResultComponent(
             item,
             embedData,
             decodedContent,
@@ -740,6 +752,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderMapsPlaceItem(item, embedData, decodedContent);
       case "images-image-result":
         return this.renderImageResultItem(item, embedData, decodedContent);
+      case "models3d-model-result":
+        return this.renderModel3DResultItem(item, embedData, decodedContent);
       case "health-appointment":
         return this.renderHealthAppointmentItem(item, embedData, decodedContent);
       case "home-listing":
@@ -1714,6 +1728,35 @@ export class GroupRenderer implements EmbedRenderer {
             aesKey: decodedContent?.aes_key || "",
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "models3d" && skillId === "search") {
+        const modelPreviewResults =
+          decodedContent?.results ||
+          decodedContent?.preview_results ||
+          decodedContent?.preview_thumbnails ||
+          [];
+        const modelResultCount = typeof decodedContent?.result_count === "number"
+          ? decodedContent.result_count
+          : (Array.isArray(modelPreviewResults) ? modelPreviewResults.length : 0) || childEmbedIds.length;
+        const component = mount(Model3DSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Printables",
+            status,
+            results: modelPreviewResults,
+            previewResultsJson: decodedContent?.preview_results_json || "",
+            resultCount: modelResultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -5002,6 +5045,105 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
+  /** Render a single models3d-model-result embed using Model3DResultEmbedPreview. */
+  private async renderModel3DResultComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (decodedContent?.status ||
+      embedData?.status ||
+      item.status ||
+      "finished") as "processing" | "finished" | "error";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping Model3DResultEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(Model3DResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: (decodedContent?.title as string | undefined) || "",
+          provider: (decodedContent?.provider as string | undefined) || "",
+          creatorName: (decodedContent?.creator_name as string | undefined) || "",
+          sourcePageUrl: (decodedContent?.source_page_url as string | undefined) || "",
+          previewImageUrl: (decodedContent?.preview_image_url as string | undefined) || "",
+          thumbnailUrl: (decodedContent?.thumbnail_url as string | undefined) || "",
+          license: (decodedContent?.license as string | undefined) || "",
+          filesCount: (decodedContent?.files_count as number | null | undefined) ?? null,
+          isFree: (decodedContent?.is_free as boolean | null | undefined) ?? null,
+          openCtaLabel: (decodedContent?.open_cta_label as string | undefined) || "",
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[GroupRenderer] Mounted Model3DResultEmbedPreview component:",
+        {
+          embedId,
+          title: decodedContent?.title,
+          status,
+        },
+      );
+    } catch (error) {
+      const err = error as Error;
+      console.error(
+        "[GroupRenderer] Error mounting Model3DResultEmbedPreview:",
+        err?.name,
+        err?.message,
+        err?.stack,
+      );
+      if (content.isConnected) {
+        content.innerHTML = await this.renderModel3DResultItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+      }
+    }
+  }
+
+  /** HTML fallback for models3d-model-result embeds. */
+  private async renderModel3DResultItem(
+    _item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const title = (decodedContent?.title as string | undefined) || "3D model";
+    const provider = (decodedContent?.provider as string | undefined) || "";
+
+    return `
+      <div class="embed-app-icon models3d">
+        <span class="icon icon_3dmodels"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${escapeHtml(title)}</div>
+        ${provider ? `<div class="embed-text-subline">${escapeHtml(provider)}</div>` : ""}
+      </div>
+    `;
+  }
+
   private getGroupDisplayName(baseType: string, count: number): string {
     // App skill use groups use a distinct label format: "{count} app skills used:"
     if (baseType === "app-skill-use") {
@@ -5021,6 +5163,7 @@ export class GroupRenderer implements EmbedRenderer {
       "events-event": "event",
       "maps-place": "place",
       "images-image-result": "image",
+      "models3d-model-result": "3D model",
       "home-listing": "listing",
       "shopping-product": "product",
       "electronics-component": "component",

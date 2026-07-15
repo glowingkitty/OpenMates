@@ -7029,6 +7029,206 @@ image_search.results_count:
   he: "נמצאו {count} תמונות"
   verified_by_human: []
 
+models3d.search.results_count:
+  context: Subtitle shown after 3D model search finishes, {count} is number of models found
+  en: "{count} models found"
+  de: "{count} Modelle gefunden"
+  zh: "{count} models found"
+  es: "{count} models found"
+  fr: "{count} models found"
+  pt: "{count} models found"
+  ru: "{count} models found"
+  ja: "{count} models found"
+  ko: "{count} models found"
+  it: "{count} models found"
+  tr: "{count} models found"
+  vi: "{count} models found"
+  id: "{count} models found"
+  pl: "{count} models found"
+  nl: "{count} models found"
+  ar: "{count} models found"
+  hi: "{count} models found"
+  th: "{count} models found"
+  cs: "{count} models found"
+  sv: "{count} models found"
+  he: "{count} models found"
+  verified_by_human: [en, de]
+
+models3d.search.no_results:
+  context: Empty state shown when no 3D model search results were found
+  en: No 3D models found
+  de: Keine 3D-Modelle gefunden
+  zh: No 3D models found
+  es: No 3D models found
+  fr: No 3D models found
+  pt: No 3D models found
+  ru: No 3D models found
+  ja: No 3D models found
+  ko: No 3D models found
+  it: No 3D models found
+  tr: No 3D models found
+  vi: No 3D models found
+  id: No 3D models found
+  pl: No 3D models found
+  nl: No 3D models found
+  ar: No 3D models found
+  hi: No 3D models found
+  th: No 3D models found
+  cs: No 3D models found
+  sv: No 3D models found
+  he: No 3D models found
+  verified_by_human: [en, de]
+
+models3d.search.open_to_view:
+  context: Hint shown when 3D model search child results are available only in fullscreen
+  en: Open to view model results
+  de: Öffnen, um Modellergebnisse anzusehen
+  zh: Open to view model results
+  es: Open to view model results
+  fr: Open to view model results
+  pt: Open to view model results
+  ru: Open to view model results
+  ja: Open to view model results
+  ko: Open to view model results
+  it: Open to view model results
+  tr: Open to view model results
+  vi: Open to view model results
+  id: Open to view model results
+  pl: Open to view model results
+  nl: Open to view model results
+  ar: Open to view model results
+  hi: Open to view model results
+  th: Open to view model results
+  cs: Open to view model results
+  sv: Open to view model results
+  he: Open to view model results
+  verified_by_human: [en, de]
+
+models3d.search.result_title:
+  context: Fallback title for a 3D model search result card
+  en: 3D model result
+  de: 3D-Modellergebnis
+  zh: 3D model result
+  es: 3D model result
+  fr: 3D model result
+  pt: 3D model result
+  ru: 3D model result
+  ja: 3D model result
+  ko: 3D model result
+  it: 3D model result
+  tr: 3D model result
+  vi: 3D model result
+  id: 3D model result
+  pl: 3D model result
+  nl: 3D model result
+  ar: 3D model result
+  hi: 3D model result
+  th: 3D model result
+  cs: 3D model result
+  sv: 3D model result
+  he: 3D model result
+  verified_by_human: [en, de]
+
+models3d.search.open_on_provider:
+  context: CTA label to open a 3D model result on its source provider; {provider} is the provider name
+  en: "Open on {provider}"
+  de: "Auf {provider} öffnen"
+  zh: "Open on {provider}"
+  es: "Open on {provider}"
+  fr: "Open on {provider}"
+  pt: "Open on {provider}"
+  ru: "Open on {provider}"
+  ja: "Open on {provider}"
+  ko: "Open on {provider}"
+  it: "Open on {provider}"
+  tr: "Open on {provider}"
+  vi: "Open on {provider}"
+  id: "Open on {provider}"
+  pl: "Open on {provider}"
+  nl: "Open on {provider}"
+  ar: "Open on {provider}"
+  hi: "Open on {provider}"
+  th: "Open on {provider}"
+  cs: "Open on {provider}"
+  sv: "Open on {provider}"
+  he: "Open on {provider}"
+  verified_by_human: [en, de]
+
+models3d.search.open_result:
+  context: Fallback CTA label when a 3D model result provider name is unknown
+  en: Open source page
+  de: Quellseite öffnen
+  zh: Open source page
+  es: Open source page
+  fr: Open source page
+  pt: Open source page
+  ru: Open source page
+  ja: Open source page
+  ko: Open source page
+  it: Open source page
+  tr: Open source page
+  vi: Open source page
+  id: Open source page
+  pl: Open source page
+  nl: Open source page
+  ar: Open source page
+  hi: Open source page
+  th: Open source page
+  cs: Open source page
+  sv: Open source page
+  he: Open source page
+  verified_by_human: [en, de]
+
+models3d.search.free:
+  context: Label for a free 3D model search result
+  en: Free
+  de: Kostenlos
+  zh: Free
+  es: Free
+  fr: Free
+  pt: Free
+  ru: Free
+  ja: Free
+  ko: Free
+  it: Free
+  tr: Free
+  vi: Free
+  id: Free
+  pl: Free
+  nl: Free
+  ar: Free
+  hi: Free
+  th: Free
+  cs: Free
+  sv: Free
+  he: Free
+  verified_by_human: [en, de]
+
+models3d.search.files_count:
+  context: Label for the number of files attached to a 3D model catalog item; {count} is a number
+  en: "{count} files"
+  de: "{count} Dateien"
+  zh: "{count} files"
+  es: "{count} files"
+  fr: "{count} files"
+  pt: "{count} files"
+  ru: "{count} files"
+  ja: "{count} files"
+  ko: "{count} files"
+  it: "{count} files"
+  tr: "{count} files"
+  vi: "{count} files"
+  id: "{count} files"
+  pl: "{count} files"
+  nl: "{count} files"
+  ar: "{count} files"
+  hi: "{count} files"
+  th: "{count} files"
+  cs: "{count} files"
+  sv: "{count} files"
+  he: "{count} files"
+  verified_by_human: [en, de]
+
 image_search.view_source:
   context: Link label to view the source page of an image result
   en: View source

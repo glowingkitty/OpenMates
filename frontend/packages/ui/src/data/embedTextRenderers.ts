@@ -96,6 +96,27 @@ function renderGenericAppSkill(content: Record<string, unknown>): string {
 	return lines.join('\n');
 }
 
+function renderModel3DSearch(content: Record<string, unknown>): string {
+	const query = str(content.query) ?? '3D model search';
+	const provider = str(content.provider) ?? 'Printables';
+	const count = resolveResultCount(content);
+	const lines = [`**3D Models | Search**`, `query: ${query}`, `provider: ${provider}`];
+	if (count !== null) lines.push(`results: ${count}`);
+	return lines.join('\n');
+}
+
+function renderModel3DResult(content: Record<string, unknown>): string {
+	const title = str(content.title) ?? '3D model';
+	const provider = str(content.provider);
+	const creator = str(content.creator_name);
+	const sourceUrl = str(content.source_page_url);
+	const lines = [`**${title}**`];
+	if (provider) lines.push(`provider: ${provider}`);
+	if (creator) lines.push(`creator: ${creator}`);
+	if (sourceUrl) lines.push(sourceUrl);
+	return lines.join('\n');
+}
+
 function renderMindMap(content: Record<string, unknown>): string {
 	return renderMindMapText(content);
 }
@@ -135,6 +156,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:images:generate': renderImageGenerate,
 	'app:images:generate_draft': renderImageGenerate,
 	'app:models3d:generate': renderGenericAppSkill,
+	'app:models3d:search': renderModel3DSearch,
 	'app:images:search': renderImagesSearch,
 	'app:images:view': renderImage,
 	'app:images:vectorize': renderGenericAppSkill,
@@ -176,6 +198,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'pdf': renderPdf,
 	'image': renderImage,
 	'images-image-result': renderImageResult,
+	'models3d-model-result': renderModel3DResult,
 	'videos-video': renderVideo,
 	'travel-connection': renderConnection,
 	'travel-stay': renderStay,
