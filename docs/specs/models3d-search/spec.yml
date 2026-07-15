@@ -109,7 +109,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree-ea6c53c6-models3d-search
+  subject_commit: efbc47b
 
 approvals:
   product_contract:
@@ -174,12 +174,12 @@ attempts:
     reason: "`node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json` reached the dev API but returned `all_providers_failed`; green evidence must wait for a deploy of the local Printables and keyed-provider fixes."
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Deploy only the intended models3d search files, wait for dev/Vercel readiness, then rerun the real dev CLI command for T-CLI-001 green evidence.
-  command: node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json
-  expected_outcome: The deployed dev API returns success JSON with normalized preview-only model results and warnings only for missing keyed providers.
+  current_task_id: TASK-4
+  next_action: Add or run deployed web verification for the models3d search parent/child renderers, then collect user confirmation before Apple parity.
+  command: python3 scripts/tests.py run --spec models3d-search.spec.ts
+  expected_outcome: The deployed dev web app renders the models3d search parent and child result cards with proxied previews and `Open on (provider)` CTAs.
   blocker: null
-  last_verified_commit: ea6c53c6f31a7601c9ef8576704005d9ff037047
+  last_verified_commit: efbc47b
 
 scenarios:
   - id: S-1
@@ -256,7 +256,7 @@ acceptance_criteria:
     scenario: S-1
     text: The real dev CLI can run `models3d search` against the dev API and receive normalized preview-only 3D model search results.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids:
@@ -400,11 +400,11 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: passed
+        command: node dist/cli.js --api-url https://api.dev.openmates.org apps models3d search --query benchy --json
+        run_id: dev-cli-models3d-search-20260715-0949
+        subject_commit: efbc47b
+        timestamp: "2026-07-15T09:49:40Z"
 
   - id: T-CLI-UNIT-001
     type: unit
@@ -431,7 +431,7 @@ tests:
         status: passed
         command: node --test --test-name-pattern "models3d search flags|starts a chat asking for 3D models" tests/cli.test.ts
         run_id: local-node-cli-models3d-20260715-0928
-        subject_commit: working-tree-ea6c53c6-models3d-search
+        subject_commit: efbc47b
         timestamp: "2026-07-15T09:34:59Z"
 
   - id: T-PYTEST-001
@@ -460,7 +460,7 @@ tests:
         status: passed
         command: python3 -m pytest backend/tests/test_models3d_search_skill.py backend/tests/test_models3d_search_providers.py -q
         run_id: local-pytest-models3d-20260715-0928
-        subject_commit: working-tree-ea6c53c6-models3d-search
+        subject_commit: efbc47b
         timestamp: "2026-07-15T09:34:59Z"
 
   - id: T-PYTEST-002
@@ -491,7 +491,7 @@ tests:
         status: passed
         command: python3 -m pytest backend/tests/test_models3d_search_skill.py backend/tests/test_models3d_search_providers.py -q
         run_id: local-pytest-models3d-20260715-0928
-        subject_commit: working-tree-ea6c53c6-models3d-search
+        subject_commit: efbc47b
         timestamp: "2026-07-15T09:34:59Z"
 
   - id: T-NPM-001
@@ -519,7 +519,7 @@ tests:
         status: passed
         command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "models3d" tests/sdk.test.ts
         run_id: local-node-sdk-models3d-20260715-0929
-        subject_commit: working-tree-ea6c53c6-models3d-search
+        subject_commit: efbc47b
         timestamp: "2026-07-15T09:34:59Z"
 
   - id: T-PIP-001
@@ -547,7 +547,7 @@ tests:
         status: passed
         command: python3 -m pytest packages/openmates-python/tests/test_sdk.py packages/openmates-python/tests/test_sdk_generator.py -q
         run_id: local-pytest-python-sdk-models3d-20260715-0928
-        subject_commit: working-tree-ea6c53c6-models3d-search
+        subject_commit: efbc47b
         timestamp: "2026-07-15T09:34:59Z"
 
   - id: T-E2E-001
@@ -773,7 +773,7 @@ tasks:
 
   - id: TASK-3
     title: Add CLI and SDK parity for models3d search
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -805,7 +805,7 @@ tasks:
 
   - id: TASK-4
     title: Add web renderers and deployed Playwright verification
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios:
