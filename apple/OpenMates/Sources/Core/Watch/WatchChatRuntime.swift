@@ -533,7 +533,7 @@ final class WatchChatRuntime: ObservableObject {
                 try await Task.sleep(nanoseconds: Self.fetchRetryDelayNanoseconds)
             }
         }
-        throw lastError ?? WatchChatRuntimeError.syncUnavailable
+        throw lastError ?? URLError(.unknown)
     }
 
     private static func shouldRetryFetchError(_ error: Error) -> Bool {
