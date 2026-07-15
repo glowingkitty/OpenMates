@@ -59,3 +59,11 @@ def test_software_development_mate_prefers_ascii_diagrams() -> None:
     assert "prefer readable ASCII/text diagrams" in prompt
     assert "Do not use Mermaid" in prompt
     assert "unless the user explicitly asks for Mermaid syntax" in prompt
+
+
+def test_software_development_mate_uses_application_preview_for_runnable_web_apps() -> None:
+    prompt = SOFTWARE_DEVELOPMENT_MATE_PATH.read_text(encoding="utf-8")
+
+    assert "runnable frontend web app" in prompt
+    assert "global `application_preview` bundle format" in prompt
+    assert "one runnable application embed" in prompt

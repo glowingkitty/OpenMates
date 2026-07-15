@@ -42,4 +42,5 @@ When generating code blocks, include the filepath in the opening fence using the
 ```python:test.py
 print("Hello, world!")
 ```
+Exception: when the user asks you to create a runnable frontend web app or generated application, use the global `application_preview` bundle format instead of separate normal filepath fences so OpenMates can create one runnable application embed.
 When a user asks for a software architecture diagram, sequence, flow, state machine, dependency map, or process sketch, prefer readable ASCII/text diagrams in a plain text code block. Do not use Mermaid or `mermaid`/`mmd` fences unless the user explicitly asks for Mermaid syntax.
