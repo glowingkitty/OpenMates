@@ -19,6 +19,7 @@
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { openFullscreen } = require('./helpers/embed-test-helpers');
 
 test.describe('Demo chat embed rendering', () => {
 	test('embeds inside demo chats render for unauthenticated users', async ({ page }) => {
@@ -153,5 +154,35 @@ test.describe('Demo chat embed rendering', () => {
 		const fitnessFullscreen = page.getByTestId('fitness-result-fullscreen');
 		await expect(fitnessFullscreen).toBeVisible({ timeout: 10000 });
 		await expect(fitnessFullscreen.getByText('Fenriz Gym', { exact: true })).toBeVisible({ timeout: 10000 });
+	});
+
+	test('public Habit Garden application example renders without starting a live preview', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-habit-garden-web-application'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const applicationEmbed = page.locator(
+			'[data-testid="embed-preview"][data-app-id="code"][data-skill-id="application"][data-status="finished"]'
+		).first();
+		await expect(applicationEmbed).toBeVisible({ timeout: 30000 });
+		await expect(applicationEmbed).toContainText('Habit Garden');
+		await expect(applicationEmbed.getByTestId('application-preview-screenshot')).toBeVisible({ timeout: 10000 });
+		await expect(applicationEmbed.getByTestId('application-preview-play-overlay')).toBeVisible({ timeout: 10000 });
+
+		const fullscreenOverlay = await openFullscreen(page, applicationEmbed);
+		await expect(fullscreenOverlay.getByTestId('application-preview-panel')).toBeVisible({ timeout: 10000 });
+		await expect(fullscreenOverlay.getByTestId('application-preview-files')).toBeVisible({ timeout: 10000 });
+		await expect(fullscreenOverlay.getByText('src/App.svelte')).toBeVisible({ timeout: 10000 });
+		await expect(fullscreenOverlay.getByTestId('application-preview-status')).toContainText(/not started|idle/i);
+		await expect(fullscreenOverlay.getByTestId('application-preview-iframe')).toHaveCount(0);
+
+		const previewStartAttempt = page.waitForResponse(
+			(response) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
+			{ timeout: 3000 }
+		).then(() => 'started').catch(() => 'not-started');
+		await fullscreenOverlay.getByTestId('application-start-preview').click();
+		await expect(page.getByTestId('tab-login')).toBeVisible({ timeout: 10000 });
+		expect(await previewStartAttempt).toBe('not-started');
 	});
 });
