@@ -19,15 +19,15 @@ function deriveApiUrl(baseUrl: string): string {
 	return 'https://api.openmates.org';
 }
 
-async function expectUnifiedDetail(page, domain: string, itemId: string): Promise<void> {
+async function expectUnifiedDetail(page, domain: string, itemId: string, headerSystem = 'workspace-detail'): Promise<void> {
 	await expect(page).toHaveURL(new RegExp(`/${domain}/${itemId}(?:[?#]|$)`));
 	const header = page.getByTestId('workspace-detail-header');
 	await expect(header).toBeVisible({ timeout: 30000 });
-	await expect(header).toHaveAttribute('data-header-system', 'workspace-detail');
+	await expect(header).toHaveAttribute('data-header-system', headerSystem);
 	await expect.soft(page.getByTestId('report-issue-button')).toBeVisible();
 	await page.reload({ waitUntil: 'domcontentloaded' });
 	await expect(page).toHaveURL(new RegExp(`/${domain}/${itemId}(?:[?#]|$)`));
-	await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', 'workspace-detail');
+	await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', headerSystem);
 }
 
 test.describe('Unified workspace detail pages', () => {
@@ -139,7 +139,7 @@ test.describe('Unified workspace detail pages', () => {
 			await expect.soft(page.getByTestId('report-issue-button')).toBeVisible();
 			const card = page.getByTestId('workflow-landing-card').filter({ hasText: title });
 			await card.click();
-			await expectUnifiedDetail(page, 'workflows', workflowId);
+			await expectUnifiedDetail(page, 'workflows', workflowId, 'workflow-detail');
 		} finally {
 			if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
 		}

@@ -320,6 +320,29 @@ test('legacy admission is serialized, durable, and released exactly once', async
   ]);
 });
 
+test('server-trigger admission is allowed after epoch one without reopening legacy client sends', async () => {
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const database = fakeDatabase(protocolSeed({ epoch: 1, paused: true }));
+
+  await assert.rejects(
+    executeOperation(database, 'admit_legacy_inference', legacyBody('message-a'), now),
+    (error) => error instanceof ProtocolError && error.code === 'client_update_required',
+  );
+
+  const result = await executeOperation(
+    database,
+    'admit_legacy_inference',
+    legacyBody('server-trigger:message-a'),
+    now,
+  );
+
+  assert.equal(result.admitted, true);
+  assert.equal(result.idempotent, false);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].protocol_epoch, 1);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 1);
+  assert.deepEqual(database.rows.chat_recovery_protocol_state[0].active_legacy_tasks, ['server-trigger:message-a']);
+});
+
 test('legacy admission prunes an expired running retry before admitting it once', async () => {
   const now = new Date('2029-01-01T00:15:00.000Z');
   const database = fakeDatabase(protocolSeed({

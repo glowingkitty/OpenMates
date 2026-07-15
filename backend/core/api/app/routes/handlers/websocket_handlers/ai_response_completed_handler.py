@@ -24,6 +24,7 @@ LEGACY_COMPLETION_REJECTION_CODES = {
     "legacy_completion_not_found",
     "legacy_completion_not_ready",
 }
+SERVER_TRIGGER_TASK_IDENTITY_PREFIX = "server-trigger:"
 
 
 def _legacy_completion_task_identities(
@@ -35,7 +36,11 @@ def _legacy_completion_task_identities(
 ) -> list[str]:
     identities = [assistant_message_id]
     if user_message_id:
-        identities.append(hashlib.sha256(f"{user_id}:{chat_id}:{user_message_id}".encode()).hexdigest())
+        user_turn_identity = hashlib.sha256(
+            f"{user_id}:{chat_id}:{user_message_id}".encode()
+        ).hexdigest()
+        identities.append(user_turn_identity)
+        identities.append(f"{SERVER_TRIGGER_TASK_IDENTITY_PREFIX}{user_turn_identity}")
     return list(dict.fromkeys(identities))
 
 

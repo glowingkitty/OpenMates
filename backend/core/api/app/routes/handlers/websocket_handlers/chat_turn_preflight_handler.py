@@ -91,7 +91,8 @@ def build_inference_commitment(inference_request: dict[str, Any]) -> str:
 
 def server_client_capabilities(manager: Any, user_id: str, device_fingerprint_hash: str) -> list[str]:
     capabilities: list[str] = []
-    if manager.supports_task_update_jobs(user_id, device_fingerprint_hash):
+    supports_task_update_jobs = getattr(manager, "supports_task_update_jobs", None)
+    if callable(supports_task_update_jobs) and supports_task_update_jobs(user_id, device_fingerprint_hash):
         capabilities.append("task_update_jobs")
     return capabilities
 

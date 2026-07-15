@@ -19,6 +19,7 @@ const JOB_TTL_MS = 7 * 24 * 60 * 60_000;
 const TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
 const LEGACY_RUNNING_TTL_MS = 15 * 60_000;
 const LEGACY_TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
+const SERVER_TRIGGER_TASK_IDENTITY_PREFIX = 'server-trigger:';
 const MAX_CONTENT_BYTES = 16 * 1024 * 1024;
 const MAX_AVAILABLE_JOBS = 100;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -346,10 +347,11 @@ async function setSendsPaused(database, raw) {
 async function admitLegacyInference(database, raw, now) {
   const body = operationBody(raw, 'admit_legacy_inference');
   const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
+  const isServerTriggerIdentity = taskIdentity.startsWith(SERVER_TRIGGER_TASK_IDENTITY_PREFIX);
   return database.transaction(async (trx) => {
     let row = await lockedProtocolState(trx);
-    if (row.protocol_epoch !== 0) fail(426, 'client_update_required');
-    if (row.sends_paused) fail(503, 'inference_temporarily_paused');
+    if (row.protocol_epoch !== 0 && !isServerTriggerIdentity) fail(426, 'client_update_required');
+    if (row.sends_paused && !isServerTriggerIdentity) fail(503, 'inference_temporarily_paused');
     const pruned = pruneExpiredLegacyState(row, now);
     if (pruned.changed) {
       await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(

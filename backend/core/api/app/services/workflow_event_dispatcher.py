@@ -27,8 +27,11 @@ class WorkflowEventDispatcher:
         event: Mapping[str, Any],
         predicate_matches: Callable[[Mapping[str, Any]], bool],
     ) -> dict[str, Any]:
-        required = ("hashed_user_id", "hashed_project_id", "source", "event_type")
-        if not trigger.get("enabled") or any(trigger.get(key) != event.get(key) for key in required):
+        trigger_owner_hash = trigger.get("hashed_user_id") or trigger.get("owner_hash")
+        if not trigger.get("enabled") or trigger_owner_hash != event.get("hashed_user_id"):
+            return {"accepted": False, "reason": "event_trigger_mismatch"}
+        required = ("hashed_project_id", "source", "event_type")
+        if any(trigger.get(key) != event.get(key) for key in required):
             return {"accepted": False, "reason": "event_trigger_mismatch"}
         payload = event.get("payload")
         if not isinstance(payload, Mapping) or not predicate_matches(payload):

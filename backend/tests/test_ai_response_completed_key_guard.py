@@ -323,6 +323,55 @@ async def _run_epoch_one_legacy_completion_uses_user_message_identity(monkeypatc
     assert manager.personal_messages[0][0]["type"] == "ai_response_storage_confirmed"
 
 
+def test_epoch_one_server_trigger_completion_uses_prefixed_user_message_identity(monkeypatch):
+    asyncio.run(_run_epoch_one_server_trigger_completion_uses_prefixed_user_message_identity(monkeypatch))
+
+
+async def _run_epoch_one_server_trigger_completion_uses_prefixed_user_message_identity(monkeypatch):
+    queued_tasks: list[tuple[str, list, str | None]] = []
+    user_message_id = "webhook-message-123"
+    user_turn_identity = hashlib.sha256(
+        f"user-123:chat-123:{user_message_id}".encode()
+    ).hexdigest()
+    server_trigger_identity = f"server-trigger:{user_turn_identity}"
+
+    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
+        FakeCutoverController.events.append("dispatch")
+        queued_tasks.append((name, args or [], queue))
+        return SimpleNamespace(id="task-123")
+
+    monkeypatch.setattr(ai_response_completed_handler.celery_app, "send_task", fake_send_task)
+    monkeypatch.setattr(
+        ai_response_completed_handler,
+        "ChatRecoveryCutoverController",
+        FakeCutoverController,
+    )
+    reset_cutover_controller(epoch=1)
+    FakeCutoverController.authorized_identities = {server_trigger_identity}
+    manager = FakeManager()
+
+    await handle_ai_response_completed(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCacheService(),
+        directus_service=FakeDirectusService("1a5b3b7c"),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload=make_payload("1a5b3b7c", user_message_id=user_message_id),
+    )
+
+    assert len(queued_tasks) == 1
+    assert FakeCutoverController.authorization_calls == [
+        "assistant-123",
+        user_turn_identity,
+        server_trigger_identity,
+    ]
+    assert FakeCutoverController.events == ["authorize", "authorize", "authorize", "dispatch"]
+    assert manager.personal_messages[0][0]["type"] == "ai_response_storage_confirmed"
+
+
 def test_epoch_one_unauthorized_legacy_completion_is_rejected(monkeypatch):
     asyncio.run(_run_epoch_one_unauthorized_legacy_completion(monkeypatch))
 

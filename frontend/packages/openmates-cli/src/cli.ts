@@ -3769,6 +3769,7 @@ async function handleSettings(
   }
 
   const tokens = [subcommand, ...rest].filter((token) => token !== "help");
+  const apiKey = resolveApiKey(flags) ?? undefined;
   if (rest.includes("help") || Boolean(flags.help)) {
     printSettingsHelp(client, tokens);
     return;
@@ -3957,7 +3958,7 @@ async function handleSettings(
     if (Object.keys(body).length === 0) {
       throw new Error("Provide --simple <model-id|auto> and/or --complex <model-id|auto>.");
     }
-    await printSettingsMutationResult(client.settingsPost("ai-model-defaults", body), flags);
+    await printSettingsMutationResult(client.settingsPost("ai-model-defaults", body, apiKey), flags);
     return;
   }
 

@@ -17,6 +17,7 @@
 
 import sys
 import types
+import hashlib
 from types import SimpleNamespace
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -235,6 +236,28 @@ def _make_encryption_service(succeed: bool = True):
     return enc
 
 
+class _FakeCutoverController:
+    admissions: list[str] = []
+    admission_result: dict = {"admitted": True}
+
+    def __init__(self, *_args):
+        pass
+
+    async def admit_legacy_inference(self, task_identity: str) -> dict:
+        self.admissions.append(task_identity)
+        return self.admission_result
+
+
+def _reset_cutover_admission(result: dict | None = None) -> None:
+    _FakeCutoverController.admissions = []
+    _FakeCutoverController.admission_result = result or {"admitted": True}
+
+
+def _webhook_legacy_identity(user_id: str, chat_id: str, message_id: str) -> str:
+    digest = hashlib.sha256(f"{user_id}:{chat_id}:{message_id}".encode()).hexdigest()
+    return f"server-trigger:{digest}"
+
+
 # ---------------------------------------------------------------------------
 # Default path — online user, no confirmation required
 # ---------------------------------------------------------------------------
@@ -268,10 +291,14 @@ async def test_webhook_incoming_default_template_dumps_full_json_body():
 
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "ai_task_123"})
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         response = await _webhook_incoming_handler()(
             request=request,
@@ -308,6 +335,7 @@ async def test_webhook_incoming_default_template_dumps_full_json_body():
     user_turn = ask_request["message_history"][0]
     assert "[Incoming Webhook" in user_turn["content"]
     assert "Fix race in webhook handler" in user_turn["content"]
+    assert ask_request["legacy_cutover_task_id"] in _FakeCutoverController.admissions
 
 
 @pytest.mark.asyncio
@@ -341,10 +369,14 @@ async def test_webhook_incoming_custom_template_extracts_fields_via_dotted_path(
 
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "ai_task_dotted"})
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         response = await _webhook_incoming_handler()(
             request=request,
@@ -535,10 +567,14 @@ async def test_dispatch_webhook_ai_request_builds_wrapped_user_turn():
     cache = _make_cache_service()
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "tk1"})
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         await _dispatch_webhook_ai_request(
             user_id="u1",
@@ -546,6 +582,7 @@ async def test_dispatch_webhook_ai_request_builds_wrapped_user_turn():
             message_id="m1",
             message="hello world",
             cache_service=cache,
+            directus_service=_make_directus_service(),
         )
 
     fake_registry.dispatch_skill.assert_awaited_once()
@@ -559,7 +596,37 @@ async def test_dispatch_webhook_ai_request_builds_wrapped_user_turn():
     assert len(ask_request["message_history"]) == 1
     assert "hello world" in ask_request["message_history"][0]["content"]
     assert ask_request["user_preferences"].get("timezone") == "UTC"
+    assert ask_request["legacy_cutover_task_id"] == _webhook_legacy_identity("u1", "c1", "m1")
+    assert _FakeCutoverController.admissions == [ask_request["legacy_cutover_task_id"]]
     cache.set_active_ai_task.assert_awaited_once_with("c1", "tk1")
+
+
+@pytest.mark.asyncio
+async def test_dispatch_webhook_ai_request_skips_duplicate_admission():
+    cache = _make_cache_service()
+    fake_registry = MagicMock()
+    fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "unexpected"})
+    _reset_cutover_admission({"idempotent": True})
+
+    with patch(
+        "backend.core.api.app.services.skill_registry.get_global_registry",
+        return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
+    ):
+        await _dispatch_webhook_ai_request(
+            user_id="u1",
+            chat_id="c1",
+            message_id="m1",
+            message="hello world",
+            cache_service=cache,
+            directus_service=_make_directus_service(),
+        )
+
+    fake_registry.dispatch_skill.assert_not_called()
+    cache.set_active_ai_task.assert_not_called()
+    assert _FakeCutoverController.admissions == [_webhook_legacy_identity("u1", "c1", "m1")]
 
 
 @pytest.mark.asyncio
@@ -567,10 +634,14 @@ async def test_dispatch_webhook_ai_request_warns_on_missing_task_id():
     cache = _make_cache_service()
     fake_registry = MagicMock()
     fake_registry.dispatch_skill = AsyncMock(return_value={})  # no task_id
+    _reset_cutover_admission()
 
     with patch(
         "backend.core.api.app.services.skill_registry.get_global_registry",
         return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
     ):
         await _dispatch_webhook_ai_request(
             user_id="u1",
@@ -578,6 +649,7 @@ async def test_dispatch_webhook_ai_request_warns_on_missing_task_id():
             message_id="m1",
             message="hi",
             cache_service=cache,
+            directus_service=_make_directus_service(),
         )
 
     cache.set_active_ai_task.assert_not_called()

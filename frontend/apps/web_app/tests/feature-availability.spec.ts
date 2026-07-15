@@ -29,19 +29,19 @@ test.describe('Feature availability', () => {
 
 		expect(disabled).toContain('platform:projects');
 		expect(disabled).toContain('platform:plans');
-		expect(disabled).toContain('platform:workflows');
-		expect(disabled).toContain('platform:tasks');
+		expect(disabled).not.toContain('platform:workflows');
+		expect(disabled).not.toContain('platform:tasks');
 		expect(disabled).not.toContain('app:web');
 
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, () => {}, async () => {});
 
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('chats-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('chats-nav-link')).toBeVisible();
 		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);
-		await expect(page.getByTestId('workflows-nav-link')).toHaveCount(0);
-		await expect(page.getByTestId('tasks-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('workflows-nav-link')).toBeVisible();
+		await expect(page.getByTestId('tasks-nav-link')).toBeVisible();
 		await expect(page.getByTestId('workspace-mobile-select')).toHaveCount(0);
 
 		await page.goto('/projects', { waitUntil: 'domcontentloaded' });
@@ -51,9 +51,9 @@ test.describe('Feature availability', () => {
 		await expect(page.getByTestId('plans-feature-disabled')).toBeVisible({ timeout: 30000 });
 
 		await page.goto('/workflows', { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('workflows-feature-disabled')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 
 		await page.goto('/tasks', { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('tasks-feature-disabled')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });
 	});
 });

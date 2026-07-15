@@ -6091,19 +6091,21 @@ export class OpenMatesClient {
   // Settings (generic passthrough)
   // -------------------------------------------------------------------------
 
-  async settingsGet(path: string): Promise<unknown> {
-    this.requireSession();
+  async settingsGet(path: string, apiKey?: string): Promise<unknown> {
+    if (!apiKey) this.requireSession();
     const normalizedPath = this.normalizePath(path);
+    const headers = this.getCliRequestHeaders();
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     let response = await this.http.get(
       normalizedPath,
-      this.getCliRequestHeaders(),
+      headers,
     );
     if (response.status === 429) {
       process.stderr.write(
         `Rate limited by settings API; retrying in ${Math.ceil(SETTINGS_GET_RATE_LIMIT_RETRY_MS / 1000)}s...\n`,
       );
       await new Promise((resolve) => setTimeout(resolve, SETTINGS_GET_RATE_LIMIT_RETRY_MS));
-      response = await this.http.get(normalizedPath, this.getCliRequestHeaders());
+      response = await this.http.get(normalizedPath, headers);
     }
     if (!response.ok) {
       throw new Error(`Settings GET failed with HTTP ${response.status}`);
@@ -6147,16 +6149,19 @@ export class OpenMatesClient {
   async settingsPost(
     path: string,
     body: Record<string, unknown>,
+    apiKey?: string,
   ): Promise<unknown> {
-    this.requireSession();
+    if (!apiKey) this.requireSession();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
+    const headers = this.getCliRequestHeaders();
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     const response = await this.http.post(
       normalizedPath,
       body,
-      this.getCliRequestHeaders(),
+      headers,
     );
     if (!response.ok) {
       throw new Error(`Settings POST failed with HTTP ${response.status}`);
@@ -6164,16 +6169,18 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async settingsDelete(path: string, body?: Record<string, unknown>): Promise<unknown> {
-    this.requireSession();
+  async settingsDelete(path: string, body?: Record<string, unknown>, apiKey?: string): Promise<unknown> {
+    if (!apiKey) this.requireSession();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
+    const headers = this.getCliRequestHeaders();
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     const response = await this.http.delete(
       normalizedPath,
       body,
-      this.getCliRequestHeaders(),
+      headers,
     );
     if (!response.ok) {
       throw new Error(`Settings DELETE failed with HTTP ${response.status}`);
@@ -6184,16 +6191,19 @@ export class OpenMatesClient {
   async settingsPatch(
     path: string,
     body: Record<string, unknown>,
+    apiKey?: string,
   ): Promise<unknown> {
-    this.requireSession();
+    if (!apiKey) this.requireSession();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
     }
+    const headers = this.getCliRequestHeaders();
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     const response = await this.http.patch(
       normalizedPath,
       body,
-      this.getCliRequestHeaders(),
+      headers,
     );
     if (!response.ok) {
       throw new Error(`Settings PATCH failed with HTTP ${response.status}`);

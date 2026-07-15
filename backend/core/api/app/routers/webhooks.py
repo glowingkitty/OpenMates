@@ -40,8 +40,10 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.utils.webhook_auth import verify_webhook_key
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 
 logger = logging.getLogger(__name__)
+SERVER_TRIGGER_TASK_IDENTITY_PREFIX = "server-trigger:"
 
 router = APIRouter(
     prefix="/v1/webhooks",
@@ -635,6 +637,7 @@ async def webhook_incoming(
                 message_id=message_id,
                 message=rendered_message,
                 cache_service=cache_service,
+                directus_service=directus_service,
             )
         except Exception as ai_error:
             logger.warning(
@@ -726,6 +729,7 @@ async def approve_pending_webhook(
             message_id=message_id,
             message=plaintext,
             cache_service=cache_service,
+            directus_service=request.app.state.directus_service,
         )
     except Exception as ai_err:
         logger.error(f"AI dispatch failed for webhook approval {chat_id[:8]}...: {ai_err}", exc_info=True)
@@ -872,6 +876,7 @@ async def _dispatch_webhook_ai_request(
     message_id: str,
     message: str,
     cache_service: CacheService,
+    directus_service: DirectusService,
 ) -> None:
     """
     Dispatch an AI ask request for a fired webhook.
@@ -883,6 +888,20 @@ async def _dispatch_webhook_ai_request(
     pipeline to Directus whether or not any device is online.
     """
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    legacy_task_identity = SERVER_TRIGGER_TASK_IDENTITY_PREFIX + hashlib.sha256(
+        f"{user_id}:{chat_id}:{message_id}".encode()
+    ).hexdigest()
+    admission = await ChatRecoveryCutoverController(
+        cache_service, directus_service
+    ).admit_legacy_inference(legacy_task_identity)
+    if admission.get("idempotent"):
+        logger.info(
+            f"Webhook AI dispatch for chat {chat_id} already admitted "
+            f"(task_identity={legacy_task_identity})"
+        )
+        return
+    if admission.get("admitted") is not True:
+        raise RuntimeError("Webhook AI dispatch was not admitted by chat recovery cutover")
 
     task_content = WEBHOOK_TASK_TEMPLATE.format(message=message)
     message_history = [
@@ -912,6 +931,7 @@ async def _dispatch_webhook_ai_request(
         "active_focus_id": None,
         "user_preferences": user_preferences,
         "app_settings_memories_metadata": None,
+        "legacy_cutover_task_id": legacy_task_identity,
     }
 
     # Dispatch via in-process SkillRegistry (same pattern as reminder AI dispatch;

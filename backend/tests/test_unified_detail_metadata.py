@@ -66,6 +66,20 @@ class OwnerScopedMetadataMethods:
     async def update_task(self, task_id: str, user_id: str, patch: dict[str, object]) -> dict[str, object] | None:
         return await self._update(task_id, user_id, patch)
 
+    async def update_task_if_version(
+        self,
+        task_id: str,
+        user_id: str,
+        patch: dict[str, object],
+        expected_version: int,
+    ) -> dict[str, object] | None:
+        existing = await self.get_task(task_id, user_id)
+        if not existing or int(existing.get("version") or 0) != expected_version:
+            return None
+        update = dict(patch)
+        update["version"] = expected_version + 1
+        return await self._update(task_id, user_id, update)
+
     async def update_plan(self, plan_id: str, user_id: str, patch: dict[str, object]) -> dict[str, object] | None:
         return await self._update(plan_id, user_id, patch)
 

@@ -58,7 +58,7 @@ test.describe('Unified detail header editing', () => {
 			await page.goto(getE2EDebugUrl(`/workflows/${workflowId}`), { waitUntil: 'domcontentloaded' });
 			const header = page.getByTestId('workspace-detail-header');
 			await expect(header).toBeVisible({ timeout: 30000 });
-			await expect(header).toHaveAttribute('data-header-system', 'workspace-detail');
+			await expect(header).toHaveAttribute('data-header-system', 'workflow-detail');
 
 			const titleField = header.getByTestId('workspace-detail-title-field');
 			await titleField.hover();

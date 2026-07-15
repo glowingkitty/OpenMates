@@ -255,11 +255,13 @@ class TestDedupedTaskOnRetry:
 
     def test_duplicate_delivery_ignores_without_overwriting_result(self):
         """Duplicate deliveries should not store a SUCCESS dedup payload."""
+        from celery import Celery
         from celery.exceptions import Ignore
         from backend.core.api.app.tasks.base_task import DedupedTask
 
         task = DedupedTask()
         task.name = "test.task"
+        task.bind(Celery("test-dedup"))
         task.push_request(id="duplicate-test-id-007")
 
         try:
