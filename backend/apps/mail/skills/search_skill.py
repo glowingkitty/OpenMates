@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import os
 import yaml
+from uuid import uuid4
 from typing import Any, Dict, List, Optional, Tuple
 
 from celery import Celery
@@ -25,6 +26,10 @@ from backend.shared.python_utils.app_skill_helpers import (
 )
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.connected_accounts_service import (
+    build_local_connector_mail_read_request,
+    dispatch_local_connector_request,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.providers.protonmail.protonmail_bridge import (
     DEFAULT_MAX_RESULTS,
@@ -172,6 +177,43 @@ class SearchSkill(BaseSkill):
             limit = int(limit_raw)
         except (TypeError, ValueError):
             limit = DEFAULT_MAX_RESULTS
+
+        connected_account = req.get("connected_account")
+        if isinstance(connected_account, dict) and connected_account.get("execution_mode") == "local_connector":
+            connector_request = build_local_connector_mail_read_request(
+                row=connected_account,
+                request_id=f"mail_search_{request_id}_{uuid4().hex}",
+                query=query,
+                mailbox=mailbox,
+                limit=limit,
+            )
+            connector_result = await dispatch_local_connector_request(
+                user_id=user_id,
+                request=connector_request,
+            )
+            if connector_result.status != "ok":
+                return request_id, {}, connector_result.error_message or connector_result.error_code or "Local connector request failed"
+            raw_messages = connector_result.result.get("messages")
+            if not isinstance(raw_messages, list):
+                return request_id, {}, "Local connector returned an invalid mail search result"
+            sanitized_results = await sanitize_long_text_fields_in_payload(
+                payload=raw_messages,
+                task_id=f"mail_search_{request_id}",
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+                min_chars=40,
+                max_parallel=3,
+            )
+            return (
+                request_id,
+                {
+                    "id": request_id,
+                    "query": build_default_query_label(query),
+                    "results": sanitized_results,
+                    "status": "completed",
+                },
+                None,
+            )
 
         provider_id = "protonmail"
         is_allowed_rate, _ = await check_rate_limit(

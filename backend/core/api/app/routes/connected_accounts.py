@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import time
+from uuid import uuid4
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -19,7 +20,8 @@ from pydantic import BaseModel, Field
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.connected_accounts_service import (
     ConnectedAccountRow,
-    PLAINTEXT_CONNECTED_ACCOUNT_FIELDS,
+    complete_pending_local_connector_request,
+    find_plaintext_connected_account_fields,
 )
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.models.user import User
@@ -52,6 +54,41 @@ class ConnectedAccountImportValidationResponse(BaseModel):
     checked_at: int
 
 
+class LocalConnectorRegistrationResponse(BaseModel):
+    connected_account_id: str
+    connector_session_id: str
+    heartbeat_interval_ms: int
+    status: str
+
+
+class LocalConnectorHeartbeatRequest(BaseModel):
+    connected_account_id: str
+    status: str
+    capabilities: list[str] = Field(default_factory=list)
+    health_summary: dict[str, Any] = Field(default_factory=dict)
+
+
+class LocalConnectorHeartbeatResponse(BaseModel):
+    accepted: bool
+    status: str
+    next_heartbeat_deadline_at: int
+
+
+class LocalConnectorCompleteRequest(BaseModel):
+    connected_account_id: str
+    request_id: str
+    status: str
+    result: dict[str, Any] = Field(default_factory=dict)
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+class LocalConnectorCompleteResponse(BaseModel):
+    accepted: bool
+    request_id: str
+    status: str
+
+
 def get_directus_service(request: Request) -> DirectusService:
     if not hasattr(request.app.state, "directus_service"):
         raise HTTPException(status_code=500, detail="Directus service unavailable")
@@ -72,13 +109,31 @@ def _assert_owner_hash(payload: dict[str, Any], hashed_user_id: str) -> None:
 
 
 def _reject_plaintext_fields(payload: dict[str, Any]) -> None:
-    plaintext_fields = sorted(key for key in payload if key in PLAINTEXT_CONNECTED_ACCOUNT_FIELDS)
+    plaintext_fields = find_plaintext_connected_account_fields(payload)
     if plaintext_fields:
         raise HTTPException(
             status_code=400,
             detail="connected account payload contains plaintext provider/account fields: "
             + ", ".join(plaintext_fields),
         )
+
+
+def _local_connector_session_id() -> str:
+    return f"lcs_{uuid4().hex}"
+
+
+def _local_connector_heartbeat_deadline(now: int) -> int:
+    return now + 60
+
+
+def _local_connector_registered_capabilities(row: dict[str, Any]) -> set[str]:
+    public_metadata = row.get("connector_public_metadata") or {}
+    if not isinstance(public_metadata, dict):
+        return set()
+    capabilities = public_metadata.get("capabilities") or []
+    if not isinstance(capabilities, list):
+        return set()
+    return {str(capability) for capability in capabilities}
 
 
 async def _load_owned_account(
@@ -183,6 +238,136 @@ async def create_connected_account(
     return ConnectedAccountRowResponse(
         id=str(stored.get("id", row.id)),
         sync_version=int(stored.get("updated_at") or payload["updated_at"]),
+    )
+
+
+@router.post("/local-connectors", response_model=LocalConnectorRegistrationResponse)
+async def register_local_connected_account_connector(
+    body: dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> LocalConnectorRegistrationResponse:
+    hashed_user_id = _hash_user_id(current_user.id)
+    _assert_owner_hash(body, hashed_user_id)
+    session_id = _local_connector_session_id()
+    now = _sync_version()
+    payload = body | {
+        "execution_mode": "local_connector",
+        "encrypted_refresh_token_bundle": None,
+        "connector_status": "online",
+        "local_connector_session_id": session_id,
+        "local_connector_last_heartbeat_at": now,
+        "local_connector_deadline_at": _local_connector_heartbeat_deadline(now),
+        "updated_at": now,
+    }
+    try:
+        row = ConnectedAccountRow.validate_for_storage(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    stored_payload = row.__dict__ | {
+        "created_at": now,
+        "updated_at": now,
+    }
+    result = await directus_service.create_item("connected_accounts", stored_payload)
+    if isinstance(result, tuple):
+        success, data = result
+        if not success:
+            raise HTTPException(status_code=502, detail="Failed to store local connected account")
+        stored = data or stored_payload
+    else:
+        stored = result or stored_payload
+    return LocalConnectorRegistrationResponse(
+        connected_account_id=str(stored.get("id", row.id)),
+        connector_session_id=session_id,
+        heartbeat_interval_ms=25_000,
+        status="online",
+    )
+
+
+@router.post("/local-connectors/{connector_session_id}/heartbeat", response_model=LocalConnectorHeartbeatResponse)
+async def local_connected_account_connector_heartbeat(
+    connector_session_id: str,
+    body: LocalConnectorHeartbeatRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> LocalConnectorHeartbeatResponse:
+    _reject_plaintext_fields(body.model_dump())
+    hashed_user_id = _hash_user_id(current_user.id)
+    row = await _load_owned_account(
+        directus_service=directus_service,
+        account_id=body.connected_account_id,
+        hashed_user_id=hashed_user_id,
+    )
+    if row.get("execution_mode") != "local_connector" or row.get("local_connector_session_id") != connector_session_id:
+        raise HTTPException(status_code=403, detail="Local connector session does not belong to this account")
+    if row.get("connector_status") == "revoked":
+        raise HTTPException(status_code=409, detail="Local connector account was revoked")
+    if body.status not in {"online", "offline"}:
+        raise HTTPException(status_code=400, detail="Local connector heartbeat status is invalid")
+    registered_capabilities = _local_connector_registered_capabilities(row)
+    heartbeat_capabilities = {str(capability) for capability in body.capabilities}
+    if not heartbeat_capabilities.issubset(registered_capabilities):
+        raise HTTPException(status_code=400, detail="Local connector heartbeat capabilities exceed registration")
+    now = _sync_version()
+    deadline = _local_connector_heartbeat_deadline(now)
+    await directus_service.update_item(
+        "connected_accounts",
+        body.connected_account_id,
+        {
+            "connector_status": body.status,
+            "local_connector_last_heartbeat_at": now,
+            "local_connector_deadline_at": deadline,
+            "connector_public_metadata": (row.get("connector_public_metadata") or {}) | {
+                "health_summary": body.health_summary,
+                "capabilities": body.capabilities,
+            },
+            "updated_at": now,
+        },
+    )
+    return LocalConnectorHeartbeatResponse(
+        accepted=True,
+        status=body.status,
+        next_heartbeat_deadline_at=deadline,
+    )
+
+
+@router.post("/local-connectors/{connector_session_id}/complete-request", response_model=LocalConnectorCompleteResponse)
+async def complete_local_connected_account_connector_request(
+    connector_session_id: str,
+    body: LocalConnectorCompleteRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> LocalConnectorCompleteResponse:
+    _reject_plaintext_fields(body.model_dump())
+    hashed_user_id = _hash_user_id(current_user.id)
+    row = await _load_owned_account(
+        directus_service=directus_service,
+        account_id=body.connected_account_id,
+        hashed_user_id=hashed_user_id,
+    )
+    if row.get("execution_mode") != "local_connector" or row.get("local_connector_session_id") != connector_session_id:
+        raise HTTPException(status_code=403, detail="Local connector session does not belong to this account")
+    if row.get("connector_status") == "revoked":
+        raise HTTPException(status_code=409, detail="Local connector account was revoked")
+    if body.status not in {"ok", "error", "cancelled"}:
+        raise HTTPException(status_code=400, detail="Local connector request status is invalid")
+    try:
+        completed = await complete_pending_local_connector_request(
+            connector_session_id=connector_session_id,
+            request_id=body.request_id,
+            status=body.status,
+            result=body.result,
+            error_code=body.error_code,
+            error_message=body.error_message,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not completed:
+        raise HTTPException(status_code=404, detail="Local connector request was not found or expired")
+    return LocalConnectorCompleteResponse(
+        accepted=True,
+        request_id=body.request_id,
+        status=body.status,
     )
 
 

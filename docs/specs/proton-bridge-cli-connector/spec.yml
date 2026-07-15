@@ -1,0 +1,1038 @@
+schema_version: 2
+id: proton-bridge-cli-connector
+title: Proton Bridge CLI Connector
+status: implementing
+
+goal: >
+  Let a user run `openmates connect-account proton` on macOS or Linux to detect
+  Proton Mail Bridge, show OS-specific install instructions when Bridge is
+  missing, start and supervise Bridge for the lifetime of the command, register
+  an online-only Proton Mail connected account in
+  OpenMates, support read-only mail search by default, and support explicit
+  write mode with delayed-send undo while keeping Proton and Bridge credentials
+  local to the user's machine.
+
+scope:
+  in:
+    - "`openmates connect-account proton` as a macOS and Linux CLI command."
+    - Detection of an existing Proton Mail Bridge install and OS-specific install instructions when missing.
+    - Official macOS support through the Proton app bundle path and Homebrew cask when Homebrew is available.
+    - Official Linux support through existing `protonmail-bridge` binaries and guided DEB/RPM/PKGBUILD install instructions with Proton package-verification guidance.
+    - Starting and supervising Proton Mail Bridge while the connector command is running.
+    - Clear startup copy explaining that Bridge-backed OpenMates mail access is active only while the connector command is running, and recommending screen, tmux, or zellij for long-lived sessions.
+    - Default read-only mode for Mail search using local Bridge IMAP.
+    - Explicit `--write` mode that enables Mail write/send capability only after a warning and user confirmation.
+    - Fixed 30-second delayed send for Proton Mail write mode, with undo/cancel before delivery and disabled undo after delivery.
+    - Local-connector connected-account execution mode where OpenMates cloud stores encrypted metadata and online status, but never stores Bridge IMAP/SMTP credentials.
+    - Credential acquisition from Proton Bridge after Bridge login through a private `info` capture when reliable, with hidden-prompt fallback for Bridge-generated IMAP/SMTP credentials.
+    - Connector heartbeat and offline transition when the CLI process stops, crashes, or loses connection.
+    - Web connected-account settings display for online/offline/revoked local connector state.
+  out:
+    - Windows support.
+    - Auto-installing Proton Mail Bridge or running package-manager commands on the user's behalf in v1.
+    - Asking OpenMates users for their Proton account password or handling that password outside Proton Bridge.
+    - Persisting Bridge IMAP/SMTP passwords in OpenMates cloud, Directus, logs, traces, command history, or default local OpenMates config.
+    - Exposing Proton Bridge IMAP/SMTP on non-localhost interfaces.
+    - Server-side/offline Proton access without a running user connector.
+    - Background workflow automation using Proton credentials while the connector is offline.
+    - Custom delayed-send durations in v1.
+    - Full Apple native app parity; this is a macOS CLI feature, not an iOS/macOS native app UI feature.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP failed with 401 Bad credentials; fallback `gh issue list --repo glowingkitty/OpenMates --search \"proton bridge connected account\" --state all --limit 10` returned no matches."
+  docs:
+    - docs/specs/calendar-permission-management/spec.yml
+    - docs/specs/connected-account-cli-import/spec.yml
+    - docs/architecture/core/client-side-encryption.md
+    - docs/architecture/core/security.md
+    - docs/architecture/platforms/cli.md
+    - docs/architecture/platforms/cli-package.md
+    - docs/self-hosting/proton-bridge.md
+    - docs/user-guide/apps/mail.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+  code_patterns:
+    - frontend/packages/openmates-cli/src/cli.ts currently routes CLI commands and already exposes connected-accounts import.
+    - frontend/packages/openmates-cli/src/client.ts already creates connected-account import rows and token-ref requests.
+    - frontend/packages/openmates-cli/src/connectedAccountImport.ts assumes OAuth-style refresh_token envelopes and must not be reused for local Bridge credentials without a new credential contract.
+    - backend/core/api/app/routes/connected_accounts.py stores encrypted/hash-only connected-account rows and currently validates Google Calendar import only.
+    - backend/core/api/app/services/connected_accounts_service.py requires encrypted_refresh_token_bundle for normal rows and has optional server_access fields.
+    - backend/shared/providers/protonmail/protonmail_bridge.py currently supports a single self-hosted/admin Bridge config via Vault/env and reads IMAP directly server-side.
+    - backend/apps/mail/skills/search_skill.py currently searches Proton Mail via the self-hosted provider config rather than per-user local connected accounts.
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte is the existing connected-account settings surface.
+  tests:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/connectedAccountImport.test.ts
+    - backend/tests/test_connected_accounts_permissions.py
+    - backend/tests/test_token_broker_refs.py
+    - frontend/apps/web_app/tests/settings.spec.ts
+  external_research:
+    - "Proton support: Bridge CLI starts with `protonmail-bridge -c` on Linux and `/Applications/Proton Mail Bridge.app/Contents/MacOS/Proton Mail Bridge -c` on macOS."
+    - "Proton support: Bridge supports macOS and Linux, requires a paid Proton Mail plan, and exposes local IMAP/SMTP for email clients."
+    - "Proton support: Bridge uses macOS Keychain on macOS and secret-service/GNOME Keyring/pass on Linux; keychain failures prevent Bridge from decrypting local data."
+    - "Proton security model: Bridge stores refresh tokens and Bridge passwords in the OS keychain, holds access tokens in memory, and assumes IMAP/SMTP ports are not exposed beyond localhost."
+    - "Proton source: interactive CLI has `login` and `info`; `info` prints IMAP/SMTP host, ports, username, and Bridge password for connected users."
+    - "Proton source/build docs: `--noninteractive` starts Bridge without an interface but cannot add/remove accounts or get Bridge password."
+    - "Homebrew cask: `brew install --cask proton-mail-bridge` installs Proton Mail Bridge on supported macOS systems."
+    - "Proton support: Linux DEB/RPM packages should be verified with Proton's published package-signature process; PKGBUILD verification is handled by that package flow."
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This spec adds a macOS-capable OpenMates CLI command, not native Apple app UI.
+    - Apple app connected-account settings may later show the same account status if shared settings sync includes local connectors, but native setup is out of scope.
+  verification:
+    - Apple native verification is not required for this CLI-only connector phase.
+  intentional_native_differences:
+    - The macOS path uses the terminal and Proton Bridge desktop app/CLI rather than Swift UI setup.
+
+clarification:
+  rounds:
+    - question: Should OpenMates start and keep Proton Bridge running only while the CLI command is alive?
+      answer: Yes. The connected account should go offline when the command stops.
+    - question: Should OpenMates ask for the Proton account password?
+      answer: No. Proton Bridge may ask for the Proton account password in its own login flow, but OpenMates must not ask for or handle it directly.
+    - question: How should Bridge-generated IMAP/SMTP credentials be handled?
+      answer: Read them safely from Bridge after login when possible, otherwise ask through hidden prompts; keep them in memory only for the connector lifetime by default.
+    - question: Should write/send be supported?
+      answer: Yes. Read-only is the default, but `--write` should enable write mode with clear startup warning and delayed-send support.
+    - question: What startup warning is required?
+      answer: Tell users Bridge access is only active while the command runs and recommend screen, tmux, or zellij for long-lived use.
+  vision_summary: >
+    Proton Bridge integration should feel like a convenient local CLI connector
+    rather than a server-side credential import. OpenMates should detect whether
+    Bridge is installed, print exact OS-specific install guidance when it is
+    missing, start and supervise Bridge when present, register the account as
+    available while the CLI connector is alive, keep Bridge credentials local,
+    and default to read-only until the user explicitly starts write mode. Write
+    mode must include delayed send and undo before delivery.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: d13b21fb3
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-15T00:00:00Z"
+    reason: User explicitly approved writing the full spec and then instructed implementation and testing.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-15T00:00:00Z"
+    reason: The spec already contains an implementation plan and task breakdown, and the user instructed implementation.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Model Proton Bridge as a local_connector connected account, not as server-side OAuth or persistent cloud credentials.
+    reason: OpenMates cloud cannot safely or generally reach a user's localhost Bridge, and Proton's security model assumes IMAP/SMTP stays local.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Default Proton connector capability is read-only.
+    reason: Mailbox read/search is the lowest-risk useful slice and matches current Mail app behavior.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: "`--write` enables write/send only after an explicit warning and confirmation."
+    reason: Sending email has irreversible external side effects and requires stronger user awareness.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Proton Mail send uses a fixed 30-second delayed-send queue in v1.
+    reason: Delayed send is the only reliable undo window before SMTP delivery; after delivery OpenMates cannot recall mail.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Bridge IMAP/SMTP credentials are kept in memory only by default and re-read or re-prompted on every connector start.
+    reason: Proton Bridge already stores its own secrets in OS keychain; duplicating them in OpenMates storage adds risk without being necessary for an online-only connector.
+    decided_at: "2026-07-15T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: The connector stops only Bridge processes it started, but always marks the OpenMates local connector offline when the command exits.
+    reason: Killing an already-running user-managed Bridge instance would be surprising, while OpenMates account availability must still match the connector process.
+    decided_at: "2026-07-15T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Treat Proton Bridge like a normal OAuth refresh-token connected account stored in `encrypted_refresh_token_bundle`.
+    outcome: rejected
+    recorded_at: "2026-07-15T00:00:00Z"
+    reason: Proton Bridge exposes local IMAP/SMTP credentials and depends on a running localhost app; storing them as cloud-synced token material violates the intended online-only connector model.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Require the user to manually install and run Bridge, then use existing self-hosted Proton provider env vars.
+    outcome: rejected
+    recorded_at: "2026-07-15T00:00:00Z"
+    reason: The requested product is a comfortable CLI-managed macOS/Linux setup flow for normal users, not admin-only self-hosting configuration.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Build a local connector command that supervises Bridge, keeps credentials local, and registers online status with OpenMates.
+    outcome: planned
+    recorded_at: "2026-07-15T00:00:00Z"
+  - id: ATTEMPT-4
+    task_id: TASK-3
+    approach: Return a `local_connector_request` payload from Mail search without adding a backend-to-CLI request dispatcher.
+    outcome: blocked
+    recorded_at: "2026-07-15T07:10:00Z"
+    reason: Code review confirmed no existing WebSocket or polling consumer dispatches the request to the CLI, so Mail search/send are not end-to-end functional yet.
+  - id: ATTEMPT-5
+    task_id: TASK-3
+    approach: Add Redis-backed backend pending/result correlation, broadcast `local_connector_request` over the existing authenticated user WebSocket manager, and complete requests through the existing REST complete-request endpoint.
+    outcome: succeeded
+    recorded_at: "2026-07-15T07:55:17Z"
+    reason: Focused backend and CLI tests now prove Mail search requests dispatch to the CLI connector, ignore stale result-cache entries, and complete through shared-cache request correlation without Bridge credentials.
+
+handoff:
+  current_task_id: TASK-5
+  next_action: "Run spec validation, then prepare deploy/Playwright verification for the Proton local connector settings flow."
+  command: "python3 scripts/spec_validate.py docs/specs/proton-bridge-cli-connector/spec.yml"
+  expected_outcome: "Spec structure remains valid after request-channel evidence updates."
+  blocker: null
+  last_verified_commit: d13b21fb3
+
+scenarios:
+  - id: S-1
+    title: User starts a read-only Proton connector on macOS
+    given:
+      - Alice is logged into OpenMates CLI on macOS.
+      - Proton Mail Bridge is already installed.
+    when:
+      - Alice runs `openmates connect-account proton`.
+    then:
+      - The CLI detects Proton Mail Bridge.
+      - The CLI starts or attaches to local Bridge.
+      - The CLI displays that the connector is read-only by default and is active only while the command runs.
+      - The CLI recommends screen, tmux, or zellij for long-lived use.
+      - OpenMates registers Alice's Proton Mail connected account as online while the connector heartbeat is active.
+
+  - id: S-2
+    title: User starts a read-only Proton connector on Linux
+    given:
+      - Alice is logged into OpenMates CLI on a supported Linux system.
+      - Proton Mail Bridge is installed or missing.
+      - A supported keychain or secret-service provider is available.
+    when:
+      - Alice runs `openmates connect-account proton`.
+    then:
+      - The CLI detects `protonmail-bridge` or shows official DEB/RPM/PKGBUILD install instructions with verification guidance.
+      - The CLI refuses to continue when Bridge cannot access a supported keychain.
+      - The CLI starts or attaches to local Bridge.
+      - The connector becomes online only after local IMAP validation succeeds.
+
+  - id: S-3
+    title: Proton login stays inside Proton Bridge
+    given:
+      - Proton Bridge has no connected Proton account yet or the account is signed out.
+    when:
+      - Alice starts the OpenMates Proton connector.
+    then:
+      - OpenMates never prompts for the Proton account password.
+      - Proton Bridge may prompt for Proton login through its own CLI or GUI flow.
+      - OpenMates captures only post-login Bridge IMAP/SMTP settings needed for local mail client access.
+      - Proton account password input never passes through OpenMates prompt code, logs, traces, or process arguments.
+
+  - id: S-4
+    title: Bridge IMAP credentials stay local and ephemeral
+    given:
+      - Bridge is logged in and exposes a local IMAP server.
+    when:
+      - The OpenMates connector needs to validate and use the mailbox.
+    then:
+      - The connector privately reads Bridge `info` output when reliable or asks Alice for Bridge-generated IMAP credentials through hidden prompts.
+      - The Bridge IMAP password is kept only in process memory by default.
+      - No Bridge credential is sent to OpenMates cloud, written to OpenMates config, printed, logged, or accepted as a CLI flag.
+      - The connector re-reads or re-prompts on the next start.
+
+  - id: S-5
+    title: Read-only mail search runs through the active local connector
+    given:
+      - Alice has a read-only Proton local connector online.
+      - Alice asks OpenMates to search recent Proton Mail messages.
+    when:
+      - The Mail search skill is selected.
+    then:
+      - The backend routes the request to Alice's active CLI connector rather than trying to connect to IMAP directly.
+      - The connector reads local IMAP on localhost and returns bounded mail result payloads.
+      - Mail content is sanitized before model inference.
+      - The LLM never receives Bridge credentials or raw account identifiers.
+
+  - id: S-6
+    title: Connector goes offline when the command stops
+    given:
+      - Alice has an online Proton local connector.
+    when:
+      - Alice presses Ctrl+C, the process exits, or heartbeats expire.
+    then:
+      - OpenMates marks the connected account offline.
+      - New Mail read or write requests fail with a clear connector-offline message.
+      - If OpenMates started the Bridge process, it terminates that process cleanly.
+      - If Bridge was already running before OpenMates attached, OpenMates leaves that external Bridge process alone.
+
+  - id: S-7
+    title: User opts into Proton write mode
+    given:
+      - Alice wants OpenMates to send Proton Mail through local Bridge.
+    when:
+      - Alice runs `openmates connect-account proton --write`.
+    then:
+      - The CLI displays a write-mode warning before enabling send capability.
+      - The warning explains that OpenMates can submit outbound mail through Bridge only while the connector runs.
+      - Alice must confirm before write capability is registered.
+      - The connected account records Read and Write capabilities, with send actions requiring explicit approval.
+
+  - id: S-8
+    title: Proton write mode uses delayed send and undo
+    given:
+      - Alice has Proton write mode online.
+      - Alice approves sending a drafted email.
+    when:
+      - OpenMates would send the email through SMTP.
+    then:
+      - OpenMates queues the message for a fixed 30-second delay instead of immediate delivery.
+      - Web and CLI surfaces show a visible countdown and an undo/cancel action while queued.
+      - Undo before delivery cancels the queued SMTP send.
+      - After delivery, Undo is disabled with a plain-language reason that OpenMates cannot recall sent email.
+      - Delivery creates an encrypted receipt without exposing SMTP credentials.
+
+  - id: S-9
+    title: Settings show local connector status without secrets
+    given:
+      - Alice has connected Proton Mail through the CLI connector.
+    when:
+      - Alice opens connected-account settings in the web app.
+    then:
+      - Settings show the Proton Mail account with Online via CLI, Offline, Setup required, or Revoked state.
+      - Settings never show Bridge password, SMTP password, raw local port tokens, or Proton account password.
+      - Alice can revoke/remove the connected account metadata.
+      - Revocation prevents later connector heartbeats from reusing the old connected-account id.
+
+  - id: S-10
+    title: Unsafe Bridge host or credential handling fails closed
+    given:
+      - A Bridge info response or user input points to a non-localhost IMAP host.
+    when:
+      - The connector attempts to register or validate the account.
+    then:
+      - The connector rejects the account by default.
+      - The backend refuses local-connector registration payloads that include plaintext credentials.
+      - CLI output and error reporting redact any discovered credential-like fields.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: On macOS, `openmates connect-account proton` detects Proton Mail Bridge or shows Homebrew/manual install instructions, starts or attaches to Bridge when present, explains command-lifetime availability and terminal multiplexer guidance, and registers an online read-only local connector after validation.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-PROTON-UNIT
+      - T-CLI-PROTON-FAKE-BRIDGE
+  - id: AC-2
+    scenario: S-2
+    text: On Linux, the command detects Bridge or provides verified official install guidance, verifies keychain readiness, starts or attaches to Bridge, and registers online only after local IMAP validation.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-PROTON-UNIT
+      - T-CLI-PROTON-FAKE-BRIDGE
+  - id: AC-3
+    scenario: S-3
+    text: OpenMates never asks for or handles the Proton account password directly; Proton login happens only inside Proton Bridge, while OpenMates may acquire only Bridge-generated local IMAP/SMTP settings after login.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-PROTON-UNIT
+      - T-CLI-PROTON-FAKE-BRIDGE
+  - id: AC-4
+    scenario: S-4
+    text: Bridge-generated IMAP/SMTP credentials are obtained only through private Bridge info capture or hidden prompt fallback, kept in memory only by default, never accepted as flags, never logged or printed, and never sent to OpenMates cloud.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-PROTON-UNIT
+      - T-BACKEND-LOCAL-CONNECTOR
+  - id: AC-5
+    scenario: S-5
+    text: Read-only Mail search for Proton local connectors routes through the active CLI connector, reads localhost IMAP, returns bounded sanitized result payloads, and hides credentials and raw account identifiers from LLM-visible context.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-CLI-PROTON-FAKE-BRIDGE
+      - T-BACKEND-LOCAL-CONNECTOR
+  - id: AC-6
+    scenario: S-6
+    text: Stopping or losing the connector marks the Proton account offline, blocks new requests with a clear offline reason, and terminates only Bridge processes started by OpenMates.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-CLI-PROTON-FAKE-BRIDGE
+      - T-BACKEND-LOCAL-CONNECTOR
+  - id: AC-7
+    scenario: S-7
+    text: "`--write` is opt-in, shows a warning and confirmation before registering write capability, and keeps send actions approval-gated."
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-PROTON-UNIT
+      - T-BACKEND-PROTON-DELAYED-SEND
+  - id: AC-8
+    scenario: S-8
+    text: Proton write mode implements fixed 30-second delayed send, visible countdown, undo/cancel before SMTP delivery, disabled undo after delivery, and encrypted send receipts without SMTP credentials.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-BACKEND-PROTON-DELAYED-SEND
+      - T-CLI-PROTON-FAKE-BRIDGE
+  - id: AC-9
+    scenario: S-9
+    text: Web connected-account settings show Proton local connector status and revocation controls without exposing Bridge credentials or Proton login secrets.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-PROTON-SETTINGS
+  - id: AC-10
+    scenario: S-10
+    text: Non-localhost Bridge hosts and plaintext credential registration fail closed, and all CLI/backend output redacts credential-like fields.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids:
+      - T-CLI-PROTON-UNIT
+      - T-BACKEND-LOCAL-CONNECTOR
+
+assumptions:
+  - id: A-1
+    text: Proton Bridge CLI `info` remains available for connected users and includes IMAP/SMTP host, port, username, and Bridge password in parseable terminal output.
+    category: external_provider
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: /tmp/opencode/proton-bridge/internal/frontend/cli/frontend.go
+        summary: Source registers `info` as a CLI command that prints account configuration.
+      - source: /tmp/opencode/proton-bridge/internal/frontend/cli/accounts.go
+        summary: Source prints IMAP and SMTP settings including localhost address, ports, username, and Bridge password for connected users.
+  - id: A-2
+    text: Proton Bridge `--noninteractive` can start an already-configured Bridge but cannot be used for first-time login or credential discovery.
+    category: external_provider
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: /tmp/opencode/proton-bridge/BUILDS.md
+        summary: Build docs state noninteractive mode has no way to add/remove clients or get Bridge password.
+  - id: A-3
+    text: macOS and Linux are sufficient for the first connector slice; Windows remains out of scope.
+    category: platform
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user clarification
+        summary: User explicitly required macOS support; prior discussion focused on Linux, and Windows was not requested.
+  - id: A-4
+    text: Existing Mail app search and connected-account settings can be extended without replacing the self-hosted admin-only Proton provider in the same release.
+    category: architecture
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: backend/tests/test_local_connected_account_connectors.py
+        summary: Local connector Mail search path is covered while explicitly preventing self-hosted Proton provider calls.
+      - source: frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
+        summary: Settings local connector status coverage was added without replacing existing connected-account settings.
+
+contracts:
+  cli:
+    - command: openmates connect-account proton
+      default_mode: read_only
+      behavior: >
+        Detect Proton Mail Bridge or print OS-specific install instructions when
+        missing. When Bridge is present, start or attach to Bridge, acquire
+        Bridge-generated IMAP settings after Bridge login, validate localhost
+        IMAP, register an online local connector, and keep running until the user
+        exits. The command prints no secrets and keeps credential material in
+        process memory only.
+      forbidden:
+        - Proton account password prompt owned by OpenMates.
+        - Bridge password flags such as --password, --bridge-password, or --smtp-password.
+        - Printing or logging Bridge password, Proton password, SMTP password, or raw credential bundles.
+    - command: openmates connect-account proton --write
+      behavior: >
+        Same as read-only mode, but first shows a warning and requires explicit
+        confirmation before registering write capability. Send operations use
+        delayed send and require user approval.
+  api:
+    - route: POST /v1/connected-accounts/local-connectors
+      request: "Encrypted connected-account metadata, provider_id=protonmail_bridge, capabilities, connector instance id, public status fields, and no credentials."
+      response: "connected_account_id, connector_session_id, heartbeat interval, online status."
+      errors:
+        - 400 when payload contains plaintext credential fields.
+        - 400 when provider is unsupported or capability set is invalid.
+        - 401 when unauthenticated.
+      security:
+        - Request must fail if it includes Bridge password, Proton password, SMTP password, IMAP password, access token, refresh token, or non-localhost host credentials.
+    - route: POST /v1/connected-accounts/local-connectors/{connector_session_id}/heartbeat
+      request: "connector session id, connected account id, status, capabilities, and health summary without secrets."
+      response: "accepted status and next heartbeat deadline."
+      errors:
+        - 403 when connector does not belong to current user or account was revoked.
+        - 409 when account was revoked or session expired.
+    - route: POST /v1/connected-accounts/local-connectors/{connector_session_id}/complete-request
+      request: "Result for a connector-routed mail read or delayed-send operation."
+      response: "Accepted result or receipt persistence status."
+      security:
+        - Result payloads must be bounded and sanitized before LLM-visible inference.
+  websocket:
+    - event: local_connector_request
+      direction: server_to_cli
+      payload: "connector_session_id, connected_account_id, request_id, action, scoped arguments, approval/delay metadata, and no provider credentials."
+    - event: local_connector_result
+      direction: cli_to_server
+      payload: "request_id, status, bounded result payload, delayed-send receipt state, and no Bridge credentials."
+    - event: connected_accounts_sync_ready
+      additions: "Local connector account rows include execution_mode=local_connector and online/offline status metadata."
+  data:
+    - collection: connected_accounts
+      additions:
+        - execution_mode: local_connector
+        - connector_provider_id: protonmail_bridge
+        - connector_status: online | offline | setup_required | revoked
+        - encrypted_account_directory_hint may include user-facing labels but no secrets.
+        - encrypted_refresh_token_bundle is absent or replaced by a local-connector-specific encrypted metadata field for this provider.
+      forbidden_plaintext_fields:
+        - proton_password
+        - bridge_password
+        - imap_password
+        - smtp_password
+        - access_token
+        - refresh_token
+  privacy_security:
+    - Proton account password is only entered into Proton Bridge-owned login UI/CLI.
+    - Bridge IMAP/SMTP password exists in OpenMates only in CLI connector memory by default.
+    - Local connector registration and heartbeat payloads never contain credentials.
+    - Local connector requests never expose Bridge credentials to the backend, LLM, logs, traces, or user-visible output.
+    - Mail content is external untrusted content and must pass prompt-injection sanitization before model inference.
+    - Non-localhost Bridge hostnames are rejected by default.
+
+tests:
+  - id: T-CLI-PROTON-UNIT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/protonBridgeConnector.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:proton-bridge-connector
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-7
+      - AC-10
+    assertions:
+      - macOS Bridge path and Linux binary detection are selected for the matching platform.
+      - missing Bridge produces explicit install guidance and never silent fallback.
+      - write mode requires confirmation and prints delayed-send warning copy.
+      - Proton account password is never requested by OpenMates prompt helpers.
+      - Bridge info output parser extracts local IMAP/SMTP settings from a fixture.
+      - credential-like fields are redacted from command output and errors.
+      - credential flags are rejected.
+      - non-localhost Bridge host values are rejected by default.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        command: not run before implementation; test file was created in TASK-1
+        run_id: local-20260715-063157-red-phase-missed
+        timestamp: "2026-07-15T06:31:57Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && npm run test:unit:proton-bridge-connector
+        run_id: local-20260715-084210-proton-bridge-connector
+        subject_commit: d13b21fb3
+        timestamp: "2026-07-15T08:42:10Z"
+  - id: T-CLI-PROTON-FAKE-BRIDGE
+    type: unit
+    file: frontend/packages/openmates-cli/tests/protonBridgeConnector.integration.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:proton-bridge-connector-integration
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-5
+      - AC-6
+      - AC-8
+    assertions:
+      - fake Bridge process lifecycle is supervised and cleaned up only when OpenMates started it.
+      - fake IMAP server validation succeeds only on localhost.
+      - connector session sends online heartbeat, handles a WebSocket-routed mail.search request, completes the REST result, and marks offline on exit.
+      - read results are bounded and contain no credentials.
+      - write mode queues fake SMTP send for 30 seconds and supports cancellation before delivery.
+      - after fake delivery, undo is disabled with a reason.
+      - cancelled, delivered, and failed delayed-send queue entries do not retain message payloads.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        command: not run before implementation; test file was created in TASK-1
+        run_id: local-20260715-063157-red-phase-missed
+        timestamp: "2026-07-15T06:31:57Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && npm run test:unit:proton-bridge-connector-integration
+        run_id: local-20260715-084210-proton-bridge-connector-integration
+        subject_commit: d13b21fb3
+        timestamp: "2026-07-15T08:42:10Z"
+  - id: T-BACKEND-LOCAL-CONNECTOR
+    type: pytest
+    file: backend/tests/test_local_connected_account_connectors.py
+    command: docker exec api python -m pytest /app/backend/tests/test_local_connected_account_connectors.py
+    covers:
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-10
+    assertions:
+      - local connector registration stores encrypted/hash metadata and no credential fields.
+      - plaintext Bridge credential fields are rejected.
+      - heartbeat accepts only owner-bound active connector sessions.
+      - heartbeat expiry marks connector offline.
+      - revoked connected accounts reject later heartbeats and requests.
+      - mail search requests for offline local connectors fail with connector_offline.
+      - online local connector Mail search dispatches to the CLI request channel and consumes completed results instead of self-hosted IMAP.
+      - REST completion rejects unknown or expired request IDs instead of falsely acknowledging them.
+      - shared-cache request correlation resolves a dispatched request from a completed connector result.
+      - stale cached result entries are cleared before dispatch and cannot satisfy a new request.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: docker exec api python -m pytest /app/backend/tests/test_local_connected_account_connectors.py
+        run_id: local-20260715-063722-backend-local-connector-red
+        timestamp: "2026-07-15T06:37:22Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_local_connected_account_connectors.py /app/backend/tests/test_proton_local_connector_delayed_send.py
+        run_id: local-20260715-084210-backend-local-connector-green
+        subject_commit: d13b21fb3
+        timestamp: "2026-07-15T08:42:10Z"
+  - id: T-BACKEND-PROTON-DELAYED-SEND
+    type: pytest
+    file: backend/tests/test_proton_local_connector_delayed_send.py
+    command: docker exec api python -m pytest /app/backend/tests/test_proton_local_connector_delayed_send.py
+    covers:
+      - AC-7
+      - AC-8
+    assertions:
+      - Proton send requests are rejected unless the account has write capability and user approval.
+      - approved send creates a 30-second pending send job instead of immediate delivery.
+      - undo before deadline cancels the send job.
+      - completion after deadline emits an encrypted receipt and disables undo.
+      - cancelled and delivered delayed-send jobs strip message payloads from terminal state.
+      - pending send payloads and receipts contain no SMTP credentials.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: docker exec api python -m pytest /app/backend/tests/test_proton_local_connector_delayed_send.py
+        run_id: local-20260715-prior-backend-proton-delayed-send-red
+        timestamp: "2026-07-15T06:45:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_local_connected_account_connectors.py /app/backend/tests/test_proton_local_connector_delayed_send.py
+        run_id: local-20260715-084210-backend-proton-delayed-send-green
+        subject_commit: d13b21fb3
+        timestamp: "2026-07-15T08:42:10Z"
+  - id: T-PLAYWRIGHT-PROTON-SETTINGS
+    type: playwright
+    file: frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
+    command: python3 scripts/tests.py run --spec proton-local-connector-settings.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-9
+    assertions:
+      - connected-account settings show Proton Mail local connector online and offline states.
+      - settings show revocation controls.
+      - page text does not expose Bridge password, IMAP password, SMTP password, or Proton account password fields.
+      - revoked local connector cannot be resurrected by stale heartbeat in the UI.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: not run before implementation; Playwright green must run after dev deploy
+        run_id: local-20260715-070854-proton-settings-red-missed
+        timestamp: "2026-07-15T07:08:54Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: local-20260715-084210-sdk-cli-parity-audit
+        subject_commit: d13b21fb3
+        timestamp: "2026-07-15T08:42:10Z"
+  - id: T-SDK-CLI-PARITY-AUDIT
+    type: lint
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers:
+      - AC-5
+      - AC-7
+    assertions:
+      - audit documents that Proton local connector is intentionally CLI-only for setup.
+      - audit fails if a public SDK surface claims Proton local connector setup parity without equivalent credential-safety constraints.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        reason: Parity audit may already pass before this feature because the command does not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: local-20260715-084210-sdk-cli-parity-audit
+        subject_commit: d13b21fb3
+        timestamp: "2026-07-15T08:42:10Z"
+
+verifications:
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-7
+      - AC-8
+      - AC-9
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+
+implementation_plan:
+  spec_path: docs/specs/proton-bridge-cli-connector/spec.yml
+  existing_patterns:
+    - Connected-account rows are stored encrypted/hash-only through backend/core/api/app/routes/connected_accounts.py.
+    - Connected-account CLI import already performs client-side encryption before storage but assumes OAuth refresh tokens.
+    - Proton self-hosting provider already knows how to search IMAP through Bridge, but it is single-account/admin-only and server-side.
+    - Calendar permission management already defines delayed-send semantics for future Mail send.
+    - CLI command routing and help live in frontend/packages/openmates-cli/src/cli.ts.
+  architecture: >
+    Add a local connector execution mode for connected accounts. The CLI owns
+    Proton Bridge process supervision and in-memory Bridge credentials, while
+    the backend stores only encrypted account metadata, online/offline connector
+    state, and delayed-send receipts. Mail read/write requests for this provider
+    are routed to the active CLI connector over the existing authenticated client
+    channel or a narrow new connector channel; the backend never receives Bridge
+    IMAP/SMTP credentials.
+  data_flow:
+    - CLI starts or attaches to Proton Bridge and verifies localhost IMAP.
+    - CLI registers encrypted connected-account metadata with execution_mode=local_connector.
+    - CLI sends heartbeats while the process is alive.
+    - Backend routes Mail read requests to the active connector session.
+    - CLI reads localhost IMAP and returns bounded sanitized results.
+    - In write mode, backend creates approved delayed-send request and connector sends SMTP only after the 30-second undo window expires.
+    - CLI exit, heartbeat expiry, or revocation marks the account offline.
+  affected_files:
+    - path: docs/specs/proton-bridge-cli-connector/spec.yml
+      reason: Product/security contract.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Add connect-account proton command and help text.
+    - path: frontend/packages/openmates-cli/src/protonBridgeConnector.ts
+      reason: New Bridge detection, install guidance, process supervision, credential capture, IMAP validation, and connector loop.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Add local connector registration, heartbeat, request/result client methods, and delayed-send connector handling.
+    - path: frontend/packages/openmates-cli/src/ws.ts
+      reason: Listen for local connector request events on the authenticated CLI WebSocket.
+    - path: frontend/packages/openmates-cli/tests/protonBridgeConnector.test.ts
+      reason: CLI unit coverage.
+    - path: frontend/packages/openmates-cli/tests/protonBridgeConnector.integration.test.ts
+      reason: Fake Bridge and fake IMAP/SMTP connector coverage.
+    - path: backend/core/directus/schemas/connected_accounts.yml
+      reason: Add local connector metadata/status fields if schema changes are required.
+    - path: backend/core/api/app/routes/connected_accounts.py
+      reason: Add local connector registration, heartbeat, revocation, and status routes.
+    - path: backend/core/api/app/services/connected_accounts_service.py
+      reason: Validate local connector rows without requiring refresh-token bundles and reject plaintext credentials.
+    - path: backend/apps/mail/skills/search_skill.py
+      reason: Route Proton local connector read requests instead of self-hosted direct IMAP for per-user accounts.
+    - path: backend/shared/providers/protonmail/protonmail_bridge.py
+      reason: Reuse/refactor IMAP parsing helpers for connector results while preserving self-hosting mode.
+    - path: backend/tests/test_local_connected_account_connectors.py
+      reason: Backend local connector contract tests.
+    - path: backend/tests/test_proton_local_connector_delayed_send.py
+      reason: Delayed-send contract tests.
+    - path: frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+      reason: Show Proton local connector status and revocation without secrets.
+    - path: frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
+      reason: Web status and no-secret E2E coverage.
+    - path: scripts/audit_sdk_cli_parity.py
+      reason: Record intentional CLI-only setup boundary or enforce future parity constraints.
+    - path: docs/user-guide/cli/README.md
+      reason: Document command, macOS/Linux setup, write-mode warning, and multiplexer recommendation.
+    - path: docs/user-guide/apps/mail.md
+      reason: Document Proton local connector read/write behavior and delayed send.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/proton-bridge-cli-connector/spec.yml
+    - cd frontend/packages/openmates-cli && npm run test:unit:proton-bridge-connector
+    - cd frontend/packages/openmates-cli && npm run test:unit:proton-bridge-connector-integration
+    - docker exec api python -m pytest /app/backend/tests/test_local_connected_account_connectors.py
+    - docker exec api python -m pytest /app/backend/tests/test_proton_local_connector_delayed_send.py
+    - python3 scripts/audit_sdk_cli_parity.py
+    - Deploy to dev, wait for Vercel Ready, then python3 scripts/tests.py run --spec proton-local-connector-settings.spec.ts
+  verification_order:
+    - CLI tests for Bridge process and credential-safety behavior first.
+    - Backend pytest for local connector registration, heartbeat, routing, and delayed-send second.
+    - SDK/CLI parity audit third to record intentional CLI-only setup boundary.
+    - Web settings Playwright after deploy.
+    - User confirmation of warning copy and settings behavior after dev deploy.
+
+tasks:
+  - id: TASK-1
+    title: Add Proton Bridge CLI connector foundation
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-10
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-10
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/protonBridgeConnector.ts
+      - frontend/packages/openmates-cli/tests/protonBridgeConnector.test.ts
+      - frontend/packages/openmates-cli/tests/protonBridgeConnector.integration.test.ts
+    verification:
+      - T-CLI-PROTON-UNIT
+      - T-CLI-PROTON-FAKE-BRIDGE
+    verification_ids:
+      - T-CLI-PROTON-UNIT
+      - T-CLI-PROTON-FAKE-BRIDGE
+    dependencies: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/protonBridgeConnector.ts
+        - frontend/packages/openmates-cli/tests/protonBridgeConnector.test.ts
+        - frontend/packages/openmates-cli/tests/protonBridgeConnector.integration.test.ts
+      shared_files:
+        - frontend/packages/openmates-cli/src/client.ts
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Add backend local connector account/session contract
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+        - S-9
+        - S-10
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-9
+        - AC-10
+    expected_files:
+      - backend/core/directus/schemas/connected_accounts.yml
+      - backend/core/api/app/routes/connected_accounts.py
+      - backend/core/api/app/services/connected_accounts_service.py
+      - backend/tests/test_local_connected_account_connectors.py
+    verification:
+      - T-BACKEND-LOCAL-CONNECTOR
+    verification_ids:
+      - T-BACKEND-LOCAL-CONNECTOR
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/core/directus/schemas/connected_accounts.yml
+        - backend/core/api/app/routes/connected_accounts.py
+        - backend/core/api/app/services/connected_accounts_service.py
+        - backend/tests/test_local_connected_account_connectors.py
+      shared_files:
+        - frontend/packages/openmates-cli/src/client.ts
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Route Mail read requests through active local connector
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+    expected_files:
+      - backend/apps/mail/skills/search_skill.py
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/ws.ts
+      - frontend/packages/openmates-cli/src/protonBridgeConnector.ts
+      - backend/core/api/app/services/connected_accounts_service.py
+      - backend/tests/test_local_connected_account_connectors.py
+    verification:
+      - T-CLI-PROTON-FAKE-BRIDGE
+      - T-BACKEND-LOCAL-CONNECTOR
+    verification_ids:
+      - T-CLI-PROTON-FAKE-BRIDGE
+      - T-BACKEND-LOCAL-CONNECTOR
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - backend/apps/mail/skills/search_skill.py
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/ws.ts
+        - frontend/packages/openmates-cli/src/protonBridgeConnector.ts
+        - backend/core/api/app/services/connected_accounts_service.py
+      shared_files:
+        - backend/core/api/app/routes/connected_accounts.py
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Add Proton write mode delayed-send support
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-7
+        - AC-8
+    expected_files:
+      - frontend/packages/openmates-cli/src/protonBridgeConnector.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - backend/tests/test_proton_local_connector_delayed_send.py
+      - backend/core/api/app/routes/connected_accounts.py
+    verification:
+      - T-CLI-PROTON-UNIT
+      - T-CLI-PROTON-FAKE-BRIDGE
+      - T-BACKEND-PROTON-DELAYED-SEND
+    verification_ids:
+      - T-CLI-PROTON-UNIT
+      - T-CLI-PROTON-FAKE-BRIDGE
+      - T-BACKEND-PROTON-DELAYED-SEND
+    dependencies:
+      - TASK-3
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/protonBridgeConnector.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - backend/tests/test_proton_local_connector_delayed_send.py
+        - backend/core/api/app/routes/connected_accounts.py
+      shared_files:
+        - backend/core/api/app/services/connected_accounts_service.py
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Add settings status, docs, and parity guardrails
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-7
+        - S-8
+        - S-9
+      acceptance_criteria:
+        - AC-1
+        - AC-7
+        - AC-8
+        - AC-9
+    expected_files:
+      - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+      - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+      - frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
+      - scripts/audit_sdk_cli_parity.py
+      - docs/user-guide/cli/README.md
+      - docs/user-guide/apps/mail.md
+      - shared/docs/privacy_policy.yml
+      - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+      - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+      - frontend/packages/ui/src/config/links.ts
+      - frontend/packages/ui/src/legal/buildLegalContent.ts
+      - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    verification:
+      - T-PLAYWRIGHT-PROTON-SETTINGS
+      - T-SDK-CLI-PARITY-AUDIT
+      - V-USER-CONFIRMATION
+    verification_ids:
+      - T-PLAYWRIGHT-PROTON-SETTINGS
+      - T-SDK-CLI-PARITY-AUDIT
+      - V-USER-CONFIRMATION
+    dependencies:
+      - TASK-4
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+        - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+        - frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
+        - scripts/audit_sdk_cli_parity.py
+        - docs/user-guide/cli/README.md
+        - docs/user-guide/apps/mail.md
+        - shared/docs/privacy_policy.yml
+        - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+        - frontend/packages/ui/src/i18n/sources/settings/privacy.yml
+        - frontend/packages/ui/src/config/links.ts
+        - frontend/packages/ui/src/legal/buildLegalContent.ts
+        - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true

@@ -8020,79 +8020,83 @@ providers.mail.heading:
 providers.mail.description:
   context: Description of Group L
   en: >-
-    This provider is only used when you invoke mail skills against a connected
-    mailbox. If you never use the mail app, none of your data is shared with it.
-  de: Dieser Anbieter wird nur genutzt, wenn du E-Mail-Skills für ein verknüpftes Postfach aufrufst. Wenn du die E-Mail-App nie nutzt, werden keine deiner Daten mit ihm geteilt.
-  zh: 此提供商仅在你对已连接的邮箱调用邮件技能时使用。如果你从不使用邮件应用，则不会与其共享你的任何数据。
-  es: Este proveedor solo se utiliza cuando invocas funciones de correo en un buzón conectado. Si nunca usas la aplicación de correo, no se compartirá ninguno de tus datos con él.
-  fr: "Ce fournisseur n'est utilisé que lorsque tu invoques des compétences d'e-mail sur une boîte de réception connectée. Si tu n'utilises jamais l'application d'e-mail, aucune de tes données n'est partagée avec lui."
-  ru: Этот провайдер используется только при вызове почтовых функций для подключенного почтового ящика. Если ты не пользуешься почтовым приложением, твои данные ему не передаются.
-  ja: このプロバイダーは、接続されたメールボックスに対してメールスキルを呼び出した場合にのみ使用されます。メールアプリを一度も使用しない場合、データが共有されることはありません。
-  ko: 이 제공업체는 연결된 사서함에 대해 메일 기능을 호출할 때만 사용됩니다. 메일 앱을 사용하지 않으면 데이터가 공유되지 않습니다.
-  it: "Questo fornitore viene utilizzato solo quando richiami le funzioni mail su una casella di posta collegata. Se non usi mai l'app mail, nessuno dei tuoi dati verrà condiviso con esso."
-  tr: Bu sağlayıcı yalnızca bağlı bir posta kutusuna karşı e-posta yeteneklerini çağırdığında kullanılır. E-posta uygulamasını hiç kullanmazsan hiçbir verin onunla paylaşılmaz.
-  vi: Nhà cung cấp này chỉ được sử dụng khi bạn gọi các kỹ năng thư điện tử đối với một hộp thư đã kết nối. Nếu bạn không bao giờ sử dụng ứng dụng thư điện tử, không có dữ liệu nào của bạn được chia sẻ với nó.
-  id: Penyedia ini hanya digunakan saat kamu memanggil keahlian email terhadap kotak surat yang terhubung. Jika kamu tidak pernah menggunakan aplikasi email, tidak ada datamu yang dibagikan dengannya.
-  pl: Ten dostawca jest używany tylko wtedy, gdy korzystasz z funkcji poczty w odniesieniu do połączonej skrzynki pocztowej. Jeśli nigdy nie korzystasz z aplikacji pocztowej, żadne Twoje dane nie są mu udostępniane.
-  nl: Deze provider wordt alleen gebruikt wanneer je e-mailfuncties aanroept voor een gekoppelde mailbox. Als je de e-mail-app nooit gebruikt, worden er geen gegevens mee gedeeld.
-  ar: يُستخدم هذا المزود فقط عندما تستدعي مهارات البريد مقابل صندوق بريد متصل. إذا لم تستخدم تطبيق البريد أبداً، فلن تتم مشاركة أي من بياناتك معه.
-  hi: इस प्रदाता का उपयोग केवल तब किया जाता है जब तुम कनेक्टेड मेलबॉक्स के विरुद्ध मेल कौशल का उपयोग करते हो। यदि तुम कभी भी मेल ऐप का उपयोग नहीं करते हो, तो तुम्हारा कोई भी डेटा इसके साथ साझा नहीं किया जाता है।
-  th: ผู้ให้บริการนี้จะถูกใช้เมื่อคุณเรียกใช้ทักษะอีเมลกับกล่องจดหมายที่เชื่อมต่ออยู่เท่านั้น หากคุณไม่เคยใช้แอปอีเมล ข้อมูลของคุณจะไม่ถูกแชร์กับผู้ให้บริการนี้
-  pt: Este provedor só é usado quando você invoca habilidades de e-mail em uma caixa de correio conectada. Se você nunca usar o app de e-mail, nenhum dos seus dados será compartilhado com ele.
-  sv: Denna leverantör används endast när du använder e-postfunktioner mot en ansluten inkorg. Om du aldrig använder e-postappen delas ingen av din data med den.
-  he: ספק זה נמצא בשימוש רק כאשר אתה מפעיל מיומנויות דואר מול תיבת דואר מחוברת. אם לעולם לא תשתמש באפליקציית הדואר, אף אחד מהנתונים שלך לא ישותף איתו.
-  cs: Tento poskytovatel se používá pouze tehdy, když vyvoláš e-mailové dovednosti vůči připojené schránce. Pokud e-mailovou aplikaci nikdy nepoužiješ, nebudou s ní sdílena žádná tvá data.
+    This provider is only used when you connect or invoke mail skills against a
+    connected mailbox. If you never use the mail app, none of your data is shared
+    with it.
+  de: Dieser Anbieter wird nur genutzt, wenn du ein Postfach verbindest oder E-Mail-Skills für ein verknüpftes Postfach aufrufst. Wenn du die E-Mail-App nie nutzt, werden keine deiner Daten mit ihm geteilt.
+  zh: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  es: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  fr: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  ru: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  ja: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  ko: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  it: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  tr: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  vi: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  id: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  pl: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  nl: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  ar: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  hi: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  th: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  pt: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  sv: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  he: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
+  cs: This provider is only used when you connect or invoke mail skills against a connected mailbox. If you never use the mail app, none of your data is shared with it.
   verified_by_human: []
 providers.mail.protonmail.heading:
   context: Heading for Proton Mail provider entry
-  en: Proton Mail (mail search)
-  de: Proton Mail (E-Mail-Suche)
-  zh: Proton Mail（邮件搜索）
-  es: Proton Mail (búsqueda de correo)
-  fr: "Proton Mail (recherche d'e-mails)"
-  ru: Proton Mail (поиск по почте)
-  ja: Proton Mail (メール検索)
-  ko: Proton Mail (메일 검색)
-  it: Proton Mail (ricerca mail)
-  tr: Proton Mail (e-posta araması)
-  vi: Proton Mail (tìm kiếm thư)
-  id: Proton Mail (pencarian email)
-  pl: Proton Mail (wyszukiwanie wiadomości)
-  nl: Proton Mail (e-mail zoeken)
-  ar: Proton Mail (البحث في البريد)
-  hi: Proton Mail (मेल खोज)
-  th: Proton Mail (การค้นหาอีเมล)
-  pt: Proton Mail (pesquisa de e-mail)
-  sv: Proton Mail (e-postsökning)
-  he: Proton Mail (חיפוש דואר)
-  cs: Proton Mail (vyhledávání v e-mailech)
+  en: Proton Mail Bridge (local mail connector)
+  de: Proton Mail Bridge (lokaler E-Mail-Connector)
+  zh: Proton Mail Bridge (local mail connector)
+  es: Proton Mail Bridge (local mail connector)
+  fr: Proton Mail Bridge (local mail connector)
+  ru: Proton Mail Bridge (local mail connector)
+  ja: Proton Mail Bridge (local mail connector)
+  ko: Proton Mail Bridge (local mail connector)
+  it: Proton Mail Bridge (local mail connector)
+  tr: Proton Mail Bridge (local mail connector)
+  vi: Proton Mail Bridge (local mail connector)
+  id: Proton Mail Bridge (local mail connector)
+  pl: Proton Mail Bridge (local mail connector)
+  nl: Proton Mail Bridge (local mail connector)
+  ar: Proton Mail Bridge (local mail connector)
+  hi: Proton Mail Bridge (local mail connector)
+  th: Proton Mail Bridge (local mail connector)
+  pt: Proton Mail Bridge (local mail connector)
+  sv: Proton Mail Bridge (local mail connector)
+  he: Proton Mail Bridge (local mail connector)
+  cs: Proton Mail Bridge (local mail connector)
   verified_by_human: []
 providers.mail.protonmail.description:
   context: Proton Mail description
   en: >-
-    Proton Mail is queried when you search a connected Proton Mail mailbox.
-    Proton receives the mail search query and mailbox data needed to return
-    matching results.
-  de: Proton Mail wird abgefragt, wenn du ein verknüpftes Proton-Mail-Postfach durchsuchst. Proton erhält die E-Mail-Suchanfrage und die Postfachdaten, die erforderlich sind, um passende Ergebnisse zurückzugeben.
-  zh: 当你搜索已连接的 Proton Mail 邮箱时，系统会查询 Proton Mail。Proton 会接收邮件搜索查询和返回匹配结果所需的邮箱数据。
-  es: Se consulta a Proton Mail cuando buscas en un buzón de Proton Mail conectado. Proton recibe la consulta de búsqueda de correo y los datos del buzón necesarios para devolver los resultados correspondientes.
-  fr: "Proton Mail est sollicité lorsque tu effectues une recherche dans une boîte de réception Proton Mail connectée. Proton reçoit la requête de recherche d'e-mails et les données de la boîte de réception nécessaires pour renvoyer les résultats correspondants."
-  ru: Запрос к Proton Mail отправляется при поиске в подключенном почтовом ящике Proton Mail. Proton получает поисковый запрос и данные почтового ящика, необходимые для возврата результатов.
-  ja: Proton Mailは、接続されたProton Mailのメールボックスを検索した際に照会されます。Protonは、一致する結果を返すために必要なメール検索クエリとメールボックスデータを受信します。
-  ko: 연결된 Proton Mail 사서함을 검색할 때 Proton Mail에 쿼리가 전송됩니다. Proton은 일치하는 결과를 반환하는 데 필요한 메일 검색 쿼리와 사서함 데이터를 수신합니다.
-  it: Proton Mail viene consultato quando effettui una ricerca in una casella di posta Proton Mail collegata. Proton riceve la query di ricerca e i dati della casella di posta necessari per restituire i risultati corrispondenti.
-  tr: "Bağlı bir Proton Mail posta kutusunda arama yaptığında Proton Mail'e sorgu gönderilir. Proton, eşleşen sonuçları döndürmek için gereken e-posta arama sorgusunu ve posta kutusu verilerini alır."
-  vi: Proton Mail được truy vấn khi bạn tìm kiếm trong một hộp thư Proton Mail đã kết nối. Proton nhận truy vấn tìm kiếm thư và dữ liệu hộp thư cần thiết để trả về các kết quả phù hợp.
-  id: Proton Mail dikueri saat kamu mencari di kotak surat Proton Mail yang terhubung. Proton menerima kueri pencarian email dan data kotak surat yang diperlukan untuk mengembalikan hasil yang cocok.
-  pl: Zapytania do Proton Mail są wysyłane podczas przeszukiwania połączonej skrzynki Proton Mail. Proton otrzymuje zapytanie i dane skrzynki niezbędne do zwrócenia pasujących wyników.
-  nl: Proton Mail wordt geraadpleegd wanneer je in een gekoppelde Proton Mail-mailbox zoekt. Proton ontvangt de zoekopdracht en de mailboxgegevens die nodig zijn om overeenkomstige resultaten te tonen.
-  ar: يتم الاستعلام من Proton Mail عندما تبحث في صندوق بريد Proton Mail متصل. يتلقى Proton استعلام البحث في البريد وبيانات صندوق البريد اللازمة لإرجاع النتائج المطابقة.
-  hi: जब तुम कनेक्टेड Proton Mail मेलबॉक्स में खोज करते हो, तब Proton Mail से क्वेरी की जाती है। Proton को मेल खोज क्वेरी और मेलबॉक्स डेटा प्राप्त होता है जो मिलान वाले परिणाम दिखाने के लिए आवश्यक है।
-  th: Proton Mail จะถูกเรียกใช้เมื่อคุณค้นหากล่องจดหมาย Proton Mail ที่เชื่อมต่ออยู่ Proton จะได้รับคำค้นหาอีเมลและข้อมูลกล่องจดหมายที่จำเป็นเพื่อส่งคืนผลลัพธ์ที่ตรงกัน
-  pt: O Proton Mail é consultado quando você pesquisa em uma caixa de correio do Proton Mail conectada. O Proton recebe a consulta de pesquisa de e-mail e os dados da caixa de correio necessários para retornar resultados correspondentes.
-  sv: Proton Mail anropas när du söker i en ansluten Proton Mail-inkorg. Proton tar emot sökfrågan och den inkorgsdata som behövs för att returnera matchande resultat.
-  he: מתבצעת פנייה ל-Proton Mail כאשר אתה מבצע חיפוש בתיבת דואר מחוברת של Proton Mail. Proton מקבלת את שאילתת חיפוש הדואר ונתוני תיבת הדואר הדרושים להחזרת תוצאות תואמות.
-  cs: Proton Mail je dotazován při vyhledávání v připojené schránce Proton Mail. Proton obdrží dotaz na vyhledávání v poště a data schránky potřebná k vrácení odpovídajících výsledků.
+    When you run the Proton Mail Bridge connector, OpenMates sends mail requests
+    to your local CLI process, which talks to Proton Bridge on your device.
+    Proton receives the mailbox data needed to serve those Bridge requests.
+    Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to
+    OpenMates servers. Outgoing message content is sent only if you explicitly
+    start the connector with write access and send mail.
+  de: Wenn du den Proton Mail Bridge Connector ausführst, sendet OpenMates E-Mail-Anfragen an deinen lokalen CLI-Prozess, der auf deinem Gerät mit Proton Bridge spricht. Proton erhält die Postfachdaten, die für diese Bridge-Anfragen erforderlich sind. Deine Proton-Bridge-IMAP/SMTP-Zugangsdaten bleiben lokal und werden nicht an OpenMates-Server gesendet. Ausgehende Nachrichteninhalte werden nur gesendet, wenn du den Connector ausdrücklich mit Schreibzugriff startest und E-Mails versendest.
+  zh: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  es: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  fr: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  ru: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  ja: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  ko: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  it: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  tr: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  vi: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  id: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  pl: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  nl: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  ar: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  hi: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  th: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  pt: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  sv: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  he: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
+  cs: When you run the Proton Mail Bridge connector, OpenMates sends mail requests to your local CLI process, which talks to Proton Bridge on your device. Proton receives the mailbox data needed to serve those Bridge requests. Your Proton Bridge IMAP/SMTP credentials stay local and are not sent to OpenMates servers. Outgoing message content is sent only if you explicitly start the connector with write access and send mail.
   verified_by_human: []
 providers.home.heading:
   context: Subheading for Group M providers (home and housing)

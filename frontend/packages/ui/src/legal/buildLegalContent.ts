@@ -357,7 +357,8 @@ export function buildPrivacyPolicyContent(
   lines.push("");
   renderProvider("legal.privacy.providers.electronics.ti_webench", privacyPolicyLinks.tiWebench);
 
-  // Group M — Mail
+  // Group M — Mail. Proton Mail Bridge is rendered through the Proton provider
+  // entry because the CLI connector keeps Bridge credentials local.
   lines.push(`### ${t("legal.privacy.providers.mail.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.mail.description"));

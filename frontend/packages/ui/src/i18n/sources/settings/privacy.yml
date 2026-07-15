@@ -694,6 +694,9 @@ connected_accounts.provider_google_calendar:
   sv: Google Calendar
   he: Google Calendar
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+connected_accounts.provider_proton_mail_bridge:
+  context: Provider display name for Proton Mail Bridge local connector accounts.
+  en: Proton Mail Bridge
 connected_accounts.app:
   context: Detail row label for connected account app scope.
   en: App
@@ -718,6 +721,24 @@ connected_accounts.app:
   sv: App
   he: אפליקציה
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+connected_accounts.status:
+  context: Detail row label for connected account connection status.
+  en: Status
+connected_accounts.status_oauth:
+  context: Connected account status for standard OAuth/imported accounts.
+  en: Connected
+connected_accounts.status_online_cli:
+  context: Connected account status for a local CLI connector with active heartbeat.
+  en: Online via CLI
+connected_accounts.status_offline:
+  context: Connected account status for a local CLI connector that is not running.
+  en: Offline
+connected_accounts.status_setup_required:
+  context: Connected account status for a local CLI connector that needs setup.
+  en: Setup required
+connected_accounts.status_revoked:
+  context: Connected account status for a revoked local connector.
+  en: Revoked
 connected_accounts.capabilities:
   context: Detail row label for connected account capabilities.
   en: Capabilities
@@ -814,6 +835,30 @@ connected_accounts.add_calendar_write:
   sv: Lägg till skrivåtkomst till Calendar
   he: הוספת גישת כתיבה ל-Calendar
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+connected_accounts.revoke_local_connector:
+  context: Button label to revoke a local CLI connected account connector.
+  en: Revoke local connector
+  de: Revoke local connector
+  zh: Revoke local connector
+  es: Revoke local connector
+  fr: Revoke local connector
+  pt: Revoke local connector
+  ru: Revoke local connector
+  ja: Revoke local connector
+  ko: Revoke local connector
+  it: Revoke local connector
+  tr: Revoke local connector
+  vi: Revoke local connector
+  id: Revoke local connector
+  pl: Revoke local connector
+  nl: Revoke local connector
+  ar: Revoke local connector
+  hi: Revoke local connector
+  th: Revoke local connector
+  cs: Revoke local connector
+  sv: Revoke local connector
+  he: Revoke local connector
+  verified_by_human: []
 connected_accounts.finalizing:
   context: Status while an OAuth handoff is being encrypted into an existing connected account.
   en: Encrypting and saving connected account update...
@@ -862,6 +907,30 @@ connected_accounts.updated_success:
   sv: Anslutet konto uppdaterat. Ny åtkomst krypterades före sparning.
   he: החשבון המחובר עודכן. הגישה החדשה הוצפנה לפני השמירה.
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+connected_accounts.revoked_success:
+  context: Success message after a local connector connected account is revoked.
+  en: Local connector revoked.
+  de: Local connector revoked.
+  zh: Local connector revoked.
+  es: Local connector revoked.
+  fr: Local connector revoked.
+  pt: Local connector revoked.
+  ru: Local connector revoked.
+  ja: Local connector revoked.
+  ko: Local connector revoked.
+  it: Local connector revoked.
+  tr: Local connector revoked.
+  vi: Local connector revoked.
+  id: Local connector revoked.
+  pl: Local connector revoked.
+  nl: Local connector revoked.
+  ar: Local connector revoked.
+  hi: Local connector revoked.
+  th: Local connector revoked.
+  cs: Local connector revoked.
+  sv: Local connector revoked.
+  he: Local connector revoked.
+  verified_by_human: []
 connected_accounts.sign_in_required:
   context: Message shown when an unauthenticated user opens connected-account settings.
   en: Sign in to manage connected accounts.
@@ -934,6 +1003,30 @@ connected_accounts.update_error:
   sv: Det gick inte att starta uppdatering av anslutet konto.
   he: לא ניתן היה להתחיל עדכון לחשבון המחובר.
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+connected_accounts.revoke_error:
+  context: Error message shown when revoking a local connector connected account fails.
+  en: Could not revoke local connector.
+  de: Could not revoke local connector.
+  zh: Could not revoke local connector.
+  es: Could not revoke local connector.
+  fr: Could not revoke local connector.
+  pt: Could not revoke local connector.
+  ru: Could not revoke local connector.
+  ja: Could not revoke local connector.
+  ko: Could not revoke local connector.
+  it: Could not revoke local connector.
+  tr: Could not revoke local connector.
+  vi: Could not revoke local connector.
+  id: Could not revoke local connector.
+  pl: Could not revoke local connector.
+  nl: Could not revoke local connector.
+  ar: Could not revoke local connector.
+  hi: Could not revoke local connector.
+  th: Could not revoke local connector.
+  cs: Could not revoke local connector.
+  sv: Could not revoke local connector.
+  he: Could not revoke local connector.
+  verified_by_human: []
 connected_accounts.finalize_error:
   context: Safe generic error when an account update OAuth handoff cannot be saved.
   en: Could not finish updating connected account.

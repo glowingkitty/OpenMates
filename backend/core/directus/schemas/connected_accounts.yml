@@ -53,8 +53,7 @@ connected_accounts:
 
     encrypted_refresh_token_bundle:
       type: text
-      required: true
-      note: "[Client-encrypted] Refresh-token bundle; never exposed to LLMs, skill args, logs, or receipts"
+      note: "[Client-encrypted] Refresh-token bundle for OAuth rows; omitted for online-only local connectors"
 
     encrypted_capabilities:
       type: text
@@ -73,6 +72,43 @@ connected_accounts:
     encrypted_server_access_ref:
       type: text
       note: "[Server-encrypted optional] Future offline automation grant reference when server_access_enabled=true; not used for normal client-mediated chat"
+
+    execution_mode:
+      type: string
+      length: 32
+      note: "oauth by default; local_connector for online-only user-run CLI connectors"
+
+    connector_provider_id:
+      type: string
+      length: 64
+      note: "Sparse local connector provider id such as protonmail_bridge; no provider credentials"
+
+    connector_instance_id:
+      type: string
+      length: 128
+      note: "Client-generated local connector instance id; not a credential"
+
+    connector_status:
+      type: string
+      length: 32
+      note: "Local connector state: online, offline, setup_required, or revoked"
+
+    connector_public_metadata:
+      type: json
+      note: "Non-secret local connector health/status metadata. Must never include Bridge credentials."
+
+    local_connector_session_id:
+      type: string
+      length: 128
+      note: "Server-generated active connector session id used for heartbeat ownership checks"
+
+    local_connector_last_heartbeat_at:
+      type: integer
+      note: "Unix timestamp of last accepted local connector heartbeat"
+
+    local_connector_deadline_at:
+      type: integer
+      note: "Unix timestamp after which the local connector should be considered offline"
 
     created_at:
       type: integer

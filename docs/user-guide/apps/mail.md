@@ -35,6 +35,28 @@ The Mail app helps you compose emails and search through your connected Proton M
 - List recent emails: "Show me my latest emails"
 - Compose with style: "Write a friendly follow-up email to the client about the project update"
 
+## Proton Mail Bridge CLI Connector
+
+You can connect Proton Mail through the OpenMates CLI with:
+
+```bash
+openmates connect-account proton
+```
+
+This checks whether Proton Mail Bridge is installed. If Bridge is missing, the CLI prints OS-specific install instructions and stops; install Bridge, sign in through Proton Bridge, then run the command again.
+
+When Bridge is installed, the command starts or attaches to Proton Mail Bridge on macOS or Linux and registers a local connector that is online only while the command keeps running. For long-lived use, run the command inside `screen`, `tmux`, or `zellij`.
+
+By default the connector is read-only for Mail search. To allow sending through local Bridge, run:
+
+```bash
+openmates connect-account proton --write
+```
+
+Write mode requires an explicit confirmation. Sends are queued for a fixed 30-second undo window before SMTP delivery; after delivery OpenMates cannot recall the email. OpenMates never asks for your Proton account password, and Bridge IMAP/SMTP credentials stay local to the CLI connector process.
+
+OpenMates cloud does not connect to Proton directly. The backend sends a request to your running CLI connector, and the CLI talks to Proton Bridge on `localhost` using standard IMAP for reading/search and SMTP for sending.
+
 ## Screenshots
 
 ![Email draft preview](../../images/user-guide/apps/mail/previews/email/finished.jpg)
@@ -50,6 +72,7 @@ The Mail app helps you compose emails and search through your connected Proton M
 - Email drafts are plain text for maximum compatibility with all email programs.
 - Your mate applies your saved writing styles automatically when they match the situation.
 - Mailbox search requires a connected Proton Mail account. Your email content is protected against security threats before being processed.
+- Proton Bridge access from the CLI is online-only. If the connector command stops, Mail search/send requests show the account as offline until you start it again.
 - All images in emails viewed through the app are loaded through a privacy-protecting proxy.
 
 ## Related

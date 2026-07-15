@@ -225,7 +225,7 @@ export const privacyPolicyLinks = {
   tiWebench: "https://www.ti.com/legal/terms-conditions/privacy-policy.html",
 
   // Group M — Mail
-  protonmail: "https://proton.me/legal/privacy",
+  protonmail: "https://proton.me/legal/privacy", // verified 2026-07-15
 
   // Group N — Home and housing
   immoscout24: "https://www.immobilienscout24.de/agb/datenschutz.html",

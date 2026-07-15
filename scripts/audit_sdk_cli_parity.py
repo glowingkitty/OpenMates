@@ -33,6 +33,7 @@ EXCLUSION_REASONS = {
     "project-support-info": "Voluntary project support information is a local/public link helper, not SDK API behavior.",
     "e2e-provisioning": "Local test-account artifact tooling stays CLI-only.",
     "local-remote-access": "Local Project source bridge commands operate on user-approved local paths and stay CLI-only.",
+    "local-connected-account-setup": "Local connected-account setup supervises user-machine processes and credential prompts, so setup stays CLI-only.",
     "browser-high-risk": "Browser-only or high-risk account/security flow.",
 }
 
@@ -50,6 +51,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "embeds": "embeds.*",
     "settings": "account/settings/billing/notifications/memories/reminders.*; newsletter stays CLI-only",
     "connected-accounts": "connectedAccounts.import / connected_accounts.import_account",
+    "connect-account": "local-connected-account-setup",
     "learning-mode": "learningMode.* / learning_mode.*",
     "inspirations": "inspirations.list",
     "newchatsuggestions": "newChatSuggestions.list / new_chat_suggestions.list",

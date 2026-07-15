@@ -41,10 +41,14 @@ export interface EncryptedConnectedAccountRow {
 	encrypted_app_permissions: string;
 	provider_account_id_hash?: string | null;
 	encrypted_provider_account_display?: string | null;
-	encrypted_account_directory_hint?: string | null;
-	server_access_enabled?: boolean;
-	encrypted_server_access_ref?: string | null;
-	updated_at?: number;
+ encrypted_account_directory_hint?: string | null;
+ server_access_enabled?: boolean;
+ encrypted_server_access_ref?: string | null;
+ execution_mode?: 'oauth' | 'local_connector' | string | null;
+  connector_provider_id?: string | null;
+  connector_status?: 'online' | 'offline' | 'setup_required' | 'revoked' | string | null;
+  connector_public_metadata?: Record<string, unknown> | null;
+  updated_at?: number;
 }
 
 export type EncryptedConnectedAccountCreateInput = Omit<
@@ -84,9 +88,12 @@ export interface ConnectedAccountSummary {
 	app_id: string;
 	account_ref: string;
 	label: string;
-	capabilities: string[];
-	runtime_modes: Record<string, string>;
-	updated_at?: number;
+ capabilities: string[];
+ runtime_modes: Record<string, string>;
+ execution_mode?: string | null;
+ connector_provider_id?: string | null;
+ connector_status?: string | null;
+ updated_at?: number;
 }
 
 export async function computeConnectedAccountUserHash(userId: string): Promise<string> {
@@ -214,6 +221,9 @@ export async function buildConnectedAccountSendContext(params: {
 			runtime_modes: directoryHint?.runtime_modes
 		});
 		if (allowedActions.length > 0) {
+			if (row.execution_mode === 'local_connector') {
+				continue;
+			}
 			const refreshTokenEnvelope = await decryptConnectedAccountValue<Record<string, unknown>>(
 				row.encrypted_refresh_token_bundle,
 				'encrypted_refresh_token_bundle'
@@ -241,44 +251,74 @@ export async function summarizeConnectedAccountRows(
 	const summaries: ConnectedAccountSummary[] = [];
 	for (const row of rows) {
 		assertNoPlaintextConnectedAccountFields(row);
-		const [providerId, label, capabilities, permissions, directoryHint] = await Promise.all([
-			decryptConnectedAccountValue<string>(row.encrypted_provider_type, 'encrypted_provider_type'),
-			decryptConnectedAccountValue<string>(row.encrypted_account_label, 'encrypted_account_label'),
-			decryptConnectedAccountValue<string[] | { capabilities?: string[] }>(
-				row.encrypted_capabilities,
-				'encrypted_capabilities'
-			),
-			decryptConnectedAccountValue<ConnectedAccountPermissionsEnvelope>(
-				row.encrypted_app_permissions,
-				'encrypted_app_permissions'
-			),
-			row.encrypted_account_directory_hint
-				? decryptConnectedAccountValue<ConnectedAccountDirectoryHint>(
-						row.encrypted_account_directory_hint,
-						'encrypted_account_directory_hint'
-					)
-				: Promise.resolve(undefined)
-		]);
-		const capabilityList = normalizeCapabilityList(capabilities);
-		const fallbackCapabilities = capabilitiesForActions(permissions.allowed_actions ?? []);
-		const directoryCapabilities = normalizeCapabilityList(directoryHint?.capabilities);
-		summaries.push({
-			id: row.id,
-			provider_id: providerId,
-			app_id: normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId)),
-			account_ref: directoryHint?.account_ref ?? row.id,
-			label: directoryHint?.label ?? label,
-			capabilities: directoryCapabilities.length
-				? directoryCapabilities
-				: capabilityList.length
-					? capabilityList
-					: fallbackCapabilities,
-			runtime_modes: directoryHint?.runtime_modes ?? {},
-			updated_at: row.updated_at
-		});
+		try {
+			const [providerId, label, capabilities, permissions, directoryHint] = await Promise.all([
+				decryptConnectedAccountValue<string>(row.encrypted_provider_type, 'encrypted_provider_type'),
+				decryptConnectedAccountValue<string>(row.encrypted_account_label, 'encrypted_account_label'),
+				decryptConnectedAccountValue<string[] | { capabilities?: string[] }>(
+					row.encrypted_capabilities,
+					'encrypted_capabilities'
+				),
+				decryptConnectedAccountValue<ConnectedAccountPermissionsEnvelope>(
+					row.encrypted_app_permissions,
+					'encrypted_app_permissions'
+				),
+				row.encrypted_account_directory_hint
+					? decryptConnectedAccountValue<ConnectedAccountDirectoryHint>(
+							row.encrypted_account_directory_hint,
+							'encrypted_account_directory_hint'
+						)
+					: Promise.resolve(undefined)
+			]);
+			const capabilityList = normalizeCapabilityList(capabilities);
+			const fallbackCapabilities = capabilitiesForActions(permissions.allowed_actions ?? []);
+			const directoryCapabilities = normalizeCapabilityList(directoryHint?.capabilities);
+			summaries.push({
+				id: row.id,
+				provider_id: providerId,
+				app_id: normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId)),
+				account_ref: directoryHint?.account_ref ?? row.id,
+				label: directoryHint?.label ?? label,
+				capabilities: directoryCapabilities.length
+					? directoryCapabilities
+					: capabilityList.length
+						? capabilityList
+						: fallbackCapabilities,
+				runtime_modes: directoryHint?.runtime_modes ?? {},
+				execution_mode: row.execution_mode ?? 'oauth',
+				connector_provider_id: row.connector_provider_id ?? null,
+				connector_status: row.connector_status ?? null,
+				updated_at: row.updated_at
+			});
+		} catch (decryptError) {
+			const localConnectorSummary = buildLocalConnectorSummary(row);
+			if (!localConnectorSummary) throw decryptError;
+			console.warn('[ConnectedAccountStorage] Using non-secret local connector metadata after encrypted summary fields could not be decrypted:', row.id);
+			summaries.push(localConnectorSummary);
+		}
 	}
 	assertNoConnectedAccountSecretLeak(summaries);
 	return summaries;
+}
+
+function buildLocalConnectorSummary(row: EncryptedConnectedAccountRow): ConnectedAccountSummary | null {
+	if (row.execution_mode !== 'local_connector' || row.connector_provider_id !== 'protonmail_bridge') {
+		return null;
+	}
+	const publicMetadata = row.connector_public_metadata ?? {};
+	return {
+		id: row.id,
+		provider_id: row.connector_provider_id,
+		app_id: 'mail',
+		account_ref: row.id,
+		label: typeof publicMetadata.label === 'string' ? publicMetadata.label : 'Proton Mail',
+		capabilities: normalizeCapabilityList(publicMetadata.capabilities),
+		runtime_modes: {},
+		execution_mode: row.execution_mode,
+		connector_provider_id: row.connector_provider_id,
+		connector_status: row.connector_status ?? null,
+		updated_at: row.updated_at
+	};
 }
 
 function appIdForProvider(providerId: string): string {

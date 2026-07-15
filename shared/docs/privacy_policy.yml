@@ -720,16 +720,21 @@ provider_groups:
   # =====================================================================
   mail:
     description: >
-      This provider is only used when you invoke mail skills against a connected
-      mailbox. If you never use the mail app, none of your data is shared with it.
+      This provider is only used when you connect or invoke mail skills against
+      a connected mailbox. If you never use the mail app, none of your data is
+      shared with it.
     providers:
       protonmail:
-        privacy_policy: https://proton.me/legal/privacy
+        privacy_policy: https://proton.me/legal/privacy  # verified 2026-07-15
         location: EU
         used_for:
-          - mail search for connected Proton Mail accounts
+          - local Proton Mail Bridge connector setup from the OpenMates CLI
+          - mail search for connected Proton Mail accounts while the local connector is online
+          - optional delayed sending when the local connector is started with write access
         data_shared:
-          - Mail search queries and mailbox data needed to return matching results
+          - Mail search requests and mailbox data needed to return matching results
+          - Outgoing message metadata and content only when you explicitly enable write access and send mail
+          - Note: Proton Bridge account credentials stay on your device and are not sent to OpenMates servers
 
   # =====================================================================
   # Group N — Home and housing. Only used when you invoke the home search skill.
