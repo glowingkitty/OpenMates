@@ -129,7 +129,7 @@
   showSkillIcon={false}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="application-preview" class:mobile={isMobileLayout}>
+    <div class="application-preview" class:mobile={isMobileLayout} data-testid="application-preview-details">
       <div class="screenshot-frame" data-testid="application-preview-screenshot">
         {#if screenshotUrl}
           <img src={screenshotUrl} alt="" class="screenshot" />
