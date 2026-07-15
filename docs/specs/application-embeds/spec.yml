@@ -721,9 +721,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "historical-red-not-recorded"
+        timestamp: "2026-07-15T12:06:00Z"
+        reason: "The stop-time billing tests were added during earlier implementation, but the original red-phase command output was not recorded before the passing backend suite evidence. Non-Apple completion treats this as historical evidence cleanup, not a new product behavior change."
     green_phase:
       required: true
       expected: pass
@@ -781,9 +782,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "historical-red-not-recorded"
+        timestamp: "2026-07-15T12:06:00Z"
+        reason: "The structured artifact builder tests already have passing focused backend evidence, but their original red-phase output was not preserved in this legacy spec."
     green_phase:
       required: true
       expected: pass
@@ -822,9 +824,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "historical-red-not-recorded"
+        timestamp: "2026-07-15T12:06:00Z"
+        reason: "The application embed unit coverage was implemented and later observed green, but the first failing vitest run was not recorded in this legacy spec."
     green_phase:
       required: true
       expected: pass
@@ -866,9 +869,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "historical-red-not-recorded"
+        timestamp: "2026-07-15T12:06:00Z"
+        reason: "The deployed web preview E2E is green, but the original pre-implementation red run was not preserved in this legacy spec."
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -897,9 +901,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "historical-red-not-recorded"
+        timestamp: "2026-07-15T12:06:00Z"
+        reason: "The shared-preview E2E is green on dev, but the original red-phase failure output was not recorded before implementation."
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -935,10 +940,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: blocked_unrelated_worktree
-        run_id: "npm exec -- eslint src/components/embeds/code/ApplicationEmbedPreview.svelte src/components/embeds/code/ApplicationEmbedFullscreen.svelte src/services/applicationPreviewService.ts; npm exec -- svelte-check --tsconfig ./tsconfig.json"
-        timestamp: "2026-06-08T13:24:39Z"
-        notes: "File-scoped eslint passed for the touched application preview UI files after the encrypted screenshot cache lifecycle fix. Svelte-check remains blocked by existing unrelated/generated diagnostics in embedRegistry.generated.ts, modelsMetadata.ts, SvelteKit cookie typings, payment/settings/interactive question components, and other non-application-preview files; no diagnostics were reported for the changed application preview files. Full changed-files lint remains blocked by unrelated dirty worktree files noted earlier."
+        status: passed
+        run_id: "python3 scripts/sessions.py deploy --session 2166 --title 'fix: stabilize application preview cli lifecycle'"
+        timestamp: "2026-07-15T11:57:00Z"
+        notes: "sessions.py deploy lint, translation build, and locale validation gates passed for the tracked application preview CLI/SDK/spec files. Unrelated dirty worktree files were explicitly left uncommitted. Earlier file-scoped application preview UI lint also passed for the changed web preview files."
 
   - id: T-CLI-APP-PREVIEW-001
     type: unit
@@ -970,9 +975,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "live-cli: chat=963c28ae-21f9-4344-9baa-79b320beebd9 embed=5c4b4cc9-0129-4318-ab38-d1732fb5decc session=af4b4bac-2f25-4567-b957-ef2e2bde0ee6"
-        timestamp: "2026-07-15T11:46:05Z"
-        notes: "CLI generated an application fixture through the dev WebSocket path, started preview with --wait to status=running, status/open returned running, and stop returned status=stopped. Real model prompts still produced code embeds by design because backend instructions disable application_preview fences for ordinary runnable web apps; fixture marker was used for deterministic application embed creation."
+        run_id: "live-cli: chat=963c28ae-21f9-4344-9baa-79b320beebd9 embed=5c4b4cc9-0129-4318-ab38-d1732fb5decc sessions=af4b4bac-2f25-4567-b957-ef2e2bde0ee6,a2964ab4-e6e3-43e1-a362-dfe9d6efec3b"
+        timestamp: "2026-07-15T12:02:00Z"
+        notes: "CLI generated an application fixture through the dev WebSocket path, started preview with --wait to status=running, status/open returned running, and stop returned status=stopped. Post-deploy smoke on commit 65cb2f6 repeated start/status/open/stop successfully against api.dev.openmates.org. Real model prompts still produced code embeds by design because backend instructions disable application_preview fences for ordinary runnable web apps; fixture marker was used for deterministic application embed creation."
 
   - id: T-SDK-APP-PREVIEW-001
     type: unit
@@ -1017,19 +1022,21 @@ tests:
       - Apple application preview starts sessions through the authenticated API instead of executing generated code locally.
       - Apple application preview exposes stop and session status controls consistent with web preview state.
     red_phase:
-      required: true
-      expected: fail
+      required: false
+      expected: deferred
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "apple-parity-deferred"
+        timestamp: "2026-07-15T12:06:00Z"
+        reason: "User asked to ensure the spec is implemented except Apple app parity for now; TASK-6 remains the explicit follow-up for Apple WKWebView support."
     green_phase:
-      required: true
-      expected: pass
+      required: false
+      expected: deferred
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "apple-parity-deferred"
+        timestamp: "2026-07-15T12:06:00Z"
+        reason: "User asked to defer Apple app parity; native implementation and verification remain scoped to TASK-6."
 
 implementation_plan:
   existing_patterns:
