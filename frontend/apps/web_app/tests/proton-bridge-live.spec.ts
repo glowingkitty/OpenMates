@@ -21,8 +21,10 @@ const PROTON_TOTP_KEY = process.env.PROTON_BRIDGE_TEST_TOTP_KEY;
 
 const BRIDGE_COMMANDS = ['protonmail-bridge', 'proton-mail-bridge'];
 const BRIDGE_ARGS = ['--cli'];
-const BRIDGE_READY_RE = /No active accounts\. Please add account to continue\.|>+\s*$|bridge>\s*$/im;
+const BRIDGE_READY_RE = /No active accounts\. Please add account to continue\.|>{3,}|bridge>\s*$/im;
 const CREDENTIAL_LINE_RE = /^.*(?:password|token|secret|2fa|totp|code).*$/gim;
+const ANSI_ESCAPE_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, 'g');
+const TERMINAL_CONTROL_RE = new RegExp(`[${String.fromCharCode(8)}${String.fromCharCode(13)}]`, 'g');
 
 function findBridgeBinary(): string | null {
 	for (const command of BRIDGE_COMMANDS) {
@@ -47,6 +49,10 @@ function redactBridgeOutput(output: string): string {
 	return redacted;
 }
 
+function normalizeBridgeOutputForMatching(output: string): string {
+	return output.replace(ANSI_ESCAPE_RE, '').replace(TERMINAL_CONTROL_RE, '');
+}
+
 function waitForOutput(
 	getOutput: () => string,
 	pattern: RegExp,
@@ -57,7 +63,8 @@ function waitForOutput(
 	return new Promise((resolve, reject) => {
 		const tick = () => {
 			const output = getOutput();
-			if (pattern.test(output)) {
+			const normalizedOutput = normalizeBridgeOutputForMatching(output);
+			if (pattern.test(normalizedOutput)) {
 				resolve();
 				return;
 			}
@@ -80,8 +87,9 @@ function waitForEitherOutput(
 	return new Promise((resolve, reject) => {
 		const tick = () => {
 			const output = getOutput();
+			const normalizedOutput = normalizeBridgeOutputForMatching(output);
 			for (const candidate of patterns) {
-				if (candidate.pattern.test(output)) {
+				if (candidate.pattern.test(normalizedOutput)) {
 					resolve(candidate.label);
 					return;
 				}
