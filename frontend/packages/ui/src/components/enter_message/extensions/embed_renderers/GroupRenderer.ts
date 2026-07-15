@@ -9,6 +9,7 @@ import {
   decodeToonContent,
   type EmbedData,
 } from "../../../../services/embedResolver";
+import { embedStore } from "../../../../services/embedStore";
 import {
   downloadCodeFilesAsZip,
   type CodeFileData,
@@ -6223,15 +6224,42 @@ export class GroupRenderer implements EmbedRenderer {
       );
     }
 
-    // Dispatch custom event to open fullscreen view
-    // The fullscreen component will handle loading and displaying embed content
+    const rawEmbedId = attrs.contentRef?.replace("embed:", "");
+    let targetEmbedId = rawEmbedId;
+    let focusChildEmbedId: string | undefined;
+    let targetEmbedType = embedType;
+    let targetEmbedData = embedData;
+    let targetDecodedContent = finalDecodedContent;
+    let targetAttrs: EmbedNodeAttributes | undefined = attrs;
+
+    if (rawEmbedId && attrs.contentRef?.startsWith("embed:")) {
+      try {
+        const resolvedTarget = await embedStore.resolveFullscreenTarget(rawEmbedId);
+        targetEmbedId = resolvedTarget.targetEmbedId;
+        focusChildEmbedId = resolvedTarget.focusChildEmbedId;
+
+        if (focusChildEmbedId) {
+          targetEmbedType = "app-skill-use";
+          targetEmbedData = null;
+          targetDecodedContent = null;
+          targetAttrs = undefined;
+        }
+      } catch (error) {
+        console.warn("[GroupRenderer] Failed to resolve fullscreen target:", error);
+      }
+    }
+
+    // Dispatch custom event to open fullscreen view.
+    // Child result cards route through their parent search fullscreen so the
+    // parent can auto-focus the clicked result via focusChildEmbedId.
     const event = new CustomEvent("embedfullscreen", {
       detail: {
-        embedId: attrs.contentRef?.replace("embed:", ""),
-        embedData,
-        decodedContent: finalDecodedContent,
-        embedType,
-        attrs,
+        embedId: targetEmbedId,
+        embedData: targetEmbedData,
+        decodedContent: targetDecodedContent,
+        embedType: targetEmbedType,
+        attrs: targetAttrs,
+        focusChildEmbedId,
       },
       bubbles: true,
     });
