@@ -215,12 +215,42 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
         run: |
           CREDS_FILE="frontend/apps/web_app/artifacts/test_account_credentials.json"
-          if [ -f "$CREDS_FILE" ]; then
-            SLOT=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["slot"])' "$CREDS_FILE")
-            EMAIL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["email"])' "$CREDS_FILE")
-            PASSWORD=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["password"])' "$CREDS_FILE")
-            OTP_KEY=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["otpKey"])' "$CREDS_FILE")
+          ENV_FILE="frontend/apps/web_app/artifacts/cli-slot-${{ github.event.inputs.create_account_slot }}.env"
+          if [ -f "$CREDS_FILE" ] || [ -f "$ENV_FILE" ]; then
+            mapfile -t CREDS < <(python3 - "$CREDS_FILE" "$ENV_FILE" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          json_path = Path(sys.argv[1])
+          env_path = Path(sys.argv[2])
+          if json_path.exists():
+              data = json.loads(json_path.read_text())
+              print(data["slot"])
+              print(data["email"])
+              print(data["password"])
+              print(data["otpKey"])
+              raise SystemExit(0)
+
+          values = {}
+          for line in env_path.read_text().splitlines():
+              if not line or line.startswith("#") or "=" not in line:
+                  continue
+              key, value = line.split("=", 1)
+              values[key] = value
+          slot = env_path.stem.rsplit("-", 1)[-1]
+          print(slot)
+          print(values[f"OPENMATES_TEST_ACCOUNT_{slot}_EMAIL"])
+          print(values[f"OPENMATES_TEST_ACCOUNT_{slot}_PASSWORD"])
+          print(values[f"OPENMATES_TEST_ACCOUNT_{slot}_OTP_KEY"])
+          PY
+            )
+            SLOT="${CREDS[0]}"
+            EMAIL="${CREDS[1]}"
+            PASSWORD="${CREDS[2]}"
+            OTP_KEY="${CREDS[3]}"
             rm -f "$CREDS_FILE"
+            rm -f "$ENV_FILE"
             echo "Updating OPENMATES_TEST_ACCOUNT_${SLOT}_* after account provisioning..."
             gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_EMAIL" --body "$EMAIL"
             gh secret set "OPENMATES_TEST_ACCOUNT_${SLOT}_PASSWORD" --body "$PASSWORD"
