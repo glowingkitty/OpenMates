@@ -225,7 +225,7 @@ async def test_gateway_strips_vite_hmr_client_from_html() -> None:
 
 
 @pytest.mark.anyio
-async def test_gateway_returns_empty_module_for_direct_vite_hmr_client() -> None:
+async def test_gateway_returns_noop_module_for_direct_vite_hmr_client() -> None:
     cache = FakeCache()
     await create_application_preview_session(
         cache_service=cache,
@@ -256,7 +256,10 @@ async def test_gateway_returns_empty_module_for_direct_vite_hmr_client() -> None
     )
 
     assert response.status_code == 200
-    assert response.body == b""
+    body = response.body.decode("utf-8")
+    assert "export function createHotContext" in body
+    assert "export function updateStyle" in body
+    assert "new WebSocket" not in body
     assert response.headers["content-type"].startswith("application/javascript")
 
 
