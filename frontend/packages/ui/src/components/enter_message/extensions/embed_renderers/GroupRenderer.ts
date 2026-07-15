@@ -6229,7 +6229,9 @@ export class GroupRenderer implements EmbedRenderer {
       );
     }
 
-    const rawEmbedId = attrs.contentRef?.replace("embed:", "");
+    const rawEmbedId = attrs.contentRef?.startsWith("embed:")
+      ? attrs.contentRef.replace("embed:", "")
+      : attrs.id;
     let targetEmbedId = rawEmbedId;
     let focusChildEmbedId: string | undefined;
     let targetEmbedType = embedType;

@@ -12167,7 +12167,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     embedFullscreenData.decodedContent ?? undefined
                 )}
                 {#if registryKey && hasFullscreenComponent(registryKey)}
-                    {#await loadFullscreenComponent(registryKey) then FullscreenComponent}
+                    {#await loadFullscreenComponent(registryKey)}
+                        <div class="embed-fullscreen-loading" data-testid="embed-fullscreen-loading">
+                            <div class="fullscreen-content">
+                                <p>Loading fullscreen view...</p>
+                            </div>
+                        </div>
+                    {:then FullscreenComponent}
                         {#if FullscreenComponent}
                             <FullscreenComponent
                                 data={{
