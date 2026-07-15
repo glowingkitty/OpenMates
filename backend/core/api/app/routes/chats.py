@@ -66,6 +66,7 @@ async def list_chats(
         limit=limit,
         offset=0,
         sort=NATIVE_CHAT_SORT,
+        admin_required=True,
     )
     return {"chats": [_watch_chat_payload(chat) for chat in chats], "limit": limit}
 

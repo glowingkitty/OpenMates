@@ -30,7 +30,7 @@ def test_native_chat_routes_require_session_authentication() -> None:
         assert get_current_user in dependency_calls
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
     chat_service = SimpleNamespace(
         get_user_chats_metadata=AsyncMock(return_value=[
@@ -71,12 +71,13 @@ async def test_list_chats_returns_bounded_encrypted_metadata() -> None:
         limit=20,
         offset=0,
         sort="-pinned,-last_edited_overall_timestamp",
+        admin_required=True,
     )
     assert "title" not in result["chats"][0]
     assert "chat_summary" not in result["chats"][0]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_list_chat_messages_requires_ownership_before_encrypted_read() -> None:
     chat_service = SimpleNamespace(
         check_chat_ownership=AsyncMock(return_value=True),
@@ -103,7 +104,7 @@ async def test_list_chat_messages_requires_ownership_before_encrypted_read() -> 
     chat_service.get_all_messages_for_chat.assert_awaited_once_with("chat-owned", decrypt_content=False)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_list_chat_messages_hides_cross_user_chat_existence() -> None:
     chat_service = SimpleNamespace(
         check_chat_ownership=AsyncMock(return_value=False),

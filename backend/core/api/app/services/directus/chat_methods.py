@@ -378,7 +378,7 @@ class ChatMethods:
             
             # 3. Cache miss or not primed: Fallback to Directus (DB hit)
             logger.info(f"Ownership check CACHE MISS for chat {chat_id}, user {user_id}. Falling back to DB.")
-            chat_metadata = await self.get_chat_metadata(chat_id)
+            chat_metadata = await self.get_chat_metadata(chat_id, admin_required=True)
             if not chat_metadata:
                 logger.warning(f"Chat {chat_id} not found when checking ownership for user {user_id}")
                 return False
@@ -406,6 +406,7 @@ class ChatMethods:
         limit: int = 100,
         offset: int = 0,
         sort: str = "-pinned,-updated_at",
+        admin_required: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Fetches metadata for all chats belonging to a user from Directus, excluding content.
@@ -422,7 +423,11 @@ class ChatMethods:
             'sort': sort
         }
         try:
-            response = await self.directus_service.get_items('chats', params=params)
+            response = await self.directus_service.get_items(
+                'chats',
+                params=params,
+                admin_required=admin_required,
+            )
             if response and isinstance(response, list):
                 logger.info(f"Successfully fetched {len(response)} chat metadata items for user {user_id}")
                 return response

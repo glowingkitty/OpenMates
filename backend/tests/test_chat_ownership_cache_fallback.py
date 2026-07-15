@@ -28,7 +28,7 @@ def test_check_chat_ownership_falls_back_to_db_when_primed_cache_misses():
     )
 
     assert asyncio.run(chat_methods.check_chat_ownership(chat_id, user_id)) is True
-    chat_methods.get_chat_metadata.assert_awaited_once_with(chat_id)
+    chat_methods.get_chat_metadata.assert_awaited_once_with(chat_id, admin_required=True)
 
 
 def test_check_chat_ownership_rejects_db_owner_mismatch_after_cache_miss():
@@ -45,4 +45,4 @@ def test_check_chat_ownership_rejects_db_owner_mismatch_after_cache_miss():
     )
 
     assert asyncio.run(chat_methods.check_chat_ownership(chat_id, user_id)) is False
-    chat_methods.get_chat_metadata.assert_awaited_once_with(chat_id)
+    chat_methods.get_chat_metadata.assert_awaited_once_with(chat_id, admin_required=True)
