@@ -30,6 +30,20 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
 
+async function assertRecipeAppIsInteractive(previewPageOrFrame: any) {
+	await expect(previewPageOrFrame.getByText('Recipe Manager')).toBeVisible({ timeout: 120_000 });
+	await expect(previewPageOrFrame.getByTestId('recipe-count')).toContainText('3 recipes', { timeout: 30_000 });
+
+	await previewPageOrFrame.getByTestId('recipe-filter').fill('berry');
+	await expect(previewPageOrFrame.getByTestId('recipe-count')).toContainText('1 recipes', { timeout: 10_000 });
+	await expect(previewPageOrFrame.getByTestId('recipe-option')).toHaveText(/Berry oats/i, { timeout: 10_000 });
+	await previewPageOrFrame.getByTestId('recipe-option').click();
+	await expect(previewPageOrFrame.getByTestId('selected-recipe')).toHaveText(/Berry oats/i, { timeout: 10_000 });
+
+	await previewPageOrFrame.getByTestId('cook-button').click();
+	await expect(previewPageOrFrame.getByTestId('cook-count')).toContainText('Cooked 1 times', { timeout: 10_000 });
+}
+
 async function skipWhenApplicationPreviewDisabled(page: any) {
 	const response = await page.request.get(`${API_BASE_URL}/v1/features/availability`);
 	if (!response.ok()) return;
@@ -98,9 +112,20 @@ test('generated application embed starts explicit isolated live preview', async 
 	expect(iframeSrc).not.toContain('e2b.dev');
 	const previewResponse = await page.request.get(iframeSrc || '');
 	expect(previewResponse.ok(), `preview URL failed with ${previewResponse.status()}`).toBe(true);
-	await expect(iframe.contentFrame().getByText(/recipe/i).first()).toBeVisible({ timeout: 120_000 });
+	const previewFrame = iframe.contentFrame();
+	await assertRecipeAppIsInteractive(previewFrame);
 
 	await expect(fullscreenOverlay.getByTestId('application-open-preview-window')).toBeVisible({ timeout: 10_000 });
+	const popupPromise = page.waitForEvent('popup');
+	await fullscreenOverlay.getByTestId('application-open-preview-window').click();
+	const previewPopup = await popupPromise;
+	attachConsoleListeners(previewPopup);
+	attachNetworkListeners(previewPopup);
+	await previewPopup.waitForLoadState('domcontentloaded', { timeout: 60_000 });
+	await expect(previewPopup).toHaveURL(/openmatesusercontent\.org\/t\//, { timeout: 30_000 });
+	await assertRecipeAppIsInteractive(previewPopup);
+	await previewPopup.close();
+
 	await expect(fullscreenOverlay.getByTestId('application-stop-preview')).toBeVisible({ timeout: 10_000 });
 	await fullscreenOverlay.getByTestId('application-stop-preview').click();
 	await expect(fullscreenOverlay.getByTestId('application-preview-status')).toContainText(/stopped|failed|timeout/i, { timeout: 60_000 });
