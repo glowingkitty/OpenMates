@@ -4,10 +4,68 @@
 // local pending message snapshots before watchOS UI tests exercise the shell.
 
 import XCTest
+import CryptoKit
 @testable import OpenMates
 
 @MainActor
 final class WatchChatRuntimeTests: XCTestCase {
+    func testLiveReservedAccountLoginLoadsAndOpensWatchChat() async throws {
+        let credentials = try WatchLiveAccountCredentials.fromEnvironment(preferredReservedSlot: 14)
+        ServerConfiguration.current = ServerProfile.development.endpointConfiguration
+
+        let authManager = AuthManager()
+        let lookup = try await authManager.lookup(email: credentials.email, stayLoggedIn: true)
+        do {
+            try await authManager.loginWithPassword(
+                email: credentials.email,
+                password: credentials.password,
+                userEmailSalt: lookup.userEmailSalt,
+                stayLoggedIn: true
+            )
+        } catch AuthError.tfaRequired {
+            try await authManager.loginWithPassword(
+                email: credentials.email,
+                password: credentials.password,
+                userEmailSalt: lookup.userEmailSalt,
+                tfaCode: WatchLiveTOTP.generate(secret: credentials.otpKey),
+                codeType: "otp",
+                stayLoggedIn: true
+            )
+        }
+
+        XCTAssertEqual(authManager.state, .authenticated)
+        let loggedInUser = try XCTUnwrap(authManager.currentUser)
+        XCTAssertNotNil(try await CryptoManager.shared.loadMasterKey(for: loggedInUser.id))
+
+        let watchAuthStore = WatchAuthStore()
+        await watchAuthStore.checkSession()
+        XCTAssertEqual(watchAuthStore.state, .authenticated)
+        XCTAssertEqual(watchAuthStore.currentUser?.id, loggedInUser.id)
+
+        let runtime = WatchChatRuntime(
+            currentUserId: loggedInUser.id,
+            syncSocket: nil,
+            syncSession: nil
+        )
+        await runtime.refresh()
+
+        XCTAssertFalse(runtime.isOffline, runtime.errorMessage ?? "Watch chat refresh unexpectedly went offline")
+        XCTAssertFalse(runtime.chats.isEmpty, "Real Apple test account must keep at least one decryptable saved chat for Watch smoke coverage")
+
+        var openedMessageCount = 0
+        for chat in runtime.chats.prefix(5) {
+            await runtime.openChat(chat)
+            XCTAssertEqual(runtime.selectedChatId, chat.id)
+            if !runtime.selectedMessages.isEmpty {
+                openedMessageCount = runtime.selectedMessages.count
+                break
+            }
+        }
+
+        XCTAssertGreaterThan(openedMessageCount, 0, "Opening a Watch chat must load at least one message from the real account")
+        XCTAssertFalse(runtime.isOffline, runtime.errorMessage ?? "Watch chat open unexpectedly went offline")
+    }
+
     func testWatchCryptoCanOmitHiddenChatCandidates() throws {
         let appleRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         let runtimeURL = appleRoot.appendingPathComponent("OpenMates/Sources/Core/Watch/WatchChatRuntime.swift")
@@ -389,6 +447,73 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         if shouldThrow { throw URLError(.notConnectedToInternet) }
         transcribedAudioIds.append(upload.embedId)
         return "Watch transcript"
+    }
+}
+
+private struct WatchLiveAccountCredentials {
+    let email: String
+    let password: String
+    let otpKey: String
+
+    static func fromEnvironment(preferredReservedSlot slot: Int) throws -> WatchLiveAccountCredentials {
+        let environment = ProcessInfo.processInfo.environment
+        if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT") {
+            return credentials
+        }
+        if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT_\(slot)") {
+            return credentials
+        }
+        throw XCTSkip("Missing OPENMATES_TEST_ACCOUNT or reserved Apple slot \(slot) credentials")
+    }
+
+    private static func read(environment: [String: String], prefix: String) -> WatchLiveAccountCredentials? {
+        guard let email = environment["\(prefix)_EMAIL"], !email.isEmpty,
+              let password = environment["\(prefix)_PASSWORD"], !password.isEmpty,
+              let otpKey = environment["\(prefix)_OTP_KEY"], !otpKey.isEmpty else {
+            return nil
+        }
+        return WatchLiveAccountCredentials(email: email, password: password, otpKey: otpKey)
+    }
+}
+
+private enum WatchLiveTOTP {
+    static func generate(secret: String, date: Date = Date()) -> String {
+        let secondsIntoWindow = Int(date.timeIntervalSince1970) % 30
+        if secondsIntoWindow >= 25 {
+            Thread.sleep(forTimeInterval: TimeInterval(30 - secondsIntoWindow + 2))
+        }
+        let key = SymmetricKey(data: base32Decode(secret))
+        let counter = UInt64(floor(Date().timeIntervalSince1970 / 30.0))
+        var counterBigEndian = counter.bigEndian
+        let counterData = Data(bytes: &counterBigEndian, count: MemoryLayout<UInt64>.size)
+        let hash = HMAC<Insecure.SHA1>.authenticationCode(for: counterData, using: key)
+        let bytes = Array(hash)
+        let offset = Int(bytes[19] & 0x0f)
+        let code = (UInt32(bytes[offset] & 0x7f) << 24)
+            | (UInt32(bytes[offset + 1]) << 16)
+            | (UInt32(bytes[offset + 2]) << 8)
+            | UInt32(bytes[offset + 3])
+        return String(format: "%06u", code % 1_000_000)
+    }
+
+    private static func base32Decode(_ value: String) -> Data {
+        let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
+        let lookup = Dictionary(uniqueKeysWithValues: alphabet.enumerated().map { ($1, $0) })
+        var bits = 0
+        var bitBuffer = 0
+        var output = Data()
+
+        for character in value.uppercased() where character != "=" && character != " " {
+            guard let index = lookup[character] else { continue }
+            bitBuffer = (bitBuffer << 5) | index
+            bits += 5
+            if bits >= 8 {
+                bits -= 8
+                output.append(UInt8((bitBuffer >> bits) & 0xff))
+            }
+        }
+
+        return output
     }
 }
 
