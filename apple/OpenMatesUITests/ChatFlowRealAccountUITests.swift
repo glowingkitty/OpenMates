@@ -34,6 +34,10 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
         RealAccountUITestSupport.logIn(app: app, credentials: credentials)
         openChatsPanel(in: app)
+        XCTAssertTrue(
+            waitForInitialSyncComplete(in: app, timeout: 35),
+            "Expected initial chat sync to complete before exporting parity manifest. Visible UI: \(visibleStateLabels(in: app))"
+        )
 
         let rows = chatRows(in: app)
         XCTAssertTrue(
@@ -95,6 +99,13 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         } while Date() < deadline
         return rows.count > 0
+    }
+
+    private func waitForInitialSyncComplete(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let marker = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@ AND value == %@", "chat-sync-complete", "true"))
+            .firstMatch
+        return marker.waitForExistence(timeout: timeout)
     }
 
     private func makeLoadedChatsManifest(app: XCUIApplication, rows: XCUIElementQuery) -> [String: Any] {

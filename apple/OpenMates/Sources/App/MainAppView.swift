@@ -106,6 +106,7 @@ struct MainAppView: View {
     @State private var shellSwipeTarget: ShellSwipeTarget?
     @State private var shellDragOffset: CGFloat = 0
     @State private var visibleUserChatLimit = Self.initialUserChatLimit
+    @State private var isInitialSyncComplete = false
     @State private var syncProcessingTask: Task<Void, Never>?
     @State private var backgroundSyncFlushTask: Task<Void, Never>?
     @State private var pendingAssistantResponseFlushTask: Task<Void, Never>?
@@ -279,6 +280,13 @@ struct MainAppView: View {
 
     var body: some View {
         shellWithOverlays
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityIdentifier("chat-sync-complete")
+                .accessibilityLabel("Chat sync complete")
+                .accessibilityValue(isInitialSyncComplete ? "true" : "false")
+        }
         .onOpenURL { url in
             deepLinkHandler.handle(url: url)
         }
@@ -874,6 +882,7 @@ struct MainAppView: View {
 
     private func resetToUnauthenticatedSession() {
         didBootstrapAuthenticatedSession = false
+        isInitialSyncComplete = false
         syncProcessingTask?.cancel()
         syncProcessingTask = nil
         backgroundSyncFlushTask?.cancel()
@@ -2098,6 +2107,7 @@ struct MainAppView: View {
     private func bootstrapAuthenticatedSession() async {
         guard isAuthenticated, !didBootstrapAuthenticatedSession else { return }
         didBootstrapAuthenticatedSession = true
+        isInitialSyncComplete = false
 
         print("[MainApp] Bootstrapping authenticated session")
 
@@ -3184,6 +3194,7 @@ struct MainAppView: View {
                     backgroundSyncFlushTask = nil
                     await flushBackgroundSyncedContent(reason: "syncComplete")
                 }
+                isInitialSyncComplete = true
                 syncBridge?.startOfflinePrefetchIfEligible(reason: "startupSyncComplete")
                 ChatKeyManager.shared.markInitialSyncReady()
                 await appSession.markRecoveryInitialSyncReady()
