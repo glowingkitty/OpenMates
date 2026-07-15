@@ -140,17 +140,23 @@ struct MainAppView: View {
     }
 
     private var filteredPinnedChats: [Chat] {
-        let pinned = chatStore.pinnedChats.filter { self.publicChatGroup(for: $0.id) == nil && self.isTopLevelUserChat($0) }
+        let pinned = chatStore.pinnedChats.filter { self.isVisibleUserChat($0) }
         guard !searchText.isEmpty else { return pinned }
         return pinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
     }
 
     private var filteredUnpinnedChats: [Chat] {
-        let unpinned = chatStore.unpinnedChats.filter { self.publicChatGroup(for: $0.id) == nil && self.isTopLevelUserChat($0) }
+        let unpinned = chatStore.unpinnedChats.filter { self.isVisibleUserChat($0) }
         let filtered = searchText.isEmpty
             ? unpinned
             : unpinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
         return filtered
+    }
+
+    private func isVisibleUserChat(_ chat: Chat) -> Bool {
+        publicChatGroup(for: chat.id) == nil &&
+            isTopLevelUserChat(chat) &&
+            !chat.isHiddenFromNormalSurfaces
     }
 
     private func isTopLevelUserChat(_ chat: Chat) -> Bool {
@@ -3374,7 +3380,7 @@ struct MainAppView: View {
             break
         }
 
-        let searchableUserChats = chatStore.sortedChats.filter { publicChatGroup(for: $0.id) == nil }
+        let searchableUserChats = chatStore.sortedChats.filter { isVisibleUserChat($0) }
         SpotlightIndexer.shared.scheduleIndexChats(
             searchableUserChats,
             reason: "syncMetadata",
