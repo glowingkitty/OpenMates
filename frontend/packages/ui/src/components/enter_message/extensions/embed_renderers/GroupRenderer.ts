@@ -37,6 +37,7 @@ import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPrev
 import TravelConnectionEmbedPreview from "../../../embeds/travel/TravelConnectionEmbedPreview.svelte";
 import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerateEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
@@ -1689,6 +1690,28 @@ export class GroupRenderer implements EmbedRenderer {
             files: decodedContent?.files || undefined,
             aesKey: decodedContent?.aes_key || "",
             aesNonce: decodedContent?.aes_nonce || "",
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "models3d" && skillId === "generate") {
+        const component = mount(Model3DGenerateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            prompt: decodedContent?.prompt || "",
+            providerModel: decodedContent?.provider_model || decodedContent?.model || "",
+            posterUrl: decodedContent?.posterUrl || decodedContent?.poster_url || "",
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
             status: status as "processing" | "finished" | "error",
             error: decodedContent?.error || "",
             taskId,
