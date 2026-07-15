@@ -325,7 +325,11 @@
   embedIds={embedIdsForFullscreen}
   {childEmbedTransformer}
   {legacyResults}
-  onChildrenLoaded={(children) => updateLoadedResults(children as T[])}
+  onChildrenLoaded={(children) => {
+    const typedChildren = children as T[];
+    updateLoadedResults(typedChildren);
+    selectInitialChildFromResults(typedChildren);
+  }}
   {initialChildEmbedId}
   onAutoOpenChild={(index, children) => {
     updateLoadedResults(children as T[]);
