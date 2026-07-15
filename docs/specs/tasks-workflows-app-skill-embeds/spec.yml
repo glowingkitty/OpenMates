@@ -1,7 +1,7 @@
 schema_version: 2
 id: tasks-workflows-app-skill-embeds
 title: Tasks And Workflows App Skill Embeds
-status: verified
+status: approved
 
 goal: >
   Replace dev-only task chat system artifacts with first-class Tasks and Workflows
@@ -9,7 +9,9 @@ goal: >
   chat turns can create, search, and reference durable tasks and workflows through
   app skills; results appear as parent app-skill embeds with structured child
   task or workflow embeds instead of encrypted task-event system messages. SDK
-  parity follows after CLI/backend proof; web fullscreen/detail reuse is deferred.
+  parity follows after CLI/backend proof. The completed backend/CLI/SDK slice is
+  verified; the next approved slice implements responsive web parent/child embed
+  rendering and public example chats from real CLI-created task/workflow runs.
 
 scope:
   in:
@@ -30,19 +32,22 @@ scope:
     - Active workflows with time triggers always project the next scheduled run into a normal visible task entry in the Tasks workspace.
     - Any workflow execution, regardless of trigger type, creates or links a workflow task and reflects running, blocked, skipped, and failed execution state in the task/workflow-run relationship.
     - npm SDK and pip SDK parity after backend/CLI proof.
+    - Web chat rendering for task/workflow parent app-skill embeds and child task/workflow embeds using the existing unified search-results parent/child fullscreen pattern.
+    - Task and workflow child embed fullscreens reuse the existing task/workflow detail UI rather than introducing a separate simplified embed UI.
+    - Public example chats are created from real CLI task/workflow runs, sanitized for public use, and demonstrate both create and search/list parent/child embed browsing.
   out:
     - Production migration of existing task chats, task system messages, or dev task records.
     - Keeping legacy task-event system messages as a compatibility surface.
     - Durable server-side plaintext or Vault-encrypted copies of private task title, description, tags, activity, or instructions.
     - Server-side private task-content search or metadata fallback for task search.
-    - Web app implementation in the first slice.
+    - Web app implementation in the first backend/CLI/SDK slice.
     - Apple implementation in the first slice.
     - Multi-workflow creation in one skill call.
     - Team/shared/multi-owner tasks.
     - Remote filesystem access, code mutation, or high-stakes agentic coding permissions.
+    - A bespoke task/workflow embed detail UI that diverges from the existing workspace detail UI.
+    - OpenMates-internal or customer-specific task/workflow content in public example chats.
   deferred:
-    - Web chat rendering for task/workflow child embeds and fullscreen overlays.
-    - Reusing the same task/workflow detail components between workspace detail pages and chat fullscreen embeds.
     - Apple parity for chat embed rendering and task/workflow detail reuse.
 
 context_discovery:
@@ -67,6 +72,10 @@ context_discovery:
     - frontend/packages/openmates-cli/src/client.ts currently renders `taskEvents` and `pendingTaskUpdateJobs` from task system-event flows.
     - frontend/packages/openmates-cli/tests/tasks.test.ts and sdk-tasks.test.ts contain CLI/SDK task contract coverage that can be extended.
     - frontend/packages/openmates-cli/tests/workflows.test.ts and sdk-workflows.test.ts contain CLI/SDK workflow contract coverage that can be extended.
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte already implements parent fullscreen grids, child preview cards, child fullscreen overlays, deep-linked initial child opening, and prev/next child navigation.
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DSearchEmbedPreview.svelte and Model3DSearchEmbedFullscreen.svelte show the lightweight parent preview plus fullscreen child-grid pattern to follow.
+    - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte and frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte are the detail UIs to reuse inside child embed fullscreens.
+    - .agents/skills/add-example-chat/SKILL.md documents the process for turning real OpenMates CLI chats into public example chats.
   tests:
     - backend/tests/test_task_main_processor_tools.py
     - backend/tests/test_task_update_jobs.py
@@ -158,6 +167,43 @@ clarification:
         Use `<workflow title> - <date and time>`. For scheduled runs the date and
         time is the scheduled run time; for manual or event-triggered runs it is
         the task creation or trigger time.
+    - question: Should web task/workflow embeds follow the same parent and child structure as web search, image search, and other unified search embeds?
+      answer: >
+        Yes. The parent preview shows the summary; parent fullscreen shows all
+        child embed previews; selecting a child opens that child's fullscreen view.
+    - question: Should task/workflow child fullscreens reuse existing detail UIs or use curated embed-only views?
+      answer: >
+        Reuse the same full UI and details from the existing task and workflow
+        detail pages.
+    - question: What should the parent preview prioritize?
+      answer: >
+        Prioritize the user's original query or instruction plus count/status,
+        matching existing search-style parent embeds.
+    - question: Should create/modify parent fullscreens add a separate changes-applied section above the child grid?
+      answer: >
+        No for V1. Keep the search-style parent fullscreen grid only.
+    - question: Should child fullscreen edits use live workspace data or chat snapshots?
+      answer: >
+        Child fullscreens should use live workspace detail stores/services so edits
+        are real. Small chat previews may remain snapshot-based unless existing
+        stores make live preview updates cheap.
+    - question: What task/workflow example chat coverage is needed?
+      answer: >
+        Include one creation example and one search/list example per app when the
+        real CLI output is clean enough.
+    - question: What public example chat domain should be used?
+      answer: >
+        Use realistic examples unrelated to OpenMates, such as neutral personal
+        productivity scenarios. Do not use OpenMates, internal company, customer,
+        or private work content.
+    - question: Should the workflow example be simple or complex?
+      answer: >
+        Use a simple manual workflow for the first public example so the embed UI
+        is easy to understand.
+    - question: Is desktop-only acceptable for the web implementation?
+      answer: >
+        No. The implementation must be responsive like the existing unified embed
+        structure.
   vision_summary: >
     Tasks and Workflows become normal separate app-skill surfaces in chat. Task
     data remains the existing durable task model with client-side encrypted
@@ -166,6 +212,9 @@ clarification:
     model and server-side search. Workflow runs also project into normal visible
     task entries so users can see upcoming, running, blocked, skipped, and failed
     workflow work in the Tasks workspace without editing workflow-owned task data.
+    The web phase renders those artifacts with the existing unified parent/child
+    embed interaction model and full task/workflow detail UI reuse, then publishes
+    sanitized non-OpenMates example chats from real CLI-created outputs.
   approved_by_user: true
 
 implementation_state:
@@ -236,6 +285,39 @@ decisions:
     decision: Workflow-generated tasks are read-only except delete, and deleting a future scheduled workflow task skips that run.
     reason: This avoids two-way schedule editing complexity while giving users a simple way to skip one occurrence.
     decided_at: "2026-07-15T10:00:00Z"
+  - id: D-12
+    status: active
+    decision: Web task/workflow app-skill embeds use the existing unified parent/child search-results interaction model.
+    reason: >
+      The user wants task/workflow embeds to match web search, image search, and
+      existing parent/child embed behavior: parent preview summary, parent
+      fullscreen child grid, and child fullscreen drilldown.
+    decided_at: "2026-07-15T12:00:00Z"
+  - id: D-13
+    status: active
+    decision: Task and workflow child embed fullscreens reuse the existing full task/workflow detail UI.
+    reason: The user explicitly wants the same full UI/details rather than a separate simplified embed-only view.
+    decided_at: "2026-07-15T12:00:00Z"
+  - id: D-14
+    status: active
+    decision: Parent task/workflow previews prioritize the user's original query or instruction plus count/status.
+    reason: This matches existing search-style parent embeds and avoids generated summaries drifting from the child results.
+    decided_at: "2026-07-15T12:00:00Z"
+  - id: D-15
+    status: active
+    decision: Create/modify parent fullscreens do not add a V1 changes-applied section above the child grid.
+    reason: Keeping all parent fullscreens grid-first preserves the existing unified embed model and limits V1 UI scope.
+    decided_at: "2026-07-15T12:00:00Z"
+  - id: D-16
+    status: active
+    decision: Public task/workflow example chats use real CLI-created outputs from neutral non-OpenMates scenarios.
+    reason: The examples should demonstrate real embed behavior without using private, customer, company, or OpenMates-internal data.
+    decided_at: "2026-07-15T12:00:00Z"
+  - id: D-17
+    status: active
+    decision: Responsive behavior is required for the web embed phase.
+    reason: The user expects the implementation to inherit the existing unified responsive embed structure, not ship as a desktop-only first pass.
+    decided_at: "2026-07-15T12:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -387,6 +469,38 @@ scenarios:
       - Blocked tasks include a stable `blocked_reason` enum and a user-facing `blocked_message`.
       - Scheduled workflows create the following future `todo` task as soon as the current scheduled run starts, preserving exactly one next-run task per active time-trigger workflow.
 
+  - id: S-8
+    title: Web renders task and workflow app-skill embeds with parent-child drilldown
+    given:
+      - Alice opens a chat containing Tasks or Workflows app-skill parent embeds from create, modify, or search/list flows.
+      - The parent embed has one or more child `tasks-task` or `workflows-workflow` embed IDs.
+    when:
+      - Alice views the chat on desktop or mobile.
+      - Alice opens the parent embed fullscreen.
+      - Alice selects a child task or workflow preview from the parent fullscreen grid.
+    then:
+      - The parent preview remains lightweight and prioritizes Alice's original query/instruction plus count/status.
+      - The parent fullscreen uses the existing unified `SearchResultsTemplate` parent/child pattern and responsive grid behavior.
+      - Create/modify parent fullscreens do not add a separate V1 changes-applied section above the grid.
+      - Child previews open child fullscreens with previous/next sibling navigation and shareable active child embed IDs.
+      - Task child fullscreens reuse the full Tasks detail UI.
+      - Workflow child fullscreens reuse the full Workflows detail UI.
+      - Edits made from child fullscreens use live workspace services/stores; chat preview cards may remain snapshot-based unless live preview refresh is already available.
+
+  - id: S-9
+    title: Public example chats demonstrate real task and workflow embed flows
+    given:
+      - CLI/backend/SDK task and workflow app-skill contracts are already green against dev.
+      - A maintainer can run real CLI chats against dev test-account state.
+    when:
+      - The maintainer creates example chats for Tasks and Workflows.
+      - The chats cover create and search/list flows when real output is clean enough.
+    then:
+      - The example chats are based on real CLI-created app-skill embed outputs, not hand-authored fake embed payloads.
+      - Example content uses realistic neutral scenarios unrelated to OpenMates, customers, internal company work, or private user data.
+      - The first workflow example uses a simple manual workflow that demonstrates embed browsing clearly.
+      - Public example pages render parent previews, parent fullscreen child grids, and child fullscreens for task/workflow embeds.
+
 contracts:
   apps:
     - app_id: tasks
@@ -437,6 +551,17 @@ contracts:
     - Runs that need user input, require approval, or fail set the linked task to `blocked` with both `blocked_reason` and `blocked_message`.
     - Workflow-generated tasks link to the planned/running workflow run entry.
     - Workflow-generated task titles use `<workflow title> - <date and time>` using the scheduled run time for scheduled runs and the task creation or trigger time for non-time triggers.
+  web_embed_rendering:
+    - Parent preview components for Tasks and Workflows are lightweight and do not hydrate child embeds during chat rendering.
+    - Parent preview copy uses the original query/instruction as the primary text and count/status as secondary metadata.
+    - Parent fullscreens use the existing `SearchResultsTemplate` child-grid and child-overlay behavior.
+    - Child task and workflow preview cards open child fullscreens with sibling navigation.
+    - Child fullscreens reuse full task/workflow detail UI components and their live workspace services/stores.
+    - Web behavior must remain responsive through the existing unified embed structure.
+  example_chats:
+    - Public examples must be produced from real CLI chats against dev, then sanitized and converted through the existing example-chat workflow.
+    - Example domains must be neutral and unrelated to OpenMates, private users, customers, or internal company operations.
+    - The first workflow example should be a simple manual workflow; more complex triggers/conditions are out of scope for the first public example.
 
 acceptance_criteria:
   - id: AC-1
@@ -535,6 +660,46 @@ acceptance_criteria:
     verification_scope: related_backend
     verification_ids:
       - T-PYTEST-WORKFLOW-TASK-PROJECTION
+
+  - id: AC-10
+    scenario: S-8
+    text: Web task/workflow parent embeds render lightweight query/instruction-plus-count previews, and their fullscreens use the existing responsive parent-child grid pattern with child drilldown and sibling navigation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-TASK-WORKFLOW-EMBEDS
+
+  - id: AC-11
+    scenario: S-8
+    text: Task and workflow child embed fullscreens reuse the existing full task/workflow detail UI and live workspace services/stores instead of a bespoke simplified embed UI.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-TASK-WORKFLOW-EMBEDS
+
+  - id: AC-12
+    scenario: S-9
+    text: Public example chats for Tasks and Workflows are created from real CLI outputs, use neutral non-OpenMates scenarios, and demonstrate create plus search/list parent-child embed browsing when output quality permits.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-TASK-WORKFLOW-EXAMPLES
+
+  - id: AC-13
+    scenario: S-8
+    text: Deployed dev web behavior and visual quality for responsive parent/child task/workflow embeds is confirmed by the user after Playwright passes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: user_confirmation
+    verification_ids:
+      - V-USER-WEB-EMBED-CONFIRMATION
 
 assumptions:
   - id: A-1
@@ -906,6 +1071,71 @@ tests:
         timestamp: "2026-07-15T10:50:33Z"
         summary: 9 workflow projection tests passed, covering future scheduled tasks, skipped runs, active run linking, and blocked metadata.
 
+  - id: T-PLAYWRIGHT-TASK-WORKFLOW-EMBEDS
+    type: playwright
+    file: frontend/apps/web_app/tests/task-workflow-app-skill-embeds.spec.ts
+    target: app.dev.openmates.org
+    command: python3 scripts/tests.py run --spec task-workflow-app-skill-embeds.spec.ts
+    covers:
+      - AC-10
+      - AC-11
+    assertions:
+      - task create/search parent previews show original query or instruction plus count/status
+      - workflow create/search parent previews show original query or instruction plus count/status
+      - parent fullscreens render child preview grids through the unified search-results pattern on desktop and mobile widths
+      - selecting task and workflow children opens child fullscreens with previous/next navigation
+      - task child fullscreen reuses the full task detail UI and can perform a live detail edit through existing task services/stores
+      - workflow child fullscreen reuses the full workflow detail UI through existing workflow services/stores
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec task-workflow-app-skill-embeds.spec.ts
+        run_id: pending-web-red-task-workflow-embeds
+        timestamp: ""
+        summary: Run against currently deployed dev before web implementation; expected failure is missing task/workflow web embed renderers or child fullscreen detail reuse.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec task-workflow-app-skill-embeds.spec.ts
+        run_id: pending-web-green-task-workflow-embeds
+        timestamp: ""
+        summary: Run after deployment to dev and Vercel Ready; must pass for responsive parent/child embed rendering and child detail reuse.
+
+  - id: T-PLAYWRIGHT-TASK-WORKFLOW-EXAMPLES
+    type: playwright
+    file: frontend/apps/web_app/tests/task-workflow-example-chats.spec.ts
+    target: app.dev.openmates.org
+    command: python3 scripts/tests.py run --spec task-workflow-example-chats.spec.ts
+    covers:
+      - AC-12
+    assertions:
+      - public task example chat renders real CLI-created task create and search/list parent embeds
+      - public workflow example chat renders real CLI-created workflow create and search/list parent embeds when output quality permits
+      - example content uses neutral non-OpenMates scenarios and contains no private/customer/internal identifiers
+      - opening example parent embeds shows child grids and child fullscreens
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec task-workflow-example-chats.spec.ts
+        run_id: pending-web-red-task-workflow-examples
+        timestamp: ""
+        summary: Run against currently deployed dev before examples are added; expected failure is missing public task/workflow example chats or missing web child drilldown.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec task-workflow-example-chats.spec.ts
+        run_id: pending-web-green-task-workflow-examples
+        timestamp: ""
+        summary: Run after deployment to dev and Vercel Ready; must pass for public example chat rendering and drilldown.
+
 verifications:
   - id: V-SDK-CLI-PARITY
     kind: deterministic_check
@@ -949,6 +1179,19 @@ verifications:
       run_id: local-pytest-code-quality-guard-20260715T105033Z
       subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
       timestamp: "2026-07-15T10:50:33Z"
+  - id: V-USER-WEB-EMBED-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-13
+    status: pending
+    evidence:
+      status: pending
+      command: user confirms deployed dev task/workflow parent-child embed UX after Playwright green
+      run_id: pending-user-web-task-workflow-embed-confirmation
+      timestamp: ""
+      summary: User must confirm responsive visual quality and interaction behavior on deployed dev after automated web checks pass.
 
 implementation_plan:
   spec_path: docs/specs/tasks-workflows-app-skill-embeds/spec.yml
@@ -961,13 +1204,20 @@ implementation_plan:
     - backend/tests/test_workflow_app_skill_adapter.py
     - frontend/packages/openmates-cli/tests/tasks.test.ts
     - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/models3d/Model3DSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
   architecture: >
     Add Tasks and Workflows app-skill contracts that produce app-skill parent
     embeds with child task/workflow embeds. Preserve durable task and workflow
     storage models; change chat connection artifacts from task system messages to
     embed references. Backend owns skill schemas, execution routing, privacy
     boundaries, and task-search request lifecycle. CLI is the first capable client
-    and renders/fulfills these contracts before SDKs are added.
+    and renders/fulfills these contracts before SDKs are added. The later web
+    phase registers task/workflow parent and child embed renderers that reuse the
+    existing SearchResultsTemplate parent-child behavior and existing workspace
+    detail components.
   data_flow:
     - User asks in CLI chat to create tasks, create/modify a workflow, or search tasks/workflows.
     - Main processing selects the Tasks or Workflows app skill.
@@ -980,6 +1230,9 @@ implementation_plan:
     - Workflow scheduling projects the next active time-trigger run into a visible read-only task; deleting it marks the run `skipped_by_user` and advances to the following run.
     - Workflow execution from any trigger creates or links a visible workflow task and updates that task to `in_progress` or `blocked` as the run progresses.
     - npm SDK and pip SDK expose the same payload shapes after CLI/backend proof.
+    - Web chat parent previews render the original instruction/query plus count/status without loading child embeds during chat render.
+    - Web parent fullscreens load child task/workflow embeds, render a responsive child preview grid, and open selected children into full task/workflow detail overlays.
+    - Public example chats are produced from real CLI runs, sanitized, registered in the example chat catalog, and verified on deployed dev.
   affected_files:
     - path: backend/apps/tasks/app.yml
       reason: New Tasks app metadata and app-skill declarations if no app folder exists yet.
@@ -1017,6 +1270,30 @@ implementation_plan:
       reason: CLI workflow app-skill embed coverage.
     - path: packages/openmates-python/tests/test_sdk.py
       reason: pip SDK parity coverage.
+    - path: frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedPreview.svelte
+      reason: Lightweight parent preview for task create/search/list app-skill embeds.
+    - path: frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedFullscreen.svelte
+      reason: Parent fullscreen grid for task child embeds using SearchResultsTemplate.
+    - path: frontend/packages/ui/src/components/embeds/tasks/TaskEmbedPreview.svelte
+      reason: Child task preview card rendered inside parent fullscreen grids.
+    - path: frontend/packages/ui/src/components/embeds/tasks/TaskEmbedFullscreen.svelte
+      reason: Child task fullscreen wrapper around the existing task detail UI.
+    - path: frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedPreview.svelte
+      reason: Lightweight parent preview for workflow create/search/list app-skill embeds.
+    - path: frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedFullscreen.svelte
+      reason: Parent fullscreen grid for workflow child embeds using SearchResultsTemplate.
+    - path: frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedPreview.svelte
+      reason: Child workflow preview card rendered inside parent fullscreen grids.
+    - path: frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.svelte
+      reason: Child workflow fullscreen wrapper around the existing workflow detail UI.
+    - path: frontend/packages/ui/src/data/embedRegistry.generated.ts
+      reason: Generated registry should include task/workflow parent and child embed renderers after metadata generation.
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/task-workflow-*.ts
+      reason: Public example chat fixtures converted from real CLI-created outputs.
+    - path: frontend/apps/web_app/tests/task-workflow-app-skill-embeds.spec.ts
+      reason: Live dev Playwright coverage for responsive parent-child embed rendering and child detail reuse.
+    - path: frontend/apps/web_app/tests/task-workflow-example-chats.spec.ts
+      reason: Live dev Playwright coverage for public task/workflow example chats.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/tasks-workflows-app-skill-embeds/spec.yml
     - python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py backend/tests/test_workflow_app_skill_embeds.py
@@ -1026,14 +1303,16 @@ implementation_plan:
     - node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-tasks.test.ts tests/sdk-workflows.test.ts
     - python3 -m pytest packages/openmates-python/tests/test_sdk.py
     - python3 scripts/audit_sdk_cli_parity.py
+    - python3 scripts/tests.py run --spec task-workflow-app-skill-embeds.spec.ts
+    - python3 scripts/tests.py run --spec task-workflow-example-chats.spec.ts
     - python3 scripts/spec_verify.py docs/specs/tasks-workflows-app-skill-embeds/spec.yml --phase green
   verification_order:
     - Backend contract tests for app-skill embed shapes, assignment, privacy boundaries, task search lifecycle, workflow search behavior, and workflow-run task projection.
     - CLI tests and real dev CLI smoke using explicit typed task/workflow commands for parent/child embed output and connected-client task search.
     - Deterministic guard proving generic `openmates apps <app> <skill>` execution cannot be reintroduced.
     - npm SDK and pip SDK parity after backend/CLI proof.
-    - Web Playwright only in a later frontend phase after deploy.
-    - User confirmation for user-visible web UI only in the later frontend phase.
+    - Web Playwright after deploy for responsive parent-child task/workflow embed rendering, child detail reuse, and public example chats.
+    - User confirmation for deployed dev responsive web UI and visual quality after Playwright green.
     - Apple remote build/test only when Apple task/workflow embed UI is implemented.
 
 tasks:
@@ -1293,4 +1572,81 @@ tasks:
       files:
         - docs/specs/tasks-workflows-app-skill-embeds/spec.yml
       shared_files: []
+    independently_deployable: true
+
+  - id: TASK-9
+    title: Implement responsive web task/workflow parent-child embed rendering
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-10
+        - AC-11
+        - AC-13
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.svelte
+      - frontend/packages/ui/src/data/embedRegistry.generated.ts
+      - frontend/apps/web_app/tests/task-workflow-app-skill-embeds.spec.ts
+    verification_ids:
+      - T-PLAYWRIGHT-TASK-WORKFLOW-EMBEDS
+      - V-USER-WEB-EMBED-CONFIRMATION
+    dependencies:
+      - TASK-5
+    blockers: []
+    follow_up_tasks:
+      - TASK-10
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedPreview.svelte
+        - frontend/packages/ui/src/components/embeds/tasks/TaskSearchEmbedFullscreen.svelte
+        - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedPreview.svelte
+        - frontend/packages/ui/src/components/embeds/tasks/TaskEmbedFullscreen.svelte
+        - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedPreview.svelte
+        - frontend/packages/ui/src/components/embeds/workflows/WorkflowSearchEmbedFullscreen.svelte
+        - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedPreview.svelte
+        - frontend/packages/ui/src/components/embeds/workflows/WorkflowEmbedFullscreen.svelte
+        - frontend/apps/web_app/tests/task-workflow-app-skill-embeds.spec.ts
+      shared_files:
+        - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+        - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    independently_deployable: true
+
+  - id: TASK-10
+    title: Create public task/workflow example chats from real CLI outputs
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-9
+      acceptance_criteria:
+        - AC-12
+        - AC-13
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/data/example_chats/task-workflow-*.ts
+      - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+      - frontend/apps/web_app/tests/task-workflow-example-chats.spec.ts
+    verification_ids:
+      - T-PLAYWRIGHT-TASK-WORKFLOW-EXAMPLES
+      - V-USER-WEB-EMBED-CONFIRMATION
+    dependencies:
+      - TASK-9
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/ui/src/demo_chats/data/example_chats/task-workflow-*.ts
+        - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+        - frontend/apps/web_app/tests/task-workflow-example-chats.spec.ts
+      shared_files:
+        - frontend/packages/openmates-cli/src/exampleChats.ts
     independently_deployable: true
