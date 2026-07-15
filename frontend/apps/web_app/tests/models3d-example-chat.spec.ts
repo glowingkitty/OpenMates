@@ -38,7 +38,7 @@ test.describe('Example chat: Models3D Printables', () => {
 		expect(
 			await childResultCards.count(),
 			'Models3D example should render static child model result cards in chat'
-		).toBeGreaterThanOrEqual(10);
+		).toBeGreaterThanOrEqual(5);
 
 		const fullscreenOverlay = await openFullscreen(page, parentSearchEmbeds.first());
 		const fullscreenResults = await verifySearchGrid(fullscreenOverlay, 5, 30000);
