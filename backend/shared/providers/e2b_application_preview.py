@@ -333,7 +333,7 @@ def _is_vite_dev_command(command: str) -> bool:
 
 
 def _write_vite_allowed_hosts_config(sandbox: Any, files: list[ApplicationPreviewFile], allowed_hosts: list[str]) -> str | None:
-    if not allowed_hosts or not _has_vite_dependency(files) or _has_existing_vite_config(files):
+    if not allowed_hosts or not _has_vite_dependency(files):
         return None
     hosts = ", ".join(repr(host) for host in allowed_hosts)
     uses_svelte = _has_svelte_vite_plugin_dependency(files)
