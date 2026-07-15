@@ -1,0 +1,95 @@
+template_share.title:
+  context: Heading for the Workflow template sharing panel
+  en: Share as template
+
+template_share.create_link:
+  context: Button that creates a short Workflow template share link
+  en: Create template link
+
+template_share.import:
+  context: Button that imports a decrypted Workflow template
+  en: Import template
+
+template_share.complete_bindings:
+  context: Button that confirms recipient bindings before enabling an imported Workflow
+  en: Complete requirements and enable
+
+template_share.revoked:
+  context: Status shown after the owner revokes a Workflow template projection
+  en: Template access revoked.
+
+version_history.title:
+  context: Heading for the immutable Workflow definition version history
+  en: Definition history
+
+version_history.retention:
+  context: Capped Workflow definition history retention label
+  en: Keeps up to {max} definitions
+
+version_history.retention_loading:
+  context: Placeholder while Workflow history retention is loading
+  en: Loading retention...
+
+version_history.loading:
+  context: Loading state for Workflow definition history
+  en: Loading definition history...
+
+version_history.empty:
+  context: Empty state when a Workflow has no definition history
+  en: No definition history is available yet.
+
+version_history.version:
+  context: Workflow definition version label
+  en: Version {version}
+
+version_history.current:
+  context: Marker for the current immutable Workflow definition version
+  en: Current
+
+version_history.restored:
+  context: Marker for a Workflow definition created by restoring an earlier version
+  en: Restored
+
+version_history.inspecting:
+  context: Loading state for a selected historical Workflow graph
+  en: Loading definition...
+
+version_history.inspecting_version:
+  context: Heading for the read-only graph inspection of a Workflow version
+  en: Version {version} graph
+
+version_history.nodes:
+  context: Label following a count of nodes in a historical Workflow graph
+  en: nodes
+
+version_history.restore_as_new:
+  context: Action to restore a selected Workflow definition as a new current version
+  en: Restore version {version} as new current version
+
+version_history.restore_explanation:
+  context: Confirmation explanation that a Workflow restore adds a new immutable version
+  en: This creates a new current version. The selected and existing versions remain unchanged.
+
+version_history.confirm_restore:
+  context: Confirmation action for restoring a Workflow definition as a new version
+  en: Create new current version
+
+version_history.restoring:
+  context: Loading label while restoring a Workflow definition version
+  en: Restoring...
+
+version_history.restore_success:
+  context: Success message after a Workflow definition is restored as a new current version
+  en: Restored version {version} as a new current version.
+
+version_history.load_failed:
+  context: Visible failure when Workflow definition history cannot load
+  en: Failed to load definition history.
+
+version_history.inspect_failed:
+  context: Visible failure when a historical Workflow graph cannot load
+  en: Failed to load the selected definition.
+
+version_history.restore_failed:
+  context: Visible failure when restoring a Workflow definition version fails
+  en: Failed to restore the selected definition.
