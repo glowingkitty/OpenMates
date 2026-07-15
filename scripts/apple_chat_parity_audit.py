@@ -26,6 +26,10 @@ EMBED_PREVIEW = REPO_ROOT / "apple/OpenMates/Sources/Features/Embeds/Views/Embed
 CHAT_CSS = REPO_ROOT / "frontend/packages/ui/src/styles/chat.css"
 FIELDS_CSS = REPO_ROOT / "frontend/packages/ui/src/styles/fields.css"
 UNIFIED_EMBED_PREVIEW = REPO_ROOT / "frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte"
+CHAT_RENDERING_ORACLE_SPEC = REPO_ROOT / "frontend/apps/web_app/tests/chat-rendering-parity-oracle.spec.ts"
+APPLE_REAL_ACCOUNT_TEST = REPO_ROOT / "apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift"
+CHAT_RENDERING_COMPARATOR = REPO_ROOT / "scripts/compare_chat_render_parity.py"
+CHAT_RENDERING_PARITY_DOC = REPO_ROOT / "docs/architecture/apple/chat-rendering-parity.md"
 
 
 REQUIRED_IDENTIFIERS = {
@@ -162,6 +166,41 @@ def audit_web_to_apple_constants() -> list[str]:
     return failures
 
 
+def audit_loaded_chat_parity_harness() -> list[str]:
+    failures: list[str] = []
+    required_files = [
+        CHAT_RENDERING_ORACLE_SPEC,
+        APPLE_REAL_ACCOUNT_TEST,
+        CHAT_RENDERING_COMPARATOR,
+        CHAT_RENDERING_PARITY_DOC,
+    ]
+    for path in required_files:
+        if not path.exists():
+            failures.append(fail(f"Missing loaded-chat parity harness file {path.relative_to(REPO_ROOT)}"))
+            return failures
+
+    web_oracle = read(CHAT_RENDERING_ORACLE_SPEC)
+    apple_test = read(APPLE_REAL_ACCOUNT_TEST)
+    comparator = read(CHAT_RENDERING_COMPARATOR)
+    parity_doc = read(CHAT_RENDERING_PARITY_DOC)
+
+    checks = [
+        (web_oracle, "surface: 'loaded-user-chats'", "Web oracle no longer exports the loaded-user-chats surface"),
+        (web_oracle, "web-loaded-chats-manifest.json", "Web oracle no longer writes the web loaded-chats manifest"),
+        (web_oracle, "web-loaded-chats-sidebar.png", "Web oracle no longer captures the loaded-chats screenshot"),
+        (apple_test, "testPasswordOtpLoginLoadsRecentChatsForWebParityManifest", "Apple real-account test no longer emits the loaded-chats parity manifest"),
+        (apple_test, "apple-loaded-chats-manifest.json", "Apple test no longer writes the loaded-chats manifest"),
+        (comparator, 'EXPECTED_SURFACE = "loaded-user-chats"', "Comparator no longer validates the loaded-user-chats surface"),
+        (parity_doc, "chat-rendering-parity-oracle.spec.ts", "Parity doc no longer references the web oracle spec"),
+        (parity_doc, "compare_chat_render_parity.py", "Parity doc no longer references the comparator"),
+    ]
+    for source, needle, message in checks:
+        failure = _require(source, needle, message)
+        if failure:
+            failures.append(failure)
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit Apple chat-flow scalability and parity guardrails")
     parser.add_argument("--surface", choices=("chat-flow",), default="chat-flow")
@@ -173,6 +212,7 @@ def main() -> int:
         failures.extend(audit_chat_flow_identifiers())
         failures.extend(audit_forbidden_controls())
         failures.extend(audit_web_to_apple_constants())
+        failures.extend(audit_loaded_chat_parity_harness())
 
     if failures:
         print("Apple chat parity audit failed:")
