@@ -2683,7 +2683,14 @@ function buildSkillInput(
   if (typeof flags.query === "string" && flags.query.trim()) {
     const query = flags.query.trim();
     if (usesFlatInput) return { query };
-    return { requests: [{ query }] };
+    const request: Record<string, unknown> = { query };
+    const count = parseOptionalPositiveInteger(flags.count);
+    if (count !== undefined) request.count = count;
+    const providers = parseOptionalCsvFlag(flags.providers ?? flags.provider);
+    if (providers.length > 0) request.providers = providers;
+    if (typeof flags.sort === "string" && flags.sort.trim()) request.sort = flags.sort.trim();
+    if (flags["free-only"] === true) request.free_only = true;
+    return { requests: [request] };
   }
   const inlineText = inlineTokens.join(" ").trim();
   if (inlineText) {
@@ -2697,6 +2704,20 @@ function buildSkillInput(
     return { requests: [{ [paramName]: inlineText }] };
   }
   return {};
+}
+
+function parseOptionalPositiveInteger(value: string | boolean | undefined): number | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseOptionalCsvFlag(value: string | boolean | undefined): string[] {
+  if (typeof value !== "string") return [];
+  return value
+    .split(/[\n,]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 async function buildModels3DGenerateInput(

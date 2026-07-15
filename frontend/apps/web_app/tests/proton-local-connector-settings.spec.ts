@@ -103,7 +103,7 @@ test.describe('Proton local connector settings', () => {
 
 		const details = connectedAccountsPage.getByTestId('privacy-connected-account-detail');
 		await expect(details).toContainText('Mail');
-		await expect(details).toContainText('Read, Write');
+		await expect(details).toContainText('Read events, Write events');
 		await expect(connectedAccountsPage).not.toContainText(FORBIDDEN_SECRET_TEXT);
 		await takeStepScreenshot(page, 'proton-local-connector-online');
 
