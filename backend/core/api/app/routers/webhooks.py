@@ -9,7 +9,7 @@
 # Incoming flow (mirrors the reminder pattern — see backend/apps/reminder/tasks.py):
 #   1. Auth + rate-limit + dedupe the webhook key.
 #   2. Pre-create the chat in Directus so later AI persistence has a row to attach to.
-#   3. Broadcast a `webhook_chat` WebSocket event with PLAINTEXT content to any online
+#   3. Send a `webhook_chat` WebSocket event with PLAINTEXT content to one online
 #      device for that user. The frontend handler encrypts with a freshly-generated
 #      chat key and persists via `chat_system_message_added`, matching reminder_fired.
 #   4. If the user is offline, queue an email notification + cache a vault-encrypted
@@ -44,6 +44,25 @@ from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCuto
 
 logger = logging.getLogger(__name__)
 SERVER_TRIGGER_TASK_IDENTITY_PREFIX = "server-trigger:"
+
+
+def _select_webhook_chat_device(manager: Any, user_id: str) -> Optional[str]:
+    """Select the single device that should create the encrypted webhook chat."""
+    get_connections = getattr(manager, "get_connections_for_user", None)
+    if callable(get_connections):
+        connections = get_connections(user_id)
+    else:
+        connections = getattr(manager, "active_connections", {}).get(user_id, {})
+    device_hashes = sorted(connections.keys())
+    if not device_hashes:
+        return None
+
+    is_completion_capable = getattr(manager, "is_connection_completion_capable", None)
+    if callable(is_completion_capable):
+        for device_hash in device_hashes:
+            if is_completion_capable(user_id, device_hash):
+                return device_hash
+    return device_hashes[0]
 
 router = APIRouter(
     prefix="/v1/webhooks",
@@ -462,7 +481,7 @@ async def webhook_incoming(
     Mirrors the reminder-fired flow (backend/apps/reminder/tasks.py):
       1. Pre-create a minimal chat row in Directus so the AI response has something
          to attach to.
-      2. Broadcast a `webhook_chat` WebSocket event carrying PLAINTEXT content —
+      2. Send one `webhook_chat` WebSocket event carrying PLAINTEXT content —
          the WS channel is already TLS + session-authenticated, and the frontend
          is responsible for chat-key-encrypting and persisting via
          `chat_system_message_added`.
@@ -582,14 +601,15 @@ async def webhook_incoming(
         logger.warning(f"Failed to cache pending webhook chat record: {e}")
         # Non-fatal — online delivery path doesn't depend on this cache.
 
-    # --- Broadcast plaintext via WebSocket (reminder_fired pattern) ---
+    # --- Send plaintext to one WebSocket device (reminder_fired pattern) ---
     user_is_online = False
     try:
         from backend.core.api.app.routes.websockets import manager
-        user_is_online = manager.is_user_active(user_id)
+        target_device_hash = _select_webhook_chat_device(manager, user_id)
+        user_is_online = bool(target_device_hash) or manager.is_user_active(user_id)
 
-        if user_is_online:
-            await manager.broadcast_to_user(
+        if target_device_hash:
+            await manager.send_personal_message(
                 message={
                     "type": "webhook_chat",
                     "event": "webhook_chat",
@@ -604,13 +624,14 @@ async def webhook_incoming(
                     },
                 },
                 user_id=user_id,
+                device_fingerprint_hash=target_device_hash,
             )
             logger.info(
                 f"Delivered webhook chat {chat_id} to online user {user_id[:8]}... "
-                f"(status={status_value})"
+                f"device {target_device_hash[:8]}... (status={status_value})"
             )
     except Exception as e:
-        logger.warning(f"Failed to broadcast webhook_chat WS event: {e}")
+        logger.warning(f"Failed to send webhook_chat WS event: {e}")
         # Non-fatal — offline delivery path still fires below.
 
     # --- Offline notification (only when no device was live to receive it) ---
