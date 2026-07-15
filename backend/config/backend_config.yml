@@ -17,7 +17,6 @@
 # default_enabled: false. `disabled` can disable default-on features.
 feature_overrides:
   enabled:
-    - "embed:code:application"
     - "platform:workflows"
     - "platform:tasks"
   disabled:

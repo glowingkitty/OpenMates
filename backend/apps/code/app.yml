@@ -368,7 +368,6 @@ embed_types:
   # Generated application project — parent embed that references child code-code files.
   - id: application
     category: direct
-    default_enabled: false # Temporarily unavailable while application previews are unstable.
     frontend_type: code-application
     backend_type: application
     has_children: true
