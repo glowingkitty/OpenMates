@@ -24,6 +24,7 @@ import {
   type LearningModeAgeGroup,
   type LearningModeStatus,
   type SubChatApprovalRequest,
+  type ApiKeyListResult,
   type BankTransferOrderDetails,
   type BankTransferStatus,
   type GiftCardBankTransferStatus,
@@ -3043,7 +3044,7 @@ async function printSettingsResult(
 }
 
 function printApiKeyList(
-  result: { api_keys: Array<Record<string, unknown>> },
+  result: ApiKeyListResult,
   flags: Record<string, string | boolean>,
 ): void {
   if (flags.json === true) {
