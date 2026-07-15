@@ -145,6 +145,11 @@ test.describe('Proton Bridge live connector smoke', () => {
 		const child = spawnBridgeCli(bridgeBinary);
 
 		let output = '';
+		let outputCheckpoint = 0;
+		const newOutput = () => output.slice(outputCheckpoint);
+		const markOutputCheckpoint = () => {
+			outputCheckpoint = output.length;
+		};
 		child.stdout.on('data', (data: Buffer) => {
 			output += data.toString();
 		});
@@ -153,40 +158,45 @@ test.describe('Proton Bridge live connector smoke', () => {
 		});
 
 		try {
-			await waitForOutput(() => output, BRIDGE_READY_RE, 'initial Bridge prompt');
+			await waitForOutput(newOutput, BRIDGE_READY_RE, 'initial Bridge prompt');
+			markOutputCheckpoint();
 			child.stdin.write('login\n');
 
-			await waitForOutput(() => output, /username|email|login/i, 'Bridge username prompt');
+			await waitForOutput(newOutput, /username|email|login/i, 'Bridge username prompt');
+			markOutputCheckpoint();
 			child.stdin.write(`${PROTON_EMAIL}\n`);
 
-			await waitForOutput(() => output, /password/i, 'Bridge password prompt');
+			await waitForOutput(newOutput, /password/i, 'Bridge password prompt');
+			markOutputCheckpoint();
 			child.stdin.write(`${PROTON_PASSWORD}\n`);
 
 			const postPasswordState = await waitForEitherOutput(
-				() => output,
+				newOutput,
 				[
 					{ label: 'totp', pattern: /2fa|two[- ]?factor|totp|authenticator|verification code/i },
-					{ label: 'prompt', pattern: BRIDGE_READY_RE },
-					{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged/i }
+					{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged|successfully added/i },
+					{ label: 'prompt', pattern: BRIDGE_READY_RE }
 				],
 				45_000
 			);
+			markOutputCheckpoint();
 
 			if (postPasswordState === 'totp') {
 				test.skip(!PROTON_TOTP_KEY, 'PROTON_BRIDGE_TEST_TOTP_KEY is required when the Proton account prompts for 2FA.');
 				child.stdin.write(`${generateTotp(PROTON_TOTP_KEY)}\n`);
 				await waitForEitherOutput(
-					() => output,
+					newOutput,
 					[
-						{ label: 'prompt', pattern: BRIDGE_READY_RE },
-						{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged/i }
+						{ label: 'logged-in', pattern: /logged in|signed in|account added|already.*logged|successfully added/i },
+						{ label: 'prompt', pattern: BRIDGE_READY_RE }
 					],
 					45_000
 				);
+				markOutputCheckpoint();
 			}
 
 			child.stdin.write('info\n');
-			await waitForOutput(() => output, /imap|smtp/i, 'Bridge info output', 30_000);
+			await waitForOutput(newOutput, /imap|smtp/i, 'Bridge info output', 30_000);
 
 			const info = extractInfoSection(output);
 			expect(info).toMatch(/imap/i);
