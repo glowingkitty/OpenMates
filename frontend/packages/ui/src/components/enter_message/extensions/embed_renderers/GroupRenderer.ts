@@ -12,6 +12,10 @@ import {
 import { embedStore } from "../../../../services/embedStore";
 import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
 import {
+  hasFullscreenComponent,
+  resolveRegistryKey,
+} from "../../../../services/embedFullscreenResolver";
+import {
   downloadCodeFilesAsZip,
   type CodeFileData,
 } from "../../../../services/zipExportService";
@@ -6233,7 +6237,14 @@ export class GroupRenderer implements EmbedRenderer {
     let targetDecodedContent = finalDecodedContent;
     let targetAttrs: EmbedNodeAttributes | undefined = attrs;
 
-    if (rawEmbedId && attrs.contentRef?.startsWith("embed:")) {
+    const directRegistryKey = resolveRegistryKey(
+      embedType,
+      finalDecodedContent ?? undefined,
+    );
+    const canOpenDirectly = !!directRegistryKey &&
+      hasFullscreenComponent(directRegistryKey);
+
+    if (rawEmbedId && attrs.contentRef?.startsWith("embed:") && !canOpenDirectly) {
       try {
         const resolvedTarget = resolveExampleFullscreenTarget(rawEmbedId) ??
           await embedStore.resolveFullscreenTarget(rawEmbedId);
@@ -6251,9 +6262,8 @@ export class GroupRenderer implements EmbedRenderer {
       }
     }
 
-    // Dispatch custom event to open fullscreen view.
-    // Child result cards route through their parent search fullscreen so the
-    // parent can auto-focus the clicked result via focusChildEmbedId.
+    // Dispatch custom event to open fullscreen view. Child embeds with their
+    // own fullscreen open directly; others route through a parent container.
     const event = new CustomEvent("embedfullscreen", {
       detail: {
         embedId: targetEmbedId,
