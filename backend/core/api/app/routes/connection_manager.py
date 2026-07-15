@@ -222,7 +222,7 @@ class ConnectionManager:
                 self.connection_foreground_state.pop(connection_key, None)
                 self.task_update_job_capability.pop(connection_key, None)
 
-    async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str):
+    async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str) -> bool:
         websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
         if websocket:
             # Skip silently if the server-side socket has already transitioned
@@ -234,13 +234,14 @@ class ConnectionManager:
                     f"ws already closed (grace period). Triggering disconnect cleanup."
                 )
                 self.disconnect(websocket, reason="ws already closed when sending")
-                return
+                return False
             try:
                 await websocket.send_json(message)
                 logger.debug(
                     f"Sent message to User {user_id}, Device {device_fingerprint_hash} "
                     f"(message_summary={_safe_message_summary(message)})"
                 )
+                return True
             except Exception as e: # Catch any exception during send
                 if _is_closed_ws_error(e):
                     logger.debug(
@@ -250,8 +251,10 @@ class ConnectionManager:
                 else:
                     logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash} (ws_id: {id(websocket)}): {e}. Initiating disconnect process.")
                 self.disconnect(websocket, reason=f"Send error: {type(e).__name__}") # Pass reason
+                return False
         else:
             logger.warning(f"Attempted to send personal message to {user_id}/{device_fingerprint_hash}, but no active WebSocket found (possibly in grace period or fully disconnected).")
+            return False
 
     async def broadcast_to_user(self, message: dict, user_id: str, exclude_device_hash: str = None):
         """Sends a message to all connected devices for a specific user, optionally excluding one."""

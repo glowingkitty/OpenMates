@@ -274,6 +274,8 @@ def _reset_stubs(user_online: bool = True):
     _FAKE_WS_MANAGER.is_connection_completion_capable.reset_mock()
     _FAKE_WS_MANAGER.is_connection_completion_capable.return_value = True
     _FAKE_WS_MANAGER.send_personal_message.reset_mock()
+    _FAKE_WS_MANAGER.send_personal_message.return_value = True
+    _FAKE_WS_MANAGER.send_personal_message.side_effect = None
     _FAKE_WS_MANAGER.broadcast_to_user.reset_mock()
     _FAKE_CELERY_APP.send_task.reset_mock()
 
@@ -474,6 +476,47 @@ async def test_webhook_incoming_sends_plaintext_to_one_connection_only():
     _FAKE_WS_MANAGER.broadcast_to_user.assert_not_called()
     _FAKE_WS_MANAGER.send_personal_message.assert_awaited_once()
     assert _FAKE_WS_MANAGER.send_personal_message.await_args.kwargs["device_fingerprint_hash"] == "device-b"
+
+
+@pytest.mark.asyncio
+async def test_webhook_incoming_retries_next_connection_when_first_is_stale():
+    _reset_stubs(user_online=True)
+    _FAKE_WS_MANAGER.get_connections_for_user.return_value = {
+        "device-a": object(),
+        "device-b": object(),
+    }
+    _FAKE_WS_MANAGER.is_connection_completion_capable.side_effect = (
+        lambda _user_id, device_hash: device_hash == "device-a"
+    )
+    _FAKE_WS_MANAGER.send_personal_message.side_effect = [False, True]
+    cache = _make_cache_service()
+    enc = _make_encryption_service()
+    directus = _make_directus_service()
+    request = _make_request(cache, enc, directus)
+
+    fake_registry = MagicMock()
+    fake_registry.dispatch_skill = AsyncMock(return_value={"task_id": "tk"})
+
+    with patch(
+        "backend.core.api.app.services.skill_registry.get_global_registry",
+        return_value=fake_registry,
+    ), patch(
+        "backend.core.api.app.routers.webhooks.ChatRecoveryCutoverController",
+        _FakeCutoverController,
+    ):
+        await _webhook_incoming_handler()(
+            request=request,
+            payload={"message": "retry stale"},
+            webhook_info=_make_webhook_info(),
+        )
+
+    assert _FAKE_WS_MANAGER.send_personal_message.await_count == 2
+    sent_devices = [
+        call.kwargs["device_fingerprint_hash"]
+        for call in _FAKE_WS_MANAGER.send_personal_message.await_args_list
+    ]
+    assert sent_devices == ["device-a", "device-b"]
+    _FAKE_WS_MANAGER.broadcast_to_user.assert_not_called()
 
 
 def test_render_webhook_template_falls_back_on_broken_template():

@@ -46,8 +46,8 @@ logger = logging.getLogger(__name__)
 SERVER_TRIGGER_TASK_IDENTITY_PREFIX = "server-trigger:"
 
 
-def _select_webhook_chat_device(manager: Any, user_id: str) -> Optional[str]:
-    """Select the single device that should create the encrypted webhook chat."""
+def _select_webhook_chat_devices(manager: Any, user_id: str) -> List[str]:
+    """Order devices that can create the encrypted webhook chat."""
     get_connections = getattr(manager, "get_connections_for_user", None)
     if callable(get_connections):
         connections = get_connections(user_id)
@@ -55,14 +55,18 @@ def _select_webhook_chat_device(manager: Any, user_id: str) -> Optional[str]:
         connections = getattr(manager, "active_connections", {}).get(user_id, {})
     device_hashes = sorted(connections.keys())
     if not device_hashes:
-        return None
+        return []
 
     is_completion_capable = getattr(manager, "is_connection_completion_capable", None)
     if callable(is_completion_capable):
-        for device_hash in device_hashes:
-            if is_completion_capable(user_id, device_hash):
-                return device_hash
-    return device_hashes[0]
+        capable = [
+            device_hash
+            for device_hash in device_hashes
+            if is_completion_capable(user_id, device_hash)
+        ]
+        fallback = [device_hash for device_hash in device_hashes if device_hash not in capable]
+        return capable + fallback
+    return device_hashes
 
 router = APIRouter(
     prefix="/v1/webhooks",
@@ -605,11 +609,11 @@ async def webhook_incoming(
     user_is_online = False
     try:
         from backend.core.api.app.routes.websockets import manager
-        target_device_hash = _select_webhook_chat_device(manager, user_id)
-        user_is_online = bool(target_device_hash) or manager.is_user_active(user_id)
+        target_device_hashes = _select_webhook_chat_devices(manager, user_id)
+        delivered_device_hash = None
 
-        if target_device_hash:
-            await manager.send_personal_message(
+        for target_device_hash in target_device_hashes:
+            sent = await manager.send_personal_message(
                 message={
                     "type": "webhook_chat",
                     "event": "webhook_chat",
@@ -626,9 +630,15 @@ async def webhook_incoming(
                 user_id=user_id,
                 device_fingerprint_hash=target_device_hash,
             )
+            if sent is not False:
+                delivered_device_hash = target_device_hash
+                break
+
+        user_is_online = bool(delivered_device_hash) or manager.is_user_active(user_id)
+        if delivered_device_hash:
             logger.info(
                 f"Delivered webhook chat {chat_id} to online user {user_id[:8]}... "
-                f"device {target_device_hash[:8]}... (status={status_value})"
+                f"device {delivered_device_hash[:8]}... (status={status_value})"
             )
     except Exception as e:
         logger.warning(f"Failed to send webhook_chat WS event: {e}")
