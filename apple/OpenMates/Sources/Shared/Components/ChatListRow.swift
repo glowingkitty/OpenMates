@@ -57,6 +57,16 @@ struct ChatListRow: View {
         }
     }
 
+    private var accessibilityScope: String {
+        if chat.isSubChat == true { return "sub-chat" }
+        if chat.id.hasPrefix("demo-") || chat.id.hasPrefix("example-") ||
+            chat.id.hasPrefix("announcements-") || chat.id.hasPrefix("tips-") ||
+            chat.id.hasPrefix("legal-") {
+            return "public-chat"
+        }
+        return "user-chat"
+    }
+
     var body: some View {
         HStack(spacing: .spacing4) {
             if chat.isSubChat == true {
@@ -139,6 +149,7 @@ struct ChatListRow: View {
         .padding(.trailing, .spacing6)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(chat.isSubChat == true ? "sub-chat-item" : "chat-item-wrapper")
+        .accessibilityValue(accessibilityScope)
         .accessibilityLabel("\(chat.displayTitle)\(chat.isSubChat == true ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
         .accessibilityHint("Double tap to open, long press for options")
     }

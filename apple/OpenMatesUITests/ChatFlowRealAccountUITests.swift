@@ -83,7 +83,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     private func chatRows(in app: XCUIApplication) -> XCUIElementQuery {
         app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == %@ OR identifier == %@", "chat-item-wrapper", "sub-chat-item"))
+            .matching(NSPredicate(format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat"))
     }
 
     private func waitForChatRows(_ rows: XCUIElementQuery, timeout: TimeInterval) -> Bool {
@@ -113,7 +113,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                 "titleText": title,
                 "titleState": titleState(for: title),
                 "accessibilityLabel": label,
-                "isSubChat": row.identifier == "sub-chat-item",
+                "isSubChat": false,
                 "pinned": label.localizedCaseInsensitiveContains("pinned"),
                 "visible": row.exists && !frame.isEmpty && windowFrame.intersects(frame),
                 "rect": [

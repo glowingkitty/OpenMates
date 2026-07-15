@@ -22,6 +22,7 @@ const ARTIFACT_DIR = process.env.CHAT_RENDERING_PARITY_ARTIFACT_DIR
 const WEB_MANIFEST_PATH = path.join(ARTIFACT_DIR, 'web-loaded-chats-manifest.json');
 const WEB_SCREENSHOT_PATH = path.join(ARTIFACT_DIR, 'web-loaded-chats-sidebar.png');
 const MAX_CHAT_ROWS = Number(process.env.CHAT_RENDERING_PARITY_MAX_ROWS || 40);
+const STATIC_GROUP_KEYS = ['incognito', 'shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal'];
 
 type RawChatRow = {
 	index: number;
@@ -59,17 +60,25 @@ async function ensureSidebarOpen(page: any, log: (message: string, metadata?: Re
 
 async function waitForLoadedChats(page: any): Promise<void> {
 	await expect(async () => {
-		const chatCount = await page.getByTestId('chat-item-wrapper').count().catch(() => 0);
+		const chatCount = await page.evaluate((staticGroupKeys: string[]) => {
+			const staticGroups = new Set(staticGroupKeys);
+			return Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]')).filter((row) => {
+				const groupKey = row.closest('[data-testid="chat-group"]')?.getAttribute('data-group-key') || null;
+				return !groupKey || !staticGroups.has(groupKey);
+			}).length;
+		}, STATIC_GROUP_KEYS).catch(() => 0);
 		const noChatsVisible = await page.getByTestId('no-chats-indicator').isVisible({ timeout: 200 }).catch(() => false);
 		expect(noChatsVisible, 'The parity test account should have loaded chats, not the empty state.').toBe(false);
-		expect(chatCount, 'Expected at least one loaded chat row in the sidebar.').toBeGreaterThan(0);
+		expect(chatCount, 'Expected at least one loaded user chat row in the sidebar.').toBeGreaterThan(0);
 	}).toPass({ timeout: 45000, intervals: [1000, 2000, 5000] });
 
 	await expect(page.getByTestId('syncing-indicator')).not.toBeVisible({ timeout: 20000 }).catch(() => undefined);
 }
 
 async function collectLoadedChatsManifest(page: any): Promise<Record<string, unknown>> {
-	const rawRows: RawChatRow[] = await page.evaluate((maxRows: number) => {
+	const rawRows: RawChatRow[] = await page.evaluate(({ maxRows, staticGroupKeys }: { maxRows: number; staticGroupKeys: string[] }) => {
+		const staticGroups = new Set(staticGroupKeys);
+
 		function rectFor(element: Element) {
 			const rect = element.getBoundingClientRect();
 			return {
@@ -94,6 +103,10 @@ async function collectLoadedChatsManifest(page: any): Promise<Record<string, unk
 		}
 
 		return Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]'))
+			.filter((row) => {
+				const groupKey = row.closest('[data-testid="chat-group"]')?.getAttribute('data-group-key') || null;
+				return !groupKey || !staticGroups.has(groupKey);
+			})
 			.slice(0, maxRows)
 			.map((row, index) => {
 				const titleElement = row.querySelector('[data-testid="chat-title"]');
@@ -116,7 +129,7 @@ async function collectLoadedChatsManifest(page: any): Promise<Record<string, unk
 					rect: rectFor(row)
 				};
 			});
-	}, MAX_CHAT_ROWS);
+	}, { maxRows: MAX_CHAT_ROWS, staticGroupKeys: STATIC_GROUP_KEYS });
 
 	const groups = await page.evaluate(() => {
 		return Array.from(document.querySelectorAll('[data-testid="chat-group"]')).map((group, index) => ({
