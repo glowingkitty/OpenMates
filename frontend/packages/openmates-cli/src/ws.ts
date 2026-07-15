@@ -439,7 +439,7 @@ export class OpenMatesWsClient {
     }
   }
 
-  private drainPassiveTaskUpdateJobs(): PendingTaskUpdateJobFrame[] {
+  drainPassiveTaskUpdateJobs(): PendingTaskUpdateJobFrame[] {
     const jobs = [...this.passiveTaskUpdateJobs.values()];
     this.passiveTaskUpdateJobs.clear();
     return jobs;
