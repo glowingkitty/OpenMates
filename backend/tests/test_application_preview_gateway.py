@@ -201,7 +201,11 @@ async def test_gateway_strips_vite_hmr_client_from_html() -> None:
     async def upstream_fetch(_url: str, _method: str, **_kwargs):
         return GatewayUpstreamResponse(
             status_code=200,
-            body=b'<script type="module" src="/@vite/client"></script><script type="module" src="/src/main.js"></script>',
+            body=(
+                b'<script type="module" src="/@vite/client"></script>'
+                b'<script type="module" src="/t/token-abc/@vite/client"></script>'
+                b'<script type="module" src="/src/main.js"></script>'
+            ),
             headers={"content-type": "text/html; charset=utf-8"},
         )
 

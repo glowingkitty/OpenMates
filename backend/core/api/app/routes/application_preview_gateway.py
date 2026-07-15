@@ -54,7 +54,7 @@ QUOTED_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>[\"'])/(?!/|p/)(?P<path>[^\"'
 CSS_URL_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>url\(\s*[\"']?)/(?!/|p/)(?P<path>[^)\"'\s]+)")
 UPSTREAM_PATH_SEGMENT_SAFE_CHARS = "@"
 VITE_HMR_CLIENT_SCRIPT_PATTERN = re.compile(
-    r"\s*<script\b(?=[^>]*\bsrc=[\"']/@vite/client[\"'])[^>]*>\s*</script>",
+    r"\s*<script\b(?=[^>]*\bsrc=[\"']/(?:t/[^/]+/|p/[^/]+/[^/]+/)?@vite/client[\"'])[^>]*>\s*</script>",
     re.IGNORECASE,
 )
 
