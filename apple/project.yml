@@ -386,6 +386,10 @@ schemes:
       targets:
         OpenMates_iOS: all
     test:
+      environmentVariables:
+        OPENMATES_TEST_ACCOUNT_EMAIL: $(OPENMATES_TEST_ACCOUNT_EMAIL)
+        OPENMATES_TEST_ACCOUNT_PASSWORD: $(OPENMATES_TEST_ACCOUNT_PASSWORD)
+        OPENMATES_TEST_ACCOUNT_OTP_KEY: $(OPENMATES_TEST_ACCOUNT_OTP_KEY)
       targets:
         - OpenMatesTests
         - OpenMatesUITests
@@ -394,6 +398,10 @@ schemes:
       targets:
         OpenMates_iOS: all
     test:
+      environmentVariables:
+        OPENMATES_TEST_ACCOUNT_EMAIL: $(OPENMATES_TEST_ACCOUNT_EMAIL)
+        OPENMATES_TEST_ACCOUNT_PASSWORD: $(OPENMATES_TEST_ACCOUNT_PASSWORD)
+        OPENMATES_TEST_ACCOUNT_OTP_KEY: $(OPENMATES_TEST_ACCOUNT_OTP_KEY)
       targets:
         - OpenMatesUITests
   OpenMates_iOS_Unit_Tests:
@@ -401,6 +409,10 @@ schemes:
       targets:
         OpenMates_iOS: all
     test:
+      environmentVariables:
+        OPENMATES_TEST_ACCOUNT_EMAIL: $(OPENMATES_TEST_ACCOUNT_EMAIL)
+        OPENMATES_TEST_ACCOUNT_PASSWORD: $(OPENMATES_TEST_ACCOUNT_PASSWORD)
+        OPENMATES_TEST_ACCOUNT_OTP_KEY: $(OPENMATES_TEST_ACCOUNT_OTP_KEY)
       targets:
         - OpenMatesTests
   OpenMates_macOS:
