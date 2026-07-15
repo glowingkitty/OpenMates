@@ -112,7 +112,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: d13b21fb3
+  subject_commit: 81ff546e1
 
 approvals:
   product_contract:
@@ -189,11 +189,16 @@ attempts:
 
 handoff:
   current_task_id: TASK-5
-  next_action: "Run spec validation, then prepare deploy/Playwright verification for the Proton local connector settings flow."
-  command: "python3 scripts/spec_validate.py docs/specs/proton-bridge-cli-connector/spec.yml"
-  expected_outcome: "Spec structure remains valid after request-channel evidence updates."
-  blocker: null
-  last_verified_commit: d13b21fb3
+  next_action: "Ask the user to review the deployed Proton Bridge connector flow and provide real Proton Bridge test credentials/setup when live IMAP/SMTP validation should run."
+  command: "python3 scripts/spec_verify.py docs/specs/proton-bridge-cli-connector/spec.yml --phase green"
+  expected_outcome: "Automated green evidence is complete; verification remains blocked only by user confirmation/live Proton Bridge validation."
+  blocker:
+    task_id: TASK-5
+    requires_user_input: true
+    reason: "Automated CLI/backend/settings/Playwright evidence is complete, but final user confirmation and real Proton Bridge IMAP/SMTP validation require user-provided Proton test setup."
+    question: "Can you review the deployed Proton Bridge connector flow and provide/approve a real Proton Bridge test setup for live IMAP/SMTP validation?"
+    next_action: "After confirmation or credentials, record final evidence and run the live Proton Bridge validation path."
+  last_verified_commit: 81ff546e1
 
 scenarios:
   - id: S-1
@@ -569,9 +574,9 @@ tests:
       evidence:
         status: passed
         command: cd frontend/packages/openmates-cli && npm run test:unit:proton-bridge-connector
-        run_id: local-20260715-084210-proton-bridge-connector
-        subject_commit: d13b21fb3
-        timestamp: "2026-07-15T08:42:10Z"
+        run_id: local-20260715-093801-proton-bridge-connector
+        subject_commit: 81ff546e1
+        timestamp: "2026-07-15T09:38:01Z"
   - id: T-CLI-PROTON-FAKE-BRIDGE
     type: unit
     file: frontend/packages/openmates-cli/tests/protonBridgeConnector.integration.test.ts
@@ -605,9 +610,9 @@ tests:
       evidence:
         status: passed
         command: cd frontend/packages/openmates-cli && npm run test:unit:proton-bridge-connector-integration
-        run_id: local-20260715-084210-proton-bridge-connector-integration
-        subject_commit: d13b21fb3
-        timestamp: "2026-07-15T08:42:10Z"
+        run_id: local-20260715-093801-proton-bridge-connector-integration
+        subject_commit: 81ff546e1
+        timestamp: "2026-07-15T09:38:01Z"
   - id: T-BACKEND-LOCAL-CONNECTOR
     type: pytest
     file: backend/tests/test_local_connected_account_connectors.py
@@ -642,9 +647,9 @@ tests:
       evidence:
         status: passed
         command: docker exec api python -m pytest /app/backend/tests/test_local_connected_account_connectors.py /app/backend/tests/test_proton_local_connector_delayed_send.py
-        run_id: local-20260715-084210-backend-local-connector-green
-        subject_commit: d13b21fb3
-        timestamp: "2026-07-15T08:42:10Z"
+        run_id: local-20260715-093801-backend-local-connector-green
+        subject_commit: 81ff546e1
+        timestamp: "2026-07-15T09:38:01Z"
   - id: T-BACKEND-PROTON-DELAYED-SEND
     type: pytest
     file: backend/tests/test_proton_local_connector_delayed_send.py
@@ -673,13 +678,13 @@ tests:
       evidence:
         status: passed
         command: docker exec api python -m pytest /app/backend/tests/test_local_connected_account_connectors.py /app/backend/tests/test_proton_local_connector_delayed_send.py
-        run_id: local-20260715-084210-backend-proton-delayed-send-green
-        subject_commit: d13b21fb3
-        timestamp: "2026-07-15T08:42:10Z"
+        run_id: local-20260715-093801-backend-proton-delayed-send-green
+        subject_commit: 81ff546e1
+        timestamp: "2026-07-15T09:38:01Z"
   - id: T-PLAYWRIGHT-PROTON-SETTINGS
     type: playwright
     file: frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
-    command: python3 scripts/tests.py run --spec proton-local-connector-settings.spec.ts
+    command: python3 scripts/tests.py run -- --spec proton-local-connector-settings.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-9
@@ -701,10 +706,12 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/audit_sdk_cli_parity.py
-        run_id: local-20260715-084210-sdk-cli-parity-audit
-        subject_commit: d13b21fb3
-        timestamp: "2026-07-15T08:42:10Z"
+        command: python3 scripts/tests.py run -- --spec proton-local-connector-settings.spec.ts
+        run_id: "2026-07-15T09:28:32Z / github-29404998224"
+        subject_commit: 81ff546e1
+        timestamp: "2026-07-15T09:36:24Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_BUSQEGPFnPfzuvDXbEjm2kaGNMMb
   - id: T-SDK-CLI-PARITY-AUDIT
     type: lint
     file: scripts/audit_sdk_cli_parity.py
@@ -727,9 +734,9 @@ tests:
       evidence:
         status: passed
         command: python3 scripts/audit_sdk_cli_parity.py
-        run_id: local-20260715-084210-sdk-cli-parity-audit
-        subject_commit: d13b21fb3
-        timestamp: "2026-07-15T08:42:10Z"
+        run_id: local-20260715-093801-sdk-cli-parity-audit
+        subject_commit: 81ff546e1
+        timestamp: "2026-07-15T09:38:01Z"
 
 verifications:
   - id: V-USER-CONFIRMATION
@@ -982,7 +989,7 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Add settings status, docs, and parity guardrails
-    status: in_progress
+    status: blocked
     phase: working_tasks
     covers:
       scenarios:
@@ -1033,6 +1040,7 @@ tasks:
         - frontend/packages/ui/src/legal/buildLegalContent.ts
         - frontend/packages/ui/src/legal/documents/privacy-policy.ts
       shared_files: []
-    blockers: []
+    blockers:
+      - "Final user confirmation and live Proton Bridge IMAP/SMTP validation require user-provided Proton test setup."
     follow_up_tasks: []
     independently_deployable: true
