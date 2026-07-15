@@ -13,6 +13,10 @@ import { get } from "svelte/store";
 import { text } from "../i18n/translations";
 import { embedStore } from "../services/embedStore";
 import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from "./exampleChatData";
+import {
+  EMBED_FULLSCREEN_COMPONENTS,
+  normalizeEmbedType,
+} from "../data/embedRegistry.generated";
 
 const FOCUS_ACTIVATION_EMBED_TYPE = "focus-mode-activation";
 
@@ -318,7 +322,13 @@ export function resolveExampleFullscreenTarget(embedId: string): {
   focusChildEmbedId?: string;
 } | null {
   const normalizedEmbedId = normalizeEmbedId(embedId);
-  if (!embedById.has(normalizedEmbedId)) return null;
+  const exampleEmbed = embedById.get(normalizedEmbedId)?.embed;
+  if (!exampleEmbed) return null;
+
+  const ownRegistryKey = normalizeEmbedType(exampleEmbed.type);
+  if (ownRegistryKey in EMBED_FULLSCREEN_COMPONENTS) {
+    return { targetEmbedId: normalizedEmbedId };
+  }
 
   const structuredParentEmbedId = parentEmbedIdByChildId.get(normalizedEmbedId);
   if (structuredParentEmbedId && embedById.has(structuredParentEmbedId)) {
