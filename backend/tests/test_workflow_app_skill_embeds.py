@@ -40,8 +40,20 @@ class FakeWorkflowAssistantService:
         self.created.append(workflow)
         return workflow
 
-    def search(self, user_id: str, query: str, *, include_temporary: bool = False) -> list[dict[str, Any]]:
-        self.search_calls.append({"user_id": user_id, "query": query, "include_temporary": include_temporary})
+    def search(
+        self,
+        user_id: str,
+        query: str,
+        *,
+        include_temporary: bool = False,
+        vault_key_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        self.search_calls.append({
+            "user_id": user_id,
+            "query": query,
+            "include_temporary": include_temporary,
+            "vault_key_id": vault_key_id,
+        })
         return [
             {"workflow_id": "workflow-1", "title": "Morning weather", "status": "enabled"},
             {"workflow_id": "workflow-2", "title": "Weather digest", "status": "draft"},
@@ -68,7 +80,7 @@ def _search_skill() -> SearchSkill:
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_workflow_create_or_modify_returns_exactly_one_child_workflow_embed() -> None:
     assistant = FakeWorkflowAssistantService()
 
@@ -97,7 +109,7 @@ async def test_workflow_create_or_modify_returns_exactly_one_child_workflow_embe
     ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_workflow_create_or_modify_rejects_batch_creation() -> None:
     response = await _create_skill().execute(
         workflows=[{"title": "One"}, {"title": "Two"}],
@@ -109,7 +121,7 @@ async def test_workflow_create_or_modify_rejects_batch_creation() -> None:
     assert "one workflow" in str(response.error)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_workflow_search_returns_server_side_child_workflow_embed_results() -> None:
     assistant = FakeWorkflowAssistantService()
 
@@ -117,6 +129,7 @@ async def test_workflow_search_returns_server_side_child_workflow_embed_results(
         query="weather",
         include_temporary=True,
         user_id="user-1",
+        user_vault_key_id="vault-key-1",
         workflow_assistant_service=assistant,
     )
     payload = response.model_dump()
@@ -128,4 +141,9 @@ async def test_workflow_search_returns_server_side_child_workflow_embed_results(
     assert payload["result_count"] == 2
     assert [result["type"] for result in payload["results"]] == ["workflow", "workflow"]
     assert payload["requires_connected_client"] is False
-    assert assistant.search_calls == [{"user_id": "user-1", "query": "weather", "include_temporary": True}]
+    assert assistant.search_calls == [{
+        "user_id": "user-1",
+        "query": "weather",
+        "include_temporary": True,
+        "vault_key_id": "vault-key-1",
+    }]

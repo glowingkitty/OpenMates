@@ -265,14 +265,20 @@ class WorkflowAssistantService:
         self.proposal_repository = proposal_repository or InMemoryWorkflowAssistantProposalRepository()
         self.enqueue_run_after_countdown = enqueue_run_after_countdown or _enqueue_run_after_countdown
 
-    def search(self, user_id: str, query: str, include_temporary: bool = False) -> list[dict[str, Any]]:
+    def search(
+        self,
+        user_id: str,
+        query: str,
+        include_temporary: bool = False,
+        vault_key_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         del include_temporary
         normalized = query.strip().lower()
         results: list[dict[str, Any]] = []
-        for workflow in self.workflow_service.list_workflows(user_id):
+        for workflow in self.workflow_service.list_workflows(user_id, vault_key_id):
             if normalized and normalized not in workflow.title.lower():
                 continue
-            detail = self.workflow_service.get_workflow(workflow.id, user_id)
+            detail = self.workflow_service.get_workflow(workflow.id, user_id, vault_key_id)
             results.append(
                 {
                     "workflow_id": workflow.id,

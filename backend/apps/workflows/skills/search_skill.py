@@ -38,11 +38,17 @@ class SearchSkill(BaseSkill):
         user_id: str | None = None,
         workflow_assistant_service: Any = None,
         workflow_service: Any = None,
+        user_vault_key_id: str | None = None,
         **kwargs: Any,
     ) -> SearchWorkflowsResponse:
         try:
             assistant = get_assistant_service(workflow_assistant_service, workflow_service)
-            workflows = assistant.search(require_user_id(user_id), query, include_temporary=include_temporary)
+            workflows = assistant.search(
+                require_user_id(user_id),
+                query,
+                include_temporary=include_temporary,
+                vault_key_id=user_vault_key_id,
+            )
             results = [_workflow_embed_result(workflow) for workflow in workflows]
             return SearchWorkflowsResponse(
                 success=True,
