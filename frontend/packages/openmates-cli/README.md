@@ -99,17 +99,17 @@ openmates chats delete <chat-id> --yes
 Exports include YAML and Markdown. When present, code embeds and video
 transcripts are written as separate files.
 
-### Run app skills
+### Use apps and typed commands
 
 ```bash
 openmates apps list
-openmates apps web search "latest AI news"
-openmates apps ai ask "What is Docker?"
+openmates apps skill-info web search
+openmates tasks create --title "Draft launch checklist"
+openmates workflows list
 openmates apps code run --language python --code 'print("Hello from CLI")'
-openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
 ```
 
-App commands use your logged-in session by default. For non-interactive scripts,
+Typed app commands use your logged-in session by default. For non-interactive scripts,
 create an API key in **Settings > Developers > API Keys**, then pass
 `--api-key <key>` or set `OPENMATES_API_KEY`.
 
@@ -295,12 +295,12 @@ intentionally want the chat saved to the OpenMates account.
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.14`, in the web app.
+OpenMates shows the short product line, for example `v0.15`, in the web app.
 The npm package uses exact artifact versions:
 
-- `0.14.N-alpha.0` is a prerelease from the `dev` branch published under the
+- `0.15.0-alpha.N` is a prerelease from the `dev` branch published under the
   `alpha` npm tag.
-- `0.14.N` is a stable release from `main` published under the `latest` npm tag.
+- `0.15.0` is a stable release from `main` published under the `latest` npm tag.
 
 Install stable releases with `npm install -g openmates`. Install prereleases with
 `npm install -g openmates@alpha`.

@@ -8,7 +8,7 @@ last_verified: 2026-06-11
 claims:
   - id: cli-apps-code-run-uses-app-skill-endpoint
     type: unit
-    claim: CLI app skill execution uses the canonical app-skill run endpoint for Code Run.
+    claim: The Code Run convenience command uses the canonical app-skill run endpoint.
     source:
       - frontend/packages/openmates-cli/src/cli.ts
       - frontend/packages/openmates-cli/src/client.ts
@@ -44,7 +44,7 @@ claims:
 
 # Apps & Skills
 
-List available apps, inspect skill schemas, and execute skills directly from the terminal. Skills can also be invoked via @mentions in chat messages.
+List available apps, inspect skill schemas, and use dedicated typed app commands from the terminal. Skills can also be invoked via @mentions in chat messages.
 
 ## Listing Apps
 
@@ -69,29 +69,22 @@ Both `openmates apps <app-id>` and `openmates apps info <app-id>` display detail
 
 ```
 openmates apps skill-info web search
-openmates apps web search --help
 openmates apps skill-info web search --json
 ```
 
-Shows the skill's description, required parameters, and input schema. Use this to understand what a skill expects before running it.
+Shows the skill's description, required parameters, and input schema. Use this to understand what a skill expects before invoking it through chat, SDKs, or a dedicated typed CLI command.
 
-## Running a Skill
+## Typed App Commands
 
-For single-parameter skills (most common), pass the query as inline text:
-
-```
-openmates apps web search "latest AI news"
-openmates apps news search "climate change"
-openmates apps ai ask "Summarise this: ..."
-```
-
-Inline text is wrapped as `{ requests: [{ query: text }] }`, which matches the convention used by most query-based skills.
-
-For multi-parameter skills, use `--input` with a JSON payload:
+Generic `openmates apps <app-id> <skill-id>` execution is not supported. Use app-specific typed commands with command-specific help, validation, and examples instead.
 
 ```
-openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
+openmates tasks create --title "Draft launch checklist"
+openmates tasks list
+openmates workflows list
 ```
+
+Use `openmates <command> --help` for each typed command's accepted flags and examples.
 
 ### Travel Booking Links
 
@@ -102,7 +95,7 @@ openmates apps travel booking-link --token "<booking_token>"
 openmates apps travel booking-link --token "<booking_token>" --context '{"currency":"EUR"}'
 ```
 
-The `booking_token` is included in the output of `openmates apps travel search_connections`.
+The `booking_token` is included in travel search results returned by the app or SDK.
 
 ## Code Run
 
@@ -116,12 +109,24 @@ openmates apps code run --entry main.py --dir ./project --exclude node_modules
 
 Use inline `--code` for short snippets, repeated `--file` flags for a small set of files, or `--dir` plus `--entry` for a project folder. The command streams status/output when available and falls back to polling the execution status endpoint.
 
+## 3D Model Search
+
+The 3D Models app has a dedicated search command that returns provider link-out cards. It does not download, cache, or convert model files.
+
+```
+openmates apps models3d search --query benchy
+openmates apps models3d search --query benchy --count 2 --providers Printables --json
+openmates apps models3d search --query "phone stand" --sort newest --free-only
+```
+
+Use `--providers` with a comma-separated list or repeated `--provider` flags. Supported sort values are `best_match`, `popular`, `downloads`, and `newest`.
+
 ## Authentication
 
 Skills use your logged-in session by default. Alternatively, pass an API key:
 
 ```
-openmates apps web search "query" --api-key <key>
+openmates workflows list --api-key <key>
 ```
 
 Or set the `OPENMATES_API_KEY` environment variable.

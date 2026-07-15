@@ -30,6 +30,7 @@ const DEFAULT_STANDALONE_PREFIX = "TASK";
 
 export interface DecryptedUserTask {
   taskId: string;
+  source?: string;
   shortId: string;
   title: string;
   description: string;
@@ -47,6 +48,7 @@ export interface DecryptedUserTask {
   queueState: string;
   blockedReasonCode: string | null;
   aiExecutionState: string | null;
+  readOnly?: boolean;
   version: number;
   encrypted: UserTaskRecord;
 }
@@ -153,6 +155,7 @@ export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKe
 }
 
 export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Array): Promise<DecryptedUserTask> {
+  if (record.source === "workflow_run") return workflowProjectionToTask(record);
   if (typeof record.version !== "number") throw new Error(`Task ${record.task_id} is missing version.`);
   const taskKey = await taskKeyFromRecord(record, masterKey);
   const tags = parseStringArray(await decryptOptional(record.encrypted_tags, taskKey));
@@ -179,6 +182,39 @@ export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Ar
     version: record.version,
     encrypted: record,
   };
+}
+
+function workflowProjectionToTask(record: UserTaskRecord): DecryptedUserTask {
+  const blockedReason = record.blocked_reason_code ?? record.blocked_reason ?? null;
+  return {
+    taskId: record.task_id,
+    source: "workflow_run",
+    shortId: record.short_id || workflowProjectionShortId(record),
+    title: record.title || "Workflow run",
+    description: record.blocked_message ?? "",
+    tags: [],
+    latestInstruction: "",
+    status: record.status,
+    assigneeType: "user",
+    assigneeHash: null,
+    primaryChatId: null,
+    linkedProjectIds: [],
+    planId: null,
+    dueAt: record.due_at ?? null,
+    priority: record.priority ?? 0,
+    position: record.position ?? 0,
+    queueState: String(record.run_status ?? "workflow"),
+    blockedReasonCode: blockedReason,
+    aiExecutionState: null,
+    readOnly: true,
+    version: typeof record.version === "number" ? record.version : 1,
+    encrypted: record,
+  };
+}
+
+function workflowProjectionShortId(record: UserTaskRecord): string {
+  const stableId = record.workflow_run_id || record.task_id;
+  return `WF-${createHash("sha256").update(stableId).digest("hex").slice(0, 6).toUpperCase()}`;
 }
 
 export async function decryptUserTasks(records: UserTaskRecord[], masterKey: Uint8Array): Promise<DecryptedUserTask[]> {

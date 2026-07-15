@@ -9,15 +9,12 @@
 import pytest
 
 from backend.apps.workflows.skills.cancel_pending_skill import CancelPendingSkill
-from backend.apps.workflows.skills.keep_temporary_skill import KeepTemporarySkill
 from backend.apps.workflows.skills.run_skill import RunSkill
 from backend.apps.workflows.skills.schedule_once_skill import ScheduleOnceSkill
 from backend.apps.workflows.skills.schedule_recurring_skill import ScheduleRecurringSkill
-from backend.apps.workflows.skills.search_skill import SearchSkill
 from backend.core.api.app.services.workflow_assistant_service import WorkflowAssistantService
 from backend.core.api.app.services.workflow_event_service import WorkflowEventService
 from backend.core.api.app.services.workflow_models import WorkflowLifecycle, WorkflowMissingInputError
-from backend.core.api.app.services.workflow_service import WORKFLOW_TEMPORARY_TTL_SECONDS
 from backend.tests.workflow_test_utils import workflow_service
 
 
@@ -75,48 +72,48 @@ def workflow_skill(skill_class, skill_id: str):
     )
 
 
-def test_schedule_once_creates_temporary_workflow_with_seven_day_expiry() -> None:
+def test_schedule_once_requires_explicit_approval_before_creating_a_temporary_workflow() -> None:
     service = workflow_service()
     assistant = WorkflowAssistantService(service)
 
-    workflow = assistant.schedule_once("alice", "Tomorrow weather", one_time_weather_graph(), source_chat_id="chat-1")
+    proposal = assistant.schedule_once("alice", "Tomorrow weather", one_time_weather_graph(), source_chat_id="chat-1")
 
-    assert workflow.lifecycle == WorkflowLifecycle.TEMPORARY
-    assert workflow.source == "chat"
-    assert workflow.source_chat_id == "chat-1"
-    assert workflow.created_by_assistant is True
-    assert workflow.auto_delete_at is not None
-    assert workflow.auto_delete_at - workflow.created_at >= WORKFLOW_TEMPORARY_TTL_SECONDS
     assert service.list_workflows("alice") == []
-    assert service.list_temporary_workflows("alice")[0].id == workflow.id
+    assert service.list_temporary_workflows("alice") == []
+    assert proposal["status"] == "pending"
+    assert proposal["action"] == "create"
+    assert proposal["workflow_id"] is None
+    assert "graph" not in proposal
+    assert assistant.cancel_pending("alice", proposal["proposal_id"]) is True
 
 
-def test_schedule_recurring_creates_persisted_workflow() -> None:
+def test_schedule_recurring_requires_explicit_approval_before_creating_a_persisted_workflow() -> None:
     service = workflow_service()
     assistant = WorkflowAssistantService(service)
 
-    workflow = assistant.schedule_recurring("alice", "Weekly AI news", recurring_news_graph(), source_chat_id="chat-1")
+    proposal = assistant.schedule_recurring("alice", "Weekly AI news", recurring_news_graph(), source_chat_id="chat-1")
 
-    assert workflow.lifecycle == WorkflowLifecycle.PERSISTED
-    assert workflow.auto_delete_at is None
-    assert service.list_workflows("alice")[0].id == workflow.id
+    assert proposal["status"] == "pending"
+    assert proposal["lifecycle"] == WorkflowLifecycle.PERSISTED.value
+    assert service.list_workflows("alice") == []
 
 
 def test_assistant_search_returns_owner_scoped_persisted_workflows() -> None:
     service = workflow_service()
     assistant = WorkflowAssistantService(service)
-    persisted = assistant.schedule_recurring("alice", "Weekly AI news", recurring_news_graph())
-    assistant.schedule_once("alice", "Temporary weather", one_time_weather_graph())
-    assistant.schedule_recurring("bob", "Bob AI news", recurring_news_graph())
+    persisted = service.create_workflow("alice", "Weekly AI news", recurring_news_graph())
+    service.create_workflow("alice", "Temporary weather", one_time_weather_graph(), lifecycle=WorkflowLifecycle.TEMPORARY)
+    service.create_workflow("bob", "Bob AI news", recurring_news_graph())
 
     results = assistant.search("alice", "AI news")
 
     assert [item["workflow_id"] for item in results] == [persisted.id]
+    assert set(results[0]) == {"workflow_id", "title", "required_input_summary"}
 
 
-def test_pending_workflow_run_can_be_cancelled_and_requires_input() -> None:
+def test_pending_workflow_run_uses_a_cancellable_countdown() -> None:
     service = workflow_service()
-    assistant = WorkflowAssistantService(service)
+    assistant = WorkflowAssistantService(service, enqueue_run_after_countdown=lambda *_args: None)
     workflow = service.create_workflow("alice", "Manual city workflow", manual_input_graph())
 
     with pytest.raises(WorkflowMissingInputError):
@@ -124,21 +121,51 @@ def test_pending_workflow_run_can_be_cancelled_and_requires_input() -> None:
 
     pending = assistant.create_pending_run("alice", workflow.id, input_payload={"city": "Berlin"})
 
-    assert pending["status"] == "countdown"
-    assert assistant.cancel_pending("bob", pending["pending_id"]) is False
-    assert assistant.cancel_pending("alice", pending["pending_id"]) is True
-    assert assistant.pending_runs[pending["pending_id"]]["status"] == "cancelled"
+    assert pending["status"] == "pending"
+    assert pending["countdown_ends_at"] > pending["created_at"]
+    assert assistant.cancel_pending("bob", pending["proposal_id"]) is False
+    assert assistant.cancel_pending("alice", pending["proposal_id"]) is True
+    assert assistant.get_pending("alice", pending["proposal_id"])["status"] == "cancelled"
 
 
-def test_high_risk_pending_workflow_requires_approval() -> None:
+def test_pending_workflow_run_derives_risk_from_the_workflow() -> None:
     service = workflow_service()
-    assistant = WorkflowAssistantService(service)
-    workflow = assistant.schedule_recurring("alice", "Weekly AI news", recurring_news_graph())
+    assistant = WorkflowAssistantService(service, enqueue_run_after_countdown=lambda *_args: None)
+    workflow = service.create_workflow("alice", "Weekly AI news", recurring_news_graph())
 
-    pending = assistant.create_pending_run("alice", workflow.id, high_risk=True)
+    pending = assistant.create_pending_run("alice", workflow.id)
 
-    assert pending["status"] == "approval_required"
-    assert pending["requires_approval"] is True
+    assert pending["status"] == "pending"
+    assert pending["risk_level"] == "elevated"
+
+
+@pytest.mark.anyio
+async def test_countdown_hands_off_once_to_the_accepted_manual_run_path() -> None:
+    service = workflow_service()
+    assistant = WorkflowAssistantService(service, enqueue_run_after_countdown=lambda *_args: None)
+    workflow = service.create_workflow("alice", "Weekly AI news", recurring_news_graph())
+    proposal = assistant.create_pending_run("alice", workflow.id)
+    dispatched: list[tuple] = []
+
+    class FakeRuntime:
+        async def execute(self, operation: str, data: dict) -> dict:
+            assert operation == "accept_manual_run"
+            assert data["idempotency_key"] == proposal["proposal_id"]
+            return {"run_id": "run-1", "version_id": workflow.current_version_id, "status": "queued"}
+
+    approved = await assistant.execute_after_countdown(
+        "alice",
+        proposal["proposal_id"],
+        runtime_service=FakeRuntime(),
+        enqueue_accepted_run=lambda *args: dispatched.append(args),
+        now=proposal["countdown_ends_at"],
+    )
+
+    assert approved["status"] == "approved"
+    assert approved["result_id"] == "run-1"
+    assert dispatched == [(workflow.id, "alice", "run-1", workflow.current_version_id, "manual", {})]
+    with pytest.raises(ValueError, match="no longer pending"):
+        await assistant.execute_after_countdown("alice", proposal["proposal_id"], runtime_service=FakeRuntime(), enqueue_accepted_run=lambda *_: None, now=proposal["countdown_ends_at"])
 
 
 def test_assistant_schedule_skills_enforce_once_vs_recurring_graphs() -> None:
@@ -153,8 +180,13 @@ def test_assistant_schedule_skills_enforce_once_vs_recurring_graphs() -> None:
 
 def test_keep_temporary_converts_workflow_to_persisted() -> None:
     service = workflow_service()
-    assistant = WorkflowAssistantService(service)
-    workflow = assistant.schedule_once("alice", "Temporary weather", one_time_weather_graph())
+    assistant = WorkflowAssistantService(service, enqueue_run_after_countdown=lambda *_args: None)
+    workflow = service.create_workflow(
+        "alice",
+        "Temporary weather",
+        one_time_weather_graph(),
+        lifecycle=WorkflowLifecycle.TEMPORARY,
+    )
 
     kept = assistant.keep_temporary("alice", workflow.id)
 
@@ -195,10 +227,10 @@ def test_event_trigger_phrase_filters_are_deterministic() -> None:
     assert event_service.matches(trigger, {"type": "chat.message.created", "scope": {"user_id": "alice"}, "payload": {"text": "later"}}) is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_workflow_app_skills_delegate_to_assistant_service() -> None:
     service = workflow_service()
-    assistant = WorkflowAssistantService(service)
+    assistant = WorkflowAssistantService(service, enqueue_run_after_countdown=lambda *_args: None)
 
     schedule_once = await workflow_skill(ScheduleOnceSkill, "schedule-once").execute(
         title="Temporary weather",
@@ -209,39 +241,29 @@ async def test_workflow_app_skills_delegate_to_assistant_service() -> None:
     )
     assert schedule_once.success is True
     assert schedule_once.workflow is not None
-    temporary_id = schedule_once.workflow["id"]
-    assert schedule_once.workflow["lifecycle"] == "temporary"
+    assert schedule_once.workflow["status"] == "pending"
 
-    search_temporary = await workflow_skill(SearchSkill, "search").execute(
-        query="weather",
-        include_temporary=True,
+    cancelled_creation = await workflow_skill(CancelPendingSkill, "cancel-pending").execute(
+        pending_id=schedule_once.workflow["proposal_id"],
         user_id="alice",
         workflow_assistant_service=assistant,
     )
-    assert [item["workflow_id"] for item in search_temporary.workflows] == [temporary_id]
+    assert cancelled_creation.cancelled is True
 
-    kept = await workflow_skill(KeepTemporarySkill, "keep-temporary").execute(
-        workflow_id=temporary_id,
-        user_id="alice",
-        workflow_assistant_service=assistant,
-    )
-    assert kept.success is True
-    assert kept.workflow is not None
-    assert kept.workflow["lifecycle"] == "persisted"
+    workflow = service.create_workflow("alice", "Existing weather", one_time_weather_graph())
 
     pending = await workflow_skill(RunSkill, "run").execute(
-        workflow_id=temporary_id,
+        workflow_id=workflow.id,
         input={},
-        high_risk=True,
         user_id="alice",
         workflow_assistant_service=assistant,
     )
     assert pending.success is True
     assert pending.pending_run is not None
-    assert pending.pending_run["status"] == "approval_required"
+    assert pending.pending_run["status"] == "pending"
 
     cancelled = await workflow_skill(CancelPendingSkill, "cancel-pending").execute(
-        pending_id=pending.pending_run["pending_id"],
+        pending_id=pending.pending_run["proposal_id"],
         user_id="alice",
         workflow_assistant_service=assistant,
     )
@@ -257,6 +279,7 @@ async def test_workflow_app_skills_delegate_to_assistant_service() -> None:
     assert recurring.success is True
     assert recurring.workflow is not None
     assert recurring.workflow["lifecycle"] == "persisted"
+    assert recurring.workflow["status"] == "pending"
 
 
 def test_workflow_tasks_cleanup_and_event_dispatch(monkeypatch) -> None:

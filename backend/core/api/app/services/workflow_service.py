@@ -319,6 +319,15 @@ class InMemoryWorkflowRepository:
     def delete_run_record(self, run_id: str) -> None:
         self.runs.pop(run_id, None)
 
+    def update_trigger_next_run(self, trigger_id: str, next_run_at: int, updated_at: int) -> dict[str, Any] | None:
+        record = self.triggers.get(trigger_id)
+        if not record:
+            return None
+        record["next_run_at"] = next_run_at
+        record["updated_at"] = updated_at
+        self.triggers[trigger_id] = deepcopy(record)
+        return self._trigger_for_service(record)
+
     def get_user_vault_key_id(self, user_id: str) -> str | None:
         del user_id
         return None
@@ -737,6 +746,14 @@ class DirectusWorkflowRepository:
         }
         self._delete_item(self.TRIGGERS, item["id"])
         return record
+
+    def update_trigger_next_run(self, trigger_id: str, next_run_at: int, updated_at: int) -> dict[str, Any] | None:
+        item = self._find_one(self.TRIGGERS, {"trigger_id": {"_eq": trigger_id}}, fields="id,trigger_id")
+        if not item:
+            return None
+        self._patch_item(self.TRIGGERS, item["id"], {"next_run_at": next_run_at, "updated_at": updated_at})
+        updated = self._find_one(self.TRIGGERS, {"trigger_id": {"_eq": trigger_id}})
+        return self._trigger_from_item(updated) if updated else None
 
     def delete_encrypted_blob(self, ref: str) -> None:
         item = self._find_one(self.BLOBS, {"ref": {"_eq": ref}}, fields="id")

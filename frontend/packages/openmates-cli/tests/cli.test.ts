@@ -322,6 +322,16 @@ describe("connected account import command", () => {
   });
 });
 
+describe("embeds preview command", () => {
+  it("prints application preview lifecycle help", () => {
+    const output = runCli(["embeds", "--help"]);
+    assert.match(output, /openmates embeds preview start <embed-id> --chat-id <chat-id>/);
+    assert.match(output, /openmates embeds preview status <session-id>/);
+    assert.match(output, /openmates embeds preview open <session-id>/);
+    assert.match(output, /openmates embeds preview stop <session-id>/);
+  });
+});
+
 describe("benchmark command", () => {
   it("is listed in global help", () => {
     const output = runCli(["help"]);
@@ -1301,7 +1311,9 @@ async function withSkillFormattingMockApi<T>(
                 provider: "Printables",
                 source_page_url: "https://www.printables.com/model/3161-bench-boat",
                 preview_image_url: "https://media.printables.com/bench.jpg",
-                open_cta_label: "Open on Printables",
+                description: "A small calibration boat for printer tuning.",
+                creator_name: "Creative Tools",
+                published_at: "2024-01-02T03:04:05Z",
               }],
             }],
           },
@@ -1895,228 +1907,38 @@ describe("embed version commands", () => {
   });
 });
 
-describe("apps skill formatted output", () => {
-  it("maps flat weather rain radar schemas to direct CLI app-skill input", async () => {
-    await withFlatWeatherSkillMockApi(async ({ apiUrl, requests }) => {
-      const inlineOutput = await runCliAsync([
+describe("apps metadata commands", () => {
+  it("rejects generic app-skill execution", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const { stdout, stderr } = await execFileAsync("node", [
+        "dist/cli.js",
         "--api-url", apiUrl,
-        "apps", "weather", "rain_radar", "Berlin",
-        "--json",
-      ]);
-      const inlineResult = JSON.parse(inlineOutput) as { data: { type: string } };
-      assert.equal(inlineResult.data.type, "rain_radar");
-      assert.deepEqual(requests[0], { location: "Berlin" });
+        "apps", "tasks", "create",
+        "--input", JSON.stringify({ tasks: [{ title: "Draft checklist" }] }),
+      ], {
+        cwd: PACKAGE_ROOT,
+        encoding: "utf-8",
+        env: { ...process.env, TERM: "dumb" },
+        timeout: 15_000,
+      }).catch((error: { stdout?: string; stderr?: string }) => error);
 
-      await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "weather", "rain_radar",
-        "--input", JSON.stringify({ requests: [{ location: "Berlin", radius_km: 10 }] }),
-        "--json",
-      ]);
-      assert.deepEqual(requests[1], { location: "Berlin", radius_km: 10 });
+      assert.equal(stdout, "");
+      assert.match(stderr ?? "", /Generic app-skill CLI execution is not supported/);
+      assert.match(stderr ?? "", /openmates apps skill-info tasks create/);
     });
   });
 
-  it("prints flat weather rain radar help without a requests wrapper", async () => {
+  it("keeps explicit app-skill metadata inspection available", async () => {
     await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
-        "apps", "weather", "rain_radar", "--help",
-      ]);
-      assert.match(output, /"location": "Berlin, Germany"/);
-      assert.doesNotMatch(output, /"requests"/);
-    });
-  });
-
-  it("prints concise event cards without raw provider noise by default", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
-      const output = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "events", "search",
-        "--input", JSON.stringify({ requests: [{ query: "tech", location: "Berlin" }] }),
+        "apps", "skill-info", "weather", "rain_radar",
       ]);
 
-      assert.match(output, /Accessible Tech Meetup/);
-      assert.match(output, /2026-06-13T14:00:00\+02:00/);
-      assert.match(output, /Community Hall/);
-      assert.match(output, /accessibility/);
-      assert.match(output, /unknown/);
-      assert.doesNotMatch(output, /event-hash/);
-      assert.doesNotMatch(output, /image_url/);
-      assert.doesNotMatch(output, /very long event description/);
-    });
-  });
-
-  it("prints concise connection cards without booking internals by default", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
-      const output = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "travel", "search_connections",
-        "--input", JSON.stringify({ requests: [{ legs: [{ origin: "Berlin", destination: "Barcelona", date: "2026-07-10" }] }] }),
-      ]);
-
-      assert.match(output, /Berlin \(BER\) → Barcelona \(BCN\)/);
-      assert.match(output, /192 EUR · direct · Vueling/);
-      assert.match(output, /Get booking URL/);
-      assert.doesNotMatch(output, /secret-booking-token/);
-      assert.doesNotMatch(output, /booking_context/);
-      assert.doesNotMatch(output, /departure_latitude/);
-      assert.doesNotMatch(output, /flight-hash/);
-    });
-  });
-
-  it("prints concise stay cards without property internals by default", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
-      const output = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "travel", "search_stays",
-        "--input", JSON.stringify({ requests: [{ query: "Hotels in Barcelona", check_in_date: "2026-07-10", check_out_date: "2026-07-13" }] }),
-      ]);
-
-      assert.match(output, /Budget Pool Hotel/);
-      assert.match(output, /★ 4.4/);
-      assert.match(output, /€172/);
-      assert.match(output, /Pool/);
-      assert.doesNotMatch(output, /secret-property-token/);
-      assert.doesNotMatch(output, /property_token/);
-      assert.doesNotMatch(output, /images/);
-      assert.doesNotMatch(output, /nearby_places/);
-      assert.doesNotMatch(output, /stay-hash/);
-    });
-  });
-
-  it("prints clear no-result reasons and suggestions", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl }) => {
-      const output = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "events", "search",
-        "--input", JSON.stringify({ requests: [{ query: "no-match", location: "Berlin" }] }),
-      ]);
-
-      assert.match(output, /No results found/i);
-      assert.match(output, /filtered_out/);
-      assert.match(output, /Relax the date window/);
-      assert.match(output, /Try a nearby city/);
-      assert.doesNotMatch(output, /\{\s*"results"/);
-    });
-  });
-
-  it("prints concise Fitness cards and sends canonical Urban Sports requests", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
-      const locationsOutput = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "fitness", "search_locations",
-        "--input", JSON.stringify({ requests: [{ query: "hiit", address: "Sorauer Str. 12", radius_km: 1, limit: 2 }] }),
-      ]);
-      const classesOutput = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "fitness", "search_classes",
-        "--input", JSON.stringify({ requests: [{ query: "yoga", address: "Sorauer Str. 12", radius_km: 1, start_date: "2026-07-10", attendance_mode: "onsite", limit: 2 }] }),
-      ]);
-
-      assert.match(locationsOutput, /BEAT81 - Paul-Lincke-Ufer/);
-      assert.match(locationsOutput, /0\.714 km/);
-      assert.match(locationsOutput, /plans: Premium, Max/);
-      assert.match(classesOutput, /Morning Yoga Flow/);
-      assert.match(classesOutput, /2026-07-10/);
-      assert.match(classesOutput, /Yoga Studio Kreuzberg/);
-      assert.doesNotMatch(`${locationsOutput}\n${classesOutput}`, /image_url|venue_lat|venue_lon|lat:|lon:/);
-
-      assert.deepEqual(requests.map((entry) => entry.url), [
-        "/v1/apps/fitness/skills/search_locations",
-        "/v1/apps/fitness/skills/search_classes",
-      ]);
-      assert.deepEqual(requests[0].body, {
-        requests: [{ query: "hiit", address: "Sorauer Str. 12", radius_km: 1, limit: 2 }],
-      });
-      assert.deepEqual(requests[1].body, {
-        requests: [{ query: "yoga", address: "Sorauer Str. 12", radius_km: 1, start_date: "2026-07-10", attendance_mode: "onsite", limit: 2 }],
-      });
-    });
-  });
-
-  it("prints task app-skill child results from generic apps commands", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
-      const createOutput = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "tasks", "create",
-        "--input", JSON.stringify({ tasks: [{ title: "Draft checklist" }, { title: "Draft announcement", assignee: "openmates" }] }),
-      ]);
-      const searchOutput = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "tasks", "search",
-        "--input", JSON.stringify({ query: "invoice follow-up" }),
-      ]);
-
-      assert.match(createOutput, /Draft checklist/);
-      assert.match(createOutput, /TASK-1/);
-      assert.match(createOutput, /openmates tasks show TASK-1/);
-      assert.match(createOutput, /Draft announcement/);
-      assert.doesNotMatch(createOutput, /No results found/i);
-      assert.match(searchOutput, /Waiting for a connected task client/i);
-      assert.match(searchOutput, /task-search-request-1/);
-
-      assert.deepEqual(requests.slice(-2).map((entry) => entry.url), [
-        "/v1/apps/tasks/skills/create",
-        "/v1/apps/tasks/skills/search",
-      ]);
-    });
-  });
-
-  it("prints workflow app-skill child results from generic apps commands", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
-      const createOutput = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "workflows", "create-or-modify",
-        "--input", JSON.stringify({ title: "Morning weather", graph: { version: 1, nodes: [], edges: [] } }),
-      ]);
-      const searchOutput = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "workflows", "search",
-        "--input", JSON.stringify({ query: "weather" }),
-      ]);
-
-      assert.match(createOutput, /Morning weather/);
-      assert.match(createOutput, /openmates workflows show workflow-1/);
-      assert.match(searchOutput, /Weather digest/);
-      assert.match(searchOutput, /openmates workflows show workflow-2/);
-      assert.doesNotMatch(`${createOutput}\n${searchOutput}`, /Waiting for a connected/i);
-      assert.doesNotMatch(`${createOutput}\n${searchOutput}`, /No results found/i);
-
-      assert.deepEqual(requests.slice(-2).map((entry) => entry.url), [
-        "/v1/apps/workflows/skills/create-or-modify",
-        "/v1/apps/workflows/skills/search",
-      ]);
-    });
-  });
-
-  it("passes models3d search flags as request-array skill input", async () => {
-    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
-      const output = await runCliAsync([
-        "--api-url", apiUrl,
-        "apps", "models3d", "search",
-        "--query", "benchy",
-        "--count", "10",
-        "--providers", "Printables,Thingiverse",
-        "--sort", "popular",
-        "--free-only",
-        "--json",
-      ]);
-      const parsed = JSON.parse(output) as { data?: { result_count?: number } };
-
-      assert.equal(parsed.data?.result_count, 1);
-      assert.deepEqual(requests.at(-1), {
-        url: "/v1/apps/models3d/skills/search",
-        body: {
-          requests: [{
-            query: "benchy",
-            count: 10,
-            providers: ["Printables", "Thingiverse"],
-            sort: "popular",
-            free_only: true,
-          }],
-        },
-      });
+      assert.match(output, /rain_radar/);
+      assert.match(output, /Optional parameters/);
+      assert.match(output, /Input example/);
+      assert.doesNotMatch(output, /openmates apps weather rain_radar --input/);
     });
   });
 
@@ -2136,7 +1958,40 @@ describe("apps skill formatted output", () => {
     });
   });
 
-  it("prints nested app-skill errors instead of treating them as empty results", async () => {
+  it("runs the explicit models3d search command", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "models3d", "search",
+        "--query", "benchy",
+        "--count", "2",
+        "--providers", "Printables,Thingiverse",
+        "--sort", "newest",
+        "--free-only",
+        "--json",
+      ]);
+      const parsed = JSON.parse(output) as { data?: { results?: Array<Record<string, unknown>> } };
+
+      assert.equal(requests.length, 1);
+      assert.deepEqual(requests[0], {
+        url: "/v1/apps/models3d/skills/search",
+        body: {
+          requests: [{
+            query: "benchy",
+            count: 2,
+            providers: ["Printables", "Thingiverse"],
+            sort: "newest",
+            free_only: true,
+          }],
+        },
+      });
+      assert.equal(parsed.data?.results?.[0]?.result_count, 1);
+      assert.doesNotMatch(output, /open_cta_label/);
+      assert.match(output, /Creative Tools/);
+    });
+  });
+
+  it("does not route nested app-skill errors through generic execution", async () => {
     await withSkillFormattingMockApi(async ({ apiUrl }) => {
       const { stdout, stderr } = await execFileAsync("node", [
         "dist/cli.js",
@@ -2148,11 +2003,10 @@ describe("apps skill formatted output", () => {
         encoding: "utf-8",
         env: { ...process.env, TERM: "dumb" },
         timeout: 15_000,
-      });
+      }).catch((error: { stdout?: string; stderr?: string }) => error);
 
       assert.equal(stdout, "");
-      assert.match(stderr, /Skill failed/);
-      assert.match(stderr, /Vault key id/);
+      assert.match(stderr, /Generic app-skill CLI execution is not supported/);
       assert.doesNotMatch(stderr, /No results found/i);
     });
   });
@@ -3121,6 +2975,7 @@ describe("documented CLI command reference", () => {
         "apps code run --language",
         "apps code run --entry main.py --file",
         "apps code run --entry main.py --dir",
+        "apps models3d search --query benchy",
       ]) {
         assert.ok(help.includes(fragment), `expected app help to mention ${fragment}`);
         assert.ok(doc.includes(`openmates ${fragment}`), `expected apps docs to mention openmates ${fragment}`);
@@ -3128,7 +2983,7 @@ describe("documented CLI command reference", () => {
     });
   });
 
-  it("requires login before accepting a local models3d reference image", () => {
+  it("rejects generic models3d app-skill execution", () => {
     const result = runCliWithoutSessionResult([
       "apps",
       "models3d",
@@ -3138,7 +2993,8 @@ describe("documented CLI command reference", () => {
     ]);
 
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /Image-based 3D generation requires `openmates login`/);
+    assert.match(result.stderr, /Generic app-skill CLI execution is not supported/);
+    assert.match(result.stderr, /openmates apps skill-info models3d generate/);
   });
 
   it("docs command reference matches docs help", () => {

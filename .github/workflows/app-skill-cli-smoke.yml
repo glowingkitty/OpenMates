@@ -1,5 +1,5 @@
-# Real-dev OpenMates CLI smoke for generic Tasks and Workflows app skills.
-name: App-Skill CLI Smoke
+# Real-dev OpenMates CLI smoke for typed Tasks and Workflows commands.
+name: Typed Task/Workflow CLI Smoke
 
 on:
   workflow_dispatch:
@@ -52,7 +52,7 @@ jobs:
       - name: Build CLI
         run: pnpm --filter openmates build
 
-      - name: Run real-dev app-skill smoke
+      - name: Run real-dev typed task/workflow smoke
         shell: bash
         run: |
           set -o pipefail

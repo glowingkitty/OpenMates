@@ -49,6 +49,9 @@ VERCEL_PROJECT_MUTATION_RE = re.compile(
 VERCEL_PAID_BUILD_MACHINE_RE = re.compile(
     r"(?i)(buildMachine(Type|Selection|Elastic)?|elasticConcurrency|resourceConfig|turbo|dynamic build)"
 )
+CLI_GENERIC_APP_SKILL_RUNNER_RE = re.compile(
+    r"client\.runSkill\s*\(\s*\{\s*app\s*,\s*skill\b|Sugar alias:\s*openmates apps <app> <skill>"
+)
 
 BLOCK_PATTERNS = {
     "hardcoded secret-like assignment": re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{8,}"),
@@ -269,6 +272,20 @@ def _audit_vercel_project_mutations(added_lines: list[tuple[str, int, str]]) -> 
     return issues
 
 
+def _audit_generic_cli_app_skill_execution(added_lines: list[tuple[str, int, str]]) -> list[str]:
+    issues: list[str] = []
+    for path, line_no, line in added_lines:
+        if path != "frontend/packages/openmates-cli/src/cli.ts":
+            continue
+        if not CLI_GENERIC_APP_SKILL_RUNNER_RE.search(line):
+            continue
+        issues.append(
+            f"{path}:{line_no}: generic `openmates apps <app> <skill>` execution is forbidden; "
+            "add an explicit typed command with command-specific help and validation instead"
+        )
+    return issues
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
@@ -342,6 +359,9 @@ def main() -> int:
 
     for issue in _audit_vercel_project_mutations(added_lines_with_numbers):
         blocks.append(f"vercel build machine guard: {issue}")
+
+    for issue in _audit_generic_cli_app_skill_execution(added_lines_with_numbers):
+        blocks.append(f"cli generic app-skill guard: {issue}")
 
     added_lines = [(path, line) for path, _line_no, line in added_lines_with_numbers]
     for path, line in added_lines:

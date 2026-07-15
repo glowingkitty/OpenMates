@@ -53,7 +53,7 @@ def _skill() -> SearchSkill:
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_task_search_returns_waiting_embed_state_when_no_client_is_online() -> None:
     search_service = FakeClientTaskSearchService(online=False)
 
@@ -75,7 +75,7 @@ async def test_task_search_returns_waiting_embed_state_when_no_client_is_online(
     assert search_service.server_search_calls == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_task_search_returns_client_matches_as_child_task_embed_results() -> None:
     search_service = FakeClientTaskSearchService(
         online=True,

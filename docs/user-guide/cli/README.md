@@ -43,7 +43,7 @@ claims:
 
 # OpenMates CLI
 
-A terminal interface and Node.js SDK for interacting with OpenMates. Plain `openmates` opens a lightweight chat TUI in interactive terminals; explicit subcommands provide pair-auth login, encrypted chat operations, app skill execution, settings management, and self-hosted server administration.
+A terminal interface and Node.js SDK for interacting with OpenMates. Plain `openmates` opens a lightweight chat TUI in interactive terminals; explicit subcommands provide pair-auth login, encrypted chat operations, typed app commands, settings management, and self-hosted server administration.
 
 ## Installation
 

@@ -41,7 +41,16 @@ workflow_runs:
       note: "Unix timestamp when this concrete execution was accepted."
     status:
       type: string
-      note: "queued, running, waiting, completed, failed, or cancelled."
+      note: "planned, queued, running, waiting, cancellation_requested, completed, failed, cancelled, or skipped_by_user."
+    cancellation_requested_at:
+      type: integer
+      note: "Nullable Unix timestamp for cooperative cancellation request."
+    cancelled_at:
+      type: integer
+      note: "Nullable Unix timestamp after the runner reaches a cancellation checkpoint."
+    cancelled_by_hash:
+      type: string
+      note: "Nullable SHA256(user_id) of the owner who requested cancellation."
     started_at:
       type: integer
       note: "Unix timestamp."

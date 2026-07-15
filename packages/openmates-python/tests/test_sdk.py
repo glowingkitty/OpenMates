@@ -151,6 +151,191 @@ def test_native_models3d_search_skill_method_uses_generated_namespace(monkeypatc
     }
 
 
+def test_application_preview_lifecycle_uses_embed_preview_namespace(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"method": "POST", "url": url, "json": json, "headers": headers})
+        if url.endswith("/v1/applications/embed-1/preview/start"):
+            return FakeResponse({"session_id": "session-1", "preview_url": "https://preview.example/t/token/", "status": "queued", "credits_per_minute": 5})
+        if url.endswith("/v1/applications/preview/session-1/open"):
+            return FakeResponse({"session_id": "session-1", "status": "running", "events": [], "auto_started": False})
+        if url.endswith("/v1/applications/preview/session-1/stop"):
+            return FakeResponse({"session_id": "session-1", "status": "stopped", "charged_credits": 5})
+        raise AssertionError(f"Unexpected POST: {url}")
+
+    def fake_get(url, *, headers, timeout):
+        requests.append({"method": "GET", "url": url, "json": None, "headers": headers})
+        if url.endswith("/v1/applications/preview/session-1"):
+            return FakeResponse({"session_id": "session-1", "status": "running", "events": [], "auto_started": False})
+        raise AssertionError(f"Unexpected GET: {url}")
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+
+    client = OpenMates(api_key="sk-api-test")
+    started = client.embeds.preview.start("embed-1", chat_id="chat-1", requested_runtime="svelte")
+    waited = client.embeds.preview.start("embed-1", chat_id="chat-1", wait=True, timeout_s=5)
+    status = client.embeds.preview.status("session-1")
+    opened = client.embeds.preview.open("session-1")
+    stopped = client.embeds.preview.stop("session-1")
+
+    assert started["status"] == "queued"
+    assert waited["status"] == status["status"] == opened["status"] == "running"
+    assert stopped["status"] == "stopped"
+    assert [request["method"] for request in requests] == ["POST", "POST", "GET", "GET", "POST", "POST"]
+    assert requests[0]["url"] == "https://api.openmates.org/v1/applications/embed-1/preview/start"
+    assert requests[0]["json"] == {"chat_id": "chat-1", "requested_runtime": "svelte"}
+    assert requests[1]["json"] == {"chat_id": "chat-1"}
+
+
+def test_task_workflow_app_skill_methods_expose_embed_contracts(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
+        if url.endswith("/v1/apps/tasks/skills/create"):
+            return FakeResponse({
+                "success": True,
+                "data": {
+                    "success": True,
+                    "app_id": "tasks",
+                    "skill_id": "create",
+                    "parent_embed_id": "app-skill-use-1",
+                    "result_count": 1,
+                    "results": [{
+                        "type": "task",
+                        "parent_app_skill_type": "app_skill_use",
+                        "child_embed_id": "task-embed-1",
+                        "task_id": "task-1",
+                        "short_id": "TASK-1",
+                        "title": "Draft checklist",
+                        "status": "todo",
+                        "assignee": "user",
+                    }],
+                },
+            })
+        if url.endswith("/v1/apps/tasks/skills/search"):
+            return FakeResponse({
+                "success": True,
+                "data": {
+                    "success": True,
+                    "app_id": "tasks",
+                    "skill_id": "search",
+                    "status": "waiting_for_client",
+                    "requires_connected_client": True,
+                    "pending_client_search": {"request_id": "task-search-1", "notification_queued": True},
+                    "result_count": 0,
+                    "results": [],
+                },
+            })
+        if url.endswith("/v1/apps/workflows/skills/create-or-modify"):
+            return FakeResponse({
+                "success": True,
+                "data": {
+                    "success": True,
+                    "app_id": "workflows",
+                    "skill_id": "create-or-modify",
+                    "parent_embed_id": "app-skill-use-1",
+                    "result_count": 1,
+                    "results": [{
+                        "type": "workflow",
+                        "parent_app_skill_type": "app_skill_use",
+                        "child_embed_id": "workflow-embed-1",
+                        "workflow_id": "workflow-1",
+                        "title": "Morning weather",
+                        "status": "draft",
+                    }],
+                },
+            })
+        if url.endswith("/v1/apps/workflows/skills/search"):
+            return FakeResponse({
+                "success": True,
+                "data": {
+                    "success": True,
+                    "app_id": "workflows",
+                    "skill_id": "search",
+                    "status": "finished",
+                    "requires_connected_client": False,
+                    "result_count": 2,
+                    "results": [
+                        {
+                            "type": "workflow",
+                            "parent_app_skill_type": "app_skill_use",
+                            "child_embed_id": "workflow-embed-1",
+                            "workflow_id": "workflow-1",
+                            "title": "Morning weather",
+                            "status": "enabled",
+                        },
+                        {
+                            "type": "workflow",
+                            "parent_app_skill_type": "app_skill_use",
+                            "child_embed_id": "workflow-embed-2",
+                            "workflow_id": "workflow-2",
+                            "title": "Weather digest",
+                            "status": "draft",
+                        },
+                    ],
+                },
+            })
+        raise AssertionError(f"Unexpected request: {url}")
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    task_create = client.apps.tasks.create({"tasks": [{"title": "Draft checklist"}]})
+    task_search = client.apps.tasks.search({"query": "checklist"})
+    workflow_create = client.apps.workflows.create_or_modify({"title": "Morning weather"})
+    workflow_search = client.apps.workflows.search({"query": "weather", "include_temporary": True})
+
+    assert task_create["data"]["parent_embed_id"] == "app-skill-use-1"
+    assert task_create["data"]["results"][0]["parent_app_skill_type"] == "app_skill_use"
+    assert task_create["data"]["results"][0]["child_embed_id"] == "task-embed-1"
+    assert task_search["data"]["status"] == "waiting_for_client"
+    assert task_search["data"]["pending_client_search"]["request_id"] == "task-search-1"
+    assert task_search["data"]["results"] == []
+    assert workflow_create["data"]["results"][0]["child_embed_id"] == "workflow-embed-1"
+    assert workflow_search["data"]["status"] == "finished"
+    assert workflow_search["data"]["requires_connected_client"] is False
+    assert [result["child_embed_id"] for result in workflow_search["data"]["results"]] == [
+        "workflow-embed-1",
+        "workflow-embed-2",
+    ]
+
+    assert [request["url"] for request in requests] == [
+        "https://api.openmates.org/v1/apps/tasks/skills/create",
+        "https://api.openmates.org/v1/apps/tasks/skills/search",
+        "https://api.openmates.org/v1/apps/workflows/skills/create-or-modify",
+        "https://api.openmates.org/v1/apps/workflows/skills/search",
+    ]
+    assert requests[0]["json"] == {
+        "input_data": {"tasks": [{"title": "Draft checklist"}]},
+        "parameters": {},
+    }
+    assert requests[3]["json"] == {
+        "input_data": {"query": "weather", "include_temporary": True},
+        "parameters": {},
+    }
+
+
 def test_new_chat_defaults_to_non_persistent(monkeypatch):
     requests = []
 

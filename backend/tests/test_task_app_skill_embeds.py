@@ -60,7 +60,7 @@ def _skill() -> CreateSkill:
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_task_create_returns_embed_ready_children_without_system_events() -> None:
     stage_service = FakeTaskStageService()
 
@@ -92,7 +92,7 @@ async def test_task_create_returns_embed_ready_children_without_system_events() 
     assert stage_service.calls[1]["assignee_type"] == "ai"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_task_create_accepts_flat_single_task_arguments() -> None:
     stage_service = FakeTaskStageService()
 

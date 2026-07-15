@@ -13,7 +13,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 
 import { OpenMatesClient, type UserTaskCreateInput } from "../src/client.ts";
 import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
-import { findTask, type DecryptedUserTask } from "../src/tasksCli.ts";
+import { decryptUserTask, findTask, type DecryptedUserTask } from "../src/tasksCli.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
@@ -120,6 +120,30 @@ describe("OpenMatesClient user tasks", () => {
 
     assert.throws(() => findTask(tasks, "TASK-1234"), /ambiguous/);
     assert.equal(findTask(tasks, "task-2").taskId, "task-2");
+  });
+
+  it("renders workflow task projections without decrypting task ciphertext", async () => {
+    const task = await decryptUserTask({
+      task_id: "workflow-schedule:trigger-1:1000",
+      source: "workflow_run",
+      workflow_id: "workflow-1",
+      workflow_run_id: "planned:trigger-1:1000",
+      title: "Morning rain - 1970-01-01 00:16 UTC",
+      status: "todo",
+      run_status: "planned",
+      due_at: 1000,
+      position: 1000,
+      read_only: true,
+      encrypted_title: "",
+      assignee_type: "user",
+    }, Buffer.alloc(32));
+
+    assert.equal(task.source, "workflow_run");
+    assert.equal(task.title, "Morning rain - 1970-01-01 00:16 UTC");
+    assert.equal(task.status, "todo");
+    assert.equal(task.queueState, "planned");
+    assert.equal(task.readOnly, true);
+    assert.match(task.shortId, /^WF-/);
   });
 
   it("formats task child embeds for CLI output", () => {

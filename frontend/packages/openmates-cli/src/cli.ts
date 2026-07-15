@@ -2181,30 +2181,27 @@ async function handleApps(
     return;
   }
 
-  // `apps <app> --help` → show app info
-  // `apps <app> <skill> --help` → show skill info
+  // `apps <app> --help` → show app info. Skill help uses the explicit
+  // metadata command `apps skill-info <app> <skill>`, not a generic runner.
   if (
     flags.help === true &&
     subcommand !== "list" &&
     subcommand !== "info" &&
-    subcommand !== "skill-info" &&
-    subcommand !== "run"
+    subcommand !== "skill-info"
   ) {
     const potentialApp = subcommand;
     const potentialSkill = rest[0];
+    if (potentialSkill) {
+      console.error(
+        "Generic app-skill CLI execution is not supported.\n\n" +
+          "Use an explicit typed command for this app skill, or inspect metadata with:\n" +
+          `  openmates apps skill-info ${potentialApp} ${potentialSkill}\n`,
+      );
+      process.exit(1);
+    }
     try {
-      if (potentialSkill) {
-        // `apps <app> <skill> --help` → skill-level help
-        const data = await client.getSkillInfo(
-          potentialApp,
-          potentialSkill,
-          apiKey,
-        );
-        await printSkillInfo(client, potentialApp, data as SkillMetadata);
-      } else {
-        const data = await client.getApp(potentialApp);
-        await printAppInfo(client, data as AppMetadata);
-      }
+      const data = await client.getApp(potentialApp);
+      await printAppInfo(client, data as AppMetadata);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
@@ -2272,53 +2269,13 @@ async function handleApps(
     return;
   }
 
-  // `apps run` is removed — the sugar alias `apps <app> <skill> [text]` is
-  // the canonical way to run skills. Catch it explicitly so users get a
-  // helpful redirect instead of a confusing "unknown subcommand" error.
   if (subcommand === "run") {
-    const [app, skill, ...inlineTokens] = rest;
-    if (!app || !skill) {
-      console.error(
-        "The 'run' subcommand has been replaced by the shorter sugar syntax.\n",
-      );
-      printAppsHelp();
-      process.exit(1);
-    }
-    // Silently forward to the sugar alias execution path
-    let runSchemaParams: Array<{ name: string; type: string; description: string; required: boolean; default?: unknown; inputShape?: "requests" | "flat" }> = [];
-    try { runSchemaParams = await client.getSkillSchema(app, skill); } catch { /* best-effort */ }
-    try {
-      const inputData = buildSkillInput(flags, inlineTokens, runSchemaParams);
-      const data = await client.runSkill({ app, skill, inputData, apiKey });
-      if (flags.json === true) {
-        printJson(data);
-      } else {
-        printSkillResult(app, skill, data);
-      }
-    } catch (err) {
-      const statusCode = (err as Error & { statusCode?: number }).statusCode;
-      const msg = err instanceof Error ? err.message : String(err);
-      if (statusCode === 404) {
-        const suggestion = await suggestAppOrSkill(client, app, skill, apiKey);
-        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
-        if (suggestion) console.error(`${suggestion}\n`);
-        console.error(
-          `List all apps:   openmates apps list\n` +
-            `App details:     openmates apps info <app-id>`,
-        );
-        process.exit(1);
-      }
-      if (statusCode === 422) {
-        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
-        console.error(
-          `Run with --help for parameter details:\n` +
-            `  openmates apps ${app} ${skill} --help`,
-        );
-        process.exit(1);
-      }
-      throw err;
-    }
-    return;
+    console.error(
+      "Generic app-skill CLI execution is not supported.\n\n" +
+        "Use an explicit typed command such as `openmates tasks ...`, `openmates workflows ...`, or another app-specific command.\n" +
+        "Inspect app metadata with `openmates apps list`, `openmates apps info <app-id>`, or `openmates apps skill-info <app-id> <skill-id>`.\n",
+    );
+    process.exit(1);
   }
 
   // ── travel booking-link: resolve a booking URL from a booking_token ────
@@ -2380,120 +2337,21 @@ async function handleApps(
     return;
   }
 
-  // Sugar alias: openmates apps <app> <skill> [inline text]
+  if (subcommand === "models3d" && rest[0] === "search") {
+    await handleModels3dSearch(client, flags, apiKey);
+    return;
+  }
+
   const app = subcommand;
   const skill = rest[0];
   if (app && skill) {
-    const inlineTokens = rest.slice(1);
-    const hasExplicitInput = typeof flags.input === "string";
-
-    // Fetch schema once — used for both empty-args detection and multi-param validation.
-    let schemaParams: Array<{
-      name: string;
-      type: string;
-      description: string;
-      required: boolean;
-      default?: unknown;
-      inputShape?: "requests" | "flat";
-    }> = [];
-    try {
-      schemaParams = await client.getSkillSchema(app, skill);
-    } catch {
-      // Schema unavailable — proceed with best-effort execution
-    }
-
-    // No args, no --input, and the skill has required params →
-    // show skill help instead of sending an empty/partial request that 422s.
-    if (!hasExplicitInput && inlineTokens.length === 0) {
-      const required = getEffectiveRequiredParams(schemaParams);
-      if (required.length > 0) {
-        const data = await client.getSkillInfo(app, skill, apiKey);
-        await printSkillInfo(client, app, data as SkillMetadata);
-        return;
-      }
-    }
-
-    // Multiple required params but user provided only inline text →
-    // enforce --input with a helpful example.
-    if (
-      !hasExplicitInput &&
-      inlineTokens.length > 0 &&
-      schemaParams.length > 0
-    ) {
-      const required = getEffectiveRequiredParams(schemaParams);
-      if (required.length > 1) {
-        const example: Record<string, unknown> = {};
-        for (const p of required) example[p.name] = `<${p.name}>`;
-        console.error(
-          `This skill requires ${required.length} fields: ${required.map((p) => p.name).join(", ")}\n\n` +
-            `Use --input to provide all fields:\n` +
-            `  openmates apps ${app} ${skill} --input '${buildInputUsageExample(schemaParams, example)}'\n\n` +
-            `Run with --help for full parameter details:\n` +
-            `  openmates apps ${app} ${skill} --help\n`,
-        );
-        process.exit(1);
-      }
-    }
-
-    try {
-      const inputData = app === "models3d" && skill === "generate"
-        ? await buildModels3DGenerateInput(client, flags, inlineTokens, schemaParams)
-        : buildSkillInput(flags, inlineTokens, schemaParams);
-      const data = await client.runSkill({ app, skill, inputData, apiKey });
-      if (flags.json === true) {
-        printJson(data);
-      } else {
-        printSkillResult(app, skill, data);
-      }
-    } catch (err) {
-      const statusCode = (err as Error & { statusCode?: number }).statusCode;
-
-      // 404 — app or skill not found → suggest closest match
-      if (statusCode === 404) {
-        const suggestion = await suggestAppOrSkill(client, app, skill, apiKey);
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
-        if (suggestion) console.error(`${suggestion}\n`);
-        console.error(
-          `List all apps:   openmates apps list\n` +
-            `App details:     openmates apps info <app-id>`,
-        );
-        process.exit(1);
-      }
-
-      // 422 — validation error → show required parameters
-      if (statusCode === 422) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`\x1b[31m✗ ${msg}\x1b[0m\n`);
-        // Show skill schema if available
-        if (schemaParams.length > 0) {
-          console.error("Required parameters:");
-          for (const p of schemaParams) {
-            const req = p.required ? " (required)" : "";
-            const def =
-              p.default !== undefined ? ` [default: ${p.default}]` : "";
-            console.error(
-              `  ${p.name}: ${p.type}${req}${def}${p.description ? ` — ${p.description}` : ""}`,
-            );
-          }
-          console.error(
-            `\nUsage:\n` +
-              `  openmates apps ${app} ${skill} <value>\n` +
-              `  openmates apps ${app} ${skill} --input '${buildInputUsageExample(schemaParams)}'`,
-          );
-        } else {
-          console.error(
-            `Run with --help for parameter details:\n` +
-              `  openmates apps ${app} ${skill} --help`,
-          );
-        }
-        process.exit(1);
-      }
-
-      // Other errors — rethrow
-      throw err;
-    }
-    return;
+    console.error(
+      "Generic app-skill CLI execution is not supported.\n\n" +
+        `There is no generic runner for \`openmates apps ${app} ${skill}\`.\n` +
+        "Use the app's explicit typed command or inspect metadata with:\n" +
+        `  openmates apps skill-info ${app} ${skill}\n`,
+    );
+    process.exit(1);
   }
 
   // `apps <app>` with no skill — treat as `apps info <app>`
@@ -2519,6 +2377,59 @@ async function handleApps(
   console.error(`Unknown apps subcommand '${subcommand}'.\n`);
   printAppsHelp();
   process.exit(1);
+}
+
+const MODELS3D_SEARCH_SORTS = new Set(["best_match", "popular", "downloads", "newest"]);
+
+async function handleModels3dSearch(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+  apiKey?: string,
+): Promise<void> {
+  const query = typeof flags.query === "string" ? flags.query.trim() : "";
+  if (!query) {
+    console.error(
+      "Missing --query flag.\n\n" +
+        "Usage:\n" +
+        "  openmates apps models3d search --query benchy [--count 10] [--providers Printables] [--sort best_match|popular|downloads|newest] [--free-only] [--json]\n",
+    );
+    process.exit(1);
+  }
+
+  const count = parsePositiveIntegerFlag(flags.count, "--count");
+  const sort = typeof flags.sort === "string" ? flags.sort.trim().toLowerCase() : undefined;
+  if (sort && !MODELS3D_SEARCH_SORTS.has(sort)) {
+    console.error(`--sort must be one of: ${Array.from(MODELS3D_SEARCH_SORTS).join(", ")}`);
+    process.exit(1);
+  }
+
+  const providers = [
+    ...splitCsvFlag(flags.provider),
+    ...splitCsvFlag(flags.providers),
+  ];
+  const request: Record<string, unknown> = { query };
+  if (count !== undefined) request.count = count;
+  if (providers.length > 0) request.providers = providers;
+  if (sort) request.sort = sort;
+  if (flags["free-only"] === true) request.free_only = true;
+
+  try {
+    const result = await client.runSkill({
+      app: "models3d",
+      skill: "search",
+      inputData: { requests: [request] },
+      apiKey,
+    });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      printSkillResult("models3d", "search", result);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\x1b[31m✗ 3D model search failed:\x1b[0m ${msg}`);
+    process.exit(1);
+  }
 }
 
 interface CodeRunSkillResponse {
@@ -2653,120 +2564,6 @@ async function pollCodeRunStatus(
     if (["finished", "failed", "timeout", "cancelled"].includes(value)) return status;
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-}
-
-/**
- * Build skill input data from --input flag or inline positional text.
- *
- * When schema params are available and the skill has exactly one required
- * param, inline text is mapped to that param's name (e.g. { url: text }).
- * Otherwise falls back to { query: text } which matches the tool_schema
- * convention used by most query-based skills (web, news, etc.).
- * For skills with different schemas use --input '<json>' explicitly.
- */
-function buildSkillInput(
-  flags: Record<string, string | boolean>,
-  inlineTokens: string[],
-  schemaParams?: Array<{ name: string; required: boolean; inputShape?: "requests" | "flat" }>,
-): Record<string, unknown> {
-  const usesFlatInput = schemaParams?.some((p) => p.inputShape === "flat") ?? false;
-  if (typeof flags.input === "string") {
-    const parsed = JSON.parse(flags.input) as Record<string, unknown>;
-    if (usesFlatInput && Array.isArray(parsed.requests) && parsed.requests.length === 1) {
-      const firstRequest = parsed.requests[0];
-      if (firstRequest && typeof firstRequest === "object") {
-        return firstRequest as Record<string, unknown>;
-      }
-    }
-    return parsed;
-  }
-  if (typeof flags.query === "string" && flags.query.trim()) {
-    const query = flags.query.trim();
-    if (usesFlatInput) return { query };
-    const request: Record<string, unknown> = { query };
-    const count = parseOptionalPositiveInteger(flags.count);
-    if (count !== undefined) request.count = count;
-    const providers = parseOptionalCsvFlag(flags.providers ?? flags.provider);
-    if (providers.length > 0) request.providers = providers;
-    if (typeof flags.sort === "string" && flags.sort.trim()) request.sort = flags.sort.trim();
-    if (flags["free-only"] === true) request.free_only = true;
-    return { requests: [request] };
-  }
-  const inlineText = inlineTokens.join(" ").trim();
-  if (inlineText) {
-    // Use the actual param name when the skill has a single required field
-    const required = getEffectiveRequiredParams(schemaParams ?? []);
-    const flatLocationParam = usesFlatInput
-      ? (schemaParams ?? []).find((p) => p.name === "location")
-      : undefined;
-    const paramName = required.length === 1 ? required[0].name : (flatLocationParam?.name ?? "query");
-    if (usesFlatInput) return { [paramName]: inlineText };
-    return { requests: [{ [paramName]: inlineText }] };
-  }
-  return {};
-}
-
-function parseOptionalPositiveInteger(value: string | boolean | undefined): number | undefined {
-  if (typeof value !== "string" || !value.trim()) return undefined;
-  const parsed = Number.parseInt(value.trim(), 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-function parseOptionalCsvFlag(value: string | boolean | undefined): string[] {
-  if (typeof value !== "string") return [];
-  return value
-    .split(/[\n,]/)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-async function buildModels3DGenerateInput(
-  client: OpenMatesClient,
-  flags: Record<string, string | boolean>,
-  inlineTokens: string[],
-  schemaParams: Array<{ name: string; required: boolean; inputShape?: "requests" | "flat" }>,
-): Promise<Record<string, unknown>> {
-  const imagePath = typeof flags.image === "string" ? flags.image : undefined;
-  if (!imagePath) return buildSkillInput(flags, inlineTokens, schemaParams);
-  if (typeof flags.input === "string" || inlineTokens.length > 0) {
-    throw new Error("Use either a text prompt or --image <path> for 3D generation, not both.");
-  }
-  if (!client.hasSession()) {
-    throw new Error("Image-based 3D generation requires `openmates login` to upload the reference image.");
-  }
-
-  const processed = processFiles([imagePath], null);
-  if (processed.blocked.length > 0 || processed.errors.length > 0 || processed.embeds.length !== 1) {
-    const reason = [...processed.blocked, ...processed.errors]
-      .map((entry) => entry.error)
-      .join("; ") || "no image embed produced";
-    throw new Error(`Failed to prepare 3D reference image: ${reason}`);
-  }
-  const fileEmbed = processed.embeds[0];
-  if (!fileEmbed.requiresUpload || !fileEmbed.localPath || fileEmbed.embed.type !== "image") {
-    throw new Error("3D generation requires a supported image file.");
-  }
-
-  const uploadResult = await uploadFile(fileEmbed.localPath, client.getSession());
-  return { image_embed_refs: [uploadResult.embed_id] };
-}
-
-function getEffectiveRequiredParams<T extends { name: string; required: boolean; inputShape?: "requests" | "flat" }>(
-  schemaParams: T[],
-): T[] {
-  const required = schemaParams.filter((p) => p.required);
-  if (required.length > 0) return required;
-  const flatLocationParam = schemaParams.find((p) => p.inputShape === "flat" && p.name === "location");
-  return flatLocationParam ? [flatLocationParam] : [];
-}
-
-function buildInputUsageExample(
-  schemaParams: Array<{ name: string; inputShape?: "requests" | "flat" }>,
-  exampleItem?: Record<string, unknown>,
-): string {
-  const item = exampleItem ?? { [schemaParams[0]?.name ?? "query"]: "..." };
-  if (schemaParams.some((p) => p.inputShape === "flat")) return JSON.stringify(item);
-  return JSON.stringify({ requests: [item] });
 }
 
 /**
@@ -2933,6 +2730,11 @@ async function handleEmbeds(
     return;
   }
 
+  if (subcommand === "preview") {
+    await handleEmbedPreviewCommand(client, rest, flags);
+    return;
+  }
+
   if (subcommand === "versions") {
     const action = rest[0];
     const embedId = rest[1];
@@ -3002,6 +2804,91 @@ async function handleEmbeds(
   console.error(`Unknown embeds subcommand '${subcommand}'.\n`);
   printEmbedsHelp();
   process.exit(1);
+}
+
+async function handleEmbedPreviewCommand(
+  client: OpenMatesClient,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  const action = rest[0];
+  if (!action || action === "help") {
+    printEmbedsHelp();
+    return;
+  }
+
+  if (action === "start") {
+    const embedId = rest[1];
+    const chatId = typeof flags["chat-id"] === "string" ? flags["chat-id"] : typeof flags.chat === "string" ? flags.chat : undefined;
+    if (!embedId || !chatId) {
+      throw new Error("Usage: openmates embeds preview start <embed-id> --chat-id <chat-id> [--wait] [--json]");
+    }
+    const started = await client.startApplicationPreview({
+      embedId,
+      chatId,
+      sharedContext: typeof flags["shared-context"] === "string" ? flags["shared-context"] : undefined,
+      requestedRuntime: typeof flags.runtime === "string" ? flags.runtime : undefined,
+      sourceMessageId: typeof flags["source-message-id"] === "string" ? flags["source-message-id"] : undefined,
+    });
+    const result = flags.wait === true
+      ? await waitForApplicationPreview(client, started, flags)
+      : started;
+    printApplicationPreviewResult(result, flags);
+    return;
+  }
+
+  if (action === "status") {
+    const sessionId = rest[1];
+    if (!sessionId) throw new Error("Usage: openmates embeds preview status <session-id> [--json]");
+    printApplicationPreviewResult(await client.getApplicationPreviewStatus(sessionId), flags);
+    return;
+  }
+
+  if (action === "open") {
+    const sessionId = rest[1];
+    if (!sessionId) throw new Error("Usage: openmates embeds preview open <session-id> [--json]");
+    printApplicationPreviewResult(await client.openApplicationPreview(sessionId), flags);
+    return;
+  }
+
+  if (action === "stop") {
+    const sessionId = rest[1];
+    if (!sessionId) throw new Error("Usage: openmates embeds preview stop <session-id> [--json]");
+    printApplicationPreviewResult(await client.stopApplicationPreview(sessionId), flags);
+    return;
+  }
+
+  throw new Error(`Unknown embeds preview command '${action}'. Run 'openmates embeds --help'.`);
+}
+
+async function waitForApplicationPreview(
+  client: OpenMatesClient,
+  started: { session_id: string; status: string },
+  flags: Record<string, string | boolean>,
+): Promise<Record<string, unknown>> {
+  const timeoutSeconds = parsePositiveIntegerFlag(flags["timeout-seconds"], "--timeout-seconds") ?? 120;
+  const deadline = Date.now() + timeoutSeconds * 1000;
+  let current: Record<string, unknown> = started as unknown as Record<string, unknown>;
+  while (Date.now() < deadline) {
+    const status = String(current.status ?? "");
+    if (["running", "failed", "timeout", "cancelled", "stopped"].includes(status)) return current;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    current = await client.getApplicationPreviewStatus(started.session_id) as unknown as Record<string, unknown>;
+  }
+  throw new Error(`Application preview did not reach a terminal or running state within ${timeoutSeconds}s`);
+}
+
+function printApplicationPreviewResult(result: unknown, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+  const value = result && typeof result === "object" ? result as Record<string, unknown> : {};
+  console.log(`Session: ${String(value.session_id ?? "")}`);
+  console.log(`Status: ${String(value.status ?? "unknown")}`);
+  if (typeof value.preview_url === "string") console.log(`Preview URL: ${value.preview_url}`);
+  if (typeof value.charged_credits === "number") console.log(`Charged credits: ${value.charged_credits}`);
+  if (typeof value.error === "string" && value.error) console.log(`Error: ${value.error}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -6003,7 +5890,7 @@ function printAppsList(data: AppsListResponse): void {
     console.log();
   }
   console.log(
-    `\x1b[2mRun: openmates apps <app-id> <skill-id> "<query>"\x1b[0m`,
+    `\x1b[2mInspect: openmates apps skill-info <app-id> <skill-id>\x1b[0m`,
   );
 }
 
@@ -6048,7 +5935,7 @@ async function printAppInfo(
           .join("  ");
         process.stdout.write(`    \x1b[2mRequired:\x1b[0m ${reqStr}\n`);
         process.stdout.write(
-          `    \x1b[2mopenmates apps ${data.id} ${skill.id} --help  for details\x1b[0m\n`,
+          `    \x1b[2mopenmates apps skill-info ${data.id} ${skill.id}  for details\x1b[0m\n`,
         );
       }
     }
@@ -6067,9 +5954,6 @@ async function printAppInfo(
     console.log();
   }
 
-  console.log(
-    `\x1b[2mRun: openmates apps ${data.id} <skill-id> "<query>"\x1b[0m`,
-  );
   console.log(
     `\x1b[2mDetails: openmates apps skill-info ${data.id} <skill-id>\x1b[0m`,
   );
@@ -6153,8 +6037,8 @@ async function printSkillInfo(
       console.log();
     }
 
-    // ── Example --input JSON ─────────────────────────────────────────────
-    // Build a minimal example showing required fields + first 2 optional
+    // ── Example input JSON ───────────────────────────────────────────────
+    // Build a minimal schema example showing required fields + first 2 optional.
     const exampleItem: Record<string, unknown> = {};
     for (const p of requiredParams) {
       exampleItem[p.name] = buildExampleValue(p.name, p.type, p.description);
@@ -6164,22 +6048,17 @@ async function printSkillInfo(
       exampleItem[p.name] =
         p.default ?? buildExampleValue(p.name, p.type, p.description);
     }
-    process.stdout.write(`\x1b[1mExample\x1b[0m\n`);
+    process.stdout.write(`\x1b[1mInput example\x1b[0m\n`);
     const usesFlatInput = params.some((p) => p.inputShape === "flat");
     const examplePayload = usesFlatInput ? exampleItem : { requests: [exampleItem] };
     const exampleJson = JSON.stringify(examplePayload, null, 2)
       .split("\n")
       .map((l) => `  ${l}`)
       .join("\n");
-    process.stdout.write(
-      `  \x1b[2mopenmates apps ${appId} ${data.id} --input '\x1b[0m\n`,
-    );
     process.stdout.write(`${exampleJson}\n`);
-    process.stdout.write(`  \x1b[2m'\x1b[0m\n`);
     console.log();
   } else {
-    // Skill takes no input — simple invocation
-    console.log(`\x1b[2mRun: openmates apps ${appId} ${data.id}\x1b[0m`);
+    console.log(`\x1b[2mThis skill does not declare input parameters.\x1b[0m`);
   }
 }
 
@@ -7610,12 +7489,10 @@ function printAppsHelp(): void {
   openmates apps <app-id> [--json]                    App info
   openmates apps info <app-id> [--json]               App info (explicit)
   openmates apps skill-info <app-id> <skill-id> [--json]
-  openmates apps <app-id> <skill-id> "<query>" [--json]
-  openmates apps <app-id> <skill-id> --input '<json>' [--json]
-  openmates apps models3d generate --image ./reference.png [--json]
   openmates apps code run --language python --code 'print("Hello")'
   openmates apps code run --entry main.py --file main.py [--file requirements.txt]
   openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
+  openmates apps models3d search --query benchy [--count 10] [--providers Printables] [--json]
   openmates apps travel booking-link --token "<token>" [--context '<json>']
 
 Authentication:
@@ -7625,12 +7502,8 @@ Authentication:
 Examples:
   openmates apps list
   openmates apps web
-  openmates apps web search "latest AI news"
-  openmates apps news search "climate change"
-  openmates apps ai ask "Summarise this: ..."
-  openmates apps models3d generate --image ./chair.png
   openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
-  openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
+  openmates apps models3d search --query benchy --count 2 --providers Printables --json
   openmates apps travel booking-link --token "<booking_token from search result>"
   openmates apps skill-info web search`);
 }
@@ -7677,17 +7550,24 @@ function printEmbedsHelp(): void {
   console.log(`Embeds commands:
   openmates embeds show <embed-id> [--json]
   openmates embeds share <embed-id> [--expires <seconds>] [--password <pwd>] [--json]
+  openmates embeds preview start <embed-id> --chat-id <chat-id> [--wait] [--timeout-seconds <n>] [--json]
+  openmates embeds preview status <session-id> [--json]
+  openmates embeds preview open <session-id> [--json]
+  openmates embeds preview stop <session-id> [--json]
   openmates embeds versions list <embed-id> [--json]
   openmates embeds versions show <embed-id> --version <n> [--output <path>] [--json]
   openmates embeds versions restore <embed-id> --version <n> [--yes] [--json]
 
 'show' displays the full decrypted content of an embed.
+The 'preview' commands manage generated application live preview sessions.
 The 'versions' commands list, inspect, and non-destructively restore history.
 The embed ID can be the full UUID or just the first 8 characters.
 Embed IDs are shown when viewing chat conversations (openmates chats show).
 
 Examples:
   openmates embeds show a3f2b1c4
+  openmates embeds preview start a3f2b1c4 --chat-id 11111111-1111-4111-8111-111111111111 --wait --json
+  openmates embeds preview stop 22222222-2222-4222-8222-222222222222 --json
   openmates embeds versions list a3f2b1c4
   openmates embeds versions show a3f2b1c4 --version 1
   openmates embeds versions restore a3f2b1c4 --version 1 --yes`);

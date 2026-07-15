@@ -310,6 +310,14 @@ export type ProjectSourceCreateInput = ProjectSourceRecord;
 
 export interface UserTaskRecord {
   task_id: string;
+  source?: string | null;
+  title?: string | null;
+  read_only?: boolean | null;
+  workflow_id?: string | null;
+  workflow_run_id?: string | null;
+  run_status?: string | null;
+  blocked_reason?: string | null;
+  blocked_message?: string | null;
   short_id?: string | null;
   short_id_prefix?: string | null;
   encrypted_task_key?: string | null;
@@ -1589,6 +1597,45 @@ export interface EmbedVersionRestoreResponse {
   version_number: number;
   content: string;
   content_hash: string;
+}
+
+export interface ApplicationPreviewStartParams {
+  embedId: string;
+  chatId: string;
+  sharedContext?: string;
+  requestedRuntime?: string;
+  sourceMessageId?: string;
+}
+
+export interface ApplicationPreviewStartResponse {
+  session_id: string;
+  preview_url: string;
+  status: string;
+  credits_per_minute: number;
+}
+
+export interface ApplicationPreviewEvent {
+  kind: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface ApplicationPreviewStatusResponse {
+  session_id: string;
+  status: string;
+  events: ApplicationPreviewEvent[];
+  error?: string | null;
+  charged_credits?: number | null;
+  latest_screenshot_url?: string | null;
+  latest_screenshot?: Record<string, unknown> | null;
+  auto_started: boolean;
+  auto_opened_at?: number | null;
+}
+
+export interface ApplicationPreviewStopResponse {
+  session_id: string;
+  status: string;
+  charged_credits?: number | null;
 }
 
 /** Video metadata attached to a daily inspiration. */
@@ -7287,6 +7334,58 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async startApplicationPreview(params: ApplicationPreviewStartParams): Promise<ApplicationPreviewStartResponse> {
+    const embedId = await this.resolveEmbedId(params.embedId);
+    const body: Record<string, unknown> = { chat_id: params.chatId };
+    if (params.sharedContext) body.shared_context = params.sharedContext;
+    if (params.requestedRuntime) body.requested_runtime = params.requestedRuntime;
+    if (params.sourceMessageId) body.source_message_id = params.sourceMessageId;
+    const response = await this.http.post<ApplicationPreviewStartResponse>(
+      `/v1/applications/${encodeURIComponent(embedId)}/preview/start`,
+      body,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatApplicationPreviewError(response.data, `Failed to start application preview (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
+  async getApplicationPreviewStatus(sessionId: string): Promise<ApplicationPreviewStatusResponse> {
+    const response = await this.http.get<ApplicationPreviewStatusResponse>(
+      `/v1/applications/preview/${encodeURIComponent(sessionId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatApplicationPreviewError(response.data, `Failed to load application preview status (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
+  async openApplicationPreview(sessionId: string): Promise<ApplicationPreviewStatusResponse> {
+    const response = await this.http.post<ApplicationPreviewStatusResponse>(
+      `/v1/applications/preview/${encodeURIComponent(sessionId)}/open`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatApplicationPreviewError(response.data, `Failed to open application preview (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
+  async stopApplicationPreview(sessionId: string): Promise<ApplicationPreviewStopResponse> {
+    const response = await this.http.post<ApplicationPreviewStopResponse>(
+      `/v1/applications/preview/${encodeURIComponent(sessionId)}/stop`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatApplicationPreviewError(response.data, `Failed to stop application preview (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
   async getEmbedVersion(embedIdOrShort: string, version: number): Promise<EmbedVersionContentResponse> {
     const embedId = await this.resolveEmbedId(embedIdOrShort);
     const response = await this.http.get<EmbedVersionContentResponse>(
@@ -7458,6 +7557,20 @@ export class OpenMatesClient {
       const detail = (data as { detail?: unknown; message?: unknown }).detail;
       const message = (data as { detail?: unknown; message?: unknown }).message;
       if (typeof detail === "string" && detail.trim()) return detail;
+      if (typeof message === "string" && message.trim()) return message;
+    }
+    return fallback;
+  }
+
+  private formatApplicationPreviewError(data: unknown, fallback: string): string {
+    if (data && typeof data === "object") {
+      const detail = (data as { detail?: unknown; message?: unknown }).detail;
+      const message = (data as { detail?: unknown; message?: unknown }).message;
+      if (typeof detail === "string" && detail.trim()) return detail;
+      if (detail && typeof detail === "object") {
+        const nested = (detail as { message?: unknown; code?: unknown }).message ?? (detail as { code?: unknown }).code;
+        if (typeof nested === "string" && nested.trim()) return nested;
+      }
       if (typeof message === "string" && message.trim()) return message;
     }
     return fallback;

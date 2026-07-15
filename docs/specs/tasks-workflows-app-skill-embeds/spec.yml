@@ -1,7 +1,7 @@
 schema_version: 2
 id: tasks-workflows-app-skill-embeds
 title: Tasks And Workflows App Skill Embeds
-status: implementing
+status: verified
 
 goal: >
   Replace dev-only task chat system artifacts with first-class Tasks and Workflows
@@ -24,8 +24,11 @@ scope:
     - Workflow search app skill runs server-side because workflow definitions and relevant run metadata use server-side Automation Vault encryption.
     - Explicit task assignment semantics: every task is assigned to `user` or `openmates`; unclear assignment defaults to `user`; the assistant only executes tasks assigned to `openmates`.
     - Assistant prompt context includes chat-connected task information and assignment boundaries even when no tasks are currently attached.
-    - CLI normal and JSON output render app-skill embed results and child task/workflow records without requiring browser UI.
-    - Top-level `openmates tasks ...` and `openmates workflows ...` commands remain the primary user CLI workspace UX; generic `openmates apps ...` app-skill access remains an advanced/debug/API parity surface.
+    - CLI normal and JSON output render app-skill embed results and child task/workflow records through explicit typed `openmates tasks ...` and `openmates workflows ...` commands without requiring browser UI.
+    - Generic app-skill CLI execution such as `openmates apps <app> <skill>` is forbidden; every app skill exposed in CLI must have a proper command with command-specific help, input validation, and typed usage examples.
+    - A deterministic hook or audit blocks future generic app-skill CLI execution paths from being added.
+    - Active workflows with time triggers always project the next scheduled run into a normal visible task entry in the Tasks workspace.
+    - Any workflow execution, regardless of trigger type, creates or links a workflow task and reflects running, blocked, skipped, and failed execution state in the task/workflow-run relationship.
     - npm SDK and pip SDK parity after backend/CLI proof.
   out:
     - Production migration of existing task chats, task system messages, or dev task records.
@@ -133,16 +136,40 @@ clarification:
       answer: >
         Focus now on backend and CLI. Then implement SDK parity. Frontend comes
         later.
+    - question: Should scheduled workflow next-run tasks be visible as normal user tasks?
+      answer: >
+        Yes. The next-run task must be visible as a normal user task and include
+        a link that opens the planned or running workflow run entry.
+    - question: Should users be allowed to edit workflow-generated task scheduled dates?
+      answer: >
+        No. Workflow-generated tasks are read-only except delete. Deleting a
+        future scheduled workflow task skips that specific run.
+    - question: Should skipped scheduled runs remain visible in workflow run history?
+      answer: >
+        Yes. Deleting the future task deletes the task only; the workflow run
+        entry remains with status `skipped_by_user`.
+    - question: What blocked metadata should workflow-run tasks store?
+      answer: >
+        Store both a machine-readable `blocked_reason` enum and a short
+        user-facing `blocked_message` copied or summarized from the workflow run,
+        input request, approval request, or error.
+    - question: How should workflow-run task titles be generated?
+      answer: >
+        Use `<workflow title> - <date and time>`. For scheduled runs the date and
+        time is the scheduled run time; for manual or event-triggered runs it is
+        the task creation or trigger time.
   vision_summary: >
     Tasks and Workflows become normal separate app-skill surfaces in chat. Task
     data remains the existing durable task model with client-side encrypted
     private content, but chat-visible artifacts become app-skill embeds instead
     of task system messages; Workflows use their server-side encrypted workflow
-    model and server-side search.
+    model and server-side search. Workflow runs also project into normal visible
+    task entries so users can see upcoming, running, blocked, skipped, and failed
+    workflow work in the Tasks workspace without editing workflow-owned task data.
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+  subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
 
 approvals:
   product_contract:
@@ -190,10 +217,25 @@ decisions:
     reason: The user explicitly wants current work focused on CLI and backend, then SDK, with frontend later.
     decided_at: "2026-07-15T00:00:00Z"
   - id: D-8
-    status: active
+    status: superseded
     decision: Keep both generic app-skill CLI access and dedicated Tasks/Workflows CLI workspace commands.
-    reason: Product commands are the polished human UX, while generic app commands remain useful for discovery, debugging, automation, and app-skill parity.
+    reason: Superseded by D-9 after user correction; generic app-skill CLI execution violates OpenMates CLI quality guidelines.
     decided_at: "2026-07-15T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: Forbid generic app-skill CLI execution and require explicit typed CLI commands per app skill.
+    reason: The user clarified that generic commands like `openmates apps <app> <skill>` are against coding guidelines; each app skill must have a proper command, help text, input type enforcement, and usage examples.
+    decided_at: "2026-07-15T10:00:00Z"
+  - id: D-10
+    status: active
+    decision: Workflow runs project into normal visible Tasks workspace task entries with workflow/run links.
+    reason: The user wants scheduled and active workflow work to be visible in Tasks while Workflows remain the scheduling/execution source of truth.
+    decided_at: "2026-07-15T10:00:00Z"
+  - id: D-11
+    status: active
+    decision: Workflow-generated tasks are read-only except delete, and deleting a future scheduled workflow task skips that run.
+    reason: This avoids two-way schedule editing complexity while giving users a simple way to skip one occurrence.
+    decided_at: "2026-07-15T10:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -209,8 +251,9 @@ attempts:
   - id: ATTEMPT-3
     task_id: TASK-4
     approach: Add generic `openmates apps tasks ...` and `openmates apps workflows ...` command-path tests for flat child result arrays.
-    outcome: succeeded
+    outcome: rejected
     recorded_at: "2026-07-15T00:00:00Z"
+    summary: The user later clarified that generic app-skill CLI execution is against coding guidelines and must be removed in favor of explicit typed app commands.
   - id: ATTEMPT-4
     task_id: TASK-4
     approach: Run real dev `apps tasks create` with the available local CLI session.
@@ -232,22 +275,23 @@ attempts:
   - id: ATTEMPT-7
     task_id: TASK-4
     approach: Run real dev `tasks search`, `tasks create`, and `workflows search` through generic CLI app-skill commands after deploy.
-    outcome: blocked
+    outcome: rejected
     recorded_at: "2026-07-15T00:00:00Z"
-    summary: Task search reached dev and printed waiting-for-client state; task create and workflow search reached dev but require a Vault-key-enabled account for success proof.
+    summary: The generic CLI path is no longer valid proof. Real-dev CLI proof must use explicit typed `openmates tasks ...` and `openmates workflows ...` commands instead.
+  - id: ATTEMPT-8
+    task_id: TASK-7
+    approach: Add workflow-run task projection requirements after user clarified scheduled, running, blocked, failed, and skipped workflow task behavior.
+    outcome: planned
+    recorded_at: "2026-07-15T10:00:00Z"
+    summary: Future scheduled workflow tasks are normal visible read-only tasks; delete skips the run; active/failed/input-waiting workflow runs create or link in-progress/blocked tasks.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Obtain or provision a Vault-key-enabled dev account, then rerun real CLI task create and workflow search proof before starting SDK parity.
-  command: node dist/cli.js --api-url https://api.dev.openmates.org apps tasks create --input '{"title":"CLI app-skill proof task","assignee":"user"}' && node dist/cli.js --api-url https://api.dev.openmates.org apps workflows search --input '{"query":"weather"}'
-  expected_outcome: Task create returns child task results and workflow search returns server-side workflow child results from dev.
-  blocker:
-    task_id: TASK-4
-    requires_user_input: true
-    reason: Configured CLI test-account slots that could log in did not have the Vault key ID required by task create and workflow search app-skill proof.
-    question: Which Vault-key-enabled dev account or provisioning path should be used for real task-create/workflow-search CLI proof?
-    next_action: Rerun the real CLI proof commands with that account, then proceed to SDK parity.
-  last_verified_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
+  current_task_id: TASK-6
+  next_action: Record deferred web and Apple embed detail reuse follow-up and run final spec verification.
+  command: python3 scripts/spec_verify.py docs/specs/tasks-workflows-app-skill-embeds/spec.yml
+  expected_outcome: Remaining phase-order verification is resolved or an explicit blocker/follow-up is recorded.
+  blocker: null
+  last_verified_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
 
 scenarios:
   - id: S-1
@@ -313,6 +357,36 @@ scenarios:
       - SDK task search reports pending connected-client requirements without fabricating server search results.
       - SDK workflow search returns server-side workflow search results.
 
+  - id: S-6
+    title: Scheduled active workflows always create the next-run task
+    given:
+      - Alice has an active workflow with a time trigger.
+      - The workflow has a computed next scheduled run.
+    when:
+      - The scheduler stores or refreshes the upcoming run projection.
+    then:
+      - A normal visible `todo` task appears in the Tasks workspace for that next run.
+      - The task title is `<workflow title> - <scheduled date and time>`.
+      - The task has the scheduled date/time of the next run.
+      - The task links to the planned workflow run entry.
+      - The task is read-only except delete.
+      - Deleting the task marks the workflow run as `skipped_by_user`, removes the task, and schedules the following run if the workflow is still active.
+
+  - id: S-7
+    title: Workflow executions create or update running and blocked tasks
+    given:
+      - Alice has a workflow that can start from a schedule, manual trigger, webhook, or another non-time trigger.
+    when:
+      - A workflow run starts execution.
+      - The run later needs user input or fails.
+    then:
+      - The run creates or links a normal visible task in the Tasks workspace.
+      - The task title is `<workflow title> - <created or triggered date and time>` unless the run came from a scheduled projection task.
+      - The task is set to `in_progress` while the workflow run is executing.
+      - If the run needs user input, approval, or fails, the task is set to `blocked`.
+      - Blocked tasks include a stable `blocked_reason` enum and a user-facing `blocked_message`.
+      - Scheduled workflows create the following future `todo` task as soon as the current scheduled run starts, preserving exactly one next-run task per active time-trigger workflow.
+
 contracts:
   apps:
     - app_id: tasks
@@ -340,8 +414,9 @@ contracts:
   cli_surfaces:
     - "`openmates tasks ...` remains the primary user-facing task workspace command surface."
     - "`openmates workflows ...` remains the primary user-facing workflow workspace command surface."
-    - "Generic `openmates apps ...` app-skill execution may expose `tasks.create`, `tasks.search`, `workflows.create-or-modify`, and `workflows.search` for advanced/debug/API parity use."
-    - Both CLI surfaces share backend contracts and SDK payload shapes.
+    - "Generic `openmates apps <app> <skill>` execution is forbidden."
+    - Every app skill exposed through CLI must have an explicit typed command with command-specific help, validation, and examples.
+    - A deterministic hook or audit must fail if generic app-skill CLI execution is added again.
   task_assignment:
     - Allowed assignees are `user` and `openmates` for this scope.
     - Missing or ambiguous assignment defaults to `user`.
@@ -354,13 +429,21 @@ contracts:
   workflow_search_privacy:
     - Workflow search may use server-side Automation Vault access and server-side indexes allowed by Workflows V1.
     - Workflow search does not require a connected client or user confirmation.
+  workflow_task_projection:
+    - Active workflows with time triggers have exactly one normal visible future `todo` task for the next upcoming run.
+    - Future scheduled workflow tasks are read-only except delete; deleting one skips that workflow run and leaves a workflow run entry with status `skipped_by_user`.
+    - When a scheduled run starts, the existing future task moves to `in_progress` and a new future `todo` task is created for the next scheduled run.
+    - Any workflow run that starts from any trigger creates or links a visible workflow task and sets it to `in_progress`.
+    - Runs that need user input, require approval, or fail set the linked task to `blocked` with both `blocked_reason` and `blocked_message`.
+    - Workflow-generated tasks link to the planned/running workflow run entry.
+    - Workflow-generated task titles use `<workflow title> - <date and time>` using the scheduled run time for scheduled runs and the task creation or trigger time for non-time triggers.
 
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
     text: Task create app skill can create one or many durable tasks and return one parent app-skill embed with child task embeds instead of task system messages.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids:
@@ -371,7 +454,7 @@ acceptance_criteria:
     scenario: S-2
     text: Task assignment is explicit, defaults unclear tasks to user, and prevents assistant execution for non-openmates tasks.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids:
@@ -382,7 +465,7 @@ acceptance_criteria:
     scenario: S-3
     text: Task search requires a capable connected client, supports a pending waiting-for-client embed state, and never falls back to server-side private task-content search.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids:
@@ -393,7 +476,7 @@ acceptance_criteria:
     scenario: S-4
     text: Workflow create or modify handles one workflow per skill call, while workflow search runs server-side and can return multiple workflow child embeds.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids:
@@ -404,7 +487,7 @@ acceptance_criteria:
     scenario: S-5
     text: npm SDK and pip SDK expose the same parent/child embed structure and search availability semantics as CLI JSON after CLI/backend proof is green.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: npm_sdk
     verification_ids:
@@ -416,11 +499,42 @@ acceptance_criteria:
     scenario: S-1
     text: The first implementation phase does not require web or Apple UI changes and does not introduce a compatibility path for dev-only task system messages.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids:
       - V-PHASE-ORDER
+
+  - id: AC-7
+    scenario: S-4
+    text: CLI app-skill access is exposed only through explicit typed Tasks and Workflows commands; generic `openmates apps <app> <skill>` execution is removed and blocked by a deterministic guard.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-NO-GENERIC-APPS-SKILL
+      - V-CLI-GENERIC-GUARD
+
+  - id: AC-8
+    scenario: S-6
+    text: Active time-trigger workflows maintain exactly one normal visible future `todo` task for the next scheduled run; deleting that task skips the run and advances scheduling.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-WORKFLOW-TASK-PROJECTION
+
+  - id: AC-9
+    scenario: S-7
+    text: Workflow runs from any trigger create or link a visible workflow task, move it to `in_progress` while running, and set it to `blocked` with `blocked_reason` and `blocked_message` when user input, approval, or failure blocks progress.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-WORKFLOW-TASK-PROJECTION
 
 assumptions:
   - id: A-1
@@ -474,11 +588,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py
-        run_id: local-green-task-app-skill-backend-20260715
-        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
-        timestamp: "2026-07-15T00:00:00Z"
-        summary: Focused backend tests passed for embed-ready task create responses without system events.
+        command: docker exec api python -m pytest /app/backend/tests/test_task_app_skill_embeds.py /app/backend/tests/test_task_app_skill_assignment.py /app/backend/tests/test_task_app_skill_search.py -q
+        run_id: local-green-task-app-skill-backend-20260715T105033Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:50:33Z"
+        summary: 16 focused backend tests passed for embed-ready task create responses without system events.
 
   - id: T-PYTEST-TASK-ASSIGNMENT
     type: pytest
@@ -505,11 +619,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py
-        run_id: local-green-task-app-skill-backend-20260715
-        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
-        timestamp: "2026-07-15T00:00:00Z"
-        summary: Focused backend tests passed for user/openmates assignment normalization and execution guard.
+        command: docker exec api python -m pytest /app/backend/tests/test_task_app_skill_embeds.py /app/backend/tests/test_task_app_skill_assignment.py /app/backend/tests/test_task_app_skill_search.py -q
+        run_id: local-green-task-app-skill-backend-20260715T105033Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:50:33Z"
+        summary: 16 focused backend tests passed for user/openmates assignment normalization and execution guard.
 
   - id: T-PYTEST-TASK-SEARCH
     type: pytest
@@ -536,11 +650,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py
-        run_id: local-green-task-app-skill-backend-20260715
-        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
-        timestamp: "2026-07-15T00:00:00Z"
-        summary: Focused backend tests passed for connected-client task search pending and matched-result responses.
+        command: docker exec api python -m pytest /app/backend/tests/test_task_app_skill_embeds.py /app/backend/tests/test_task_app_skill_assignment.py /app/backend/tests/test_task_app_skill_search.py -q
+        run_id: local-green-task-app-skill-backend-20260715T105033Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:50:33Z"
+        summary: 16 focused backend tests passed for connected-client task search pending and matched-result responses.
 
   - id: T-PYTEST-WORKFLOW-EMBEDS
     type: pytest
@@ -567,11 +681,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_workflow_app_skill_embeds.py backend/tests/test_workflow_assistant_and_events.py
-        run_id: local-green-workflow-app-skill-backend-20260715
-        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
-        timestamp: "2026-07-15T00:00:00Z"
-        summary: Workflow embed contract and nearby workflow assistant regression tests passed.
+        command: docker exec api python -m pytest /app/backend/tests/test_workflow_app_skill_embeds.py /app/backend/tests/test_workflow_assistant_and_events.py -q
+        run_id: local-green-workflow-app-skill-backend-20260715T105033Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:50:33Z"
+        summary: 16 workflow embed contract and nearby workflow assistant regression tests passed.
 
   - id: T-CLI-TASK-EMBEDS
     type: unit
@@ -599,11 +713,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts && node --test --test-name-pattern "task app-skill|workflow app-skill" tests/cli.test.ts
-        run_id: local-green-cli-child-embed-and-generic-app-skill-format-20260715
-        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
-        timestamp: "2026-07-15T00:00:00Z"
-        summary: CLI task/workflow suites and generic apps command tests passed with product-specific child embed preview formatting and flat app-skill result rendering.
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts; npm run build; node --test tests/cli.test.ts
+        run_id: local-green-cli-child-embed-and-typed-app-skill-format-20260715T105033Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:50:33Z"
+        summary: CLI task/workflow suites and full CLI tests passed with product-specific child embed preview formatting and generic app-skill execution rejected.
 
   - id: T-CLI-TASK-SEARCH
     type: unit
@@ -630,11 +744,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts && node --test --test-name-pattern "task app-skill|workflow app-skill" tests/cli.test.ts
-        run_id: local-green-cli-child-embed-and-generic-app-skill-format-20260715
-        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
-        timestamp: "2026-07-15T00:00:00Z"
-        summary: CLI task suite and generic tasks app command tests passed with product-specific child embed formatting, assignment labels, and waiting-for-client output.
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts; npm run build; node --test tests/cli.test.ts
+        run_id: local-green-cli-child-embed-and-typed-app-skill-format-20260715T105033Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:50:33Z"
+        summary: CLI task suite and full CLI tests passed with product-specific child embed formatting, assignment labels, and waiting-for-client output.
 
   - id: T-CLI-WORKFLOW-EMBEDS
     type: unit
@@ -661,11 +775,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts && node --test --test-name-pattern "task app-skill|workflow app-skill" tests/cli.test.ts
-        run_id: local-green-cli-child-embed-and-generic-app-skill-format-20260715
-        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
-        timestamp: "2026-07-15T00:00:00Z"
-        summary: CLI workflow suite and generic workflows app command tests passed with flat child workflow result rendering and no connected-client waiting state.
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts; npm run build; node --test tests/cli.test.ts
+        run_id: local-green-cli-child-embed-and-typed-app-skill-format-20260715T105033Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:50:33Z"
+        summary: CLI workflow suite and full CLI tests passed with flat child workflow result rendering and no connected-client waiting state.
 
   - id: T-NPM-SDK-EMBEDS
     type: unit
@@ -692,11 +806,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts
-        run_id: local-green-cli-task-workflow-child-embed-format-20260715
-        subject_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
-        timestamp: "2026-07-15T00:00:00Z"
-        summary: CLI workflow suite passed with product-specific workflow child embed preview formatting.
+        command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-tasks.test.ts tests/sdk-workflows.test.ts
+        run_id: local-node-sdk-task-workflow-app-skill-embeds-20260715T104518Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:45:18Z"
+        summary: npm SDK task/workflow generated app-skill methods passed with parent/child embed IDs, task pending-client search state, and workflow server-side search results preserved.
 
   - id: T-PIP-SDK-EMBEDS
     type: pytest
@@ -711,11 +825,86 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {}
+      evidence:
+        status: skipped_with_reason
+        command: not run before correction; implementation was already in progress from handoff
+        run_id: not-run
+        reason: SDK parity tests were added after the corrected CLI/backend slice was already implemented; no useful red run remained for pip without reverting code.
+        timestamp: "2026-07-15T10:38:11Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+        run_id: local-pytest-pip-sdk-task-workflow-app-skill-embeds-20260715T104518Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:45:18Z"
+        summary: pip SDK generated app-skill methods passed with parent/child embed IDs, task pending-client search state, and workflow server-side search results preserved.
+
+  - id: T-CLI-NO-GENERIC-APPS-SKILL
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/cli.test.ts
+    covers:
+      - AC-7
+    assertions:
+      - generic `openmates apps <app> <skill>` execution is rejected or unavailable
+      - explicit typed task/workflow commands remain available with command-specific help
+      - app-skill input validation happens in the typed command path, not a generic schema runner
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: not run before generic CLI removal; implementation was already in progress from handoff
+        run_id: not-run
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        reason: Product direction changed from generic app-skill execution to typed commands while implementation was in progress; red evidence for the obsolete generic path was not useful.
+        timestamp: "2026-07-15T10:50:33Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: npm run build; node --test tests/cli.test.ts
+        run_id: local-node-cli-no-generic-app-skill-20260715T105033Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:50:33Z"
+        summary: Full CLI test suite passed after build; generic app-skill execution is rejected while explicit metadata and typed command paths remain available.
+
+  - id: T-PYTEST-WORKFLOW-TASK-PROJECTION
+    type: pytest
+    file: backend/tests/test_workflow_task_projections.py
+    command: python3 -m pytest backend/tests/test_workflow_task_projections.py
+    covers:
+      - AC-8
+      - AC-9
+    assertions:
+      - active time-trigger workflows create exactly one future visible todo task for the next run
+      - deleting a future workflow task marks the run `skipped_by_user` and creates the following next-run task
+      - workflow runs from any trigger create or link an in-progress task
+      - workflow runs that need input, need approval, or fail set the task to blocked with reason and message
+      - workflow-generated task titles include workflow title plus scheduled or triggered date/time
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: not run before workflow projection implementation; implementation was already in progress from handoff
+        run_id: not-run
+        reason: Workflow-run task projection requirements were added after related implementation work had started; no useful red run remained without reverting code.
+        timestamp: "2026-07-15T10:50:33Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_workflow_task_projections.py /app/backend/tests/test_task_view_workflow_runs.py -q
+        run_id: local-pytest-workflow-task-projection-green-20260715T105033Z
+        subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+        timestamp: "2026-07-15T10:50:33Z"
+        summary: 9 workflow projection tests passed, covering future scheduled tasks, skipped runs, active run linking, and blocked metadata.
 
 verifications:
   - id: V-SDK-CLI-PARITY
@@ -724,16 +913,42 @@ verifications:
     required_for_done: true
     covers:
       - AC-5
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/audit_sdk_cli_parity.py
+      run_id: local-sdk-cli-parity-20260715T104518Z
+      subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+      timestamp: "2026-07-15T10:45:18Z"
+      summary: sdk-cli-parity checked 66 command entries and 4 workflow template transport entries.
   - id: V-PHASE-ORDER
     kind: manual_check
     phase: final
     required_for_done: true
     covers:
       - AC-6
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      status: passed
+      command: spec ledger review during TASK-6
+      run_id: local-phase-order-review-20260715T105033Z
+      subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+      timestamp: "2026-07-15T10:50:33Z"
+      reason: Approved implementation scope was backend, explicit typed CLI, deterministic guard, workflow task projection, and SDK parity; web and Apple UI are later phases and not part of this slice.
+      summary: This implementation slice is backend, explicit typed CLI, deterministic guard, workflow task projection, and SDK parity only; web UI and Apple UI parity are intentionally deferred to a later frontend/native phase.
+  - id: V-CLI-GENERIC-GUARD
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-7
+    status: passed
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_code_quality_guard_caddy.py -q
+      run_id: local-pytest-code-quality-guard-20260715T105033Z
+      subject_commit: 61f4af41bdf7896abbaf8558467445ce7f8a30cc
+      timestamp: "2026-07-15T10:50:33Z"
 
 implementation_plan:
   spec_path: docs/specs/tasks-workflows-app-skill-embeds/spec.yml
@@ -760,7 +975,10 @@ implementation_plan:
     - Task create persists durable task records and child task embeds; workflow create persists one workflow and one child workflow embed.
     - Task search creates a connected-client search request when needed; CLI decrypts local tasks and returns matching child task embeds.
     - Workflow search uses server-side workflow access and returns matching child workflow embeds.
-    - CLI JSON and normal output render parent and child embed summaries.
+    - CLI JSON and normal output render parent and child embed summaries through explicit typed task/workflow commands.
+    - Generic CLI app-skill execution is blocked by tests and a deterministic guard.
+    - Workflow scheduling projects the next active time-trigger run into a visible read-only task; deleting it marks the run `skipped_by_user` and advances to the following run.
+    - Workflow execution from any trigger creates or links a visible workflow task and updates that task to `in_progress` or `blocked` as the run progresses.
     - npm SDK and pip SDK expose the same payload shapes after CLI/backend proof.
   affected_files:
     - path: backend/apps/tasks/app.yml
@@ -781,10 +999,18 @@ implementation_plan:
       reason: Prompt guidance for task creation and assignment even when no visible tasks exist.
     - path: backend/core/api/app/services/embed_service.py
       reason: Parent/child task and workflow embed persistence integration if existing helpers need extension.
+    - path: backend/core/api/app/services/workflow_service.py
+      reason: Workflow run lifecycle and scheduling source of truth for next-run task projection.
+    - path: backend/core/api/app/tasks/workflow_tasks.py
+      reason: Workflow execution hooks that create/update linked task entries.
+    - path: backend/tests/test_workflow_task_projections.py
+      reason: Backend contract coverage for scheduled, running, blocked, failed, and skipped workflow task projections.
     - path: frontend/packages/openmates-cli/src/client.ts
       reason: CLI chat send/render/connected-client task-search handling.
     - path: frontend/packages/openmates-cli/src/cli.ts
-      reason: Normal and JSON output for parent/child app-skill embed results.
+      reason: Normal and JSON output for explicit typed task/workflow commands and removal of generic app-skill execution.
+    - path: scripts/code_quality_guard.py
+      reason: Deterministic guard against reintroducing generic app-skill CLI execution, if an existing guard is the best fit.
     - path: frontend/packages/openmates-cli/tests/tasks.test.ts
       reason: CLI task app-skill embed and client-search coverage.
     - path: frontend/packages/openmates-cli/tests/workflows.test.ts
@@ -794,14 +1020,17 @@ implementation_plan:
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/tasks-workflows-app-skill-embeds/spec.yml
     - python3 -m pytest backend/tests/test_task_app_skill_embeds.py backend/tests/test_task_app_skill_assignment.py backend/tests/test_task_app_skill_search.py backend/tests/test_workflow_app_skill_embeds.py
+    - python3 -m pytest backend/tests/test_workflow_task_projections.py
     - node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts tests/workflows.test.ts
+    - node --test --experimental-strip-types --loader ./tests/loader.mjs tests/cli.test.ts
     - node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-tasks.test.ts tests/sdk-workflows.test.ts
     - python3 -m pytest packages/openmates-python/tests/test_sdk.py
     - python3 scripts/audit_sdk_cli_parity.py
     - python3 scripts/spec_verify.py docs/specs/tasks-workflows-app-skill-embeds/spec.yml --phase green
   verification_order:
-    - Backend contract tests for app-skill embed shapes, assignment, privacy boundaries, task search lifecycle, and workflow search behavior.
-    - CLI tests and real dev CLI smoke for parent/child embed output and connected-client task search.
+    - Backend contract tests for app-skill embed shapes, assignment, privacy boundaries, task search lifecycle, workflow search behavior, and workflow-run task projection.
+    - CLI tests and real dev CLI smoke using explicit typed task/workflow commands for parent/child embed output and connected-client task search.
+    - Deterministic guard proving generic `openmates apps <app> <skill>` execution cannot be reintroduced.
     - npm SDK and pip SDK parity after backend/CLI proof.
     - Web Playwright only in a later frontend phase after deploy.
     - User confirmation for user-visible web UI only in the later frontend phase.
@@ -914,7 +1143,7 @@ tasks:
   - id: TASK-4
     title: Implement CLI parent-child embed output and task client-search handling
     status: done
-    phase: complete
+    phase: working_tasks
     covers:
       scenarios:
         - S-1
@@ -926,15 +1155,19 @@ tasks:
         - AC-2
         - AC-3
         - AC-4
+        - AC-7
     expected_files:
       - frontend/packages/openmates-cli/src/client.ts
       - frontend/packages/openmates-cli/src/cli.ts
       - frontend/packages/openmates-cli/tests/tasks.test.ts
       - frontend/packages/openmates-cli/tests/workflows.test.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
     verification_ids:
       - T-CLI-TASK-EMBEDS
       - T-CLI-TASK-SEARCH
       - T-CLI-WORKFLOW-EMBEDS
+      - T-CLI-NO-GENERIC-APPS-SKILL
+      - V-CLI-GENERIC-GUARD
     dependencies:
       - TASK-2
       - TASK-3
@@ -951,7 +1184,7 @@ tasks:
 
   - id: TASK-5
     title: Implement npm and pip SDK parity
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -968,6 +1201,7 @@ tasks:
       - V-SDK-CLI-PARITY
     dependencies:
       - TASK-4
+      - TASK-7
     blockers: []
     follow_up_tasks: []
     ownership:
@@ -979,9 +1213,66 @@ tasks:
         - frontend/packages/openmates-cli/src/client.ts
     independently_deployable: true
 
+  - id: TASK-7
+    title: Remove generic CLI app-skill execution and add guard
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-7
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - scripts/code_quality_guard.py
+    verification_ids:
+      - T-CLI-NO-GENERIC-APPS-SKILL
+      - V-CLI-GENERIC-GUARD
+    dependencies:
+      - TASK-4
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/tests/cli.test.ts
+      shared_files:
+        - scripts/code_quality_guard.py
+    independently_deployable: true
+
+  - id: TASK-8
+    title: Implement workflow-run task projection
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-8
+        - AC-9
+    expected_files:
+      - backend/core/api/app/services/workflow_service.py
+      - backend/core/api/app/tasks/workflow_tasks.py
+      - backend/tests/test_workflow_task_projections.py
+    verification_ids:
+      - T-PYTEST-WORKFLOW-TASK-PROJECTION
+    dependencies:
+      - TASK-7
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/services/workflow_service.py
+        - backend/core/api/app/tasks/workflow_tasks.py
+        - backend/tests/test_workflow_task_projections.py
+      shared_files: []
+    independently_deployable: true
+
   - id: TASK-6
     title: Record deferred web and Apple embed detail reuse follow-up
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -995,6 +1286,7 @@ tasks:
       - V-PHASE-ORDER
     dependencies:
       - TASK-5
+      - TASK-8
     blockers: []
     follow_up_tasks: []
     ownership:

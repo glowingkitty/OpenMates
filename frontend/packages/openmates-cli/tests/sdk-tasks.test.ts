@@ -84,4 +84,81 @@ describe("OpenMates SDK user tasks", () => {
       },
     );
   });
+
+  it("exposes task app-skill child embeds and pending client search state", async () => {
+    await withServer(
+      (request, body) => {
+        if (request.url === "/v1/apps/tasks/skills/create") {
+          assert.deepEqual(body, {
+            input_data: { tasks: [{ title: "Draft checklist" }] },
+            parameters: {},
+          });
+          return {
+            success: true,
+            data: {
+              success: true,
+              app_id: "tasks",
+              skill_id: "create",
+              parent_embed_id: "app-skill-use-1",
+              result_count: 1,
+              results: [
+                {
+                  type: "task",
+                  parent_app_skill_type: "app_skill_use",
+                  child_embed_id: "task-embed-1",
+                  task_id: "task-1",
+                  short_id: "TASK-1",
+                  title: "Draft checklist",
+                  status: "todo",
+                  assignee: "user",
+                },
+              ],
+            },
+          };
+        }
+        if (request.url === "/v1/apps/tasks/skills/search") {
+          assert.deepEqual(body, {
+            input_data: { query: "checklist" },
+            parameters: {},
+          });
+          return {
+            success: true,
+            data: {
+              success: true,
+              app_id: "tasks",
+              skill_id: "search",
+              status: "waiting_for_client",
+              requires_connected_client: true,
+              pending_client_search: { request_id: "task-search-1", notification_queued: true },
+              result_count: 0,
+              results: [],
+            },
+          };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMates({ apiKey: "x", apiUrl });
+        const created = await client.apps.tasks.create<Record<string, any>>({
+          tasks: [{ title: "Draft checklist" }],
+        });
+        const search = await client.apps.tasks.search<Record<string, any>>({ query: "checklist" });
+
+        assert.equal(created.data.app_id, "tasks");
+        assert.equal(created.data.parent_embed_id, "app-skill-use-1");
+        assert.equal(created.data.results[0].parent_app_skill_type, "app_skill_use");
+        assert.equal(created.data.results[0].child_embed_id, "task-embed-1");
+        assert.equal(created.data.results[0].task_id, "task-1");
+        assert.equal(search.data.status, "waiting_for_client");
+        assert.equal(search.data.requires_connected_client, true);
+        assert.deepEqual(search.data.results, []);
+        assert.equal(search.data.pending_client_search.request_id, "task-search-1");
+
+        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["POST", "/v1/apps/tasks/skills/create"],
+          ["POST", "/v1/apps/tasks/skills/search"],
+        ]);
+      },
+    );
+  });
 });

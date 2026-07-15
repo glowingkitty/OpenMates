@@ -280,8 +280,12 @@ async def delete_user_task(
     task_id: str,
     version: int = Query(...),
     service: UserTaskService = Depends(get_user_task_service),
+    workflow_projection_service: WorkflowTaskProjectionService = Depends(get_workflow_task_projection_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
+    skipped_projection = await run_in_threadpool(workflow_projection_service.skip_scheduled_projection, current_user.id, task_id)
+    if skipped_projection is not None:
+        return {"deleted": True, "task_id": task_id, "workflow_run": skipped_projection}
     try:
         deleted = await service.task_methods.delete_task(task_id, current_user.id, version)
         if not deleted:

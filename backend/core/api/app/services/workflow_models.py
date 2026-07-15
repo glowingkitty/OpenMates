@@ -23,6 +23,7 @@ class WorkflowStatus(str, Enum):
 
 
 class WorkflowRunStatus(str, Enum):
+    PLANNED = "planned"
     QUEUED = "queued"
     RUNNING = "running"
     WAITING = "waiting"
@@ -30,6 +31,7 @@ class WorkflowRunStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    SKIPPED_BY_USER = "skipped_by_user"
 
 
 class WorkflowNodeRunStatus(str, Enum):
