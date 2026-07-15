@@ -101,6 +101,7 @@ async def _async_generate_model(
         raise ValueError("models3d generation requires one or more image references")
 
     hi3d_images: list[tuple[Hi3DView, str, bytes, str]] = []
+    input_embed_records = arguments.get("input_embed_records") or {}
     for item in ordered_inputs:
         view = Hi3DView(str(item.get("view") or "front"))
         source_embed_id = str(item.get("embed_id") or "")
@@ -114,6 +115,7 @@ async def _async_generate_model(
             encryption_service=task._encryption_service,
             s3_service=task._s3_service,
             bucket_name=bucket_name,
+            preloaded_records=input_embed_records,
         )
         extension = "jpg" if resolved.mime_type == "image/jpeg" else resolved.mime_type.split("/")[-1]
         hi3d_images.append((view, f"{view.value}.{extension}", resolved.content, resolved.mime_type))

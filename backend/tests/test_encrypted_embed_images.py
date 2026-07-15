@@ -38,6 +38,15 @@ class _BrokenCache(_FakeCache):
         raise RuntimeError("cache unavailable")
 
 
+class _MissingDirectus:
+    class _EmbedMethods:
+        async def get_embed_by_id(self, _embed_id):
+            return None
+
+    def __init__(self):
+        self.embed = self._EmbedMethods()
+
+
 @pytest.mark.asyncio
 async def test_cache_read_error_falls_back_to_directus_embed_methods() -> None:
     nonce = b"\x22" * 12
@@ -137,6 +146,34 @@ async def test_upload_cache_image_decrypts_without_chat_embed_persistence() -> N
         encryption_service=_FakeEncryption(),
         s3_service=_FakeS3(encrypted),
         decode_toon=lambda _plaintext: pytest.fail("upload-cache records must not decode chat TOON"),
+    )
+
+    assert resolved.content == plaintext
+    assert resolved.mime_type == "image/png"
+
+
+@pytest.mark.asyncio
+async def test_preloaded_upload_record_decrypts_when_worker_cache_misses() -> None:
+    nonce = b"\x22" * 12
+    plaintext = b"\x89PNG\r\n\x1a\nchair-image"
+    encrypted = AESGCM(b"\x11" * 32).encrypt(nonce, plaintext, None)
+
+    resolved = await resolve_encrypted_image_embed(
+        embed_id="embed-1",
+        user_vault_key_id="vault-key-1",
+        cache_client=_BrokenCache(),
+        directus_service=_MissingDirectus(),
+        encryption_service=_FakeEncryption(),
+        s3_service=_FakeS3(encrypted),
+        preloaded_records={
+            "embed-1": {
+                "embed_id": "embed-1",
+                "vault_wrapped_aes_key": "wrapped-aes-key",
+                "aes_nonce": base64.b64encode(nonce).decode(),
+                "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+            }
+        },
+        decode_toon=lambda _plaintext: pytest.fail("preloaded upload records must not decode chat TOON"),
     )
 
     assert resolved.content == plaintext

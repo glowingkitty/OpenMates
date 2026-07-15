@@ -385,7 +385,14 @@ def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypa
 
         async def get_embed_from_cache(self, embed_id):
             assert embed_id == "embed-chair"
-            return {"embed_id": embed_id, "user_id": user.id}
+            return {
+                "embed_id": embed_id,
+                "user_id": user.id,
+                "vault_wrapped_aes_key": "wrapped-aes-key",
+                "aes_nonce": "nonce-b64",
+                "aes_key": "plaintext-must-not-forward",
+                "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+            }
 
     class FakeEmbedService:
         called = False
@@ -433,7 +440,16 @@ def test_models3d_custom_route_resolves_only_the_callers_uploaded_image(monkeypa
         "image_embed_refs": ["embed-chair"],
         "_file_path_index": {"embed-chair": "embed-chair"},
         "_user_vault_key_id": "vault-1",
+        "input_embed_records": {
+            "embed-chair": {
+                "embed_id": "embed-chair",
+                "vault_wrapped_aes_key": "wrapped-aes-key",
+                "aes_nonce": "nonce-b64",
+                "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+            }
+        },
     }
+    assert "plaintext-must-not-forward" not in str(captured["input_data"])
     assert captured["enforce_rest_exposure_policy"] is False
     assert captured["user_info"] is user_info
     assert captured["budget"]["user_info"] is user_info

@@ -1980,6 +1980,17 @@ def _register_models3d_custom_routes(app: FastAPI, app_name: str) -> None:
         image_embed_refs: list[str] | None = None
         image_views: list[dict[str, Any]] | None = None
 
+    def compact_encrypted_image_record(record: dict[str, Any]) -> dict[str, Any]:
+        allowed_keys = {
+            "embed_id",
+            "encrypted_content",
+            "vault_wrapped_aes_key",
+            "aes_nonce",
+            "files",
+            "content_type",
+        }
+        return {key: value for key, value in record.items() if key in allowed_keys}
+
     async def generate_handler(
         body: Model3DGenerateRequest,
         request: Request,
@@ -1997,13 +2008,16 @@ def _register_models3d_custom_routes(app: FastAPI, app_name: str) -> None:
         )
 
         expected_user_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        input_embed_records: dict[str, dict[str, Any]] = {}
         for embed_id in image_embed_ids:
             cached_embed = await cache_service.get_embed_from_cache(embed_id)
             if cached_embed and cached_embed.get("user_id") == user_id:
+                input_embed_records[embed_id] = compact_encrypted_image_record(cached_embed)
                 continue
             embed = await directus_service.embed.get_embed_by_id(embed_id)
             if not embed or embed.get("hashed_user_id") != expected_user_hash:
                 raise HTTPException(status_code=404, detail="Uploaded image not found")
+            input_embed_records[embed_id] = compact_encrypted_image_record(embed)
 
         vault_key_id = await cache_service.get_user_vault_key_id(user_id)
         if not vault_key_id:
@@ -2026,6 +2040,7 @@ def _register_models3d_custom_routes(app: FastAPI, app_name: str) -> None:
         # user-facing references through this server-verified mapping.
         request_data["_file_path_index"] = {embed_id: embed_id for embed_id in image_embed_ids}
         request_data["_user_vault_key_id"] = vault_key_id
+        request_data["input_embed_records"] = input_embed_records
         result = await call_app_skill(
             app_id="models3d",
             skill_id="generate",

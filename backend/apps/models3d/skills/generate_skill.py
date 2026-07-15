@@ -157,6 +157,7 @@ class GenerateSkill(BaseSkill):
             "chat_id": self._current_chat_id,
             "message_id": self._current_message_id,
             "external_request": kwargs.get("external_request", False),
+            "input_embed_records": kwargs.get("input_embed_records") or {},
             "app_id": self.app_id,
             "skill_id": self.skill_id,
             "embed_id": embed_id,

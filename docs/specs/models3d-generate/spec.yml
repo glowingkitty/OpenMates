@@ -135,7 +135,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree-dcc5b3669
+  subject_commit: 54cd2741
 
 approvals:
   product_contract:
@@ -212,19 +212,26 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-15T00:35:31Z"
     reason: "Provider/storage/generate pytest checks and CLI client tests passed; print-export collection is still blocked in the local Python environment by missing `celery`."
+  - id: ATTEMPT-4
+    task_id: TASK-6
+    approach: Add the missing `models3d:generate` GroupRenderer route and redeploy after the Vercel embed-registry audit failed.
+    outcome: succeeded
+    recorded_at: "2026-07-15T01:07:00Z"
+    reason: "`npm run generate-embed-registry` in `frontend/packages/ui` passed and Vercel reached READY for the later `54cd2741` deployment containing this route fix."
+  - id: ATTEMPT-5
+    task_id: TASK-5
+    approach: Commit the companion CLI WebSocket visibility fix needed by the committed task-update recovery path.
+    outcome: succeeded
+    recorded_at: "2026-07-15T01:07:00Z"
+    reason: "`npm run build` in `frontend/packages/openmates-cli` passed after exposing `drainPassiveTaskUpdateJobs`; Vercel reached READY for commit `54cd2741`."
 
 handoff:
   current_task_id: TASK-5
-  next_action: Deploy the current incremental models3d backend/CLI/static-web-example work, then resolve the remaining approved full-spec gates.
+  next_action: Add and run the real dev-server CLI image-generation contract for `models3d generate --image`, then continue SDK parity only after CLI evidence is green.
   command: python3 scripts/spec_verify.py docs/specs/models3d-generate/spec.yml --json
   expected_outcome: Verification remains incomplete until real CLI generation, npm/pip parity, benchmark, Playwright, print artifact review, user approval, and Apple evidence are either passed or explicitly rescoped.
-  blocker:
-    task_id: TASK-5
-    requires_user_input: true
-    reason: The approved spec still requires real end-to-end CLI generation/benchmark evidence, npm and pip parity evidence, deployed Playwright evidence, print artifact review, explicit deployed-web user confirmation, and Apple evidence. Those gates are not satisfied by the current static poster example and focused backend/CLI regression checks.
-    question: Should the remaining full-spec gates be implemented next, or should the product contract be explicitly split/waived into a smaller verified static-example milestone?
-    next_action: Either continue implementing the missing gates or record a user-approved rescope before marking the spec verified.
-  last_verified_commit: working-tree-dcc5b3669
+  blocker: null
+  last_verified_commit: 54cd2741
 
 scenarios:
   - id: S-1

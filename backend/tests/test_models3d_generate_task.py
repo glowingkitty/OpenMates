@@ -244,6 +244,14 @@ async def test_skill_dispatch_marks_external_requests_and_keeps_payload_compact(
     result = await skill.execute(
         image_embed_refs=["chair.png"],
         file_path_index={"chair.png": "embed-chair"},
+        input_embed_records={
+            "embed-chair": {
+                "embed_id": "embed-chair",
+                "vault_wrapped_aes_key": "wrapped-aes-key",
+                "aes_nonce": "nonce-b64",
+                "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+            }
+        },
         placeholder_embed_ids=["embed-model"],
         user_id="user-1",
         user_vault_key_id="vault-key-1",
@@ -263,7 +271,16 @@ async def test_skill_dispatch_marks_external_requests_and_keeps_payload_compact(
     assert task_arguments["api_key_hash"] == "api-key-hash"
     assert task_arguments["device_hash"] == "device-hash"
     assert task_arguments["reference_embed_ids"] == ["embed-chair"]
-    assert "chair.png" not in str(task_arguments)
+    assert task_arguments["input_embed_records"] == {
+        "embed-chair": {
+            "embed_id": "embed-chair",
+            "vault_wrapped_aes_key": "wrapped-aes-key",
+            "aes_nonce": "nonce-b64",
+            "files": {"original": {"s3_key": "inputs/chair.png", "format": "png"}},
+        }
+    }
+    assert "image_embed_refs" not in task_arguments
+    assert "plaintext" not in str(task_arguments)
 
 
 @pytest.mark.asyncio

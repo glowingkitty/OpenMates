@@ -10,7 +10,7 @@ import base64
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -42,7 +42,13 @@ async def _load_embed_record(
     embed_id: str,
     cache_client: Any,
     directus_service: Any,
+    preloaded_records: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if preloaded_records:
+        preloaded = preloaded_records.get(embed_id)
+        if isinstance(preloaded, dict):
+            return preloaded
+
     cache_key = f"embed:{embed_id}"
     try:
         cached = await cache_client.get(cache_key)
@@ -78,6 +84,7 @@ async def resolve_encrypted_image_embed(
     s3_service: Any,
     bucket_name: str = "chatfiles",
     decode_toon: Callable[[str], Any] | None = None,
+    preloaded_records: Mapping[str, Any] | None = None,
 ) -> ResolvedEncryptedImage:
     """Resolve one encrypted image from cache or Directus and decrypt it in memory."""
     if not user_vault_key_id:
@@ -86,6 +93,7 @@ async def resolve_encrypted_image_embed(
         embed_id=embed_id,
         cache_client=cache_client,
         directus_service=directus_service,
+        preloaded_records=preloaded_records,
     )
     encrypted_content = record.get("encrypted_content")
     if isinstance(encrypted_content, str) and encrypted_content:
