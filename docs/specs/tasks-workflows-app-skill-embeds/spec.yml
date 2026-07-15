@@ -223,17 +223,30 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-15T00:00:00Z"
     summary: Dev returned 404 because the Workflows app-skill surface is not exposed on dev until this slice is deployed.
+  - id: ATTEMPT-6
+    task_id: TASK-4
+    approach: "Render nested app-skill failures from `{ success: true, data: { success: false } }` as CLI errors instead of empty results."
+    outcome: succeeded
+    recorded_at: "2026-07-15T00:00:00Z"
+    summary: Added CLI regression coverage and error rendering after real dev workflow search returned a Vault-key blocker in the nested skill payload.
+  - id: ATTEMPT-7
+    task_id: TASK-4
+    approach: Run real dev `tasks search`, `tasks create`, and `workflows search` through generic CLI app-skill commands after deploy.
+    outcome: blocked
+    recorded_at: "2026-07-15T00:00:00Z"
+    summary: Task search reached dev and printed waiting-for-client state; task create and workflow search reached dev but require a Vault-key-enabled account for success proof.
 
 handoff:
   current_task_id: TASK-4
-  next_action: Deploy the backend/CLI app-skill slice to dev, then rerun real CLI app-skill proof commands before starting SDK parity.
-  command: node dist/cli.js --api-url https://api.dev.openmates.org apps tasks search --input '{"query":"invoice follow-up"}' && node dist/cli.js --api-url https://api.dev.openmates.org apps workflows search --input '{"query":"weather"}'
-  expected_outcome: Task search prints waiting-for-client state and workflow search returns server-side workflow child results from dev.
+  next_action: Obtain or provision a Vault-key-enabled dev account, then rerun real CLI task create and workflow search proof before starting SDK parity.
+  command: node dist/cli.js --api-url https://api.dev.openmates.org apps tasks create --input '{"title":"CLI app-skill proof task","assignee":"user"}' && node dist/cli.js --api-url https://api.dev.openmates.org apps workflows search --input '{"query":"weather"}'
+  expected_outcome: Task create returns child task results and workflow search returns server-side workflow child results from dev.
   blocker:
     task_id: TASK-4
-    requires_user_input: false
-    reason: Real dev proof is partially blocked until this slice is deployed; task create additionally needs a Vault-key-enabled account or an accepted account-state blocker.
-    next_action: Deploy, then rerun task search and workflow search; use a Vault-enabled dev account for task create proof.
+    requires_user_input: true
+    reason: Configured CLI test-account slots that could log in did not have the Vault key ID required by task create and workflow search app-skill proof.
+    question: Which Vault-key-enabled dev account or provisioning path should be used for real task-create/workflow-search CLI proof?
+    next_action: Rerun the real CLI proof commands with that account, then proceed to SDK parity.
   last_verified_commit: 3b312927a51c5c693ab6b215b2422d9039b6910f
 
 scenarios:

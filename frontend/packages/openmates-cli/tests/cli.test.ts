@@ -1246,6 +1246,21 @@ async function withSkillFormattingMockApi<T>(
       if (request.method === "POST" && request.url === "/v1/apps/workflows/skills/search") {
         const body = await readJsonBody(request);
         requests.push({ url: request.url, body });
+        if (body.query === "vault-blocked") {
+          writeJson(response, {
+            success: true,
+            data: {
+              success: false,
+              app_id: "workflows",
+              skill_id: "search",
+              results: [],
+              result_count: 0,
+              requires_connected_client: false,
+              error: "Workflow encryption requires the user's Vault key id",
+            },
+          });
+          return;
+        }
         writeJson(response, {
           success: true,
           data: {
@@ -2042,6 +2057,27 @@ describe("apps skill formatted output", () => {
         "/v1/apps/workflows/skills/create-or-modify",
         "/v1/apps/workflows/skills/search",
       ]);
+    });
+  });
+
+  it("prints nested app-skill errors instead of treating them as empty results", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const { stdout, stderr } = await execFileAsync("node", [
+        "dist/cli.js",
+        "--api-url", apiUrl,
+        "apps", "workflows", "search",
+        "--input", JSON.stringify({ query: "vault-blocked" }),
+      ], {
+        cwd: PACKAGE_ROOT,
+        encoding: "utf-8",
+        env: { ...process.env, TERM: "dumb" },
+        timeout: 15_000,
+      });
+
+      assert.equal(stdout, "");
+      assert.match(stderr, /Skill failed/);
+      assert.match(stderr, /Vault key id/);
+      assert.doesNotMatch(stderr, /No results found/i);
     });
   });
 });

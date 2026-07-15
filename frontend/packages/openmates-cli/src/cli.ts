@@ -6232,6 +6232,13 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
   const credits =
     typeof res.credits_charged === "number" ? res.credits_charged : null;
 
+  if (data.success === false) {
+    console.error(
+      `\x1b[31m✗ Skill failed:\x1b[0m ${data.error ?? res.error ?? "unknown error"}`,
+    );
+    return;
+  }
+
   if (str(data.status) === "waiting_for_client" && data.pending_client_search && typeof data.pending_client_search === "object") {
     const pending = data.pending_client_search as Record<string, unknown>;
     header(`${capitalise(app)} › ${capitalise(skill)}${credits !== null ? `  \x1b[2m(${credits} credits)\x1b[0m` : ""}\n`);
