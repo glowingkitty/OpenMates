@@ -701,9 +701,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "docker:python -m pytest /app/backend/tests/test_e2b_application_preview.py + live-e2b-smoke"
-        timestamp: "2026-06-08T12:45:13Z"
-        notes: "8 provider planning tests passed. A live E2B smoke in app-code-worker also created a sandbox for a static index.html app, exposed an upstream URL for port 5173, returned HTTP 200 with expected content, and killed the sandbox successfully."
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_e2b_application_preview.py; live-cli-natural-preview session=94cd7a4a-63f9-4d2c-9b1a-47f2643fd22f"
+        timestamp: "2026-07-15T12:17:00Z"
+        notes: "E2B provider planning tests passed with 23 tests after forcing OpenMates Vite allowed-host config even when generated apps include vite.config.js. Live natural-language Svelte app preview reached status=running through E2B and status/open/stop completed successfully."
 
   - id: T-PYTEST-APP-PREVIEW-USAGE-001
     type: pytest
@@ -975,9 +975,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "live-cli: chat=963c28ae-21f9-4344-9baa-79b320beebd9 embed=5c4b4cc9-0129-4318-ab38-d1732fb5decc sessions=af4b4bac-2f25-4567-b957-ef2e2bde0ee6,a2964ab4-e6e3-43e1-a362-dfe9d6efec3b"
-        timestamp: "2026-07-15T12:02:00Z"
-        notes: "CLI generated an application fixture through the dev WebSocket path, started preview with --wait to status=running, status/open returned running, and stop returned status=stopped. Post-deploy smoke on commit 65cb2f6 repeated start/status/open/stop successfully against api.dev.openmates.org. Real model prompts still produced code embeds by design because backend instructions disable application_preview fences for ordinary runnable web apps; fixture marker was used for deterministic application embed creation."
+        run_id: "live-cli: natural_chat=ff5156f8-8d4e-4c47-845e-8b7cc7179059 natural_embed=03d7f328-c30a-4c99-aa72-688672c268c1 natural_session=94cd7a4a-63f9-4d2c-9b1a-47f2643fd22f fixture_chat=963c28ae-21f9-4344-9baa-79b320beebd9 fixture_embed=5c4b4cc9-0129-4318-ab38-d1732fb5decc"
+        timestamp: "2026-07-15T12:17:00Z"
+        notes: "CLI natural-language prompt created an application embed through the dev WebSocket path after prompt-contract fixes, started preview with --wait to status=running, status/open returned running, and stop returned status=stopped. Earlier fixture-marker proof remains as deterministic fallback coverage."
 
   - id: T-SDK-APP-PREVIEW-001
     type: unit
