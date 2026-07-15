@@ -94,7 +94,7 @@ class OpenMates:
     def _run_app_skill(self, app_id: str, skill_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
         return self._post(
             f"/v1/apps/{app_id}/skills/{skill_id}",
-            {"input_data": input_data, "parameters": {}},
+            input_data,
         )
 
     def _post(
@@ -1459,7 +1459,9 @@ class OpenMatesDocs:
 
 
 class OpenMatesEmbeds:
-    def __init__(self, client: OpenMates): self._client = client
+    def __init__(self, client: OpenMates):
+        self._client = client
+        self.preview = OpenMatesEmbedPreview(client)
     def show(self, embed_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/embeds/{_quote(embed_id)}")
     def share(self, embed_id: str, *, expires: int | None = None, password: str | None = None) -> dict[str, Any]:
         shown = self.show(embed_id)
@@ -1474,6 +1476,49 @@ class OpenMatesEmbeds:
     def restore_version(self, embed_id: str, version: int, *, confirmed: bool = False) -> dict[str, Any]:
         _require_confirmed(confirmed, "Restoring an embed version")
         return self._client._post(f"/v1/sdk/embeds/{_quote(embed_id)}/versions/{version}/restore", {})
+
+
+class OpenMatesEmbedPreview:
+    def __init__(self, client: OpenMates): self._client = client
+
+    def start(
+        self,
+        embed_id: str,
+        *,
+        chat_id: str,
+        shared_context: str | None = None,
+        requested_runtime: str | None = None,
+        source_message_id: str | None = None,
+        wait: bool = False,
+        timeout_s: float = 120.0,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"chat_id": chat_id}
+        if shared_context:
+            payload["shared_context"] = shared_context
+        if requested_runtime:
+            payload["requested_runtime"] = requested_runtime
+        if source_message_id:
+            payload["source_message_id"] = source_message_id
+        started = self._client._post(f"/v1/applications/{_quote(embed_id)}/preview/start", payload)
+        return self._wait_for_running(str(started["session_id"]), timeout_s=timeout_s) if wait else started
+
+    def status(self, session_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/applications/preview/{_quote(session_id)}")
+
+    def open(self, session_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/applications/preview/{_quote(session_id)}/open", {})
+
+    def stop(self, session_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/applications/preview/{_quote(session_id)}/stop", {})
+
+    def _wait_for_running(self, session_id: str, *, timeout_s: float) -> dict[str, Any]:
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            status = self.status(session_id)
+            if status.get("status") in {"running", "failed", "timeout", "cancelled", "stopped"}:
+                return status
+            time.sleep(1.0)
+        raise OpenMatesApiError(408, {"detail": "Application preview did not reach running state before timeout"})
 
 
 class OpenMatesConnectedAccounts:

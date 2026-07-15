@@ -750,6 +750,15 @@ export class OpenMatesWsClient {
           });
           return;
         }
+        if (options?.recoveryTurnId && recoveryJobId && aiResponseDone && !postProcessingDone) {
+          if (postProcessingTimer) {
+            clearTimeout(postProcessingTimer);
+            postProcessingTimer = null;
+          }
+          // Persist saved-chat terminal messages before optional post-processing can
+          // advance the encrypted message version fence.
+          postProcessingDone = true;
+        }
         if (!aiResponseDone || !postProcessingDone) return;
         if (options?.recoveryTurnId && !recoveryJobId) return;
         if (pendingSubChatHandlers.size > 0) return;

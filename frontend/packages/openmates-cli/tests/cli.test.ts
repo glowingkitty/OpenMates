@@ -70,14 +70,16 @@ function runCliWithoutSessionResult(args: string[]): { status: number | null; st
 }
 
 async function withUpdateRequiredMock<T>(
-  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[] }) => Promise<T>,
+  run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[] }) => Promise<T>,
 ): Promise<T> {
   const tempHome = join(tmpdir(), `openmates-cli-update-required-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   const stateDir = join(tempHome, ".openmates");
   const frameTypes: string[] = [];
+  const requestPaths: string[] = [];
   mkdirSync(stateDir, { recursive: true });
   const wss = new WebSocketServer({ noServer: true });
   const server = createServer((request, response) => {
+    if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
     if (request.method === "POST" && request.url === "/v1/auth/session") {
       writeJson(response, {
         success: true,
@@ -132,7 +134,7 @@ async function withUpdateRequiredMock<T>(
   })}\n`);
 
   try {
-    return await run({ apiUrl, tempHome, frameTypes });
+    return await run({ apiUrl, tempHome, frameTypes, requestPaths });
   } finally {
     wss.close();
     server.closeAllConnections();
@@ -1425,7 +1427,7 @@ async function withFlatWeatherSkillMockApi<T>(
 
 describe("CLI update-required cutover", () => {
   it("prints concise update-required guidance, reports no success, and exits nonzero", async () => {
-    await withUpdateRequiredMock(async ({ apiUrl, tempHome, frameTypes }) => {
+    await withUpdateRequiredMock(async ({ apiUrl, tempHome, frameTypes, requestPaths }) => {
       const result = await new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
         execFile(
           "node",
@@ -1447,6 +1449,7 @@ describe("CLI update-required cutover", () => {
       assert.notEqual(result.status, 0);
       assert.match(result.stderr, /OpenMates CLI update required\. Run `openmates upgrade` and retry\./);
       assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /success/i);
+      assert.equal(requestPaths.includes("GET /v1/learning-mode"), false);
       assert.equal(frameTypes.includes("chat_turn_preflight"), true);
       assert.equal(frameTypes.includes("chat_message_added"), false);
     });
@@ -1965,7 +1968,7 @@ describe("apps metadata commands", () => {
         "apps", "models3d", "search",
         "--query", "benchy",
         "--count", "2",
-        "--providers", "Printables,Thingiverse",
+        "--providers", "Printables",
         "--sort", "newest",
         "--free-only",
         "--json",
@@ -1979,7 +1982,7 @@ describe("apps metadata commands", () => {
           requests: [{
             query: "benchy",
             count: 2,
-            providers: ["Printables", "Thingiverse"],
+            providers: ["Printables"],
             sort: "newest",
             free_only: true,
           }],

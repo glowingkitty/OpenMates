@@ -8,6 +8,7 @@
  */
 
 import { GeneratedAppSkills } from "./generated/appSkills.js";
+import { decode as toonDecode } from "@toon-format/toon";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -112,6 +113,46 @@ export interface ConfirmedMutationOptions {
 
 export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined | null>;
+}
+
+export interface ApplicationPreviewStartOptions {
+  chatId: string;
+  sharedContext?: string;
+  requestedRuntime?: string;
+  sourceMessageId?: string;
+  wait?: boolean;
+  timeoutMs?: number;
+}
+
+export interface ApplicationPreviewStartResponse {
+  session_id: string;
+  preview_url: string;
+  status: string;
+  credits_per_minute: number;
+}
+
+export interface ApplicationPreviewEvent {
+  kind: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface ApplicationPreviewStatusResponse {
+  session_id: string;
+  status: string;
+  events: ApplicationPreviewEvent[];
+  error?: string | null;
+  charged_credits?: number | null;
+  latest_screenshot_url?: string | null;
+  latest_screenshot?: Record<string, unknown> | null;
+  auto_started: boolean;
+  auto_opened_at?: number | null;
+}
+
+export interface ApplicationPreviewStopResponse {
+  session_id: string;
+  status: string;
+  charged_credits?: number | null;
 }
 
 export interface EncryptedChatMetadata {
@@ -255,10 +296,7 @@ export class OpenMates {
   }
 
   async runAppSkill<T = unknown>(appId: string, skillId: string, input: unknown): Promise<T> {
-    return this.request<T>(`/v1/apps/${appId}/skills/${skillId}`, {
-      input_data: input,
-      parameters: {},
-    });
+    return this.request<T>(`/v1/apps/${appId}/skills/${skillId}`, input);
   }
 
   async request<T>(path: string, body?: unknown, timeoutMs?: number, extraHeaders?: Record<string, string>): Promise<T> {
@@ -594,7 +632,11 @@ function parseMaybeJson(value: string | null): unknown {
   try {
     return JSON.parse(value) as unknown;
   } catch {
-    return value;
+    try {
+      return toonDecode(value, { strict: false }) as unknown;
+    } catch {
+      return value;
+    }
   }
 }
 
@@ -1597,10 +1639,12 @@ export class OpenMatesDocs {
 }
 
 export class OpenMatesEmbeds {
+  readonly preview: OpenMatesEmbedPreview;
   private readonly client: OpenMates;
 
   constructor(client: OpenMates) {
     this.client = client;
+    this.preview = new OpenMatesEmbedPreview(client);
   }
 
   async show(embedId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}`); }
@@ -1615,6 +1659,53 @@ export class OpenMatesEmbeds {
   async versions(embedId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}/versions`); }
   async version(embedId: string, version: number): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}/versions/${version}`); }
   async restoreVersion(embedId: string, version: number, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> { requireConfirmed(options, "Restoring an embed version"); return this.client.request<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}/versions/${version}/restore`); }
+}
+
+export class OpenMatesEmbedPreview {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async start(embedId: string, options: ApplicationPreviewStartOptions): Promise<ApplicationPreviewStartResponse | ApplicationPreviewStatusResponse> {
+    const response = await this.client.request<ApplicationPreviewStartResponse>(
+      `/v1/applications/${encodeURIComponent(embedId)}/preview/start`,
+      {
+        chat_id: options.chatId,
+        ...(options.sharedContext ? { shared_context: options.sharedContext } : {}),
+        ...(options.requestedRuntime ? { requested_runtime: options.requestedRuntime } : {}),
+        ...(options.sourceMessageId ? { source_message_id: options.sourceMessageId } : {}),
+      },
+    );
+    return options.wait === true
+      ? this.waitForRunning(response.session_id, options.timeoutMs ?? 120_000)
+      : response;
+  }
+
+  async status(sessionId: string): Promise<ApplicationPreviewStatusResponse> {
+    return this.client.get<ApplicationPreviewStatusResponse>(`/v1/applications/preview/${encodeURIComponent(sessionId)}`);
+  }
+
+  async open(sessionId: string): Promise<ApplicationPreviewStatusResponse> {
+    return this.client.request<ApplicationPreviewStatusResponse>(`/v1/applications/preview/${encodeURIComponent(sessionId)}/open`, {});
+  }
+
+  async stop(sessionId: string): Promise<ApplicationPreviewStopResponse> {
+    return this.client.request<ApplicationPreviewStopResponse>(`/v1/applications/preview/${encodeURIComponent(sessionId)}/stop`, {});
+  }
+
+  private async waitForRunning(sessionId: string, timeoutMs: number): Promise<ApplicationPreviewStatusResponse> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const status = await this.status(sessionId);
+      if (["running", "failed", "timeout", "cancelled", "stopped"].includes(status.status)) {
+        return status;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    throw new OpenMatesApiError(408, { detail: "Application preview did not reach running state before timeout" });
+  }
 }
 
 export class OpenMatesConnectedAccounts {

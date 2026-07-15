@@ -98,6 +98,67 @@ describe("OpenMatesClient session API URL", () => {
     rmSync(serverConfigPath, { force: true });
   });
 
+  it("manages application preview lifecycle through authenticated embed preview endpoints", async () => {
+    const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown>; cookie?: string }> = [];
+    const embedId = "12345678-1234-4234-9234-123456789abc";
+    const sessionId = "87654321-1234-4234-9234-123456789abc";
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      let raw = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => { raw += chunk; });
+      request.on("end", () => {
+        requests.push({
+          method: request.method,
+          url: request.url,
+          body: raw ? JSON.parse(raw) as Record<string, unknown> : undefined,
+          cookie: String(request.headers.cookie ?? ""),
+        });
+        response.writeHead(200, { "content-type": "application/json" });
+        if (request.url === `/v1/applications/${embedId}/preview/start`) {
+          response.end(JSON.stringify({ session_id: sessionId, preview_url: "https://preview.example/t/token/", status: "queued", credits_per_minute: 5 }));
+          return;
+        }
+        if (request.url === `/v1/applications/preview/${sessionId}`) {
+          response.end(JSON.stringify({ session_id: sessionId, status: "running", events: [], auto_started: false }));
+          return;
+        }
+        if (request.url === `/v1/applications/preview/${sessionId}/open`) {
+          response.end(JSON.stringify({ session_id: sessionId, status: "running", events: [], auto_started: false }));
+          return;
+        }
+        if (request.url === `/v1/applications/preview/${sessionId}/stop`) {
+          response.end(JSON.stringify({ session_id: sessionId, status: "stopped", charged_credits: 5 }));
+          return;
+        }
+        response.writeHead(404);
+        response.end(JSON.stringify({ detail: "not found" }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await client.startApplicationPreview({ embedId, chatId: "chat-1", requestedRuntime: "svelte" });
+      await client.getApplicationPreviewStatus(sessionId);
+      await client.openApplicationPreview(sessionId);
+      await client.stopApplicationPreview(sessionId);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+
+    assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      `POST /v1/applications/${embedId}/preview/start`,
+      `GET /v1/applications/preview/${sessionId}`,
+      `POST /v1/applications/preview/${sessionId}/open`,
+      `POST /v1/applications/preview/${sessionId}/stop`,
+    ]);
+    assert.deepEqual(requests[0].body, { chat_id: "chat-1", requested_runtime: "svelte" });
+    assert.ok(requests.every((request) => request.cookie?.includes("auth_refresh_token=test-refresh-token")));
+  });
+
   it("uses the persisted session API URL when no override is set", () => {
     const client = OpenMatesClient.load();
     assert.strictEqual(client.apiUrl, sessionApiUrl);
@@ -1403,12 +1464,24 @@ describe("CLI saved-chat recovery preflight", () => {
                   message_id: assistantMessageId,
                   full_content_so_far: "ok",
                   is_final_chunk: true,
-                  recovery_job_id: recoveryJobId,
-                  recovery_protocol_version: 1,
                 },
               }));
               ws.send(JSON.stringify({ type: "post_processing_metadata", payload: { chat_id: chatId } }));
             }, 10);
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "recovery_jobs_available",
+                payload: {
+                  jobs: [{
+                    job_id: recoveryJobId,
+                    chat_id: chatId,
+                    turn_id: captured.preflightPayload?.turn_id,
+                    assistant_message_id: assistantMessageId,
+                    chat_key_version: 1,
+                  }],
+                },
+              }));
+            }, 30);
           }
           if (frame.type === "recovery_job_claim") {
             assert.ok(sealedPayloadForTest);
@@ -1460,7 +1533,7 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(captured.messagePayload?.recovery_public_key, captured.preflightPayload.recovery_public_key);
       assert.equal(captured.messagePayload?.chat_key_version, 1);
       assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
-      assert.equal(captured.persistPayload?.expected_messages_v, 8);
+      assert.equal(captured.persistPayload?.expected_messages_v, 9);
       assert.equal(captured.persistPayload?.lease_token, "lease-token-old-chat");
       assert.equal(captured.persistPayload?.lease_generation, 2);
     } finally {

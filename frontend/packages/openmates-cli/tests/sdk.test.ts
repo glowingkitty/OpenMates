@@ -88,7 +88,7 @@ describe("OpenMates SDK", () => {
       let body = "";
       request.on("data", (chunk) => { body += chunk.toString(); });
       request.on("end", () => {
-        assert.deepEqual(JSON.parse(body).input_data, {
+        assert.deepEqual(JSON.parse(body), {
           requests: [{ prompt: "a friendly robot" }],
         });
         response.setHeader("content-type", "application/json");
@@ -109,13 +109,63 @@ describe("OpenMates SDK", () => {
     assert.equal((client.apps.models3d as unknown as Record<string, unknown>).generate, undefined);
   });
 
+  it("manages application preview lifecycle through embeds.preview", async () => {
+    const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
+    await withServer((request, response) => {
+      let body = "";
+      request.on("data", (chunk) => { body += chunk.toString(); });
+      request.on("end", () => {
+        requests.push({ method: request.method, url: request.url, body: body ? JSON.parse(body) as Record<string, unknown> : undefined });
+        response.setHeader("content-type", "application/json");
+        if (request.url === "/v1/applications/embed-1/preview/start") {
+          response.end(JSON.stringify({ session_id: "session-1", preview_url: "https://preview.example/t/token/", status: "queued", credits_per_minute: 5 }));
+          return;
+        }
+        if (request.url === "/v1/applications/preview/session-1") {
+          response.end(JSON.stringify({ session_id: "session-1", status: "running", events: [], auto_started: false }));
+          return;
+        }
+        if (request.url === "/v1/applications/preview/session-1/open") {
+          response.end(JSON.stringify({ session_id: "session-1", status: "running", events: [], auto_started: false }));
+          return;
+        }
+        if (request.url === "/v1/applications/preview/session-1/stop") {
+          response.end(JSON.stringify({ session_id: "session-1", status: "stopped", charged_credits: 5 }));
+          return;
+        }
+        response.statusCode = 404;
+        response.end(JSON.stringify({ detail: "not found" }));
+      });
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      const started = await client.embeds.preview.start("embed-1", { chatId: "chat-1", requestedRuntime: "svelte" });
+      assert.equal(started.status, "queued");
+      const waited = await client.embeds.preview.start("embed-1", { chatId: "chat-1", wait: true, timeoutMs: 5_000 });
+      assert.equal(waited.status, "running");
+      await client.embeds.preview.status("session-1");
+      await client.embeds.preview.open("session-1");
+      await client.embeds.preview.stop("session-1");
+    });
+
+    assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      "POST /v1/applications/embed-1/preview/start",
+      "POST /v1/applications/embed-1/preview/start",
+      "GET /v1/applications/preview/session-1",
+      "GET /v1/applications/preview/session-1",
+      "POST /v1/applications/preview/session-1/open",
+      "POST /v1/applications/preview/session-1/stop",
+    ]);
+    assert.deepEqual(requests[0].body, { chat_id: "chat-1", requested_runtime: "svelte" });
+    assert.deepEqual(requests[1].body, { chat_id: "chat-1" });
+  });
+
   it("exposes native models3d search skill methods", async () => {
     await withServer((request, response) => {
       assert.equal(request.url, "/v1/apps/models3d/skills/search");
       let body = "";
       request.on("data", (chunk) => { body += chunk.toString(); });
       request.on("end", () => {
-        assert.deepEqual(JSON.parse(body).input_data, {
+        assert.deepEqual(JSON.parse(body), {
           requests: [{ query: "benchy" }],
         });
         response.setHeader("content-type", "application/json");

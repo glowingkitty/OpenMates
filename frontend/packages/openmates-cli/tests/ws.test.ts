@@ -905,6 +905,79 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  it("resolves saved-chat recovery before optional post-processing metadata", async () => {
+    const chatId = "chat-recovery-before-post-processing";
+    const userMessageId = "user-message-recovery-before-post-processing";
+    const turnId = "turn-before-post-processing";
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "ai_message_update",
+            payload: {
+              user_message_id: userMessageId,
+              message_id: "assistant-before-post-processing-stream",
+              chat_id: chatId,
+              is_final_chunk: true,
+              full_content_so_far: "Application preview is ready.",
+            },
+          }),
+        );
+      }, 5);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "recovery_jobs_available",
+            payload: {
+              jobs: [
+                {
+                  job_id: "recovery-job-before-post-processing",
+                  chat_id: chatId,
+                  turn_id: turnId,
+                  assistant_message_id: "assistant-before-post-processing",
+                  chat_key_version: 1,
+                },
+              ],
+            },
+          }),
+        );
+      }, 20);
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: chatId, follow_up_suggestions: ["Too late"] },
+          }),
+        );
+      }, 250);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-recovery-before-post-processing",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const startedAt = Date.now();
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        recoveryTurnId: turnId,
+      });
+
+      assert.equal(response.status, "completed");
+      assert.equal(response.recoveryJobId, "recovery-job-before-post-processing");
+      assert.equal(response.messageId, "assistant-before-post-processing");
+      assert.equal(response.content, "Application preview is ready.");
+      assert.ok(Date.now() - startedAt < 200, "saved-chat recovery should not wait for post-processing");
+    } finally {
+      client.close();
+    }
+  });
+
   it("waitForMessage ignores scoped errors that miss the predicate", async () => {
     server.once("connection", (socket) => {
       setTimeout(() => {

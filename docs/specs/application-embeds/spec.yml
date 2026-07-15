@@ -940,6 +940,72 @@ tests:
         timestamp: "2026-06-08T13:24:39Z"
         notes: "File-scoped eslint passed for the touched application preview UI files after the encrypted screenshot cache lifecycle fix. Svelte-check remains blocked by existing unrelated/generated diagnostics in embedRegistry.generated.ts, modelsMetadata.ts, SvelteKit cookie typings, payment/settings/interactive question components, and other non-application-preview files; no diagnostics were reported for the changed application preview files. Full changed-files lint remains blocked by unrelated dirty worktree files noted earlier."
 
+  - id: T-CLI-APP-PREVIEW-001
+    type: unit
+    file: frontend/packages/openmates-cli/src/cli.ts
+    command: openmates chats new ... && openmates embeds preview start/status/open/stop ...
+    target: api.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-11
+      - AC-20
+    assertions:
+      - CLI saved-chat application fixture generation persists terminal recovery without version-conflict failure.
+      - CLI preview start requires chat_id and application embed ID and reaches running state.
+      - CLI preview status and open return the running viewer-owned session.
+      - CLI preview stop transitions the session to stopped.
+      - Non-application code embeds are rejected by preview start.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "node dist/cli.js chats new 'Create a small Svelte recipe manager application with sample recipes and a filter input.' --json --no-pii-detection"
+        timestamp: "2026-07-15T11:16:00Z"
+        notes: "Live CLI saved-chat generation initially failed with Learning Mode HTTP 502, then with encrypted completion recovery version_conflict before terminal retry handling. A real prompt that produced a code embed was correctly rejected by preview start as Target embed is not an application."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "live-cli: chat=963c28ae-21f9-4344-9baa-79b320beebd9 embed=5c4b4cc9-0129-4318-ab38-d1732fb5decc session=af4b4bac-2f25-4567-b957-ef2e2bde0ee6"
+        timestamp: "2026-07-15T11:46:05Z"
+        notes: "CLI generated an application fixture through the dev WebSocket path, started preview with --wait to status=running, status/open returned running, and stop returned status=stopped. Real model prompts still produced code embeds by design because backend instructions disable application_preview fences for ordinary runnable web apps; fixture marker was used for deterministic application embed creation."
+
+  - id: T-SDK-APP-PREVIEW-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts tests/ws.test.ts tests/sdk.test.ts && python3 -m pytest packages/openmates-python/tests/test_sdk.py && python3 scripts/audit_sdk_cli_parity.py
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-20
+    assertions:
+      - npm SDK exposes embeds.preview.start/status/open/stop.
+      - Python SDK exposes embeds.preview.start/status/open/stop.
+      - CLI, npm SDK, and Python SDK preview lifecycle endpoint shapes stay in parity.
+      - Saved-chat CLI recovery waits for matching recovery jobs and retries one terminal persist after version_conflict with refreshed messages_v.
+      - Authenticated CLI chat sends no longer depend on a redundant Learning Mode REST status fetch.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts tests/sdk.test.ts"
+        timestamp: "2026-07-15T11:16:00Z"
+        notes: "Regression coverage initially exposed saved-chat collection resolving without terminal recovery identity, and live proof exposed redundant Learning Mode status fetch plus recovery version_conflict behavior."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "npm run build; node --test tests/cli.test.ts; node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts tests/ws.test.ts tests/sdk.test.ts; python3 -m pytest packages/openmates-python/tests/test_sdk.py; python3 scripts/audit_sdk_cli_parity.py"
+        timestamp: "2026-07-15T11:46:05Z"
+        notes: "CLI build passed, cli.test.ts passed 144 tests, client/ws/sdk loader run passed 68 tests, Python SDK passed 23 tests, and sdk-cli-parity reported 66 command entries plus 4 workflow template transport entries checked."
+
   - id: T-STATIC-APPLE-APP-PREVIEW-001
     type: lint
     file: apple/OpenMates/Sources/Features/Embeds/ApplicationPreviewView.swift

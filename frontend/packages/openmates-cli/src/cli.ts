@@ -4394,13 +4394,6 @@ function printLearningModeStatus(status: LearningModeStatus, json: boolean): voi
   }
 }
 
-function learningModeStatusToContext(status: LearningModeStatus): LearningModeContext {
-  return {
-    enabled: status.enabled,
-    ageGroup: status.age_group,
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Memories
 // ---------------------------------------------------------------------------
@@ -5213,7 +5206,6 @@ async function sendMessageStreaming(
   const urlResult = prepareUrlEmbeds(finalMessage);
   finalMessage = urlResult.message;
   preparedEmbeds.push(...urlResult.embeds);
-  const learningMode = learningModeStatusToContext(await client.getLearningModeStatus());
 
   const result = await client.sendMessage({
     message: finalMessage,
@@ -5225,7 +5217,6 @@ async function sendMessageStreaming(
     autoApproveSubChats: params.autoApproveSubChats,
     autoApproveMemories: params.autoApproveMemories,
     responseTimeoutMs: params.responseTimeoutMs,
-    learningMode,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
     piiMappings: piiResult.mappings.map((mapping) => ({
       placeholder: mapping.placeholder,

@@ -53,6 +53,7 @@ import {
 import { loadServerConfig } from "./serverConfig.js";
 import {
   OpenMatesWsClient,
+  WebSocketProtocolError,
   type AppSettingsMemoriesRequestEvent,
   type SendEmbedDataFrame,
   type SubChatEvent,
@@ -4084,7 +4085,14 @@ export class OpenMatesClient {
       20_000,
     );
     await ws.sendAsync("chat_message_added", messagePayload);
-    await confirmed;
+    const confirmedPayload = (await confirmed).payload as Record<string, unknown>;
+    if (
+      !params.incognito &&
+      typeof confirmedPayload.new_messages_v === "number" &&
+      Number.isSafeInteger(confirmedPayload.new_messages_v)
+    ) {
+      terminalExpectedMessagesV = confirmedPayload.new_messages_v;
+    }
 
     let assistant = "";
     let assistantMessageId: string | null = null;
@@ -4374,6 +4382,7 @@ export class OpenMatesClient {
         const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
           ...streamOpts,
           timeoutMs: params.responseTimeoutMs,
+          recoveryTurnId: savedTurnId,
         }));
         assistantMessageId = resp.messageId;
         assistant = resp.content;
@@ -4515,17 +4524,11 @@ export class OpenMatesClient {
           const encryptedModelName = recovered.model_name
             ? await encryptWithAesGcmCombined(recovered.model_name, chatKeyBytes)
             : undefined;
-          const persistedPromise = ws.waitForMessage(
-            "recovery_job_persisted",
-            (payload) => (payload as Record<string, unknown>).job_id === recoveryJobId,
-            20_000,
-          );
-          await ws.sendAsync("recovery_job_persist", {
+          const terminalPersistPayload = {
             protocol_version: 1,
             job_id: recoveryJobId,
             lease_token: leaseToken,
             lease_generation: leaseGeneration,
-            expected_messages_v: terminalExpectedMessagesV,
             encrypted_assistant_message: {
               client_message_id: assistantId,
               chat_id: chatId,
@@ -4538,8 +4541,50 @@ export class OpenMatesClient {
               created_at: completedAt,
               updated_at: completedAt,
             },
-          });
-          await persistedPromise;
+          };
+          const persistTerminalRecovery = async (expectedMessagesV: number) => {
+            const persistedPromise = ws.waitForMessage(
+              "recovery_job_persisted",
+              (payload) => (payload as Record<string, unknown>).job_id === recoveryJobId,
+              20_000,
+            );
+            await ws.sendAsync("recovery_job_persist", {
+              ...terminalPersistPayload,
+              expected_messages_v: expectedMessagesV,
+            });
+            await persistedPromise;
+          };
+          let terminalPersisted = false;
+          try {
+            await persistTerminalRecovery(terminalExpectedMessagesV);
+            terminalPersisted = true;
+          } catch (error) {
+            if (error instanceof WebSocketProtocolError) {
+              if (error.code === "version_conflict") {
+                const latestCache = await this.ensureSynced(true, [chatId]);
+                const latestChat = latestCache.chats.find(
+                  (chat) => String(chat.details.id ?? "") === chatId,
+                );
+                const latestMessagesV = typeof latestChat?.details.messages_v === "number"
+                  && Number.isSafeInteger(latestChat.details.messages_v)
+                  ? latestChat.details.messages_v
+                  : null;
+                if (latestMessagesV !== null && latestMessagesV > terminalExpectedMessagesV) {
+                  await persistTerminalRecovery(latestMessagesV);
+                  terminalExpectedMessagesV = latestMessagesV;
+                  terminalPersisted = true;
+                }
+              }
+              if (!terminalPersisted) {
+                throw new Error(`${error.message} (${error.code})`);
+              }
+            } else {
+              throw error;
+            }
+          }
+          if (!terminalPersisted) {
+            throw new Error("Encrypted completion recovery did not persist terminal state.");
+          }
           assistantMessageId = assistantId;
           await this.persistStreamedEmbeds({
             ws,
