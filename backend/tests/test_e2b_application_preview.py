@@ -6,6 +6,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from backend.shared.providers.e2b_application_preview import (
@@ -20,6 +23,22 @@ from backend.shared.providers.e2b_application_preview import (
     _write_vite_allowed_hosts_config,
     plan_application_preview_startup,
 )
+
+
+def test_application_preview_fixture_uses_deterministic_svelte5_runtime() -> None:
+    fixture_path = Path(__file__).resolve().parents[1] / "apps/ai/testing/fixtures/application_preview.json"
+    fixture = json.loads(fixture_path.read_text())
+    files = fixture["embeds"]["11111111-1111-4111-8111-111111111111"]["files"]
+    by_path = {file["path"]: file for file in files}
+
+    package_json = by_path["package.json"]["content"]
+    main_ts = by_path["src/main.ts"]["content"]
+
+    assert "latest" not in package_json
+    assert '"vite":"^7.3.6"' in package_json
+    assert '"svelte":"^5.55.7"' in package_json
+    assert "import { mount } from 'svelte';" in main_ts
+    assert "new App" not in main_ts
 
 
 def test_preview_planning_normalizes_files_and_frontend_commands() -> None:

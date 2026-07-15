@@ -2747,17 +2747,30 @@ APPLICATION_PREVIEW_EXTENSION_LANGUAGES = {
     ".tsx": "tsx",
     ".vue": "vue",
 }
+APPLICATION_PREVIEW_SVELTE_PLUGIN_VERSION = "^6.2.4"
+APPLICATION_PREVIEW_SVELTE_VERSION = "^5.55.7"
+APPLICATION_PREVIEW_TYPESCRIPT_VERSION = "^5.9.2"
+APPLICATION_PREVIEW_VITE_VERSION = "^7.3.6"
 APPLICATION_PREVIEW_DEFAULT_PACKAGE_JSON = json.dumps({
     "scripts": {"dev": "vite"},
     "dependencies": {
-        "@sveltejs/vite-plugin-svelte": "latest",
-        "vite": "latest",
-        "svelte": "latest",
-        "typescript": "latest",
+        "@sveltejs/vite-plugin-svelte": APPLICATION_PREVIEW_SVELTE_PLUGIN_VERSION,
+        "vite": APPLICATION_PREVIEW_VITE_VERSION,
+        "svelte": APPLICATION_PREVIEW_SVELTE_VERSION,
+        "typescript": APPLICATION_PREVIEW_TYPESCRIPT_VERSION,
     },
     "devDependencies": {},
 }, indent=2)
 APPLICATION_PREVIEW_DEFAULT_INDEX_HTML = '<div id="app"></div>\n<script type="module" src="/src/main.ts"></script>'
+APPLICATION_PREVIEW_DEFAULT_MAIN_TS = (
+    "import { mount } from 'svelte';\n"
+    "import App from './App.svelte';\n\n"
+    "const target = document.getElementById('app');\n"
+    "if (!target) {\n"
+    "  throw new Error('Application root element #app was not found');\n"
+    "}\n\n"
+    "mount(App, { target });\n"
+)
 APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG = (
     "import { svelte } from '@sveltejs/vite-plugin-svelte';\n"
     "import { defineConfig } from 'vite';\n\n"
@@ -3473,12 +3486,21 @@ def _normalize_loose_application_preview_files(files: List[Dict[str, str]]) -> L
             "filename": "package.json",
             "content": APPLICATION_PREVIEW_DEFAULT_PACKAGE_JSON,
         })
+        paths.add("package.json")
+    if has_svelte_source and "src/main.ts" not in paths and "src/main.js" not in paths:
+        normalized_files.append({
+            "language": "typescript",
+            "filename": "src/main.ts",
+            "content": APPLICATION_PREVIEW_DEFAULT_MAIN_TS,
+        })
+        paths.add("src/main.ts")
     if has_svelte_source and "vite.config.ts" not in paths and "vite.config.js" not in paths:
         normalized_files.append({
             "language": "typescript",
             "filename": "vite.config.ts",
             "content": APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG,
         })
+        paths.add("vite.config.ts")
     if "index.html" not in paths:
         normalized_files.append({
             "language": "html",

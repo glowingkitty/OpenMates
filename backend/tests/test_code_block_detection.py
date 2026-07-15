@@ -451,6 +451,23 @@ console.log('hello');
         assert "@sveltejs/vite-plugin-svelte" in by_path["package.json"]["content"]
         assert 'src="/src/main.ts"' in by_path["index.html"]["content"]
 
+    def test_loose_svelte_application_synthesizes_svelte5_runtime_files(self):
+        files, cleaned = _extract_loose_application_preview_files_from_text(
+            "Here is the recipe manager app.\n\n"
+            "svelte:src/App.svelte\n"
+            "<main>Recipe Manager</main>\n"
+        )
+
+        by_path = {file["filename"]: file for file in files}
+        assert cleaned == "Here is the recipe manager app."
+        assert '"vite": "^7.3.6"' in by_path["package.json"]["content"]
+        assert '"svelte": "^5.55.7"' in by_path["package.json"]["content"]
+        assert '"typescript": "^5.9.2"' in by_path["package.json"]["content"]
+        assert "latest" not in by_path["package.json"]["content"]
+        assert "import { mount } from 'svelte';" in by_path["src/main.ts"]["content"]
+        assert "new App" not in by_path["src/main.ts"]["content"]
+        assert 'src="/src/main.ts"' in by_path["index.html"]["content"]
+
 
 class FakeApplicationArtifactEmbedService:
     def __init__(self):

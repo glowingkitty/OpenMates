@@ -41,7 +41,7 @@
         {
           "path": "package.json",
           "language": "json",
-          "content": "{\"scripts\":{\"dev\":\"vite --host 0.0.0.0\"},\"dependencies\":{\"@sveltejs/vite-plugin-svelte\":\"latest\",\"vite\":\"latest\",\"svelte\":\"latest\"},\"devDependencies\":{\"typescript\":\"latest\"},\"type\":\"module\"}"
+          "content": "{\"scripts\":{\"dev\":\"vite --host 0.0.0.0\"},\"dependencies\":{\"@sveltejs/vite-plugin-svelte\":\"^6.2.4\",\"vite\":\"^7.3.6\",\"svelte\":\"^5.55.7\"},\"devDependencies\":{\"typescript\":\"^5.9.2\"},\"type\":\"module\"}"
         },
         {
           "path": "src/App.svelte",
@@ -51,7 +51,7 @@
         {
           "path": "src/main.ts",
           "language": "typescript",
-          "content": "import App from './App.svelte';\n\nconst app = new App({\n  target: document.getElementById('app') as HTMLElement\n});\n\nexport default app;"
+          "content": "import { mount } from 'svelte';\nimport App from './App.svelte';\n\nconst target = document.getElementById('app');\nif (!target) {\n  throw new Error('Application root element #app was not found');\n}\n\nmount(App, { target });"
         },
         {
           "path": "index.html",
