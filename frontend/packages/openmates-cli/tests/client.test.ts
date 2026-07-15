@@ -1169,7 +1169,7 @@ describe("CLI saved-chat recovery preflight", () => {
             const message = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({
               type: "chat_message_confirmed",
-              payload: { chat_id: chatId, message_id: message.message_id },
+              payload: { chat_id: chatId, message_id: message.message_id, new_messages_v: 8 },
             }));
             setTimeout(() => {
               ws.send(JSON.stringify({

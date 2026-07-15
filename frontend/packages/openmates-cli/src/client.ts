@@ -3905,7 +3905,7 @@ export class OpenMatesClient {
     await ws.sendAsync("chat_message_added", messagePayload);
     const confirmedPayload = (await confirmed).payload as Record<string, unknown>;
     if (typeof confirmedPayload.new_messages_v === "number" && Number.isSafeInteger(confirmedPayload.new_messages_v)) {
-      terminalExpectedMessagesV = confirmedPayload.new_messages_v + 1;
+      terminalExpectedMessagesV = confirmedPayload.new_messages_v;
     }
 
     let assistant = "";
