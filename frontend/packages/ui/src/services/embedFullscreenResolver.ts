@@ -63,6 +63,8 @@ const modules = import.meta.glob<{ default: Component }>(
 	'../components/embeds/**/*EmbedFullscreen.svelte'
 );
 
+const fullscreenComponentPromises = new Map<string, Promise<Component | null>>();
+
 /**
  * Dynamically load a fullscreen component by registry key.
  *
@@ -72,6 +74,17 @@ const modules = import.meta.glob<{ default: Component }>(
  * @returns The Svelte component constructor, or null if not found
  */
 export async function loadFullscreenComponent(
+	key: string
+): Promise<Component | null> {
+	const cached = fullscreenComponentPromises.get(key);
+	if (cached) return cached;
+
+	const promise = loadFullscreenComponentUncached(key);
+	fullscreenComponentPromises.set(key, promise);
+	return promise;
+}
+
+async function loadFullscreenComponentUncached(
 	key: string
 ): Promise<Component | null> {
 	const path = EMBED_FULLSCREEN_COMPONENTS[key];
