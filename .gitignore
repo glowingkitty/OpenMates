@@ -131,6 +131,7 @@ celerybeat.pid
 
 # Environments
 .env
+.openmates-live-test-account.env
 .venv
 env/
 venv/

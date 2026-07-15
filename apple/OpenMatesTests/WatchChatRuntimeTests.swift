@@ -470,6 +470,13 @@ private struct WatchLiveAccountCredentials {
         if let credentials = read(environment: environment, prefix: "OPENMATES_TEST_ACCOUNT_\(slot)") {
             return credentials
         }
+        let fileEnvironment = readCredentialFile()
+        if let credentials = read(environment: fileEnvironment, prefix: "OPENMATES_TEST_ACCOUNT") {
+            return credentials
+        }
+        if let credentials = read(environment: fileEnvironment, prefix: "OPENMATES_TEST_ACCOUNT_\(slot)") {
+            return credentials
+        }
         throw XCTSkip("Missing OPENMATES_TEST_ACCOUNT or reserved Apple slot \(slot) credentials")
     }
 
@@ -480,6 +487,27 @@ private struct WatchLiveAccountCredentials {
             return nil
         }
         return WatchLiveAccountCredentials(email: email, password: password, otpKey: otpKey)
+    }
+
+    private static func readCredentialFile() -> [String: String] {
+        let sourceFileURL = URL(fileURLWithPath: #filePath)
+        let credentialFileURL = sourceFileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent(".openmates-live-test-account.env")
+        guard let contents = try? String(contentsOf: credentialFileURL, encoding: .utf8) else {
+            return [:]
+        }
+
+        var values: [String: String] = [:]
+        for rawLine in contents.split(separator: "\n") {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
+            let parts = line.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard parts.count == 2 else { continue }
+            values[String(parts[0])] = String(parts[1])
+        }
+        return values
     }
 }
 
