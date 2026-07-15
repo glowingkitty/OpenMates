@@ -15,6 +15,7 @@ import {
   PROTON_WRITE_DELAY_SECONDS,
   buildProtonBridgeInstallGuidance,
   buildProtonConnectorStartupMessage,
+  buildUnsupportedLinuxArchitectureGuidance,
   buildProtonWriteWarning,
   containsCredentialLikeField,
   createProtonLocalConnectorRegistration,
@@ -46,10 +47,23 @@ describe("Proton Bridge connector primitives", () => {
     assert.deepEqual(mac.args, ["-c"]);
     assert.equal(mac.shouldStart, true);
 
-    const linux = resolveProtonBridgeCommand({ platform: "linux", findExecutable: (name) => name === "protonmail-bridge" ? "/usr/bin/protonmail-bridge" : null });
+    const linux = resolveProtonBridgeCommand({ platform: "linux", architecture: "x64", findExecutable: (name) => name === "protonmail-bridge" ? "/usr/bin/protonmail-bridge" : null });
     assert.equal(linux.command, "/usr/bin/protonmail-bridge");
     assert.deepEqual(linux.args, ["-c"]);
     assert.equal(linux.shouldStart, true);
+  });
+
+  it("rejects Linux ARM even if a community Bridge binary is present", () => {
+    const command = resolveProtonBridgeCommand({
+      platform: "linux",
+      architecture: "arm64",
+      findExecutable: (name) => name === "protonmail-bridge" ? "/usr/bin/protonmail-bridge" : null,
+    });
+
+    assert.equal(command.shouldStart, false);
+    assert.match(command.installGuidance ?? "", /Linux arm64/);
+    assert.match(command.installGuidance ?? "", /Linux ARM devices are not supported/);
+    assert.match(command.installGuidance ?? "", /community Linux ARM Bridge packages/);
   });
 
   it("returns explicit install guidance instead of silently falling back", () => {
@@ -65,6 +79,10 @@ describe("Proton Bridge connector primitives", () => {
     assert.match(linuxGuidance, /verify the package/);
     assert.match(linuxGuidance, /secret-service\/GNOME Keyring or pass/);
     assert.match(linuxGuidance, /run `openmates connect-account proton` again/i);
+
+    const armGuidance = buildUnsupportedLinuxArchitectureGuidance("aarch64");
+    assert.match(armGuidance, /Linux aarch64/);
+    assert.match(armGuidance, /GitHub Actions' amd64 runner/);
   });
 
   it("prints command-lifetime and multiplexer guidance in startup copy", () => {
@@ -120,6 +138,7 @@ describe("Proton Bridge connector primitives", () => {
     await assert.rejects(
       () => runProtonBridgeConnector(client, { write: true, flags: { write: true } }, {
         platform: "linux",
+        architecture: "x64",
         findExecutable: () => "/usr/bin/protonmail-bridge",
         confirmWriteMode: async (warning) => {
           assert.equal(warning, buildProtonWriteWarning());

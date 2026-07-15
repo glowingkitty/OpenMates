@@ -11,7 +11,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
 import { connect as connectTcp, type Socket } from "node:net";
-import { platform as nodePlatform } from "node:os";
+import { arch as nodeArch, platform as nodePlatform } from "node:os";
 import { stdin, stderr } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { randomUUID } from "node:crypto";
@@ -94,6 +94,7 @@ export interface ProtonLocalConnectorClient {
 
 export interface ProtonBridgeConnectorDeps {
   platform?: ProtonConnectorPlatform;
+  architecture?: string;
   exists?: (path: string) => boolean;
   findExecutable?: (name: string) => string | null;
   hasHomebrew?: () => boolean;
@@ -149,6 +150,7 @@ export function containsCredentialLikeField(value: unknown): boolean {
 
 export function resolveProtonBridgeCommand(deps: ProtonBridgeConnectorDeps = {}): ProtonBridgeCommand {
   const platform = deps.platform ?? normalizePlatform(nodePlatform());
+  const architecture = deps.architecture ?? nodeArch();
   const exists = deps.exists ?? existsSync;
   const findExecutable = deps.findExecutable ?? defaultFindExecutable;
 
@@ -164,6 +166,15 @@ export function resolveProtonBridgeCommand(deps: ProtonBridgeConnectorDeps = {})
     };
   }
 
+  if (architecture !== "x64") {
+    return {
+      command: "protonmail-bridge",
+      args: ["-c"],
+      shouldStart: false,
+      installGuidance: buildUnsupportedLinuxArchitectureGuidance(architecture),
+    };
+  }
+
   const linuxBinary = findExecutable("protonmail-bridge");
   if (linuxBinary) {
     return { command: linuxBinary, args: ["-c"], shouldStart: true };
@@ -174,6 +185,15 @@ export function resolveProtonBridgeCommand(deps: ProtonBridgeConnectorDeps = {})
     shouldStart: false,
     installGuidance: buildProtonBridgeInstallGuidance("linux"),
   };
+}
+
+export function buildUnsupportedLinuxArchitectureGuidance(architecture: string): string {
+  return [
+    `Proton Mail Bridge is not supported by OpenMates on Linux ${architecture}.`,
+    "Proton's official Bridge requirements say Linux ARM devices are not supported; Apple silicon Macs are the only ARM exception.",
+    "OpenMates will not use community Linux ARM Bridge packages for Proton accounts because Bridge handles Proton login, mailbox access, and Bridge-generated IMAP/SMTP credentials.",
+    "Use an official amd64 Linux Bridge install, a Mac with the official Bridge app, or GitHub Actions' amd64 runner for live Proton Bridge tests.",
+  ].join("\n");
 }
 
 export function buildProtonBridgeInstallGuidance(platform: ProtonConnectorPlatform, hasHomebrew = false): string {

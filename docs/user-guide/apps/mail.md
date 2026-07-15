@@ -45,6 +45,8 @@ openmates connect-account proton
 
 This checks whether Proton Mail Bridge is installed. If Bridge is missing, the CLI prints OS-specific install instructions and stops; install Bridge, sign in through Proton Bridge, then run the command again.
 
+On Linux ARM (`arm64`/`aarch64`), the command stops with an explicit unsupported-platform error. Proton's official Bridge requirements do not support Linux ARM devices, except for Apple silicon Macs through the macOS Bridge app. OpenMates does not use community Linux ARM Bridge packages for Proton accounts because Bridge handles Proton login, mailbox access, and Bridge-generated IMAP/SMTP credentials.
+
 When Bridge is installed, the command starts or attaches to Proton Mail Bridge on macOS or Linux and registers a local connector that is online only while the command keeps running. For long-lived use, run the command inside `screen`, `tmux`, or `zellij`.
 
 By default the connector is read-only for Mail search. To allow sending through local Bridge, run:

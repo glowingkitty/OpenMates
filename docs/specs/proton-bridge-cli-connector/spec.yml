@@ -218,7 +218,7 @@ scenarios:
   - id: S-2
     title: User starts a read-only Proton connector on Linux
     given:
-      - Alice is logged into OpenMates CLI on a supported Linux system.
+      - Alice is logged into OpenMates CLI on a supported amd64 Linux system.
       - Proton Mail Bridge is installed or missing.
       - A supported keychain or secret-service provider is available.
     when:
@@ -228,6 +228,17 @@ scenarios:
       - The CLI refuses to continue when Bridge cannot access a supported keychain.
       - The CLI starts or attaches to local Bridge.
       - The connector becomes online only after local IMAP validation succeeds.
+
+  - id: S-11
+    title: User attempts Proton connector on Linux ARM
+    given:
+      - Alice is logged into OpenMates CLI on Linux arm64 or aarch64.
+    when:
+      - Alice runs `openmates connect-account proton`.
+    then:
+      - The CLI refuses to start Proton Bridge even if a community `protonmail-bridge` binary is present.
+      - The CLI explains Proton's official Bridge requirements do not support Linux ARM devices except Apple silicon Macs through macOS.
+      - The CLI explains OpenMates does not use community Linux ARM Bridge packages for Proton accounts because Bridge handles login, mailbox access, and Bridge-generated IMAP/SMTP credentials.
 
   - id: S-3
     title: Proton login stays inside Proton Bridge
@@ -340,7 +351,7 @@ acceptance_criteria:
       - T-CLI-PROTON-FAKE-BRIDGE
   - id: AC-2
     scenario: S-2
-    text: On Linux, the command detects Bridge or provides verified official install guidance, verifies keychain readiness, starts or attaches to Bridge, and registers online only after local IMAP validation.
+    text: On amd64 Linux, the command detects Bridge or provides verified official install guidance, verifies keychain readiness, starts or attaches to Bridge, and registers online only after local IMAP validation; on Linux ARM, it refuses to use community Bridge packages and explains the security reason.
     required: true
     status: satisfied
     coverage_status: covered
