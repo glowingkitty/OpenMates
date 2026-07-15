@@ -9,6 +9,7 @@ Provider credentials stay server-side and are never serialized into results.
 from __future__ import annotations
 
 import os
+import re
 from typing import Any, Iterable, Protocol
 from urllib.parse import quote_plus
 
@@ -63,9 +64,13 @@ class Model3DProviderResult(BaseModel):
     provider_kind: str
     provider_item_id: str
     source_page_url: str
+    description: str | None = None
     preview_image_url: str | None = None
     thumbnail_url: str | None = None
     creator_name: str | None = None
+    published_at: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
     license: str | None = None
     tags: list[str] = Field(default_factory=list)
     category: str | None = None
@@ -81,7 +86,6 @@ class Model3DProviderResult(BaseModel):
         payload = self.model_dump(exclude_none=True)
         payload["type"] = "model_result"
         payload["parent_app_skill_type"] = "app_skill_use"
-        payload["open_cta_label"] = f"Open on {self.provider}"
         return payload
 
 
@@ -148,6 +152,17 @@ def _safe_metadata(raw: dict[str, Any], allowed_keys: Iterable[str]) -> dict[str
     return metadata
 
 
+def _plain_text(value: Any, *, max_length: int = 500) -> str | None:
+    text = _first_string(value)
+    if not text:
+        return None
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= max_length:
+        return text
+    return text[: max_length - 1].rstrip() + "…"
+
+
 def _absolute_printables_image_url(file_path: Any) -> str | None:
     path = _first_string(file_path)
     if not path:
@@ -188,9 +203,13 @@ def normalize_printables_print(item: dict[str, Any]) -> Model3DProviderResult:
         provider_kind="reverse_engineered_browser_api",
         provider_item_id=provider_item_id,
         source_page_url=f"{PRINTABLES_SOURCE_BASE_URL}/{source_suffix}",
+        description=_plain_text(item.get("summary"), max_length=320) or _plain_text(item.get("description"), max_length=320),
         preview_image_url=_absolute_printables_image_url(image.get("filePath")),
         thumbnail_url=_absolute_printables_image_url(image.get("filePath")),
         creator_name=_first_string(user.get("publicUsername"), user.get("username"), user.get("name")),
+        published_at=_first_string(item.get("datePublished"), item.get("firstPublish")),
+        created_at=_first_string(item.get("created")),
+        updated_at=_first_string(item.get("modified")),
         license=_category_name(item.get("license")),
         tags=_tags_from(item.get("tags")),
         category=_category_name(item.get("category")),
@@ -200,7 +219,7 @@ def normalize_printables_print(item: dict[str, Any]) -> Model3DProviderResult:
         files_count=_int_or_none(item.get("filesCount")),
         price=str(price) if price is not None else None,
         is_free=_is_free_price(price),
-        normalized_provider_metadata=_safe_metadata(item, ("datePublished", "imagesCount")),
+        normalized_provider_metadata=_safe_metadata(item, ("imagesCount",)),
     )
 
 
@@ -218,9 +237,13 @@ def normalize_myminifactory_object(item: dict[str, Any]) -> Model3DProviderResul
         provider_item_id=provider_item_id,
         source_page_url=_first_string(item.get("url"), item.get("sourceUrl"))
         or f"https://www.myminifactory.com/object/{provider_item_id}",
+        description=_plain_text(item.get("description"), max_length=320),
         preview_image_url=_first_string(item.get("thumbnailUrl"), item.get("thumbnail_url"), item.get("imageUrl")),
         thumbnail_url=_first_string(item.get("thumbnailUrl"), item.get("thumbnail_url")),
         creator_name=_first_string(designer.get("username"), designer.get("name"), item.get("designerName")),
+        published_at=_first_string(item.get("publishedAt"), item.get("published_at")),
+        created_at=_first_string(item.get("createdAt"), item.get("created_at")),
+        updated_at=_first_string(item.get("updatedAt"), item.get("updated_at")),
         license=_first_string(item.get("license"), item.get("licenseName")),
         tags=_tags_from(item.get("tags")),
         category=_category_name(item.get("category")),
@@ -230,7 +253,7 @@ def normalize_myminifactory_object(item: dict[str, Any]) -> Model3DProviderResul
         files_count=_int_or_none(item.get("filesCount")),
         price=str(price) if price is not None else None,
         is_free=_is_free_price(price),
-        normalized_provider_metadata=_safe_metadata(item, ("publishedAt", "visibility")),
+        normalized_provider_metadata=_safe_metadata(item, ("visibility",)),
     )
 
 
@@ -247,9 +270,13 @@ def normalize_thingiverse_thing(item: dict[str, Any]) -> Model3DProviderResult:
         provider_item_id=provider_item_id,
         source_page_url=_first_string(item.get("public_url"), item.get("url"))
         or f"https://www.thingiverse.com/thing:{provider_item_id}",
+        description=_plain_text(item.get("description"), max_length=320),
         preview_image_url=_first_string(item.get("thumbnail"), item.get("preview_image_url"), item.get("image_url")),
         thumbnail_url=_first_string(item.get("thumbnail"), item.get("thumbnail_url")),
         creator_name=_first_string(creator.get("name"), creator.get("username"), item.get("creator_name")),
+        published_at=_first_string(item.get("added"), item.get("published_at")),
+        created_at=_first_string(item.get("created_at")),
+        updated_at=_first_string(item.get("modified"), item.get("updated_at")),
         license=_first_string(item.get("license")),
         tags=_tags_from(item.get("tags")),
         category=_category_name(item.get("category")),
@@ -258,7 +285,7 @@ def normalize_thingiverse_thing(item: dict[str, Any]) -> Model3DProviderResult:
         download_count=_int_or_none(item.get("download_count")),
         files_count=_int_or_none(item.get("file_count")),
         is_free=True,
-        normalized_provider_metadata=_safe_metadata(item, ("added", "modified", "is_wip")),
+        normalized_provider_metadata=_safe_metadata(item, ("is_wip",)),
     )
 
 
@@ -273,7 +300,12 @@ class PrintablesSearchProvider:
               id
               name
               slug
+              summary
+              description
+              created
+              firstPublish
               datePublished
+              modified
               likesCount
               downloadCount
               ratingAvg

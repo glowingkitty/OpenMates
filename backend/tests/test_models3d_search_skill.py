@@ -44,9 +44,13 @@ class FakeProvider:
                 provider_kind="official_api" if self.provider_name != "Printables" else "reverse_engineered_browser_api",
                 provider_item_id=f"{self.provider_name.lower()}-3161",
                 source_page_url=f"https://example.com/{self.provider_name.lower()}/bench-boat",
+                description="A calibration boat for testing 3D printers.",
                 preview_image_url=f"https://example.com/{self.provider_name.lower()}/bench.jpg",
                 thumbnail_url=f"https://example.com/{self.provider_name.lower()}/bench-thumb.jpg",
                 license="CC BY",
+                published_at="2025-02-14T09:26:10+00:00",
+                created_at="2019-05-23T11:23:58+00:00",
+                updated_at="2025-02-14T09:26:45+00:00",
                 tags=["benchy", "calibration"],
                 category="Test models",
                 likes_count=42,
@@ -78,10 +82,24 @@ async def test_models3d_search_returns_preview_only_child_results() -> None:
     assert child["type"] == "model_result"
     assert child["parent_app_skill_type"] == "app_skill_use"
     assert child["title"] == "Bench Boat"
+    assert child["description"] == "A calibration boat for testing 3D printers."
+    assert child["creator_name"] == "CreativeTools"
+    assert child["published_at"] == "2025-02-14T09:26:10+00:00"
+    assert child["created_at"] == "2019-05-23T11:23:58+00:00"
+    assert child["updated_at"] == "2025-02-14T09:26:45+00:00"
     assert child["source_page_url"] == "https://example.com/printables/bench-boat"
     assert child["preview_image_url"] == "https://example.com/printables/bench.jpg"
-    assert child["open_cta_label"] == "Open on Printables"
-    forbidden = {"file_url", "download_url", "file_urls", "download_urls", "javascript", "script", "api_key", "access_token"}
+    forbidden = {
+        "file_url",
+        "download_url",
+        "file_urls",
+        "download_urls",
+        "javascript",
+        "script",
+        "api_key",
+        "access_token",
+        "open_cta_label",
+    }
     assert forbidden.isdisjoint(child)
 
 

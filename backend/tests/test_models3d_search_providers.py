@@ -50,6 +50,9 @@ def test_printables_normalization_is_preview_only() -> None:
             "name": "3DBenchy",
             "slug": "3dbenchy",
             "summary": "A calibration boat.",
+            "created": "2019-05-23T11:23:58+00:00",
+            "datePublished": "2025-02-14T09:26:10+00:00",
+            "modified": "2025-02-14T09:26:45+00:00",
             "user": {"publicUsername": "CreativeTools"},
             "image": {"filePath": "/media/prints/3161/images/123.jpg"},
             "license": "Creative Commons - Attribution",
@@ -69,6 +72,11 @@ def test_printables_normalization_is_preview_only() -> None:
     assert result.provider_item_id == "3161"
     assert result.is_free is True
     assert result.files_count == 3
+    assert result.creator_name == "CreativeTools"
+    assert result.description == "A calibration boat."
+    assert result.created_at == "2019-05-23T11:23:58+00:00"
+    assert result.published_at == "2025-02-14T09:26:10+00:00"
+    assert result.updated_at == "2025-02-14T09:26:45+00:00"
     assert result.source_page_url == "https://www.printables.com/model/3161-3dbenchy"
 
 

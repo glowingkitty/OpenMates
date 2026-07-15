@@ -178,9 +178,9 @@ class SearchSkill(BaseSkill):
         elif request.sort == "newest":
             filtered.sort(
                 key=lambda result: str(
-                    result.normalized_provider_metadata.get("datePublished")
-                    or result.normalized_provider_metadata.get("publishedAt")
-                    or result.normalized_provider_metadata.get("added")
+                    result.published_at
+                    or result.created_at
+                    or result.updated_at
                     or ""
                 ),
                 reverse=True,
