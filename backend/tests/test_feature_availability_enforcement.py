@@ -33,18 +33,24 @@ def make_request(config: dict) -> SimpleNamespace:
     return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(config_manager=FakeConfigManager(config))))
 
 
-def test_application_preview_route_blocks_default_disabled_embed() -> None:
-    with pytest.raises(HTTPException) as exc_info:
-        ensure_application_preview_enabled(make_request({}))
-
-    assert exc_info.value.status_code == 403
-    assert exc_info.value.detail == "FEATURE_DISABLED"
+def test_application_preview_route_allows_default_enabled_embed() -> None:
+    ensure_application_preview_enabled(make_request({}))
 
 
 def test_application_preview_route_allows_admin_enabled_embed() -> None:
     ensure_application_preview_enabled(
         make_request({"feature_overrides": {"enabled": ["embed:code:application"], "disabled": []}})
     )
+
+
+def test_application_preview_route_blocks_admin_disabled_embed() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        ensure_application_preview_enabled(
+            make_request({"feature_overrides": {"enabled": [], "disabled": ["embed:code:application"]}})
+        )
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == "FEATURE_DISABLED"
 
 
 def test_projects_route_blocks_default_disabled_platform_feature() -> None:

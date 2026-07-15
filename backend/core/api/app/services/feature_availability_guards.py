@@ -23,7 +23,7 @@ def _backend_config_from_request(request: Request) -> dict[str, Any]:
 
 def ensure_application_preview_enabled(request: Request) -> None:
     availability = FeatureAvailabilityService(
-        definitions=[FeatureDefinition(id="embed:code:application", kind="embed", default_enabled=False)],
+        definitions=[FeatureDefinition(id="embed:code:application", kind="embed", default_enabled=True)],
         config=_backend_config_from_request(request),
     )
     if not availability.is_enabled("embed:code:application"):
