@@ -79,6 +79,7 @@ import {
   type ConnectedAccountCliTransferPayload,
   type EncryptedConnectedAccountImportRow,
 } from "./connectedAccountImport.js";
+import { containsCredentialLikeField, type ProtonLocalConnectorRegistration } from "./protonBridgeConnector.js";
 import {
   buildCreateUserTaskInput,
   buildUpdateUserTaskInput,
@@ -743,11 +744,19 @@ export function assertNoConnectedAccountSecretLeak(value: unknown): void {
     "provider_email",
     "account_email",
     "provider_account_id",
+    "bridge_password",
+    "imap_password",
+    "smtp_password",
+    "proton_password",
+    "password",
   ];
   for (const key of forbidden) {
     if (serialized.includes(`"${key}"`)) {
       throw new Error(`Connected account payload contains forbidden field: ${key}`);
     }
+  }
+  if (containsCredentialLikeField(value)) {
+    throw new Error("Connected account payload contains credential-like fields.");
   }
 }
 
@@ -2258,6 +2267,129 @@ export class OpenMatesClient {
       throw new Error(`Failed to store connected account import (HTTP ${response.status})`);
     }
     return response.data;
+  }
+
+  async registerLocalConnectedAccountConnector(
+    input: ProtonLocalConnectorRegistration,
+  ): Promise<{ connected_account_id: string; connector_session_id: string; heartbeat_interval_ms?: number }> {
+    assertNoConnectedAccountSecretLeak(input);
+    const user = await this.whoAmI();
+    const userId = typeof user.id === "string"
+      ? user.id
+      : typeof user.user_id === "string"
+        ? user.user_id
+        : "";
+    if (!userId) {
+      throw new Error("Could not resolve current user id for local connected-account connector.");
+    }
+    const { createHash } = await import("node:crypto");
+    const accountId = randomUUID();
+    const masterKey = this.getMasterKeyBytes();
+    const encryptLocalConnectorValue = async (value: unknown): Promise<string> => {
+      const plaintext = typeof value === "string" ? value : JSON.stringify(value);
+      return encryptWithAesGcmCombined(plaintext, masterKey);
+    };
+    const payload = {
+      id: accountId,
+      hashed_user_id: createHash("sha256").update(userId).digest("hex"),
+      encrypted_provider_type: await encryptLocalConnectorValue(input.provider_id),
+      provider_type_hash: createHash("sha256").update(input.provider_id).digest("hex"),
+      encrypted_account_label: await encryptLocalConnectorValue(input.label),
+      encrypted_capabilities: await encryptLocalConnectorValue(input.capabilities),
+      encrypted_app_permissions: await encryptLocalConnectorValue({
+        app_id: input.app_id,
+        allowed_actions: input.capabilities.includes("write") ? ["read", "write"] : ["read"],
+        runtime_modes: Object.fromEntries(input.capabilities.map((capability) => [capability, capability === "read" ? "allow_automatically" : "always_ask"])),
+      }),
+      encrypted_account_directory_hint: await encryptLocalConnectorValue({
+        label: input.label,
+        app_id: input.app_id,
+        runtime: "local_connector",
+      }),
+      execution_mode: "local_connector",
+      connector_provider_id: input.provider_id,
+      connector_instance_id: input.connector_instance_id,
+      connector_status: input.status,
+      connector_public_metadata: input.metadata,
+    };
+    assertNoConnectedAccountSecretLeak(payload);
+    const response = await this.http.post<{
+      connected_account_id?: string;
+      connector_session_id?: string;
+      heartbeat_interval_ms?: number;
+    }>(
+      "/v1/connected-accounts/local-connectors",
+      payload,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.connected_account_id || !response.data.connector_session_id) {
+      throw new Error(`Failed to register local connected-account connector (HTTP ${response.status})`);
+    }
+    assertNoConnectedAccountSecretLeak(response.data);
+    return {
+      connected_account_id: response.data.connected_account_id,
+      connector_session_id: response.data.connector_session_id,
+      heartbeat_interval_ms: response.data.heartbeat_interval_ms,
+    };
+  }
+
+  async sendLocalConnectedAccountConnectorHeartbeat(input: {
+    connector_session_id: string;
+    connected_account_id: string;
+    status: "online" | "offline";
+    capabilities: string[];
+    health_summary?: Record<string, unknown>;
+  }): Promise<Record<string, unknown>> {
+    assertNoConnectedAccountSecretLeak(input);
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/connected-accounts/local-connectors/${encodeURIComponent(input.connector_session_id)}/heartbeat`,
+      {
+        connected_account_id: input.connected_account_id,
+        status: input.status,
+        capabilities: input.capabilities,
+        health_summary: input.health_summary ?? {},
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to send local connected-account connector heartbeat (HTTP ${response.status})`);
+    }
+    assertNoConnectedAccountSecretLeak(response.data);
+    return response.data;
+  }
+
+  async completeLocalConnectedAccountConnectorRequest(input: {
+    connector_session_id: string;
+    connected_account_id: string;
+    request_id: string;
+    status: "ok" | "error" | "cancelled";
+    result?: Record<string, unknown>;
+    error_code?: string;
+    error_message?: string;
+  }): Promise<Record<string, unknown>> {
+    assertNoConnectedAccountSecretLeak(input);
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/connected-accounts/local-connectors/${encodeURIComponent(input.connector_session_id)}/complete-request`,
+      {
+        connected_account_id: input.connected_account_id,
+        request_id: input.request_id,
+        status: input.status,
+        result: input.result ?? {},
+        error_code: input.error_code,
+        error_message: input.error_message,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to complete local connected-account connector request (HTTP ${response.status})`);
+    }
+    assertNoConnectedAccountSecretLeak(response.data);
+    return response.data;
+  }
+
+  async openLocalConnectorWebSocket(): Promise<OpenMatesWsClient> {
+    const { ws } = await this.openWsClient();
+    return ws;
   }
 
   async cancelConnectedAccountAction(params: {

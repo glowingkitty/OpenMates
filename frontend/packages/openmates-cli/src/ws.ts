@@ -120,6 +120,15 @@ export interface PendingTaskUpdateJobFrame {
   expires_at: number;
 }
 
+export interface LocalConnectorRequestFrame {
+  type: "local_connector_request";
+  connector_session_id: string;
+  connected_account_id: string;
+  request_id: string;
+  action: string;
+  arguments?: Record<string, unknown>;
+}
+
 interface AvailableRecoveryJobFrame {
   job_id: string;
   chat_id: string;
@@ -424,6 +433,30 @@ export class OpenMatesWsClient {
         else resolve();
       });
     });
+  }
+
+  onLocalConnectorRequest(handler: (payload: LocalConnectorRequestFrame) => void | Promise<void>): () => void {
+    const onMessage = (rawData: RawData) => {
+      try {
+        const parsed = JSON.parse(rawData.toString()) as WsEnvelope<Record<string, unknown>>;
+        if (parsed.type !== "local_connector_request") return;
+        const payload = (parsed.payload ?? {}) as Record<string, unknown>;
+        if (
+          payload.type !== "local_connector_request" ||
+          typeof payload.connector_session_id !== "string" ||
+          typeof payload.connected_account_id !== "string" ||
+          typeof payload.request_id !== "string" ||
+          typeof payload.action !== "string"
+        ) {
+          return;
+        }
+        void handler(payload as unknown as LocalConnectorRequestFrame);
+      } catch {
+        // Ignore malformed frames.
+      }
+    };
+    this.socket.on("message", onMessage);
+    return () => this.socket.off("message", onMessage);
   }
 
   private bufferPassiveTaskUpdateJobs(rawData: RawData): void {
