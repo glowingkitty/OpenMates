@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: Optional image tag override, e.g. v0.14.0
+        description: Optional image tag override, e.g. v0.15.0-alpha.0
         required: false
         type: string
       notify_pr:
@@ -30,7 +30,7 @@ on:
       - 'shared/config/product_version.json'
       - 'scripts/prepare_cli_publish_version.mjs'
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'backend/**'
       - 'frontend/apps/web_app/**'
@@ -55,7 +55,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAMESPACE: glowingkitty
-  PUBLISH_IMAGES: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+  PUBLISH_IMAGES: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') }}
 
 jobs:
   prepare:

@@ -96,7 +96,7 @@
       "prosemirror-view": "1.41.8"
     }
   },
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "[![OpenMates header image](./docs/images/openmates_header.png)](https://openmates.org)",
   "main": "index.js",
   "directories": {

@@ -70,7 +70,7 @@ def generate_openapi_schema(unique_fields: Dict[str, Dict]) -> Dict:
         "info": {
             "title": "API Dokumentation",
             "description": "Automatisch generierte API-Dokumentation",
-            "version": "0.14.0"
+            "version": "0.15.0"
         },
         "components": {
             "schemas": {

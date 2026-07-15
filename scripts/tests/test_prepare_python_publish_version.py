@@ -11,6 +11,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "prepare_python_publish_version.py"
@@ -26,37 +28,31 @@ def load_module():
 
 def test_next_prerelease_version_uses_seed_when_no_matching_release_exists():
     module = load_module()
-    config = {"stableBase": "0.13.0", "prereleaseLabel": "a"}
+    config = {"stableBase": "0.15.0", "prereleaseLabel": "a"}
 
-    assert module.next_prerelease_version(config, ["0.12.0a9", "0.12.0"]) == "0.13.0a0"
+    assert module.next_prerelease_version(config, ["0.14.0a9", "0.14.0"]) == "0.15.0a0"
 
 
-def test_next_prerelease_version_increments_alpha_within_next_stable_patch():
+def test_next_prerelease_version_increments_alpha_within_configured_base():
     module = load_module()
-    config = {"stableBase": "0.13.0", "prereleaseLabel": "a"}
+    config = {"stableBase": "0.15.0", "prereleaseLabel": "a"}
 
-    assert module.next_prerelease_version(config, ["0.13.0", "0.13.1a0", "0.13.1a3"]) == "0.13.1a4"
+    assert module.next_prerelease_version(config, ["0.15.0a0", "0.15.0a3"]) == "0.15.0a4"
 
 
-def test_next_prerelease_version_targets_next_stable_patch_after_release():
+def test_next_prerelease_version_keeps_configured_base_after_release():
     module = load_module()
-    config = {"stableBase": "0.13.0", "prereleaseLabel": "a"}
+    config = {"stableBase": "0.15.0", "prereleaseLabel": "a"}
 
-    assert module.next_prerelease_version(config, ["0.13.0", "0.13.1"]) == "0.13.2a0"
+    with pytest.raises(SystemExit):
+        module.next_prerelease_version(config, ["0.15.0", "0.15.1", "0.15.1a2"])
 
 
-def test_next_prerelease_version_maps_current_release_state_to_next_alpha():
+def test_next_prerelease_version_maps_current_release_state_to_first_fixed_alpha():
     module = load_module()
     config = {"stableBase": "0.14.0", "prereleaseLabel": "a"}
 
-    assert module.next_prerelease_version(config, ["0.14.5a0", "0.14.5"]) == "0.14.6a0"
-
-
-def test_next_prerelease_version_uses_stable_floor_when_registry_lags():
-    module = load_module()
-    config = {"stableBase": "0.14.0", "stableFloor": "0.14.5", "prereleaseLabel": "a"}
-
-    assert module.next_prerelease_version(config, ["0.14.2", "0.14.3"]) == "0.14.6a0"
+    assert module.next_prerelease_version(config, ["0.14.5a0", "0.14.5"]) == "0.14.0a0"
 
 
 def test_next_stable_version_uses_base_until_it_has_been_published():
@@ -66,22 +62,22 @@ def test_next_stable_version_uses_base_until_it_has_been_published():
     assert module.next_stable_version(config, ["0.12.9", "0.13.0a4"]) == "0.13.0"
 
 
-def test_next_stable_version_patch_bumps_when_base_exists():
+def test_next_stable_version_stays_on_base_when_base_exists():
     module = load_module()
     config = {"stableBase": "0.13.0"}
 
-    assert module.next_stable_version(config, ["0.13.0", "0.13.1"]) == "0.13.2"
+    assert module.next_stable_version(config, ["0.13.0", "0.13.1"]) == "0.13.0"
 
 
-def test_next_stable_version_promotes_latest_prerelease_patch():
+def test_next_stable_version_does_not_promote_prerelease_patch():
     module = load_module()
     config = {"stableBase": "0.13.0", "prereleaseLabel": "a"}
 
-    assert module.next_stable_version(config, ["0.13.0", "0.13.1a4"]) == "0.13.1"
+    assert module.next_stable_version(config, ["0.13.0", "0.13.1a4"]) == "0.13.0"
 
 
 def test_next_stable_version_stays_within_configured_release_line():
     module = load_module()
     config = {"stableBase": "0.13.0"}
 
-    assert module.next_stable_version(config, ["0.13.0", "0.13.1", "0.14.0"]) == "0.13.2"
+    assert module.next_stable_version(config, ["0.13.0", "0.13.1", "0.14.0"]) == "0.13.0"

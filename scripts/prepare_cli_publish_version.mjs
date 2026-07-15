@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Keeps npm CLI package versions aligned with the user-facing product version.
-// Stable publishes use the configured stable base as a release line. Dev
-// publishes use prereleases for the next stable patch in that same line.
+// Stable publishes use the configured stable base. Dev publishes use
+// prereleases on that exact base, e.g. 0.15.0-alpha.N.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, appendFileSync } from "node:fs";
@@ -66,69 +66,36 @@ function releaseLineEntries(publishedVersions) {
   if (!base) {
     fail(`cli.stableBase must be a stable npm semver string, got ${config.cli.stableBase}`);
   }
-  const floorArg = args.get("stable-floor");
-  const floorValue = floorArg === "none" ? undefined : floorArg || config.cli.stableFloor;
 
   const label = config.cli.prereleaseLabel || "alpha";
   const prereleasePattern = new RegExp(`^(\\d+)\\.(\\d+)\\.(\\d+)-${escapeRegExp(label)}\\.(\\d+)$`);
-  const stablePatches = [];
-  if (floorValue) {
-    const floor = parseStableVersion(floorValue);
-    if (!floor) {
-      fail(`cli.stableFloor must be a stable npm semver string, got ${floorValue}`);
-    }
-    if (floor.major !== base.major || floor.minor !== base.minor || floor.patch < base.patch) {
-      fail(`cli.stableFloor must be in the ${base.major}.${base.minor}.x line and >= ${config.cli.stableBase}, got ${floorValue}`);
-    }
-    stablePatches.push(floor.patch);
-  }
-  const prereleasesByPatch = new Map();
+  const prereleaseIndexes = [];
 
   for (const publishedVersion of publishedVersions) {
-    const stable = parseStableVersion(publishedVersion);
-    if (stable && stable.major === base.major && stable.minor === base.minor && stable.patch >= base.patch) {
-      stablePatches.push(stable.patch);
-      continue;
-    }
-
     const prerelease = publishedVersion.match(prereleasePattern);
     if (!prerelease) continue;
     const major = Number(prerelease[1]);
     const minor = Number(prerelease[2]);
     const patch = Number(prerelease[3]);
     const index = Number(prerelease[4]);
-    if (major === base.major && minor === base.minor && patch >= base.patch) {
-      const indexes = prereleasesByPatch.get(patch) || [];
-      indexes.push(index);
-      prereleasesByPatch.set(patch, indexes);
+    if (major === base.major && minor === base.minor && patch === base.patch) {
+      prereleaseIndexes.push(index);
     }
   }
 
-  return { base, stablePatches, prereleasesByPatch };
-}
-
-function nextStableTarget(publishedVersions) {
-  const { base, stablePatches, prereleasesByPatch } = releaseLineEntries(publishedVersions);
-  const latestStablePatch = stablePatches.length ? Math.max(...stablePatches) : base.patch - 1;
-  const prereleasePatches = [...prereleasesByPatch.keys()];
-  const latestPrereleasePatch = prereleasePatches.length ? Math.max(...prereleasePatches) : base.patch - 1;
-  const patch = latestPrereleasePatch > latestStablePatch
-    ? latestPrereleasePatch
-    : Math.max(latestStablePatch + 1, base.patch);
-
-  return { base, patch, prereleaseIndexes: prereleasesByPatch.get(patch) || [] };
+  return { base, prereleaseIndexes };
 }
 
 function nextStableVersion(publishedVersions) {
-  const { base, patch } = nextStableTarget(publishedVersions);
-  return `${base.major}.${base.minor}.${patch}`;
+  const { base } = releaseLineEntries(publishedVersions);
+  return `${base.major}.${base.minor}.${base.patch}`;
 }
 
 function nextPrereleaseVersion(publishedVersions) {
-  const { base, patch, prereleaseIndexes } = nextStableTarget(publishedVersions);
+  const { base, prereleaseIndexes } = releaseLineEntries(publishedVersions);
   const label = config.cli.prereleaseLabel || "alpha";
   const index = prereleaseIndexes.length ? Math.max(...prereleaseIndexes) + 1 : 0;
-  return `${base.major}.${base.minor}.${patch}-${label}.${index}`;
+  return `${base.major}.${base.minor}.${base.patch}-${label}.${index}`;
 }
 
 function setPackageVersion(version) {
@@ -150,7 +117,6 @@ function writeOutput(version) {
 }
 
 assertSemver(config.cli.stableBase, "cli.stableBase");
-if (config.cli.stableFloor) assertSemver(config.cli.stableFloor, "cli.stableFloor");
 if (!/^[0-9A-Za-z-]+$/.test(config.cli.prereleaseLabel || "alpha")) {
   fail(`cli.prereleaseLabel must be a valid semver prerelease identifier, got ${config.cli.prereleaseLabel}`);
 }

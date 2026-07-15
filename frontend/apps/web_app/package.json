@@ -1,55 +1,55 @@
 {
-	"name": "web_app",
-	"version": "0.14.0",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"dev": "node scripts/process-docs.js && vite dev",
-		"build": "node scripts/process-docs.js && vite build && node scripts/audit-example-seo.js",
-		"build:vscode": "node scripts/process-docs.js && node scripts/build-vscode.js",
-		"build:docs": "node scripts/process-docs.js",
-		"audit:seo": "node scripts/audit-example-seo.js",
-		"preview": "vite preview",
-		"test": "npm run test:integration && npm run test:unit",
-		"check-types": "tsc --noEmit",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"lint": "eslint .",
-		"test:integration": "playwright test",
-		"test:unit": "vitest"
-	},
-	"engines": {
-		"node": "24.x"
-	},
-	"dependencies": {
-		"@fontsource-variable/lexend-deca": "^5.2.9",
-		"@repo/ui": "workspace:*",
-		"dompurify": "^3.4.9",
-		"markdown-it": "^14.2.0",
-		"svelte-i18n": "^4.0.1",
-		"yaml": "^2.9.0"
-	},
-	"devDependencies": {
-		"@axe-core/playwright": "4.11.3",
-		"@playwright/test": "^1.60.0",
-		"@repo/eslint-config": "workspace:*",
-		"@repo/typescript-config": "workspace:*",
-		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/adapter-vercel": "^6.3.3",
-		"@sveltejs/kit": "2.60.1",
-		"@sveltejs/vite-plugin-svelte": "^6.2.4",
-		"eslint": "^9.35.0",
-		"mermaid": "^11.15.0",
-		"prettier": "^3.8.4",
-		"prettier-plugin-svelte": "^3.4.0",
-		"svelte": "^5.55.7",
-		"svelte-check": "^4.6.0",
-		"tslib": "^2.8.1",
-		"typescript": "5.9.2",
-		"vite": "^7.3.6",
-		"vite-plugin-top-level-await": "^1.6.0",
-		"vite-plugin-wasm": "^3.6.0",
-		"vitest": "^4.1.0",
-		"web-vitals": "^5.3.0"
-	}
+  "name": "web_app",
+  "version": "0.15.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/process-docs.js && vite dev",
+    "build": "node scripts/process-docs.js && vite build && node scripts/audit-example-seo.js",
+    "build:vscode": "node scripts/process-docs.js && node scripts/build-vscode.js",
+    "build:docs": "node scripts/process-docs.js",
+    "audit:seo": "node scripts/audit-example-seo.js",
+    "preview": "vite preview",
+    "test": "npm run test:integration && npm run test:unit",
+    "check-types": "tsc --noEmit",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "lint": "eslint .",
+    "test:integration": "playwright test",
+    "test:unit": "vitest"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@fontsource-variable/lexend-deca": "^5.2.9",
+    "@repo/ui": "workspace:*",
+    "dompurify": "^3.4.9",
+    "markdown-it": "^14.2.0",
+    "svelte-i18n": "^4.0.1",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.11.3",
+    "@playwright/test": "^1.60.0",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/adapter-vercel": "^6.3.3",
+    "@sveltejs/kit": "2.60.1",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "eslint": "^9.35.0",
+    "mermaid": "^11.15.0",
+    "prettier": "^3.8.4",
+    "prettier-plugin-svelte": "^3.4.0",
+    "svelte": "^5.55.7",
+    "svelte-check": "^4.6.0",
+    "tslib": "^2.8.1",
+    "typescript": "5.9.2",
+    "vite": "^7.3.6",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.6.0",
+    "vitest": "^4.1.0",
+    "web-vitals": "^5.3.0"
+  }
 }
