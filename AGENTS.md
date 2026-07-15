@@ -73,7 +73,10 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Add backend shared logic under `backend/shared/python_utils/`, `backend/shared/python_schemas/`, or `backend/shared/providers/`.
 - Do not import from another backend skill. Move shared behavior to `BaseSkill` or `backend/shared/`.
 - Use the repo scripts rather than ad hoc commands when available.
+- OpenMates alpha versioning uses fixed minor trains: product UI `v0.X`, npm/GHCR `0.X.0-alpha.N` / `v0.X.0-alpha.N`, and PyPI `0.X.0aN`. Use `python3 scripts/bump_alpha_version_line.py --minor X` for product-line bumps; do not create `0.X.N-alpha` patch trains.
+- A `sessions.py` `modified_files` entry is advisory commit-tracking, never exclusive ownership. Re-read a file and proceed unless a current manual `WRITING` claim or Docker/Vercel lock covers the operation. If a manual `WRITING` claim blocks an exact file, treat the short session ID as diagnostic only: check status, work on non-conflicting files, or retry after release. Do not ask the user to interpret the ID or choose an ownership boundary unless all useful progress is blocked.
 - App metadata must not use `stage`. Apps, skills, embeds, focus modes, memory fields, and platform features are enabled by default; add sparse `default_enabled: false` only when a feature intentionally ships off by default.
+- For new shared features, app skills, focus modes, embeds, memory types, and provider-backed behavior, implement and test in strict order: real CLI commands on the dev server first, SDK parity second, web third, user confirmation fourth, Apple parity last. The CLI gate must hit the real dev API/WebSocket path with real auth/test-account state; mocked API calls, mocked SDK clients, stubbed servers, direct function calls, and fixture replay do not satisfy it. Only after CLI tests pass on dev should the same CLI coverage be moved or wired into GitHub Actions for daily tests.
 - Treat deterministic scripts as a first-class outcome of bug fixes and code-quality work. Prefer updating an existing script over adding a new one; wire checks into hooks only when they are path-scoped, fast, and low-noise, otherwise expose them as on-demand scripts from the relevant skill.
 - For Playwright and Vitest, follow `.claude/rules/testing.md`; do not run local test commands that the repo forbids.
 - For `*.spec.ts` Playwright verification, deploy the change to `dev` first, wait for the deployment to be live, then run the spec. Do not run E2E specs against undeployed local code.
@@ -98,6 +101,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 ## OpenCode Behavior
 
 - Prefer OpenCode-native config in `opencode.json` for this repo.
+- OpenCode is the primary agentic coding workflow for this repository. Keep Claude files as compatibility/shared-rule sources for other contributors and because OpenCode loads the shared `.claude/rules/` guidance through `opencode.json`.
 - Existing Claude Code skills in `.claude/skills/` are intentionally retained; OpenCode uses the `.agents/skills/` mirror and must not call the Claude Code runtime.
 - Codex discovers repo skills from `.agents/skills/`. Keep `.agents/skills/` as the Codex/OpenCode-compatible mirror of `.claude/skills/`, using Agent Skills compliant names (`lowercase-hyphenated`, matching the folder name).
 - Do not add project skills under `.codex/skills/` or `.opencode/skills/` unless a tool-specific override is explicitly needed; use `.agents/skills/` for shared skills.
@@ -120,6 +124,7 @@ Spec-driven development:
 - Before writing `spec.yml`, discover existing GitHub Issues, relevant Linear tasks only when appropriate, docs, source patterns, and tests; then ask up to five rounds of clarifying questions, one question per message. Wait for the user's response before asking the next question, then wait for the user's vision confirmation before writing the final full spec.
 - Use `plan-from-spec` and `tasks-from-spec` after a full spec is approved; they update `implementation_plan` and `tasks` inside `spec.yml`.
 - Write or update the tests listed in `spec.yml` before feature code. Record red-phase evidence before implementation. For Playwright, red and green runs target live `app.dev.openmates.org`; green evidence is only valid after deploy and Vercel is Ready.
+- For new shared functionality, CLI tests first run as real commands against the dev server with no mocked OpenMates API/WebSocket calls; only after they pass should the same CLI coverage move or wire into GitHub Actions for daily tests. SDK, web, user confirmation, and Apple work wait for that real dev CLI proof.
 - Run `python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml` after spec edits and `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before marking the spec complete or deploying full-spec work.
 - Once an approved spec or session task is implementing, continue through all actionable tasks and failed checks. Pause only for important unresolved user input; task size, context pressure, test failures, and temporary file waits are not completion states.
 - Record evidence with the command, run ID, timestamp, and tested subject commit. A material contract, test, assumption, or implementation change invalidates linked green evidence until replacement evidence is recorded.

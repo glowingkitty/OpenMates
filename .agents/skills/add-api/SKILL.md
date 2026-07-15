@@ -54,6 +54,23 @@ The spec must include:
 - Privacy policy URL verification date when applicable
 - Contract examples with sample request, sample response, and expected parsed output
 
+When the provider powers a user-facing feature, app skill, focus mode, embed, or
+memory behavior, the spec or inline contract must also define this phase gate:
+
+1. Implement and test the provider wrapper and the OpenMates CLI behavior against
+   the dev server first. After it passes on dev, move or wire the same CLI
+   coverage into GitHub Actions for daily tests. Mocked OpenMates API calls,
+   mocked SDK clients, stubbed servers, direct function calls, and fixture replay
+   do not satisfy this gate.
+2. Implement and test npm SDK and pip SDK parity for the same provider-backed
+   behavior when it is exposed programmatically.
+3. Implement web UI, embeds, or Playwright coverage only after CLI and required
+   SDK evidence are green.
+4. Ask the user to confirm the deployed dev web behavior works and looks correct
+   before starting Apple parity. `*.spec.ts` evidence alone is not enough.
+5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
+   complete, or after an explicit waiver/blocker is recorded.
+
 ### Step 2: Read Reference Implementation
 
 Read an existing provider as template:

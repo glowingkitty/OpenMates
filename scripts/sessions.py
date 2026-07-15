@@ -267,6 +267,27 @@ def _minutes_since(iso_str: str) -> float:
     return _hours_since(iso_str) * 60
 
 
+def _format_write_claim_conflict(filepath: str, session_id: str, session_info: dict) -> str:
+    """Return an agent-actionable explanation for a live manual write claim."""
+    task = session_info.get("task") or "No task description recorded"
+    zellij = session_info.get("zellij_session") or "unknown"
+    opencode = session_info.get("opencode_session_id") or "unknown"
+    last_active = session_info.get("last_active") or ""
+    try:
+        age = f"{_minutes_since(last_active):.1f} minutes ago" if last_active else "unknown"
+    except (ValueError, TypeError):
+        age = "unknown"
+
+    return (
+        f"BLOCKED: Another live agent has a manual WRITING claim on '{filepath}'.\n"
+        f"Task: {task}\n"
+        f"Last active: {age}; terminal: {zellij}; OpenCode session: {opencode}; diagnostic id: {session_id}.\n"
+        "Agent next step: do not ask the user to interpret this id. Work on non-conflicting files, "
+        "check `python3 scripts/sessions.py status`, or retry after the claim is released. "
+        "Ask the user only if this exact file blocks all useful progress."
+    )
+
+
 def normalize_opencode_stale_read_path(raw_path: str | Path) -> str | None:
     """Return a repository-relative regular-file path or None when unsafe."""
     try:
@@ -2373,14 +2394,14 @@ def cmd_start(args: argparse.Namespace) -> None:
                  "backend/scripts/debug_logs.py",
                  "backend/scripts/debug_vercel.py")
     ]
-    # Check against all sessions (not just this one) to see if any session owns them
-    owned_by = {}
+    # Session file lists record commit scope, not exclusive ownership.
+    tracked_by = {}
     for other_sid, other_info in data.get("sessions", {}).items():
         if other_sid == sid:
             continue
         for wf in workflow_dirty:
             if wf in other_info.get("modified_files", []):
-                owned_by[wf] = other_sid
+                tracked_by[wf] = other_sid
 
     # ── Header block ──────────────────────────────────────────────────────
     git_status = _get_git_status_summary()
@@ -2448,11 +2469,11 @@ def cmd_start(args: argparse.Namespace) -> None:
     # ── Workflow script modification notice ────────────────────────────────
     if workflow_dirty:
         for wf in workflow_dirty:
-            owner = owned_by.get(wf)
-            if owner:
+            tracked_session = tracked_by.get(wf)
+            if tracked_session:
                 print(
-                    f"NOTICE: {wf} has uncommitted changes (tracked by session {owner}). "
-                    f"Run: sessions.py status"
+                    f"NOTICE: {wf} has uncommitted changes (also tracked by session {tracked_session}; advisory only). "
+                    "Re-read it before editing."
                 )
             else:
                 print(
@@ -2647,7 +2668,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         if info.get("writing"):
             files_str = f" [WRITING: {info['writing']}]"
         elif info.get("modified_files"):
-            files_str = f" [{len(info['modified_files'])} files]"
+            files_str = f" [TOUCHED: {len(info['modified_files'])} files, advisory]"
         tags_str = f" ({','.join(info['tags'])})" if info.get("tags") else ""
         task_lnk = f" [task:{info['task_id']}]" if info.get("task_id") else ""
         session_lines.append(f"{osid}: {info.get('task', '?')[:55]}{tags_str}{task_lnk}{files_str}")
@@ -2915,7 +2936,7 @@ def cmd_status(args: argparse.Namespace) -> None:
             linear_str = f" [{linear_id}]" if linear_id else ""
             print(
                 f"  [{sid}] {info.get('task', '?')} "
-                f"(modified: {mod_count} files){task_str}{linear_str}{writing_str}"
+                f"(touched: {mod_count} files, advisory){task_str}{linear_str}{writing_str}"
             )
             if info.get("modified_files"):
                 for f in info["modified_files"]:
@@ -2959,18 +2980,22 @@ def cmd_claim(args: argparse.Namespace) -> None:
         print(f"Error: Session {sid} not found.", file=sys.stderr)
         sys.exit(1)
 
+    stale_claims_cleared = False
     # Check if another session is writing to this file
     for other_sid, other_info in data.get("sessions", {}).items():
         if other_sid == sid:
             continue
         if other_info.get("writing") == filepath:
-            print(
-                f"BLOCKED: File '{filepath}' is currently being written "
-                f"by session {other_sid} ({other_info.get('task', '?')}). "
-                f"Wait for that session to finish writing.",
-                file=sys.stderr,
-            )
+            last_active = other_info.get("last_active", "")
+            if last_active and _minutes_since(last_active) > STALE_LOCK_MINUTES:
+                other_info["writing"] = None
+                stale_claims_cleared = True
+                continue
+            print(_format_write_claim_conflict(filepath, other_sid, other_info), file=sys.stderr)
             sys.exit(2)
+
+    if stale_claims_cleared:
+        _save_sessions(data)
 
     # Claim the file
     data["sessions"][sid]["writing"] = filepath
@@ -3111,9 +3136,9 @@ def cmd_track(args: argparse.Namespace) -> None:
             if filepath in other_files:
                 other_task = other_info.get("task", "?")[:60]
                 print(
-                    f"WARNING: File '{filepath}' is also tracked by session "
+                    f"ADVISORY: File '{filepath}' was also touched by session "
                     f"{other_sid} ('{other_task}'). "
-                    f"Coordinate to avoid overwriting each other's changes."
+                    "Re-read before editing; this does not reserve the file."
                 )
 
         if filepath not in sessions[sid].get("modified_files", []):
@@ -3303,12 +3328,7 @@ def cmd_check_write(args: argparse.Namespace) -> None:
             last_active = info.get("last_active", "")
             if last_active and _minutes_since(last_active) > STALE_LOCK_MINUTES:
                 continue  # Stale session — allow write
-            print(
-                f"File '{filepath}' is currently being written by session "
-                f"{sid} ({info.get('task', '?')}). "
-                f"Wait for that session to finish.",
-                file=sys.stderr,
-            )
+            print(_format_write_claim_conflict(filepath, sid, info), file=sys.stderr)
             sys.exit(2)  # Exit 2 = blocking error for Claude hooks
 
     sys.exit(0)  # Allow
@@ -3530,18 +3550,18 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
         print()
 
     if dirty_but_untracked:
-        # Build owner map: file → session ID (if owned by another session)
-        file_owners: dict[str, str] = {}
+        # Session file lists are advisory and may include already-finished work.
+        file_tracking: dict[str, str] = {}
         for other_sid, other_info in data.get("sessions", {}).items():
             if other_sid == sid:
                 continue
             for of in other_info.get("modified_files", []):
-                file_owners[of] = other_sid
+                file_tracking[of] = other_sid
 
         print("Warning — dirty files NOT tracked by this session:")
         for f in sorted(dirty_but_untracked):
-            owner = file_owners.get(f)
-            tag = f"  [owned by: {owner}]" if owner else "  [unowned]"
+            tracked_session = file_tracking.get(f)
+            tag = f"  [also tracked by: {tracked_session}; advisory]" if tracked_session else ""
             print(f"  ? {f}{tag}")
         print()
 
@@ -3644,13 +3664,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     ]
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
 
-    # Build owner map: file → session ID (if owned by another session)
-    file_owners: dict[str, str] = {}
+    # Session file lists are advisory and may include already-finished work.
+    file_tracking: dict[str, str] = {}
     for other_sid, other_info in data.get("sessions", {}).items():
         if other_sid == sid:
             continue
         for of in other_info.get("modified_files", []):
-            file_owners[of] = other_sid
+            file_tracking[of] = other_sid
 
     if not to_commit:
         git_summary = _get_git_status_summary()
@@ -3694,8 +3714,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         if dirty_but_untracked:
             print("No tracked files to commit, but these dirty files are NOT tracked by this session:", file=sys.stderr)
             for f in sorted(dirty_but_untracked):
-                owner = file_owners.get(f)
-                tag = f"  [owned by: {owner}]" if owner else "  [unowned]"
+                tracked_session = file_tracking.get(f)
+                tag = f"  [also tracked by: {tracked_session}; advisory]" if tracked_session else ""
                 print(f"  ? {f}{tag}", file=sys.stderr)
             print("Run: sessions.py track --session <ID> --file <path>  to include them.", file=sys.stderr)
         else:
@@ -3706,8 +3726,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     if dirty_but_untracked:
         print("Warning — dirty files NOT tracked by this session (will not be committed):")
         for f in sorted(dirty_but_untracked):
-            owner = file_owners.get(f)
-            tag = f"  [owned by: {owner}]" if owner else "  [unowned]"
+            tracked_session = file_tracking.get(f)
+            tag = f"  [also tracked by: {tracked_session}; advisory]" if tracked_session else ""
             print(f"  ? {f}{tag}")
         print()
 

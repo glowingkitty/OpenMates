@@ -11,6 +11,8 @@ against app.dev.openmates.org.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -193,14 +195,44 @@ def verify_spec(path: Path, *, require_red: bool, require_green: bool) -> list[s
     return failures
 
 
+def _requires_user_input(blocker: Any, current_task_id: str | None) -> bool:
+    """Return whether a blocker explicitly pauses the current task for the user."""
+    if not isinstance(blocker, dict) or blocker.get("task_id") != current_task_id:
+        return False
+    if blocker.get("requires_user_input") is not True:
+        return False
+    return all(isinstance(blocker.get(field), str) and blocker[field].strip() for field in ("reason", "question", "next_action"))
+
+
+def spec_status(data: dict[str, Any], failures: list[str]) -> dict[str, Any]:
+    """Return only the continuation fields an OpenCode plugin needs."""
+    handoff = data.get("handoff") if isinstance(data.get("handoff"), dict) else {}
+    current_task_id = handoff.get("current_task_id")
+    requires_user_input = _requires_user_input(handoff.get("blocker"), current_task_id)
+
+    return {
+        "active": data.get("schema_version") == 2 and data.get("status") == "implementing",
+        "blocked": requires_user_input,
+        "requires_user_input": requires_user_input,
+        "complete": not failures,
+        "current_task_id": current_task_id,
+        "failures": failures,
+        "next_action": handoff.get("next_action"),
+        "state_fingerprint": hashlib.sha256(json.dumps(data, default=str, sort_keys=True).encode("utf-8")).hexdigest(),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify an OpenMates executable spec.yml file")
     parser.add_argument("spec", type=Path, help="Path to docs/specs/<slug>/spec.yml")
     parser.add_argument("--phase", choices=("red", "green", "complete"), default="complete")
+    parser.add_argument("--json", action="store_true", help="Print machine-readable continuation status")
     args = parser.parse_args()
 
     path = args.spec if args.spec.is_absolute() else REPO_ROOT / args.spec
     if not path.exists():
+        if args.json:
+            print(json.dumps({"active": False, "blocked": False, "complete": False, "failures": ["Spec not found"]}))
         print(f"Spec not found: {path}", file=sys.stderr)
         return 1
 
@@ -210,16 +242,23 @@ def main() -> int:
     try:
         failures = verify_spec(path, require_red=require_red, require_green=require_green)
     except SpecError as exc:
+        if args.json:
+            print(json.dumps({"active": False, "blocked": False, "complete": False, "failures": [str(exc)]}))
         print(f"FAIL {path.relative_to(REPO_ROOT)}: {exc}", file=sys.stderr)
         return 1
 
+    if args.json:
+        print(json.dumps(spec_status(validate_spec(path), failures), sort_keys=True))
+
     if failures:
-        print(f"FAIL {path.relative_to(REPO_ROOT)}")
-        for failure in failures:
-            print(f"- {failure}")
+        if not args.json:
+            print(f"FAIL {path.relative_to(REPO_ROOT)}")
+            for failure in failures:
+                print(f"- {failure}")
         return 1
 
-    print(f"PASS {path.relative_to(REPO_ROOT)}: evidence satisfies {args.phase} phase")
+    if not args.json:
+        print(f"PASS {path.relative_to(REPO_ROOT)}: evidence satisfies {args.phase} phase")
     return 0
 
 

@@ -67,8 +67,8 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
 
 ## Additional Test Rules
 
-- **New functionality verification order:** Test new functionality in OpenMates CLI first, npm SDK second, pip SDK third, web app `*.spec.ts` fourth, and Apple app fifth when there is a native counterpart. CLI and SDK evidence are the cheapest proof of backend/API/WebSocket correctness; Playwright proves browser-specific Svelte/TipTap/IndexedDB/user-interaction behavior; Apple verification proves native parity. Do not skip directly to Playwright for shared product behavior unless the change is clearly browser-only.
-- **Cross-app parity order:** For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync, billing, notifications, benchmark behavior, or any feature that exists across clients, the same CLI → npm SDK → pip SDK → web → Apple order is mandatory. Run `python3 scripts/audit_sdk_cli_parity.py` when the CLI or SDK surface changes. If a chat-related Playwright spec fails and no matching CLI/SDK contract exists, write or propose the minimal CLI/SDK contract before changing the web spec, unless the failure is clearly browser-only (selector, layout, screenshot, pointer-event overlay, or Svelte-only rendering).
+- **New functionality phase gates:** Implement and test new shared functionality in OpenMates CLI against the dev server first, npm SDK and pip SDK parity second, web app third, user confirmation fourth, and Apple app last when there is a native counterpart. Dev-server CLI evidence must pass before SDK, web, or Apple work starts; only then move or wire the CLI coverage into GitHub Actions so it runs in daily tests. The CLI gate must use real CLI commands against the real dev API/WebSocket path with real auth/test-account state; mocked `fetch`, mocked SDK clients, stubbed local servers, direct function calls, and fixture replay are supplemental only and never satisfy the CLI-first gate. Do not start a later client while an earlier phase is unimplemented, untested, or blocked unless the spec or session contract records an explicit user-approved waiver or accepted external blocker.
+- **Cross-app parity order:** For chat, AI pipeline, settings-backed chat behavior, app skills, focus modes, embeds, memory types, provider-backed behavior, sync, billing, notifications, benchmark behavior, or any feature that exists across clients, the same CLI → SDK → web → user confirmation → Apple order is mandatory. CLI and SDK evidence are the cheapest proof of backend/API/WebSocket correctness; Playwright proves browser-specific Svelte/TipTap/IndexedDB/user-interaction behavior; user confirmation proves the deployed web behavior works and looks correct; Apple verification proves native parity. Run `python3 scripts/audit_sdk_cli_parity.py` when the CLI or SDK surface changes. If a chat-related Playwright spec fails and no matching CLI/SDK contract exists, write or propose the minimal CLI/SDK contract before changing the web spec, unless the failure is clearly browser-only (selector, layout, screenshot, pointer-event overlay, or Svelte-only rendering).
 - When a spec failure points to a repeated flaky pattern, first look for a
   deterministic helper or audit improvement that would prevent the class of
   failure across specs. Prefer shared helpers and `scripts/audit_*` checks over
@@ -103,14 +103,13 @@ Every bug fix and feature MUST follow this test-first workflow. No exceptions un
 
 ### Features
 
-1. **Plan the verification ladder:** identify the CLI command/contract, npm SDK contract, pip SDK contract, web `*.spec.ts`, and Apple `scripts/apple_remote.py test-ios` or `build-ios` evidence required for the feature. If no Apple counterpart exists, record `Apple not affected`.
-2. **Implement the feature.**
-3. **CLI and SDK first:** add or run the OpenMates CLI, npm SDK, and pip SDK proofs before Playwright for shared product behavior.
-4. **Check for existing web spec:** Run `sessions.py check-tests --session <id>`.
-5. **Spec exists → extend it:** Add assertions for the new behavior. Run to confirm green.
-6. **No spec exists → propose a test plan:** For user-facing features, propose an E2E test (user flow, assertions, which spec to create or extend). Wait for user confirmation, then write and run.
-7. **Apple last:** after CLI, npm SDK, pip SDK, and web evidence are green, run or attempt Apple verification with `scripts/apple_remote.py` when the feature has an Apple counterpart.
-8. **Run related specs:** Ensure no regressions in adjacent functionality.
+1. **Plan the phase ladder:** identify the CLI command/contract, npm SDK contract, pip SDK contract, web `*.spec.ts`, required user confirmation, and Apple `scripts/apple_remote.py test-ios` or `build-ios` evidence required for the feature. If no Apple counterpart exists, record `Apple not affected`.
+2. **CLI first:** implement the CLI path and add or run the real CLI proof against the dev server before SDK, web, or Apple work. The proof must hit the real dev API/WebSocket path and must not mock OpenMates API calls. After it passes on dev, move or wire the same CLI coverage into GitHub Actions for daily tests.
+3. **SDK parity second:** implement and test npm SDK and pip SDK parity for the same behavior when it is exposed programmatically. Run `python3 scripts/audit_sdk_cli_parity.py` when the CLI or SDK surface changes.
+4. **Web third:** check for an existing web spec with `sessions.py check-tests --session <id>`, then extend or propose the needed Playwright spec. Run it only after deploy through `python3 scripts/tests.py run --spec <name>.spec.ts`.
+5. **User confirmation fourth:** for user-visible web UI or behavior, ask the user to confirm the deployed dev web app works and looks correct. A passing `*.spec.ts` is not enough to start Apple parity.
+6. **Apple last:** after CLI, SDK, web, and required user-confirmation evidence are complete, run or attempt Apple verification with `scripts/apple_remote.py` when the feature has an Apple counterpart.
+7. **Run related specs:** Ensure no regressions in adjacent functionality.
 
 ### Exempt Changes (no spec required)
 

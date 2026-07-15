@@ -123,9 +123,6 @@ run_for_files() {
 }
 
 case "$EVENT" in
-  SessionStart)
-    run_hook "tdd-session-context.sh" '{"cwd":"/home/superdev/projects/OpenMates","hook_event_name":"SessionStart","source":"startup"}' false
-    ;;
   PreToolUse)
     TOOL=$(tool_name)
     if [ "$TOOL" = "Bash" ] || [ "$TOOL" = "bash" ]; then
@@ -141,21 +138,10 @@ case "$EVENT" in
 
         run_for_files "PreToolUse" true \
           "pre-edit-guard.sh" \
-          "provider-registry-sync.sh" \
-          "analytics-sdk-forbidden.sh" \
-          "legal-text-lastupdated-bump.sh" \
           "pii-logger-guard.sh" \
-          "privacy-promise-guard.sh" \
-          "cli-credential-prompt-guard.sh" \
-          "external-resources-guard.sh" \
-          "cookie-consent-gate.sh" \
           "css-selector-in-specs.sh" \
-          "code-debt-pre-edit-guard.sh" \
           "svelte5-legacy-syntax.sh" \
-          "donation-language-guard.sh" \
-          "settings-canonical-elements.sh" \
-          "native-ios-control-guard.sh" \
-          "e2e-encryption-guard.sh"
+          "native-ios-control-guard.sh"
         ;;
     esac
     ;;
@@ -163,22 +149,10 @@ case "$EVENT" in
     TOOL=$(tool_name)
     case "$TOOL" in
       apply_patch|Edit|Write)
-        run_for_files "PostToolUse" true \
-          "skill-embed-registry-guard.sh"
-
         run_for_files "PostToolUse" false \
-          "auto-track.sh" \
-          "docs-claims-impact.sh" \
-          "auto-rebuild-translations.sh" \
-          "testid-drift-detector.sh" \
-          "encryption-architecture-reminder.sh" \
-          "svelte-swift-counterpart-linker.sh"
+          "auto-track.sh"
         ;;
     esac
-    ;;
-  UserPromptSubmit)
-    run_hook "session-gate.sh" "$INPUT" true
-    run_hook "linear-context-auto-prefetch.sh" "$INPUT" false
     ;;
   Stop)
     run_hook "check-uncommitted.sh" '{"cwd":"/home/superdev/projects/OpenMates","hook_event_name":"Stop","stop_hook_active":false}' false

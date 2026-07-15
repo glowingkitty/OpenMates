@@ -139,7 +139,7 @@ The draft must include:
 - parent app
 - runtime memory ID
 - type (`single` or `list`)
-- stage (`planning`, `development`, or `production`)
+- default-enabled behavior, including `default_enabled: false` only when the memory type intentionally ships off
 - one-line description
 - schema fields, explicitly marking the 1-4 user-entered fields
 - required fields
@@ -166,6 +166,26 @@ Incorporate feedback and show the final version briefly. Confirm any remaining
 tradeoffs, such as default-enabled behavior, field count, required fields, or sensitive data
 boundaries.
 
+### Step 8b: Define Phase Gates
+
+Before implementation, record the phase gate in the draft, inline contract, or
+full spec:
+
+1. Implement and test memory behavior through OpenMates CLI against the dev
+   server first when the memory is created, read, selected, or used outside static
+   metadata. After it passes on dev, move or wire the same CLI coverage into
+   GitHub Actions for daily tests. Mocked OpenMates API calls, mocked SDK
+   clients, stubbed servers, direct function calls, and fixture replay do not
+   satisfy this gate.
+2. Implement and test npm SDK and pip SDK parity when the memory behavior is
+   exposed programmatically.
+3. Implement web settings, mention dropdown behavior, and Playwright coverage only
+   after CLI and required SDK evidence are green.
+4. Ask the user to confirm the deployed dev web behavior works and looks correct
+   before starting Apple parity. `*.spec.ts` evidence alone is not enough.
+5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
+   complete, or after an explicit waiver/blocker is recorded.
+
 ### Step 9: Implement the Memory Type
 
 Update the current OpenMates metadata and i18n sources.
@@ -186,7 +206,7 @@ Rules:
 - Runtime `id` is snake_case.
 - Use `settings_and_memories`, not legacy `memory_fields` or `memory`, for new work.
 - Use `type: single` for one user preference object and `type: list` for repeatable entries.
-- New unverified memory types should usually start as `stage: development`.
+- Do not add `stage`; memory types are enabled by default unless `default_enabled: false` is explicitly needed.
 - Add `icon_image` only if an appropriate existing icon exists.
 - Keep user-entered schema fields to 1-4 whenever possible.
 - Mark exactly one useful `is_title: true` field for list readability when possible.
@@ -227,7 +247,7 @@ Name:
 App:
 Memory ID:
 Type: single | list
-Stage:
+Default enabled:
 
 Description:
 

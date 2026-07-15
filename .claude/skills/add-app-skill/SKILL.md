@@ -44,6 +44,24 @@ must include:
 - Embed preview/fullscreen behavior if the skill produces embeds
 - App-store examples that double as executable examples
 
+The spec or inline contract must also define the phase gate for this skill:
+
+1. Implement and test the skill through OpenMates CLI against the dev server
+   first, using real prompts or CLI contract tests that exercise the backend skill
+   without browser state. After it passes on dev, move or wire the same CLI
+   coverage into GitHub Actions for daily tests. This proof must use real CLI
+   commands against the real dev API/WebSocket path; mocked OpenMates API calls,
+   mocked SDK clients, stubbed servers, direct function calls, and fixture replay
+   do not satisfy the gate.
+2. Implement and test npm SDK and pip SDK parity for the same callable behavior
+   when the skill is exposed programmatically.
+3. Implement web app surfaces, embeds, and app-store examples only after CLI and
+   SDK parity are green.
+4. Ask the user to confirm the deployed dev web behavior works and looks correct
+   before starting any Apple parity work. Playwright alone is not enough.
+5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
+   complete, or after the spec records an explicit waiver/blocker.
+
 ### Step 2: Create the Skill File
 
 Create `backend/apps/{appId}/skills/{skill_file}.py` where `skill_file` is `skillId` with hyphens replaced by underscores.
@@ -112,7 +130,6 @@ Add to the `skills:` list in `backend/apps/{appId}/app.yml`:
     icon_image: {icon}.svg
     preprocessor_hint: >
       Natural language description for AI model routing
-    stage: development
     providers:
       - name: OpenMates
         no_api_key: true
@@ -141,7 +158,7 @@ cd frontend/packages/ui && npm run build:translations
 Every new app skill must include app-store examples so the skill details page can show realistic preview cards.
 
 If the skill produces embeds:
-1. Run or script at least two real skill requests that cover the main provider/result shapes.
+1. Run or script at least two real CLI skill requests that cover the main provider/result shapes.
 2. Create `frontend/packages/ui/src/components/embeds/{appId}/{SkillName}EmbedPreview.examples.ts` next to the preview component.
 3. Export an array of flat preview props matching the preview component, with `query_translation_key` values under `settings.app_store_examples.{appId}.{skill_id_underscored}.<n>`.
 4. Add those query labels to `frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml`.

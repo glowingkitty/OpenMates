@@ -99,6 +99,15 @@ Every full spec must include:
 - Optional top-level `verifications` records for checks that need Plan-like
   status, evidence, blockers, waivers, or user-confirmation tracking beyond a
   simple test entry
+- For shared product surfaces, explicit phase gates in this order: CLI
+  implementation/testing against the dev server, GitHub Actions daily-test wiring
+  after dev CLI success, npm SDK and pip SDK parity/testing, web
+  implementation/testing, user confirmation of deployed dev web behavior and
+  visual quality, then Apple parity/testing
+- The CLI gate must use real CLI commands against the real dev API/WebSocket path
+  with real auth/test-account state. Mocked OpenMates API calls, mocked SDK
+  clients, stubbed servers, direct function calls, and fixture replay are
+  supplemental only and do not satisfy the phase gate.
 - Implementation plan and tasks placeholders or initial entries
 - `implementation_state`, `approvals`, `decisions`, `attempts`, and `handoff`
 - Risks, open questions, and privacy/security requirements
@@ -112,6 +121,12 @@ set `coverage_status: ambiguous` and ask the user or infer concrete scoped
 checks before implementation. Do not mark required criteria satisfied until they
 are covered by verification_ids, user confirmation, a waiver, or an accepted
 blocker.
+
+For app skills, focus modes, embeds, memory types, provider-backed behavior, or
+other cross-client features, do not write a spec that starts with web or Apple
+implementation unless the earlier CLI/SDK phases are explicitly waived or
+externally blocked. `*.spec.ts` evidence is not a substitute for user
+confirmation before Apple parity.
 
 Schema V2 is the full durable work ledger. Automated evidence records command,
 run ID, timestamp, and subject commit. A manual check, skip, waiver, or blocker

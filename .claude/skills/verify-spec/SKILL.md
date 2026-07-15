@@ -60,6 +60,15 @@ Pass only when:
   reason, skipped with a reason, or not applicable.
 - Every required green/final check has passing, user-confirmed, waived, or
   accepted-blocker evidence.
+- Shared product surfaces have phase-gate evidence in order: CLI
+  implementation/testing against the dev server, GitHub Actions daily-test wiring
+  after dev CLI success, npm SDK and pip SDK parity/testing when applicable, web
+  implementation/testing, user confirmation for user-visible deployed web
+  behavior, then Apple parity/testing when applicable.
+- CLI phase-gate evidence shows real CLI commands against the real dev
+  API/WebSocket path with real auth/test-account state. Mocked OpenMates API
+  calls, mocked SDK clients, stubbed servers, direct function calls, fixture
+  replay, and unit tests that bypass the API/WebSocket path fail the gate.
 - Schema V2 automated evidence records command, run ID, timestamp, and subject
   commit; manual, skipped, waived, and blocked evidence records a reason and
   follow-up or recheck condition.
@@ -79,6 +88,10 @@ done or the user accepts a waiver/blocker.
 Playwright green evidence is only valid after the implementation has been
 deployed to dev, Vercel is Ready, and the spec has run against
 `app.dev.openmates.org`.
+
+For user-visible web behavior, Playwright green evidence is not enough to unblock
+Apple parity. The spec must also include user-confirmation evidence or an
+explicit waiver before Apple implementation or verification can be marked ready.
 
 ### Step 4: Output Report
 

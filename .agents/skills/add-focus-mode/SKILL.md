@@ -111,7 +111,7 @@ The draft must include:
 - display name
 - parent app
 - runtime focus ID and directory name
-- stage (`planning`, `development`, or `production`)
+- default-enabled behavior, including `default_enabled: false` only when the mode intentionally ships off
 - one-line description
 - activation/preprocessor hint
 - process bullets shown in settings
@@ -133,6 +133,25 @@ explicitly says to proceed without draft approval.
 Incorporate feedback and show the final version briefly. Confirm any remaining
 tradeoffs, such as activation breadth, default-enabled behavior, or safety wording.
 
+### Step 8b: Define Phase Gates
+
+Before implementation, record the phase gate in the draft, inline contract, or
+full spec:
+
+1. Implement and test focus-mode behavior through real OpenMates CLI chats
+   against the dev server first. After they pass on dev, move or wire the same CLI
+   coverage into GitHub Actions for daily tests. Mocked OpenMates API calls,
+   mocked SDK clients, stubbed servers, direct function calls, and fixture replay
+   do not satisfy this gate.
+2. Implement and test npm SDK and pip SDK parity when focus-mode activation or
+   memory/settings behavior is exposed programmatically.
+3. Implement web settings, examples, or Playwright coverage only after CLI and
+   required SDK evidence are green.
+4. Ask the user to confirm the deployed dev web behavior works and looks correct
+   before starting Apple parity. `*.spec.ts` evidence alone is not enough.
+5. Start Apple parity only after CLI, SDK, web, and user-confirmation evidence are
+   complete, or after an explicit waiver/blocker is recorded.
+
 ### Step 9: Implement the Focus Mode
 
 Use the current OpenMates implementation reality, not only the future target
@@ -150,7 +169,7 @@ Rules:
 - Runtime `id` in `SKILL.md` is snake_case and must match OpenMates metadata.
 - Focus mode directory names are kebab-case for portability.
 - Keep `SKILL.md`, `app.yml`, and i18n keys aligned while the migration is incomplete.
-- Use `stage: development` for new unverified modes unless the user explicitly asks for `planning` or `production` and the mode is tested.
+- Do not add `stage`; focus modes are enabled by default unless `default_enabled: false` is explicitly needed.
 - `preprocessor-hint` should be 1-3 sentences that describe when to select the mode, not the full system prompt.
 - `## Process` bullets should be user-facing and concrete.
 - `## System prompt` should define role, workflow, boundaries, tool behavior, and output expectations.
@@ -191,7 +210,7 @@ Do not run Playwright locally.
 
 ### Step 11: Add or Verify an Example Chat
 
-Every production or development focus mode must have at least one permanent
+Every enabled focus mode must have at least one permanent
 example chat linked from its focus-mode details page. This applies to both new
 focus modes and prompt/routing improvements to existing focus modes.
 
@@ -225,7 +244,7 @@ Name:
 App:
 Focus ID:
 Directory:
-Stage:
+Default enabled:
 
 Description:
 

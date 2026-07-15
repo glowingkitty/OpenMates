@@ -9,7 +9,9 @@ Tests: python3 -m pytest scripts/tests/test_spec_workflow_validation.py.
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
+import subprocess
 import sys
 
 
@@ -502,3 +504,73 @@ def test_spec_verify_rejects_schema_v2_manual_evidence_without_reason(tmp_path):
     failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
 
     assert any("reason" in failure for failure in failures)
+
+
+def test_spec_verify_json_reports_active_handoff_blockers(tmp_path):
+    path = write_spec(
+        tmp_path,
+        schema_v2_spec()
+        .replace("status: approved", "status: implementing", 1)
+        .replace("        status: passed", "        status: pending", 1)
+        .replace(
+            "blocker: null",
+            "blocker:\n    task_id: TASK-1\n    requires_user_input: true\n    reason: Needs a product decision.\n    question: Which architecture should be used?\n    next_action: Apply the selected architecture.",
+        ),
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "spec_verify.py"), str(path), "--json"],
+        capture_output=True,
+        check=False,
+        encoding="utf-8",
+    )
+
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 1
+    assert payload["active"] is True
+    assert payload["complete"] is False
+    assert payload["blocked"] is True
+    assert payload["requires_user_input"] is True
+    assert payload["current_task_id"] == "TASK-1"
+    assert len(payload["state_fingerprint"]) == 64
+
+
+def test_spec_verify_json_keeps_current_task_active_for_unstructured_or_downstream_blockers(tmp_path):
+    path = write_spec(
+        tmp_path,
+        schema_v2_spec()
+        .replace("status: approved", "status: implementing", 1)
+        .replace("        status: passed", "        status: pending", 1)
+        .replace("blocker: null", "blocker:\n    reason: A later web task needs deployment approval."),
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "spec_verify.py"), str(path), "--json"],
+        capture_output=True,
+        check=False,
+        encoding="utf-8",
+    )
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 1
+    assert payload["active"] is True
+    assert payload["blocked"] is False
+    assert payload["requires_user_input"] is False
+
+
+def test_spec_verify_json_does_not_activate_invalid_specs(tmp_path):
+    path = write_spec(tmp_path, "schema_version: 2\nstatus: implementing\n")
+
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "spec_verify.py"), str(path), "--json"],
+        capture_output=True,
+        check=False,
+        encoding="utf-8",
+    )
+
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 1
+    assert payload["active"] is False
+    assert payload["complete"] is False

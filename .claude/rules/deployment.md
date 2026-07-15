@@ -5,6 +5,13 @@ globs:
 
 @docs/contributing/guides/git-and-deployment.md
 
+## Alpha Versioning
+
+OpenMates alpha releases use fixed minor trains. Product UI shows `v0.X`, npm
+and GHCR use `0.X.0-alpha.N` / `v0.X.0-alpha.N`, and PyPI uses `0.X.0aN`.
+Use `python3 scripts/bump_alpha_version_line.py --minor X` for product-line
+bumps. Do not create `0.X.N-alpha` patch trains.
+
 ## Vercel Failures
 
 Use these commands — **never** `vercel logs` (fails silently on ERROR deployments):

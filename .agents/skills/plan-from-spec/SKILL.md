@@ -64,6 +64,9 @@ The plan must include:
 - Migration/backfill/rollout needs if any
 - Observability/logging needs if any
 - Verification strategy with exact test commands where known
+- For shared product surfaces, implementation phase order: CLI against the dev
+  server first, GitHub Actions daily-test wiring after dev CLI success, npm SDK
+  and pip SDK parity second, web third, user confirmation fourth, Apple last
 - Required assumptions that must be checked before implementation and which
   source areas or subagents should verify them
 - required assumptions must not be left unchecked when they block implementation
@@ -83,6 +86,18 @@ If a plan has vague criteria such as "all tests pass" or "no regressions", do
 not leave them as final checks. Normalize them into concrete scoped checks such
 as backend pytest, CLI, npm SDK, pip SDK, Playwright, Apple build/test, full CI,
 manual review, or user confirmation.
+
+For app skills, focus modes, embeds, memory types, provider-backed behavior, and
+other cross-client features, the first implementation slice must complete CLI
+implementation and testing against the dev server before SDK, web, or Apple work
+starts. After dev CLI evidence is green, the same CLI coverage must be moved or
+wired into GitHub Actions for daily tests before the plan proceeds to SDK parity.
+The CLI evidence must use real CLI commands against the real dev API/WebSocket
+path with real auth/test-account state; mocked OpenMates API calls, mocked SDK
+clients, stubbed servers, direct function calls, and fixture replay do not
+satisfy it. Web work must wait for CLI and required SDK parity. Apple work must
+wait for CLI, SDK, web, and user confirmation that deployed dev web behavior
+works and looks correct.
 
 Record `approvals.implementation_plan: pending` and stop when the plan introduces
 a material architecture, security, privacy, migration, rollout, or external

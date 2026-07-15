@@ -26,6 +26,25 @@ python3 scripts/sessions.py context --doc embed
 
 Read the guide output carefully — it contains the complete checklist, component skeletons, design rules, and anti-patterns. The steps below are a summary; the guide is authoritative.
 
+### Step 0b: Confirm Phase Gate
+
+Do not scaffold a web embed before the producing skill or feature has CLI-first
+evidence. Confirm or record in the spec/inline contract:
+
+1. The backend skill/provider emits the embed payload correctly in OpenMates CLI
+   against the dev server, and the same CLI coverage is moved or wired into
+   GitHub Actions for daily tests after it passes on dev. Mocked OpenMates API
+   calls, mocked SDK clients, stubbed servers, direct function calls, and fixture
+   replay do not satisfy this gate.
+2. npm SDK and pip SDK parity are implemented and tested when the embed-producing
+   behavior is exposed programmatically.
+3. Web preview/fullscreen components and Playwright coverage start only after CLI
+   and required SDK evidence are green.
+4. The user must confirm the deployed dev web embed works and looks correct before
+   Apple parity starts. `*.spec.ts` evidence alone is not enough.
+5. Apple embed parity starts only after CLI, SDK, web, and user-confirmation
+   evidence are complete, or after an explicit waiver/blocker is recorded.
+
 ### Step 1: Check Existing State
 
 Before creating anything:

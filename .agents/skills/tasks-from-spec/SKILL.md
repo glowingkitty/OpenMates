@@ -42,6 +42,16 @@ Each task must include:
 - File ownership and shared-file ownership
 - Whether it is independently deployable
 
+For shared product surfaces, task dependencies must enforce this order: CLI
+implementation/testing against the dev server first, GitHub Actions daily-test
+wiring after dev CLI success, npm SDK and pip SDK parity/testing second, web
+implementation/testing third, user confirmation fourth, Apple parity/testing
+last. Do not create an SDK, web, or Apple task that can start while an earlier
+required phase is still pending, unless the spec records an explicit waiver or
+accepted external blocker. The CLI task must run real CLI commands against the
+real dev API/WebSocket path; mocked API-call tests can be supplemental unit tasks
+only and must not satisfy the CLI gate.
+
 Run validation after editing:
 
 ```bash
@@ -61,6 +71,10 @@ blocked, or `needs_fix`; they must create or suggest follow-up tasks linked to
 the failed `verification_ids` and affected acceptance criteria. Do not create a
 task that has no verification path unless it is explicitly a user-confirmed or
 manual task.
+
+User confirmation that deployed dev web behavior works and looks correct is a
+real task or verification gate when the feature is user-visible. A passing
+Playwright `*.spec.ts` task does not unblock Apple parity by itself.
 
 ### Step 4: Output Summary
 

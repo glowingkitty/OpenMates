@@ -11,7 +11,7 @@ Load this document when multiple assistants may be working simultaneously, when 
 
 ## Overview
 
-Multiple Claude Code sessions can work on the codebase at the same time. To avoid conflicts (duplicate Vercel fixes, simultaneous Docker rebuilds, file edit collisions), all sessions coordinate through **`scripts/sessions.py`**, which manages state in **`.claude/sessions.json`** (gitignored).
+Multiple Claude Code sessions can work on the codebase at the same time. Use **`scripts/sessions.py`** for deploy selection and Docker/Vercel locks. Its `.claude/sessions.json` file is gitignored and records work already touched; it does not reserve ordinary source files.
 
 File edit tracking is automated via hooks in `.claude/settings.json` — every Edit/Write operation is automatically recorded to the active session's `modified_files` list.
 
@@ -25,7 +25,6 @@ File edit tracking is automated via hooks in `.claude/settings.json` — every E
 | End session               | `python3 scripts/sessions.py end --session <ID>`                                   |
 | Check status              | `python3 scripts/sessions.py status`                                               |
 | Update task               | `python3 scripts/sessions.py update --session <ID> --task "new desc"`              |
-| Claim file for writing    | `python3 scripts/sessions.py claim --session <ID> --file <path>`                   |
 | Release file claim        | `python3 scripts/sessions.py release --session <ID> --file <path>`                 |
 | Track file as modified    | `python3 scripts/sessions.py track --session <ID> --file <path>`                   |
 | Acquire lock              | `python3 scripts/sessions.py lock --session <ID> --type docker\|vercel`            |
@@ -51,7 +50,7 @@ This command:
 4. Clears stale locks older than 5 minutes
 5. Outputs context to stdout:
    - Your session ID (save this for all subsequent commands)
-   - Other active sessions and what files they own
+   - Other active sessions and files they have touched (advisory only)
    - Active locks
    - Stale architecture docs (code newer than doc by >24h)
    - Compact project index (backend apps, frontend components, API routes, providers)
@@ -72,14 +71,14 @@ This command:
 
 ## File Tracking
 
-### Automatic Tracking (via hooks)
+### Advisory Tracking (via hooks)
 
 The `.claude/settings.json` configures two hooks:
 
 - **PostToolUse** on `Edit|Write`: Automatically records every file you edit to your session's `modified_files` list (async, non-blocking)
-- **PreToolUse** on `Edit|Write`: Checks if another session has claimed the file for writing — blocks the edit if so (exit code 2)
+- **PreToolUse**: warns when another session has touched the file.
 
-This means **you do not need to manually track most files**. The hooks handle it.
+Tracking is advisory. Re-read the file immediately before editing and resolve an actual diff if one exists. Do not wait merely because another session touched it earlier.
 
 ### Manual Tracking
 
@@ -89,9 +88,9 @@ If you modify a file through Bash or other indirect means:
 python3 scripts/sessions.py track --session <ID> --file path/to/file.py
 ```
 
-### Write Claims (Exclusive Locks)
+### Write Claims (Rare Manual Locks)
 
-For operations where you need exclusive write access to a file (e.g., a complex multi-step edit):
+For an unusually long, manually coordinated multi-step edit:
 
 ```bash
 # Claim before editing
@@ -101,9 +100,9 @@ python3 scripts/sessions.py claim --session <ID> --file path/to/file.py
 python3 scripts/sessions.py release --session <ID> --file path/to/file.py
 ```
 
-If another session has claimed the file, `claim` exits with code 2 and prints which session owns it.
+If another session has an active manual claim, `claim` exits with code 2. Normal edits never acquire these claims automatically.
 
-**Note:** Write claims are for the `writing` lock (active editing protection). The `modified_files` list is separate — it tracks all files touched in the session, regardless of write claims.
+**Note:** `modified_files` tracks all files touched in a session for deployment selection. It is not ownership and must not block another session's edit.
 
 ---
 
