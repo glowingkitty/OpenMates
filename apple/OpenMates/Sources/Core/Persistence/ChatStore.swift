@@ -15,6 +15,7 @@ final class ChatStore: ObservableObject {
 
     private var bridge: OfflineSyncBridge?
     private var persistenceSuppressionDepth = 0
+    private var serverSortOrderByChatId: [String: Int] = [:]
 
     func setBridge(_ bridge: OfflineSyncBridge) {
         self.bridge = bridge
@@ -42,7 +43,13 @@ final class ChatStore: ObservableObject {
         persistIfAllowed { $0.onChatsReceived([chat]) }
     }
 
-    func upsertChats(_ newChats: [Chat]) {
+    func upsertChats(_ newChats: [Chat], serverSortOrder: [String]? = nil) {
+        if let serverSortOrder {
+            for (index, chatId) in serverSortOrder.enumerated() {
+                serverSortOrderByChatId[chatId] = index
+            }
+        }
+
         for chat in newChats {
             if let index = chats.firstIndex(where: { $0.id == chat.id }) {
                 logMetadataMerge(existing: chats[index], incoming: chat)
@@ -69,6 +76,7 @@ final class ChatStore: ObservableObject {
         chats.removeAll()
         messagesByChat.removeAll()
         embedsByChat.removeAll()
+        serverSortOrderByChatId.removeAll()
     }
 
     func makeSyncClientState(clientSuggestionsCount: Int) -> SyncClientState {
@@ -263,9 +271,7 @@ final class ChatStore: ObservableObject {
     // MARK: - Sorting
 
     var sortedChats: [Chat] {
-        chats.sorted { a, b in
-            (a.lastMessageDate ?? .distantPast) > (b.lastMessageDate ?? .distantPast)
-        }
+        chats.sorted(by: chatSortPrecedes)
     }
 
     var pinnedChats: [Chat] {
@@ -277,9 +283,23 @@ final class ChatStore: ObservableObject {
     }
 
     private func sortChats() {
-        chats.sort { a, b in
-            (a.lastMessageDate ?? .distantPast) > (b.lastMessageDate ?? .distantPast)
+        chats.sort(by: chatSortPrecedes)
+    }
+
+    private func chatSortPrecedes(_ a: Chat, _ b: Chat) -> Bool {
+        let aDate = a.lastMessageDate ?? .distantPast
+        let bDate = b.lastMessageDate ?? .distantPast
+        if aDate != bDate {
+            return aDate > bDate
         }
+
+        let aServerOrder = serverSortOrderByChatId[a.id] ?? Int.max
+        let bServerOrder = serverSortOrderByChatId[b.id] ?? Int.max
+        if aServerOrder != bServerOrder {
+            return aServerOrder < bServerOrder
+        }
+
+        return (a.updatedDate ?? .distantPast) > (b.updatedDate ?? .distantPast)
     }
 
     private func sortedMessages(for chatId: String) -> [Message] {

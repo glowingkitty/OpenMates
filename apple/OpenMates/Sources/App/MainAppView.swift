@@ -139,40 +139,21 @@ struct MainAppView: View {
     }
 
     private var filteredPinnedChats: [Chat] {
-        let pinned = chatStore.pinnedChats.filter { self.publicChatGroup(for: $0.id) == nil }
+        let pinned = chatStore.pinnedChats.filter { self.publicChatGroup(for: $0.id) == nil && self.isTopLevelUserChat($0) }
         guard !searchText.isEmpty else { return pinned }
         return pinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
     }
 
     private var filteredUnpinnedChats: [Chat] {
-        let unpinned = chatStore.unpinnedChats.filter { self.publicChatGroup(for: $0.id) == nil }
+        let unpinned = chatStore.unpinnedChats.filter { self.publicChatGroup(for: $0.id) == nil && self.isTopLevelUserChat($0) }
         let filtered = searchText.isEmpty
             ? unpinned
             : unpinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
-        return orderedWithSubChats(filtered)
+        return filtered
     }
 
-    private func orderedWithSubChats(_ chats: [Chat]) -> [Chat] {
-        let childrenByParent = Dictionary(grouping: chats.filter { $0.parentId != nil }) { $0.parentId ?? "" }
-        let chatIds = Set(chats.map(\.id))
-        var emitted = Set<String>()
-        var ordered: [Chat] = []
-
-        func appendChat(_ chat: Chat) {
-            guard emitted.insert(chat.id).inserted else { return }
-            ordered.append(chat)
-            for child in childrenByParent[chat.id] ?? [] {
-                appendChat(child)
-            }
-        }
-
-        for chat in chats where chat.parentId == nil || !chatIds.contains(chat.parentId ?? "") {
-            appendChat(chat)
-        }
-        for chat in chats {
-            appendChat(chat)
-        }
-        return ordered
+    private func isTopLevelUserChat(_ chat: Chat) -> Bool {
+        chat.parentId == nil && chat.isSubChat != true
     }
 
     private var visibleFilteredUnpinnedChats: [Chat] {
@@ -3369,7 +3350,7 @@ struct MainAppView: View {
     ) async {
         guard !chats.isEmpty else { return }
         let start = NativeSyncPerfLog.now()
-        chatStore.upsertChats(chats)
+        chatStore.upsertChats(chats, serverSortOrder: chats.map(\.id))
 
         switch metadataDecryption {
         case .all:

@@ -58,7 +58,7 @@ struct ChatListRow: View {
     }
 
     private var accessibilityScope: String {
-        if chat.isSubChat == true { return "sub-chat" }
+        if isSubChatRow { return "sub-chat" }
         if chat.id.hasPrefix("demo-") || chat.id.hasPrefix("example-") ||
             chat.id.hasPrefix("announcements-") || chat.id.hasPrefix("tips-") ||
             chat.id.hasPrefix("legal-") {
@@ -67,9 +67,13 @@ struct ChatListRow: View {
         return "user-chat"
     }
 
+    private var isSubChatRow: Bool {
+        chat.isSubChat == true || chat.parentId != nil
+    }
+
     var body: some View {
         HStack(spacing: .spacing4) {
-            if chat.isSubChat == true {
+            if isSubChatRow {
                 Rectangle()
                     .fill(Color.grey40)
                     .frame(width: 2, height: 28)
@@ -145,12 +149,12 @@ struct ChatListRow: View {
             }
         }
         .padding(.vertical, .spacing4)
-        .padding(.leading, chat.isSubChat == true ? .spacing10 : .spacing6)
+        .padding(.leading, isSubChatRow ? .spacing10 : .spacing6)
         .padding(.trailing, .spacing6)
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(chat.isSubChat == true ? "sub-chat-item" : "chat-item-wrapper")
+        .accessibilityIdentifier(isSubChatRow ? "sub-chat-item" : "chat-item-wrapper")
         .accessibilityValue(accessibilityScope)
-        .accessibilityLabel("\(chat.displayTitle)\(chat.isSubChat == true ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
+        .accessibilityLabel("\(chat.displayTitle)\(isSubChatRow ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
         .accessibilityHint("Double tap to open, long press for options")
     }
 }
