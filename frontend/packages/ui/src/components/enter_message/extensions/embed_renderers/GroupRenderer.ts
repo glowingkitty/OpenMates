@@ -4531,7 +4531,16 @@ export class GroupRenderer implements EmbedRenderer {
           status,
           isMobile: false,
           onFullscreen: () =>
-            this.openFullscreen(item, embedData, decodedContent),
+            this.openFullscreen(
+              {
+                ...item,
+                id: embedId,
+                type: "models3d-model-result",
+                contentRef: item.contentRef || (embedId ? `embed:${embedId}` : item.contentRef),
+              },
+              embedData ? { ...embedData, type: embedData.type || "model_result" } : embedData,
+              decodedContent ? { ...decodedContent, type: decodedContent.type || "model_result" } : decodedContent,
+            ),
         },
       });
 
