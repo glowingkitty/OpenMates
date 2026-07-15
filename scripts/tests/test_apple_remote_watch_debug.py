@@ -69,6 +69,7 @@ def test_watch_startup_verifier_builds_installs_launches_and_collects_evidence()
     assert 'status = "process_exited"' in command
     assert 'status = "crash_report_found"' in command
     assert "artifact_dir=" in command
+    assert "shutil.rmtree(artifact_dir, ignore_errors=True)" in command
     assert "60" in command
 
 

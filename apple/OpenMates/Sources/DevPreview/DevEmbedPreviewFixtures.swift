@@ -752,7 +752,15 @@ enum DevEmbedPreviewFixtures {
     }
 
     private static var sheet: DevEmbedPreviewSkill {
-        let embed = record(id: "preview-sheets-sheet-1", type: EmbedType.sheetsSheet.rawValue, appId: "sheets", data: ["title": "Budget spreadsheet", "rows": 12, "columns": 8])
+        let embed = record(
+            id: "preview-sheets-sheet-1",
+            type: EmbedType.sheetsSheet.rawValue,
+            appId: "sheets",
+            data: [
+                "title": "Budget spreadsheet",
+                "table": "| Category | Budget | Actual |\n| --- | ---: | ---: |\n| Rent | 1200 | 1200 |\n| Groceries | 450 | 398 |\n| Transport | 120 | 96 |"
+            ]
+        )
         return skill(id: "sheets-sheet", label: "Sheet", primary: embed)
     }
 

@@ -9,6 +9,18 @@ argument-hint: "<task description>"
 
 This skill sets up context for working on the Apple app (`apple/OpenMates/`). Use it for native Swift implementation, Apple/web parity audits, testability work, and Linux-side planning before Mac/Xcode verification is available.
 
+For new shared features, app skills, focus modes, embeds, memory types, and
+provider-backed behavior, Apple parity is the last phase. Before changing Apple
+implementation, confirm the spec or session contract has completed evidence for
+CLI implementation/testing against the dev server, GitHub Actions daily-test
+wiring after dev CLI success, npm SDK and pip SDK parity/testing when applicable,
+web implementation/testing, and user confirmation that deployed dev web behavior
+works and looks correct. If any earlier phase is missing, stop Apple
+implementation and record the missing gate unless the spec contains an explicit
+waiver or accepted external blocker. Mocked OpenMates API calls, mocked SDK
+clients, stubbed servers, direct function calls, and fixture replay do not count
+as completed CLI evidence.
+
 ### Step 1: Load iOS rules and docs
 
 1. Read `.claude/rules/apple-ui.md` (design tokens, forbidden controls, file mappings)
@@ -100,15 +112,19 @@ an accessibility element exists.
 
 When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
 
-1. Confirm the remote Mac has a clean checkout or only the current session's expected changes.
-2. Run `git pull --ff-only` in the remote checkout only when it is clean.
-3. Build with `xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" build`.
-4. Interact with the simulator using `xcrun simctl`: boot the chosen simulator, install the built `.app`, launch the bundle identifier, optionally set appearance or open a URL, then capture a screenshot.
-5. After verification, run `xcrun simctl shutdown <simulator>` for any simulator booted by this session unless the operator asks to keep it running.
-6. Clean up only temporary artifacts created by the current session, such as copied screenshots or throwaway build logs. Do not delete unrelated DerivedData, caches, or local checkout changes.
-7. Keep private connection details out of repo files and final summaries; refer to the remote host only generically.
+1. Run `python3 scripts/apple_remote.py status`.
+2. Run `python3 scripts/apple_remote.py doctor` to verify Xcode, simulator, checkout, scheme, and Watch-test readiness with sanitized output.
+3. Confirm the remote Mac has a clean checkout or only the current session's expected changes.
+4. Run `git pull --ff-only` in the remote checkout only when it is clean.
+5. Build with `python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"`, `build-macos`, or `build-watch` depending on the affected surface.
+6. For targeted tests, use `test-ios --only-testing "OpenMatesTests/<TestName>"`, `test-ios --only-testing "OpenMatesUITests/<TestName>"`, or `test-macos --only-testing "OpenMatesMacUITests/<TestName>"`.
+7. For startup/crash/log-status/screenshot-status evidence, use `verify-ios-startup`, `verify-macos-startup`, or `verify-watch-startup` instead of hand-rolled `simctl` steps. Add `verify-ios-startup --fresh-install` only when first-run or clean-container state is required. The startup verifiers clean temporary artifacts by default; use a targeted native UI test artifact for durable visual evidence.
+8. Current Watch unit tests live under the iOS unit-test target. Use `test-ios --only-testing "OpenMatesTests/<WatchTestName>"` unless `doctor` reports a dedicated Watch test scheme.
+9. After verification, run `python3 scripts/apple_remote.py cleanup` for any simulator booted by this session unless the operator asks to keep it running.
+10. Clean up only temporary artifacts created by the current session, such as copied screenshots or throwaway build logs. Do not delete unrelated DerivedData, caches, or local checkout changes.
+11. Keep private connection details out of repo files and final summaries; refer to the remote host only generically.
 
-8. For visual or interaction parity, capture a simulator screenshot after the
+12. For visual or interaction parity, capture a simulator screenshot after the
    app reaches the changed state and record where the artifact lives. If the
    screenshot cannot be captured, report the sanitized blocker and do not claim
    visual parity complete.

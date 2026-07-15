@@ -33,23 +33,28 @@ def test_build_watch_command_targets_watch_scheme_and_simulator() -> None:
     command = apple_remote.build_watch_command("Apple Watch Series 11 (46mm)")
 
     assert "xcodebuild" in command
+    assert apple_remote.SIMULATOR_LOCK_PATH in command
+    assert "fcntl.flock" in command
     assert "-scheme OpenMatesWatch" in command
     assert "platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)" in command
     assert command.endswith(" build")
 
 
-def test_test_watch_command_accepts_only_testing_filter() -> None:
+def test_test_watch_command_explains_current_scheme_gap() -> None:
     apple_remote = load_apple_remote()
 
-    command = apple_remote.test_watch_command(
-        "Apple Watch Series 11 (46mm)",
-        "OpenMatesWatchTests/WatchPairLoginTests",
-    )
-
-    assert "xcodebuild test" in command
-    assert "-scheme OpenMatesWatch" in command
-    assert "platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)" in command
-    assert "-only-testing OpenMatesWatchTests/WatchPairLoginTests" in command
+    try:
+        apple_remote.test_watch_command(
+            "Apple Watch Series 11 (46mm)",
+            "OpenMatesWatchTests/WatchPairLoginTests",
+        )
+    except apple_remote.AppleRemoteError as exc:
+        message = str(exc)
+        assert "no dedicated Watch test scheme" in message
+        assert "test-ios --only-testing OpenMatesTests/<Watch...>" in message
+        assert "verify-watch-startup" in message
+    else:
+        raise AssertionError("Expected current Watch test scheme gap to be explicit")
 
 
 def test_watch_commands_are_registered_in_parser() -> None:
