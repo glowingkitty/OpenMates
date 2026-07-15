@@ -351,6 +351,7 @@ def _write_vite_allowed_hosts_config(sandbox: Any, files: list[ApplicationPrevie
                 f"{plugins}"
                 "  server: {\n"
                 f"    allowedHosts: [{hosts}],\n"
+                "    hmr: false,\n"
                 "  },\n"
                 "});\n"
             ),

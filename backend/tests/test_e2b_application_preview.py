@@ -159,6 +159,7 @@ def test_preview_writes_generated_vite_allowed_hosts_config() -> None:
     written = sandbox.files.payloads[0][0]
     assert written["path"] == "vite.config.openmates.mjs"
     assert "allowedHosts: ['5173-izr5goe7od08cvlqzemo8.e2b.app']" in written["data"]
+    assert "hmr: false" in written["data"]
 
 
 def test_preview_writes_svelte_plugin_when_generated_svelte_app_has_no_vite_config() -> None:
@@ -192,6 +193,7 @@ def test_preview_writes_svelte_plugin_when_generated_svelte_app_has_no_vite_conf
     assert "import { svelte } from '@sveltejs/vite-plugin-svelte';" in written["data"]
     assert "plugins: [svelte()]" in written["data"]
     assert "allowedHosts: ['5173-izr5goe7od08cvlqzemo8.e2b.app']" in written["data"]
+    assert "hmr: false" in written["data"]
 
 
 def test_preview_keeps_existing_vite_config_for_framework_plugins() -> None:
