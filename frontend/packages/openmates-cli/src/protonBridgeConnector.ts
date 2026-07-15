@@ -607,13 +607,15 @@ async function searchProtonBridgeImap(
 ): Promise<Record<string, unknown>[]> {
   const query = typeof arguments_.query === "string" ? arguments_.query.trim() : "";
   const mailbox = typeof arguments_.mailbox === "string" && arguments_.mailbox.trim() ? arguments_.mailbox.trim() : "INBOX";
+  const startDate = typeof arguments_.start_date === "string" ? arguments_.start_date.trim() : "";
+  const endDate = typeof arguments_.end_date === "string" ? arguments_.end_date.trim() : "";
   const limit = clampLimit(arguments_.limit);
   const imap = await openTextSocket(credentials.imapHost, credentials.imapPort, IMAP_COMMAND_TIMEOUT_MS);
   try {
     await imap.readUntil((text) => /^\* OK/im.test(text));
     await imap.command(`LOGIN ${quoteImap(credentials.imapUsername)} ${quoteImap(credentials.imapPassword)}`);
     await imap.command(`SELECT ${quoteImap(mailbox)}`);
-    const searchResponse = await imap.command(query ? `SEARCH CHARSET UTF-8 TEXT ${quoteImap(query)}` : "SEARCH ALL");
+    const searchResponse = await imap.command(buildImapSearchCommand({ query, startDate, endDate }));
     const ids = parseImapSearchIds(searchResponse).slice(-limit).reverse();
     const messages: Record<string, unknown>[] = [];
     for (const id of ids) {
@@ -625,6 +627,28 @@ async function searchProtonBridgeImap(
     await imap.command("LOGOUT").catch(() => undefined);
     imap.close();
   }
+}
+
+function buildImapSearchCommand(params: { query: string; startDate: string; endDate: string }): string {
+  const criteria = ["SEARCH"];
+  const since = isoDateToImap(params.startDate);
+  const before = isoDateToImap(params.endDate, 1);
+  if (params.query) criteria.push("CHARSET", "UTF-8");
+  criteria.push("ALL");
+  if (since) criteria.push("SINCE", since);
+  if (before) criteria.push("BEFORE", before);
+  if (params.query) criteria.push("TEXT", quoteImap(params.query));
+  return criteria.join(" ");
+}
+
+function isoDateToImap(value: string, addDays = 0): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  if (!Number.isFinite(timestamp)) return null;
+  const date = new Date(timestamp + addDays * 24 * 60 * 60 * 1000);
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][date.getUTCMonth()];
+  return `${day}-${month}-${date.getUTCFullYear()}`;
 }
 
 async function sendProtonBridgeSmtp(
@@ -688,10 +712,12 @@ function parseImapFetchMessage(response: string, id: string, credentials: Proton
   return {
     uid: id,
     from,
+    receiver: from,
     subject,
     date,
     message_id: messageId,
     snippet,
+    content: snippet,
   };
 }
 

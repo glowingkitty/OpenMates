@@ -60,6 +60,14 @@ class MailSearchRequestItem(BaseModel):
         default=None,
         description="Optional mailbox name (defaults to INBOX).",
     )
+    start_date: Optional[str] = Field(
+        default=None,
+        description="Optional inclusive start date for the search range (YYYY-MM-DD).",
+    )
+    end_date: Optional[str] = Field(
+        default=None,
+        description="Optional inclusive end date for the search range (YYYY-MM-DD).",
+    )
     limit: int = Field(
         default=10,
         description="Maximum number of email results to return (1-50, default 10).",
@@ -161,6 +169,16 @@ class SearchSkill(BaseSkill):
         except Exception as exc:
             logger.warning("Failed to load mail search follow-up suggestions: %s", exc, exc_info=True)
 
+    @staticmethod
+    def _build_time_range_label(start_date: str | None, end_date: str | None) -> str:
+        if start_date and end_date:
+            return f"{start_date} to {end_date}"
+        if start_date:
+            return f"Since {start_date}"
+        if end_date:
+            return f"Until {end_date}"
+        return "All time"
+
     async def _process_single_request(
         self,
         *,
@@ -172,6 +190,9 @@ class SearchSkill(BaseSkill):
     ) -> Tuple[Any, Dict[str, Any], Optional[str]]:
         query = (req.get("query") or "").strip()
         mailbox = (req.get("mailbox") or "").strip() or None
+        start_date = (req.get("start_date") or "").strip() or None
+        end_date = (req.get("end_date") or "").strip() or None
+        time_range = self._build_time_range_label(start_date, end_date)
         limit_raw = req.get("limit", DEFAULT_MAX_RESULTS)
         try:
             limit = int(limit_raw)
@@ -185,6 +206,8 @@ class SearchSkill(BaseSkill):
                 request_id=f"mail_search_{request_id}_{uuid4().hex}",
                 query=query,
                 mailbox=mailbox,
+                start_date=start_date,
+                end_date=end_date,
                 limit=limit,
             )
             connector_result = await dispatch_local_connector_request(
@@ -209,6 +232,10 @@ class SearchSkill(BaseSkill):
                 {
                     "id": request_id,
                     "query": build_default_query_label(query),
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "time_range": time_range,
+                    "result_count": len(sanitized_results),
                     "results": sanitized_results,
                     "status": "completed",
                 },
@@ -250,6 +277,8 @@ class SearchSkill(BaseSkill):
             config=config,
             query=query,
             mailbox=mailbox,
+            start_date=start_date,
+            end_date=end_date,
             limit=limit,
         )
 
@@ -269,6 +298,10 @@ class SearchSkill(BaseSkill):
             {
                 "id": request_id,
                 "query": build_default_query_label(query),
+                "start_date": start_date,
+                "end_date": end_date,
+                "time_range": time_range,
+                "result_count": len(sanitized_results),
                 "results": sanitized_results,
             },
             None,

@@ -9,9 +9,28 @@
 from __future__ import annotations
 
 import hashlib
+from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_mail_app_metadata_declares_parent_child_search_embeds() -> None:
+    app_yml = yaml.safe_load((REPO_ROOT / "backend/apps/mail/app.yml").read_text())
+    search_embed = next(embed for embed in app_yml["embed_types"] if embed["id"] == "search")
+    child_embed = next(embed for embed in app_yml["embed_types"] if embed["id"] == "email")
+
+    assert search_embed["category"] == "app-skill-use"
+    assert search_embed["skill_id"] == "search"
+    assert search_embed["has_children"] is True
+    assert search_embed["child_type"] == "email"
+    assert search_embed["child_frontend_type"] == "mail-email"
+    assert child_embed["category"] == "direct"
+    assert child_embed["frontend_type"] == "mail-email"
 
 
 class FakeDirectus:
@@ -217,12 +236,16 @@ def test_local_connector_mail_read_request_contains_no_credentials() -> None:
         request_id="mail_search_1",
         query="invoice",
         mailbox="INBOX",
+        start_date="2026-07-01",
+        end_date="2026-07-15",
         limit=500,
     )
 
     assert request["type"] == "local_connector_request"
     assert request["action"] == "mail.search"
     assert request["arguments"]["limit"] == 50
+    assert request["arguments"]["start_date"] == "2026-07-01"
+    assert request["arguments"]["end_date"] == "2026-07-15"
     assert_no_secret_text(request)
 
 
@@ -265,6 +288,8 @@ async def test_mail_search_skill_routes_online_local_connector_without_self_host
     _request_id, payload, error = await skill._process_single_request(
         req={
             "query": "invoice",
+            "start_date": "2026-07-01",
+            "end_date": "2026-07-15",
             "limit": 4,
             "connected_account": {
                 "id": "acct-local-1",
@@ -282,9 +307,17 @@ async def test_mail_search_skill_routes_online_local_connector_without_self_host
 
     assert error is None
     assert payload["status"] == "completed"
+    assert payload["result_count"] == 1
+    assert payload["time_range"] == "2026-07-01 to 2026-07-15"
     assert payload["results"] == [{"subject": "Invoice", "snippet": "No secrets here"}]
     assert dispatched_requests[0]["action"] == "mail.search"
-    assert dispatched_requests[0]["arguments"] == {"query": "invoice", "mailbox": None, "limit": 4}
+    assert dispatched_requests[0]["arguments"] == {
+        "query": "invoice",
+        "mailbox": None,
+        "start_date": "2026-07-01",
+        "end_date": "2026-07-15",
+        "limit": 4,
+    }
     assert_no_secret_text(payload)
 
 

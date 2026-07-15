@@ -21,7 +21,7 @@ const PROTON_TOTP_KEY = process.env.PROTON_BRIDGE_TEST_TOTP_KEY;
 
 const BRIDGE_COMMANDS = ['protonmail-bridge', 'proton-mail-bridge'];
 const BRIDGE_ARGS = ['--cli'];
-const BRIDGE_READY_RE = /Welcome to Proton Mail Bridge interactive shell|>+\s*$|bridge>\s*$/im;
+const BRIDGE_READY_RE = /No active accounts\. Please add account to continue\.|>+\s*$|bridge>\s*$/im;
 const CREDENTIAL_LINE_RE = /^.*(?:password|token|secret|2fa|totp|code).*$/gim;
 
 function findBridgeBinary(): string | null {
@@ -101,6 +101,30 @@ function extractInfoSection(output: string): string {
 	return infoIndex >= 0 ? output.slice(infoIndex) : output;
 }
 
+function shellQuote(value: string): string {
+	return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+function spawnBridgeCli(bridgeBinary: string) {
+	if (process.platform === 'linux') {
+		return spawn('script', ['-qfec', `${shellQuote(bridgeBinary)} ${BRIDGE_ARGS.join(' ')}`, '/dev/null'], {
+			env: {
+				...process.env,
+				TERM: 'dumb'
+			},
+			stdio: ['pipe', 'pipe', 'pipe']
+		});
+	}
+
+	return spawn(bridgeBinary, BRIDGE_ARGS, {
+		env: {
+			...process.env,
+			TERM: 'dumb'
+		},
+		stdio: ['pipe', 'pipe', 'pipe']
+	});
+}
+
 test.describe('Proton Bridge live connector smoke', () => {
 	test.describe.configure({ timeout: 180000 });
 
@@ -110,13 +134,7 @@ test.describe('Proton Bridge live connector smoke', () => {
 		const bridgeBinary = findBridgeBinary();
 		test.skip(!bridgeBinary, 'Proton Mail Bridge binary is not installed on this runner.');
 
-		const child = spawn(bridgeBinary, BRIDGE_ARGS, {
-			env: {
-				...process.env,
-				TERM: 'dumb'
-			},
-			stdio: ['pipe', 'pipe', 'pipe']
-		});
+		const child = spawnBridgeCli(bridgeBinary);
 
 		let output = '';
 		child.stdout.on('data', (data: Buffer) => {

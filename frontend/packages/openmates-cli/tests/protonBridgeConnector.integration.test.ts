@@ -40,6 +40,7 @@ describe("Proton Bridge connector fake integration", () => {
       const registrations: ProtonLocalConnectorRegistration[] = [];
       const result = await runProtonBridgeConnector(fakeConnectorClient(calls, registrations), {}, {
         platform: "linux",
+        architecture: "x64",
         findExecutable: () => "/usr/bin/protonmail-bridge",
         spawnBridge: () => ({ startedByOpenMates: true, stop: () => calls.push("bridge:stop") }),
         captureBridgeInfo: async () => bridgeInfoFixture(port),
@@ -63,6 +64,7 @@ describe("Proton Bridge connector fake integration", () => {
       const calls: string[] = [];
       await runProtonBridgeConnector(fakeConnectorClient(calls, []), {}, {
         platform: "linux",
+        architecture: "x64",
         findExecutable: () => "/usr/bin/protonmail-bridge",
         spawnBridge: () => ({ startedByOpenMates: false, stop: () => calls.push("bridge:stop") }),
         captureBridgeInfo: async () => bridgeInfoFixture(port),
@@ -95,16 +97,21 @@ describe("Proton Bridge connector fake integration", () => {
         connected_account_id: "account-1",
         request_id: "mail_search_1",
         action: "mail.search",
-        arguments: { query: "invoice", limit: 2 },
+        arguments: { query: "invoice", start_date: "2026-07-01", end_date: "2026-07-15", limit: 2 },
       },
       completions,
     }), {}, {
       platform: "linux",
+      architecture: "x64",
       findExecutable: () => "/usr/bin/protonmail-bridge",
       spawnBridge: () => ({ startedByOpenMates: true, stop: () => calls.push("bridge:stop") }),
       captureBridgeInfo: async () => bridgeInfoFixture(1143),
       validateImap: async () => undefined,
-      searchImap: async (_credentials, arguments_) => [{ subject: `Found ${arguments_.query}`, snippet: "A normal password reset email is not a Bridge credential." }],
+      searchImap: async (_credentials, arguments_) => {
+        assert.equal(arguments_.start_date, "2026-07-01");
+        assert.equal(arguments_.end_date, "2026-07-15");
+        return [{ subject: `Found ${arguments_.query}`, snippet: "A normal password reset email is not a Bridge credential." }];
+      },
       localRequestOnce: true,
       stdout: { log: () => undefined },
       stderr: { error: () => undefined },

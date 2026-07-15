@@ -57,6 +57,17 @@
   let query = $derived(typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : 'Recent emails');
   let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '');
   let results = $derived(extractSearchResultsFromContent(data.decodedContent) as MailSearchResult[]);
+  let timeRange = $derived.by(() => {
+    const content = data.decodedContent || {};
+    if (typeof content.time_range === 'string' && content.time_range.trim()) return content.time_range;
+    const start = typeof content.start_date === 'string' ? content.start_date.trim() : '';
+    const end = typeof content.end_date === 'string' ? content.end_date.trim() : '';
+    if (start && end) return `${start} to ${end}`;
+    if (start) return `Since ${start}`;
+    if (end) return `Until ${end}`;
+    return 'All time';
+  });
+  let resultCount = $derived(typeof data.decodedContent?.result_count === 'number' ? data.decodedContent.result_count : results.length);
 
   let selectedIndex = $state(0);
   let selectedResult = $derived(results[selectedIndex] || null);
@@ -79,7 +90,7 @@
   skillId="search"
   skillIconName="mail"
   embedHeaderTitle={query || 'Recent emails'}
-  embedHeaderSubtitle={`${results.length} result${results.length === 1 ? '' : 's'} · ${provider}`}
+  embedHeaderSubtitle={`${resultCount} result${resultCount === 1 ? '' : 's'} · ${timeRange}${provider ? ` · ${provider}` : ''}`}
   onClose={onClose}
   currentEmbedId={embedId}
   {hasPreviousEmbed}

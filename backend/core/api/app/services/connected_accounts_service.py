@@ -206,6 +206,8 @@ def build_local_connector_mail_read_request(
     query: str,
     mailbox: str | None,
     limit: int,
+    start_date: str | None = None,
+    end_date: str | None = None,
 ) -> dict[str, Any]:
     assert_local_connector_online(row)
     if row.get("connector_provider_id") != "protonmail_bridge":
@@ -223,6 +225,8 @@ def build_local_connector_mail_read_request(
         "arguments": {
             "query": query,
             "mailbox": mailbox,
+            "start_date": start_date,
+            "end_date": end_date,
             "limit": max(1, min(int(limit), 50)),
         },
     }

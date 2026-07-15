@@ -5752,6 +5752,9 @@ async def handle_main_processing(
                                 # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
                                 # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.
                                 if isinstance(grouped_result, dict):
+                                    for range_key in ("start_date", "end_date", "time_range"):
+                                        if range_key not in request_metadata_with_provider and grouped_result.get(range_key):
+                                            request_metadata_with_provider[range_key] = grouped_result[range_key]
                                     if "query" not in request_metadata_with_provider:
                                         logger.warning(
                                             f"{log_prefix} [QUERY_DEBUG] query NOT in request_metadata_with_provider, "
@@ -5836,7 +5839,7 @@ async def handle_main_processing(
                                                     "skill_id": skill_id
                                                 }
                                                 # Include user-visible request metadata for UI rendering.
-                                                for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                                                for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
                                                     if request_metadata_with_provider.get(key):
                                                         embed_reference_payload[key] = request_metadata_with_provider[key]
                                                 updated_error_embed["embed_reference"] = json.dumps(embed_reference_payload)
@@ -5939,7 +5942,7 @@ async def handle_main_processing(
                                             "skill_id": skill_id
                                         }
                                         # Include user-visible request metadata for UI rendering.
-                                        for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                                        for key in ["query", "provider", "providers", "start_date", "end_date", "time_range", "location"]:
                                             if request_metadata_with_provider.get(key):
                                                 embed_reference_payload[key] = request_metadata_with_provider[key]
                                         updated_embed_data["embed_reference"] = json.dumps(embed_reference_payload)

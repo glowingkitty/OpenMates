@@ -55,6 +55,10 @@ def test_fitness_search_skills_have_cold_start_child_type_fallbacks():
     assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("fitness", "search_classes")] == "class"
 
 
+def test_mail_search_has_cold_start_child_type_fallback():
+    assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("mail", "search")] == "email"
+
+
 def test_get_child_embed_type_uses_code_search_repos_fallback_when_cache_empty():
     child_type = _run(EmbedService.get_child_embed_type(
         "code",
@@ -79,6 +83,16 @@ def test_get_child_embed_type_uses_fitness_fallbacks_when_cache_empty():
 
     assert location_child_type == "location"
     assert class_child_type == "class"
+
+
+def test_get_child_embed_type_uses_mail_fallback_when_cache_empty():
+    child_type = _run(EmbedService.get_child_embed_type(
+        "mail",
+        "search",
+        cache_service=_EmptyMetadataCache(),
+    ))
+
+    assert child_type == "email"
 
 
 def test_web_search_github_repo_result_uses_repo_child_type():
