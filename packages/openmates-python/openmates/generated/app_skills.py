@@ -1898,12 +1898,8 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'filter. '
                                                                                                'Defaults '
                                                                                                'to '
-                                                                                               'all '
-                                                                                               'supported '
-                                                                                               'providers.',
-                                                                                'items': {'enum': ['Printables',
-                                                                                                   'MyMiniFactory',
-                                                                                                   'Thingiverse'],
+                                                                                               'Printables.',
+                                                                                'items': {'enum': ['Printables'],
                                                                                           'type': 'string'},
                                                                                 'type': 'array'},
                                                                   'query': {'description': 'Search '

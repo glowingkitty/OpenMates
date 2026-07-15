@@ -1083,12 +1083,10 @@ export const APP_SKILL_METADATA = [
                 "items": {
                   "type": "string",
                   "enum": [
-                    "Printables",
-                    "MyMiniFactory",
-                    "Thingiverse"
+                    "Printables"
                   ]
                 },
-                "description": "Optional provider filter. Defaults to all supported providers."
+                "description": "Optional provider filter. Defaults to Printables."
               },
               "count": {
                 "type": "integer",
