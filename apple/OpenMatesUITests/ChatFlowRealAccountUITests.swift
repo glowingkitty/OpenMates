@@ -171,12 +171,30 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
 
-        guard let artifactDir = ProcessInfo.processInfo.environment["CHAT_RENDERING_PARITY_ARTIFACT_DIR"], !artifactDir.isEmpty else {
-            return
-        }
-        let directory = URL(fileURLWithPath: artifactDir, isDirectory: true)
+        let directory = parityArtifactDirectoryURL()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try data.write(to: directory.appendingPathComponent("apple-loaded-chats-manifest.json"))
+    }
+
+    private func parityArtifactDirectoryURL() -> URL {
+        if let artifactDir = ProcessInfo.processInfo.environment["CHAT_RENDERING_PARITY_ARTIFACT_DIR"], !artifactDir.isEmpty {
+            let directory = URL(fileURLWithPath: artifactDir, isDirectory: true)
+            if directory.path.hasPrefix("/") {
+                return directory
+            }
+            return repoRootURL().appendingPathComponent(artifactDir, isDirectory: true)
+        }
+
+        return repoRootURL()
+            .appendingPathComponent("artifacts", isDirectory: true)
+            .appendingPathComponent("chat-rendering-parity", isDirectory: true)
+    }
+
+    private func repoRootURL() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
     }
 
     private func attachScreenshot(name: String) {
