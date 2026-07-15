@@ -12,14 +12,16 @@
   import { notificationStore } from '../../stores/notificationStore';
   import {
     createUserTask,
+    cancelWorkflowRunTaskProjection,
     extractUserTaskProposals,
-    listUserTasks,
+    isWorkflowRunTaskProjectionViewModel,
+    listTaskBoardItems,
     startUserTaskWithAI,
     updateUserTask,
     type ListUserTasksFilters,
     type UserTaskProposal,
     type UserTaskStatus,
-    type UserTaskViewModel,
+    type TasksBoardItem,
   } from '../../services/userTaskService';
   import {
     activateUserPlan,
@@ -41,7 +43,7 @@
     focus?: 'tasks' | 'plans';
   } = $props();
 
-  let tasks = $state<UserTaskViewModel[]>([]);
+  let tasks = $state<TasksBoardItem[]>([]);
   let plans = $state<UserPlanViewModel[]>([]);
   let isLoading = $state(true);
   let isLoadingPlans = $state(true);
@@ -97,7 +99,7 @@
     isLoading = true;
     try {
       hasLoadError = false;
-      tasks = await listUserTasks(filters());
+      tasks = await listTaskBoardItems(filters());
     } catch (error) {
       hasLoadError = true;
       console.error('[TasksPage] Failed to load tasks:', error);
@@ -229,7 +231,8 @@
     }
   }
 
-  async function handleMove(task: UserTaskViewModel, status: UserTaskStatus): Promise<void> {
+  async function handleMove(task: TasksBoardItem, status: UserTaskStatus): Promise<void> {
+    if (isWorkflowRunTaskProjectionViewModel(task)) return;
     const previous = tasks;
     tasks = tasks.map((candidate) => candidate.task_id === task.task_id ? { ...candidate, status } : candidate);
     try {
@@ -243,7 +246,8 @@
     }
   }
 
-  async function handleStartAI(task: UserTaskViewModel): Promise<void> {
+  async function handleStartAI(task: TasksBoardItem): Promise<void> {
+    if (isWorkflowRunTaskProjectionViewModel(task)) return;
     try {
       const updated = await startUserTaskWithAI(task);
       tasks = tasks.map((candidate) => candidate.task_id === updated.task_id ? updated : candidate);
@@ -252,6 +256,18 @@
     } catch (error) {
       console.error('[TasksPage] Failed to start AI task:', error);
       notificationStore.error('Failed to start AI task');
+    }
+  }
+
+  async function handleCancelWorkflowRun(task: TasksBoardItem): Promise<void> {
+    if (!isWorkflowRunTaskProjectionViewModel(task)) return;
+    try {
+      await cancelWorkflowRunTaskProjection(task);
+      await refreshTasks();
+      notificationStore.success('Workflow run cancellation requested');
+    } catch (error) {
+      console.error('[TasksPage] Failed to cancel workflow run:', error);
+      notificationStore.error('Failed to cancel workflow run');
     }
   }
 
@@ -474,7 +490,7 @@
       <p>Create your first task above to start planning work.</p>
     </div>
   {:else}
-    <TaskBoard {tasks} onMove={(task, status) => void handleMove(task, status)} onStartAI={(task) => void handleStartAI(task)} />
+    <TaskBoard {tasks} onMove={(task, status) => void handleMove(task, status)} onStartAI={(task) => void handleStartAI(task)} onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)} />
   {/if}
 </section>
 {/if}

@@ -349,8 +349,9 @@ def scenario_mention_move(args: argparse.Namespace, seed: dict[str, Any]) -> dic
         "--chat",
         target_chat_id,
         (
-            f"Move existing task {short_id} currently version 1 from its current chat into destination chat ID {target_chat_id}. "
-            "Do not edit the task title and do not create new tasks. Reply briefly after the task move finishes."
+            f"Use the task_move tool exactly once for existing referenced task @{short_id}, currently version 1. "
+            f"Move it from its current chat into destination chat ID {target_chat_id}. "
+            "Do not edit the task title and do not create new tasks. Reply only after the task_move tool succeeds."
         ),
         "--no-pii-detection",
         "--response-timeout-seconds",

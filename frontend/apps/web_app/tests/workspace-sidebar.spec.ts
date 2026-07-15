@@ -69,6 +69,13 @@ test.describe('Workspace sidebar', () => {
       await workflowRow.click();
       await expect(page.getByTestId('workflow-editor')).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
+      await page.getByTestId('workflow-run-history').click();
+      await expect(page).toHaveURL(new RegExp(`/workflows/${workflowId}/runs$`));
+      await expect(page.getByTestId('workflow-runs')).toBeVisible();
+
+      await page.getByTestId('sidebar-toggle').click();
+      await expect(page.getByTestId('workflows-sidebar')).toBeVisible();
+      await expect(page.getByTestId('workflows-sidebar').getByTestId('workflow-sidebar-row').filter({ hasText: title })).toBeVisible();
     } finally {
       if (workflowId) await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);
     }

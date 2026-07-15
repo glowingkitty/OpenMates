@@ -6,16 +6,18 @@
 
 <script lang="ts">
   import TaskCard from './TaskCard.svelte';
-  import type { UserTaskStatus, UserTaskViewModel } from '../../services/userTaskService';
+  import type { TasksBoardItem, UserTaskStatus } from '../../services/userTaskService';
 
   let {
     tasks,
     onMove,
     onStartAI,
+    onCancelWorkflowRun,
   }: {
-    tasks: UserTaskViewModel[];
-    onMove: (task: UserTaskViewModel, status: UserTaskStatus) => void;
-    onStartAI: (task: UserTaskViewModel) => void;
+    tasks: TasksBoardItem[];
+    onMove: (task: TasksBoardItem, status: UserTaskStatus) => void;
+    onStartAI: (task: TasksBoardItem) => void;
+    onCancelWorkflowRun: (task: TasksBoardItem) => void;
   } = $props();
 
   const columns: Array<{ status: UserTaskStatus; title: string; description: string }> = [
@@ -26,7 +28,7 @@
     { status: 'done', title: 'Done', description: 'Completed' },
   ];
 
-  function tasksFor(status: UserTaskStatus): UserTaskViewModel[] {
+  function tasksFor(status: UserTaskStatus): TasksBoardItem[] {
     return tasks.filter((task) => task.status === status).sort((a, b) => a.position - b.position);
   }
 
@@ -58,7 +60,7 @@
 
       <div class="task-column-list">
         {#each tasksFor(column.status) as task (task.task_id)}
-          <TaskCard {task} {onMove} {onStartAI} />
+          <TaskCard {task} {onMove} {onStartAI} {onCancelWorkflowRun} />
         {:else}
           <div class="task-column-empty" data-testid="task-column-empty">
             No tasks here.

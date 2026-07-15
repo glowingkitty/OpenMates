@@ -6,19 +6,26 @@
 -->
 
 <script lang="ts">
-  import type { UserTaskStatus, UserTaskViewModel } from '../../services/userTaskService';
+  import {
+    isWorkflowRunTaskProjectionViewModel,
+    type TasksBoardItem,
+    type UserTaskStatus,
+  } from '../../services/userTaskService';
 
   let {
     task,
     onMove,
     onStartAI,
+    onCancelWorkflowRun,
   }: {
-    task: UserTaskViewModel;
-    onMove: (task: UserTaskViewModel, status: UserTaskStatus) => void;
-    onStartAI: (task: UserTaskViewModel) => void;
+    task: TasksBoardItem;
+    onMove: (task: TasksBoardItem, status: UserTaskStatus) => void;
+    onStartAI: (task: TasksBoardItem) => void;
+    onCancelWorkflowRun: (task: TasksBoardItem) => void;
   } = $props();
 
   const statuses: UserTaskStatus[] = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
+  let workflowRun = $derived(isWorkflowRunTaskProjectionViewModel(task) ? task : null);
 
   function handleDragStart(event: DragEvent): void {
     event.dataTransfer?.setData('application/x-openmates-task-id', task.task_id);
@@ -33,13 +40,13 @@
 
 <article
   class="task-card"
-  draggable="true"
+  draggable={!workflowRun}
   ondragstart={handleDragStart}
   data-testid="task-card"
   data-task-id={task.task_id}
 >
   <div class="task-card-main">
-    <label class="done-toggle">
+    {#if !workflowRun}<label class="done-toggle">
       <input
         type="checkbox"
         checked={task.status === 'done'}
@@ -48,7 +55,7 @@
         data-testid="task-done-toggle"
       />
       <span></span>
-    </label>
+    </label>{/if}
     <div class="task-card-copy">
       <h3>{task.title || 'Untitled task'}</h3>
       {#if task.description}
@@ -66,21 +73,28 @@
   {/if}
 
   <footer class="task-card-footer">
-    <span class="assignee" data-assignee={task.assigneeType}>{task.assigneeType === 'ai' ? 'AI task' : 'My task'}</span>
+    <span class="assignee" data-assignee={task.assigneeType}>{workflowRun ? 'Workflow run' : task.assigneeType === 'ai' ? 'AI task' : 'My task'}</span>
     {#if task.dueAt}
       <span class="due">Due {new Date(task.dueAt * 1000).toLocaleDateString()}</span>
     {/if}
   </footer>
 
   <div class="task-actions" aria-label="Move task">
-    <a href={`/tasks/${encodeURIComponent(task.task_id)}`} data-testid="task-detail-link">Open</a>
-    {#each statuses as status}
-      {#if status !== task.status}
-        <button type="button" onclick={() => onMove(task, status)} data-testid={`task-move-${status}`}>{formatStatus(status)}</button>
+    {#if workflowRun}
+      <a href={`/workflows/${encodeURIComponent(workflowRun.workflowId)}/runs`} data-testid="workflow-run-open">Open run</a>
+      {#if workflowRun.canCancel}
+        <button type="button" onclick={() => onCancelWorkflowRun(workflowRun)} data-testid="workflow-run-cancel">Cancel run</button>
       {/if}
-    {/each}
-    {#if task.assigneeType !== 'ai' || task.status !== 'in_progress'}
+    {:else}
+      <a href={`/tasks/${encodeURIComponent(task.task_id)}`} data-testid="task-detail-link">Open</a>
+      {#each statuses as status}
+        {#if status !== task.status}
+          <button type="button" onclick={() => onMove(task, status)} data-testid={`task-move-${status}`}>{formatStatus(status)}</button>
+        {/if}
+      {/each}
+      {#if task.assigneeType !== 'ai' || task.status !== 'in_progress'}
       <button class="ai-action" type="button" onclick={() => onStartAI(task)} data-testid="task-start-ai">Start with AI</button>
+      {/if}
     {/if}
   </div>
 </article>
