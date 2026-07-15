@@ -84,6 +84,7 @@ import {
   buildUpdateUserTaskInput,
   decryptUserTasks,
   findTask,
+  type DecryptedUserTask,
 } from "./tasksCli.js";
 
 function normalizeUnixSeconds(value: unknown, fallback: number): number {
@@ -1790,7 +1791,8 @@ const CLOUD_API_URL = "https://api.openmates.org";
 const DEFAULT_API_URL = process.env.OPENMATES_API_URL ?? CLOUD_API_URL;
 const SETTINGS_GET_RATE_LIMIT_RETRY_MS = 61_000;
 const SKILL_TASK_POLL_INTERVAL_MS = 2_000;
-const SKILL_TASK_POLL_TIMEOUT_MS = 300_000;
+const SKILL_TASK_POLL_TIMEOUT_MS = 1_200_000;
+const SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500;
 
 function normalizeOrigin(url: URL): string {
   url.pathname = "";
@@ -4128,259 +4130,22 @@ export class OpenMatesClient {
       );
     };
 
-    const persistEncryptedSystemMessage = async (systemMessage: {
-      message_id: string;
-      role: "system";
-      encrypted_content: string;
-      created_at: number;
-      user_message_id: string;
-      task_update_job_id?: string;
-    }, targetChatId = chatId) => {
-      await ws.sendAsync("chat_system_message_added", {
-        chat_id: targetChatId,
-        message: systemMessage,
-      });
-      await ws.waitForMessage(
-        "system_message_confirmed",
-        (payload) => (payload as Record<string, unknown>).message_id === systemMessage.message_id,
-        20_000,
-      );
-    };
-
     const persistedTaskEventIds = new Set<string>();
     const persistTaskEventSystemMessages = async (events: TaskEventFrame[]) => {
       if (!chatKeyBytes || events.length === 0) return;
       for (const event of events) {
         if (persistedTaskEventIds.has(event.event_id)) continue;
-        await persistEncryptedSystemMessage(await buildTaskEventSystemMessage({
-          chatKey: chatKeyBytes,
-          userMessageId: messageId,
-          event,
-        }));
+        await this.persistEncryptedSystemMessage(
+          ws,
+          await buildTaskEventSystemMessage({
+            chatKey: chatKeyBytes,
+            userMessageId: messageId,
+            event,
+          }),
+          chatId,
+        );
         persistedTaskEventIds.add(event.event_id);
       }
-    };
-
-    const persistPendingTaskUpdateJobs = async (jobs: PendingTaskUpdateJobFrame[], events: TaskEventFrame[]): Promise<Set<string>> => {
-      const handledJobIds = new Set<string>();
-      if (jobs.length === 0) return handledJobIds;
-      const masterKey = this.getMasterKeyBytes();
-      let decryptedTasksCache: Awaited<ReturnType<typeof decryptUserTasks>> | null = null;
-      const eventByJobId = new Map(events.map((event) => [event.task_update_job_id, event]));
-
-      const buildTaskKeyWrappersForChat = async (
-        task: Awaited<ReturnType<typeof decryptUserTasks>>[number],
-        targetChatId: string,
-        createdAt: number,
-      ) => {
-        const encryptedTaskKey = task.encrypted.encrypted_task_key;
-        if (!encryptedTaskKey) throw new Error(`Task ${task.taskId} is missing encrypted task key.`);
-        const taskKey = await decryptBytesWithAesGcm(encryptedTaskKey, masterKey);
-        if (!taskKey) throw new Error(`Failed to decrypt task key for ${task.taskId}.`);
-        const targetChatKey = await resolveChatKey(targetChatId);
-        const existingProjectWrappers = await listProjectTaskKeyWrappers(task.taskId, createdAt);
-        const linkedProjectIds = task.linkedProjectIds ?? [];
-        if (linkedProjectIds.length > existingProjectWrappers.length) {
-          throw new Error(`Task ${task.taskId} is missing project key wrappers required for move persistence.`);
-        }
-        return [
-          {
-            key_type: "master",
-            encrypted_task_key: await encryptBytesWithAesGcm(taskKey, masterKey),
-            created_at: createdAt,
-          },
-          {
-            key_type: "chat",
-            hashed_chat_id: computeSHA256(targetChatId),
-            encrypted_task_key: await encryptBytesWithAesGcm(taskKey, targetChatKey),
-            created_at: createdAt,
-          },
-          ...existingProjectWrappers,
-        ];
-      };
-
-      const listProjectTaskKeyWrappers = async (taskId: string, createdAt: number): Promise<Array<Record<string, unknown>>> => {
-        const response = await this.http.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
-          `/v1/user-tasks/${encodeURIComponent(taskId)}/key-wrappers`,
-          this.getCliRequestHeaders(),
-        );
-        if (!response.ok) {
-          throw new Error(`User task key wrapper list failed with HTTP ${response.status}`);
-        }
-        return (response.data.key_wrappers ?? [])
-          .filter((wrapper) => wrapper.key_type === "project")
-          .map((wrapper) => ({
-            key_type: "project",
-            hashed_project_id: wrapper.hashed_project_id,
-            encrypted_task_key: wrapper.encrypted_task_key,
-            created_at: typeof wrapper.created_at === "number" ? wrapper.created_at : createdAt,
-            expires_at: wrapper.expires_at ?? null,
-          }));
-      };
-
-      const resolveChatKey = async (targetChatId: string): Promise<Uint8Array> => {
-        if (targetChatId === chatId && chatKeyBytes) return chatKeyBytes;
-        const cache = loadSyncCache() ?? (await this.ensureSynced());
-        const targetChat = cache.chats.find((chat) => String(chat.details.id ?? "") === targetChatId);
-        const encryptedTargetChatKey = typeof targetChat?.details.encrypted_chat_key === "string"
-          ? targetChat.details.encrypted_chat_key
-          : null;
-        if (!encryptedTargetChatKey) {
-          throw new Error(`Encrypted chat key not found for task move target '${targetChatId}'. Sync and try again.`);
-        }
-        const targetChatKey = await decryptBytesWithAesGcm(encryptedTargetChatKey, masterKey);
-        if (!targetChatKey) {
-          throw new Error(`Failed to decrypt chat key for task move target '${targetChatId}'.`);
-        }
-        return targetChatKey;
-      };
-
-      const findTaskForUpdateJob = async (claim: TaskUpdateJobClaimPayload): Promise<Awaited<ReturnType<typeof decryptUserTasks>>[number]> => {
-        const chatIds = [claim.source_task_chat_id, claim.chat_id, claim.safe_metadata?.primary_chat_id]
-          .filter((value): value is string => typeof value === "string" && value.length > 0);
-        const uniqueChatIds = [...new Set(chatIds)];
-        for (const candidateChatId of uniqueChatIds) {
-          const scopedTasks = await decryptUserTasks(await this.listUserTasks({ chatId: candidateChatId }), masterKey);
-          try {
-            return findTask(scopedTasks, claim.task_id);
-          } catch (error) {
-            if (!(error instanceof Error) || !error.message.includes("was not found")) throw error;
-          }
-        }
-        if (!decryptedTasksCache) {
-          decryptedTasksCache = await decryptUserTasks(await this.listUserTasks({ limit: 1000 }), masterKey);
-        }
-        return findTask(decryptedTasksCache, claim.task_id);
-      };
-
-      const taskEventTypeForOperation = (operation: string | null | undefined): string => {
-        switch (operation) {
-          case "create": return "created";
-          case "move": return "moved";
-          case "update": return "updated";
-          default: return operation || "updated";
-        }
-      };
-
-      for (const job of jobs) {
-        if (!taskUpdateJobBelongsToActiveTurn(job, chatId, events)) {
-          handledJobIds.add(job.job_id);
-          continue;
-        }
-        const claimPromise = ws.waitForMessage(
-          "task_update_job_claimed",
-          (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
-          20_000,
-        );
-        await ws.sendAsync("task_update_job_claim", {
-          protocol_version: 1,
-          job_id: job.job_id,
-        });
-        const claim = (await claimPromise).payload as unknown as TaskUpdateJobClaimPayload;
-
-        const privatePatch = claim.private_patch ?? {};
-        const safeMetadata = claim.safe_metadata ?? {};
-        const sourceChatId = claim.chat_id ?? job.chat_id ?? chatId;
-        const sourceChatKey = await resolveChatKey(sourceChatId);
-        const event = eventByJobId.get(job.job_id) ?? {
-          event_id: `task-event-${job.job_id}`,
-          chat_id: sourceChatId,
-          task_id: claim.task_id,
-          event_type: taskEventTypeForOperation(claim.operation),
-          title: typeof privatePatch.title === "string" ? privatePatch.title : null,
-          status: typeof safeMetadata.status === "string" ? safeMetadata.status : null,
-          created_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : Math.floor(Date.now() / 1000),
-          task_update_job_id: job.job_id,
-        } satisfies TaskEventFrame;
-        const eventMessage = await buildTaskEventSystemMessage({
-          chatKey: sourceChatKey,
-          userMessageId: claim.message_id ?? messageId,
-          event,
-        });
-        const confirmTaskEventPersisted = async () => {
-          const confirmedPromise = ws.waitForMessage(
-            "task_update_job_event_confirmed",
-            (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
-            20_000,
-          );
-          await ws.sendAsync("task_update_job_event_confirmed", {
-            protocol_version: 1,
-            job_id: job.job_id,
-            event_system_message_id: eventMessage.message_id,
-          });
-          await confirmedPromise;
-        };
-        if (claim.state === "TASK_PERSISTED") {
-          await persistEncryptedSystemMessage(eventMessage, sourceChatId);
-          persistedTaskEventIds.add(event.event_id);
-          await confirmTaskEventPersisted();
-          handledJobIds.add(job.job_id);
-          continue;
-        }
-        if (!claim.lease_token || !Number.isSafeInteger(claim.lease_generation)) {
-          throw new Error("Task update job claim returned an invalid lease.");
-        }
-        let encryptedTaskPayload: Record<string, unknown>;
-        if (claim.operation === "create") {
-          const input = await buildCreateUserTaskInput(masterKey, {
-            title: typeof privatePatch.title === "string" ? privatePatch.title : "Untitled task",
-            description: typeof privatePatch.description === "string" ? privatePatch.description : "",
-            status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : "todo",
-            assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : "user",
-            chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : claim.chat_id ?? chatId,
-          });
-          encryptedTaskPayload = {
-            ...input,
-            task_id: claim.task_id,
-            position: typeof safeMetadata.position === "number" ? safeMetadata.position : input.position,
-            created_at: typeof safeMetadata.created_at === "number" ? safeMetadata.created_at : input.created_at,
-            updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : input.updated_at,
-          };
-        } else {
-          const task = await findTaskForUpdateJob(claim);
-          const patch = await buildUpdateUserTaskInput(task, masterKey, {
-            title: typeof privatePatch.title === "string" ? privatePatch.title : undefined,
-            description: typeof privatePatch.description === "string" ? privatePatch.description : undefined,
-            status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : undefined,
-            assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : undefined,
-            chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : undefined,
-          });
-          encryptedTaskPayload = {
-            ...patch,
-            version: claim.expected_task_version,
-            updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : patch.updated_at,
-          };
-          if (typeof safeMetadata.primary_chat_id === "string") {
-            encryptedTaskPayload.key_wrappers = await buildTaskKeyWrappersForChat(
-              task,
-              safeMetadata.primary_chat_id,
-              typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : Math.floor(Date.now() / 1000),
-            );
-          }
-        }
-
-        const encryptedEventMessage = eventMessage.encrypted_content;
-        const persistedPromise = ws.waitForMessage(
-          "task_update_job_persisted",
-          (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
-          20_000,
-        );
-        await ws.sendAsync("task_update_job_persist", buildTaskUpdateJobPersistPayload({
-          jobId: job.job_id,
-          leaseToken: claim.lease_token,
-          leaseGeneration: claim.lease_generation,
-          expectedTaskVersion: claim.expected_task_version,
-          encryptedTaskPayload,
-          encryptedTaskEventMessage: encryptedEventMessage,
-        }));
-        await persistedPromise;
-        await persistEncryptedSystemMessage(eventMessage, sourceChatId);
-        persistedTaskEventIds.add(event.event_id);
-        await confirmTaskEventPersisted();
-        handledJobIds.add(job.job_id);
-      }
-      clearSyncCache();
-      return handledJobIds;
     };
 
     const streamOpts = {
@@ -4612,7 +4377,15 @@ export class OpenMatesClient {
             newChatSuggestions: resp.newChatSuggestions,
             encryptedChatKey,
           });
-          const persistedTaskJobIds = await persistPendingTaskUpdateJobs(pendingTaskUpdateJobs, taskEvents);
+          const persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
+            ws,
+            jobs: pendingTaskUpdateJobs,
+            events: taskEvents,
+            activeChatId: chatId,
+            activeChatKeyBytes: chatKeyBytes,
+            fallbackUserMessageId: messageId,
+            requireActiveTurnEvent: true,
+          });
           pendingTaskUpdateJobs = pendingTaskUpdateJobs.filter((job) => !persistedTaskJobIds.has(job.job_id));
           await persistTaskEventSystemMessages(taskEvents);
           clearSyncCache();
@@ -4639,6 +4412,268 @@ export class OpenMatesClient {
       subChatEvents,
       appSettingsMemoryRequests,
     };
+  }
+
+  private async persistEncryptedSystemMessage(
+    ws: OpenMatesWsClient,
+    systemMessage: {
+      message_id: string;
+      role: "system";
+      encrypted_content: string;
+      created_at: number;
+      user_message_id: string;
+      task_update_job_id?: string;
+    },
+    targetChatId: string,
+  ): Promise<void> {
+    await ws.sendAsync("chat_system_message_added", {
+      chat_id: targetChatId,
+      message: systemMessage,
+    });
+    await ws.waitForMessage(
+      "system_message_confirmed",
+      (payload) => (payload as Record<string, unknown>).message_id === systemMessage.message_id,
+      20_000,
+    );
+  }
+
+  private async persistPendingTaskUpdateJobs(params: {
+    ws: OpenMatesWsClient;
+    jobs: PendingTaskUpdateJobFrame[];
+    events: TaskEventFrame[];
+    activeChatId?: string | null;
+    activeChatKeyBytes?: Uint8Array | null;
+    fallbackUserMessageId?: string | null;
+    syncedChats?: CachedChat[];
+    requireActiveTurnEvent: boolean;
+  }): Promise<Set<string>> {
+    const handledJobIds = new Set<string>();
+    if (params.jobs.length === 0) return handledJobIds;
+
+    const masterKey = this.getMasterKeyBytes();
+    let decryptedTasksCache: DecryptedUserTask[] | null = null;
+    const eventByJobId = new Map(params.events.map((event) => [event.task_update_job_id, event]));
+
+    const resolveChatKey = async (targetChatId: string): Promise<Uint8Array> => {
+      if (targetChatId === params.activeChatId && params.activeChatKeyBytes) return params.activeChatKeyBytes;
+      const findChat = (chats: CachedChat[] | undefined) => chats?.find((chat) => String(chat.details.id ?? "") === targetChatId);
+      const targetChat = findChat(params.syncedChats) ?? findChat(loadSyncCache()?.chats);
+      const encryptedTargetChatKey = typeof targetChat?.details.encrypted_chat_key === "string"
+        ? targetChat.details.encrypted_chat_key
+        : null;
+      if (!encryptedTargetChatKey) {
+        throw new Error(`Encrypted chat key not found for task update job target '${targetChatId}'. Sync and try again.`);
+      }
+      const targetChatKey = await decryptBytesWithAesGcm(encryptedTargetChatKey, masterKey);
+      if (!targetChatKey) {
+        throw new Error(`Failed to decrypt chat key for task update job target '${targetChatId}'.`);
+      }
+      return targetChatKey;
+    };
+
+    const listProjectTaskKeyWrappers = async (taskId: string, createdAt: number): Promise<Array<Record<string, unknown>>> => {
+      const response = await this.http.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
+        `/v1/user-tasks/${encodeURIComponent(taskId)}/key-wrappers`,
+        this.getCliRequestHeaders(),
+      );
+      if (!response.ok) {
+        throw new Error(`User task key wrapper list failed with HTTP ${response.status}`);
+      }
+      return (response.data.key_wrappers ?? [])
+        .filter((wrapper) => wrapper.key_type === "project")
+        .map((wrapper) => ({
+          key_type: "project",
+          hashed_project_id: wrapper.hashed_project_id,
+          encrypted_task_key: wrapper.encrypted_task_key,
+          created_at: typeof wrapper.created_at === "number" ? wrapper.created_at : createdAt,
+          expires_at: wrapper.expires_at ?? null,
+        }));
+    };
+
+    const buildTaskKeyWrappersForChat = async (
+      task: DecryptedUserTask,
+      targetChatId: string,
+      createdAt: number,
+    ) => {
+      const encryptedTaskKey = task.encrypted.encrypted_task_key;
+      if (!encryptedTaskKey) throw new Error(`Task ${task.taskId} is missing encrypted task key.`);
+      const taskKey = await decryptBytesWithAesGcm(encryptedTaskKey, masterKey);
+      if (!taskKey) throw new Error(`Failed to decrypt task key for ${task.taskId}.`);
+      const targetChatKey = await resolveChatKey(targetChatId);
+      const existingProjectWrappers = await listProjectTaskKeyWrappers(task.taskId, createdAt);
+      const linkedProjectIds = task.linkedProjectIds ?? [];
+      if (linkedProjectIds.length > existingProjectWrappers.length) {
+        throw new Error(`Task ${task.taskId} is missing project key wrappers required for move persistence.`);
+      }
+      return [
+        {
+          key_type: "master",
+          encrypted_task_key: await encryptBytesWithAesGcm(taskKey, masterKey),
+          created_at: createdAt,
+        },
+        {
+          key_type: "chat",
+          hashed_chat_id: computeSHA256(targetChatId),
+          encrypted_task_key: await encryptBytesWithAesGcm(taskKey, targetChatKey),
+          created_at: createdAt,
+        },
+        ...existingProjectWrappers,
+      ];
+    };
+
+    const findTaskForUpdateJob = async (claim: TaskUpdateJobClaimPayload): Promise<DecryptedUserTask> => {
+      const chatIds = [claim.source_task_chat_id, claim.chat_id, claim.safe_metadata?.primary_chat_id]
+        .filter((value): value is string => typeof value === "string" && value.length > 0);
+      for (const candidateChatId of [...new Set(chatIds)]) {
+        const scopedTasks = await decryptUserTasks(await this.listUserTasks({ chatId: candidateChatId }), masterKey);
+        try {
+          return findTask(scopedTasks, claim.task_id);
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.includes("was not found")) throw error;
+        }
+      }
+      if (!decryptedTasksCache) {
+        decryptedTasksCache = await decryptUserTasks(await this.listUserTasks({ limit: 1000 }), masterKey);
+      }
+      return findTask(decryptedTasksCache, claim.task_id);
+    };
+
+    const taskEventTypeForOperation = (operation: string | null | undefined): string => {
+      switch (operation) {
+        case "create": return "created";
+        case "move": return "moved";
+        case "update": return "updated";
+        default: return operation || "updated";
+      }
+    };
+
+    for (const job of params.jobs) {
+      if (
+        params.requireActiveTurnEvent
+        && params.activeChatId
+        && !taskUpdateJobBelongsToActiveTurn(job, params.activeChatId, params.events)
+      ) {
+        handledJobIds.add(job.job_id);
+        continue;
+      }
+
+      const claimPromise = params.ws.waitForMessage(
+        "task_update_job_claimed",
+        (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
+        20_000,
+      );
+      await params.ws.sendAsync("task_update_job_claim", {
+        protocol_version: 1,
+        job_id: job.job_id,
+      });
+      const claim = (await claimPromise).payload as unknown as TaskUpdateJobClaimPayload;
+
+      const privatePatch = claim.private_patch ?? {};
+      const safeMetadata = claim.safe_metadata ?? {};
+      const sourceChatId = claim.chat_id ?? job.chat_id ?? params.activeChatId;
+      if (!sourceChatId) throw new Error(`Task update job ${job.job_id} is missing a source chat id.`);
+      const sourceChatKey = await resolveChatKey(sourceChatId);
+      const event = eventByJobId.get(job.job_id) ?? {
+        event_id: `task-event-${job.job_id}`,
+        chat_id: sourceChatId,
+        task_id: claim.task_id,
+        event_type: taskEventTypeForOperation(claim.operation),
+        title: typeof privatePatch.title === "string" ? privatePatch.title : null,
+        status: typeof safeMetadata.status === "string" ? safeMetadata.status : null,
+        created_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : Math.floor(Date.now() / 1000),
+        task_update_job_id: job.job_id,
+      } satisfies TaskEventFrame;
+      const userMessageId = claim.message_id ?? params.fallbackUserMessageId;
+      if (!userMessageId) throw new Error(`Task update job ${job.job_id} is missing a user message id.`);
+      const eventMessage = await buildTaskEventSystemMessage({
+        chatKey: sourceChatKey,
+        userMessageId,
+        event,
+      });
+      const confirmTaskEventPersisted = async () => {
+        const confirmedPromise = params.ws.waitForMessage(
+          "task_update_job_event_confirmed",
+          (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
+          20_000,
+        );
+        await params.ws.sendAsync("task_update_job_event_confirmed", {
+          protocol_version: 1,
+          job_id: job.job_id,
+          event_system_message_id: eventMessage.message_id,
+        });
+        await confirmedPromise;
+      };
+
+      if (claim.state === "TASK_PERSISTED") {
+        await this.persistEncryptedSystemMessage(params.ws, eventMessage, sourceChatId);
+        await confirmTaskEventPersisted();
+        handledJobIds.add(job.job_id);
+        continue;
+      }
+      if (!claim.lease_token || !Number.isSafeInteger(claim.lease_generation)) {
+        throw new Error("Task update job claim returned an invalid lease.");
+      }
+
+      let encryptedTaskPayload: Record<string, unknown>;
+      if (claim.operation === "create") {
+        const input = await buildCreateUserTaskInput(masterKey, {
+          title: typeof privatePatch.title === "string" ? privatePatch.title : "Untitled task",
+          description: typeof privatePatch.description === "string" ? privatePatch.description : "",
+          status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : "todo",
+          assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : "user",
+          chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : claim.chat_id ?? params.activeChatId,
+        });
+        encryptedTaskPayload = {
+          ...input,
+          task_id: claim.task_id,
+          position: typeof safeMetadata.position === "number" ? safeMetadata.position : input.position,
+          created_at: typeof safeMetadata.created_at === "number" ? safeMetadata.created_at : input.created_at,
+          updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : input.updated_at,
+        };
+      } else {
+        const task = await findTaskForUpdateJob(claim);
+        const patch = await buildUpdateUserTaskInput(task, masterKey, {
+          title: typeof privatePatch.title === "string" ? privatePatch.title : undefined,
+          description: typeof privatePatch.description === "string" ? privatePatch.description : undefined,
+          status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : undefined,
+          assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : undefined,
+          chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : undefined,
+        });
+        encryptedTaskPayload = {
+          ...patch,
+          version: claim.expected_task_version,
+          updated_at: typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : patch.updated_at,
+        };
+        if (typeof safeMetadata.primary_chat_id === "string") {
+          encryptedTaskPayload.key_wrappers = await buildTaskKeyWrappersForChat(
+            task,
+            safeMetadata.primary_chat_id,
+            typeof safeMetadata.updated_at === "number" ? safeMetadata.updated_at : Math.floor(Date.now() / 1000),
+          );
+        }
+      }
+
+      const persistedPromise = params.ws.waitForMessage(
+        "task_update_job_persisted",
+        (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
+        20_000,
+      );
+      await params.ws.sendAsync("task_update_job_persist", buildTaskUpdateJobPersistPayload({
+        jobId: job.job_id,
+        leaseToken: claim.lease_token,
+        leaseGeneration: claim.lease_generation,
+        expectedTaskVersion: claim.expected_task_version,
+        encryptedTaskPayload,
+        encryptedTaskEventMessage: eventMessage.encrypted_content,
+      }));
+      await persistedPromise;
+      await this.persistEncryptedSystemMessage(params.ws, eventMessage, sourceChatId);
+      await confirmTaskEventPersisted();
+      handledJobIds.add(job.job_id);
+    }
+
+    clearSyncCache();
+    return handledJobIds;
   }
 
   private async persistStreamedEmbeds(params: {
@@ -4961,14 +4996,28 @@ export class OpenMatesClient {
     headers: Record<string, string>,
   ): Promise<TaskStatusResponse> {
     const started = Date.now();
+    let lastTransientError: string | null = null;
     while (Date.now() - started < SKILL_TASK_POLL_TIMEOUT_MS) {
-      const response = await this.http.get<TaskStatusResponse>(
-        `/v1/tasks/${encodeURIComponent(taskId)}`,
-        headers,
-      );
+      let response;
+      try {
+        response = await this.http.get<TaskStatusResponse>(
+          `/v1/tasks/${encodeURIComponent(taskId)}`,
+          headers,
+        );
+      } catch (error) {
+        lastTransientError = error instanceof Error ? error.message : String(error);
+        await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+        continue;
+      }
       if (!response.ok) {
+        if (response.status >= SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS) {
+          lastTransientError = `HTTP ${response.status}`;
+          await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+          continue;
+        }
         throw new Error(`Task polling failed with HTTP ${response.status}`);
       }
+      lastTransientError = null;
       if (response.data.status === "completed") {
         return response.data;
       }
@@ -4976,6 +5025,11 @@ export class OpenMatesClient {
         throw new Error(response.data.error ?? "Task failed");
       }
       await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
+    }
+    if (lastTransientError) {
+      throw new Error(
+        `Task ${taskId} did not complete within ${SKILL_TASK_POLL_TIMEOUT_MS / 1000}s; last polling error: ${lastTransientError}`,
+      );
     }
     throw new Error(`Task ${taskId} did not complete within ${SKILL_TASK_POLL_TIMEOUT_MS / 1000}s`);
   }
@@ -6928,7 +6982,13 @@ export class OpenMatesClient {
    * Get the session for file upload authentication.
    */
   getSession(): import("./storage.js").OpenMatesSession {
-    return this.requireSession();
+    const session = this.requireSession();
+    const currentCookies = this.http.getCookieMap();
+    if (JSON.stringify(session.cookies) !== JSON.stringify(currentCookies)) {
+      session.cookies = currentCookies;
+      saveSession(session);
+    }
+    return session;
   }
 
   // ── Share link creation ──────────────────────────────────────────────
@@ -7559,6 +7619,7 @@ export class OpenMatesClient {
     let totalChatCount = 0;
     let reconciliation: AuthoritativeChatReconciliation = { authoritative: false };
     const pendingAIResponses: PendingAIResponseFrame[] = [];
+    let pendingTaskUpdateJobs: PendingTaskUpdateJobFrame[] = [];
 
     try {
       // Send phase:all so the server runs all sync phases over a single WS
@@ -7641,6 +7702,7 @@ export class OpenMatesClient {
           pendingAIResponses.push(frame.payload as PendingAIResponseFrame);
         }
       }
+      pendingTaskUpdateJobs = ws.drainPassiveTaskUpdateJobs();
 
       // Attach collected messages to their chat metadata entries.
       for (const chat of chats) {
@@ -7751,10 +7813,26 @@ export class OpenMatesClient {
           : 0),
     );
 
+    let persistedTaskJobIds = new Set<string>();
     try {
       await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses);
+      persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
+        ws,
+        jobs: pendingTaskUpdateJobs,
+        events: [],
+        activeChatId: null,
+        activeChatKeyBytes: null,
+        fallbackUserMessageId: null,
+        syncedChats: chats,
+        requireActiveTurnEvent: false,
+      });
     } finally {
       ws.close();
+    }
+
+    if (persistedTaskJobIds.size > 0) {
+      clearSyncCache();
+      return this.ensureSynced(true, refreshChatIds);
     }
 
     const cache: SyncCache = {

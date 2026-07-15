@@ -7,6 +7,7 @@
 
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { text } from '@repo/ui';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { fetchAndDecryptImage } from '../images/imageEmbedCrypto';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -31,8 +32,16 @@
     showChatButton = false, onShowChat,
   }: Props = $props();
   const content = $derived(data.decodedContent);
-  const prompt = $derived(typeof content.prompt === 'string' ? content.prompt : 'Generated 3D model');
+  const skillName = $derived($text('app_skills.models3d.generate'));
+  const prompt = $derived(typeof content.prompt === 'string' ? content.prompt : skillName);
   const providerModel = $derived(typeof content.provider_model === 'string' ? content.provider_model : '');
+  const posterUrl = $derived(
+    typeof content.poster_url === 'string'
+      ? content.poster_url
+      : typeof content.posterUrl === 'string'
+        ? content.posterUrl
+        : '',
+  );
   const s3BaseUrl = $derived(typeof content.s3_base_url === 'string' ? content.s3_base_url : '');
   const aesKey = $derived(typeof content.aes_key === 'string' ? content.aes_key : '');
   const poster = $derived(
@@ -40,20 +49,20 @@
       ? (content.files as { poster?: PosterFile }).poster
       : undefined,
   );
-  let posterUrl = $state<string>();
+  let decryptedPosterUrl = $state<string>();
   let posterError = $state<string>();
 
   $effect(() => {
-    if (posterUrl || !poster?.s3_key || !poster.aes_nonce || !aesKey) return;
+    if (posterUrl || decryptedPosterUrl || !poster?.s3_key || !poster.aes_nonce || !aesKey) return;
     void loadPoster(poster);
   });
 
-  onDestroy(() => posterUrl && URL.revokeObjectURL(posterUrl));
+  onDestroy(() => decryptedPosterUrl && URL.revokeObjectURL(decryptedPosterUrl));
 
   async function loadPoster(file: PosterFile) {
     try {
       const image = await fetchAndDecryptImage(s3BaseUrl, file.s3_key, aesKey, file.aes_nonce ?? '');
-      posterUrl = URL.createObjectURL(image);
+      decryptedPosterUrl = URL.createObjectURL(image);
     } catch (caught) {
       posterError = caught instanceof Error ? caught.message : 'Failed to load model preview';
     }
@@ -79,12 +88,12 @@
 >
   {#snippet content()}
     <div class="model-fullscreen" data-testid="models3d-generate-fullscreen">
-      {#if posterUrl}
-        <img src={posterUrl} alt={prompt} />
+      {#if posterUrl || decryptedPosterUrl}
+        <img src={posterUrl || decryptedPosterUrl} alt={prompt} />
       {:else if posterError}
         <p>{posterError}</p>
       {:else}
-        <p>Loading model preview...</p>
+        <p>{skillName}</p>
       {/if}
     </div>
   {/snippet}

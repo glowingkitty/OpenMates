@@ -159,7 +159,7 @@ async def test_download_glb_rejects_wrong_magic_and_oversize() -> None:
     [
         (_glb(version=1), "model/gltf-binary", "version"),
         (_glb({"asset": {"version": "2.0"}, "buffers": [{"uri": "https://example.test/x.bin"}]}), "model/gltf-binary", "external"),
-        (VALID_GLB, "text/html", "content type"),
+        (b"<html>not a glb</html>", "text/html", "GLB"),
     ],
 )
 async def test_download_glb_rejects_unsafe_container_variants(
@@ -174,6 +174,18 @@ async def test_download_glb_rejects_unsafe_container_variants(
     try:
         with pytest.raises(Hi3DProviderError, match=message):
             await client.download_glb(DOWNLOAD_URL)
+    finally:
+        await http_client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_download_glb_accepts_provider_misreported_content_type() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=VALID_GLB, headers={"content-type": "text/plain"})
+
+    client, http_client = _client(httpx.MockTransport(handler))
+    try:
+        assert await client.download_glb(DOWNLOAD_URL) == VALID_GLB
     finally:
         await http_client.aclose()
 
@@ -212,7 +224,7 @@ async def test_download_cover_validates_provider_image_and_returns_mime_type() -
     ("payload", "content_type", "message"),
     [
         (b"not-an-image", "image/webp", "image"),
-        (b"not-an-image", "text/html", "content type"),
+        (b"<html>not an image</html>", "text/html", "image"),
     ],
 )
 async def test_download_cover_rejects_invalid_image_content(
@@ -229,6 +241,25 @@ async def test_download_cover_rejects_invalid_image_content(
             await client.download_cover(COVER_URL)
     finally:
         await http_client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_download_cover_accepts_provider_misreported_content_type() -> None:
+    image = Image.new("RGB", (4, 4), color=(32, 64, 128))
+    output = BytesIO()
+    image.save(output, format="WEBP")
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=output.getvalue(), headers={"content-type": "text/plain"})
+
+    client, http_client = _client(httpx.MockTransport(handler))
+    try:
+        content, mime_type = await client.download_cover(COVER_URL)
+    finally:
+        await http_client.aclose()
+
+    assert content == output.getvalue()
+    assert mime_type == "image/webp"
 
 
 @pytest.mark.asyncio

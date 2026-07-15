@@ -135,7 +135,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 0e72d2dc6
+  subject_commit: working-tree-dcc5b3669
 
 approvals:
   product_contract:
@@ -200,16 +200,31 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-07-11T21:30:00Z"
     reason: The task returned a valid 25.3 MB GLB and poster; both URLs were validated and sent to Discord.
+  - id: ATTEMPT-2
+    task_id: TASK-6
+    approach: Fix the blocking web build import and verify the static models3d poster example can compile and build.
+    outcome: succeeded
+    recorded_at: "2026-07-15T00:35:31Z"
+    reason: "`npm run build` in `frontend/apps/web_app` passed after changing `WorkflowVersionHistory.svelte` to import `text` from `i18n/translations`."
+  - id: ATTEMPT-3
+    task_id: TASK-5
+    approach: Refresh focused backend and CLI regression evidence for the implemented models3d increment.
+    outcome: blocked
+    recorded_at: "2026-07-15T00:35:31Z"
+    reason: "Provider/storage/generate pytest checks and CLI client tests passed; print-export collection is still blocked in the local Python environment by missing `celery`."
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Write and run the models3d generate-task red contract for text/image routing, cache fallback, billing, and artifact persistence.
-  command: python3 -m pytest backend/tests/test_models3d_generate_task.py
-  expected_outcome: The test fails because the shared image-default seam and models3d generate task do not exist yet.
+  current_task_id: TASK-5
+  next_action: Deploy the current incremental models3d backend/CLI/static-web-example work, then resolve the remaining approved full-spec gates.
+  command: python3 scripts/spec_verify.py docs/specs/models3d-generate/spec.yml --json
+  expected_outcome: Verification remains incomplete until real CLI generation, npm/pip parity, benchmark, Playwright, print artifact review, user approval, and Apple evidence are either passed or explicitly rescoped.
   blocker:
-    reason: Web remains blocked until two real CLI-generated Hi3D outputs pass optimization, streaming, and visual artifact review.
-    next_action: Complete TASK-2 and CLI/SDK contracts, generate two real outputs, then run T-BENCH-001 before TASK-6.
-  last_verified_commit: 0e72d2dc6
+    task_id: TASK-5
+    requires_user_input: true
+    reason: The approved spec still requires real end-to-end CLI generation/benchmark evidence, npm and pip parity evidence, deployed Playwright evidence, print artifact review, explicit deployed-web user confirmation, and Apple evidence. Those gates are not satisfied by the current static poster example and focused backend/CLI regression checks.
+    question: Should the remaining full-spec gates be implemented next, or should the product contract be explicitly split/waived into a smaller verified static-example milestone?
+    next_action: Either continue implementing the missing gates or record a user-approved rescope before marking the spec verified.
+  last_verified_commit: working-tree-dcc5b3669
 
 scenarios:
   - id: S-1
@@ -504,11 +519,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py
-        run_id: local-pytest-models3d-foundations-20260711T233339Z
-        subject_commit: 0e72d2dc6
-        timestamp: "2026-07-11T23:33:39Z"
-        summary: Provider, GLB safety, chunked AEAD, and print validation foundations passed.
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_generate_task.py -q
+        run_id: local-pytest-models3d-provider-storage-generate-20260715T003700Z
+        subject_commit: working-tree-dcc5b3669
+        timestamp: "2026-07-15T00:37:00Z"
+        summary: Hi3D provider, generated-model storage, and models3d generation-task contracts passed with 40 tests.
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_models3d_generate_task.py
@@ -521,7 +536,16 @@ tests:
       - billing preflight and success/failure charging are correct
       - master, preview, and poster are encrypted and indexed
     red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_generate_task.py -q
+        run_id: local-pytest-models3d-provider-storage-generate-20260715T003700Z
+        subject_commit: working-tree-dcc5b3669
+        timestamp: "2026-07-15T00:37:00Z"
+        summary: Hi3D provider, generated-model storage, and models3d generation-task contracts passed with 40 tests.
   - id: T-PYTEST-003
     type: pytest
     file: backend/tests/test_generated_model_storage.py
@@ -546,11 +570,11 @@ tests:
       expected: pass
       evidence:
         status: passed
-        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py
-        run_id: local-pytest-models3d-foundations-20260711T233339Z
-        subject_commit: 0e72d2dc6
-        timestamp: "2026-07-11T23:33:39Z"
-        summary: Chunked authenticated-encryption framing, corruption, truncation, frame bounds, and trailing-data tests passed.
+        command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_generate_task.py -q
+        run_id: local-pytest-models3d-provider-storage-generate-20260715T003700Z
+        subject_commit: working-tree-dcc5b3669
+        timestamp: "2026-07-15T00:37:00Z"
+        summary: Hi3D provider, generated-model storage, and models3d generation-task contracts passed with 40 tests.
   - id: T-PYTEST-004
     type: pytest
     file: backend/tests/test_models3d_print_exports.py
@@ -574,12 +598,13 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: passed
+        status: blocked
         command: python3 -m pytest backend/tests/test_hi3d_provider.py backend/tests/test_generated_model_storage.py backend/tests/test_models3d_print_exports.py
-        run_id: local-pytest-models3d-foundations-20260711T233339Z
-        subject_commit: 0e72d2dc6
-        timestamp: "2026-07-11T23:33:39Z"
-        summary: STL/3MF structure, manifoldness, units metadata, material metadata, and archive limit tests passed.
+        reason: "Local collection fails because this Python environment lacks `celery`, which is imported through `backend.apps.models3d.tasks.__init__` before `export_print_task` can be collected."
+        actor: opencode
+        timestamp: "2026-07-15T00:37:00Z"
+        next_action: Run the print-export tests in the backend/container test environment or decouple the print validator import from Celery task package initialization.
+        summary: "`test_models3d_print_exports.py` was attempted locally and blocked at collection by `ModuleNotFoundError: No module named 'celery'`."
   - id: T-AUDIT-001
     type: lint
     file: scripts/audit_app_provider_contracts.py
@@ -599,7 +624,16 @@ tests:
         subject_commit: 0e72d2dc6
         timestamp: "2026-07-11T23:50:23Z"
         summary: Hi3D metadata and all disclosure surfaces pass individually; the full audit remains red because canonical backend/apps/models3d/app.yml is not implemented yet.
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_app_provider_contracts.py --require-app models3d --require-provider hi3d
+        run_id: local-app-provider-audit-models3d-hi3d-20260715T003800Z
+        subject_commit: working-tree-dcc5b3669
+        timestamp: "2026-07-15T00:38:00Z"
+        summary: Canonical models3d app metadata and Hi3D provider/privacy/training metadata pass the deterministic provider contract audit.
   - id: T-BENCH-001
     type: lint
     file: scripts/api_tests/benchmark_models3d_assets.py
@@ -619,12 +653,13 @@ tests:
         run_id: user-approved-two-real-outputs-20260712T003100Z
         subject_commit: 5cf9fe4
         timestamp: "2026-07-12T00:31:00Z"
+        reason: The benchmark requires real CLI-generated Hi3D output files, which did not exist before the backend and CLI generation flow was implemented.
         summary: The two real output files cannot exist until the backend skill and CLI generation flow are implemented.
     green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-CLI-001
     type: unit
     file: frontend/packages/openmates-cli/tests/cli.test.ts
-    command: python3 scripts/verify_parity.py --run --cli models3d-generate-text --skip-web --apple skip --skip-apple "Web and Apple are later gated phases"
+    command: python3 scripts/tests.py run --suite cli
     covers: [AC-1, AC-14]
     assertions:
       - text generation reaches finished and exposes reference, metadata, and GLB download
@@ -633,12 +668,22 @@ tests:
   - id: T-CLI-002
     type: unit
     file: frontend/packages/openmates-cli/tests/cli.test.ts
-    command: python3 scripts/verify_parity.py --run --cli models3d-generate-image --skip-web --apple skip --skip-apple "Web and Apple are later gated phases"
+    command: python3 scripts/tests.py run --suite cli
     covers: [AC-2, AC-3, AC-14]
     assertions:
       - single and multi-view requests finish and download valid GLB
     red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: blocked
+        command: python3 scripts/tests.py run --suite cli
+        reason: "The current passing CLI regression (`node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts`) proves app-skill polling/auth recovery but not the approved real single/multi-view generate-and-download contract."
+        actor: opencode
+        timestamp: "2026-07-15T00:38:00Z"
+        next_action: Add and run the real dev-server CLI image-generation contract before marking T-CLI-002 green.
+        summary: CLI client regression passed locally with 32 tests, but the approved real generation contract remains unproven.
   - id: T-NPM-001
     type: unit
     file: frontend/packages/openmates-cli/tests/sdk.test.ts
@@ -647,7 +692,17 @@ tests:
     assertions:
       - client.apps.models3d.generate maps exact request and async result contract
     red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: blocked
+        command: python3 scripts/tests.py run --suite cli-integration --test npm-sdk-models3d-generate
+        reason: npm SDK parity for the full approved models3d generate contract was not run in this increment.
+        actor: opencode
+        timestamp: "2026-07-15T00:38:00Z"
+        next_action: Run the npm SDK parity gate after real CLI generation is green.
+        summary: SDK parity remains a required follow-up gate.
   - id: T-PIP-001
     type: unit
     file: packages/openmates-python/tests/test_sdk.py
@@ -864,7 +919,7 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Update Hi3D privacy, provider metadata, and docs
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-10], acceptance_criteria: [AC-12]}
     expected_files: [shared/docs/privacy_policy.yml, shared/docs/provider_training_policies.yml, frontend/packages/ui/src/i18n/sources/legal/privacy.yml, frontend/packages/ui/src/legal/buildLegalContent.ts, frontend/packages/ui/src/legal/documents/privacy-policy.ts, frontend/packages/ui/src/config/links.ts, backend/providers/hi3d.yml]
@@ -877,8 +932,8 @@ tasks:
     independently_deployable: false
   - id: TASK-5
     title: Implement and verify CLI, npm SDK, and pip SDK in order
-    status: pending
-    phase: blocked
+    status: in_progress
+    phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-11], acceptance_criteria: [AC-1, AC-2, AC-3, AC-14]}
     expected_files: [frontend/packages/openmates-cli/src/generated/appSkills.ts, frontend/packages/openmates-cli/src/embedRenderers.ts, frontend/packages/openmates-cli/tests/cli.test.ts, frontend/packages/openmates-cli/tests/sdk.test.ts, packages/openmates-python/openmates/generated/app_skills.py, packages/openmates-python/tests/test_sdk.py]
     verification: [T-CLI-001, T-CLI-002, T-NPM-001, T-PIP-001, T-BENCH-001, T-ORDER-001]

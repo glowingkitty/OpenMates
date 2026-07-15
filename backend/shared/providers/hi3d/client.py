@@ -31,8 +31,6 @@ DEFAULT_POLL_INTERVAL_SECONDS = 10.0
 DEFAULT_MAX_POLLS = 120
 _VIEW_ORDER = (Hi3DView.FRONT, Hi3DView.BACK, Hi3DView.LEFT, Hi3DView.RIGHT)
 _ALLOWED_DOWNLOAD_HOST_SUFFIXES = (".zaohaowu.net", ".hitem3d.ai", ".hi3d.ai")
-_ALLOWED_GLB_CONTENT_TYPES = {"application/octet-stream", "model/gltf-binary"}
-_ALLOWED_COVER_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 _PIL_TO_MIME_TYPE = {
     "JPEG": "image/jpeg",
     "PNG": "image/png",
@@ -230,9 +228,6 @@ class Hi3DClient:
                         continue
                     response.raise_for_status()
                     self._validate_download_url(str(response.url))
-                    content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
-                    if content_type not in _ALLOWED_GLB_CONTENT_TYPES:
-                        raise Hi3DProviderError("Hi3D GLB has an invalid content type")
                     async for chunk in response.aiter_bytes():
                         content.extend(chunk)
                         if len(content) > max_bytes:
@@ -274,9 +269,6 @@ class Hi3DClient:
                         continue
                     response.raise_for_status()
                     self._validate_download_url(str(response.url))
-                    content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
-                    if content_type not in _ALLOWED_COVER_CONTENT_TYPES:
-                        raise Hi3DProviderError("Hi3D cover has an invalid content type")
                     async for chunk in response.aiter_bytes():
                         content.extend(chunk)
                         if len(content) > max_bytes:

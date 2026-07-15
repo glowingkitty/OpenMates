@@ -1,0 +1,204 @@
+title:
+  context: "Title of example chat: Reference Image to 3D Model"
+  en: "Reference Image to 3D Model"
+  de: "Referenzbild zu 3D-Modell"
+  zh: "Reference Image to 3D Model"
+  es: "Reference Image to 3D Model"
+  fr: "Reference Image to 3D Model"
+  pt: "Reference Image to 3D Model"
+  ru: "Reference Image to 3D Model"
+  ja: "Reference Image to 3D Model"
+  ko: "Reference Image to 3D Model"
+  it: "Reference Image to 3D Model"
+  tr: "Reference Image to 3D Model"
+  vi: "Reference Image to 3D Model"
+  id: "Reference Image to 3D Model"
+  pl: "Reference Image to 3D Model"
+  nl: "Reference Image to 3D Model"
+  ar: "Reference Image to 3D Model"
+  hi: "Reference Image to 3D Model"
+  th: "Reference Image to 3D Model"
+  cs: "Reference Image to 3D Model"
+  sv: "Reference Image to 3D Model"
+  he: "Reference Image to 3D Model"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Reference Image to 3D Model"
+  en: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  de: "Ein Beispiel für 3D-Generierung, das ein Referenzbild in eine texturierte GLB-Modellvorschau verwandelt."
+  zh: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  es: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  fr: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  pt: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  ru: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  ja: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  ko: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  it: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  tr: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  vi: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  id: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  pl: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  nl: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  ar: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  hi: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  th: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  cs: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  sv: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  he: "A 3D generation example that turns a reference image into a textured GLB model preview."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Reference Image to 3D Model. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  de: "@skill:models3d:generate Verwandle dieses Referenzbild in ein texturiertes 3D-GLB-Modell, das sich für ein Produkt-Mockup eignet."
+  zh: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  es: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  fr: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  pt: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  ru: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  ja: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  ko: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  it: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  tr: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  vi: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  id: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  pl: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  nl: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  ar: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  hi: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  th: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  cs: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  sv: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  he: "@skill:models3d:generate Turn this reference image into a textured 3D GLB model suitable for a product mockup."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Reference Image to 3D Model. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    Ich habe aus dem Referenzbild ein texturiertes GLB-Modell erstellt und die 3D-Modellvorschau oben angehängt.
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"85716124-48d5-4c4c-9919-3126b733b41e","app_id":"models3d","skill_id":"generate"}
+    ```
+
+    I generated a textured GLB model from the reference image and attached the 3D model preview above.
+  verified_by_human: []

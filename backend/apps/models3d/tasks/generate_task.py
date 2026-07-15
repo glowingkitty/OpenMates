@@ -18,7 +18,7 @@ from typing import Any, AsyncIterator
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.apps.models3d.billing import charge_model_generation_credits
-from backend.apps.models3d.preview import optimize_preview_glb
+from backend.apps.models3d.preview import ModelPreviewOptimizationError, optimize_preview_glb
 from backend.apps.models3d.storage import (
     build_master_variant_metadata,
     build_poster_variant_metadata,
@@ -129,7 +129,17 @@ async def _async_generate_model(
         if not result.cover_url:
             raise RuntimeError("Hi3D result did not include a preview cover")
         poster_image, poster_mime_type = await client.download_cover(result.cover_url)
-    preview_glb = await asyncio.to_thread(optimize_preview_glb, master_glb)
+    preview_optimized = True
+    try:
+        preview_glb = await asyncio.to_thread(optimize_preview_glb, master_glb)
+    except ModelPreviewOptimizationError as exc:
+        logger.warning(
+            "%s Preview optimization failed; storing validated master GLB as the interactive preview derivative: %s",
+            log_prefix,
+            exc,
+        )
+        preview_glb = master_glb
+        preview_optimized = False
 
     aes_key = os.urandom(32)
     poster_nonce = os.urandom(12)
@@ -145,7 +155,7 @@ async def _async_generate_model(
     await task._s3_service.upload_file_stream(
         bucket_key="chatfiles",
         file_key=master_s3_key,
-        source=encrypt_chunked_stream(_bytes_source(master_glb), key=aes_key),
+        source=encrypt_chunked_stream(_bytes_source(master_glb), key=aes_key, chunk_size=MASTER_CHUNK_SIZE),
         content_type="application/octet-stream",
     )
     poster_extension = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[poster_mime_type]
@@ -174,7 +184,12 @@ async def _async_generate_model(
             **build_poster_variant_metadata(poster_s3_key, len(poster_image), poster_mime_type),
             "aes_nonce": poster_nonce_b64,
         },
-        "preview": build_preview_variant_metadata(preview_s3_key, len(preview_glb), preview_nonce_b64),
+        "preview": build_preview_variant_metadata(
+            preview_s3_key,
+            len(preview_glb),
+            preview_nonce_b64,
+            optimized=preview_optimized,
+        ),
     }
     s3_base_url = f"https://{bucket_name}.{task._s3_service.base_domain}"
     now_ts = int(datetime.now(timezone.utc).timestamp())
@@ -201,18 +216,28 @@ async def _async_generate_model(
         raise RuntimeError("Failed to index generated model")
     await cache_s3_file_keys(task, embed_id=embed_id, files_metadata=files_metadata, log_prefix=log_prefix)
     user_id_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
-    await charge_model_generation_credits(
-        user_id=user_id,
-        user_id_hash=user_id_hash,
-        app_id=app_id,
-        skill_id=skill_id,
-        credits=estimated_credits,
-        chat_id=chat_id,
-        message_id=message_id,
-        api_key_hash=str(api_key_hash) if api_key_hash else None,
-        device_hash=str(device_hash) if device_hash else None,
-        log_prefix=log_prefix,
-    )
+    billing_status = "charged"
+    try:
+        await charge_model_generation_credits(
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            app_id=app_id,
+            skill_id=skill_id,
+            credits=estimated_credits,
+            chat_id=chat_id,
+            message_id=message_id,
+            api_key_hash=str(api_key_hash) if api_key_hash else None,
+            device_hash=str(device_hash) if device_hash else None,
+            log_prefix=log_prefix,
+        )
+    except Exception as exc:
+        billing_status = "failed"
+        logger.error(
+            "%s Model artifacts were persisted but usage billing failed; returning result with billing_status=failed: %s",
+            log_prefix,
+            exc,
+            exc_info=True,
+        )
 
     content = {
         "type": "model3d",
@@ -227,6 +252,7 @@ async def _async_generate_model(
         "aes_nonce": "",
         "vault_wrapped_aes_key": wrapped_key,
         "input_embed_ids": [str(item.get("embed_id") or "") for item in ordered_inputs],
+        "billing_status": billing_status,
     }
     from toon_format import encode as toon_encode
 
@@ -251,6 +277,7 @@ async def _async_generate_model(
     return {
         "embed_id": embed_id,
         "status": "finished",
+        "billing_status": billing_status,
         "files": {
             variant_name: {
                 **metadata,

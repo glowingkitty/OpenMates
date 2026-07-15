@@ -109,14 +109,10 @@ class DedupedTask(Task):
             logger.warning(
                 f"[Task {self.name} ID:{task_id}] DEDUP: Duplicate task "
                 f"execution detected. Skipping to prevent double processing "
-                f"and double charging."
+                f"and double charging. Existing task state/result will be "
+                f"preserved."
             )
-            return {
-                "status": "deduplicated_skip",
-                "task_id": task_id,
-                "task_name": self.name,
-                "_celery_task_state": "SUCCESS",
-            }
+            raise Ignore()
 
         logger.debug(
             f"[Task {self.name} ID:{task_id}] DEDUP: Acquired processing "

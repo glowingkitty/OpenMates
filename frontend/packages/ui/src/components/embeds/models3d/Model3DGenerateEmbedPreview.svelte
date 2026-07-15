@@ -16,6 +16,7 @@
     id: string;
     prompt?: string;
     providerModel?: string;
+    posterUrl?: string;
     s3BaseUrl?: string;
     files?: { poster?: ModelFile };
     aesKey?: string;
@@ -27,25 +28,25 @@
   }
 
   let {
-    id, prompt = '', providerModel = '', s3BaseUrl = '', files, aesKey = '',
+    id, prompt = '', providerModel = '', posterUrl = '', s3BaseUrl = '', files, aesKey = '',
     status, error = '', taskId, isMobile = false, onFullscreen,
   }: Props = $props();
-  let posterUrl = $state<string>();
+  let decryptedPosterUrl = $state<string>();
   let posterError = $state<string>();
   const skillName = $text('app_skills.models3d.generate');
 
   $effect(() => {
     const poster = files?.poster;
-    if (status !== 'finished' || posterUrl || !poster?.s3_key || !poster.aes_nonce || !aesKey) return;
+    if (status !== 'finished' || posterUrl || decryptedPosterUrl || !poster?.s3_key || !poster.aes_nonce || !aesKey) return;
     void loadPoster(poster);
   });
 
-  onDestroy(() => posterUrl && URL.revokeObjectURL(posterUrl));
+  onDestroy(() => decryptedPosterUrl && URL.revokeObjectURL(decryptedPosterUrl));
 
   async function loadPoster(poster: ModelFile) {
     try {
       const image = await fetchAndDecryptImage(s3BaseUrl, poster.s3_key, aesKey, poster.aes_nonce ?? '');
-      posterUrl = URL.createObjectURL(image);
+      decryptedPosterUrl = URL.createObjectURL(image);
     } catch (caught) {
       posterError = caught instanceof Error ? caught.message : 'Failed to load model preview';
     }
@@ -66,8 +67,8 @@
 >
   {#snippet details()}
     <div class="model-preview" data-testid="models3d-generate-preview">
-      {#if posterUrl}
-        <img src={posterUrl} alt={prompt || skillName} />
+      {#if posterUrl || decryptedPosterUrl}
+        <img src={posterUrl || decryptedPosterUrl} alt={prompt || skillName} />
       {:else if posterError}
         <p>{posterError}</p>
       {:else}

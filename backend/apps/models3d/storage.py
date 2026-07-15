@@ -38,15 +38,26 @@ def build_poster_variant_metadata(s3_key: str, size_bytes: int, mime_type: str) 
     }
 
 
-def build_preview_variant_metadata(s3_key: str, size_bytes: int, nonce_b64: str) -> dict[str, Any]:
+def build_preview_variant_metadata(
+    s3_key: str,
+    size_bytes: int,
+    nonce_b64: str,
+    *,
+    optimized: bool = True,
+) -> dict[str, Any]:
     """Return metadata for the bounded, separately encrypted interactive GLB."""
     if not nonce_b64:
         raise ValueError("Interactive model preview requires an encryption nonce")
-    return {
+    metadata: dict[str, Any] = {
         "s3_key": s3_key,
         "size_bytes": size_bytes,
         "format": "glb",
         "mime_type": "model/gltf-binary",
         "aes_nonce": nonce_b64,
-        "compression": {"geometry": "meshopt", "textures": "webp"},
+        "optimized": optimized,
     }
+    if optimized:
+        metadata["compression"] = {"geometry": "meshopt", "textures": "webp"}
+    else:
+        metadata["fallback_reason"] = "preview_optimization_failed"
+    return metadata

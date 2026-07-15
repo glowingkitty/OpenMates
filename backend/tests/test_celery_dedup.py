@@ -252,3 +252,22 @@ class TestDedupedTaskOnRetry:
                 einfo=None,
             )
             mock_release.assert_not_called()
+
+    def test_duplicate_delivery_ignores_without_overwriting_result(self):
+        """Duplicate deliveries should not store a SUCCESS dedup payload."""
+        from celery.exceptions import Ignore
+        from backend.core.api.app.tasks.base_task import DedupedTask
+
+        task = DedupedTask()
+        task.name = "test.task"
+        task.push_request(id="duplicate-test-id-007")
+
+        try:
+            with patch(
+                "backend.core.api.app.tasks.base_task.acquire_celery_task_dedup_lock",
+                return_value=False,
+            ):
+                with pytest.raises(Ignore):
+                    task()
+        finally:
+            task.pop_request()

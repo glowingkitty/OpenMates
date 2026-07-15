@@ -42,6 +42,7 @@ import { lh400FlightStatusCheckChat } from "./data/example_chats/lh400-flight-st
 import { berlinDermatologyAppointmentsChat } from "./data/example_chats/berlin-dermatology-appointments";
 import { productLaunchSynthLoopChat } from "./data/example_chats/product-launch-synth-loop";
 import { privateWorkspaceDemoVideoChat } from "./data/example_chats/private-workspace-demo-video";
+import { referenceImage3DModelChat } from "./data/example_chats/reference-image-3d-model";
 import { upcomingRemindersListChat } from "./data/example_chats/upcoming-reminders-list";
 import { cancelTestReminderChat } from "./data/example_chats/cancel-test-reminder";
 import { fediverseActivitypubSocialSearchChat } from "./data/example_chats/fediverse-activitypub-social-search";
@@ -134,6 +135,7 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   berlinDermatologyAppointmentsChat,
   productLaunchSynthLoopChat,
   privateWorkspaceDemoVideoChat,
+  referenceImage3DModelChat,
   upcomingRemindersListChat,
   cancelTestReminderChat,
   fediverseActivitypubSocialSearchChat,

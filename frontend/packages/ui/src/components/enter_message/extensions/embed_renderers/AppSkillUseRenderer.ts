@@ -40,6 +40,7 @@ import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPr
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerateEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
 import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
@@ -744,6 +745,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status,
         });
         return this.renderMusicGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "models3d" && skillId === "generate") {
+        console.debug("[AppSkillUseRenderer] Rendering models3d generate for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderModel3DGenerateComponent(
           attrs,
           embedData,
           decodedContent,
@@ -3146,6 +3162,87 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (mountError) {
       console.error(
         "[AppSkillUseRenderer] Error mounting MusicGenerateEmbedPreview component:",
+        mountError,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render generated 3D model embeds with the dedicated poster preview.
+   */
+  private renderModel3DGenerateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+
+    const prompt = decodedContent?.prompt || "";
+    const providerModel = decodedContent?.provider_model || decodedContent?.model || "";
+    const posterUrl = decodedContent?.posterUrl || decodedContent?.poster_url || "";
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const error = decodedContent?.error || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(Model3DGenerateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          prompt,
+          providerModel,
+          posterUrl,
+          s3BaseUrl,
+          files,
+          aesKey,
+          status: status as "processing" | "finished" | "error",
+          error,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+
+      console.debug(
+        "[AppSkillUseRenderer] Mounted Model3DGenerateEmbedPreview component:",
+        {
+          embedId,
+          status,
+          prompt: prompt.substring(0, 30) + "...",
+        },
+      );
+    } catch (mountError) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting Model3DGenerateEmbedPreview component:",
         mountError,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

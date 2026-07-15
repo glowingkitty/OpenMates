@@ -192,9 +192,23 @@ def test_preview_variant_records_its_own_encryption_nonce() -> None:
     metadata = build_preview_variant_metadata("users/user-1/models/preview.glb.enc", 456, "nonce-b64")
 
     assert metadata["aes_nonce"] == "nonce-b64"
+    assert metadata["optimized"] is True
     assert metadata["compression"] == {"geometry": "meshopt", "textures": "webp"}
     with pytest.raises(ValueError, match="encryption nonce"):
         build_preview_variant_metadata("users/user-1/models/preview.glb.enc", 456, "")
+
+
+def test_preview_variant_records_unoptimized_fallback_truthfully() -> None:
+    metadata = build_preview_variant_metadata(
+        "users/user-1/models/preview.glb.enc",
+        456,
+        "nonce-b64",
+        optimized=False,
+    )
+
+    assert metadata["optimized"] is False
+    assert metadata["fallback_reason"] == "preview_optimization_failed"
+    assert "compression" not in metadata
 
 
 def test_malformed_view_object_fails_before_dispatch() -> None:
