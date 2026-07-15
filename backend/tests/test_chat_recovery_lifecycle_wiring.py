@@ -171,3 +171,23 @@ def test_final_chunk_orders_recovery_discovery_before_completion_frames() -> Non
     assert background_branch.index("send_available_recovery_jobs") < background_branch.index(
         'message={"type": "ai_background_response_completed", "payload": background_completion_payload}'
     )
+
+
+def test_legacy_cutover_is_authorized_before_final_stream_marker() -> None:
+    source = _function_source(
+        "backend/apps/ai/tasks/stream_consumer.py",
+        "_consume_main_processing_stream",
+    )
+    helper_source = _function_source(
+        "backend/apps/ai/tasks/stream_consumer.py",
+        "_finalize_legacy_cutover_before_final_marker",
+    )
+
+    assert "_finalize_legacy_cutover_before_final_marker" in source
+    assert source.index("_finalize_legacy_cutover_before_final_marker") < source.index(
+        "Published final marker"
+    )
+    assert '"mark_legacy_inference_completed"' in helper_source
+    assert "billing_error" in helper_source
+    assert "was_revoked_during_stream" in helper_source
+    assert "was_soft_limited_during_stream" in helper_source

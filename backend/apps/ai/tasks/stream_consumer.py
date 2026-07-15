@@ -84,6 +84,42 @@ SUB_CHAT_PENDING_KEY_PREFIX = "sub_chat_pending"
 SUB_CHAT_PARENT_STATUS_MESSAGE = "I've started the sub-chats and will continue once they finish."
 
 
+async def _finalize_legacy_cutover_before_final_marker(
+    *,
+    request_data: AskSkillRequest,
+    billing_error: Optional[BaseException],
+    was_revoked_during_stream: bool,
+    was_soft_limited_during_stream: bool,
+    log_prefix: str,
+) -> None:
+    if (
+        request_data.is_incognito
+        or request_data.is_external
+        or request_data.recovery_task_id
+        or not request_data.legacy_cutover_task_id
+        or billing_error
+        or was_revoked_during_stream
+        or was_soft_limited_during_stream
+    ):
+        return
+
+    directus_service = DirectusService()
+    try:
+        await ChatRecoveryService(directus_service).execute(
+            "mark_legacy_inference_completed",
+            {
+                "protocol_version": 1,
+                "task_identity": request_data.legacy_cutover_task_id,
+            },
+        )
+        logger.info(
+            "%s Marked legacy recovery admission complete before final stream marker.",
+            log_prefix,
+        )
+    finally:
+        await directus_service.close()
+
+
 def _resolve_wikipedia_validation_language(
     request_data: AskSkillRequest,
     preprocessing_result: PreprocessingResult,
@@ -8417,7 +8453,17 @@ async def _consume_main_processing_stream(
     elif not user_vault_key_id:
         logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
 
-    # Publish final marker only after the AI cache write has been attempted.
+    await _finalize_legacy_cutover_before_final_marker(
+        request_data=request_data,
+        billing_error=billing_error,
+        was_revoked_during_stream=was_revoked_during_stream,
+        was_soft_limited_during_stream=was_soft_limited_during_stream,
+        log_prefix=log_prefix,
+    )
+
+    # Publish final marker only after the AI cache write has been attempted and
+    # legacy recovery admission is authorized. The browser sends
+    # ai_response_completed as soon as it sees this marker.
     # CLI follow-up commands start the next process as soon as they see this final
     # frame; publishing it first lets the next turn build history before the prior
     # assistant message's embed reference is available for diff editing.

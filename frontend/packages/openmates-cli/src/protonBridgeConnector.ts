@@ -187,9 +187,12 @@ export function buildProtonBridgeInstallGuidance(platform: ProtonConnectorPlatfo
   }
   return [
     "Proton Mail Bridge is required for local Proton Mail access.",
-    "Install Proton's official DEB, RPM, or PKGBUILD package for your distribution.",
-    "Verify downloaded Linux packages using Proton's published package-signature process before installing.",
+    "For Debian/Ubuntu, follow Proton's official DEB instructions: https://proton.me/support/installing-bridge-linux-deb-file",
+    "Current Proton DEB example: wget https://proton.me/download/bridge/protonmail-bridge_3.22.0-1_amd64.deb && sudo apt install ./protonmail-bridge_3.22.0-1_amd64.deb",
+    "For RPM or Arch/PKGBUILD systems, use Proton's current Bridge download/support page and verify the package before installing.",
+    "Package versions change, so prefer Proton's current support page over hardcoded stale package names.",
     "Bridge also requires a supported Linux keychain such as secret-service/GNOME Keyring or pass.",
+    "After installing, run `openmates connect-account proton` again.",
   ].join("\n");
 }
 
