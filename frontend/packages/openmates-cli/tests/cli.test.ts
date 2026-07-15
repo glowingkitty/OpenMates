@@ -1945,6 +1945,48 @@ describe("apps metadata commands", () => {
     });
   });
 
+  it("lists public example chats linked to an app skill as JSON", () => {
+    const output = runCliWithoutSession([
+      "apps", "examples", "travel", "search_connections", "--json",
+    ]);
+    const parsed = JSON.parse(output) as {
+      app_id?: string;
+      skill_id?: string;
+      examples?: Array<{ chat_id?: string; slug?: string; linked_app_skills?: string[]; commands?: Record<string, string> }>;
+    };
+
+    assert.equal(parsed.app_id, "travel");
+    assert.equal(parsed.skill_id, "search_connections");
+    assert.ok(parsed.examples?.some((example) => example.chat_id === "example-flights-berlin-bangkok"));
+    assert.ok(parsed.examples?.every((example) => example.linked_app_skills?.includes("travel.search_connections")));
+    assert.equal(
+      parsed.examples?.find((example) => example.chat_id === "example-flights-berlin-bangkok")?.commands?.show,
+      "openmates chats show example-flights-berlin-bangkok",
+    );
+  });
+
+  it("renders public example chats linked to an app skill in human output", () => {
+    const output = runCliWithoutSession(["apps", "examples", "weather", "rain_radar"]);
+
+    assert.match(output, /Example chats for weather\/rain_radar/);
+    assert.match(output, /example-rostock-heavy-rain-radar/);
+    assert.match(output, /Show: openmates chats show example-rostock-heavy-rain-radar/);
+    assert.match(output, /Open: openmates chats open rostock-heavy-rain-radar/);
+  });
+
+  it("surfaces linked example chats in skill-info output", async () => {
+    await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "skill-info", "weather", "rain_radar",
+      ]);
+
+      assert.match(output, /Example chats/);
+      assert.match(output, /openmates apps examples weather rain_radar/);
+      assert.match(output, /example-rostock-heavy-rain-radar/);
+    });
+  });
+
   it("starts a chat asking for 3D models through the CLI chat command", async () => {
     await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
       const output = await runCliAsync([

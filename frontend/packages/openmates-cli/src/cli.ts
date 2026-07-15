@@ -68,9 +68,12 @@ import {
 } from "./codeRunInput.js";
 import {
   getExampleChatConversation,
+  listExampleChatsForApp,
+  listExampleChatsForSkill,
   listExampleChats,
   searchExampleChats,
   type ExampleChatConversation,
+  type ExampleChatSkillListItem,
 } from "./exampleChats.js";
 import {
   formatInteractiveQuestionAnswer,
@@ -2187,7 +2190,8 @@ async function handleApps(
     flags.help === true &&
     subcommand !== "list" &&
     subcommand !== "info" &&
-    subcommand !== "skill-info"
+    subcommand !== "skill-info" &&
+    subcommand !== "examples"
   ) {
     const potentialApp = subcommand;
     const potentialSkill = rest[0];
@@ -2265,6 +2269,33 @@ async function handleApps(
       printJson(data);
     } else {
       await printSkillInfo(client, appId, data as SkillMetadata);
+    }
+    return;
+  }
+
+  if (subcommand === "examples") {
+    const [appId, skillId] = rest;
+    if (flags.help === true) {
+      printAppsHelp();
+      return;
+    }
+    if (!appId) {
+      console.error("Missing app ID.\n");
+      printAppsHelp();
+      process.exit(1);
+    }
+
+    const examples = skillId
+      ? listExampleChatsForSkill(appId, skillId)
+      : listExampleChatsForApp(appId);
+    if (flags.json === true) {
+      printJson({
+        app_id: appId,
+        skill_id: skillId ?? null,
+        examples: examples.map(exampleChatForSkillToJson),
+      });
+    } else {
+      printExampleChatsForSkill(appId, skillId, examples);
     }
     return;
   }
@@ -5929,6 +5960,12 @@ async function printAppInfo(
           `    \x1b[2mopenmates apps skill-info ${data.id} ${skill.id}  for details\x1b[0m\n`,
         );
       }
+      const exampleCount = listExampleChatsForSkill(data.id, skill.id).length;
+      if (exampleCount > 0) {
+        process.stdout.write(
+          `    \x1b[2mExamples: openmates apps examples ${data.id} ${skill.id} (${exampleCount})\x1b[0m\n`,
+        );
+      }
     }
     console.log();
   }
@@ -6050,6 +6087,73 @@ async function printSkillInfo(
     console.log();
   } else {
     console.log(`\x1b[2mThis skill does not declare input parameters.\x1b[0m`);
+  }
+
+  const examples = listExampleChatsForSkill(appId, data.id);
+  if (examples.length > 0) {
+    console.log();
+    printExampleChatsForSkill(appId, data.id, examples, { compact: true });
+  }
+}
+
+function exampleChatForSkillToJson(example: ExampleChatSkillListItem): Record<string, unknown> {
+  return {
+    chat_id: example.id,
+    short_id: example.shortId,
+    slug: example.slug,
+    title: example.title,
+    summary: example.summary,
+    updated_at: example.updatedAt,
+    category: example.category,
+    source: example.source,
+    linked_app_skills: example.linkedAppSkills,
+    commands: {
+      show: `openmates chats show ${example.id}`,
+      open: `openmates chats open ${example.slug}`,
+    },
+  };
+}
+
+function printExampleChatsForSkill(
+  appId: string,
+  skillId: string | undefined,
+  examples: ExampleChatSkillListItem[],
+  options: { compact?: boolean } = {},
+): void {
+  const label = skillId ? `${appId}/${skillId}` : appId;
+  header(`Example chats for ${label}`);
+  if (examples.length === 0) {
+    console.log(`\nNo example chats are linked to ${label} yet.`);
+    if (skillId) {
+      console.log("\nInspect the skill:");
+      console.log(`  openmates apps skill-info ${appId} ${skillId}`);
+    } else {
+      console.log("\nInspect available skills:");
+      console.log(`  openmates apps ${appId}`);
+    }
+    return;
+  }
+
+  const visibleExamples = options.compact ? examples.slice(0, 3) : examples;
+  console.log();
+  visibleExamples.forEach((example, index) => {
+    console.log(`${index + 1}. ${example.title ?? example.id}`);
+    console.log(`   ${example.id}`);
+    if (example.summary) console.log(`   ${example.summary}`);
+    if (!skillId) {
+      const linkedSkills = example.linkedAppSkills
+        .filter((key) => key.startsWith(`${appId}.`))
+        .join(", ");
+      console.log(`   Skills: ${linkedSkills}`);
+    }
+    console.log(`   Show: openmates chats show ${example.id}`);
+    console.log(`   Open: openmates chats open ${example.slug}`);
+    console.log();
+  });
+  if (options.compact && examples.length > visibleExamples.length) {
+    console.log(`More examples: openmates apps examples ${appId}${skillId ? ` ${skillId}` : ""}`);
+  } else if (options.compact) {
+    console.log(`All examples: openmates apps examples ${appId}${skillId ? ` ${skillId}` : ""}`);
   }
 }
 
@@ -7480,6 +7584,7 @@ function printAppsHelp(): void {
   openmates apps <app-id> [--json]                    App info
   openmates apps info <app-id> [--json]               App info (explicit)
   openmates apps skill-info <app-id> <skill-id> [--json]
+  openmates apps examples <app-id> [skill-id] [--json]
   openmates apps code run --language python --code 'print("Hello")'
   openmates apps code run --entry main.py --file main.py [--file requirements.txt]
   openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
@@ -7493,6 +7598,7 @@ Authentication:
 Examples:
   openmates apps list
   openmates apps web
+  openmates apps examples travel search_connections
   openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
   openmates apps models3d search --query benchy --count 2 --providers Printables --json
   openmates apps travel booking-link --token "<booking_token from search result>"

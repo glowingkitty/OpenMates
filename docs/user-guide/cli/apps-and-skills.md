@@ -72,7 +72,17 @@ openmates apps skill-info web search
 openmates apps skill-info web search --json
 ```
 
-Shows the skill's description, required parameters, and input schema. Use this to understand what a skill expects before invoking it through chat, SDKs, or a dedicated typed CLI command.
+Shows the skill's description, required parameters, input schema, and any public example chats linked to that app skill. Use this to understand what a skill expects before invoking it through chat, SDKs, or a dedicated typed CLI command.
+
+## Skill Example Chats
+
+```
+openmates apps examples travel search_connections
+openmates apps examples travel search_connections --json
+openmates apps examples travel
+```
+
+Lists public example chats connected to an app skill via the same curated example metadata used by the web app store. The command works without login because example chats are bundled public content. Use the printed `openmates chats show ...` command to read the transcript in the terminal, or `openmates chats open ...` to open the web example page.
 
 ## Typed App Commands
 

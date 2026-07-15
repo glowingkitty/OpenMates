@@ -42,6 +42,10 @@ export interface ExampleChatConversation {
   followUpSuggestions: string[];
 }
 
+export interface ExampleChatSkillListItem extends ExampleChatListItem {
+  linkedAppSkills: string[];
+}
+
 function translate(value: string): string {
   if (!value.startsWith("example_chats.")) return value;
   const parts = value.split(".");
@@ -78,6 +82,13 @@ function toListItem(chat: (typeof ALL_EXAMPLE_CHATS)[number]): ExampleChatListIt
   };
 }
 
+function toSkillListItem(chat: (typeof ALL_EXAMPLE_CHATS)[number]): ExampleChatSkillListItem {
+  return {
+    ...toListItem(chat),
+    linkedAppSkills: [...(chat.metadata.app_skill_examples ?? [])],
+  };
+}
+
 export function listExampleChats(limit = 10, page = 1) {
   const total = ALL_EXAMPLE_CHATS.length;
   const offset = (page - 1) * limit;
@@ -100,6 +111,20 @@ export function searchExampleChats(query: string): ExampleChatListItem[] {
       const fields = [chat.id, chat.slug, chat.title, chat.summary, chat.category];
       return fields.some((field) => String(field ?? "").toLowerCase().includes(normalized));
     });
+}
+
+export function listExampleChatsForSkill(appId: string, skillId: string): ExampleChatSkillListItem[] {
+  const key = `${appId}.${skillId}`;
+  return ALL_EXAMPLE_CHATS
+    .filter((chat) => chat.metadata.app_skill_examples?.includes(key))
+    .map(toSkillListItem);
+}
+
+export function listExampleChatsForApp(appId: string): ExampleChatSkillListItem[] {
+  const prefix = `${appId}.`;
+  return ALL_EXAMPLE_CHATS
+    .filter((chat) => chat.metadata.app_skill_examples?.some((key) => key.startsWith(prefix)))
+    .map(toSkillListItem);
 }
 
 export function getExampleChatConversation(query: string): ExampleChatConversation | null {
