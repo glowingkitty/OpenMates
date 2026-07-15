@@ -585,6 +585,12 @@ describe("role-based server planning", () => {
     }
   });
 
+  it("uses an ARM-compatible ClamAV image in the packaged upload template", () => {
+    const template = readFileSync(new URL("../templates/upload/docker-compose.yml", import.meta.url), "utf-8");
+
+    assert.match(template, /image: clamav\/clamav-debian:stable/);
+  });
+
   it("streams Postgres backups instead of buffering pg_dump in memory", () => {
     const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
 

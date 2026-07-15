@@ -137,11 +137,12 @@ workflow_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
     WHERE schemaname = 'public'
       AND indexname IN (
         'workflow_triggers_due_claim_idx',
+        'workflow_triggers_due_owner_idx',
         'workflow_runs_acceptance_identity_uq',
         'workflow_event_receipts_trigger_event_uq',
         'workflow_template_projections_workflow_uq'
       );")"
-test "$workflow_index_count" = "4"
+test "$workflow_index_count" = "5"
 HEALTH_SCRIPT
 
 USER node
