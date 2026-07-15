@@ -2680,6 +2680,11 @@ function buildSkillInput(
     }
     return parsed;
   }
+  if (typeof flags.query === "string" && flags.query.trim()) {
+    const query = flags.query.trim();
+    if (usesFlatInput) return { query };
+    return { requests: [{ query }] };
+  }
   const inlineText = inlineTokens.join(" ").trim();
   if (inlineText) {
     // Use the actual param name when the skill has a single required field

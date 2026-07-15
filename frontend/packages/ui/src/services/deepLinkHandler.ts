@@ -455,7 +455,9 @@ export function processSettingsDeepLink(
     setSettingsDeepLink: (path: string) => void;
   },
 ): void {
-  const settingsPath = hash.substring("#settings".length);
+  const settingsPath = stripE2EDebugHashParams(
+    hash.substring("#settings".length),
+  );
 
   handlers.openSettings();
 
@@ -565,6 +567,8 @@ export function processSettingsDeepLink(
 
     if (path === "billing/referral_code") {
       path = "billing/referral-code";
+    } else if (path === "privacy/connected_accounts") {
+      path = "privacy/connected-accounts";
     }
 
     handlers.setSettingsDeepLink(path);
@@ -589,4 +593,19 @@ export function processSettingsDeepLink(
       replaceState(window.location.pathname + window.location.search, {});
     }
   }
+}
+
+function stripE2EDebugHashParams(path: string): string {
+  const hashParamParts = path.split("&");
+  if (hashParamParts.length === 1) {
+    return path;
+  }
+
+  const [settingsPath, ...params] = hashParamParts;
+  const retainedParams = params.filter((param) => {
+    const name = param.split("=", 1)[0];
+    return name !== "e2e-debug" && name !== "e2e-token";
+  });
+
+  return [settingsPath, ...retainedParams].join("&");
 }

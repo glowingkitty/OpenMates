@@ -78,4 +78,34 @@ describe("processSettingsDeepLink", () => {
 
     expect(setSettingsDeepLink).toHaveBeenCalledWith("billing/referral-code");
   });
+
+  it("keeps connected-accounts hyphenated and ignores E2E debug hash params", () => {
+    const setSettingsDeepLink = vi.fn();
+
+    processSettingsDeepLink(
+      "#settings/privacy/connected-accounts&e2e-debug=run-1&e2e-token=token-1",
+      {
+        openSettings: vi.fn(),
+        setSettingsDeepLink,
+      },
+    );
+
+    expect(setSettingsDeepLink).toHaveBeenCalledWith(
+      "privacy/connected-accounts",
+    );
+  });
+
+  it("preserves non-E2E settings hash params", () => {
+    const setSettingsDeepLink = vi.fn();
+
+    processSettingsDeepLink(
+      "#settings/billing&usage&e2e-debug=run-1&e2e-token=token-1",
+      {
+        openSettings: vi.fn(),
+        setSettingsDeepLink,
+      },
+    );
+
+    expect(setSettingsDeepLink).toHaveBeenCalledWith("billing&usage");
+  });
 });
