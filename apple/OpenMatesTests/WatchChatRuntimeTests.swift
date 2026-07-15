@@ -35,12 +35,19 @@ final class WatchChatRuntimeTests: XCTestCase {
 
         XCTAssertEqual(authManager.state, .authenticated)
         let loggedInUser = try XCTUnwrap(authManager.currentUser)
-        XCTAssertNotNil(try await CryptoManager.shared.loadMasterKey(for: loggedInUser.id))
+        let masterKey = try await CryptoManager.shared.loadMasterKey(for: loggedInUser.id)
+        XCTAssertNotNil(masterKey)
 
-        let watchAuthStore = WatchAuthStore()
-        await watchAuthStore.checkSession()
-        XCTAssertEqual(watchAuthStore.state, .authenticated)
-        XCTAssertEqual(watchAuthStore.currentUser?.id, loggedInUser.id)
+        let watchSession: SessionResponse = try await APIClient.shared.request(
+            .post,
+            path: "/v1/auth/session",
+            body: SessionRequest(
+                sessionId: WatchCompatibleSession.nativeSessionId,
+                deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()
+            )
+        )
+        XCTAssertTrue(watchSession.isAuthenticated)
+        XCTAssertEqual(watchSession.user?.id, loggedInUser.id)
 
         let runtime = WatchChatRuntime(
             currentUserId: loggedInUser.id,
