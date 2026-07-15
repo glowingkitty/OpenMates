@@ -701,6 +701,58 @@ test('prepare_preflight rolls back all writes when the final preflight insert fa
   assert.deepEqual(database.rows, { chats: [], messages: [], chat_turn_preflights: [] });
 });
 
+test('prepare_preflight accepts matching metadata for an existing empty draft shell', async () => {
+  const metadata = prepareBody().encrypted_chat_metadata;
+  const database = fakeDatabase({
+    chats: [{
+      id: CHAT_ID,
+      hashed_user_id: OWNER,
+      ...metadata,
+      messages_v: 0,
+      title_v: 0,
+      metadata_v: 0,
+      last_message_timestamp: null,
+    }],
+    messages: [],
+    chat_turn_preflights: [],
+  });
+
+  const result = await executeOperation(database, 'prepare_preflight', prepareBody(), new Date('2029-01-01T00:00:00Z'));
+
+  assert.equal(result.state, 'PREPARED');
+  assert.equal(result.committed_messages_v, 1);
+  assert.equal(database.rows.chats.length, 1);
+  assert.equal(database.rows.chats[0].messages_v, 1);
+  assert.equal(database.rows.messages.length, 1);
+  assert.equal(database.rows.chat_turn_preflights.length, 1);
+});
+
+test('prepare_preflight rejects metadata for an existing non-empty chat', async () => {
+  const metadata = prepareBody().encrypted_chat_metadata;
+  const database = fakeDatabase({
+    chats: [{
+      id: CHAT_ID,
+      hashed_user_id: OWNER,
+      ...metadata,
+      messages_v: 1,
+      title_v: 0,
+      metadata_v: 0,
+      last_message_timestamp: 100,
+    }],
+    messages: [userMessage()],
+    chat_turn_preflights: [],
+  });
+
+  await assert.rejects(
+    executeOperation(database, 'prepare_preflight', prepareBody({
+      expected_messages_v: 1,
+      user_message_id: 'user-message-2',
+      encrypted_user_message: userMessage('user-message-2'),
+    }), new Date('2029-01-01T00:00:00Z')),
+    (error) => error instanceof ProtocolError && error.code === 'existing_chat_metadata_forbidden',
+  );
+});
+
 test('prepare_preflight is idempotent for an exact duplicate and rejects immutable key changes', async () => {
   const database = fakeDatabase({ chats: [], messages: [], chat_turn_preflights: [] });
   const now = new Date('2029-01-01T00:00:00Z');

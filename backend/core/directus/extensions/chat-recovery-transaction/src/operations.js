@@ -520,6 +520,10 @@ const responseForPreflight = (row) => ({
 const samePreflight = (row, values) => Object.entries(values).every(([key, value]) => row[key] === value);
 const sameChatMetadata = (chat, metadata) => Object.entries(metadata)
   .every(([key, value]) => key === 'updated_at' || chat[key] === value);
+const isEmptyDraftShell = (chat) => Number(chat.messages_v ?? 0) === 0
+  && Number(chat.title_v ?? 0) === 0
+  && Number(chat.metadata_v ?? 0) === 0
+  && chat.last_message_timestamp == null;
 
 async function preparePreflight(database, raw, now) {
   const body = operationBody(raw, 'prepare_preflight');
@@ -557,7 +561,9 @@ async function preparePreflight(database, raw, now) {
       return responseForPreflight(existing);
     }
     if (chat) {
-      if (chatMetadata) fail(409, 'existing_chat_metadata_forbidden');
+      if (chatMetadata && (!isEmptyDraftShell(chat) || !sameChatMetadata(chat, chatMetadata))) {
+        fail(409, 'existing_chat_metadata_forbidden');
+      }
     } else {
       if (!chatMetadata) fail(404, 'new_chat_metadata_required');
       if (expectedVersion !== 0) fail(409, 'version_conflict');
