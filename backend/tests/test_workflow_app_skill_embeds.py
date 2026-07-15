@@ -11,6 +11,8 @@ from typing import Any
 
 import pytest
 
+from backend.apps.base_app import BaseApp
+from backend.apps.workflows.skills import search_skill
 from backend.apps.workflows.skills.create_or_modify_skill import CreateOrModifySkill
 from backend.apps.workflows.skills.search_skill import SearchSkill
 
@@ -145,5 +147,32 @@ async def test_workflow_search_returns_server_side_child_workflow_embed_results(
         "user_id": "user-1",
         "query": "weather",
         "include_temporary": True,
+        "vault_key_id": "vault-key-1",
+    }]
+
+
+@pytest.mark.anyio
+async def test_workflow_search_dispatch_receives_user_vault_key_context(monkeypatch: pytest.MonkeyPatch) -> None:
+    assistant = FakeWorkflowAssistantService()
+    monkeypatch.setattr(search_skill, "get_assistant_service", lambda *_args, **_kwargs: assistant)
+
+    app = BaseApp(
+        app_dir="/app/backend/apps/workflows",
+        register_http_routes=False,
+    )
+    response = await app.dispatch_skill(
+        "search",
+        {
+            "query": "weather",
+            "_user_id": "user-1",
+            "_user_vault_key_id": "vault-key-1",
+        },
+    )
+
+    assert response["success"] is True
+    assert assistant.search_calls == [{
+        "user_id": "user-1",
+        "query": "weather",
+        "include_temporary": False,
         "vault_key_id": "vault-key-1",
     }]
