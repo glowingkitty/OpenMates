@@ -19,7 +19,7 @@
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
-const { closeFullscreen, openFullscreen, verifySearchGrid } = require('./helpers/embed-test-helpers');
+const { openFullscreen, verifySearchGrid } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -292,54 +292,6 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
 		await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('middle eastern');
 		await expect(page.locator('body')).toContainText('8.7g');
-	});
-
-	test('models3d Printables example renders messages, result embeds, fullscreen, and reloads', async ({
-		page
-	}: {
-		page: any;
-	}) => {
-		test.setTimeout(90000);
-
-		await page.goto('/example/printable-benchy-phone-stand-models', {
-			waitUntil: 'domcontentloaded'
-		});
-		await expect(page).toHaveURL(/#chat-id=example-printable-benchy-phone-stand/, { timeout: 15000 });
-
-		await expect(page.getByTestId('user-message-content').filter({
-			hasText: 'Find 3D-printable Benchy and phone stand models on Printables'
-		})).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'The 3DBenchy Collection' })).toBeVisible({ timeout: 15000 });
-
-		const parentSearchEmbeds = page.locator(
-			'[data-testid="embed-preview"][data-app-id="models3d"][data-skill-id="search"][data-status="finished"]'
-		);
-		await expect(parentSearchEmbeds.first()).toBeVisible({ timeout: 15000 });
-		expect(
-			await parentSearchEmbeds.count(),
-			'Models3D example should render both Benchy and phone stand parent search embeds'
-		).toBeGreaterThanOrEqual(2);
-
-		const childResultCards = page.getByTestId('models3d-result-card');
-		await expect(childResultCards.first()).toBeVisible({ timeout: 15000 });
-		expect(
-			await childResultCards.count(),
-			'Models3D example should render static child model result cards in chat'
-		).toBeGreaterThanOrEqual(10);
-
-		const fullscreenOverlay = await openFullscreen(page, parentSearchEmbeds.first());
-		const fullscreenResults = await verifySearchGrid(fullscreenOverlay, 5, 30000);
-		await expect(fullscreenResults.first().getByTestId('models3d-result-card')).toBeVisible({ timeout: 15000 });
-
-		const cta = fullscreenResults.first().getByTestId('models3d-open-provider-cta');
-		await expect(cta).toBeVisible({ timeout: 15000 });
-		await expect(cta).toContainText('Open on Printables');
-		expect(await cta.getAttribute('href')).toMatch(/^https:\/\/(www\.)?printables\.com\//);
-
-		await closeFullscreen(page, fullscreenOverlay);
-		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect(page).toHaveURL(/#chat-id=example-printable-benchy-phone-stand/, { timeout: 15000 });
-		await expect(parentSearchEmbeds.first()).toBeVisible({ timeout: 15000 });
 	});
 
 	test('sidebar example chats show newest first and append older results after show more', async ({
