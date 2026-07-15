@@ -1126,6 +1126,7 @@ class OpenMatesWorkflows:
         workflow_id: str,
         *,
         title: str | None = None,
+        description: str | None = None,
         graph: dict[str, Any] | None = None,
         enabled: bool | None = None,
         run_content_retention: str | None = None,
@@ -1134,6 +1135,7 @@ class OpenMatesWorkflows:
             key: value
             for key, value in {
                 "title": title,
+                "description": description,
                 "graph": graph,
                 "enabled": enabled,
                 "run_content_retention": run_content_retention,
