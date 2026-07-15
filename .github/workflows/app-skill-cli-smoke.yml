@@ -53,7 +53,9 @@ jobs:
         run: pnpm --filter openmates build
 
       - name: Run real-dev app-skill smoke
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p test-results
           python3 scripts/verify_app_skill_cli_smoke.py \
             --api-url "$OPENMATES_API_URL" \

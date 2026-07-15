@@ -221,6 +221,7 @@ async def get_session_or_api_key_info(
                 "device_hash": device_hash,
                 "is_cli": is_cli,
                 "email": getattr(user, "encrypted_email_address", None),
+                "vault_key_id": getattr(user, "vault_key_id", None),
             }
         except HTTPException:
             pass  # session invalid — fall through to API key
@@ -810,6 +811,8 @@ async def call_app_skill(
     request_payload['_api_key_hash'] = user_info.get('api_key_hash')
     request_payload['_device_hash'] = user_info.get('device_hash')
     request_payload['_external_request'] = True
+    if user_info.get('vault_key_id'):
+        request_payload['_user_vault_key_id'] = user_info['vault_key_id']
 
     try:
         result = await registry.dispatch_skill(app_id, skill_id, request_payload)
