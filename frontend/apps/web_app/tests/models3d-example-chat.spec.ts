@@ -32,14 +32,6 @@ test.describe('Example chat: Models3D Printables', () => {
 		expect(imageBox!.x, 'Models3D result preview image must render to the right of text').toBeGreaterThan(bodyBox!.x);
 	}
 
-	async function openResultFullscreen(page: any, resultCard: any) {
-		const cardBody = resultCard.getByTestId('models3d-result-card-body');
-		await expect(async () => {
-			await cardBody.click();
-			await expect(page.getByTestId('models3d-result-fullscreen')).toBeVisible({ timeout: 5000 });
-		}).toPass({ timeout: 30000 });
-	}
-
 	test('renders messages, result embeds, fullscreen, and reloads', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
 
@@ -64,7 +56,17 @@ test.describe('Example chat: Models3D Printables', () => {
 			'Models3D example should render static child model result cards in chat'
 		).toBeGreaterThanOrEqual(5);
 		await expect(childResultCards.first().getByTestId('models3d-open-provider-cta')).toHaveCount(0);
-		await expectModels3dVisualContract(childResultCards.first().locator('xpath=ancestor::*[@data-testid="embed-preview"][1]'));
+		const firstChildEmbed = childResultCards.first().locator('xpath=ancestor::*[@data-testid="embed-preview"][1]');
+		await expectModels3dVisualContract(firstChildEmbed);
+
+		const resultOverlay = await openFullscreen(page, firstChildEmbed);
+		const resultFullscreen = page.getByTestId('models3d-result-fullscreen');
+		await expect(resultFullscreen).toBeVisible({ timeout: 15000 });
+		const cta = page.getByTestId('models3d-open-provider-cta');
+		await expect(cta).toBeVisible({ timeout: 15000 });
+		await expect(cta).toContainText('Open on Printables');
+		expect(await cta.getAttribute('href')).toMatch(/^https:\/\/(www\.)?printables\.com\//);
+		await closeFullscreen(page, resultOverlay);
 
 		const fullscreenOverlay = await openFullscreen(page, parentSearchEmbeds.first());
 		const fullscreenResults = await verifySearchGrid(fullscreenOverlay, 5, 30000);
@@ -72,16 +74,6 @@ test.describe('Example chat: Models3D Printables', () => {
 		await expect(firstFullscreenCard.getByTestId('models3d-result-card')).toBeVisible({ timeout: 15000 });
 		await expect(firstFullscreenCard.getByTestId('models3d-open-provider-cta')).toHaveCount(0);
 		await expectModels3dVisualContract(firstFullscreenCard);
-
-		await openResultFullscreen(page, firstFullscreenCard);
-		const resultFullscreen = page.getByTestId('models3d-result-fullscreen');
-		await expect(resultFullscreen).toBeVisible({ timeout: 15000 });
-		const cta = page.getByTestId('models3d-open-provider-cta');
-		await expect(cta).toBeVisible({ timeout: 15000 });
-		await expect(cta).toContainText('Open on Printables');
-		expect(await cta.getAttribute('href')).toMatch(/^https:\/\/(www\.)?printables\.com\//);
-
-		await closeFullscreen(page, resultFullscreen.locator('xpath=ancestor::*[@data-testid="embed-fullscreen-overlay"][1]'));
 		await closeFullscreen(page, fullscreenOverlay);
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page).toHaveURL(/#chat-id=example-printable-benchy-phone-stand/, { timeout: 15000 });
