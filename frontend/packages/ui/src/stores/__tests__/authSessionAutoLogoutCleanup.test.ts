@@ -12,6 +12,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 
 const cleanupCalls: string[] = [];
+let autoLogoutAction: (() => void) | undefined;
+let lastAutoLogoutNotificationId = "";
 
 vi.mock("../../config/api", () => ({
   getApiEndpoint: vi.fn(() => "http://test/v1/auth/session"),
@@ -98,7 +100,15 @@ vi.mock("../../utils/cookies", () => ({
 
 vi.mock("../notificationStore", () => ({
   notificationStore: {
-    autoLogout: vi.fn(() => cleanupCalls.push("notificationStore.autoLogout")),
+    autoLogout: vi.fn((_message, _secondary, _duration, _title, options) => {
+      autoLogoutAction = options?.onAction;
+      lastAutoLogoutNotificationId = "auto-logout-notification-1";
+      cleanupCalls.push("notificationStore.autoLogout");
+      return lastAutoLogoutNotificationId;
+    }),
+    removeNotification: vi.fn((id: string) =>
+      cleanupCalls.push(`notificationStore.removeNotification:${id}`),
+    ),
     error: vi.fn(),
   },
 }));
@@ -334,14 +344,19 @@ vi.stubGlobal("sessionStorage", createStorageMock());
 
 import { checkAuth } from "../authSessionActions";
 import { authStore } from "../authState";
+import { loginInterfaceOpen, loginStayLoggedInRequested } from "../uiStateStore";
 
 describe("checkAuth auto logout cleanup", () => {
   beforeEach(() => {
     cleanupCalls.length = 0;
+    autoLogoutAction = undefined;
+    lastAutoLogoutNotificationId = "";
     vi.clearAllMocks();
     localStorage.clear();
     sessionStorage.clear();
     authStore.set({ isAuthenticated: true, isInitialized: false });
+    loginInterfaceOpen.set(false);
+    loginStayLoggedInRequested.set(false);
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ success: false, message: "not authenticated" }),
@@ -369,5 +384,18 @@ describe("checkAuth auto logout cleanup", () => {
     const authState = get(authStore);
     expect(authState.isAuthenticated).toBe(false);
     expect(authState.isInitialized).toBe(true);
+  });
+
+  it("dismisses the auto-logout notification when the login CTA is used", async () => {
+    await checkAuth(undefined, true);
+
+    expect(autoLogoutAction).toBeTypeOf("function");
+    autoLogoutAction?.();
+
+    expect(cleanupCalls).toContain(
+      `notificationStore.removeNotification:${lastAutoLogoutNotificationId}`,
+    );
+    expect(get(loginStayLoggedInRequested)).toBe(true);
+    expect(get(loginInterfaceOpen)).toBe(true);
   });
 });

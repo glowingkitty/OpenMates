@@ -836,18 +836,14 @@ export async function checkAuth(
           "[AuthSessionActions] Completed shared local logout cleanup on session expiry",
         );
 
-        // Clear shared chat keys in the background (async, non-blocking)
-        clearAllSharedChatKeys().catch((e) =>
-          console.warn(
-            "[AuthSessionActions] Failed to clear shared chat keys on session expiry:",
-            e,
-          ),
-        );
+        // Keep persisted shared-chat keys on auto logout. Shared chats are public
+        // link-based content and remain valid without the user's master key.
 
         // Show notification that user was logged out with hint about "Stay logged in"
         // This helps users understand they can avoid frequent logouts by enabling "Stay logged in"
         const $text = get(text);
-        notificationStore.autoLogout(
+        let autoLogoutNotificationId = "";
+        autoLogoutNotificationId = notificationStore.autoLogout(
           $text("login.auto_logout_notification.message"),
           undefined, // No secondary message needed
           0, // Persist so the user can act on the login CTA
@@ -855,6 +851,9 @@ export async function checkAuth(
           {
             actionLabel: $text("login.auto_logout_notification.login_again_action"),
             onAction: () => {
+              if (autoLogoutNotificationId) {
+                notificationStore.removeNotification(autoLogoutNotificationId);
+              }
               loginStayLoggedInRequested.set(true);
               loginInterfaceOpen.set(true);
             },

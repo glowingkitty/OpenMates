@@ -9655,8 +9655,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] Logout event received - clearing user chat and showing welcome screen');
 
             const activeChatIdAtLogout = currentChat?.chat_id ?? activeChatStore.get();
-            if (activeChatIdAtLogout && isExampleChat(activeChatIdAtLogout)) {
-                console.debug('[ActiveChat] Logout event received while viewing static example chat - preserving chat:', activeChatIdAtLogout);
+            const shouldPreservePublicChat =
+                activeChatIdAtLogout && (isExampleChat(activeChatIdAtLogout) || currentChat?.is_shared_by_others);
+            if (shouldPreservePublicChat) {
+                console.debug('[ActiveChat] Logout event received while viewing public chat - preserving chat:', activeChatIdAtLogout);
+                activeChatStore.setActiveChat(activeChatIdAtLogout);
                 phasedSyncState.markSyncCompleted();
                 return;
             }
