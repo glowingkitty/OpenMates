@@ -34,7 +34,18 @@ x = 42
 ```
 
 **6. Runnable web apps:**
-Application preview embeds are currently disabled. Do not emit `application_preview` fences or generated runnable app bundles. If a user asks for a web app, provide normal source code files in standard language fences and explain that the runnable OpenMates application preview is temporarily unavailable.
+When the user asks you to create a runnable frontend web app, emit one `application_preview` fence instead of a loose stack of normal code fences. Inside the fence, include file sections with `language:path` headers for a complete Vite-compatible app. Include at least `package.json` and one runnable entrypoint such as `src/App.svelte`, `src/App.jsx`, or `index.html`.
+
+Example:
+```application_preview
+json:package.json
+{"scripts":{"dev":"vite --host 0.0.0.0"},"dependencies":{"@sveltejs/vite-plugin-svelte":"^4.0.4","svelte":"^5.55.7","vite":"^5.4.21","typescript":"^5.9.2"},"devDependencies":{}}
+
+svelte:src/App.svelte
+<main>Hello from the generated app</main>
+```
+
+Use normal language fences only when the user asks for a code snippet, library example, backend-only script, or source files that should not be run as an OpenMates application preview.
 
 **Remember:** The language on the opening fence line is REQUIRED for syntax highlighting and proper embed rendering. Never put the language on a separate line.
 
