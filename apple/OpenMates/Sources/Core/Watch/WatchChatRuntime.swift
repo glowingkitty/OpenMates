@@ -345,6 +345,8 @@ final class WatchChatRuntime: ObservableObject {
     private static let incognitoChatIdPrefix = "incognito-"
     private static let recentChatLimit = 20
     private static let hiddenCandidateFetchLimit = 40
+    private static let fetchRetryAttempts = 2
+    private static let fetchRetryDelayNanoseconds: UInt64 = 250_000_000
 
     init(
         currentUserId: String? = nil,
@@ -383,7 +385,9 @@ final class WatchChatRuntime: ObservableObject {
         }
 
         do {
-            let fetchedChats = try await api.fetchRecentChats(limit: Self.hiddenCandidateFetchLimit)
+            let fetchedChats = try await fetchWithRetry {
+                try await api.fetchRecentChats(limit: Self.hiddenCandidateFetchLimit)
+            }
             chats = Array(Self.sortedChats(await decryptChats(fetchedChats)).prefix(Self.recentChatLimit))
             if selectedChatId == nil {
                 selectedChatId = chats.first?.id
@@ -413,7 +417,9 @@ final class WatchChatRuntime: ObservableObject {
         }
 
         do {
-            let messages = try await api.fetchMessages(chatId: chat.id)
+            let messages = try await fetchWithRetry {
+                try await api.fetchMessages(chatId: chat.id)
+            }
             messagesByChatId[chat.id] = Self.sortedMessages(await decryptMessages(messages))
             isOffline = false
             errorMessage = nil
@@ -510,6 +516,34 @@ final class WatchChatRuntime: ObservableObject {
                 savedAt: Date()
             )
         )
+    }
+
+    private func fetchWithRetry<T>(_ operation: () async throws -> T) async throws -> T {
+        var lastError: Error?
+        for attempt in 1...Self.fetchRetryAttempts {
+            do {
+                return try await operation()
+            } catch {
+                lastError = error
+                guard attempt < Self.fetchRetryAttempts,
+                      Self.shouldRetryFetchError(error),
+                      !Task.isCancelled else {
+                    throw error
+                }
+                try await Task.sleep(nanoseconds: Self.fetchRetryDelayNanoseconds)
+            }
+        }
+        throw lastError ?? WatchChatRuntimeError.syncUnavailable
+    }
+
+    private static func shouldRetryFetchError(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        switch urlError.code {
+        case .networkConnectionLost, .timedOut, .cannotConnectToHost, .notConnectedToInternet:
+            return true
+        default:
+            return false
+        }
     }
 
     private func decryptChats(_ remoteChats: [WatchRemoteChat]) async -> [WatchChatSummary] {

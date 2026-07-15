@@ -133,6 +133,26 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(cached.chats.map(\.id), ["pinned", "older"])
     }
 
+    func testRefreshRetriesTransientNetworkLoss() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let api = FakeWatchChatAPI(
+            chats: [Self.remoteChat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")],
+            transientChatFetchFailures: 1
+        )
+        let runtime = WatchChatRuntime(
+            api: api,
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto()
+        )
+
+        await runtime.refresh()
+
+        XCTAssertFalse(runtime.isOffline)
+        XCTAssertEqual(runtime.chats.map(\.id), ["chat-a"])
+        XCTAssertEqual(api.fetchRecentChatsCallCount, 2)
+    }
+
     func testRefreshExcludesChatsThatNormalMasterKeyCannotDecrypt() async throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -193,6 +213,27 @@ final class WatchChatRuntimeTests: XCTestCase {
         let cached = await cache.loadSnapshot()
         XCTAssertEqual(cached.messagesByChatId["chat-a"]?.last?.content, "Pending reply")
         XCTAssertEqual(cached.pendingTextSends.count, 1)
+    }
+
+    func testOpenChatRetriesTransientNetworkLoss() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
+        let api = FakeWatchChatAPI(
+            messagesByChatId: ["chat-a": [Self.remoteMessage(id: "msg-a", chatId: "chat-a", content: "Remote")]],
+            transientMessageFetchFailures: 1
+        )
+        let runtime = WatchChatRuntime(
+            api: api,
+            cache: WatchChatOfflineCache(directory: directory),
+            crypto: FakeWatchChatCrypto()
+        )
+
+        await runtime.openChat(chat)
+
+        XCTAssertFalse(runtime.isOffline)
+        XCTAssertEqual(runtime.selectedMessages.map(\.content), ["Remote"])
+        XCTAssertEqual(api.fetchMessagesCallCount, 2)
     }
 
     func testQueuedLocalTextReplaysAndClearsPendingSnapshotWhenOnline() async throws {
@@ -424,6 +465,10 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     private let chats: [WatchRemoteChat]
     private let messagesByChatId: [String: [WatchRemoteMessage]]
     private let uploadedAudio: WatchUploadedAudio?
+    private var transientChatFetchFailures: Int
+    private var transientMessageFetchFailures: Int
+    private(set) var fetchRecentChatsCallCount = 0
+    private(set) var fetchMessagesCallCount = 0
     private(set) var sentMessages: [WatchPendingTextSend] = []
     private(set) var uploadedAudioRequests: [FakeAudioUploadRequest] = []
     private(set) var transcribedAudioIds: [String] = []
@@ -433,21 +478,35 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
         messagesByChatId: [String: [WatchRemoteMessage]] = [:],
         shouldThrow: Bool = false,
         shouldThrowOnSend: Bool = false,
+        transientChatFetchFailures: Int = 0,
+        transientMessageFetchFailures: Int = 0,
         uploadedAudio: WatchUploadedAudio? = nil
     ) {
         self.chats = chats
         self.messagesByChatId = messagesByChatId
         self.shouldThrow = shouldThrow
         self.shouldThrowOnSend = shouldThrowOnSend
+        self.transientChatFetchFailures = transientChatFetchFailures
+        self.transientMessageFetchFailures = transientMessageFetchFailures
         self.uploadedAudio = uploadedAudio
     }
 
     func fetchRecentChats(limit: Int) async throws -> [WatchRemoteChat] {
+        fetchRecentChatsCallCount += 1
+        if transientChatFetchFailures > 0 {
+            transientChatFetchFailures -= 1
+            throw URLError(.networkConnectionLost)
+        }
         if shouldThrow { throw URLError(.notConnectedToInternet) }
         return Array(chats.prefix(limit))
     }
 
     func fetchMessages(chatId: String) async throws -> [WatchRemoteMessage] {
+        fetchMessagesCallCount += 1
+        if transientMessageFetchFailures > 0 {
+            transientMessageFetchFailures -= 1
+            throw URLError(.networkConnectionLost)
+        }
         if shouldThrow { throw URLError(.notConnectedToInternet) }
         return messagesByChatId[chatId] ?? []
     }
