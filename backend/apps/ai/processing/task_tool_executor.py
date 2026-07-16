@@ -77,6 +77,20 @@ def task_app_skill_ids_from_message_text(message_text: str | None) -> set[str]:
     return task_skill_ids
 
 
+def task_app_skill_ids_from_user_override_skills(skills: list[tuple[str, str]] | None) -> set[str]:
+    """Return Tasks app-skill IDs explicitly parsed by the override parser."""
+    if not skills:
+        return set()
+    task_skill_ids: set[str] = set()
+    for app_id, skill_id in skills:
+        if app_id != TASK_TOOL_RESOLVER_APP_ID:
+            continue
+        normalized_skill_id = skill_id.replace("_", "-")
+        if normalized_skill_id in TASK_APP_SKILL_IDS:
+            task_skill_ids.add(f"{TASK_TOOL_RESOLVER_APP_ID}-{normalized_skill_id}")
+    return task_skill_ids
+
+
 def task_tool_name_variants(tool_name: str) -> set[str]:
     if not is_task_tool_name(tool_name):
         return set()

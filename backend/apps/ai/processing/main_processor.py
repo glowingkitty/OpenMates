@@ -73,6 +73,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     publish_task_tool_result,
     should_suppress_task_runtime_tools_for_app_skill,
     task_app_skill_ids_from_message_text,
+    task_app_skill_ids_from_user_override_skills,
     task_tool_skill_id,
     task_tool_name_variants,
 )
@@ -2029,7 +2030,9 @@ async def handle_main_processing(
     # explicitly requested specific skills via @skill:app:skill_id. In that case we use only
     # the user's selection and add a mandatory instruction to use those tools.
     user_requested_skills_only = getattr(preprocessing_results, "user_requested_skills_only", False)
-    task_app_skill_mentions = task_app_skill_ids_from_message_text(request_data.current_user_content)
+    override_skills = getattr(user_overrides, "skills", None)
+    task_app_skill_mentions = task_app_skill_ids_from_user_override_skills(override_skills)
+    task_app_skill_mentions |= task_app_skill_ids_from_message_text(request_data.current_user_content)
     if task_app_skill_mentions:
         if preselected_skills is None:
             preselected_skills = set()
