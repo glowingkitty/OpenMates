@@ -596,7 +596,7 @@ async function preparePreflight(database, raw, now) {
     if (canonical && canonical.recovery_public_key !== recoveryKey) fail(409, 'recovery_key_mismatch');
     if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
     if (await trx(MESSAGES).where({ client_message_id: userMessageId }).first()) fail(409, 'message_identity_conflict');
-    await trx(MESSAGES).insert({ id: message.client_message_id, ...message });
+    await trx(MESSAGES).insert({ id: randomUUID(), ...message });
     const committedVersion = expectedVersion + 1;
     const timestamp = Math.floor(now.getTime() / 1000);
     if (await trx(CHATS).where({ id: chatId, hashed_user_id: ownerHash, messages_v: expectedVersion })
@@ -868,7 +868,7 @@ async function persistTerminal(database, raw, now) {
     const chat = await ownedChat(trx, row.chat_id, ownerHash);
     if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
     if (await trx(MESSAGES).where({ client_message_id: row.assistant_message_id }).first()) fail(409, 'message_identity_conflict');
-    await trx(MESSAGES).insert({ id: message.client_message_id, ...message });
+    await trx(MESSAGES).insert({ id: randomUUID(), ...message });
     const committedVersion = expectedVersion + 1;
     const timestamp = Math.floor(now.getTime() / 1000);
     if (await trx(CHATS).where({ id: row.chat_id, hashed_user_id: ownerHash, messages_v: expectedVersion }).update({

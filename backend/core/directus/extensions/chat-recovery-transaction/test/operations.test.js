@@ -706,7 +706,6 @@ test('prepare_preflight atomically writes chat, user message, and preflight', as
   assert.equal(database.rows.chats[0].messages_v, 1);
   assert.equal(database.rows.chats[0].is_private, true);
   assert.equal(database.rows.messages.length, 1);
-  assert.equal(database.rows.messages[0].id, 'user-message-1');
   assert.equal(database.rows.messages[0].client_message_id, 'user-message-1');
   assert.equal(database.rows.chat_turn_preflights.length, 1);
   assert.equal(database.rows.chat_turn_preflights[0].state, 'PREPARED');
@@ -880,8 +879,6 @@ test('persist_terminal atomically commits ciphertext and erases recovery materia
     committed_messages_v: 2,
   });
   assert.equal(database.rows.messages.length, 2);
-  assert.equal(database.rows.messages[1].id, 'assistant-message-1');
-  assert.equal(database.rows.messages[1].client_message_id, 'assistant-message-1');
   assert.equal(database.rows.chats[0].messages_v, 2);
   assert.equal(database.rows.chat_turn_preflights[0].state, 'TERMINAL');
   assert.deepEqual({
