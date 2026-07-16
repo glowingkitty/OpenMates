@@ -85,13 +85,28 @@ def account_email_hash(manifest: dict[str, Any]) -> str | None:
 def validate_manifest(manifest: dict[str, Any], client: str) -> list[str]:
     failures: list[str] = []
     require(manifest.get("schema_version") == 1, f"{client}: schema_version must be 1", failures)
-    require(manifest.get("surface") in EXPECTED_SURFACES, f"{client}: surface must be one of {sorted(EXPECTED_SURFACES)}", failures)
+    surface = manifest.get("surface")
+    require(surface in EXPECTED_SURFACES, f"{client}: surface must be one of {sorted(EXPECTED_SURFACES)}", failures)
     require(manifest.get("client") == client, f"{client}: client must be {client}", failures)
     require(
         bool(account_email_hash(manifest)),
         f"{client}: environment.account_email_hash missing; regenerate the manifest with the current harness",
         failures,
     )
+
+    if surface == OPENED_CHAT_SURFACE:
+        opened = opened_chats(manifest)
+        require(bool(opened), f"{client}: expected at least one opened chat", failures)
+        for index, chat in enumerate(opened):
+            require(
+                bool(normalize_title(chat.get("titleText"))),
+                f"{client}: opened chat {index} titleText missing",
+                failures,
+            )
+            messages = [message for message in chat.get("messages", []) if isinstance(message, dict)]
+            require(bool(messages), f"{client}: opened chat {index} expected at least one message", failures)
+        return failures
+
     require(chat_count(manifest) > 0, f"{client}: expected at least one chat row", failures)
 
     required = manifest.get("required_elements")

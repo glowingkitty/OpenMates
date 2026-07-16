@@ -64,8 +64,8 @@ async function ensureSidebarOpen(page: any, log: (message: string, metadata?: Re
 	log('Opened chat sidebar.');
 }
 
-async function openUserChatByIndex(page: any, index: number): Promise<void> {
-	await page.evaluate(({ targetIndex, staticGroupKeys }: { targetIndex: number; staticGroupKeys: string[] }) => {
+async function openUserChatByIndex(page: any, index: number): Promise<string | null> {
+	return page.evaluate(({ targetIndex, staticGroupKeys }: { targetIndex: number; staticGroupKeys: string[] }) => {
 		const staticGroups = new Set(staticGroupKeys);
 		const rows = Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]')).filter((row) => {
 			const groupKey = row.closest('[data-testid="chat-group"]')?.getAttribute('data-group-key') || null;
@@ -73,16 +73,57 @@ async function openUserChatByIndex(page: any, index: number): Promise<void> {
 		});
 		const row = rows[targetIndex] as HTMLElement | undefined;
 		if (!row) throw new Error(`Missing user chat row at index ${targetIndex}`);
+		const chatId = row.getAttribute('data-chat-id');
 		row.click();
+		return chatId;
 	}, { targetIndex: index, staticGroupKeys: STATIC_GROUP_KEYS });
 }
 
-async function waitForOpenedChat(page: any): Promise<void> {
+async function currentMessageFingerprint(page: any): Promise<string> {
+	return page.evaluate(async () => {
+		function normalize(value: string | null | undefined): string {
+			return (value || '').replace(/\s+/g, ' ').trim();
+		}
+
+		async function hash(value: string): Promise<string> {
+			const data = new TextEncoder().encode(value);
+			const digest = await crypto.subtle.digest('SHA-256', data);
+			return Array.from(new Uint8Array(digest)).slice(0, 8).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+		}
+
+		const messages = Array.from(document.querySelectorAll('[data-testid="message-user"], [data-testid="message-assistant"], [data-testid="message-system"]'));
+		const signatures = await Promise.all(messages.map(async (wrapper) => {
+			const testId = wrapper.getAttribute('data-testid') || '';
+			const content = wrapper.querySelector('[data-testid="message-content"]') || wrapper;
+			const text = normalize((content as HTMLElement).innerText || content.textContent || '');
+			return `${testId}:${text.length}:${await hash(text)}`;
+		}));
+		return signatures.join('|');
+	});
+}
+
+async function waitForOpenedChat(page: any, chatId: string | null, previousFingerprint: string): Promise<void> {
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+	if (chatId) {
+		await expect(async () => {
+			const active = await page.evaluate((targetChatId: string) => {
+				return Array.from(document.querySelectorAll('[data-testid="chat-item-wrapper"]')).some((row) => {
+					return row.getAttribute('data-chat-id') === targetChatId && row.classList.contains('active');
+				});
+			}, chatId);
+			expect(active, `Expected clicked chat ${hashStableId(chatId)} to become active.`).toBe(true);
+		}).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
+	}
 	await expect(async () => {
 		const count = await page.locator('[data-testid="message-user"], [data-testid="message-assistant"], [data-testid="message-system"]').count();
 		expect(count, 'Expected opened chat to render at least one message.').toBeGreaterThan(0);
 	}).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
+	if (previousFingerprint) {
+		await expect(async () => {
+			const fingerprint = await currentMessageFingerprint(page);
+			expect(fingerprint, 'Expected opened chat messages to replace the previous transcript.').not.toBe(previousFingerprint);
+		}).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
+	}
 }
 
 async function collectOpenedChatRenderState(page: any, chatIndex: number, titleText: string): Promise<Record<string, unknown>> {
@@ -149,12 +190,14 @@ async function collectOpenedChatRenderState(page: any, chatIndex: number, titleT
 async function collectOpenedChatsManifest(page: any, loadedManifest: Record<string, unknown>): Promise<Record<string, unknown>> {
 	const loadedChats = (loadedManifest.chats as Array<{ titleText: string }>).slice(0, OPENED_CHAT_LIMIT);
 	const openedChats: Record<string, unknown>[] = [];
+	let previousFingerprint = await currentMessageFingerprint(page);
 
 	for (let index = 0; index < loadedChats.length; index += 1) {
 		await ensureSidebarOpen(page, () => undefined);
-		await openUserChatByIndex(page, index);
-		await waitForOpenedChat(page);
+		const chatId = await openUserChatByIndex(page, index);
+		await waitForOpenedChat(page, chatId, previousFingerprint);
 		openedChats.push(await collectOpenedChatRenderState(page, index, normalizeText(loadedChats[index].titleText)));
+		previousFingerprint = await currentMessageFingerprint(page);
 	}
 
 	return {
