@@ -16,6 +16,7 @@ import {
   MATE_NAMES,
   deriveAppUrl,
   type ChatListPage,
+  type ChatListItem,
   type DecryptedMessage,
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
@@ -40,6 +41,7 @@ import {
   type UserTaskReorderInput,
   type UserTaskStatus,
 } from "./client.js";
+import { OpenMates, type ChatResponse, type EncryptedChatMetadata } from "./sdk.js";
 import type { PendingTaskUpdateJobFrame, StreamEvent, SubChatEvent, TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -940,6 +942,8 @@ async function handleChats(
     return;
   }
 
+  const apiKey = resolveApiKey(flags) ?? undefined;
+
   if (rest[0] === "tasks") {
     await handleTasks(client, rest[1], rest.slice(2), { ...flags, chat: subcommand });
     return;
@@ -949,9 +953,11 @@ async function handleChats(
     const limit =
       typeof flags.limit === "string" ? parseInt(flags.limit, 10) : 10;
     const page = typeof flags.page === "string" ? parseInt(flags.page, 10) : 1;
-    const result = client.hasSession()
-      ? await client.listChats(limit, page)
-      : listExampleChats(limit, page);
+    const result = apiKey
+      ? await listApiKeyChats(client, apiKey, limit, page)
+      : client.hasSession()
+        ? await client.listChats(limit, page)
+        : listExampleChats(limit, page);
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -966,9 +972,11 @@ async function handleChats(
       throw new Error(
         "Missing search query. Usage: openmates chats search <query>",
       );
-    const result = client.hasSession()
-      ? await client.searchChats(query)
-      : searchExampleChats(query);
+    const result = apiKey
+      ? await searchApiKeyChats(client, apiKey, query)
+      : client.hasSession()
+        ? await client.searchChats(query)
+        : searchExampleChats(query);
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -989,22 +997,24 @@ async function handleChats(
       throw new Error(
         "Missing message text. Usage: openmates chats new <message>",
       );
-    const result = await sendMessageStreaming(
-      client,
-      {
-        message,
-        chatId: undefined,
-        incognito: false,
-        json: flags.json === true,
-        autoApproveSubChats: flags["auto-approve"] === true,
-        autoApproveMemories: flags["auto-approve-memories"] === true,
-        acceptTaskProposals: flags["accept-task-proposals"] === true,
-        piiDetection: flags["no-pii-detection"] !== true,
-        responseTimeoutMs: parseResponseTimeoutMs(flags),
-        anonymousLearningMode: client.hasSession() ? undefined : parseAnonymousLearningModeFlags(flags),
-      },
-      redactor,
-    );
+    const result = apiKey
+      ? await sendApiKeyChatNew(client, apiKey, message, flags)
+      : await sendMessageStreaming(
+          client,
+          {
+            message,
+            chatId: undefined,
+            incognito: false,
+            json: flags.json === true,
+            autoApproveSubChats: flags["auto-approve"] === true,
+            autoApproveMemories: flags["auto-approve-memories"] === true,
+            acceptTaskProposals: flags["accept-task-proposals"] === true,
+            piiDetection: flags["no-pii-detection"] !== true,
+            responseTimeoutMs: parseResponseTimeoutMs(flags),
+            anonymousLearningMode: client.hasSession() ? undefined : parseAnonymousLearningModeFlags(flags),
+          },
+          redactor,
+        );
     if (flags.json === true) printJson(result);
     return;
   }
@@ -1271,7 +1281,14 @@ async function handleChats(
     let deleted = 0;
     for (const r of resolved) {
       try {
-        await client.deleteChat(r.input);
+        if (apiKey) {
+          await new OpenMates({ apiKey, apiUrl: client.apiUrl }).chats.delete(
+            r.input,
+            { confirmed: true },
+          );
+        } else {
+          await client.deleteChat(r.input);
+        }
         const label = r.title ? `"${r.title}"` : r.input;
         process.stdout.write(`  \x1b[32m\u2713\x1b[0m Deleted ${label}\n`);
         deleted++;
@@ -1728,6 +1745,129 @@ async function handleChats(
   console.error(`Unknown chats subcommand '${subcommand}'.\n`);
   printChatsHelp();
   process.exit(1);
+}
+
+async function listApiKeyChats(
+  client: OpenMatesClient,
+  apiKey: string,
+  limit: number,
+  page: number,
+): Promise<ChatListPage> {
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 10;
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
+  const chats = await sdk.chats.list({ limit: safeLimit, offset: (safePage - 1) * safeLimit });
+  return sdkChatsToChatListPage(chats, safeLimit, safePage);
+}
+
+async function searchApiKeyChats(
+  client: OpenMatesClient,
+  apiKey: string,
+  query: string,
+): Promise<ChatListItem[]> {
+  const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
+  const chats = await sdk.chats.search(query, { limit: 0 });
+  return sdkChatsToChatListPage(chats, chats.length || 1, 1).chats;
+}
+
+function sdkChatsToChatListPage(
+  chats: EncryptedChatMetadata[],
+  limit: number,
+  page: number,
+): ChatListPage {
+  return {
+    chats: chats.map((chat) => {
+      const category = typeof chat.category === "string" ? chat.category : null;
+      return {
+        id: chat.id,
+        shortId: chat.id.slice(0, 8),
+        title: typeof chat.title === "string" ? chat.title : null,
+        summary: typeof chat.chat_summary === "string" ? chat.chat_summary : null,
+        updatedAt: normalizeSdkTimestamp(chat.updated_at),
+        category,
+        mateName: category ? (MATE_NAMES[category] ?? null) : null,
+      };
+    }),
+    total: chats.length,
+    page,
+    limit,
+    hasMore: chats.length >= limit,
+  };
+}
+
+function normalizeSdkTimestamp(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : null;
+  }
+  return null;
+}
+
+async function sendApiKeyChatNew(
+  client: OpenMatesClient,
+  apiKey: string,
+  message: string,
+  flags: Record<string, string | boolean>,
+): Promise<Record<string, unknown>> {
+  const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
+  const response = await sdk.chats.send(message, {
+    saveToAccount: true,
+    title: message.slice(0, 80),
+    recoveryTimeoutMs: parseResponseTimeoutMs(flags),
+  });
+  const result = normalizeApiKeyChatResponse(response);
+  if (flags.json !== true) {
+    const category = typeof result.category === "string" ? result.category : null;
+    const modelName = typeof result.modelName === "string" ? result.modelName : null;
+    const mateBlock = ansiMateBlock(category, category ? (MATE_NAMES[category] ?? null) : null);
+    const modelSuffix = modelName ? `  \x1b[2m${modelName}\x1b[0m` : "";
+    process.stdout.write(`${SEP}\n`);
+    process.stdout.write(`${mateBlock}${modelSuffix}\n`);
+    process.stdout.write(`${SEP}\n`);
+    process.stdout.write(`${String(result.assistant ?? "")}\n`);
+    const chatId = typeof result.chatId === "string" ? result.chatId : null;
+    if (chatId) {
+      const shortId = chatId.slice(0, 8);
+      process.stdout.write(`${SEP}\n`);
+      process.stdout.write(
+        `\x1b[2mContinue: openmates chats send --chat ${shortId} "your message"\x1b[0m\n` +
+          `\x1b[2mHistory:  openmates chats show ${shortId}\x1b[0m\n`,
+      );
+    }
+  }
+  return result;
+}
+
+function normalizeApiKeyChatResponse(response: ChatResponse): Record<string, unknown> {
+  const chatId = typeof response.chat_id === "string" ? response.chat_id : null;
+  const category = typeof response.category === "string" ? response.category : null;
+  const modelName = typeof response.model_name === "string" ? response.model_name : null;
+  return {
+    status: "completed",
+    chatId,
+    chat_id: chatId,
+    messageId: null,
+    message_id: null,
+    assistant: typeof response.content === "string" ? response.content : "",
+    category,
+    modelName,
+    model_name: modelName,
+    mateName: category ? (MATE_NAMES[category] ?? null) : null,
+    followUpSuggestions: [],
+    follow_up_suggestions: [],
+    taskEvents: [],
+    task_events: [],
+    pendingTaskUpdateJobs: [],
+    pending_task_update_jobs: [],
+    subChatEvents: [],
+    sub_chat_events: [],
+    appSettingsMemoryRequests: [],
+    app_settings_memory_requests: [],
+    acceptedTaskProposals: [],
+    accepted_task_proposals: [],
+    raw: response,
+  };
 }
 
 function resolveExampleChatForOpen(target: string): ExampleChatConversation | null {
