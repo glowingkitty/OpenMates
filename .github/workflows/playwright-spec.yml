@@ -132,6 +132,11 @@ jobs:
           echo "OPENMATES_TEST_ACCOUNT_API_KEY=$api_key" >> "$GITHUB_ENV"
           echo "OPENMATES_CI_API_KEY_ID=$api_key_id" >> "$GITHUB_ENV"
           echo "Prepared fresh CLI API key for $SPEC."
+        env:
+          OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', github.event.inputs.account)] }}
+          OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', github.event.inputs.account)] }}
+          OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', github.event.inputs.account)] }}
+          OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ github.event.inputs.account }}
       - name: Run CLI integration checks
         if: github.event.inputs.spec == '__cli_integration_code_docs__'
         id: cli_run
