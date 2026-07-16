@@ -206,6 +206,7 @@ export const apiEndpoints = {
       verifyEmailChangeCode: "/v1/settings/user/email/verify-change-code", // Verify new login email code
       reauthEmailChange: "/v1/settings/user/email/reauth", // Verify recent auth server-side for email changes
       confirmEmailChange: "/v1/settings/user/email/confirm-change", // Commit verified login email change
+      disable2FA: "/v1/settings/user/disable-2fa", // Disable OTP 2FA after re-auth and user confirmation
     },
     autoTopUp: {
       lowBalance: "/v1/settings/auto-topup/low-balance", // Update low balance auto top-up settings (requires 2FA)

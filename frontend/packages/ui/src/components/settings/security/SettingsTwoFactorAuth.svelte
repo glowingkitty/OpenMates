@@ -2,10 +2,7 @@
 SettingsTwoFactorAuth - Two-Factor Authentication settings management component
 Allows users to:
 - View 2FA status and app name
-- Change 2FA app (re-setup with new secret)
-
-Note: 2FA CANNOT be disabled once enabled - this is by design for security.
-Users can only change their 2FA app by going through the setup flow again.
+- Enable, disable, or change 2FA app (re-setup with new secret)
 
 Props:
 - autoStartSetup: Skip overview and auth, go directly to setup (used when embedded after password setup)
@@ -57,7 +54,7 @@ Props:
     // ========================================================================
     
     /** Current step in the 2FA flow */
-    type TfaStep = 'overview' | 'auth' | 'setup' | 'verify' | 'select-app' | 'backup-codes' | 'success';
+    type TfaStep = 'overview' | 'auth' | 'setup' | 'verify' | 'select-app' | 'backup-codes' | 'disable-confirm' | 'success';
     let currentStep = $state<TfaStep>('overview');
     
     /**
@@ -67,6 +64,9 @@ Props:
      * instead of the full QR/OTP/app-selection setup.
      */
     let isResetBackupCodesFlow = $state(false);
+
+    /** Whether the auth step was opened for disabling 2FA. */
+    let isDisable2FAFlow = $state(false);
     
     /** Loading states */
     let isLoading = $state(false);
@@ -201,6 +201,7 @@ Props:
      */
     function startSetup() {
         isResetBackupCodesFlow = false;
+        isDisable2FAFlow = false;
         currentStep = 'auth';
         errorMessage = null;
     }
@@ -212,6 +213,18 @@ Props:
      */
     function startResetBackupCodes() {
         isResetBackupCodesFlow = true;
+        isDisable2FAFlow = false;
+        currentStep = 'auth';
+        errorMessage = null;
+    }
+
+    /**
+     * Start Disable 2FA flow - requires authentication first, then an explicit
+     * confirmation that the account will be less protected.
+     */
+    function startDisable2FA() {
+        isResetBackupCodesFlow = false;
+        isDisable2FAFlow = true;
         currentStep = 'auth';
         errorMessage = null;
     }
@@ -254,12 +267,15 @@ Props:
     /**
      * Handle successful authentication.
      * Branches based on which flow initiated the auth:
-     * - Change App flow → proceed to full 2FA setup
+     * - Change/Enable App flow → proceed to full 2FA setup
      * - Reset Backup Codes flow → call standalone endpoint
+     * - Disable flow → show explicit reduced-security confirmation
      */
     async function handleAuthSuccess() {
         if (isResetBackupCodesFlow) {
             await resetBackupCodes();
+        } else if (isDisable2FAFlow) {
+            currentStep = 'disable-confirm';
         } else {
             currentStep = 'setup';
             await initiate2FASetup();
@@ -274,6 +290,7 @@ Props:
         console.error('[SettingsTwoFactorAuth] Authentication failed:', message);
         errorMessage = message;
         isResetBackupCodesFlow = false;
+        isDisable2FAFlow = false;
         currentStep = 'overview';
     }
     
@@ -282,7 +299,43 @@ Props:
      */
     function handleAuthCancel() {
         isResetBackupCodesFlow = false;
+        isDisable2FAFlow = false;
         currentStep = 'overview';
+    }
+
+    /**
+     * Disable 2FA after identity verification and explicit risk confirmation.
+     */
+    async function disable2FA() {
+        isLoading = true;
+        errorMessage = null;
+
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.settings.user.disable2FA), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ confirmed_less_secure: true })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                updateProfile({ tfa_enabled: false, tfa_app_name: null });
+                has2FA = false;
+                isDisable2FAFlow = false;
+                returnToOverview();
+                successMessage = $text('settings.security.tfa_disabled_success');
+                console.log('[SettingsTwoFactorAuth] 2FA disabled successfully');
+            } else {
+                errorMessage = data.message || $text('settings.security.tfa_disable_failed');
+            }
+        } catch (error) {
+            console.error('[SettingsTwoFactorAuth] Error disabling 2FA:', error);
+            errorMessage = $text('settings.security.tfa_disable_error');
+        } finally {
+            isLoading = false;
+        }
     }
     
     /**
@@ -540,6 +593,7 @@ Props:
         errorMessage = null;
         successMessage = null;
         isResetBackupCodesFlow = false;
+        isDisable2FAFlow = false;
         // Reset setup state
         tfaSecret = '';
         otpauthUrl = '';
@@ -589,16 +643,18 @@ Props:
     {:else if currentStep === 'overview'}
         <!-- Overview State -->
         <div class="tfa-overview">
-            <div class="status-card enabled">
+            <div class="status-card" class:enabled={tfaEnabled} class:disabled={!tfaEnabled} data-testid="tfa-status-card">
                 <div class="status-icon">
                     <span class="icon icon_shield_check"></span>
                 </div>
                 <div class="status-info">
-                    <h3>{$text('settings.security.tfa_enabled')}</h3>
-                    {#if tfaAppName}
+                    <h3>{tfaEnabled ? $text('settings.security.tfa_enabled') : $text('settings.security.tfa_disabled')}</h3>
+                    {#if tfaEnabled && tfaAppName}
                         <p class="app-name">{$text('settings.security.tfa_app_used')}: {tfaAppName}</p>
-                    {:else}
+                    {:else if tfaEnabled}
                         <p class="app-name">{$text('settings.security.tfa_app_unknown')}</p>
+                    {:else}
+                        <p class="app-name">{$text('settings.security.tfa_disabled_description')}</p>
                     {/if}
                 </div>
             </div>
@@ -607,14 +663,47 @@ Props:
                 <div class="success-message" data-testid="success-message">{successMessage}</div>
             {/if}
             
-            <p class="tfa-info">{$text('settings.security.tfa_cannot_disable')}</p>
-            
             <div class="action-buttons">
-                <button class="btn-primary" onclick={startSetup}>
-                    {$text('settings.security.tfa_change_app')}
+                {#if tfaEnabled}
+                    <button class="btn-primary" data-testid="tfa-change-app-button" onclick={startSetup}>
+                        {$text('settings.security.tfa_change_app')}
+                    </button>
+                    <button class="btn-secondary" data-testid="tfa-reset-backup-codes-button" onclick={startResetBackupCodes}>
+                        {$text('settings.security.tfa_reset_backup_codes')}
+                    </button>
+                    <button class="btn-danger" data-testid="tfa-disable-button" onclick={startDisable2FA}>
+                        {$text('settings.security.tfa_disable')}
+                    </button>
+                {:else}
+                    <button class="btn-primary" data-testid="tfa-enable-button" onclick={startSetup}>
+                        {$text('settings.security.tfa_enable')}
+                    </button>
+                {/if}
+            </div>
+        </div>
+
+    {:else if currentStep === 'disable-confirm'}
+        <!-- Disable Confirmation -->
+        <div class="tfa-disable-confirm" data-testid="tfa-disable-confirm">
+            <div class="warning-icon">
+                <span class="clickable-icon icon_warning"></span>
+            </div>
+            <h3>{$text('settings.security.tfa_disable_confirm_title')}</h3>
+            <p class="description">{$text('settings.security.tfa_disable_confirm_description')}</p>
+
+            {#if errorMessage}
+                <div class="error-message">{errorMessage}</div>
+            {/if}
+
+            <div class="action-buttons confirm-actions">
+                <button class="btn-secondary" data-testid="tfa-disable-cancel-button" onclick={returnToOverview} disabled={isLoading}>
+                    {$text('common.cancel')}
                 </button>
-                <button class="btn-secondary" onclick={startResetBackupCodes}>
-                    {$text('settings.security.tfa_reset_backup_codes')}
+                <button class="btn-danger" data-testid="tfa-disable-confirm-button" onclick={disable2FA} disabled={isLoading}>
+                    {#if isLoading}
+                        <div class="loading-spinner-small"></div>
+                    {/if}
+                    {$text('settings.security.tfa_disable_confirm')}
                 </button>
             </div>
         </div>
@@ -635,6 +724,7 @@ Props:
                     {#if showQrCode}
                         <div class="qr-code" data-testid="qr-code">
                             <!-- QR code SVG is generated client-side by qrcode-svg library (safe) -->
+                            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                             {@html qrCodeSvg}
                         </div>
                     {/if}
@@ -837,6 +927,10 @@ Props:
         border-left-color: var(--color-success);
     }
 
+    .status-card.disabled {
+        border-left-color: var(--color-warning);
+    }
+
     .status-icon {
         width: 48px;
         height: 48px;
@@ -867,12 +961,15 @@ Props:
     .action-buttons {
         display: flex;
         gap: var(--spacing-6);
+        flex-wrap: wrap;
+        justify-content: center;
     }
 
     /* Setup State */
     .tfa-setup,
     .tfa-select-app,
     .tfa-backup-codes,
+    .tfa-disable-confirm,
     .tfa-success {
         display: flex;
         flex-direction: column;
@@ -1093,9 +1190,26 @@ Props:
         color: var(--color-success);
     }
 
+    .warning-icon {
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--color-warning-bg);
+    }
+
+    .warning-icon .clickable-icon {
+        width: 32px;
+        height: 32px;
+        background-color: var(--color-warning);
+    }
+
     /* Buttons */
     .btn-primary,
-    .btn-secondary {
+    .btn-secondary,
+    .btn-danger {
         padding: var(--spacing-6) var(--spacing-12);
         border: none;
         border-radius: var(--radius-3);
@@ -1123,6 +1237,11 @@ Props:
         cursor: not-allowed;
     }
 
+    .btn-danger:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
     .btn-secondary {
         background: var(--color-grey-20);
         color: var(--color-grey-100);
@@ -1130,6 +1249,15 @@ Props:
 
     .btn-secondary:hover {
         background: var(--color-grey-30);
+    }
+
+    .btn-danger {
+        background: var(--color-danger);
+        color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        background: var(--color-danger-dark);
     }
 
     .btn-cancel {

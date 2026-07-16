@@ -130,6 +130,13 @@ class SimpleSuccessResponse(BaseModel):
     message: str
 
 
+class Disable2FARequest(BaseModel):
+    confirmed_less_secure: bool = Field(
+        default=False,
+        description="User confirmed that disabling OTP 2FA reduces account security.",
+    )
+
+
 # --- Response models for active reminders ---
 class ActiveReminderItem(BaseModel):
     """A single active reminder for display in app settings."""
@@ -809,6 +816,7 @@ async def update_username(
 @limiter.limit("5/minute")  # Sensitive security operation - strict rate limit
 async def disable_2fa(
     request: Request,
+    payload: Disable2FARequest,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
@@ -821,6 +829,12 @@ async def disable_2fa(
     """
     user_id = current_user.id
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+
+    if not payload.confirmed_less_secure:
+        raise HTTPException(
+            status_code=400,
+            detail="Please confirm that disabling 2FA reduces account security.",
+        )
     
     logger.info(f"[2FA] User {user_id} requesting to disable 2FA")
 
