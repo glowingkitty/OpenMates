@@ -21,14 +21,19 @@ Usage:
 import sys
 import os
 import importlib.util
+import shutil
+import tempfile
 from pathlib import Path
 
 # Add project root to path for imports
 sys.path.insert(0, '/app')
+# When this script is executed by path, Python puts this services directory on
+# sys.path, which shadows the standard library email package with services/email.
+services_dir = str(Path(__file__).parent)
+sys.path = [path for path in sys.path if path != services_dir]
 
 # Import directly from the module file to avoid triggering __init__.py imports
 # This prevents importing other services that may have dependency issues
-import importlib.util
 domain_security_path = Path(__file__).parent / 'domain_security.py'
 spec = importlib.util.spec_from_file_location("domain_security", domain_security_path)
 domain_security_module = importlib.util.module_from_spec(spec)
@@ -88,7 +93,7 @@ def test_config_loading():
         print(f"✓ Loaded {len(_SUSPICIOUS_PATTERNS)} suspicious patterns")
         
         # Print file paths for verification
-        print(f"\nFile paths:")
+        print("\nFile paths:")
         print(f"  Restricted: {service.restricted_domains_path}")
         print(f"  Allowed: {service.allowed_domain_path}")
         print(f"  Patterns: {service.suspicious_patterns_path}")
@@ -126,15 +131,19 @@ def test_email_domain_validation():
         ("user@meta.com", True, "Meta domain (should be blocked)"),
         ("user@openai.com", True, "OpenAI domain (should be blocked)"),
         ("user@anthropic.com", True, "Anthropic domain (should be blocked)"),
+        ("user@research.google.com", True, "Google subdomain (should be blocked)"),
+        ("user@labs.openai.com", True, "OpenAI subdomain (should be blocked)"),
+        ("user@google.com.evil.test", False, "Lookalike suffix domain (should be allowed)"),
+        ("user@notgoogle.com", False, "Prefix lookalike domain (should be allowed)"),
         
         # Allowed domain
         ("user@openmates.org", False, "Official OpenMates domain (should be allowed)"),
         
-        # Suspicious patterns (typosquatting)
-        ("user@oopenmates.org", True, "Double 'o' variation (should be blocked)"),
-        ("user@0penmates.org", True, "Zero instead of 'o' (should be blocked)"),
-        ("user@openmates.com", True, "Different TLD (should be blocked)"),
-        ("user@open-mates.org", True, "Hyphenated variation (should be blocked)"),
+        # Platform-name checks apply to hosting validation, not signup emails.
+        ("user@oopenmates.org", False, "Double 'o' variation email (should be allowed)"),
+        ("user@0penmates.org", False, "Zero instead of 'o' email (should be allowed)"),
+        ("user@openmates.com", False, "Different TLD email (should be allowed)"),
+        ("user@open-mates.org", False, "Hyphenated variation email (should be allowed)"),
         
         # Normal domains (should be allowed)
         ("user@example.com", False, "Normal domain (should be allowed)"),
@@ -184,6 +193,10 @@ def test_hosting_domain_validation():
         ("microsoft.com", True, "Microsoft domain (should be blocked)"),
         ("amazon.com", True, "Amazon domain (should be blocked)"),
         ("openai.com", True, "OpenAI domain (should be blocked)"),
+        ("research.google.com", True, "Google subdomain (should be blocked)"),
+        ("labs.openai.com", True, "OpenAI subdomain (should be blocked)"),
+        ("google.com.evil.test", False, "Lookalike suffix domain (should be allowed)"),
+        ("notgoogle.com", False, "Prefix lookalike domain (should be allowed)"),
         
         # Allowed domain
         ("openmates.org", False, "Official OpenMates domain (should be allowed)"),
@@ -238,6 +251,9 @@ def test_domain_restriction_logic():
         # Directly in restricted list
         ("google.com", True, "In restricted domains list"),
         ("microsoft.com", True, "In restricted domains list"),
+        ("research.google.com", True, "Subdomain of restricted domain"),
+        ("google.com.evil.test", False, "Restricted name as prefix only"),
+        ("notgoogle.com", False, "Restricted name without domain boundary"),
         
         # Platform name variations
         ("openmates.org", False, "Official domain (allowed)"),
@@ -272,6 +288,47 @@ def test_domain_restriction_logic():
     return failed == 0
 
 
+def test_runtime_integrity_tamper_detection():
+    """Test that missing encrypted config after load fails closed."""
+    print_header("TEST 5: Runtime Integrity Tamper Detection")
+
+    source_dir = Path(os.getenv('DOMAIN_SECURITY_CONFIG_DIR', '/app/backend/core/api/app/services'))
+    previous_config_dir = os.environ.get('DOMAIN_SECURITY_CONFIG_DIR')
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            for file_name in [
+                'domain_security_restricted.encrypted',
+                'domain_security_allowed.encrypted',
+                'domain_security_patterns.encrypted',
+            ]:
+                shutil.copy2(source_dir / file_name, tmp_path / file_name)
+
+            os.environ['DOMAIN_SECURITY_CONFIG_DIR'] = str(tmp_path)
+            service = DomainSecurityService()
+            service.load_security_config()
+
+            (tmp_path / 'domain_security_restricted.encrypted').unlink()
+            is_allowed, reason = service.validate_email_domain('user@example.com')
+            if is_allowed:
+                print("✗ FAIL: Deleted restricted-domain file did not fail closed")
+                return False
+            print(f"✓ PASS: Deleted restricted-domain file failed closed: {reason}")
+
+            is_allowed_after_failure, reason_after_failure = service.validate_email_domain('user@example.com')
+            if is_allowed_after_failure:
+                print("✗ FAIL: Integrity failure was not sticky")
+                return False
+            print(f"✓ PASS: Integrity failure remains sticky: {reason_after_failure}")
+            return True
+    finally:
+        if previous_config_dir is None:
+            os.environ.pop('DOMAIN_SECURITY_CONFIG_DIR', None)
+        else:
+            os.environ['DOMAIN_SECURITY_CONFIG_DIR'] = previous_config_dir
+
+
 def main():
     """Run all tests."""
     print("\n" + "="*60)
@@ -280,7 +337,7 @@ def main():
     print("="*60)
     
     # Print environment info
-    print(f"\nEnvironment:")
+    print("\nEnvironment:")
     print(f"  Python: {sys.version}")
     print(f"  Working directory: {os.getcwd()}")
     print(f"  Config dir: {os.getenv('DOMAIN_SECURITY_CONFIG_DIR', '/app/backend/core/api/app/services')}")
@@ -298,6 +355,9 @@ def main():
     
     # Test 4: Domain restriction logic
     results.append(("Domain Restriction Logic", test_domain_restriction_logic()))
+    
+    # Test 5: Runtime integrity tamper detection
+    results.append(("Runtime Integrity Tamper Detection", test_runtime_integrity_tamper_detection()))
     
     # Summary
     print_header("TEST SUMMARY")

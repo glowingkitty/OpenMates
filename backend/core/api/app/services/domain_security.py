@@ -11,6 +11,7 @@ import logging
 import re
 import hashlib
 import base64
+import time
 from typing import List, Set, Optional, Tuple, Dict
 from pathlib import Path
 from cryptography.fernet import Fernet
@@ -97,6 +98,20 @@ _SUSPICIOUS_PATTERNS: List[str] = []
 # Resilience: Track validation state to detect tampering
 _VALIDATION_ENABLED = True
 _CONFIG_LOADED_FLAG = False
+_INTEGRITY_CHECK_INTERVAL_SECONDS = 60.0
+_MIN_RESTRICTED_DOMAIN_COUNT = 205
+_REQUIRED_RESTRICTED_DOMAINS = frozenset({
+    "clearview.ai",
+    "palantir.com",
+    "lockheedmartin.com",
+    "rheinmetall.com",
+    "boozallen.com",
+    "g4s.com",
+    "exxonmobil.com",
+    "totalenergies.com",
+    "nestle.com",
+    "shein.com",
+})
 
 
 class DomainSecurityService:
@@ -127,6 +142,8 @@ class DomainSecurityService:
         
         # Resilience: Track if validation is properly initialized
         self._validation_initialized = False
+        self._integrity_failed = False
+        self._last_integrity_check_at = 0.0
         
         # Paths to encrypted security configuration files
         # These should be in a location accessible to the server
@@ -311,7 +328,9 @@ class DomainSecurityService:
             global _SUSPICIOUS_PATTERNS
             _SUSPICIOUS_PATTERNS = patterns
             logger.info(f"Loaded {len(_SUSPICIOUS_PATTERNS)} suspicious patterns")
-            
+
+            self.validate_minimum_policy()
+             
             # Resilience: Mark configuration as loaded and validation as initialized
             self.config_loaded = True
             self._validation_initialized = True
@@ -329,6 +348,18 @@ class DomainSecurityService:
                 "Server files missing."
             )
             raise SystemExit("Server files missing")
+
+    def validate_minimum_policy(self) -> None:
+        """Fail startup if the encrypted policy is missing required safeguards."""
+        missing_domains = sorted(_REQUIRED_RESTRICTED_DOMAINS - self.restricted_domains)
+        if len(self.restricted_domains) < _MIN_RESTRICTED_DOMAIN_COUNT or missing_domains:
+            logger.critical(
+                "CRITICAL: Domain security policy is incomplete: count=%s minimum=%s missing=%s",
+                len(self.restricted_domains),
+                _MIN_RESTRICTED_DOMAIN_COUNT,
+                ", ".join(missing_domains) or "none",
+            )
+            raise SystemExit("Domain security policy incomplete")
     
     def _normalize_domain(self, domain: str) -> str:
         """
@@ -340,7 +371,16 @@ class DomainSecurityService:
         Returns:
             Normalized domain string
         """
-        return domain.strip().lower()
+        return domain.strip().lower().rstrip('.')
+
+    def _matches_restricted_domain(self, domain: str) -> bool:
+        """Return True for exact restricted domains or their subdomains."""
+        normalized = self._normalize_domain(domain)
+        for restricted_domain in self.restricted_domains:
+            restricted = self._normalize_domain(restricted_domain)
+            if normalized == restricted or normalized.endswith(f".{restricted}"):
+                return True
+        return False
     
     def _contains_platform_name(self, domain: str) -> bool:
         """
@@ -436,6 +476,23 @@ class DomainSecurityService:
         except Exception as e:
             logger.warning(f"Resilience check error: {e}")
             return False
+
+    def _verify_integrity_if_due(self) -> bool:
+        """Time-throttle file integrity checks while failing closed permanently."""
+        if self._integrity_failed:
+            return False
+
+        now = time.monotonic()
+        if now - self._last_integrity_check_at < _INTEGRITY_CHECK_INTERVAL_SECONDS:
+            return True
+
+        self._last_integrity_check_at = now
+        if not self._verify_integrity():
+            self._integrity_failed = True
+            logger.critical("CRITICAL: Configuration file integrity check failed")
+            return False
+
+        return True
     
     def is_domain_restricted(self, domain: str, check_patterns: bool = True, skip_platform_checks: bool = False) -> Tuple[bool, Optional[str]]:
         """
@@ -468,12 +525,8 @@ class DomainSecurityService:
             logger.critical("CRITICAL: Domain validation not properly initialized")
             return True, "Domain not supported"
         
-        # Resilience: Periodic integrity check (every 10th call, approximate)
-        import random
-        if random.random() < 0.1:  # 10% chance
-            if not self._verify_integrity():
-                logger.critical("CRITICAL: Configuration file integrity check failed")
-                return True, "Domain not supported"
+        if not self._verify_integrity_if_due():
+            return True, "Domain not supported"
         
         if not domain:
             return False, None
@@ -503,7 +556,7 @@ class DomainSecurityService:
             )
             return True, "Domain not supported"
         
-        if normalized in self.restricted_domains:
+        if self._matches_restricted_domain(normalized):
             return True, "Domain not supported"
         
         # Domain is not restricted

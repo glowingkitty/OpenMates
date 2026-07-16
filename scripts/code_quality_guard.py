@@ -18,6 +18,7 @@ from pathlib import Path
 import audit_embed_structure
 import audit_app_provider_contracts
 import audit_apple_release_preflight
+import audit_domain_security
 import audit_opencode_automation_budget
 import audit_playwright_determinism
 import audit_sensitive_logging
@@ -34,6 +35,9 @@ EMBED_STRUCTURE_PATH_RE = re.compile(
 )
 PLAYWRIGHT_SPEC_PATH_RE = re.compile(r"^frontend/apps/web_app/tests/.*\.(spec|test)\.ts$")
 APP_PROVIDER_PATH_RE = re.compile(r"^(backend/apps/[^/]+/app\.yml|backend/providers/.*\.ya?ml)$")
+DOMAIN_SECURITY_PATH_RE = re.compile(
+    r"^(backend/core/api/app/services/domain_security(_.*\.encrypted|\.py)|scripts/audit_domain_security\.py)$"
+)
 OPENCODE_AUTOMATION_PATH_RE = re.compile(
     r"^(scripts/.*\.(py|sh|js|mjs)|scripts/prompts/.*\.md|\.agents/skills/.*/SKILL\.md|opencode\.json)$"
 )
@@ -299,6 +303,10 @@ def main() -> int:
             blocks.append(f"embed structure: {issue}")
         for warning in audit_result.warnings:
             blocks.append(f"embed structure: {warning}")
+
+    if any(DOMAIN_SECURITY_PATH_RE.search(path) for path in staged_files):
+        for issue in audit_domain_security.audit_domain_security():
+            blocks.append(f"domain security: {issue}")
 
     for issue in _run_caddyfile_preflight(staged_files):
         blocks.append(f"caddy preflight: {issue}")
