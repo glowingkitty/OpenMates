@@ -50,10 +50,6 @@
   let imageUrl = $derived(proxyImage(previewUrl, 960));
   let ctaLabel = $derived(provider ? $text('embeds.models3d.search.open_on_provider', { values: { provider } }) : $text('embeds.models3d.search.open_result'));
 
-  function openProvider() {
-    if (!sourcePageUrl) return;
-    window.open(sourcePageUrl, '_blank', 'noopener,noreferrer');
-  }
 </script>
 
 <UnifiedEmbedFullscreen
@@ -72,7 +68,7 @@
 >
   {#snippet embedHeaderCta()}
     {#if sourcePageUrl}
-      <EmbedHeaderCtaButton label={ctaLabel} onclick={openProvider} testId="models3d-open-provider-cta" />
+      <EmbedHeaderCtaButton label={ctaLabel} href={sourcePageUrl} testId="models3d-open-provider-cta" />
     {/if}
   {/snippet}
 
