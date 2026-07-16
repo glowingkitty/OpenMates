@@ -41,14 +41,19 @@ test.describe('privacy PII settings deep links', () => {
 		const log = createSignupLogger('SETTINGS_PRIVACY_PII_DEEP_LINK');
 		await loginToTestAccount(page, log);
 
-		for (const path of [
-			'/#settings/privacy/hide-personal-data',
-			'/#settings/privacy/pii',
-			'/privacy/pii'
-		]) {
+		for (const path of ['/#settings/privacy/hide-personal-data', '/#settings/privacy/pii']) {
 			log(`Checking settings deep link: ${path}`);
 			await page.goto(getE2EDebugUrl(path), { waitUntil: 'domcontentloaded' });
 			await expectHidePersonalDataSettings(page);
 		}
+
+		log('Checking settings short URL redirect: /privacy/pii');
+		const privacyPiiUrl = new URL('/privacy/pii', page.url()).toString();
+		const redirectResponse = await page.request.get(privacyPiiUrl, { maxRedirects: 0 });
+		expect(redirectResponse.status()).toBe(302);
+		expect(redirectResponse.headers().location).toBe('/#settings/privacy/pii');
+
+		await page.goto(getE2EDebugUrl('/#settings/privacy/pii'), { waitUntil: 'domcontentloaded' });
+		await expectHidePersonalDataSettings(page);
 	});
 });
