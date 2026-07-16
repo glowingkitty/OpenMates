@@ -1884,7 +1884,11 @@ function extractAiAskContent(value: unknown): string {
 function normalizeApiKeyChatResponse(response: ChatResponse): Record<string, unknown> {
   const chatId = typeof response.chat_id === "string" ? response.chat_id : null;
   const category = typeof response.category === "string" ? response.category : null;
-  const modelName = typeof response.model_name === "string" ? response.model_name : null;
+  const modelName = typeof response.model_name === "string"
+    ? response.model_name
+    : typeof response.modelName === "string"
+      ? response.modelName
+      : null;
   return {
     status: "completed",
     chatId,

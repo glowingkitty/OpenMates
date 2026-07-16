@@ -735,6 +735,7 @@ async function withSdkChatMockApi<T>(
           chat_id: null,
           response: {
             content: "api-key stateless chat ok",
+            modelName: "test-model",
             raw: { model: "test-model", category: "general_knowledge" },
           },
         });
@@ -2987,9 +2988,15 @@ describe("unauthenticated example chats", () => {
         "--api-key", apiKey,
         "chats", "new", "Workflow chat delivery test", "--json",
       ]);
-      const created = JSON.parse(createOutput) as { status?: string; chat_id?: string | null; assistant?: string };
+      const created = JSON.parse(createOutput) as {
+        status?: string;
+        chat_id?: string | null;
+        assistant?: string;
+        modelName?: string | null;
+      };
       assert.equal(created.status, "completed");
       assert.equal(created.assistant, "api-key stateless chat ok");
+      assert.equal(created.modelName, "test-model");
       assert.equal(created.chat_id, null);
       assert.equal(requests[0]?.url, "/v1/sdk/chats");
       assert.equal(requests[0]?.body?.message, "Workflow chat delivery test");
