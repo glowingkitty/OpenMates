@@ -1811,9 +1811,24 @@ async function sendApiKeyChatNew(
   flags: Record<string, string | boolean>,
 ): Promise<Record<string, unknown>> {
   const sdk = new OpenMates({ apiKey, apiUrl: client.apiUrl });
-  const response = await sdk.chats.send(message, {
-    saveToAccount: false,
-  });
+  let response: ChatResponse;
+  try {
+    response = await sdk.chats.send(message, {
+      saveToAccount: false,
+    });
+  } catch (err) {
+    if (!isSdkChatScopeDenied(err)) throw err;
+    const aiAskResult = await client.runSkill({
+      app: "ai",
+      skill: "ask",
+      inputData: { prompt: message },
+      apiKey,
+    });
+    response = {
+      content: extractAiAskContent(aiAskResult),
+      raw: aiAskResult,
+    };
+  }
   const result = normalizeApiKeyChatResponse(response);
   if (flags.json !== true) {
     const category = typeof result.category === "string" ? result.category : null;
@@ -1835,6 +1850,30 @@ async function sendApiKeyChatNew(
     }
   }
   return result;
+}
+
+function isSdkChatScopeDenied(err: unknown): boolean {
+  return err instanceof Error
+    && err.name === "OpenMatesApiError"
+    && (err as Error & { status?: number }).status === 403;
+}
+
+function extractAiAskContent(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  if (typeof record.content === "string") return record.content;
+  if (typeof record.response === "string") return record.response;
+  if (typeof record.answer === "string") return record.answer;
+  const choices = record.choices;
+  if (Array.isArray(choices)) {
+    const first = choices[0] as Record<string, unknown> | undefined;
+    const message = first?.message as Record<string, unknown> | undefined;
+    if (typeof message?.content === "string") return message.content;
+    if (typeof first?.text === "string") return first.text;
+  }
+  const data = record.data;
+  if (data && typeof data === "object") return extractAiAskContent(data);
+  return JSON.stringify(value);
 }
 
 function normalizeApiKeyChatResponse(response: ChatResponse): Record<string, unknown> {

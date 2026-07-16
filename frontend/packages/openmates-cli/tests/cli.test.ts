@@ -771,6 +771,57 @@ async function withSdkChatMockApi<T>(
   }
 }
 
+async function withSdkChatDeniedAiAskMockApi<T>(
+  run: (params: {
+    apiUrl: string;
+    apiKey: string;
+    requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }>;
+  }) => T | Promise<T>,
+): Promise<T> {
+  const apiKey = "sk-cli-chat-fallback-test";
+  const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.headers.authorization !== `Bearer ${apiKey}`) {
+        writeJsonStatus(response, 401, { detail: "missing api key" });
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/v1/sdk/chats") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJsonStatus(response, 403, { detail: { error: "missing_scope", missing_scope: "chat:create_incognito" } });
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/v1/apps/ai/skills/ask") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          choices: [{ message: { content: "fallback ai ask ok" } }],
+        });
+        return;
+      }
+
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, apiKey, requests });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
 async function withLearningModeMockApi<T>(
   run: (params: { apiUrl: string; requests: Array<{ method: string; url: string; body?: Record<string, unknown> }>; tempHome: string }) => T | Promise<T>,
 ): Promise<T> {
@@ -2944,6 +2995,25 @@ describe("unauthenticated example chats", () => {
       assert.equal(requests[0]?.body?.message, "Workflow chat delivery test");
       assert.equal(requests[0]?.body?.save_to_account, false);
       assert.equal(requests.some((request) => request.url === "/v1/anonymous/chat/stream"), false);
+    });
+  });
+
+  it("falls back to authenticated ai.ask when an API key lacks SDK chat scope", async () => {
+    await withSdkChatDeniedAiAskMockApi(async ({ apiUrl, apiKey, requests }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "--api-key", apiKey,
+        "chats", "new", "Search the web for OpenMates", "--json",
+      ]);
+      const parsed = JSON.parse(output) as { status?: string; assistant?: string; chat_id?: string | null };
+      assert.equal(parsed.status, "completed");
+      assert.equal(parsed.assistant, "fallback ai ask ok");
+      assert.equal(parsed.chat_id, null);
+      assert.deepEqual(requests.map((request) => request.url), [
+        "/v1/sdk/chats",
+        "/v1/apps/ai/skills/ask",
+      ]);
+      assert.equal(requests[1]?.body?.prompt, "Search the web for OpenMates");
     });
   });
 
