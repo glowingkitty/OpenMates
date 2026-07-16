@@ -357,7 +357,8 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 
 	const keyByName = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
 	await expect(keyByName, `Expected optimistic API key row ${keyName} to exist.`).toBeVisible({ timeout: 5000 });
-	await expect(keyByName).toContainText(/Never used/i);
+	await expect(keyByName).toContainText(/Full access/i);
+	await expect(keyByName).toContainText(/Unlimited credits/i);
 	log(`Key found by name "${keyName}" immediately. Total key items: ${await keyItems.count()}`);
 
 	await screenshot(page, 'key-in-list');
