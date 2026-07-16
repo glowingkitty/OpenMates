@@ -72,6 +72,66 @@ jobs:
       - name: Build openmates CLI (required by cli-skills-* specs)
         run: pnpm --filter openmates build
         working-directory: frontend
+      - name: Prepare API key for CLI specs
+        run: |
+          set -euo pipefail
+          mkdir -p frontend/apps/web_app/artifacts
+
+          SPEC="${{ github.event.inputs.spec }}"
+          API_URL="${{ secrets.E2E_DEV_API_URL }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="https://api.dev.openmates.org"
+          fi
+
+          needs_fresh_key=0
+          if [ "$SPEC" = "__cli_integration_code_docs__" ]; then
+            needs_fresh_key=1
+          elif [[ "$SPEC" == skill-* ]]; then
+            needs_fresh_key=1
+          elif [ "$SPEC" = "default-model-cli.spec.ts" ]; then
+            needs_fresh_key=1
+          fi
+
+          if [ "$needs_fresh_key" -ne 1 ]; then
+            echo "OPENMATES_TEST_ACCOUNT_API_KEY=${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          node scripts/openmates_cli_test_account.mjs login \
+            --slot "${{ github.event.inputs.account }}" \
+            --api-url "$API_URL"
+
+          created_json=$(node frontend/packages/openmates-cli/dist/cli.js \
+            --api-url "$API_URL" \
+            settings developers api-keys create "gha-${SPEC}-${{ github.run_id }}" --yes --json)
+
+          api_key=$(printf '%s' "$created_json" | node -e 'let raw=""; process.stdin.on("data", d => raw += d); process.stdin.on("end", () => { const start = raw.indexOf("{"); if (start < 0) process.exit(2); const data = JSON.parse(raw.slice(start)); if (!data.api_key || !data.api_key.startsWith("sk-api-")) process.exit(3); process.stdout.write(data.api_key); });')
+          api_key_id=$(printf '%s' "$created_json" | node -e 'let raw=""; process.stdin.on("data", d => raw += d); process.stdin.on("end", () => { const start = raw.indexOf("{"); if (start < 0) process.exit(2); const data = JSON.parse(raw.slice(start)); const id = data.key && typeof data.key.id === "string" ? data.key.id : typeof data.id === "string" ? data.id : ""; if (!id) process.exit(3); process.stdout.write(id); });')
+
+          echo "::add-mask::$api_key"
+
+          set +e
+          OPENMATES_API_KEY="$api_key" node frontend/packages/openmates-cli/dist/cli.js \
+            --api-url "$API_URL" apps math calculate "1+1" --json \
+            > frontend/apps/web_app/artifacts/api_key_probe.out \
+            2> frontend/apps/web_app/artifacts/api_key_probe.err
+          probe_status=$?
+          set -e
+
+          if [ "$probe_status" -ne 0 ] && grep -Eq "New device detected|Device not approved" frontend/apps/web_app/artifacts/api_key_probe.err; then
+            node scripts/approve_test_api_key_device.mjs --api-url "$API_URL"
+            OPENMATES_API_KEY="$api_key" node frontend/packages/openmates-cli/dist/cli.js \
+              --api-url "$API_URL" apps math calculate "1+1" --json \
+              > frontend/apps/web_app/artifacts/api_key_probe.out \
+              2> frontend/apps/web_app/artifacts/api_key_probe.err
+          elif [ "$probe_status" -ne 0 ]; then
+            cat frontend/apps/web_app/artifacts/api_key_probe.err >&2
+            exit "$probe_status"
+          fi
+
+          echo "OPENMATES_TEST_ACCOUNT_API_KEY=$api_key" >> "$GITHUB_ENV"
+          echo "OPENMATES_CI_API_KEY_ID=$api_key_id" >> "$GITHUB_ENV"
+          echo "Prepared fresh CLI API key for $SPEC."
       - name: Run CLI integration checks
         if: github.event.inputs.spec == '__cli_integration_code_docs__'
         id: cli_run
@@ -82,7 +142,6 @@ jobs:
             --output "$GITHUB_WORKSPACE/test-results/cli-integration.json"
         working-directory: frontend/packages/openmates-cli
         env:
-          OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
           OPENMATES_CLI_TEST_API_URL: ${{ secrets.E2E_DEV_API_URL }}
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
       - name: Install Playwright browsers
@@ -147,7 +206,6 @@ jobs:
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
           OPENMATES_E2E_API_URL: ${{ secrets.E2E_DEV_API_URL }}
-          OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
           OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', github.event.inputs.account)] }}
           OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', github.event.inputs.account)] }}
           OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', github.event.inputs.account)] }}
@@ -228,6 +286,21 @@ jobs:
             echo "Updating OPENMATES_TEST_ACCOUNT_API_KEY after credential-mutating test..."
             gh secret set OPENMATES_TEST_ACCOUNT_API_KEY --body "$NEW_API_KEY" && echo "✅ Updated OPENMATES_TEST_ACCOUNT_API_KEY" || echo "⚠️ Failed to update OPENMATES_TEST_ACCOUNT_API_KEY"
           fi
+      - name: Revoke per-run CLI API key
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -z "${OPENMATES_CI_API_KEY_ID:-}" ]; then
+            exit 0
+          fi
+          API_URL="${{ secrets.E2E_DEV_API_URL }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="https://api.dev.openmates.org"
+          fi
+          node frontend/packages/openmates-cli/dist/cli.js \
+            --api-url "$API_URL" \
+            settings developers api-keys revoke "$OPENMATES_CI_API_KEY_ID" --yes --json \
+            || echo "⚠️ Failed to revoke per-run CLI API key $OPENMATES_CI_API_KEY_ID"
       - name: Update account credentials if created by utility spec
         if: always()
         env:
