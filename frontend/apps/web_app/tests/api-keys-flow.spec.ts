@@ -169,13 +169,18 @@ async function ensureDevelopersSettingsOpen(
 		}
 	}
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	await page.waitForTimeout(500);
 
 	for (let i = 0; i < 5; i++) {
 		const activeView = await settingsMenu.getAttribute('data-active-view');
-		if (activeView === 'developers') {
+		if (activeView === 'developers' || activeView === 'developers/devices') {
 			return settingsMenu;
 		}
-		if (!activeView || activeView === 'main') {
+		if (!activeView) {
+			await page.waitForTimeout(250);
+			continue;
+		}
+		if (activeView === 'main') {
 			break;
 		}
 
@@ -189,6 +194,15 @@ async function ensureDevelopersSettingsOpen(
 		await expect(settingsMenu).toHaveAttribute('data-active-view', /^(main|developers)$/i, {
 			timeout: 5000
 		});
+	}
+
+	if (
+		await settingsMenu
+			.getByRole('heading', { name: /^devices$/i })
+			.isVisible({ timeout: 1000 })
+			.catch(() => false)
+	) {
+		return settingsMenu;
 	}
 
 	const developersItem = settingsMenu
@@ -224,6 +238,16 @@ async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void
 	}
 
 	const settingsMenu = await ensureDevelopersSettingsOpen(page, logCheckpoint);
+	if (
+		(await settingsMenu.getAttribute('data-active-view')) === 'developers/devices' ||
+		(await settingsMenu
+			.getByRole('heading', { name: /^devices$/i })
+			.isVisible({ timeout: 500 })
+			.catch(() => false))
+	) {
+		logCheckpoint('Devices page already loaded.');
+		return;
+	}
 
 	const devicesItem = settingsMenu
 		.getByTestId('menu-item')
