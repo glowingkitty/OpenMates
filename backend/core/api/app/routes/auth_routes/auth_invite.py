@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from backend.core.api.app.schemas.auth import (
     DevSignupCleanupRequest,
     DevSignupCleanupResponse,
+    DevSignupLifecycleContactRequest,
+    DevSignupLifecycleContactResponse,
     InviteCodeRequest,
     InviteCodeResponse,
 )
@@ -21,8 +23,10 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service,
     get_cache_service,
     get_metrics_service,
+    get_encryption_service,
 )
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
+from backend.core.api.app.utils.encryption import EncryptionService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -165,4 +169,81 @@ async def cleanup_failed_signup(
         deleted=True,
         message="Disposable signup account deletion queued",
         task_id=task_result.id,
+    )
+
+
+@router.post(
+    "/verify_signup_lifecycle_contact",
+    response_model=DevSignupLifecycleContactResponse,
+    include_in_schema=False,
+)
+@limiter.limit("20/minute")
+async def verify_signup_lifecycle_contact(
+    request: Request,
+    verify_request: DevSignupLifecycleContactRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> DevSignupLifecycleContactResponse:
+    """Dev-only assertion that a disposable signup stored its lifecycle contact email."""
+    if _is_production_environment():
+        raise HTTPException(status_code=404, detail="Not found")
+    _verify_dev_cleanup_secret(request)
+
+    hashed_email = verify_request.hashed_email.strip()
+    if not hashed_email:
+        raise HTTPException(status_code=400, detail="hashed_email is required")
+    expected_digest = hashlib.sha256(verify_request.expected_email.strip().lower().encode()).digest()
+    expected_hashed_email = base64.b64encode(expected_digest).decode()
+    if not hmac.compare_digest(hashed_email, expected_hashed_email):
+        raise HTTPException(status_code=400, detail="expected_email does not match hashed_email")
+    if hashed_email in _configured_test_account_hashes():
+        raise HTTPException(status_code=403, detail="Refusing to inspect a configured test account")
+
+    exists, target_user, message = await directus_service.get_user_by_hashed_email(hashed_email)
+    if not exists or not target_user:
+        return DevSignupLifecycleContactResponse(
+            success=False,
+            row_exists=False,
+            decrypt_matches=False,
+            message="No matching disposable signup account found",
+        )
+
+    target_user_id = target_user.get("id")
+    if not target_user_id:
+        logger.error("Lifecycle contact verification matched user without id: %s", message)
+        raise HTTPException(status_code=500, detail="Matched user record is missing an id")
+    if target_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Refusing to inspect an admin user")
+
+    rows = await directus_service.get_items(
+        "account_contact_emails",
+        params={
+            "fields": "encrypted_email_address,purpose,source",
+            "filter": {
+                "user_id": {"_eq": target_user_id},
+                "purpose": {"_eq": "account_lifecycle"},
+            },
+            "limit": 1,
+        },
+        admin_required=True,
+    )
+    if not rows:
+        return DevSignupLifecycleContactResponse(
+            success=False,
+            row_exists=False,
+            decrypt_matches=False,
+            message="Lifecycle contact row missing",
+        )
+
+    row = rows[0]
+    decrypted_email = await encryption_service.decrypt_account_contact_email(row.get("encrypted_email_address"))
+    expected_email = verify_request.expected_email.strip().lower()
+    decrypt_matches = bool(decrypted_email and decrypted_email.strip().lower() == expected_email)
+    return DevSignupLifecycleContactResponse(
+        success=decrypt_matches,
+        row_exists=True,
+        decrypt_matches=decrypt_matches,
+        purpose=row.get("purpose"),
+        source=row.get("source"),
+        message="Lifecycle contact row verified" if decrypt_matches else "Lifecycle contact email mismatch",
     )

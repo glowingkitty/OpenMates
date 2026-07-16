@@ -326,32 +326,58 @@ async def test_incomplete_signup_completion_accepts_redeemed_gift_card():
 
 
 @pytest.mark.anyio
-async def test_incomplete_signup_protection_accepts_stripe_payment_intent(monkeypatch):
+async def test_stale_account_protection_accepts_positive_credit_balance():
     from backend.core.api.app.tasks.email_tasks import incomplete_signup_deletion_task as deletion_task
 
-    class FakePaymentIntentList:
-        def auto_paging_iter(self):
-            return iter([
-                SimpleNamespace(status="requires_payment_method", metadata={"purchase_type": "credits"}),
-                SimpleNamespace(status="succeeded", metadata={"purchase_type": "credits"}),
-            ])
-
-    monkeypatch.setattr(deletion_task.stripe.PaymentIntent, "list", MagicMock(return_value=FakePaymentIntentList()))
-    monkeypatch.setattr(deletion_task.stripe, "api_key", None)
-
-    task = SimpleNamespace(directus_service=AsyncMock(), secrets_manager=AsyncMock())
-    task.directus_service.get_items = AsyncMock(side_effect=[[], [], []])
-    task.secrets_manager.get_secret = AsyncMock(return_value="sk_test_123")
+    task = SimpleNamespace(directus_service=AsyncMock(), encryption_service=AsyncMock())
+    task.encryption_service.decrypt_with_user_key = AsyncMock(return_value="50")
 
     source = await deletion_task._account_protection_source(
         task,
-        {"id": "user-1", "stripe_customer_id": "cus_123"},
-        "user@example.com",
+        {"id": "user-1", "vault_key_id": "vault-key", "encrypted_credit_balance": "encrypted-credits"},
+        None,
         datetime.now(timezone.utc),
     )
 
-    assert source == "stripe_payment_intent"
-    deletion_task.stripe.PaymentIntent.list.assert_called_once_with(customer="cus_123", limit=100)
+    assert source == "credit_balance"
+    task.directus_service.get_items.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_stale_account_protection_treats_unreadable_credit_balance_as_protected():
+    from backend.core.api.app.tasks.email_tasks import incomplete_signup_deletion_task as deletion_task
+
+    task = SimpleNamespace(directus_service=AsyncMock(), encryption_service=AsyncMock())
+    task.encryption_service.decrypt_with_user_key = AsyncMock(side_effect=RuntimeError("vault unavailable"))
+
+    source = await deletion_task._account_protection_source(
+        task,
+        {"id": "user-1", "vault_key_id": "vault-key", "encrypted_credit_balance": "encrypted-credits"},
+        None,
+        datetime.now(timezone.utc),
+    )
+
+    assert source == "credit_balance_unreadable"
+    task.directus_service.get_items.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_stale_account_protection_accepts_usage_entries():
+    from backend.core.api.app.tasks.email_tasks import incomplete_signup_deletion_task as deletion_task
+
+    task = SimpleNamespace(directus_service=AsyncMock(), encryption_service=AsyncMock())
+    task.encryption_service.decrypt_with_user_key = AsyncMock(return_value="0")
+    task.directus_service.get_items = AsyncMock(return_value=[{"id": "usage-1"}])
+
+    source = await deletion_task._account_protection_source(
+        task,
+        {"id": "user-1", "vault_key_id": "vault-key", "encrypted_credit_balance": "encrypted-credits"},
+        None,
+        datetime.now(timezone.utc),
+    )
+
+    assert source == "usage_entries"
+    assert task.directus_service.get_items.call_args.args[0] == "usage"
 
 
 @pytest.mark.anyio
@@ -359,16 +385,63 @@ async def test_incomplete_signup_protection_accepts_recent_pending_bank_transfer
     from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _account_protection_source
 
     now = datetime.now(timezone.utc)
-    task = SimpleNamespace(directus_service=AsyncMock())
+    task = SimpleNamespace(directus_service=AsyncMock(), encryption_service=AsyncMock())
+    task.encryption_service.decrypt_with_user_key = AsyncMock(return_value="0")
     task.directus_service.get_items = AsyncMock(side_effect=[
-        [],
         [],
         [{"created_at": now.isoformat(), "expires_at": (now + timedelta(days=6)).isoformat(), "status": "pending"}],
     ])
 
-    source = await _account_protection_source(task, {"id": "user-1"}, "user@example.com", now)
+    source = await _account_protection_source(
+        task,
+        {"id": "user-1", "vault_key_id": "vault-key", "encrypted_credit_balance": "encrypted-credits"},
+        "user@example.com",
+        now,
+    )
 
     assert source == "pending_bank_transfer"
+
+
+@pytest.mark.anyio
+async def test_stale_account_protection_accepts_active_subscription_before_owned_content_lookup():
+    from backend.core.api.app.tasks.email_tasks import incomplete_signup_deletion_task as deletion_task
+
+    task = SimpleNamespace(directus_service=AsyncMock(), encryption_service=AsyncMock())
+    task.encryption_service.decrypt_with_user_key = AsyncMock(return_value="0")
+    task.directus_service.get_items = AsyncMock(side_effect=[[], []])
+
+    source = await deletion_task._account_protection_source(
+        task,
+        {
+            "id": "user-1",
+            "vault_key_id": "vault-key",
+            "encrypted_credit_balance": "encrypted-credits",
+            "subscription_status": "active",
+        },
+        None,
+        datetime.now(timezone.utc),
+    )
+
+    assert source == "active_subscription"
+    assert [call.args[0] for call in task.directus_service.get_items.call_args_list] == ["usage", "pending_bank_transfers"]
+
+
+@pytest.mark.anyio
+async def test_stale_account_protection_accepts_owned_chat():
+    from backend.core.api.app.tasks.email_tasks import incomplete_signup_deletion_task as deletion_task
+
+    task = SimpleNamespace(directus_service=AsyncMock(), encryption_service=AsyncMock())
+    task.encryption_service.decrypt_with_user_key = AsyncMock(return_value="0")
+    task.directus_service.get_items = AsyncMock(side_effect=[[], [], [{"id": "chat-1"}]])
+
+    source = await deletion_task._account_protection_source(
+        task,
+        {"id": "user-1", "vault_key_id": "vault-key", "encrypted_credit_balance": "encrypted-credits"},
+        None,
+        datetime.now(timezone.utc),
+    )
+
+    assert source == "owned_chat"
 
 
 @pytest.mark.anyio
@@ -384,7 +457,8 @@ async def test_incomplete_signup_dry_run_details_show_due_delete_action():
         "last_access": (now - timedelta(days=30)).isoformat(),
         "account_id": "ABC123",
         "language": "en",
-        "stripe_customer_id": None,
+        "vault_key_id": "vault-key",
+        "encrypted_credit_balance": "encrypted-credits",
     }
     deliveries = [
         {"stage": "14d", "sent_at": (now - timedelta(days=15)).isoformat()},
@@ -402,27 +476,15 @@ async def test_incomplete_signup_dry_run_details_show_due_delete_action():
         [],
         [],
         [],
+        [],
         deliveries,
         [{"encrypted_email_address": "encrypted-email"}],
-        [],
     ])
+    task.encryption_service.decrypt_with_user_key = AsyncMock(return_value="0")
     task.encryption_service.decrypt_account_contact_email = AsyncMock(return_value="user@example.com")
     task.secrets_manager.get_secret = AsyncMock(return_value="sk_test_123")
 
-    class EmptyStripeList:
-        def auto_paging_iter(self):
-            return iter([])
-
-    from backend.core.api.app.tasks.email_tasks import incomplete_signup_deletion_task as deletion_task
-
-    monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setattr(deletion_task.stripe.Customer, "list", MagicMock(return_value=EmptyStripeList()))
-    monkeypatch.setattr(deletion_task.stripe, "api_key", None)
-
-    try:
-        result = await _async_process_incomplete_signup_deletions(task, dry_run=True, include_details=True)
-    finally:
-        monkeypatch.undo()
+    result = await _async_process_incomplete_signup_deletions(task, dry_run=True, include_details=True)
 
     assert result["deleted"] == 1
     assert len(result["due_actions"]) == 1
@@ -434,7 +496,7 @@ async def test_incomplete_signup_dry_run_details_show_due_delete_action():
 
 
 @pytest.mark.anyio
-async def test_incomplete_signup_skips_due_action_when_stripe_safety_fails():
+async def test_stale_account_skips_due_action_when_credit_balance_unreadable():
     from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _async_process_incomplete_signup_deletions
 
     now = datetime.now(timezone.utc)
@@ -446,7 +508,44 @@ async def test_incomplete_signup_skips_due_action_when_stripe_safety_fails():
         "last_access": (now - timedelta(days=20)).isoformat(),
         "account_id": "ABC123",
         "language": "en",
-        "stripe_customer_id": "cus_123",
+        "vault_key_id": "vault-key",
+        "encrypted_credit_balance": "encrypted-credits",
+    }
+    task = SimpleNamespace(
+        directus_service=AsyncMock(),
+        encryption_service=AsyncMock(),
+        secrets_manager=AsyncMock(),
+        initialize_services=AsyncMock(),
+        cleanup_services=AsyncMock(),
+    )
+    task.directus_service.get_items = AsyncMock(side_effect=[
+        [user],
+    ])
+    task.encryption_service.decrypt_with_user_key = AsyncMock(side_effect=RuntimeError("vault unavailable"))
+
+    result = await _async_process_incomplete_signup_deletions(task, dry_run=True, include_details=True)
+
+    assert result["sent_14d"] == 0
+    assert result["skipped_safety_completed"] == 1
+    assert result["protected_credit_balance_unreadable"] == 1
+    assert result["safety_skips"][0]["paid_source"] == "credit_balance_unreadable"
+
+
+@pytest.mark.anyio
+async def test_stale_zero_value_without_email_is_reported_for_explicit_deletion():
+    from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _async_process_incomplete_signup_deletions
+
+    now = datetime.now(timezone.utc)
+    user = {
+        "id": "user-1",
+        "status": "active",
+        "is_admin": False,
+        "signup_completed": True,
+        "last_access": (now - timedelta(days=20)).isoformat(),
+        "account_id": "ABC123",
+        "language": "en",
+        "vault_key_id": "vault-key",
+        "encrypted_credit_balance": "encrypted-credits",
     }
     task = SimpleNamespace(
         directus_service=AsyncMock(),
@@ -461,16 +560,64 @@ async def test_incomplete_signup_skips_due_action_when_stripe_safety_fails():
         [],
         [],
         [],
+        [],
+        [],
+    ])
+    task.encryption_service.decrypt_with_user_key = AsyncMock(return_value="0")
+
+    result = await _async_process_incomplete_signup_deletions(
+        task,
+        dry_run=True,
+        include_details=True,
+        delete_unreachable_zero_value=True,
+    )
+
+    assert result["unreachable_zero_value_candidates"] == 1
+    assert result["unreachable_zero_value_deleted"] == 1
+    assert result["due_actions"][0]["action"] == "delete_without_notification"
+    assert result["unreachable_zero_value"][0]["action"] == "delete_without_notification"
+
+
+@pytest.mark.anyio
+async def test_completed_reachable_stale_account_is_not_sent_incomplete_signup_email():
+    from backend.core.api.app.tasks.email_tasks.incomplete_signup_deletion_task import _async_process_incomplete_signup_deletions
+
+    now = datetime.now(timezone.utc)
+    user = {
+        "id": "user-1",
+        "status": "active",
+        "is_admin": False,
+        "signup_completed": True,
+        "last_access": (now - timedelta(days=20)).isoformat(),
+        "account_id": "ABC123",
+        "language": "en",
+        "vault_key_id": "vault-key",
+        "encrypted_credit_balance": "encrypted-credits",
+    }
+    task = SimpleNamespace(
+        directus_service=AsyncMock(),
+        encryption_service=AsyncMock(),
+        secrets_manager=AsyncMock(),
+        initialize_services=AsyncMock(),
+        cleanup_services=AsyncMock(),
+    )
+    task.directus_service.get_items = AsyncMock(side_effect=[
+        [user],
+        [],
+        [],
+        [],
+        [],
+        [],
         [{"encrypted_email_address": "encrypted-email"}],
     ])
+    task.encryption_service.decrypt_with_user_key = AsyncMock(return_value="0")
     task.encryption_service.decrypt_account_contact_email = AsyncMock(return_value="user@example.com")
-    task.secrets_manager.get_secret = AsyncMock(side_effect=RuntimeError("vault unavailable"))
 
     result = await _async_process_incomplete_signup_deletions(task, dry_run=True, include_details=True)
 
     assert result["sent_14d"] == 0
-    assert result["skipped_safety_unknown"] == 1
-    assert result["safety_skips"][0]["reason"] == "stripe_lookup_failed"
+    assert result["reachable_stale_completed_needs_template"] == 1
+    assert result["reachable_stale_completed"][0]["action"] == "needs_stale_account_email_template"
 
 
 def test_paid_credit_update_marks_signup_complete():

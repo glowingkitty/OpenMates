@@ -1,0 +1,399 @@
+schema_version: 2
+id: stale-account-cleanup-policy
+title: Stale Account Cleanup Policy
+status: implementing
+
+goal: >
+  Replace signup-completion based stale-account cleanup with a verifiable value
+  policy that protects accounts with credits, product usage, pending financial
+  state, active subscriptions, unreadable credit balances, or owned chat data,
+  while allowing truly unused unreachable accounts to be identified safely.
+
+scope:
+  in:
+    - Backend stale-account protection predicate and dry-run reporting.
+    - Cleanup task safeguards for credits, usage entries, pending bank transfers, active subscriptions, unreadable balances, and owned chats/messages.
+    - Signup E2E coverage proving lifecycle contact email persistence for new signups.
+    - Read-only production audit counts for protected, reachable stale, unreachable stale, and chat/message ownership buckets.
+  out:
+    - Immediate production deletion during this implementation session.
+    - New Directus schema fields.
+    - Apple UI changes.
+
+context_discovery:
+  github_issues:
+    - not_checked: User requested immediate implementation in-session; no tracker issue was provided.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/scripts/process_incomplete_signup_deletions.py
+    - backend/core/api/app/routes/auth_routes/auth_utils.py
+    - backend/core/api/app/routes/auth_routes/auth_password.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/directus/schemas/account_contact_emails.yml
+  tests:
+    - backend/tests/test_security_regressions.py
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This is backend cleanup and web signup test coverage; no Apple UI/runtime behavior changes.
+  verification:
+    - Not required for this policy slice.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: What should count as a protected account?
+      answer: current_credit_balance > 0 OR has usage entries OR has pending/admin-review bank transfer OR has active/trialing subscription OR credit balance cannot be decrypted/read.
+    - question: Should accounts with owned chats be deleted without notification?
+      answer: No; first double-check stale accounts do not have owned chats connected to them and do not delete accounts with actual owned chats.
+    - question: What should happen to accounts without lifecycle contact email?
+      answer: If they are not in use and have no credits, usage entries, or owned chats, they can be candidates for deletion because no notification email can be sent.
+  vision_summary: >
+    Cleanup should protect accounts where OpenMates owes value or has evidence of
+    real product use. Accounts with no readable lifecycle email may be eligible
+    only when they also have no credits, no usage entries, no financial blockers,
+    no active subscription, and no owned chats/messages.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: beec181f42d90795e985079b817099f4877789f8
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: "2026-07-16T00:00:00Z"
+    reason: User confirmed the policy and instructed implementation to continue.
+  implementation_plan:
+    status: approved
+    approved_at: "2026-07-16T00:00:00Z"
+    reason: User requested implementation of the listed tasks after reviewing the plan.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Treat unreadable current credit balance as protected.
+    reason: A decryption/read failure must not lead to account deletion.
+    decided_at: "2026-07-16T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Treat owned chats/messages as a blocker for no-email immediate deletion eligibility.
+    reason: The user explicitly wants to avoid deleting accounts with connected owned chats.
+    decided_at: "2026-07-16T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Report completed reachable stale accounts instead of sending the existing incomplete-signup email templates.
+    reason: Completed stale accounts need stale-account-specific copy; reusing incomplete-signup reminders would mislead users.
+    decided_at: "2026-07-16T13:36:25Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Run production read-only policy simulation before code changes.
+    outcome: succeeded
+    recorded_at: "2026-07-16T00:00:00Z"
+    summary: Found 281 protected users and 1299 stale candidates under the proposed policy before chat/message cross-check.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy to dev before running the updated Playwright signup spec.
+  command: python3 scripts/tests.py run --spec signup-skip-2fa-flow.spec.ts
+  expected_outcome: The deployed dev signup flow verifies lifecycle contact email persistence and passes.
+  blocker: null
+  last_verified_commit: beec181f42d90795e985079b817099f4877789f8
+
+scenarios:
+  - id: S-1
+    title: Protected accounts are never stale candidates
+    given:
+      - A regular user account exists.
+    when:
+      - The account has positive credits, usage entries, a pending/admin-review bank transfer, an active/trialing subscription, or an unreadable credit balance.
+    then:
+      - Cleanup reports the account as protected and does not queue reminders or deletion.
+  - id: S-2
+    title: Reachable stale accounts enter reminder pipeline
+    given:
+      - A regular account has zero credits, no usage entries, no pending financial blocker, no active subscription, and no owned chats/messages.
+      - The account has a decryptable lifecycle contact email.
+    when:
+      - The cleanup workflow runs after the age threshold.
+    then:
+      - The account follows the existing 14d, 7d, 1d reminder stages before deletion.
+  - id: S-3
+    title: Unreachable zero-value accounts are reported separately
+    given:
+      - A regular account has zero credits, no usage entries, no financial blocker, no active subscription, and no owned chats/messages.
+      - No lifecycle contact email can be read.
+    when:
+      - Dry-run reporting runs.
+    then:
+      - The account is counted as unreachable zero-value deletion eligible, not as an email-reminder recipient.
+  - id: S-4
+    title: New signup persists lifecycle contact email
+    given:
+      - A user completes a real password signup flow.
+    when:
+      - The signup reaches authenticated chat.
+    then:
+      - The backend has an account_contact_emails row for that user with purpose account_lifecycle, source signup, and a decryptable email matching the signup email.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Stale-account policy protects positive credits, usage entries, pending/admin-review bank transfers, active/trialing subscriptions, unreadable credit balances, and owned chats/messages from automatic deletion.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - V-PROD-AUDIT-001
+  - id: AC-2
+    scenario: S-2
+    text: Email-reachable stale accounts continue through the staged reminder workflow before deletion.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+  - id: AC-3
+    scenario: S-3
+    text: No-email stale accounts are counted separately and require zero owned chats/messages before they are eligible for any no-email deletion path.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PYTEST-001
+      - V-PROD-AUDIT-001
+  - id: AC-4
+    scenario: S-4
+    text: New real password signup stores and decrypts the lifecycle contact email row.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-E2E-001
+
+assumptions:
+  - id: A-1
+    text: Current credit balances are stored in directus_users.encrypted_credit_balance and decrypt with the user vault key.
+    category: data
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/users.yml
+        summary: encrypted_credit_balance and vault_key_id fields exist.
+      - source: production_read_only_simulation
+        summary: 1580 active regular users had readable credit balances with zero decrypt errors.
+  - id: A-2
+    text: Usage entries are keyed by SHA256(user_id) in usage.user_id_hash.
+    category: data
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/usage.yml
+        summary: usage.user_id_hash is the indexed hashed user identifier.
+  - id: A-3
+    text: Owned chats/messages are keyed by SHA256(user_id) in chats.hashed_user_id and messages.hashed_user_id.
+    category: data
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/chats.yml
+        summary: chats.hashed_user_id stores backend-hashed user ID.
+      - source: backend/core/directus/schemas/messages.yml
+        summary: messages.hashed_user_id stores the hashed sender user ID.
+
+contracts:
+  api: []
+  data:
+    - No new schema fields are added.
+    - Stale-account checks use existing Directus collections directus_users, usage, pending_bank_transfers, chats, messages, and account_contact_emails.
+    - Read failures for credit balance are safety-protected.
+  ui_states: []
+  privacy_security:
+    - Cleanup must not decrypt chat or message content.
+    - Cleanup may decrypt only current credit balance and lifecycle contact email needed for notices.
+    - No-email deletion eligibility requires no owned chats/messages.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_security_regressions.py
+    command: python3 -m pytest backend/tests/test_security_regressions.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - protected predicates cover credits, usage, pending transfers, active subscriptions, unreadable balance, and owned chats/messages
+      - reachable stale accounts return email reminder eligibility
+      - unreachable stale accounts require zero owned chats/messages for no-email deletion eligibility
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: docker exec api python -m pytest /app/backend/tests/test_security_regressions.py
+        run_id: "not_run"
+        subject_commit: beec181f42d90795e985079b817099f4877789f8
+        timestamp: "2026-07-16T13:36:25Z"
+        reason: User requested immediate implementation after approving the policy; backend policy is covered by green unit tests.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_security_regressions.py
+        run_id: local-api-container-20260716T1336Z
+        subject_commit: beec181f42d90795e985079b817099f4877789f8
+        timestamp: "2026-07-16T13:36:25Z"
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    command: python3 scripts/tests.py run --spec signup-skip-2fa-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+    assertions:
+      - real password signup creates account_contact_emails lifecycle row
+      - backend can decrypt lifecycle row to the signup email
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        command: python3 scripts/tests.py run --spec signup-skip-2fa-flow.spec.ts
+        run_id: pre-implementation-route-missing-20260716T1340Z
+        subject_commit: beec181f42d90795e985079b817099f4877789f8
+        timestamp: "2026-07-16T13:40:58Z"
+        reason: The deployed dev backend did not have /v1/auth/verify_signup_lifecycle_contact before this implementation, so the new lifecycle-contact assertion could not pass pre-deploy.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-PROD-AUDIT-001
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-3
+    status: passed
+    evidence:
+      status: passed
+      command: production read-only policy/content audit via temporary prod SSH using Directus read-only queries; no writes performed
+      run_id: prod-readonly-stale-policy-audit-20260716
+      subject_commit: beec181f42d90795e985079b817099f4877789f8
+      summary: "Production read-only audit found 1301 stale-by-value candidates before content guard, 180 blocked by owned chats/messages, 37 reachable zero-content candidates for email reminders, and 1084 unreachable zero-value zero-content candidates. No prod writes were made."
+      timestamp: "2026-07-16T13:40:58Z"
+
+implementation_plan:
+  spec_path: docs/specs/stale-account-cleanup-policy/spec.yml
+  existing_patterns:
+    - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+    - backend/scripts/process_incomplete_signup_deletions.py
+    - backend/tests/test_security_regressions.py
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+  architecture: >
+    Add small shared helpers inside the cleanup task module, consume them from the
+    dry-run script and scheduled task, and add a test-only admin assertion path
+    for lifecycle contact email verification in the existing signup spec.
+  data_flow:
+    - Cleanup loads stale candidates and computes hashed user ID.
+    - Cleanup decrypts only the current credit balance; unreadable balance is protected.
+    - Cleanup checks usage, pending transfers, active subscription, and owned chats/messages.
+    - Cleanup emits reachable reminder counts and unreachable zero-value candidate counts.
+  affected_files:
+    - path: backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+      reason: Cleanup protection policy and classification.
+    - path: backend/scripts/process_incomplete_signup_deletions.py
+      reason: Dry-run report for protected and stale buckets.
+    - path: backend/tests/test_security_regressions.py
+      reason: Backend policy tests.
+    - path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+      reason: Real signup lifecycle email assertion.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/stale-account-cleanup-policy/spec.yml
+    - python3 -m pytest backend/tests/test_security_regressions.py
+    - read-only prod audit for chat/message cross-check
+    - deploy before Playwright green run
+    - python3 scripts/tests.py run --spec signup-skip-2fa-flow.spec.ts
+  verification_order:
+    - Backend unit tests first.
+    - Read-only production audit second.
+    - Web Playwright after deploy.
+
+tasks:
+  - id: TASK-1
+    title: Implement protected-account classification
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+      - backend/scripts/process_incomplete_signup_deletions.py
+      - backend/tests/test_security_regressions.py
+    verification:
+      - T-PYTEST-001
+      - V-PROD-AUDIT-001
+    verification_ids:
+      - T-PYTEST-001
+      - V-PROD-AUDIT-001
+    dependencies: []
+    ownership:
+      files:
+        - backend/core/api/app/tasks/email_tasks/incomplete_signup_deletion_task.py
+        - backend/scripts/process_incomplete_signup_deletions.py
+        - backend/tests/test_security_regressions.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Verify lifecycle contact email in signup E2E
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-4
+    expected_files:
+      - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    verification:
+      - T-E2E-001
+    verification_ids:
+      - T-E2E-001
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true

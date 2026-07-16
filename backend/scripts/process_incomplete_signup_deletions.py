@@ -16,6 +16,7 @@ def _parse_args() -> argparse.Namespace:
             "Examples:\n"
             "  Preview tomorrow: docker exec api python /app/backend/scripts/process_incomplete_signup_deletions.py --dry-run\n"
             "  Preview exact actions in 6 days: docker exec api python /app/backend/scripts/process_incomplete_signup_deletions.py --dry-run --days-ahead 6 --details --json\n"
+            "  Preview unreachable zero-value deletions: docker exec api python /app/backend/scripts/process_incomplete_signup_deletions.py --dry-run --delete-unreachable-zero-value --details\n"
             "  Send first 2 due emails: docker exec api python /app/backend/scripts/process_incomplete_signup_deletions.py --send --max-actions 2 --confirm-send"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -32,6 +33,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--max-users", type=int, default=None, help="Optional maximum number of users to scan")
     parser.add_argument("--max-actions", type=int, default=None, help="Stop after this many sends/deletions")
     parser.add_argument("--confirm-send", action="store_true", help="Required with --send to avoid accidental bulk delivery")
+    parser.add_argument(
+        "--delete-unreachable-zero-value",
+        action="store_true",
+        help="Also delete due stale zero-value accounts without lifecycle email. Requires --send, --confirm-send, and --max-actions for real deletion.",
+    )
     parser.add_argument("--details", action="store_true", help="Include per-user due actions and safety skips in the result")
     parser.add_argument("--json", action="store_true", help="Print raw JSON stats instead of the human-readable summary")
     parser.add_argument("--verbose", action="store_true", help="Show INFO logs from the underlying services")
@@ -49,12 +55,13 @@ def _format_summary(result: dict, *, dry_run: bool) -> str:
         "7-day reminder emails": int(result.get("sent_7d") or 0),
         "1-day final reminder emails": int(result.get("sent_1d") or 0),
         "account deletions": int(result.get("deleted") or 0),
+        "unreachable zero-value account deletions": int(result.get("unreachable_zero_value_deleted") or 0),
     }
     total_actions = sum(actions.values())
     action_word = "would happen" if dry_run else "were completed"
     title = "Incomplete Signup Deletion Preview" if dry_run else "Incomplete Signup Deletion Run"
     lines = [title, ""]
-    lines.append(f"Checked {_format_count(int(result.get('checked') or 0), 'incomplete signup')}.")
+    lines.append(f"Checked {_format_count(int(result.get('checked') or 0), 'active regular account')}.")
 
     if total_actions:
         verb = "would happen" if dry_run else ("was completed" if total_actions == 1 else "were completed")
@@ -74,11 +81,39 @@ def _format_summary(result: dict, *, dry_run: bool) -> str:
         if skipped_not_due:
             lines.append(f"- {skipped_not_due} not due yet")
         if skipped_safety_completed:
-            lines.append(f"- {skipped_safety_completed} purchased credits or redeemed a gift card")
+            lines.append(f"- {skipped_safety_completed} protected by credits, usage, financial state, subscription, or owned chat data")
         if skipped_safety_unknown:
-            lines.append(f"- {skipped_safety_unknown} skipped because credit-source safety could not be verified")
+            lines.append(f"- {skipped_safety_unknown} skipped because account protection could not be verified")
         if skipped_missing_email:
             lines.append(f"- {skipped_missing_email} had no decryptable email address")
+
+    protected_counts = {
+        "positive credit balance": int(result.get("protected_credit_balance") or 0),
+        "unreadable credit balance": int(result.get("protected_credit_balance_unreadable") or 0),
+        "usage entries": int(result.get("protected_usage_entries") or 0),
+        "pending bank transfer": int(result.get("protected_pending_bank_transfer") or 0),
+        "active subscription": int(result.get("protected_active_subscription") or 0),
+        "owned chats": int(result.get("protected_owned_chat") or 0),
+        "owned messages": int(result.get("protected_owned_message") or 0),
+    }
+    if any(protected_counts.values()):
+        lines.extend(["", "Protected accounts:"])
+        for label, count in protected_counts.items():
+            if count:
+                lines.append(f"- {count} protected by {label}")
+
+    unreachable_zero_value = int(result.get("unreachable_zero_value_candidates") or 0)
+    if unreachable_zero_value:
+        lines.extend(["", f"Unreachable zero-value candidates: {unreachable_zero_value}"])
+        if not result.get("delete_unreachable_zero_value"):
+            lines.append("- Not deleted because --delete-unreachable-zero-value was not set")
+
+    reachable_completed = int(result.get("reachable_stale_completed_needs_template") or 0)
+    if reachable_completed:
+        lines.extend([
+            "",
+            f"Reachable completed stale accounts needing a stale-account email template: {reachable_completed}",
+        ])
 
     if result.get("due_actions"):
         lines.extend(["", "Due actions:"])
@@ -93,6 +128,22 @@ def _format_summary(result: dict, *, dry_run: bool) -> str:
         for skip in result["safety_skips"]:
             source = skip.get("paid_source") or skip.get("reason")
             lines.append(f"- user={skip.get('user_id')} account={skip.get('account_id')} source={source}")
+
+    if result.get("unreachable_zero_value"):
+        lines.extend(["", "Unreachable zero-value candidates:"])
+        for candidate in result["unreachable_zero_value"]:
+            lines.append(
+                f"- user={candidate.get('user_id')} account={candidate.get('account_id')} "
+                f"action={candidate.get('action')}"
+            )
+
+    if result.get("reachable_stale_completed"):
+        lines.extend(["", "Reachable completed stale accounts:"])
+        for candidate in result["reachable_stale_completed"]:
+            lines.append(
+                f"- user={candidate.get('user_id')} account={candidate.get('account_id')} "
+                f"action={candidate.get('action')}"
+            )
 
     delete_failed = int(result.get("delete_failed") or 0)
     if delete_failed:
@@ -166,12 +217,16 @@ def main() -> int:
         if args.max_actions is None or args.max_actions < 1:
             raise SystemExit("Refusing to send without --max-actions N (N >= 1)")
 
+    if args.delete_unreachable_zero_value and args.send and not args.confirm_send:
+        raise SystemExit("Refusing unreachable zero-value deletion without --confirm-send")
+
     result = process_incomplete_signup_deletions(
         dry_run=args.dry_run,
         max_users=args.max_users,
         max_actions=args.max_actions,
         days_ahead=args.days_ahead,
         include_details=args.details,
+        delete_unreachable_zero_value=args.delete_unreachable_zero_value,
     )
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))

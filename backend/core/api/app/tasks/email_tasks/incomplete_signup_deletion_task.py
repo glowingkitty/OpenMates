@@ -9,6 +9,7 @@ import asyncio
 import hashlib
 import logging
 import os
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -30,6 +31,8 @@ SECOND_NOTICE_AFTER_DAYS = 7
 FINAL_NOTICE_AFTER_DAYS = 13
 DELETE_AFTER_FINAL_NOTICE_DAYS = 1
 PENDING_BANK_TRANSFER_GRACE_DAYS = 7
+ACTIVE_SUBSCRIPTION_STATUSES = {"active", "trialing"}
+PENDING_BANK_TRANSFER_STATUSES = {"pending", "admin_review"}
 ANNOUNCEMENT_CHAT_ID = "announcements-introducing-openmates-v09"
 ANNOUNCEMENT_THUMBNAIL_PATH_TEMPLATE = "/newsletter-assets/intro-thumbnail-{lang}.jpg"
 SEND_DELAY_SECONDS = float(os.getenv("INCOMPLETE_SIGNUP_EMAIL_SEND_DELAY_SECONDS", "0.25"))
@@ -73,6 +76,7 @@ def process_incomplete_signup_deletions(
     max_actions: int | None = None,
     days_ahead: int = 0,
     include_details: bool = False,
+    delete_unreachable_zero_value: bool = False,
 ) -> dict:
     """Daily sweep for incomplete signup deletion reminders and due deletions."""
     return asyncio.run(
@@ -83,6 +87,7 @@ def process_incomplete_signup_deletions(
             max_actions=max_actions,
             days_ahead=days_ahead,
             include_details=include_details,
+            delete_unreachable_zero_value=delete_unreachable_zero_value,
         )
     )
 
@@ -94,6 +99,7 @@ async def process_incomplete_signup_deletions_preview(
     max_actions: int | None = None,
     days_ahead: int = 0,
     include_details: bool = False,
+    delete_unreachable_zero_value: bool = False,
 ) -> dict:
     """Preview helper for scripts/tests: evaluate due work without sending or deleting."""
     return await _async_process_incomplete_signup_deletions(
@@ -103,11 +109,29 @@ async def process_incomplete_signup_deletions_preview(
         max_actions=max_actions,
         days_ahead=days_ahead,
         include_details=include_details,
+        delete_unreachable_zero_value=delete_unreachable_zero_value,
     )
 
 
 def _actions_count(stats: dict[str, Any]) -> int:
-    return int(stats["sent_14d"] + stats["sent_7d"] + stats["sent_1d"] + stats["deleted"])
+    return int(
+        stats["sent_14d"]
+        + stats["sent_7d"]
+        + stats["sent_1d"]
+        + stats["deleted"]
+        + stats.get("unreachable_zero_value_deleted", 0)
+    )
+
+
+@dataclass(frozen=True)
+class AccountProtection:
+    protected: bool
+    source: str | None = None
+    detail: str | None = None
+
+
+def _user_id_hash(user_id: str) -> str:
+    return hashlib.sha256(user_id.encode()).hexdigest()
 
 
 def _parse_datetime(value: str | None) -> datetime | None:
@@ -209,7 +233,7 @@ async def _completed_credit_source(task: BaseServiceTask, user: dict[str, Any]) 
     if not user_id:
         return None
 
-    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    user_id_hash = _user_id_hash(user_id)
 
     invoices = await task.directus_service.get_items(
         "invoices",
@@ -234,6 +258,82 @@ async def _completed_credit_source(task: BaseServiceTask, user: dict[str, Any]) 
     return None
 
 
+async def _has_usage_entries(task: BaseServiceTask, user_id: str) -> bool:
+    rows = await task.directus_service.get_items(
+        "usage",
+        params={
+            "filter": {"user_id_hash": {"_eq": _user_id_hash(user_id)}},
+            "fields": "id",
+            "limit": 1,
+        },
+        admin_required=True,
+    )
+    return bool(rows)
+
+
+async def _owned_chat_or_message_source(task: BaseServiceTask, user_id: str) -> str | None:
+    hashed_user_id = _user_id_hash(user_id)
+    chats = await task.directus_service.get_items(
+        "chats",
+        params={
+            "filter": {"hashed_user_id": {"_eq": hashed_user_id}},
+            "fields": "id",
+            "limit": 1,
+        },
+        admin_required=True,
+    )
+    if chats:
+        return "owned_chat"
+
+    messages = await task.directus_service.get_items(
+        "messages",
+        params={
+            "filter": {"hashed_user_id": {"_eq": hashed_user_id}},
+            "fields": "id",
+            "limit": 1,
+        },
+        admin_required=True,
+    )
+    if messages:
+        return "owned_message"
+    return None
+
+
+async def _current_credit_balance(task: BaseServiceTask, user: dict[str, Any]) -> int:
+    encrypted_balance = user.get("encrypted_credit_balance")
+    vault_key_id = user.get("vault_key_id")
+    if not encrypted_balance or not vault_key_id:
+        raise ValueError("missing_encrypted_credit_balance_or_vault_key")
+    decrypted_balance = await task.encryption_service.decrypt_with_user_key(encrypted_balance, vault_key_id)
+    return int(decrypted_balance or "0")
+
+
+def _has_active_subscription(user: dict[str, Any]) -> bool:
+    status = (user.get("subscription_status") or "").strip().lower()
+    if status in ACTIVE_SUBSCRIPTION_STATUSES:
+        return True
+    return bool(user.get("stripe_subscription_id") and status and status != "canceled")
+
+
+async def _has_pending_bank_transfer(task: BaseServiceTask, user_id: str) -> bool:
+    rows = await task.directus_service.get_items(
+        "pending_bank_transfers",
+        params={
+            "filter": {
+                "_and": [
+                    {"user_id": {"_eq": user_id}},
+                    {"order_type": {"_eq": "credit_purchase"}},
+                    {"status": {"_in": sorted(PENDING_BANK_TRANSFER_STATUSES)}},
+                ],
+            },
+            "fields": "id,status",
+            "limit": 1,
+        },
+        admin_required=True,
+    )
+    return bool(rows)
+
+
 async def _has_recent_pending_bank_transfer(task: BaseServiceTask, user_id: str, now: datetime) -> bool:
     cutoff = now - timedelta(days=PENDING_BANK_TRANSFER_GRACE_DAYS)
     rows = await task.directus_service.get_items(
@@ -243,7 +343,7 @@ async def _has_recent_pending_bank_transfer(task: BaseServiceTask, user_id: str,
                 "_and": [
                     {"user_id": {"_eq": user_id}},
                     {"order_type": {"_eq": "credit_purchase"}},
-                    {"status": {"_in": ["pending", "admin_review"]}},
+                    {"status": {"_in": sorted(PENDING_BANK_TRANSFER_STATUSES)}},
                 ],
             },
             "fields": "id,created_at,expires_at,status",
@@ -259,21 +359,42 @@ async def _has_recent_pending_bank_transfer(task: BaseServiceTask, user_id: str,
     return False
 
 
+async def _account_protection(task: BaseServiceTask, user: dict[str, Any]) -> AccountProtection:
+    user_id = user.get("id")
+    if not user_id:
+        return AccountProtection(True, "missing_user_id")
+
+    try:
+        if await _current_credit_balance(task, user) > 0:
+            return AccountProtection(True, "credit_balance")
+    except Exception as exc:
+        return AccountProtection(True, "credit_balance_unreadable", str(exc))
+
+    if await _has_usage_entries(task, user_id):
+        return AccountProtection(True, "usage_entries")
+
+    if await _has_pending_bank_transfer(task, user_id):
+        return AccountProtection(True, "pending_bank_transfer")
+
+    if _has_active_subscription(user):
+        return AccountProtection(True, "active_subscription")
+
+    owned_source = await _owned_chat_or_message_source(task, user_id)
+    if owned_source:
+        return AccountProtection(True, owned_source)
+
+    return AccountProtection(False)
+
+
 async def _account_protection_source(
     task: BaseServiceTask,
     user: dict[str, Any],
     email: str | None,
     now: datetime,
 ) -> str | None:
-    completed_credit_source = await _completed_credit_source(task, user)
-    if completed_credit_source:
-        return completed_credit_source
-    user_id = user.get("id")
-    if user_id and await _has_recent_pending_bank_transfer(task, user_id, now):
-        return "pending_bank_transfer"
-    if await _has_successful_stripe_credit_payment(task, user.get("stripe_customer_id"), email):
-        return "stripe_payment_intent"
-    return None
+    del email, now
+    protection = await _account_protection(task, user)
+    return protection.source if protection.protected else None
 
 
 async def _has_completed_credit_source(task: BaseServiceTask, user_id: str) -> bool:
@@ -479,6 +600,25 @@ async def _delete_and_send_confirmation(task: BaseServiceTask, user: dict[str, A
     return sent
 
 
+async def _delete_without_notification(task: BaseServiceTask, user: dict[str, Any]) -> bool:
+    from backend.core.api.app.tasks.user_cache_tasks import _async_delete_user_account
+
+    user_id = user["id"]
+    deleted = await _async_delete_user_account(
+        user_id=user_id,
+        deletion_type="stale_zero_value_unreachable",
+        reason="Stale zero-value account without lifecycle contact email, credits, usage, active financial state, or owned chat data",
+        ip_address=None,
+        device_fingerprint=None,
+        refund_invoices=False,
+        task_id=f"stale-zero-value-unreachable-{user_id}",
+        email_encryption_key=None,
+    )
+    if not deleted:
+        logger.error("Unreachable stale zero-value deletion failed for user %s", user_id[:8])
+    return bool(deleted)
+
+
 async def _async_process_incomplete_signup_deletions(
     task: BaseServiceTask,
     *,
@@ -487,6 +627,7 @@ async def _async_process_incomplete_signup_deletions(
     max_actions: int | None = None,
     days_ahead: int = 0,
     include_details: bool = False,
+    delete_unreachable_zero_value: bool = False,
 ) -> dict:
     stats = {
         "checked": 0,
@@ -494,6 +635,16 @@ async def _async_process_incomplete_signup_deletions(
         "skipped_safety_completed": 0,
         "skipped_safety_unknown": 0,
         "skipped_missing_email": 0,
+        "unreachable_zero_value_candidates": 0,
+        "unreachable_zero_value_deleted": 0,
+        "reachable_stale_completed_needs_template": 0,
+        "protected_credit_balance": 0,
+        "protected_credit_balance_unreadable": 0,
+        "protected_usage_entries": 0,
+        "protected_pending_bank_transfer": 0,
+        "protected_active_subscription": 0,
+        "protected_owned_chat": 0,
+        "protected_owned_message": 0,
         "sent_14d": 0,
         "sent_7d": 0,
         "sent_1d": 0,
@@ -502,11 +653,14 @@ async def _async_process_incomplete_signup_deletions(
         "dry_run": dry_run,
         "days_ahead": days_ahead,
         "max_actions": max_actions,
+        "delete_unreachable_zero_value": delete_unreachable_zero_value,
         "stopped_by_limit": None,
     }
     if include_details:
         stats["due_actions"] = []
         stats["safety_skips"] = []
+        stats["unreachable_zero_value"] = []
+        stats["reachable_stale_completed"] = []
     now = datetime.now(timezone.utc) + timedelta(days=days_ahead)
     cutoff = now - timedelta(days=INITIAL_NOTICE_AFTER_DAYS)
 
@@ -517,11 +671,11 @@ async def _async_process_incomplete_signup_deletions(
             users = await task.directus_service.get_items(
                 "directus_users",
                 params={
-                    "fields": "id,status,is_admin,signup_completed,signup_started_at,last_online_timestamp,last_access,account_id,language,darkmode,vault_key_id,encrypted_username,stripe_customer_id",
+                    "fields": "id,status,is_admin,signup_completed,signup_started_at,last_online_timestamp,last_access,account_id,language,darkmode,vault_key_id,encrypted_username,encrypted_credit_balance,subscription_status,stripe_subscription_id",
                     "filter": {
                         "_and": [
                             {"status": {"_eq": "active"}},
-                            {"signup_completed": {"_eq": False}},
+                            {"is_admin": {"_neq": True}},
                         ]
                     },
                     "sort": "id",
@@ -550,37 +704,30 @@ async def _async_process_incomplete_signup_deletions(
                     continue
 
                 try:
-                    completed_credit_source = await _completed_credit_source(task, user)
+                    protection = await _account_protection(task, user)
                 except Exception as safety_exc:
                     logger.error(
-                        "Could not verify local credit-source safety for incomplete signup user %s; skipping action",
+                        "Could not verify stale-account protection for user %s; skipping action",
                         user_id[:8],
                         exc_info=True,
                     )
                     stats["skipped_safety_unknown"] += 1
-                    _append_detail(stats, "safety_skips", user, reason="local_credit_source_lookup_failed", error=str(safety_exc))
+                    _append_detail(stats, "safety_skips", user, reason="account_protection_lookup_failed", error=str(safety_exc))
                     continue
 
-                if completed_credit_source:
-                    if not dry_run:
-                        await _mark_signup_completed(task, user_id, f"completed_credit_source:{completed_credit_source}")
+                if protection.protected:
                     stats["skipped_safety_completed"] += 1
-                    _append_detail(stats, "safety_skips", user, reason="completed_credit_source", paid_source=completed_credit_source)
-                    continue
-
-                try:
-                    if await _has_recent_pending_bank_transfer(task, user_id, now):
-                        stats["skipped_safety_completed"] += 1
-                        _append_detail(stats, "safety_skips", user, reason="account_protected", paid_source="pending_bank_transfer")
-                        continue
-                except Exception as safety_exc:
-                    logger.error(
-                        "Could not verify pending bank-transfer safety for incomplete signup user %s; skipping action",
-                        user_id[:8],
-                        exc_info=True,
+                    counter_key = f"protected_{protection.source}"
+                    if counter_key in stats:
+                        stats[counter_key] += 1
+                    _append_detail(
+                        stats,
+                        "safety_skips",
+                        user,
+                        reason="account_protected",
+                        paid_source=protection.source,
+                        detail=protection.detail,
                     )
-                    stats["skipped_safety_unknown"] += 1
-                    _append_detail(stats, "safety_skips", user, reason="pending_bank_transfer_lookup_failed", error=str(safety_exc))
                     continue
 
                 deliveries = await _get_stage_deliveries(task, user_id)
@@ -604,23 +751,24 @@ async def _async_process_incomplete_signup_deletions(
                 email, username = await _decrypt_email_and_username(task, user)
                 if not email:
                     stats["skipped_missing_email"] += 1
+                    stats["unreachable_zero_value_candidates"] += 1
+                    _append_detail(stats, "unreachable_zero_value", user, action="delete_without_notification")
+                    if delete_unreachable_zero_value:
+                        if dry_run:
+                            stats["unreachable_zero_value_deleted"] += 1
+                            _record_due_action(stats, user, "delete_without_notification", deliveries, now)
+                        elif await _delete_without_notification(task, user):
+                            stats["unreachable_zero_value_deleted"] += 1
+                        else:
+                            stats["delete_failed"] += 1
+                        if max_actions is not None and _actions_count(stats) >= max_actions:
+                            stats["stopped_by_limit"] = "max_actions"
+                            return stats
                     continue
 
-                try:
-                    if await _has_successful_stripe_credit_payment(task, user.get("stripe_customer_id"), email):
-                        if not dry_run:
-                            await _mark_signup_completed(task, user_id, "completed_credit_source:stripe_payment_intent")
-                        stats["skipped_safety_completed"] += 1
-                        _append_detail(stats, "safety_skips", user, reason="completed_credit_source", paid_source="stripe_payment_intent")
-                        continue
-                except Exception as safety_exc:
-                    logger.error(
-                        "Could not verify Stripe credit-source safety for incomplete signup user %s; skipping action",
-                        user_id[:8],
-                        exc_info=True,
-                    )
-                    stats["skipped_safety_unknown"] += 1
-                    _append_detail(stats, "safety_skips", user, reason="stripe_lookup_failed", error=str(safety_exc))
+                if user.get("signup_completed"):
+                    stats["reachable_stale_completed_needs_template"] += 1
+                    _append_detail(stats, "reachable_stale_completed", user, action="needs_stale_account_email_template")
                     continue
 
                 if action == "send_14d":

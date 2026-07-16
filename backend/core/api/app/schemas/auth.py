@@ -25,6 +25,21 @@ class DevSignupCleanupResponse(BaseModel):
     message: str
     task_id: Optional[str] = None
 
+
+class DevSignupLifecycleContactRequest(BaseModel):
+    hashed_email: str = Field(..., description="Base64 SHA256 hash of the disposable signup email")
+    expected_email: EmailStr = Field(..., description="Plaintext test email used only for dev assertion")
+    test_file: Optional[str] = Field(None, description="Playwright spec requesting verification")
+
+
+class DevSignupLifecycleContactResponse(BaseModel):
+    success: bool
+    row_exists: bool
+    decrypt_matches: bool
+    purpose: Optional[str] = None
+    source: Optional[str] = None
+    message: str
+
 # Updated model for email verification
 class RequestEmailCodeRequest(BaseModel):
     email: EmailStr
