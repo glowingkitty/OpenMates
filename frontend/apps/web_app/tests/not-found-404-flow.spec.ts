@@ -2,6 +2,18 @@ import { expect, test } from './helpers/cookie-audit';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
+async function ensureSidebarVisible(page: any): Promise<void> {
+	const history = page.getByTestId('activity-history-wrapper');
+	if (await history.isVisible().catch(() => false)) {
+		return;
+	}
+
+	const toggle = page.getByTestId('sidebar-toggle');
+	await expect(toggle).toBeVisible({ timeout: 10000 });
+	await toggle.click();
+	await expect(history).toBeVisible({ timeout: 10000 });
+}
+
 /**
  * 404 Not-Found Flow Tests
  *
@@ -21,6 +33,21 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
  */
 
 test.describe('404 not-found flow', () => {
+	test('/privacy opens the privacy policy chat instead of the 404 flow', async ({ page }) => {
+		test.setTimeout(60000);
+
+		await page.goto(getE2EDebugUrl('/privacy'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await expect(page, 'Short privacy URL should deep-link to the privacy policy chat').toHaveURL(
+			/#chat-id=legal-privacy/,
+			{ timeout: 15000 }
+		);
+		await expect(page.getByTestId('not-found-screen')).toHaveCount(0);
+		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('chat-header-title')).toContainText(/privacy/i, { timeout: 15000 });
+	});
+
 	test('unknown path redirects to SPA and shows 404 screen', async ({ page }) => {
 		test.setTimeout(60000);
 
@@ -137,5 +164,28 @@ test.describe('404 not-found flow', () => {
 		expect(buttonText?.toLowerCase(), 'Search option should reference first segment "ai"').toContain('ai');
 
 		console.log('✅ Multi-segment path correctly uses first segment for search query');
+	});
+
+	test('sidebar chat selection clears the 404 screen and opens the chat', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/iphone-review'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByTestId('not-found-screen')).toBeVisible({ timeout: 10000 });
+
+		await ensureSidebarVisible(page);
+		const forEveryoneChat = page
+			.locator('[data-testid="chat-item-wrapper"][data-chat-id="demo-for-everyone"]')
+			.first();
+		await expect(forEveryoneChat).toBeVisible({ timeout: 15000 });
+		await forEveryoneChat.click();
+
+		await expect(page, 'Sidebar chat click should update the active chat hash').toHaveURL(
+			/#chat-id=demo-for-everyone/,
+			{ timeout: 15000 }
+		);
+		await expect(page.getByTestId('not-found-screen')).toHaveCount(0);
+		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('mate-message-content').first()).toBeVisible({ timeout: 15000 });
 	});
 });

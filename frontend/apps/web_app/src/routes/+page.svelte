@@ -3078,6 +3078,7 @@
 	async function handleChatSelected(event: CustomEvent) {
 		const selectedChat: Chat = event.detail.chat;
 		console.debug('[+page.svelte] Received chatSelected event:', selectedChat.chat_id); // Use chat_id
+		notFoundPathStore.set(null);
 
 		// Retry mechanism with multiple attempts to ensure chat loads (critical for SEO)
 		const loadChatWithRetry = async (retries = 20): Promise<void> => {
