@@ -54,6 +54,8 @@ test.describe.configure({ mode: 'serial' });
  * Returns when the API Keys settings route is active.
  */
 async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) => void): Promise<any> {
+	await applyPendingSoftwareUpdateIfVisible(page, logCheckpoint);
+
 	const settingsMenu = page.getByTestId('settings-menu');
 	if (!(await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
 		const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
@@ -84,6 +86,19 @@ async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) =>
 
 	await expect(settingsMenu).toHaveAttribute('data-active-view', 'main');
 	return settingsMenu;
+}
+
+async function applyPendingSoftwareUpdateIfVisible(
+	page: any,
+	logCheckpoint: (msg: string) => void
+): Promise<void> {
+	const refreshButton = page.getByRole('button', { name: /refresh now/i }).first();
+	if (!(await refreshButton.isVisible({ timeout: 1000 }).catch(() => false))) return;
+
+	logCheckpoint('Applying pending software update before settings navigation.');
+	await refreshButton.click();
+	await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => undefined);
+	await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
 }
 
 async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
