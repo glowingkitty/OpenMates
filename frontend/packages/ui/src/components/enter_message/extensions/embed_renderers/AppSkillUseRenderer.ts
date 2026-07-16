@@ -4977,7 +4977,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
   ): Promise<void> {
     const rawEmbedId = attrs.contentRef?.replace("embed:", "");
-    const inferredEmbedType = decodedContent?.type || embedData?.type || "app-skill-use";
+    const inferredEmbedType = this.inferFullscreenEmbedType(attrs, embedData, decodedContent);
     let targetEmbedId = rawEmbedId;
     let focusChildEmbedId: string | undefined;
 
@@ -5008,6 +5008,64 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "[AppSkillUseRenderer] Dispatched fullscreen event:",
       detail,
     );
+  }
+
+  private inferFullscreenEmbedType(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+  ): string {
+    const contentType = decodedContent?.type;
+    if (typeof contentType === "string" && contentType !== "app_skill_use") {
+      return contentType;
+    }
+
+    const dataType = embedData?.type;
+    if (typeof dataType === "string" && dataType !== "app_skill_use") {
+      return dataType;
+    }
+
+    const appId = decodedContent?.app_id || embedData?.app_id || (attrs as any).app_id || "";
+    const skillId = decodedContent?.skill_id || embedData?.skill_id || (attrs as any).skill_id || "";
+    const childSkillTypes: Record<string, boolean> = {
+      image_result: true,
+      model_result: true,
+      weather_day: true,
+      listing: true,
+      event: true,
+      appointment: true,
+      stay: true,
+      product: true,
+      recipe: true,
+      task: true,
+      workflow: true,
+    };
+
+    if (childSkillTypes[skillId]) {
+      return skillId;
+    }
+
+    if (
+      appId === "models3d" &&
+      skillId === "search" &&
+      decodedContent &&
+      !decodedContent.embed_ids &&
+      (decodedContent.source_page_url || decodedContent.preview_image_url || decodedContent.thumbnail_url)
+    ) {
+      return "model_result";
+    }
+
+    if (
+      appId === "images" &&
+      skillId === "search" &&
+      decodedContent &&
+      !decodedContent.embed_ids &&
+      (decodedContent.image_url || decodedContent.thumbnail_url)
+    ) {
+      return "image_result";
+    }
+
+    return "app-skill-use";
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {
