@@ -101,6 +101,19 @@ jobs:
             --slot "${{ github.event.inputs.account }}" \
             --api-url "$API_URL"
 
+          existing_keys_json=$(node frontend/packages/openmates-cli/dist/cli.js \
+            --api-url "$API_URL" \
+            settings developers api-keys list --json)
+          printf '%s' "$existing_keys_json" | node -e 'let raw=""; process.stdin.on("data", d => raw += d); process.stdin.on("end", () => { const start = raw.indexOf("{"); if (start < 0) return; const data = JSON.parse(raw.slice(start)); for (const key of data.api_keys || []) { if (typeof key.id === "string" && typeof key.name === "string" && key.name.startsWith("gha-")) console.log(key.id); } });' \
+            | while IFS= read -r stale_key_id; do
+                if [ -n "$stale_key_id" ]; then
+                  node frontend/packages/openmates-cli/dist/cli.js \
+                    --api-url "$API_URL" \
+                    settings developers api-keys revoke "$stale_key_id" --yes --json \
+                    || echo "⚠️ Failed to revoke stale CI API key $stale_key_id"
+                fi
+              done
+
           created_json=$(node frontend/packages/openmates-cli/dist/cli.js \
             --api-url "$API_URL" \
             settings developers api-keys create "gha-${SPEC}-${{ github.run_id }}" --yes --json)
