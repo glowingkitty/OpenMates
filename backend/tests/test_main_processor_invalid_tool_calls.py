@@ -5,6 +5,7 @@
 # protocol integrity across Gemini, Bedrock, OpenAI, Anthropic, and Mistral.
 
 import asyncio
+import copy
 import importlib
 import json
 import sys
@@ -73,6 +74,23 @@ for module_name, symbols in {
     module = types.ModuleType(module_name)
     for symbol in symbols:
         setattr(module, symbol, object)
+    if module_name == "backend.apps.ai.llm_providers.openai_shared":
+        def _sanitize_schema_for_llm_providers(schema):
+            sanitized = copy.deepcopy(schema)
+
+            def strip_additional_properties(value):
+                if isinstance(value, dict):
+                    value.pop("additionalProperties", None)
+                    for child in value.values():
+                        strip_additional_properties(child)
+                elif isinstance(value, list):
+                    for child in value:
+                        strip_additional_properties(child)
+
+            strip_additional_properties(sanitized)
+            return sanitized
+
+        module._sanitize_schema_for_llm_providers = _sanitize_schema_for_llm_providers
     _install_stub(module_name, module)
 
 provider_types_stub = types.ModuleType("backend.apps.ai.llm_providers.types")

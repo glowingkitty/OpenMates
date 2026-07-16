@@ -22,6 +22,7 @@ from backend.apps.ai.processing.task_runtime_tools import (
 )
 from backend.apps.ai.processing.task_tool_executor import (
     _check_expected_version,
+    assigned_app_ids_with_task_app_for_explicit_skill,
     execute_task_tool_call,
     is_legacy_task_runtime_tool_name,
     is_task_tool_name,
@@ -235,6 +236,19 @@ def test_tasks_app_skill_mentions_resolve_from_user_overrides() -> None:
     assert task_app_skill_ids_from_user_override_skills([("tasks", "create")]) == {"tasks-create"}
     assert task_app_skill_ids_from_user_override_skills([("tasks", "search")]) == {"tasks-search"}
     assert task_app_skill_ids_from_user_override_skills([("web", "search"), ("tasks", "unknown")]) == set()
+
+
+def test_explicit_tasks_app_skill_expands_assigned_app_allowlist() -> None:
+    assert assigned_app_ids_with_task_app_for_explicit_skill(
+        ["sheets"],
+        {"tasks-create"},
+    ) == ["sheets", "tasks"]
+    assert assigned_app_ids_with_task_app_for_explicit_skill(
+        ["tasks"],
+        {"tasks-search"},
+    ) == ["tasks"]
+    assert assigned_app_ids_with_task_app_for_explicit_skill(None, {"tasks-create"}) is None
+    assert assigned_app_ids_with_task_app_for_explicit_skill(["sheets"], set()) == ["sheets"]
 
 
 def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_properties() -> None:

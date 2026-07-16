@@ -897,6 +897,17 @@ export function taskUpdateJobBelongsToActiveTurn(
   return taskEvents.some((event) => event.task_update_job_id === job.job_id);
 }
 
+export function messageExplicitlyRequestsTasksAppSkill(message: string): boolean {
+  return /@skill:tasks:(create|search)\b/.test(message);
+}
+
+function isStaleTaskUpdateJobError(error: unknown): boolean {
+  if (!(error instanceof WebSocketProtocolError)) return false;
+  return error.message.includes("Task update job already committed")
+    || error.message.includes("Task update job expired")
+    || error.message.includes("Task update job not found");
+}
+
 export function buildTaskUpdateJobPersistPayload(params: {
   jobId: string;
   leaseToken: string;
@@ -3829,7 +3840,10 @@ export class OpenMatesClient {
       }
     }
 
-    const { ws, session, ownerId } = await this.openWsClient();
+    const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(params.message);
+    const { ws, session, ownerId } = await this.openWsClient({
+      taskUpdateJobs: !explicitTasksAppSkill,
+    });
     if (!params.incognito && !ownerId) {
       ws.close();
       throw new Error("Authenticated user identity is required for saved chat recovery.");
@@ -3908,10 +3922,11 @@ export class OpenMatesClient {
 
     // ── Inference request ──
     // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
+    const clientCapabilities = explicitTasksAppSkill ? [] : ["task_update_jobs"];
 
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
-      client_capabilities: ["task_update_jobs"],
+      client_capabilities: clientCapabilities,
       is_incognito: Boolean(params.incognito),
       message: {
         message_id: messageId,
@@ -4805,11 +4820,20 @@ export class OpenMatesClient {
         (payload) => (payload as Record<string, unknown>).job_id === job.job_id,
         20_000,
       );
-      await params.ws.sendAsync("task_update_job_claim", {
-        protocol_version: 1,
-        job_id: job.job_id,
-      });
-      const claim = (await claimPromise).payload as unknown as TaskUpdateJobClaimPayload;
+      let claim: TaskUpdateJobClaimPayload;
+      try {
+        await params.ws.sendAsync("task_update_job_claim", {
+          protocol_version: 1,
+          job_id: job.job_id,
+        });
+        claim = (await claimPromise).payload as unknown as TaskUpdateJobClaimPayload;
+      } catch (error) {
+        if (isStaleTaskUpdateJobError(error)) {
+          handledJobIds.add(job.job_id);
+          continue;
+        }
+        throw error;
+      }
 
       const privatePatch = claim.private_patch ?? {};
       const safeMetadata = claim.safe_metadata ?? {};
@@ -7353,6 +7377,22 @@ export class OpenMatesClient {
     if (!chatKeyBytes)
       throw new Error("Failed to decrypt chat key. Try logging in again.");
 
+    const metadataResponse = await this.http.post<{ success?: boolean; detail?: unknown }>(
+      "/v1/share/chat/metadata",
+      {
+        chat_id: resolvedId,
+        title: null,
+        summary: null,
+        share_cta_text: null,
+        is_shared: true,
+      },
+    );
+    if (!metadataResponse.ok || metadataResponse.data.success !== true) {
+      const detail = metadataResponse.data.detail;
+      const message = typeof detail === "string" ? detail : `HTTP ${metadataResponse.status}`;
+      throw new Error(`Failed to mark chat as shared: ${message}`);
+    }
+
     const blob = await generateChatShareBlob(
       resolvedId,
       chatKeyBytes,
@@ -7847,7 +7887,10 @@ export class OpenMatesClient {
     return session;
   }
 
-  private makeWsClient(session: OpenMatesSession): OpenMatesWsClient {
+  private makeWsClient(
+    session: OpenMatesSession,
+    options: { taskUpdateJobs?: boolean } = {},
+  ): OpenMatesWsClient {
     return new OpenMatesWsClient({
       apiUrl: session.apiUrl,
       sessionId: randomUUID(),
@@ -7857,6 +7900,7 @@ export class OpenMatesClient {
       userAgent: this.getCliUserAgent(),
       // Node.js ws library doesn't auto-send cookies on upgrade requests.
       cookies: session.cookies,
+      taskUpdateJobs: options.taskUpdateJobs,
     });
   }
 
@@ -7865,14 +7909,14 @@ export class OpenMatesClient {
    * Combines refreshWsToken() + makeWsClient() + ws.open() into one call
    * so every WebSocket usage gets a fresh HMAC token automatically.
    */
-  private async openWsClient(): Promise<{
+  private async openWsClient(options: { taskUpdateJobs?: boolean } = {}): Promise<{
     ws: OpenMatesWsClient;
     session: OpenMatesSession;
     ownerId: string | null;
   }> {
     const ownerId = await this.refreshWsToken();
     const session = this.requireSession();
-    const ws = this.makeWsClient(session);
+    const ws = this.makeWsClient(session, options);
     await ws.open();
     return { ws, session, ownerId };
   }

@@ -64,6 +64,7 @@ const {
   buildAppSettingsMemoryResponseSystemMessage,
   buildTaskEventSystemMessage,
   buildTaskUpdateJobPersistPayload,
+  messageExplicitlyRequestsTasksAppSkill,
   taskUpdateJobBelongsToActiveTurn,
   buildConnectedAccountDirectoryPayload,
   buildSubChatConfirmationPayload,
@@ -1107,6 +1108,18 @@ describe("task update job helpers", () => {
       ),
       false,
     );
+  });
+
+  it("detects explicit Tasks app-skill messages", () => {
+    assert.equal(
+      messageExplicitlyRequestsTasksAppSkill("@skill:tasks:create create launch tasks"),
+      true,
+    );
+    assert.equal(
+      messageExplicitlyRequestsTasksAppSkill("@skill:tasks:search find launch tasks"),
+      true,
+    );
+    assert.equal(messageExplicitlyRequestsTasksAppSkill("create launch tasks"), false);
   });
 });
 

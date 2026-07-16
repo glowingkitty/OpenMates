@@ -65,6 +65,18 @@ def should_suppress_task_runtime_tools_for_app_skill(
     return any(skill.startswith(f"{TASK_TOOL_RESOLVER_APP_ID}-") for skill in preselected_skills)
 
 
+def assigned_app_ids_with_task_app_for_explicit_skill(
+    assigned_app_ids: list[str] | None,
+    task_app_skill_mentions: set[str],
+) -> list[str] | None:
+    """Include Tasks app tools when a user explicitly requested a Tasks app skill."""
+    if not task_app_skill_mentions or assigned_app_ids is None:
+        return assigned_app_ids
+    if TASK_TOOL_RESOLVER_APP_ID in assigned_app_ids:
+        return assigned_app_ids
+    return [*assigned_app_ids, TASK_TOOL_RESOLVER_APP_ID]
+
+
 def task_app_skill_ids_from_message_text(message_text: str | None) -> set[str]:
     """Return Tasks app-skill IDs explicitly mentioned in backend wire syntax."""
     if not message_text:

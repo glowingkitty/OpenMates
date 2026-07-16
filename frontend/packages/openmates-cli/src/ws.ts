@@ -349,6 +349,7 @@ export class OpenMatesWsClient {
     refreshToken: string | null;
     userAgent?: string;
     cookies?: Record<string, string>;
+    taskUpdateJobs?: boolean;
   }) {
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
     // Use || (not ??) so empty-string wsToken falls through to refreshToken.
@@ -357,8 +358,10 @@ export class OpenMatesWsClient {
     const query = new URLSearchParams({
       sessionId: options.sessionId,
       token,
-      client_capabilities: "task_update_jobs",
     });
+    if (options.taskUpdateJobs !== false) {
+      query.set("client_capabilities", "task_update_jobs");
+    }
     // Pass the same User-Agent as the HTTP login call so the device fingerprint
     // hash (SHA256(OS:Country:UserID)) matches the one registered at login time.
     // Also forward cookies — Node.js ws library doesn't auto-send HTTP cookies,

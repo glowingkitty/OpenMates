@@ -67,6 +67,7 @@ from backend.apps.ai.processing.task_tool_context import build_task_context_prom
 from backend.apps.ai.processing.task_tool_executor import (
     TASK_TOOL_CANONICAL_NAMES,
     TASK_TOOL_RESOLVER_APP_ID,
+    assigned_app_ids_with_task_app_for_explicit_skill,
     execute_task_tool_call,
     is_legacy_task_runtime_tool_name,
     is_task_tool_name,
@@ -2457,6 +2458,10 @@ async def handle_main_processing(
     # (renamed from the legacy `assigned_apps`). Still treated as a list of
     # app IDs downstream until per-skill gating lands.
     assigned_app_ids = selected_mate_config.tools if selected_mate_config else None
+    assigned_app_ids = assigned_app_ids_with_task_app_for_explicit_skill(
+        assigned_app_ids,
+        task_app_skill_mentions,
+    )
     
     # Initialize TranslationService to resolve skill descriptions from translation keys
     # TranslationService caches translations internally, so it's safe to create a new instance
