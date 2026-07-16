@@ -25,10 +25,29 @@ CLI_DIR = ROOT / "frontend" / "packages" / "openmates-cli"
 DEFAULT_API_URL = "https://api.openmates.org"
 CHAT_PROMPT = "Reply with exactly: PONG"
 WEB_SEARCH_QUERY = "OpenMates official website"
+SDK_DEVICE_ID = "prod-smoke-github-actions"
+API_KEY_REDACTION_PREFIX = "sk-api-"
+
+
+def redact_api_keys(value: str) -> str:
+    parts = value.split(API_KEY_REDACTION_PREFIX)
+    if len(parts) == 1:
+        return value
+    redacted = [parts[0]]
+    for part in parts[1:]:
+        suffix_start = 0
+        while suffix_start < len(part) and part[suffix_start].isalnum():
+            suffix_start += 1
+        redacted.append(f"{API_KEY_REDACTION_PREFIX}<redacted>{part[suffix_start:]}")
+    return "".join(redacted)
 
 
 def run(command: list[str], *, cwd: Path = ROOT, timeout: int = 180) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False, timeout=timeout)
+    try:
+        return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        command_label = redact_api_keys(" ".join(command))
+        raise TimeoutError(f"Command timed out after {exc.timeout} seconds: {command_label}") from exc
 
 
 def parse_cli_json(output: str, command_label: str) -> Any:
@@ -57,9 +76,15 @@ def run_cli_json(args: list[str], *, api_url: str, api_key: str, timeout: int = 
     ]
     result = run(command, cwd=CLI_DIR, timeout=timeout)
     if result.returncode != 0:
-        detail = (result.stderr or result.stdout or "unknown CLI failure").strip()
+        detail = redact_api_keys((result.stderr or result.stdout or "unknown CLI failure").strip())
         raise RuntimeError(f"CLI command failed ({result.returncode}): {' '.join(args)}\n{detail[:700]}")
     return parse_cli_json(result.stdout, " ".join(args))
+
+
+def configure_stable_sdk_device() -> None:
+    device_file = Path.home() / ".openmates" / "sdk-device-id"
+    device_file.parent.mkdir(parents=True, exist_ok=True)
+    device_file.write_text(f"{SDK_DEVICE_ID}\n", encoding="utf-8")
 
 
 def verify_paid_chat(api_url: str, api_key: str) -> dict[str, Any]:
@@ -148,6 +173,8 @@ def main() -> int:
     if not args.api_key:
         print(json.dumps({"status": "failed", "error": "OPENMATES_API_KEY is required"}, indent=2))
         return 1
+
+    configure_stable_sdk_device()
 
     if not args.skip_build:
         build = run(["npm", "run", "build"], cwd=CLI_DIR, timeout=240)

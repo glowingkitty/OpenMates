@@ -787,10 +787,22 @@ async def _async_process_ai_skill_ask_task(
     elif cache_service_instance and request_data.user_id:
         cached_user_data = await cache_service_instance.get_user_by_id(request_data.user_id)
         
-        if not cached_user_data:
-            # ON-DEMAND CACHE WARMING: User not in cache, fetch from Directus and cache.
+        cache_missing_required_billing_fields = (
+            not cached_user_data
+            or not cached_user_data.get("vault_key_id")
+            or not cached_user_data.get("encrypted_credit_balance")
+        )
+        if cache_missing_required_billing_fields:
+            # ON-DEMAND CACHE WARMING: User not in cache, or cache was seeded by
+            # a lightweight API-key auth path without vault/billing fields.
             # This is required for both internal and external requests to check balance.
-            logger.info(f"[Task ID: {task_id}] User not in cache, warming cache for user_id: {request_data.user_id}")
+            if cached_user_data:
+                logger.warning(
+                    f"[Task ID: {task_id}] Cached user data is missing vault/billing fields; "
+                    f"refreshing from Directus for user_id: {request_data.user_id}"
+                )
+            else:
+                logger.info(f"[Task ID: {task_id}] User not in cache, warming cache for user_id: {request_data.user_id}")
             try:
                 if directus_service_instance:
                     # Fetch user data using /users/{id} endpoint (NOT /items/users which requires special permissions)

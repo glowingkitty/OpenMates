@@ -23,14 +23,20 @@ const AES_GCM_IV_LENGTH = 12;
 
 function usage() {
   process.stderr.write(`Usage:
-  node scripts/openmates_cli_test_account.mjs login [--slot <n>] [--api-url <url>]
-  node scripts/openmates_cli_test_account.mjs chat "<prompt>" [--slot <n>] [--api-url <url>] [--expires <seconds>] [--auto-approve-memories]
+  node scripts/openmates_cli_test_account.mjs login [--slot <n>] [--api-url <url>] [--web-origin <url>]
+  node scripts/openmates_cli_test_account.mjs chat "<prompt>" [--slot <n>] [--api-url <url>] [--web-origin <url>] [--expires <seconds>] [--auto-approve-memories]
 
 Environment:
   OPENMATES_TEST_ACCOUNT_EMAIL / PASSWORD / OTP_KEY
   OPENMATES_TEST_ACCOUNT_<slot>_EMAIL / PASSWORD / OTP_KEY
   OPENMATES_TEST_ACCOUNT_SOURCE_SLOT
 `);
+}
+
+function deriveWebOrigin(apiUrl) {
+  if (apiUrl.includes("api.openmates.org")) return "https://openmates.org";
+  if (apiUrl.includes("api.dev.openmates.org")) return "https://app.dev.openmates.org";
+  return DEFAULT_WEB_ORIGIN;
 }
 
 function loadDotenv() {
@@ -75,6 +81,7 @@ function parseArgs(argv) {
     autoApproveMemories: false,
     expires: "604800",
     slot: defaultSlot(),
+    webOrigin: undefined,
   };
   const positional = [];
 
@@ -82,6 +89,8 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (arg === "--api-url") {
       options.apiUrl = argv[++index];
+    } else if (arg === "--web-origin") {
+      options.webOrigin = argv[++index];
     } else if (arg === "--expires") {
       options.expires = argv[++index];
     } else if (arg === "--slot") {
@@ -95,6 +104,7 @@ function parseArgs(argv) {
     }
   }
 
+  options.webOrigin ||= process.env.OPENMATES_WEB_ORIGIN || deriveWebOrigin(options.apiUrl);
   return { command: positional[0], args: positional.slice(1), options };
 }
 
@@ -261,14 +271,14 @@ function captureCookies(headers) {
   return cookies;
 }
 
-async function apiPost(apiUrl, path, body, cookies = {}) {
+async function apiPost(apiUrl, webOrigin, path, body, cookies = {}) {
   const cookieHeader = Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join("; ");
   const response = await fetch(`${apiUrl.replace(/\/$/, "")}${path}`, {
     method: "POST",
     headers: {
       "Accept": "application/json",
       "Content-Type": "application/json",
-      "Origin": DEFAULT_WEB_ORIGIN,
+      "Origin": webOrigin,
       ...(cookieHeader ? { Cookie: cookieHeader } : {}),
     },
     body: JSON.stringify(body),
@@ -326,7 +336,7 @@ async function login(options) {
 async function loginWithAccount(account, options) {
   const hashedEmail = await sha256Base64(account.email);
 
-  const lookup = await apiPost(options.apiUrl, "/v1/auth/lookup", {
+  const lookup = await apiPost(options.apiUrl, options.webOrigin, "/v1/auth/lookup", {
     hashed_email: hashedEmail,
     stay_logged_in: true,
   });
@@ -354,7 +364,7 @@ async function loginWithAccount(account, options) {
       attemptBody.tfa_code = generateTotp(account.otpKey, offset);
       attemptBody.code_type = "otp";
     }
-    loginResult = await apiPost(options.apiUrl, "/v1/auth/login", attemptBody);
+    loginResult = await apiPost(options.apiUrl, options.webOrigin, "/v1/auth/login", attemptBody);
     if (loginResult.response.ok && loginResult.data?.success && !loginResult.data?.tfa_required) {
       break;
     }
