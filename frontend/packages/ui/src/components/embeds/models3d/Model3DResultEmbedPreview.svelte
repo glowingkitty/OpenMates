@@ -45,10 +45,6 @@
   let imageFailed = $state(false);
   let displayImage = $derived(proxyImage(previewImageUrl || thumbnailUrl, MAX_WIDTH_PREVIEW_THUMBNAIL));
   let cardTitle = $derived(title || $text('embeds.models3d.search.result_title'));
-  function handleCardClick(event: MouseEvent) {
-    event.stopPropagation();
-    onFullscreen();
-  }
 
   function handleStop() {
     // Result cards are not cancellable.
@@ -69,7 +65,7 @@
   showSkillIcon={false}
 >
   {#snippet details()}
-    <button type="button" class="model-card" data-testid="models3d-result-card" onclick={handleCardClick}>
+    <article class="model-card" data-testid="models3d-result-card">
       <div class="card-body" data-testid="models3d-result-card-body">
         <h3>{cardTitle}</h3>
         <div class="meta-line">
@@ -96,7 +92,7 @@
           <span class="clickable-icon icon_3dmodels placeholder-icon"></span>
         {/if}
       </div>
-    </button>
+    </article>
   {/snippet}
 </UnifiedEmbedPreview>
 
@@ -108,12 +104,6 @@
     width: 100%;
     height: 100%;
     padding: var(--spacing-6);
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-align: inherit;
-    cursor: pointer;
   }
 
   .image-shell {

@@ -62,7 +62,7 @@ test.describe('Example chat: Models3D Printables', () => {
 		const firstChildEmbed = childResultEmbeds.first();
 		await expectModels3dVisualContract(firstChildEmbed);
 
-		await childResultCards.first().click();
+		await firstChildEmbed.click();
 		const resultFullscreen = page.getByTestId('models3d-result-fullscreen');
 		await expect(resultFullscreen).toBeVisible({ timeout: 60000 });
 		const cta = page.getByTestId('models3d-open-provider-cta');
