@@ -305,7 +305,7 @@ def _extract_chat_response_content(result: Any) -> str | None:
 def _extract_chat_response_model_name(result: Any) -> str | None:
     if not isinstance(result, dict):
         return None
-    for key in ("model_name", "modelName", "selected_model_name"):
+    for key in ("model_name", "modelName", "selected_model_name", "model"):
         value = result.get(key)
         if isinstance(value, str) and value:
             return value

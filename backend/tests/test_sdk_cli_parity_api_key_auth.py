@@ -293,6 +293,7 @@ def test_sdk_chat_response_normalizes_openai_completion_shape():
 def test_sdk_chat_response_extracts_model_name_shapes():
     assert _extract_chat_response_model_name({"model_name": "Mistral Small 3.2"}) == "Mistral Small 3.2"
     assert _extract_chat_response_model_name({"modelName": "GPT Test"}) == "GPT Test"
+    assert _extract_chat_response_model_name({"model": "OpenAI Test"}) == "OpenAI Test"
     assert _extract_chat_response_model_name({"usage": {"model_name": "Claude Test"}}) == "Claude Test"
 
 
