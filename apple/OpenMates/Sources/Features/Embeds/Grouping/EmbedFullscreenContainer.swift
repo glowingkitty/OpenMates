@@ -24,11 +24,10 @@ struct EmbedFullscreenContainer: View {
     let initialEmbedId: String
     let allEmbedRecords: [String: EmbedRecord]
     let chatId: String?
+    var onOpenEmbed: (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
     var onClose: () -> Void = {}
 
     @State private var currentIndex: Int = 0
-    @State private var selectedChildEmbed: EmbedRecord?
-    @State private var showChildFullscreen = false
     @State private var isPresented = false
     @State private var codePreviewActive = false
     @State private var shareContext: AppleShareContext?
@@ -108,8 +107,7 @@ struct EmbedFullscreenContainer: View {
                                 codeRunViewModel: codeRunViewModel,
                                 chatId: chatId,
                                 onOpenEmbed: { child in
-                                    selectedChildEmbed = child
-                                    showChildFullscreen = true
+                                    onOpenEmbed(child, embed)
                                 }
                             )
                                 .padding(.horizontal, usesEdgeToEdgeContent ? 0 : .spacing8)
@@ -143,19 +141,6 @@ struct EmbedFullscreenContainer: View {
                         onRun: { runCode(embed) },
                         onTogglePreview: { codePreviewActive.toggle() },
                         onReportIssue: { reportIssue(embed) }
-                    )
-                }
-
-                if showChildFullscreen, let child = selectedChildEmbed {
-                    EmbedFullscreenContainer(
-                        embeds: [child],
-                        initialEmbedId: child.id,
-                        allEmbedRecords: allEmbedRecords,
-                        chatId: chatId,
-                        onClose: {
-                            showChildFullscreen = false
-                            selectedChildEmbed = nil
-                        }
                     )
                 }
 
@@ -466,8 +451,9 @@ struct EmbedFullscreenContainer: View {
             let groups = EmbedGrouper.group(childEmbeds)
             ForEach(groups) { group in
                 GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
-                    selectedChildEmbed = embed
-                    showChildFullscreen = true
+                    if let currentEmbed {
+                        onOpenEmbed(embed, currentEmbed)
+                    }
                 }
                 .padding(.horizontal, .spacing6)
             }

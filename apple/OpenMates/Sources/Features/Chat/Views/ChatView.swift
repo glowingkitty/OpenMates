@@ -155,6 +155,7 @@ struct ChatView: View {
     @StateObject private var enhancedPIIRecommendationStore = EnhancedPIIRecommendationStore.shared
     @StateObject private var composerSession = NativeComposerSession()
     @State private var selectedEmbed: EmbedRecord?
+    @State private var fullscreenPreviousEmbeds: [EmbedRecord] = []
     @State private var showEmbedFullscreen = false
     @State private var showReminder = false
     @State private var isPIIRevealed = false
@@ -309,7 +310,8 @@ struct ChatView: View {
 
                 if showEmbedFullscreen, let embed = selectedEmbed {
                     embedFullscreenSheet(for: embed)
-                    .ignoresSafeArea()
+                        .id(embed.id)
+                        .ignoresSafeArea()
                 }
 
                 if let actionMessage {
@@ -664,10 +666,38 @@ struct ChatView: View {
             initialEmbedId: displayedSelectedEmbed.id,
             allEmbedRecords: displayedEmbedRecords,
             chatId: chatId,
+            onOpenEmbed: { child, parent in
+                openChildEmbedFullscreen(child, from: parent)
+            },
             onClose: {
-                showEmbedFullscreen = false
+                closeEmbedFullscreenRoute()
             }
         )
+    }
+
+    private func openEmbedFullscreen(_ embed: EmbedRecord) {
+        fullscreenPreviousEmbeds = []
+        selectedEmbed = embed
+        showEmbedFullscreen = true
+    }
+
+    private func openChildEmbedFullscreen(_ child: EmbedRecord, from parent: EmbedRecord) {
+        if fullscreenPreviousEmbeds.last?.id != parent.id {
+            fullscreenPreviousEmbeds.append(parent)
+        }
+        selectedEmbed = child
+        showEmbedFullscreen = true
+    }
+
+    private func closeEmbedFullscreenRoute() {
+        if let previous = fullscreenPreviousEmbeds.popLast() {
+            selectedEmbed = previous
+            showEmbedFullscreen = true
+            return
+        }
+
+        selectedEmbed = nil
+        showEmbedFullscreen = false
     }
 
     // MARK: - Message list
@@ -756,8 +786,7 @@ struct ChatView: View {
                                         isSearchTarget: searchTarget?.messageId == message.id,
                                         searchHighlightQuery: searchTarget?.messageId == message.id ? searchTarget?.query : nil,
                                         onEmbedTap: { embed in
-                                            selectedEmbed = embed
-                                            showEmbedFullscreen = true
+                                            openEmbedFullscreen(embed)
                                         },
                                         onOpenPublicChat: onOpenPublicChat,
                                         onInteractiveQuestionSubmit: { content in
@@ -1019,8 +1048,7 @@ struct ChatView: View {
             ForEach([Self.chatHistoryFinishedAudio, Self.chatHistoryProcessingAudio, Self.chatHistoryErrorAudio]) { record in
                 EmbedPreviewCard(embed: record, allEmbedRecords: recordLookup) {
                     guard record.status == .finished else { return }
-                    selectedEmbed = record
-                    showEmbedFullscreen = true
+                    openEmbedFullscreen(record)
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 220)

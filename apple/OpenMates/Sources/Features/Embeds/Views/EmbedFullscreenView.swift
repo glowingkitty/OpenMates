@@ -14,17 +14,22 @@ struct EmbedFullscreenView: View {
     let embed: EmbedRecord
     let childEmbeds: [EmbedRecord]
     let allEmbedRecords: [String: EmbedRecord]
+    var onOpenEmbed: (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
     @Environment(\.dismiss) var dismiss
     @Environment(\.openURL) private var openURL
 
-    init(embed: EmbedRecord, childEmbeds: [EmbedRecord], allEmbedRecords: [String: EmbedRecord] = [:]) {
+    init(
+        embed: EmbedRecord,
+        childEmbeds: [EmbedRecord],
+        allEmbedRecords: [String: EmbedRecord] = [:],
+        onOpenEmbed: @escaping (EmbedRecord, EmbedRecord) -> Void = { _, _ in }
+    ) {
         self.embed = embed
         self.childEmbeds = childEmbeds
         self.allEmbedRecords = allEmbedRecords
+        self.onOpenEmbed = onOpenEmbed
     }
 
-    @State private var selectedChildId: String?
-    @State private var showChildFullscreen = false
     @State private var selectedVersionNumber: Int?
     @State private var restoreConfirmVersion: Int?
 
@@ -66,21 +71,6 @@ struct EmbedFullscreenView: View {
             .padding(.horizontal, .spacing5)
             .padding(.top, .spacing5)
 
-            if showChildFullscreen,
-               let childId = selectedChildId,
-               let child = childEmbeds.first(where: { $0.id == childId }) {
-                ZStack(alignment: .topTrailing) {
-                    Color.black.opacity(0.38)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            showChildFullscreen = false
-                        }
-
-                    EmbedFullscreenView(embed: child, childEmbeds: [], allEmbedRecords: allEmbedRecords)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                        .padding(.spacing8)
-                }
-            }
         }
     }
 
@@ -222,7 +212,14 @@ struct EmbedFullscreenView: View {
 
     private var contentArea: some View {
         VStack(alignment: .leading, spacing: .spacing4) {
-            EmbedContentView(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords)
+            EmbedContentView(
+                embed: embed,
+                mode: .fullscreen,
+                allEmbedRecords: allEmbedRecords,
+                onOpenEmbed: { child in
+                    onOpenEmbed(child, embed)
+                }
+            )
         }
         .padding(embedType == .webWebsite ? 0 : .spacing6)
     }
@@ -469,8 +466,7 @@ struct EmbedFullscreenView: View {
                 LazyHStack(spacing: .spacing4) {
                     ForEach(childEmbeds) { child in
                         EmbedPreviewCard(embed: child, allEmbedRecords: allEmbedRecords) {
-                            selectedChildId = child.id
-                            showChildFullscreen = true
+                            onOpenEmbed(child, embed)
                         }
                         .frame(width: 260, height: 180)
                     }
