@@ -3013,7 +3013,10 @@ describe("unauthenticated example chats", () => {
         "/v1/sdk/chats",
         "/v1/apps/ai/skills/ask",
       ]);
-      assert.equal(requests[1]?.body?.prompt, "Search the web for OpenMates");
+      assert.deepEqual(requests[1]?.body?.messages, [
+        { role: "user", content: "Search the web for OpenMates" },
+      ]);
+      assert.equal(requests[1]?.body?.apps_enabled, true);
     });
   });
 

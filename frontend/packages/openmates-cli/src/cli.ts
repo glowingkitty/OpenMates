@@ -1821,7 +1821,12 @@ async function sendApiKeyChatNew(
     const aiAskResult = await client.runSkill({
       app: "ai",
       skill: "ask",
-      inputData: { prompt: message },
+      inputData: {
+        messages: [{ role: "user", content: message }],
+        stream: false,
+        apps_enabled: true,
+        is_incognito: true,
+      },
       apiKey,
     });
     response = {
