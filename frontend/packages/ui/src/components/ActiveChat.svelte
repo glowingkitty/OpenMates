@@ -8097,13 +8097,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
              }
          })();
 
-        // CRITICAL: Close any open fullscreen views when switching chats
-        // This ensures fullscreen views don't persist when user switches to a different chat
+        // CRITICAL: Close any open fullscreen views when switching chats.
+        // Same-chat reload/hash echoes must preserve the just-opened embed fullscreen;
+        // otherwise opening a child route can leave #embed-id in the URL with no overlay.
         if (showCodeFullscreen) {
             console.debug('[ActiveChat] Closing code fullscreen view due to chat switch');
             showCodeFullscreen = false;
         }
-        if (showEmbedFullscreen) {
+        if (showEmbedFullscreen && !isSameActiveChat) {
             console.debug('[ActiveChat] Closing embed fullscreen view due to chat switch');
             showEmbedFullscreen = false;
             embedFullscreenData = null;
