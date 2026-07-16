@@ -71,6 +71,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     is_legacy_task_runtime_tool_name,
     is_task_tool_name,
     publish_task_tool_result,
+    should_suppress_task_runtime_tools_for_app_skill,
     task_tool_skill_id,
     task_tool_name_variants,
 )
@@ -2381,7 +2382,16 @@ async def handle_main_processing(
 
     task_tool_context = None
     task_tools_enabled = "task_update_jobs" in (getattr(request_data, "client_capabilities", None) or [])
-    if task_tools_enabled and not request_data.is_incognito:
+    suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
+        preselected_skills,
+        user_requested_skills_only=user_requested_skills_only,
+    )
+    if suppress_task_runtime_tools:
+        logger.info(
+            "%s [USER_SKILLS] Suppressing legacy task runtime tools because a Tasks app skill was explicitly requested.",
+            log_prefix,
+        )
+    if task_tools_enabled and not request_data.is_incognito and not suppress_task_runtime_tools:
         task_methods = getattr(directus_service, "user_task", None)
         if task_methods is not None:
             try:
@@ -2444,7 +2454,7 @@ async def handle_main_processing(
         translation_service=translation_service
     )
 
-    if task_tools_enabled and task_tool_context is not None:
+    if task_tools_enabled and task_tool_context is not None and not suppress_task_runtime_tools:
         task_tools = build_task_runtime_tools(task_tool_context)
         available_tools_for_llm = merge_task_runtime_tools(available_tools_for_llm, task_tools)
         logger.info(

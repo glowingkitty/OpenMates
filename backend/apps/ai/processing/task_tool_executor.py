@@ -52,6 +52,17 @@ def is_legacy_task_runtime_tool_name(tool_name: str) -> bool:
     return is_task_tool_name(tool_name) or is_task_tool_name(canonical_name)
 
 
+def should_suppress_task_runtime_tools_for_app_skill(
+    preselected_skills: set[str] | None,
+    *,
+    user_requested_skills_only: bool,
+) -> bool:
+    """Avoid offering legacy task tools when the user explicitly mentioned a Tasks app skill."""
+    if not user_requested_skills_only or not preselected_skills:
+        return False
+    return any(skill.startswith(f"{TASK_TOOL_RESOLVER_APP_ID}-") for skill in preselected_skills)
+
+
 def task_tool_name_variants(tool_name: str) -> set[str]:
     if not is_task_tool_name(tool_name):
         return set()

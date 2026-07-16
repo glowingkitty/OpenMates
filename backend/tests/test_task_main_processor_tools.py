@@ -25,6 +25,7 @@ from backend.apps.ai.processing.task_tool_executor import (
     execute_task_tool_call,
     is_legacy_task_runtime_tool_name,
     is_task_tool_name,
+    should_suppress_task_runtime_tools_for_app_skill,
     task_tool_name_variants,
 )
 from backend.apps.ai.processing.task_tool_context import resolve_task_tool_context
@@ -201,6 +202,25 @@ def test_tasks_app_skill_names_are_not_legacy_task_runtime_tools() -> None:
     assert is_legacy_task_runtime_tool_name("task-create")
     assert not is_legacy_task_runtime_tool_name("tasks_create")
     assert not is_legacy_task_runtime_tool_name("tasks-create")
+
+
+def test_explicit_tasks_app_skill_suppresses_legacy_task_runtime_tools() -> None:
+    assert should_suppress_task_runtime_tools_for_app_skill(
+        {"tasks-create"},
+        user_requested_skills_only=True,
+    )
+    assert should_suppress_task_runtime_tools_for_app_skill(
+        {"tasks-search"},
+        user_requested_skills_only=True,
+    )
+    assert not should_suppress_task_runtime_tools_for_app_skill(
+        {"tasks-create"},
+        user_requested_skills_only=False,
+    )
+    assert not should_suppress_task_runtime_tools_for_app_skill(
+        {"web-search"},
+        user_requested_skills_only=True,
+    )
 
 
 def test_task_tool_schema_sanitizer_removes_google_unsupported_additional_properties() -> None:
