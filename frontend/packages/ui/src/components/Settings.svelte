@@ -92,6 +92,7 @@ changes to the documentation (to keep the documentation up to date).
     } from '../utils/categoryUtils';
     import { resolveIconName } from '../utils/iconNameResolver';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
+    import { clearSettingsPathFromHash, setSettingsPathInHash } from '../utils/settingsHashUtils';
 
     const CALENDAR_UPDATE_ACCOUNT_KEY = 'openmates_calendar_update_account_id';
 
@@ -830,6 +831,33 @@ changes to the documentation (to keep the documentation up to date).
     // Reactive translation of the submenu title — falls back to raw title when no key
     let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : activeSubMenuTitleRaw);
     let routedPendingConnectedAccountOAuth = $state(false);
+    let hasSyncedSettingsHash = $state(false);
+
+    function shouldPreserveComponentSettingsHash(hash: string): boolean {
+        const normalizedHash = hash.startsWith('#/') ? `#${hash.slice(2)}` : hash;
+        return /^#settings\/(billing\/invoices\/[^/]+\/refund|newsletter\/(confirm|unsubscribe)\/|email\/block\/|account\/delete\/)/.test(normalizedHash);
+    }
+
+    function replaceCurrentHash(nextHash: string): void {
+        if (typeof window === 'undefined') return;
+        if (window.location.hash === nextHash) return;
+        history.replaceState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`);
+    }
+
+    $effect(() => {
+        if (typeof window === 'undefined') return;
+        if (shouldPreserveComponentSettingsHash(window.location.hash)) return;
+
+        if (isMenuVisible) {
+            hasSyncedSettingsHash = true;
+            replaceCurrentHash(setSettingsPathInHash(window.location.hash, activeSettingsView));
+            return;
+        }
+
+        if (hasSyncedSettingsHash) {
+            replaceCurrentHash(clearSettingsPathFromHash(window.location.hash));
+        }
+    });
 
     $effect(() => {
         if (!$authStore.isAuthenticated || !hasPendingConnectedAccountOAuthUpdate()) {

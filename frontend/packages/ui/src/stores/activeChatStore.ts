@@ -19,6 +19,7 @@ import { writable } from "svelte/store";
 import { browser } from "$app/environment";
 import { replaceState } from "$app/navigation";
 import { isOnSemanticChatPath } from "../services/chatUrlService";
+import { updateHashParams } from "../utils/settingsHashUtils";
 
 /**
  * Store to track when deep link processing is happening
@@ -49,7 +50,14 @@ function updateUrlHash(chatId: string | null) {
     // If SvelteKit navigates to the SEO page, its onMount fires window.location.replace
     // which can interrupt loadChat mid-flight and leave the UI unresponsive.
     // Hash-based navigation avoids any route change and is consistent for all chat types.
-    const expectedHash = `#chat-id=${chatId}`;
+    const expectedHash = updateHashParams(window.location.hash, {
+      "chat-id": chatId,
+      "message-id": null,
+      messageid: null,
+      scroll: null,
+      "embed-id": null,
+      embed_id: null,
+    });
     if (isOnSemanticChatPath()) {
       // Currently on a semantic path (e.g. user arrived via direct link /intro/for-developers).
       // Move back to root with the hash so it doesn't get appended to the semantic path.
@@ -60,7 +68,7 @@ function updateUrlHash(chatId: string | null) {
     const currentHash = window.location.hash;
     if (currentHash !== expectedHash) {
       lastProgrammaticHashUpdate = Date.now();
-      window.location.hash = `chat-id=${chatId}`;
+      replaceState(window.location.pathname + window.location.search + expectedHash, {});
     }
     return;
   }
@@ -70,8 +78,16 @@ function updateUrlHash(chatId: string | null) {
     replaceState("/", {});
     return;
   }
-  if (window.location.hash.startsWith("#chat-id=")) {
-    replaceState(window.location.pathname + window.location.search, {});
+  const nextHash = updateHashParams(window.location.hash, {
+    "chat-id": null,
+    "message-id": null,
+    messageid: null,
+    scroll: null,
+    "embed-id": null,
+    embed_id: null,
+  });
+  if (window.location.hash !== nextHash) {
+    replaceState(window.location.pathname + window.location.search + nextHash, {});
   }
 }
 

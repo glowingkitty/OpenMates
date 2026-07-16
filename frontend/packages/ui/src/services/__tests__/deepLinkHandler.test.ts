@@ -4,7 +4,13 @@ vi.mock("$app/navigation", () => ({
   replaceState: vi.fn(),
 }));
 
-import { buildChatMessageLink, parseDeepLink, processSettingsDeepLink } from "../deepLinkHandler";
+import { buildChatMessageLink, parseDeepLink, processDeepLink, processSettingsDeepLink } from "../deepLinkHandler";
+import {
+  clearSettingsPathFromHash,
+  getSettingsPathFromHash,
+  setSettingsPathInHash,
+  updateHashParams,
+} from "../../utils/settingsHashUtils";
 
 describe("parseDeepLink", () => {
   it("parses chat links with a bare autoplay-video flag", () => {
@@ -65,6 +71,39 @@ describe("parseDeepLink", () => {
       },
     });
   });
+
+  it("parses the canonical hide personal data settings link", () => {
+    expect(parseDeepLink("#settings/privacy/hide-personal-data"))?.toEqual({
+      type: "settings",
+      data: {
+        path: "privacy/hide-personal-data",
+        fullHash: "#settings/privacy/hide-personal-data",
+      },
+    });
+  });
+
+  it("parses the privacy pii settings alias", () => {
+    expect(parseDeepLink("#settings/privacy/pii"))?.toEqual({
+      type: "settings",
+      data: {
+        path: "privacy/hide-personal-data",
+        fullHash: "#settings/privacy/pii",
+      },
+    });
+  });
+
+  it("keeps chat as primary when a combined hash also contains settings", () => {
+    expect(parseDeepLink("#chat-id=chat-123&settings=privacy/pii"))?.toEqual({
+      type: "chat",
+      data: {
+        chatId: "chat-123",
+        messageId: null,
+        scrollToLatestResponse: false,
+        embedId: null,
+        autoplayVideo: false,
+      },
+    });
+  });
 });
 
 describe("processSettingsDeepLink", () => {
@@ -107,5 +146,101 @@ describe("processSettingsDeepLink", () => {
     );
 
     expect(setSettingsDeepLink).toHaveBeenCalledWith("billing&usage");
+  });
+
+  it("opens the canonical hide personal data settings route", () => {
+    const setSettingsDeepLink = vi.fn();
+
+    processSettingsDeepLink("#settings/privacy/hide-personal-data", {
+      openSettings: vi.fn(),
+      setSettingsDeepLink,
+    });
+
+    expect(setSettingsDeepLink).toHaveBeenCalledWith(
+      "privacy/hide-personal-data",
+    );
+  });
+
+  it("maps privacy pii to the hide personal data settings route", () => {
+    const setSettingsDeepLink = vi.fn();
+
+    processSettingsDeepLink("#settings/privacy/pii", {
+      openSettings: vi.fn(),
+      setSettingsDeepLink,
+    });
+
+    expect(setSettingsDeepLink).toHaveBeenCalledWith(
+      "privacy/hide-personal-data",
+    );
+  });
+
+  it("extracts settings from a combined chat/settings hash", () => {
+    const setSettingsDeepLink = vi.fn();
+
+    processSettingsDeepLink("#chat-id=chat-123&settings=privacy/pii", {
+      openSettings: vi.fn(),
+      setSettingsDeepLink,
+    });
+
+    expect(setSettingsDeepLink).toHaveBeenCalledWith(
+      "privacy/hide-personal-data",
+    );
+  });
+});
+
+describe("processDeepLink", () => {
+  it("opens settings after processing a combined chat/settings hash", async () => {
+    const onChat = vi.fn().mockResolvedValue(undefined);
+    const onSettings = vi.fn();
+
+    await processDeepLink("#chat-id=chat-123&settings=privacy/pii", {
+      onChat,
+      onSettings,
+    });
+
+    expect(onChat).toHaveBeenCalledWith(
+      "chat-123",
+      null,
+      false,
+      null,
+      false,
+    );
+    expect(onSettings).toHaveBeenCalledWith(
+      "privacy/hide-personal-data",
+      "#settings/privacy/hide-personal-data",
+    );
+  });
+});
+
+describe("settings hash helpers", () => {
+  it("extracts settings aliases from combined hashes", () => {
+    expect(getSettingsPathFromHash("#chat-id=chat-123&settings=privacy/pii")).toBe(
+      "privacy/hide-personal-data",
+    );
+  });
+
+  it("adds settings to an existing chat/embed hash without removing context", () => {
+    expect(
+      setSettingsPathInHash(
+        "#chat-id=chat-123&embed-id=embed-456",
+        "privacy/hide-personal-data",
+      ),
+    ).toBe("#chat-id=chat-123&embed-id=embed-456&settings=privacy/hide-personal-data");
+  });
+
+  it("removes only settings from a combined hash", () => {
+    expect(
+      clearSettingsPathFromHash(
+        "#chat-id=chat-123&embed-id=embed-456&settings=privacy/hide-personal-data",
+      ),
+    ).toBe("#chat-id=chat-123&embed-id=embed-456");
+  });
+
+  it("updates chat while preserving settings", () => {
+    expect(
+      updateHashParams("#settings/privacy/hide-personal-data", {
+        "chat-id": "chat-123",
+      }),
+    ).toBe("#settings=privacy/hide-personal-data&chat-id=chat-123");
   });
 });

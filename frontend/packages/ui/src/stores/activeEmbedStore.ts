@@ -11,6 +11,7 @@
 import { writable } from "svelte/store";
 import { browser } from "$app/environment";
 import { replaceState } from "$app/navigation";
+import { getSettingsPathFromHash, setSettingsPathInHash, updateHashParams } from "../utils/settingsHashUtils";
 
 /**
  * Flag to prevent hashchange events from triggering when we programmatically update the hash
@@ -32,14 +33,12 @@ function updateUrlHash(embedId: string | null, chatId?: string | null) {
   if (!browser) return; // Only update URL in browser environment
 
   const currentHash = window.location.hash;
-  let expectedHash: string;
-  if (embedId && chatId) {
-    expectedHash = `#chat-id=${chatId}&embed-id=${embedId}`;
-  } else if (embedId) {
-    expectedHash = `#embed-id=${embedId}`;
-  } else {
-    expectedHash = "";
-  }
+  const settingsPathBeforeClear = embedId ? null : getSettingsPathFromHash(currentHash);
+  const expectedHash = updateHashParams(currentHash, {
+    ...(chatId ? { "chat-id": chatId } : {}),
+    "embed-id": embedId,
+    embed_id: null,
+  });
 
   // Only update if hash doesn't already match (prevents unnecessary hashchange events)
   if (currentHash === expectedHash) {
@@ -49,22 +48,13 @@ function updateUrlHash(embedId: string | null, chatId?: string | null) {
   // Record timestamp of programmatic update
   lastProgrammaticEmbedHashUpdate = Date.now();
 
-  if (embedId) {
-    // Set combined or embed-only hash
-    if (chatId) {
-      window.location.hash = `chat-id=${chatId}&embed-id=${embedId}`;
-    } else {
-      window.location.hash = `embed-id=${embedId}`;
-    }
-  } else {
-    // Clear hash if no embed is selected
-    // Use SvelteKit's replaceState to avoid adding to browser history
-    if (
-      window.location.hash.startsWith("#embed-id=") ||
-      window.location.hash.includes("embed-id=")
-    ) {
-      replaceState(window.location.pathname + window.location.search, {});
-    }
+  replaceState(window.location.pathname + window.location.search + expectedHash, {});
+
+  if (!embedId && settingsPathBeforeClear) {
+    queueMicrotask(() => {
+      const nextHash = setSettingsPathInHash(window.location.hash, settingsPathBeforeClear);
+      replaceState(window.location.pathname + window.location.search + nextHash, {});
+    });
   }
 }
 
