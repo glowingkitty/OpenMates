@@ -270,7 +270,7 @@ contracts:
     - "Document examples using a direct document embed must store renderable `docs-doc` content (`html` or `code`) or be rejected by deterministic audit."
     - "Mail examples whose transcript says an email draft was prepared must include at least one renderable `mail-email` embed."
     - "Recipe examples must include renderable instructions and a public recipe image URL for every recipe result shown in a public example."
-    - "Child-result `embed-id` deep links in example chats must resolve to the parent fullscreen with the child result focused."
+    - "Child-result `embed-id` deep links in example chats follow docs/specs/unified-embed-fullscreen-routing/spec.yml: registered child fullscreens open directly; only legacy child-only payloads route through the parent with the child focused."
     - "Event-search previews must render attribution as `via` plus deduplicated round provider icon chips only; provider names must not be repeated as visible text."
   ui_states:
     - "Public `/example/<slug>` pages render crawlable SEO transcript HTML with `User:` and `OpenMates:` turns."

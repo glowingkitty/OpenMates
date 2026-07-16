@@ -15,6 +15,10 @@
   // Tests: (none yet)
 
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
+  import {
+    dispatchEmbedFullscreen,
+    resolveEmbedFullscreenTarget,
+  } from '../../services/embedFullscreenController';
 
   const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
 
@@ -157,7 +161,7 @@
     }
 
     const { targetEmbedId, focusChildEmbedId } =
-      await embedStore.resolveFullscreenTarget(resolvedEmbedId);
+      await resolveEmbedFullscreenTarget(resolvedEmbedId);
 
     console.debug(
       `[SourceQuoteBlock] Opening fullscreen for embed_ref "${embedRef}" → ${targetEmbedId}` +
@@ -165,18 +169,13 @@
         `, highlight: "${quoteText.substring(0, 50)}..."`,
     );
 
-    document.dispatchEvent(
-      new CustomEvent('embedfullscreen', {
-        detail: {
-          embedId: targetEmbedId,
-          embedType: 'app-skill-use',
-          focusChildEmbedId,
-          // Pass the quote text so the fullscreen can highlight it
-          highlightQuoteText: quoteText,
-        },
-        bubbles: true,
-      }),
-    );
+    dispatchEmbedFullscreen({
+      embedId: targetEmbedId,
+      embedType: 'app-skill-use',
+      focusChildEmbedId,
+      // Pass the quote text so the fullscreen can highlight it
+      highlightQuoteText: quoteText,
+    });
   }
 </script>
 

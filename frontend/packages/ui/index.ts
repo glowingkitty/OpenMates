@@ -23,6 +23,7 @@ export {
   getLucideIcon,
   CATEGORY_GRADIENTS,
 } from "./src/utils/categoryUtils";
+export * from "./src/utils/settingsHashUtils";
 export { parse_message } from "./src/message_parsing/parse_message";
 export { default as DevConsole } from "./src/components/DevConsole.svelte";
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
@@ -149,6 +150,7 @@ export {
 } from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
 export type { EmbedKeyEntry } from "./src/services/embedStore";
+export * from "./src/services/embedFullscreenController";
 export * from "./src/services/projectService";
 export * from "./src/services/userTaskService";
 export * from "./src/services/workflowTemplateService";

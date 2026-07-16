@@ -26,6 +26,10 @@
   //   streaming embed card arrives after this inline link was already rendered.
 
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
+  import {
+    dispatchEmbedFullscreen,
+    resolveEmbedFullscreenTarget,
+  } from '../../services/embedFullscreenController';
   import { resolveEmbedDisplayText } from '../../utils/embedDisplayText';
   import { resolveIconName } from '../../utils/iconNameResolver';
 
@@ -158,12 +162,8 @@
    * Resolves embed_ref → embed_id at click time (lazy resolution handles the case
    * where the embed arrives after the message was already rendered).
    *
-   * Child embeds (e.g. individual "connection" flight results) cannot be opened in
-   * fullscreen directly — only their parent "app-skill-use" embed has a fullscreen
-   * component. So when a child embed is clicked, we open the parent's fullscreen
-   * (TravelSearchEmbedFullscreen, WebSearchEmbedFullscreen, etc.) and pass the
-   * child's embed_id as `focusChildEmbedId` so the fullscreen can auto-open the
-   * matching child overlay on mount, jumping straight to the specific result.
+   * Registered child embeds open directly; older child-only payloads route through
+   * their parent and pass `focusChildEmbedId` so the parent can open the child.
    */
   async function handleClick(e: MouseEvent) {
     e.preventDefault();
@@ -181,30 +181,23 @@
     }
 
     const { targetEmbedId, focusChildEmbedId } =
-      await embedStore.resolveFullscreenTarget(resolvedEmbedId);
+      await resolveEmbedFullscreenTarget(resolvedEmbedId);
 
     console.debug(
       `[EmbedInlineLink] Opening fullscreen for embed_ref "${embedRef}" → ${targetEmbedId}` +
         (focusChildEmbedId ? ` (focus child: ${focusChildEmbedId})` : ''),
     );
 
-    document.dispatchEvent(
-      new CustomEvent('embedfullscreen', {
-        detail: {
-          embedId: targetEmbedId,
-          embedType: 'app-skill-use', // default type; ActiveChat will look up the real type
-          // Pass the child embed_id so the search fullscreen can auto-open the specific result
-          focusChildEmbedId,
-          // Pass the line range so CodeEmbedFullscreen can highlight + scroll to the target lines
-          focusLineRange: focusLineStart != null
-            ? { start: focusLineStart, end: focusLineEnd ?? focusLineStart }
-            : undefined,
-          highlightQuoteText: highlightQuoteText ?? undefined,
-          focusSheetRange: focusSheetRange ?? undefined,
-        },
-        bubbles: true,
-      }),
-    );
+    dispatchEmbedFullscreen({
+      embedId: targetEmbedId,
+      embedType: 'app-skill-use', // default type; ActiveChat will look up the real type
+      focusChildEmbedId,
+      focusLineRange: focusLineStart != null
+        ? { start: focusLineStart, end: focusLineEnd ?? focusLineStart }
+        : undefined,
+      highlightQuoteText: highlightQuoteText ?? undefined,
+      focusSheetRange: focusSheetRange ?? undefined,
+    });
   }
 </script>
 

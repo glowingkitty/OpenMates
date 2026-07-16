@@ -731,9 +731,9 @@ export class EmbedStore {
   /**
    * Resolve the fullscreen navigation target for an embed.
    *
-   * For child embeds, the target should be the parent search/embed container so
-   * fullscreen opens the aggregate view. The child embed ID is returned as
-   * focusChildEmbedId so callers can auto-focus the original child result.
+   * Registered child embeds open directly. Legacy child-only embeds that do not
+   * have their own fullscreen still route through the parent container and return
+   * focusChildEmbedId so the parent can auto-focus the original child result.
    */
   async resolveFullscreenTarget(embedId: string): Promise<{
     targetEmbedId: string;

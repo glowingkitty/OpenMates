@@ -24,6 +24,7 @@ import {
 import { chatSyncService } from "../../../../services/chatSyncService";
 import { unmarkEmbedAsProcessed } from "../../../../services/chatSyncServiceHandlersAI";
 import { embedStore } from "../../../../services/embedStore";
+import { dispatchEmbedFullscreen } from "../../../../services/embedFullscreenController";
 import { mount, unmount } from "svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
 import MailSearchEmbedPreview from "../../../embeds/mail/MailSearchEmbedPreview.svelte";
@@ -4973,21 +4974,17 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   ): Promise<void> {
     // Dispatch custom event to open fullscreen view
     // The fullscreen component will handle loading and displaying embed content
-    const event = new CustomEvent("embedfullscreen", {
-      detail: {
-        embedId: attrs.contentRef?.replace("embed:", ""),
-        embedData,
-        decodedContent,
-        embedType: "app-skill-use",
-        attrs,
-      },
-      bubbles: true,
-    });
-
-    document.dispatchEvent(event);
+    const detail = {
+      embedId: attrs.contentRef?.replace("embed:", ""),
+      embedData,
+      decodedContent,
+      embedType: "app-skill-use",
+      attrs,
+    };
+    dispatchEmbedFullscreen(detail);
     console.debug(
       "[AppSkillUseRenderer] Dispatched fullscreen event:",
-      event.detail,
+      detail,
     );
   }
 

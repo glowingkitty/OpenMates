@@ -90,9 +90,9 @@ test.describe('Source quote verification', () => {
 		await expect(sourceQuote).toBeVisible({ timeout: 30_000 });
 		await sourceQuote.click();
 
-		// A source quote from a web search child result opens the parent search fullscreen
-		// and then the focused website child overlay, so scope assertions to the topmost
-		// fullscreen instead of the hidden parent shell.
+		// A source quote from a registered web search child opens the child fullscreen
+		// directly. Scope assertions to the topmost fullscreen so legacy parent-routed
+		// payloads and direct child payloads share the same highlight assertions.
 		const overlay = page.getByTestId('embed-fullscreen-overlay').last();
 		await expect(overlay).toBeVisible({ timeout: 30_000 });
 

@@ -333,7 +333,11 @@ test.describe('App: Weather / Skill: forecast', () => {
 			await expect(firstDay.locator('[data-testid="app-icon-circle"][data-app-icon="weather"]')).toBeVisible({ timeout: 30_000 });
 			await firstDay.click();
 			await expect(grid).toHaveAttribute('data-selected-index', '0', { timeout: 15_000 });
-			await expect(page.getByTestId('weather-day-fullscreen')).toBeVisible({ timeout: 15_000 });
+			const dayFullscreen = page.getByTestId('weather-day-fullscreen');
+			await expect(dayFullscreen).toBeVisible({ timeout: 15_000 });
+			const childOverlay = dayFullscreen.locator('xpath=ancestor::*[@data-testid="embed-fullscreen-overlay"][1]');
+			await closeFullscreen(page, childOverlay);
+			await expect(grid).toBeVisible({ timeout: 15_000 });
 			await closeFullscreen(page, fullscreen);
 		} else {
 			await expect(weatherDay).toBeVisible({ timeout: 15_000 });

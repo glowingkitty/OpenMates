@@ -9,8 +9,11 @@ import {
   decodeToonContent,
   type EmbedData,
 } from "../../../../services/embedResolver";
-import { embedStore } from "../../../../services/embedStore";
 import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
+import {
+  dispatchEmbedFullscreen,
+  resolveEmbedFullscreenTarget,
+} from "../../../../services/embedFullscreenController";
 import {
   hasFullscreenComponent,
   resolveRegistryKey,
@@ -6257,8 +6260,9 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (rawEmbedId && attrs.contentRef?.startsWith("embed:") && !canOpenDirectly) {
       try {
-        const resolvedTarget = resolveExampleFullscreenTarget(rawEmbedId) ??
-          await embedStore.resolveFullscreenTarget(rawEmbedId);
+        const resolvedTarget = await resolveEmbedFullscreenTarget(rawEmbedId, {
+          exampleResolver: resolveExampleFullscreenTarget,
+        });
         targetEmbedId = resolvedTarget.targetEmbedId;
         focusChildEmbedId = resolvedTarget.focusChildEmbedId;
 
@@ -6275,20 +6279,16 @@ export class GroupRenderer implements EmbedRenderer {
 
     // Dispatch custom event to open fullscreen view. Child embeds with their
     // own fullscreen open directly; others route through a parent container.
-    const event = new CustomEvent("embedfullscreen", {
-      detail: {
-        embedId: targetEmbedId,
-        embedData: targetEmbedData,
-        decodedContent: targetDecodedContent,
-        embedType: targetEmbedType,
-        attrs: targetAttrs,
-        focusChildEmbedId,
-      },
-      bubbles: true,
-    });
-
-    document.dispatchEvent(event);
-    console.debug("[GroupRenderer] Dispatched fullscreen event:", event.detail);
+    const detail = {
+      embedId: targetEmbedId,
+      embedData: targetEmbedData,
+      decodedContent: targetDecodedContent,
+      embedType: targetEmbedType,
+      attrs: targetAttrs,
+      focusChildEmbedId,
+    };
+    dispatchEmbedFullscreen(detail);
+    console.debug("[GroupRenderer] Dispatched fullscreen event:", detail);
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {

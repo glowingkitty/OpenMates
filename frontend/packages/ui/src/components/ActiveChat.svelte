@@ -76,7 +76,11 @@
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { reminderContext } from '../stores/reminderContextStore';
-    import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
+    import {
+        clearFullscreenRoute,
+        dispatchEmbedFullscreen,
+        setCanonicalFullscreenRoute,
+    } from '../services/embedFullscreenController'; // For managing embed URL hash
     import {
         skillStoreExampleFullscreenStore,
         closeSkillStoreExampleFullscreen,
@@ -85,6 +89,7 @@
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
+    import { updateHashParams } from '../utils/settingsHashUtils';
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
@@ -1419,11 +1424,11 @@
 
         // CRITICAL: Set the URL hash guard BEFORE any async work.
         //
-        // activeEmbedStore.setActiveEmbed() does two things:
+        // setCanonicalFullscreenRoute() does two things:
         //   1. Records a timestamp used by isProgrammaticEmbedHashUpdate() as a 100ms guard window
         //   2. Writes window.location.hash → fires a hashchange event
         //
-        // If we call setActiveEmbed() only AFTER the async resolve/decrypt/child-embed work
+        // If we call it only AFTER the async resolve/decrypt/child-embed work
         // (which can take 200–600ms for web search with 10 child embeds), the guard window has
         // already expired by the time the hashchange fires.  handleHashChange() then falls through
         // to processDeepLink → loadChat() (closes the fullscreen) → handleEmbedDeepLink()
@@ -1432,7 +1437,10 @@
         // Moving the call here, synchronously, ensures the guard is live before the hash write,
         // so the resulting hashchange is blocked immediately.
         if (embedId) {
-            activeEmbedStore.setActiveEmbed(embedId, hasChatContext ? (currentChat?.chat_id ?? null) : null);
+            setCanonicalFullscreenRoute(embedId, {
+                chatId: hasChatContext ? (currentChat?.chat_id ?? null) : null,
+                origin: 'direct'
+            });
             console.debug('[ActiveChat] Early URL hash guard set for embed:', embedId, 'chatId:', hasChatContext ? currentChat?.chat_id : null);
         }
         
@@ -1488,7 +1496,7 @@
                     console.error('[ActiveChat] Embed not found in EmbedStore and no fallback data:', embedId);
                     // Clean up the URL hash that was set eagerly before async resolution —
                     // without this, the URL shows #embed-id=xxx but no fullscreen renders.
-                    activeEmbedStore.clearActiveEmbed();
+                    clearFullscreenRoute();
                     return;
                 }
             } catch (error) {
@@ -1496,7 +1504,7 @@
                 // Fall back to event data if available
                 if (!finalEmbedData && !finalDecodedContent) {
                     // Clean up the URL hash — resolution failed and no fallback data exists
-                    activeEmbedStore.clearActiveEmbed();
+                    clearFullscreenRoute();
                     return;
                 }
             }
@@ -1816,9 +1824,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // This ensures the next time an embed is opened, it uses the default layout based on screen size
         forceOverlayMode = false;
 
-        // Clear embed store state — clearActiveEmbed() uses replaceState internally,
+        // Clear embed route state — clearFullscreenRoute() uses replaceState internally,
         // which clears the entire hash (including the chat-id part) without firing hashchange.
-        activeEmbedStore.clearActiveEmbed();
+        clearFullscreenRoute();
         console.debug('[ActiveChat] Cleared embed from URL hash');
 
         // Restore the chat-only URL hash (#chat-id=X).
@@ -1829,7 +1837,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // is already correct (set when the chat was opened), so we only need to restore
         // the URL hash for bookmarkability.
         if (hadChatContext && currentChat && currentChat.chat_id) {
-            history.replaceState(null, '', `#chat-id=${currentChat.chat_id}`);
+            const nextHash = updateHashParams(window.location.hash, { 'chat-id': currentChat.chat_id });
+            history.replaceState(null, '', nextHash || '/');
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
 
@@ -1985,9 +1994,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Signal slide-from-left animation for the incoming embed
         embedNavigateDirection = 'previous';
         
-        // Create a synthetic embedfullscreen event to open the previous embed
-        // This reuses the existing handleEmbedFullscreen logic
-        const event = new CustomEvent('embedfullscreen', {
+        await handleEmbedFullscreen({
             detail: {
                 embedId: previousEmbedId,
                 embedData: null, // Will be loaded from embedStore
@@ -1995,9 +2002,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 embedType: null, // Will be resolved from embed data
                 attrs: {}
             }
-        });
-        
-        await handleEmbedFullscreen(event);
+        } as CustomEvent);
         
         // Reset so subsequent open-from-chat-history uses the default scale animation
         embedNavigateDirection = null;
@@ -2019,9 +2024,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Signal slide-from-right animation for the incoming embed
         embedNavigateDirection = 'next';
         
-        // Create a synthetic embedfullscreen event to open the next embed
-        // This reuses the existing handleEmbedFullscreen logic
-        const event = new CustomEvent('embedfullscreen', {
+        await handleEmbedFullscreen({
             detail: {
                 embedId: nextEmbedId,
                 embedData: null, // Will be loaded from embedStore
@@ -2029,9 +2032,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 embedType: null, // Will be resolved from embed data
                 attrs: {}
             }
-        });
-        
-        await handleEmbedFullscreen(event);
+        } as CustomEvent);
         
         // Reset so subsequent open-from-chat-history uses the default scale animation
         embedNavigateDirection = null;
@@ -3217,20 +3218,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     ? rawType
                     : 'app-skill-use';
 
-            document.dispatchEvent(new CustomEvent('embedfullscreen', {
-                detail: {
-                    embedId: item.embedId,
-                    embedData,
-                    decodedContent,
-                    embedType,
-                    attrs: {
-                        type: rawType,
-                        contentRef: `embed:${item.embedId}`,
-                        status: embedData.status || 'finished',
-                    },
+            dispatchEmbedFullscreen({
+                embedId: item.embedId,
+                embedData,
+                decodedContent,
+                embedType,
+                attrs: {
+                    type: rawType,
+                    contentRef: `embed:${item.embedId}`,
+                    status: embedData.status || 'finished',
                 },
-                bubbles: true,
-            }));
+            });
         } catch (error) {
             console.error('[ActiveChat] Failed to open priority embed:', error);
             notificationStore.error('Failed to open saved item.');
@@ -3239,25 +3237,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     function openOpenMatesEventEmbed(event: OpenMatesEvent): void {
         phasedSyncState.markUserMadeExplicitChoice();
-        document.dispatchEvent(new CustomEvent('embedfullscreen', {
-            bubbles: true,
-            cancelable: true,
-            detail: {
-                embedId: event.embed_id,
-                embedType: 'events-event',
-                attrs: {
-                    type: 'events-event',
-                    contentRef: `embed:${event.embed_id}`,
-                    status: 'finished',
-                },
-                embedData: {
-                    embed_id: event.embed_id,
-                    type: 'events-event',
-                    status: 'finished',
-                },
-                decodedContent: event,
+        dispatchEmbedFullscreen({
+            embedId: event.embed_id,
+            embedType: 'events-event',
+            attrs: {
+                type: 'events-event',
+                contentRef: `embed:${event.embed_id}`,
+                status: 'finished',
             },
-        }));
+            embedData: {
+                embed_id: event.embed_id,
+                type: 'events-event',
+                status: 'finished',
+            },
+            decodedContent: event,
+        });
     }
 
     /**
@@ -7286,7 +7280,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             durationFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        const syntheticEvent = new CustomEvent('embedfullscreen', {
+        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId, 'embedId:', embedId);
+        await handleEmbedFullscreen({
             detail: {
                 embedId,
                 embedData: {
@@ -7314,10 +7309,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     videoId,
                 },
             },
-        });
-
-        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId, 'embedId:', embedId);
-        await handleEmbedFullscreen(syntheticEvent as CustomEvent);
+        } as CustomEvent);
     }
 
     function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {

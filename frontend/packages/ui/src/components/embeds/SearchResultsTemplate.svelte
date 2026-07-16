@@ -27,7 +27,13 @@
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from './UnifiedEmbedFullscreen.svelte';
   import ChildEmbedOverlay from './ChildEmbedOverlay.svelte';
   import { text } from '@repo/ui';
+  import { onDestroy } from 'svelte';
   import { activeEmbedStore } from '../../stores/activeEmbedStore';
+  import {
+    restorePreviousFullscreenRoute,
+    setCanonicalFullscreenRoute,
+    setChildFullscreenRouteFromParent,
+  } from '../../services/embedFullscreenController';
   import type { Snippet } from 'svelte';
 
   /**
@@ -194,6 +200,27 @@
     }
   }
 
+  const unsubscribeActiveEmbed = activeEmbedStore.subscribe((activeEmbedId) => {
+    if (!currentEmbedId || allResults.length === 0) return;
+
+    if (activeEmbedId === currentEmbedId && selectedIndex >= 0) {
+      selectedIndex = -1;
+      selectedResult = null;
+      return;
+    }
+
+    const childIndex = activeEmbedId
+      ? allResults.findIndex((result) => result.embed_id === activeEmbedId)
+      : -1;
+    if (childIndex >= 0 && childIndex !== selectedIndex) {
+      selectedIndex = childIndex;
+      selectedResult = allResults[childIndex] ?? null;
+      initialChildLookupComplete = true;
+    }
+  });
+
+  onDestroy(unsubscribeActiveEmbed);
+
   /**
    * Fallback population for consumers that only supply `legacyResults`
    * (no `embedIds`) — e.g. the app-store skill examples fixture flow.
@@ -233,7 +260,11 @@
     // them to the global hash makes the app-level resolver chase an unresolvable
     // embed and can hide the nested child overlay.
     if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
-      activeEmbedStore.setActiveEmbed(result.embed_id, null);
+      if (currentEmbedId) {
+        setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
+      } else {
+        setCanonicalFullscreenRoute(result.embed_id);
+      }
     }
   }
 
@@ -244,10 +275,7 @@
     } else {
       selectedIndex = -1;
       selectedResult = null;
-      // Restore parent embed ID in URL hash
-      if (currentEmbedId) {
-        activeEmbedStore.setActiveEmbed(currentEmbedId, null);
-      }
+      restorePreviousFullscreenRoute(currentEmbedId ?? null);
     }
   }
 
@@ -265,7 +293,10 @@
       selectedIndex -= 1;
       const result = allResults[selectedIndex];
       selectedResult = result ?? null;
-      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) activeEmbedStore.setActiveEmbed(result.embed_id, null);
+      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+        if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
+        else setCanonicalFullscreenRoute(result.embed_id);
+      }
     }
   }
 
@@ -274,7 +305,10 @@
       selectedIndex += 1;
       const result = allResults[selectedIndex];
       selectedResult = result ?? null;
-      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) activeEmbedStore.setActiveEmbed(result.embed_id, null);
+      if (result?.embed_id && !isSyntheticLegacyEmbedId(result.embed_id)) {
+        if (currentEmbedId) setChildFullscreenRouteFromParent(result.embed_id, currentEmbedId);
+        else setCanonicalFullscreenRoute(result.embed_id);
+      }
     }
   }
 

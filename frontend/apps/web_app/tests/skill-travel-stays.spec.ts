@@ -141,6 +141,7 @@ test.describe('App: Travel / Skill: search_stays', () => {
 			expect(stayTitle).toBeTruthy();
 			const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, stayTitle);
 
+			await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
 			await closeFullscreen(page, fullscreenOverlay);
 			await verifySavedMemoryEntry(page, 'travel', 'saved_stays', savedTitle, logCheckpoint);
 		} else {

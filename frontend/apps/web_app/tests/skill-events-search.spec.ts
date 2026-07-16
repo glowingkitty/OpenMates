@@ -241,6 +241,7 @@ test.describe('App: Events / Skill: search', () => {
 		await expectCalendarDownload(page, logCheckpoint);
 		const savedTitle = await saveCurrentFullscreenEmbed(page, logCheckpoint, undefined, { expectReminder: true });
 
+		await closeFullscreen(page, page.getByTestId('embed-fullscreen-overlay').last());
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');
 		await verifySavedMemoryEntry(page, 'events', 'saved_events', savedTitle, logCheckpoint);

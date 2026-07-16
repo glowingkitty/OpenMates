@@ -14,7 +14,8 @@
 		panelState, // Import the new central panel state store
 		settingsDeepLink,
 		activeChatStore, // Import for deep linking
-		activeEmbedStore, // Import for embed deep linking
+		dispatchEmbedFullscreen,
+		setCanonicalFullscreenRoute, // Import for embed deep linking
 		getOpenMatesEventBySlug,
 		phasedSyncState, // Import phased sync state store
 		messageHighlightStore, // Import message highlight store for deep linking
@@ -65,7 +66,9 @@
 		getPublicChatById,
 		translateDemoChat,
 		getPendingGiftCardRedemptionCode,
-		markPendingGiftCardRedemption
+		markPendingGiftCardRedemption,
+		buildSettingsHash,
+		getSettingsPathFromHash
 	} from '@repo/ui';
 	import {
 		checkAndClearMasterKeyOnLoad,
@@ -976,22 +979,25 @@
 		let targetEmbedId = embedId;
 		let focusChildEmbedId: string | undefined;
 		try {
-			const { resolveExampleFullscreenTarget } = await import('@repo/ui');
-			const exampleTarget = resolveExampleFullscreenTarget(embedId);
-			if (exampleTarget) {
-				targetEmbedId = exampleTarget.targetEmbedId;
-				focusChildEmbedId = exampleTarget.focusChildEmbedId;
-			}
+			const { resolveEmbedFullscreenTarget, resolveExampleFullscreenTarget } = await import('@repo/ui');
+			const resolvedTarget = await resolveEmbedFullscreenTarget(embedId, {
+				exampleResolver: resolveExampleFullscreenTarget
+			});
+			targetEmbedId = resolvedTarget.targetEmbedId;
+			focusChildEmbedId = resolvedTarget.focusChildEmbedId;
 		} catch (error) {
-			console.debug('[+page.svelte] Example fullscreen target resolution skipped:', error);
+			console.debug('[+page.svelte] Fullscreen target resolution skipped:', error);
 		}
 
 		// Mark that a deep link was processed
 		deepLinkProcessed = true;
 
-		// Update the activeEmbedStore so the URL hash is set
+		// Update the canonical fullscreen route so the URL hash is set
 		// NOTE: This is a programmatic change; hashchange handler must ignore embed hash updates.
-		activeEmbedStore.setActiveEmbed(targetEmbedId, hasChatContext ? $activeChatStore : null);
+		setCanonicalFullscreenRoute(targetEmbedId, {
+			chatId: hasChatContext ? $activeChatStore : null,
+			origin: 'hash'
+		});
 
 		// Wait a bit for ActiveChat component to be ready and register event listeners
 		// This ensures the embedfullscreen event listener is registered
@@ -999,48 +1005,36 @@
 
 		const openMatesEvent = getOpenMatesEventBySlug(embedId);
 		if (openMatesEvent) {
-			document.dispatchEvent(
-				new CustomEvent('embedfullscreen', {
-					detail: {
-						embedId: openMatesEvent.embed_id,
-						embedType: 'events-event',
-						hasChatContext,
-						embedData: {
-							embed_id: openMatesEvent.embed_id,
-							type: 'events-event',
-							status: 'finished'
-						},
-						decodedContent: openMatesEvent,
-						attrs: {}
-					},
-					bubbles: true
-				})
-			);
+			dispatchEmbedFullscreen({
+				embedId: openMatesEvent.embed_id,
+				embedType: 'events-event',
+				hasChatContext,
+				embedData: {
+					embed_id: openMatesEvent.embed_id,
+					type: 'events-event',
+					status: 'finished'
+				},
+				decodedContent: openMatesEvent,
+				attrs: {}
+			});
 			return;
 		}
-
-		// Dispatch embedfullscreen event to open the embed in fullscreen
-		// This reuses the same system that opens embeds when clicking on embed previews
-		const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
-			detail: {
-				embedId: targetEmbedId,
-				hasChatContext,
-				focusChildEmbedId,
-				// Let handleEmbedFullscreen load and decode the embed content
-				embedData: null,
-				decodedContent: null,
-				// Use a placeholder type; ActiveChat will infer the real embed type from the stored embed.
-				embedType: 'app-skill-use',
-				attrs: null
-			},
-			bubbles: true
-		});
 
 		console.debug(
 			'[+page.svelte] Dispatching embedfullscreen event for deep-linked embed:',
 			targetEmbedId
 		);
-		document.dispatchEvent(embedFullscreenEvent);
+		dispatchEmbedFullscreen({
+			embedId: targetEmbedId,
+			hasChatContext,
+			focusChildEmbedId,
+			// Let handleEmbedFullscreen load and decode the embed content
+			embedData: null,
+			decodedContent: null,
+			// Use a placeholder type; ActiveChat will infer the real embed type from the stored embed.
+			embedType: 'app-skill-use',
+			attrs: null
+		});
 	}
 
 	/**
@@ -1556,6 +1550,10 @@
 			console.error('[+page.svelte] Error loading default inspirations:', error);
 		});
 
+		if (browser && window.location.pathname.replace(/\/$/, '') === '/privacy/pii') {
+			history.replaceState(null, '', `/${buildSettingsHash('privacy/pii')}`);
+		}
+
 		// CRITICAL: Read and store the ORIGINAL hash value BEFORE anything can modify it
 		// This ensures we can check for hash chat even if welcome chat loading overwrites the hash
 		const originalHash = browser ? window.location.hash : '';
@@ -1942,6 +1940,10 @@
 			const handlers = createDeepLinkHandlers();
 			const hashToProcess = shouldSuppressForcedLogoutHash ? '' : originalHash || '';
 			await processDeepLink(hashToProcess, handlers);
+			const settingsPathFromCombinedHash = originalHashChatId ? getSettingsPathFromHash(hashToProcess) : null;
+			if (settingsPathFromCombinedHash) {
+				processSettingsDeepLink(buildSettingsHash(settingsPathFromCombinedHash));
+			}
 			deepLinkProcessed = true; // Mark that processing was completed
 
 			// Clear the deep link processing flag
@@ -3045,10 +3047,10 @@
 
 		// CRITICAL: Ignore hash changes that are purely the embed opening on an already-active chat.
 		// When the user clicks an embed, handleEmbedFullscreen() calls
-		// activeEmbedStore.setActiveEmbed(embedId, chatId), which writes
+		// setCanonicalFullscreenRoute(embedId, { chatId }), which writes
 		// #chat-id=X&embed-id=Y.  The isProgrammaticEmbedHashUpdate() guard above relies on a
 		// 100ms timestamp window; if the async resolveEmbed / decodeToonContent work in
-		// handleEmbedFullscreen takes longer than that, the guard expires BEFORE setActiveEmbed
+		// handleEmbedFullscreen takes longer than that, the guard expires BEFORE the route write
 		// is called, so the window is already open when the hashchange fires.
 		// In that case we fall through to processDeepLink → onChat → handleChatDeepLink, which
 		// calls loadChat() (closing the embed) and then handleEmbedDeepLink() (reopening it) —
@@ -3071,6 +3073,10 @@
 
 		const handlers = createDeepLinkHandlers();
 		await processDeepLink(newHash, handlers);
+		const settingsPathFromCombinedHash = hashChatId ? getSettingsPathFromHash(newHash) : null;
+		if (settingsPathFromCombinedHash) {
+			processSettingsDeepLink(buildSettingsHash(settingsPathFromCombinedHash));
+		}
 	}
 
 	// Add handler for chatSelected event

@@ -316,7 +316,7 @@ export function getExampleChatEmbed(embedId: string): ExampleChatEmbed | null {
   return embedById.get(normalizeEmbedId(embedId))?.embed ?? null;
 }
 
-/** Resolve a child result embed to its parent search embed for fullscreen deep links. */
+/** Resolve example fullscreen target; registered child fullscreens open directly. */
 export function resolveExampleFullscreenTarget(embedId: string): {
   targetEmbedId: string;
   focusChildEmbedId?: string;
