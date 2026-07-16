@@ -185,6 +185,14 @@ def test_web_app_vercel_config_runs_ignore_command_from_repo_root():
     assert vercel_config["installCommand"] == "cd ../../.. && corepack enable && pnpm install --no-frozen-lockfile"
 
 
+def test_web_app_vercel_rewrites_allow_legal_routes():
+    vercel_config = json.loads((PROJECT_ROOT / "frontend" / "apps" / "web_app" / "vercel.json").read_text())
+    fallback_rewrite = vercel_config["rewrites"][-1]["source"]
+
+    assert "legal/" in fallback_rewrite
+    assert "privacy" in fallback_rewrite
+
+
 def test_default_vercel_node_major_matches_repo_runtime():
     guard = load_vercel_ignore_module()
     package_json = json.loads((PROJECT_ROOT / "package.json").read_text())
