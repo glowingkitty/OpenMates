@@ -508,13 +508,13 @@ tests:
       expected: pass_after_web_confirmation
       evidence:
         status: passed
-        command: "python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py doctor && python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\" && python3 scripts/apple_remote.py verify-ios-startup --simulator \"iPhone 17\" --duration 60"
-        run_id: local-2026-07-16-apple-remote
-        subject_commit: 715306a
-        timestamp: "2026-07-16T17:32:30Z"
+        command: "./scripts/lint_changed.sh --path apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift --path apple/OpenMatesUITests/EmbedRenderingParityUITests.swift && python3 scripts/apple_remote.py sync-repo --branch dev && python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing \"OpenMatesUITests/EmbedRenderingParityUITests/testFullscreenParentChildRouteStackReturnsToParentBeforeClosing\" && python3 scripts/apple_remote.py app-store-builds --bundle-id org.openmates.app --limit 10 --require-changelogs"
+        run_id: local-2026-07-16-apple-route-stack-testflight
+        subject_commit: 9f9b42f
+        timestamp: "2026-07-16T18:25:00Z"
         actor: OpenCode remote Mac
-        reason: "Verified the pushed Apple route-owner change compiles and starts on the iOS simulator; no dedicated native UI tap test exists for this fullscreen stack yet."
-        summary: "Remote Mac status/doctor passed; OpenMates_iOS simulator build passed; iOS startup verifier passed with 5s and 30s screenshots plus log capture. No dedicated native UI test exists yet for parent-child fullscreen taps."
+        reason: "Verified the pushed Apple route-owner behavior with a focused native UI test and confirmed the resulting build train is available in TestFlight."
+        summary: "Scoped lint passed for the Apple harness/test files. Remote Mac synced to dev commit 9f9b42f. The focused iOS UI test executed 1 test with 0 failures, covering parent fullscreen to child route, child close back to parent, and parent close back to gallery. App Store Connect shows iOS and macOS build 59 as VALID with 5-line en-US TestFlight changelogs."
 
 verifications:
   - id: V-SPEC-001
