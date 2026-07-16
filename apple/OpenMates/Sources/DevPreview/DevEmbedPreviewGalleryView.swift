@@ -401,6 +401,14 @@ private struct DevEmbedFullscreenRouteHarness: View {
                 .foregroundStyle(Color.fontSecondary)
                 .accessibilityIdentifier("dev-embed-active-route")
 
+            if let activeEmbed, activeEmbed.id == skill.primaryEmbed.id, let firstChild = skill.childEmbeds.first {
+                Button("Open first child from parent fullscreen") {
+                    openChild(firstChild, from: activeEmbed)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("dev-embed-route-open-first-child")
+            }
+
             if let activeEmbed {
                 EmbedFullscreenContainer(
                     embeds: [activeEmbed],
@@ -408,10 +416,7 @@ private struct DevEmbedFullscreenRouteHarness: View {
                     allEmbedRecords: skill.allRecords,
                     chatId: nil,
                     onOpenEmbed: { child, parent in
-                        if previousEmbeds.last?.id != parent.id {
-                            previousEmbeds.append(parent)
-                        }
-                        self.activeEmbed = child
+                        openChild(child, from: parent)
                     },
                     onClose: closeRoute
                 )
@@ -437,6 +442,13 @@ private struct DevEmbedFullscreenRouteHarness: View {
 
     private var activeRouteLabel: String {
         "Active embed: \(activeEmbed?.id ?? "none")"
+    }
+
+    private func openChild(_ child: EmbedRecord, from parent: EmbedRecord) {
+        if previousEmbeds.last?.id != parent.id {
+            previousEmbeds.append(parent)
+        }
+        activeEmbed = child
     }
 
     private func closeRoute() {

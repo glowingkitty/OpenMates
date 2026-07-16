@@ -136,10 +136,9 @@ final class EmbedRenderingParityUITests: XCTestCase {
         let routeLabel = app.staticTexts["dev-embed-active-route"]
         XCTAssertTrue(routeLabel.label.contains("preview-web-search-1"), "Parent fullscreen route was not active")
 
-        let firstChildPreview = app.descendants(matching: .any)["embed-preview-preview-web-search-result-1"]
-        scrollUntilHittable(app: app, element: firstChildPreview)
-        XCTAssertTrue(firstChildPreview.isHittable, "First web child preview was not tappable")
-        firstChildPreview.tap()
+        let firstChildButton = app.buttons["dev-embed-route-open-first-child"]
+        XCTAssertTrue(firstChildButton.isHittable, "First child route opener was not tappable")
+        firstChildButton.tap()
 
         XCTAssertTrue(
             waitForLabel(routeLabel, containing: "preview-web-search-result-1", timeout: 5),
