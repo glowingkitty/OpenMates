@@ -65,6 +65,9 @@ async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) =>
 
 	for (let i = 0; i < 5; i++) {
 		const activeView = await settingsMenu.getAttribute('data-active-view');
+		if (activeView === 'developers/api-keys') {
+			return settingsMenu;
+		}
 		if (!activeView || activeView === 'main') {
 			return settingsMenu;
 		}
@@ -95,6 +98,12 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 	}
 
 	const settingsMenu = await ensureSettingsMenuOpen(page, logCheckpoint);
+	const activeView = await settingsMenu.getAttribute('data-active-view');
+	if (activeView === 'developers/api-keys') {
+		await expect(page.getByTestId('api-key-create-button')).toBeVisible({ timeout: 15000 });
+		logCheckpoint('API Keys page already loaded.');
+		return;
+	}
 
 	const developersItem = settingsMenu.getByRole('menuitem', { name: /developers/i }).first();
 	await expect(developersItem).toBeVisible({ timeout: 10000 });
