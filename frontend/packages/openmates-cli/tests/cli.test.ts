@@ -735,7 +735,7 @@ async function withSdkChatMockApi<T>(
           chat_id: null,
           response: {
             content: "api-key stateless chat ok",
-            raw: { model: "test-model", category: "general_knowledge" },
+            raw: { success: true, data: { model: "test-model", category: "general_knowledge" } },
           },
         });
         return;

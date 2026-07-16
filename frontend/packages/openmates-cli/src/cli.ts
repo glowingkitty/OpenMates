@@ -1881,22 +1881,26 @@ function extractAiAskContent(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function extractApiKeyChatModelName(value: unknown, depth = 0): string | null {
+  if (!value || typeof value !== "object" || depth > 3) return null;
+  const record = value as Record<string, unknown>;
+  for (const key of ["model_name", "modelName", "model"]) {
+    const field = record[key];
+    if (typeof field === "string" && field) return field;
+  }
+  return extractApiKeyChatModelName(record.data, depth + 1)
+    ?? extractApiKeyChatModelName(record.raw, depth + 1)
+    ?? null;
+}
+
 function normalizeApiKeyChatResponse(response: ChatResponse): Record<string, unknown> {
   const chatId = typeof response.chat_id === "string" ? response.chat_id : null;
   const category = typeof response.category === "string" ? response.category : null;
-  const raw = response.raw;
-  const rawModelName = raw && typeof raw === "object"
-    ? typeof (raw as Record<string, unknown>).model === "string"
-      ? (raw as Record<string, unknown>).model
-      : typeof (raw as Record<string, unknown>).model_name === "string"
-        ? (raw as Record<string, unknown>).model_name
-        : null
-    : null;
   const modelName = typeof response.model_name === "string"
     ? response.model_name
     : typeof response.modelName === "string"
       ? response.modelName
-      : rawModelName;
+      : extractApiKeyChatModelName(response.raw);
   return {
     status: "completed",
     chatId,
